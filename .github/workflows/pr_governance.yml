@@ -1,0 +1,51 @@
+name: validate-pr
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-pr:
+    name: validate-pr
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate PR title and body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const errors = [];
+
+            const title = pr.title || "";
+            const body = pr.body || "";
+            const conventionalTitle =
+              /^(feat|fix|docs|chore|refactor|test|build|ci|perf|revert)(\([^)]+\))?:\s.+/i;
+            if (!conventionalTitle.test(title)) {
+              errors.push("PR title must follow Conventional Commits (e.g. `fix: short summary`).");
+            }
+
+            if (/\b(wip|dnm|do not merge)\b/i.test(title)) {
+              errors.push("PR title cannot contain WIP/DNM markers.");
+            }
+
+            const normalizedBody = body
+              .replace(/<!--[\s\S]*?-->/g, "")
+              .trim();
+            if (normalizedBody.length < 20) {
+              errors.push("PR description is too short. Add a brief summary and testing notes.");
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(errors.map((e) => `- ${e}`).join("\n"));
+            } else {
+              core.info("PR policy checks passed.");
+            }
