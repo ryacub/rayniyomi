@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R38: Fork compliance - ACRA crash reporting explicitly disabled.
+
+  This file serves as documentation that ACRA crash reporting is intentionally
+  disabled in this fork to prevent data pollution of upstream services.
+
+  This fork does NOT use ACRA crash reporting. The ACRA integration was never
+  enabled and remains commented out in app/build.gradle.kts.
+
+  See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
+-->
+<resources>
+    <!-- ACRA crash reporting is disabled in this fork -->
+    <bool name="acra_enabled" translatable="false">false</bool>
+    <bool name="crash_reporting_enabled" translatable="false">false</bool>
+</resources>
