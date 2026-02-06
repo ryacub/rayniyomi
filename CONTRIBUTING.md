@@ -12,6 +12,24 @@ Pull requests are welcome!
 If you're interested in taking on [an open issue](https://github.com/aniyomiorg/aniyomi/issues), please comment on it so others are aware.
 You do not need to ask for permission nor an assignment.
 
+## Pull Request policy
+
+- Use ticket-based PR titles: `[R123] short imperative summary`
+- Fill out all required sections in the PR template.
+- Include verification evidence and risk/rollback notes.
+- For `P0` or `T3` changes, include `breaking-change` and `rollback-tested` labels.
+- For user-facing changes, include a concrete Release Notes section.
+
+See governance docs:
+- [`docs/governance/agent-workflow.md`](docs/governance/agent-workflow.md)
+- [`docs/governance/branch-protection.md`](docs/governance/branch-protection.md)
+- [`docs/governance/dependency-policy.md`](docs/governance/dependency-policy.md)
+- [`docs/governance/labels-policy.md`](docs/governance/labels-policy.md)
+- [`docs/governance/release-notes-policy.md`](docs/governance/release-notes-policy.md)
+- [`docs/governance/rollback-drills.md`](docs/governance/rollback-drills.md)
+- [`docs/governance/slo-policy.md`](docs/governance/slo-policy.md)
+- ADRs: [`docs/adr/`](docs/adr/)
+
 ## Prerequisites
 
 Before you start, please note that the ability to use following technologies is **required** and that existing contributors will not actively teach them to you.

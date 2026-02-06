@@ -1,0 +1,120 @@
+name: PR governance
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  policy:
+    name: Validate PR policy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate PR title, body, branch, and labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const errors = [];
+
+            const title = pr.title || "";
+            const body = pr.body || "";
+            const branch = pr.head.ref || "";
+            const labels = (pr.labels || []).map((l) => (l.name || "").toLowerCase());
+
+            const requiredTitle = /^\[R\d+\]\s+.+/;
+            if (!requiredTitle.test(title)) {
+              errors.push("PR title must match `[R123] short imperative summary`.");
+            }
+
+            const requiredBranch = /^codex\/r\d+-[a-z0-9._-]+$/i;
+            if (!requiredBranch.test(branch)) {
+              errors.push("Branch must match `codex/r123-short-slug`.");
+            }
+
+            const requiredSections = [
+              "## Ticket",
+              "## Objective",
+              "## Scope",
+              "## Non-goals",
+              "## Files Changed",
+              "## Verification",
+              "## Risk",
+              "## SLO Impact",
+              "## Rollback",
+              "## Release Notes",
+            ];
+
+            for (const section of requiredSections) {
+              if (!body.includes(section)) {
+                errors.push(`Missing required section: ${section}`);
+              }
+            }
+
+            if (/\bTODO\b/i.test(body)) {
+              errors.push("PR description contains TODO placeholders.");
+            }
+
+            const extractSection = (name) => {
+              const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const re = new RegExp(`##\\s+${escaped}\\s*[\\r\\n]+([\\s\\S]*?)(?=\\n##\\s+|$)`, "i");
+              const m = body.match(re);
+              return m ? m[1].trim() : "";
+            };
+
+            const ticketSection = extractSection("Ticket");
+            const riskSection = extractSection("Risk");
+            const rollbackSection = extractSection("Rollback");
+            const releaseNotesSection = extractSection("Release Notes");
+            const verificationSection = extractSection("Verification");
+
+            const riskTierMatch = (ticketSection + "\n" + riskSection).match(/Risk\s*Tier\s*:\s*(T[123])/i);
+            const priorityMatch = (ticketSection + "\n" + riskSection).match(/Priority\s*:\s*(P[0-2])/i);
+            const riskTier = riskTierMatch ? riskTierMatch[1].toUpperCase() : "";
+            const priority = priorityMatch ? priorityMatch[1].toUpperCase() : "";
+
+            if (!riskTier) {
+              errors.push("Missing `Risk Tier: T1|T2|T3` in Ticket or Risk section.");
+            }
+            if (!priority) {
+              errors.push("Missing `Priority: P0|P1|P2` in Ticket or Risk section.");
+            }
+
+            if (!verificationSection || /^\s*(n\/a|none)?\s*$/i.test(verificationSection)) {
+              errors.push("Verification section must include commands and outcomes.");
+            }
+
+            const isHighRisk = riskTier === "T3" || priority === "P0" || labels.includes("breaking-change");
+            if (isHighRisk) {
+              if (!labels.includes("breaking-change")) {
+                errors.push("High-risk PRs (`P0`/`T3`) must include the `breaking-change` label.");
+              }
+              if (!labels.includes("rollback-tested")) {
+                errors.push("High-risk PRs (`P0`/`T3`) must include the `rollback-tested` label.");
+              }
+              if (!rollbackSection || /^(n\/a|none|not needed)$/i.test(rollbackSection)) {
+                errors.push("High-risk PRs require a concrete rollback plan in Rollback section.");
+              }
+            }
+
+            if (labels.includes("user-facing")) {
+              if (!releaseNotesSection || /^(n\/a|none|no user-facing impact)$/i.test(releaseNotesSection)) {
+                errors.push("`user-facing` PRs require a concrete Release Notes section.");
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(errors.map((e) => `- ${e}`).join("\n"));
+            } else {
+              core.info("PR governance checks passed.");
+            }
