@@ -21,11 +21,6 @@ Rayniyomi is a fork of [Aniyomi](https://github.com/aniyomiorg/aniyomi) (which i
 
 This fork was created to implement advanced agentic coding governance, tech debt remediation, and strict fork compliance standards. We prioritize stability, automated guardrails, and structured delivery.
 
-## Key Differences
-
-- **Hardened Governance**: Mandatory ticket-driven workflow, risk-tier verification, and automated PR guardrails.
-- **Fork Compliance**: Explicitly isolated identity, applicationId, and telemetry endpoints.
-- **Remediation Focus**: Active tech debt reduction and dependency modernization tracked via GitHub Issues.
 
 ## Features
 
