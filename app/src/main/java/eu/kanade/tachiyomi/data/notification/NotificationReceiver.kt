@@ -21,7 +21,7 @@ import eu.kanade.tachiyomi.util.system.getParcelableExtraCompat
 import eu.kanade.tachiyomi.util.system.notificationManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
-import kotlinx.coroutines.runBlocking
+import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.download.service.DownloadPreferences
@@ -221,15 +221,19 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param chapterId id of chapter
      */
     private fun openChapter(context: Context, mangaId: Long, chapterId: Long) {
-        val manga = runBlocking { getManga.await(mangaId) }
-        val chapter = runBlocking { getChapter.await(chapterId) }
-        if (manga != null && chapter != null) {
-            val intent = ReaderActivity.newIntent(context, manga.id, chapter.id).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        launchIO {
+            val manga = getManga.await(mangaId)
+            val chapter = getChapter.await(chapterId)
+            withUIContext {
+                if (manga != null && chapter != null) {
+                    val intent = ReaderActivity.newIntent(context, manga.id, chapter.id).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    context.startActivity(intent)
+                } else {
+                    context.toast(context.stringResource(AYMR.strings.download_error))
+                }
             }
-            context.startActivity(intent)
-        } else {
-            context.toast(context.stringResource(AYMR.strings.download_error))
         }
     }
 
@@ -241,15 +245,19 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param episodeId id of episode
      */
     private fun openEpisode(context: Context, animeId: Long, episodeId: Long) {
-        val anime = runBlocking { getAnime.await(animeId) }
-        val episode = runBlocking { getEpisode.await(episodeId) }
-        if (anime != null && episode != null) {
-            val intent = PlayerActivity.newIntent(context, anime.id, episode.id).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        launchIO {
+            val anime = getAnime.await(animeId)
+            val episode = getEpisode.await(episodeId)
+            withUIContext {
+                if (anime != null && episode != null) {
+                    val intent = PlayerActivity.newIntent(context, anime.id, episode.id).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    context.startActivity(intent)
+                } else {
+                    context.toast(context.stringResource(AYMR.strings.download_error))
+                }
             }
-            context.startActivity(intent)
-        } else {
-            context.toast(context.stringResource(AYMR.strings.download_error))
         }
     }
 
