@@ -4,7 +4,7 @@ These guidelines apply to all Gemini CLI work in this repository.
 
 ## Required Process
 
-1. **Prime first:** Always load context by reading `.local/remediation-sprint-board.md` and `.local/LLM_DELIVERY_PLAYBOOK.md` before ANY work.
+1. **Prime first:** Always load context by reading `.github/REMEDIATION_BOARD.md` and `.local/LLM_DELIVERY_PLAYBOOK.md` before ANY work.
 2. **Choose exactly one ticket** before editing code.
 3. **Create/use dedicated branch:** `<agent-prefix>/<ticket-id>-<slug>` (default: `gemini/<ticket-id>-<slug>`).
 4. **Follow workflow:** `.local/LLM_DELIVERY_PLAYBOOK.md`.
@@ -31,7 +31,7 @@ These guidelines apply to all Gemini CLI work in this repository.
 - Preserve existing error handling and safety checks.
 
 ### Documentation Requirements
-- PR title must include ticket ID and concise scope: `[R##] imperative summary`.
+- PR title must follow Conventional Commits and include ticket ID: `type: summary (R123)` (e.g. `feat: add feature (R123)`).
 - PR description must include:
   - Scope (done) and Non-goals (not done).
   - Verification commands and outcomes.
@@ -98,7 +98,7 @@ Co-Authored-By: Gemini CLI <gemini-cli@google.com>
 
 ### Pull Request Format
 ```
-[R##] Imperative summary of change
+type: summary (R##)
 
 ## Scope
 - What was done
@@ -134,16 +134,15 @@ To rollback: git revert <commit-hash>
 - This file (`GEMINI.md`) - Gemini CLI-specific guidelines.
 - `AGENTS.md` - General agent rules.
 - `CLAUDE.md` - Reference for fellow agent Claude.
-- `.local/LLM_DELIVERY_PLAYBOOK.md` - Detailed workflow process.
-- `.local/remediation-sprint-board.md` - Current tickets and priorities.
+- `.local/LLM_DELIVERY_PLAYBOOK.md` - Detailed workflow- Sprint board: `.github/REMEDIATION_BOARD.md` - Current tickets and priorities.
 
 ## Special Notes for Gemini CLI
 
 ### Context Management (Priming)
 - Gemini CLI does not have a native `/aniyomi-prime` command. 
 - **Manual Priming:** At the start of every session, you MUST:
-  1. Read `.local/remediation-sprint-board.md` to identify the current ticket and project status.
-  2. Read `.local/LLM_DELIVERY_PLAYBOOK.md` to ensure workflow compliance.
+  1. Read `.github/REMEDIATION_BOARD.md` to identify the current ticket and project status.
+  2. Read `.local/LLM_DELIVERY_PLAYBOOK.md` before each session.
   3. Save a memory summary of the priming to persist across turns if necessary.
 
 ### Tool Usage
