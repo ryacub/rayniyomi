@@ -20,6 +20,24 @@ For `P0` or `T3` work:
 - Labels required: `breaking-change`, `rollback-tested`
 - Rollback section must describe exact reversal steps.
 
+## Work-in-Progress Limits (R44)
+To maintain velocity and prevent context-switching overhead:
+- **One active ticket per agent at a time.** Finish current work before starting new tickets.
+- **Maximum two open branches per human owner.** Clean up merged branches promptly.
+- **Do not start a new `P0` or `T3` ticket until current one is in `review` or `done`.** High-priority/high-risk work requires focused attention.
+
+## Branch Ownership & High-Conflict Files
+The following files have single-owner constraints to prevent merge conflicts:
+- `PlayerViewModel.kt` - @player-owner
+- `ReaderViewModel.kt` - @reader-owner  
+- `AnimeScreenModel.kt` - @anime-owner
+- `MangaScreenModel.kt` - @manga-owner
+
+**Rules:**
+- Coordinate with file owner before modifying high-conflict files
+- If owner is unavailable, create follow-up ticket rather than bypassing
+- Conflicts on these files require explicit human review before merge
+
 ## Definition of Done
 - Acceptance criteria met.
 - Verification evidence captured.
