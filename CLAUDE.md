@@ -211,6 +211,7 @@ Before closing a ticket, confirm:
 
 **Primary documents:**
 - This file (`CLAUDE.md`) - Claude Code-specific guidelines
+- `GEMINI.md` - Gemini CLI-specific guidelines
 - `AGENTS.md` - General agent rules (applies to all agents)
 - `docs/governance/naming-conventions.md` - Fork naming guidelines (Rayniyomi vs Aniyomi)
 - `.local/LLM_DELIVERY_PLAYBOOK.md` - Detailed workflow process

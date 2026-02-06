@@ -6,13 +6,14 @@ This repository follows ticket-driven delivery with explicit verification and re
 
 **Format:** `<agent-prefix>/<ticket-id>-<short-slug>`
 
-- `<agent-prefix>`: Identifier for the agent/developer (e.g., `codex`, `claude`, `dev`)
+- `<agent-prefix>`: Identifier for the agent/developer (e.g., `codex`, `claude`, `gemini`, `dev`)
 - `<ticket-id>`: Ticket identifier from sprint board (e.g., `R33`, `R34`)
 - `<short-slug>`: Brief description (2-4 words, kebab-case)
 
 **Examples:**
 - `codex/r33-rename-program`
 - `claude/r35-applicationid-update`
+- `gemini/r40-new-feature`
 - `dev/r50-download-queue-fix`
 
 **Current default:** `codex/<ticket-id>-<short-slug>` (for LLM/agent work)
