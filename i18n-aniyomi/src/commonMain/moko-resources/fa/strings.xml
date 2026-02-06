@@ -114,8 +114,8 @@
     <string name="default_anime_category">دسته‌بندی پیشفرض انیمه</string>
     <string name="pref_manga_library_update_categories_details">مانگاهایی که در دسته‌بندی های حذف‌شده هستند، حتی اگر هم‌زمان در دسته‌بندی های مشمول باشند به‌روزرسانی نمی‌شوند.</string>
     <string name="pref_anime_library_update_categories_details">انیمه‌های دسته‌‌بندی‌های حذف شده به‌روزرسانی نمی‌شوند، حتی اگر در دسته‌‌بندی گنجانده شده باشند.</string>
-    <string name="unofficial_extension_message_aniyomi">این افزونه از لیست افزونه‌های رسمی رینیومی نیست.</string>
-    <string name="unofficial_anime_extension_message">این افزونه از لیست افزونه‌های رسمی رینیومی نیست.</string>
+    <string name="unofficial_extension_message_aniyomi">این افزونه از لیست افزونه‌های رسمی آنی‌یومی نیست.</string>
+    <string name="unofficial_anime_extension_message">این افزونه از لیست افزونه‌های رسمی آنی‌یومی نیست.</string>
     <string name="episode_download_progress">%1$d %</string>
     <string name="pref_remove_exclude_categories_manga">دسته‌بندی‌های محذوف</string>
     <string name="pref_remove_exclude_categories_anime">دسته بندی‌های جدا شده انیمه</string>
