@@ -11,12 +11,12 @@ This board tracks governance and technical debt remediation tasks for the `rayni
 | R39 | P1 | Add fork checklist to docs/PR template | Review | PR #84 |
 | R43 | P1 | Add risk-tier model (T1/T2/T3) | Review | PR #85 |
 | R44 | P1 | Enforce WIP limits and branch ownership | Done | Merged (#86) |
+| R45 | P1 | Enforce rebase-before-merge guardrails | In Progress | `r45/rebase-guardrails` |
 
 ## Backlog (Lane C)
 
 | ID | Priority | Task | Status |
 |---|---|---|---|
-| R45 | P1 | Enforce rebase-before-merge guardrails | Todo |
 | R46 | P1 | Require rollback notes for P0/T3 tickets | Todo |
 | R47 | P2 | Failure-learning loop (post-mortems) | Todo |
 | R48 | P2 | Weekly workflow retro metrics | Todo |
