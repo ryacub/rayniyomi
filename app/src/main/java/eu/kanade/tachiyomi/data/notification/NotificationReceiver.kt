@@ -2,9 +2,9 @@ package eu.kanade.tachiyomi.data.notification
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.BroadcastReceiver.PendingResult
 import android.content.Context
 import android.content.Intent
-import android.content.BroadcastReceiver.PendingResult
 import android.net.Uri
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.core.common.Constants
