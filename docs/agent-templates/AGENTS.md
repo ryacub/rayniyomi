@@ -4,7 +4,7 @@ These rules apply to all agent work in this folder.
 
 ## Required Process
 1. Choose exactly one ticket before editing code.
-2. Create/use a dedicated branch: `codex/<ticket-id>-<slug>`.
+2. Create/use a dedicated branch: `r<ticket-id>/<slug>` or `codex/<ticket-id>-<slug>`.
 3. Follow the workflow in `.local/LLM_DELIVERY_PLAYBOOK.md`.
 4. Implement only in-ticket scope (no unrelated refactors).
 5. Run verification appropriate to the ticket risk tier.

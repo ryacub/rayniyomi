@@ -4,7 +4,7 @@ This repository follows ticket-driven delivery with explicit verification and re
 
 ## Required Flow
 1. Pick one ticket and verify dependencies.
-2. Create a branch: `codex/<ticket-id>-<short-slug>`.
+2. Create a branch: `r<ticket-id>/<short-slug>` or `codex/<ticket-id>-<short-slug>`.
 3. Implement only in-scope changes.
 4. Run verification by risk tier (`T1`/`T2`/`T3`).
 5. Run self-review.
