@@ -64,6 +64,20 @@ jobs:
               );
             }
 
+            const highRiskPattern = /\b(Priority:\s*P0|Risk\s*Tier:\s*T3)\b/i;
+            if (highRiskPattern.test(normalizedBody)) {
+              const rollbackSection = normalizedBody.split("## Rollback")[1] || "";
+              const rollbackContent = rollbackSection.split("##")[0].trim();
+              if (
+                rollbackContent.length < 20 ||
+                rollbackContent.includes("How to safely disable or revert")
+              ) {
+                errors.push(
+                  "High-risk PRs (P0 or T3) must include detailed rollback notes in the ## Rollback section.",
+                );
+              }
+            }
+
             if (errors.length > 0) {
               core.setFailed(errors.map((e) => `- ${e}`).join("\n"));
             } else {
