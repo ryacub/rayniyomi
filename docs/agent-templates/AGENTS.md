@@ -29,6 +29,20 @@ These rules apply to all agent work in this folder.
 - `P0` fork-compliance tickets are blocking for any external fork distribution.
 - `P0`/`T3` tickets must include rollback notes.
 
+## Work-in-Progress Limits (R44)
+- One active ticket per agent at a time.
+- Max two open branches per human owner.
+- Do not start new `P0` or `T3` tickets until current is in `review` or `done`.
+
+## High-Conflict Files (Single Owner)
+The following files require coordination with owners to prevent merge conflicts:
+- `app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt`
+- `app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderViewModel.kt`
+- `app/src/main/java/eu/kanade/tachiyomi/ui/anime/AnimeScreenModel.kt`
+- `app/src/main/java/eu/kanade/tachiyomi/ui/manga/MangaScreenModel.kt`
+
+**Rule:** Coordinate with file owner before modifying. If owner unavailable, create follow-up ticket.
+
 ## Source of Truth
 - Playbook: `.local/LLM_DELIVERY_PLAYBOOK.md`
 - Sprint board: `.local/remediation-sprint-board.md`

@@ -7,6 +7,13 @@
 /app/src/main/java/eu/kanade/tachiyomi/data/download/ @rayyacub
 /app/src/main/java/eu/kanade/tachiyomi/data/notification/ @rayyacub
 
+# R44: High-conflict files (single owner constraint)
+# These files require explicit owner review to prevent merge conflicts
+/app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt @rayyacub
+/app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderViewModel.kt @rayyacub
+/app/src/main/java/eu/kanade/tachiyomi/ui/anime/AnimeScreenModel.kt @rayyacub
+/app/src/main/java/eu/kanade/tachiyomi/ui/manga/MangaScreenModel.kt @rayyacub
+
 # Build and release
 /app/build.gradle.kts @rayyacub
 /gradle/ @rayyacub
