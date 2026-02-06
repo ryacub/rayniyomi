@@ -54,4 +54,11 @@ To ensure code quality and prevent regressions in a fast-moving fork:
 - PR metadata complete and accurate.
 - Risks + rollback documented.
 
+## Failure Learning Loop (R47)
+All critical failures (broken main, failed releases, process bypasses) require a **Failure Analysis**:
+1. Open a **Failure Analysis** ticket using the provided template.
+2. Identify the root cause and missing guardrail.
+3. Create follow-up remediation tickets (Lane C) before closing the analysis.
+4. See [Failure Analysis Policy](failure-analysis-policy.md) for details.
+
 Smoke ticket execution validated on 2026-02-06.
