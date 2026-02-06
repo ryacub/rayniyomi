@@ -39,3 +39,10 @@
 
 ## Checklist
 - [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
+
+## Definition of Done (DoD)
+- [ ] Acceptance criteria met and non-goals respected
+- [ ] Verification matrix completed (Risk Tier: T__)
+- [ ] Self-review completed
+- [ ] Sprint board updated (branch, commit, checks, PR link)
+- [ ] Release notes drafted (if applicable)
