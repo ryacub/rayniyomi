@@ -27,10 +27,12 @@ android {
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
 
-        // R37: Firebase Analytics and ACRA crash reporting are explicitly disabled
+        // R37/R38: Firebase Analytics and ACRA crash reporting are explicitly disabled
         // to prevent fork data from polluting upstream services.
         // This fork does not use Firebase or ACRA telemetry.
         // See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
+        // See: app/src/main/res/values/firebase_analytics_disabled.xml
+        // See: app/src/main/res/values/acra_disabled.xml
         //
         // If you want to enable ACRA for your own fork, uncomment and configure:
         // val acraProperties = Properties()
