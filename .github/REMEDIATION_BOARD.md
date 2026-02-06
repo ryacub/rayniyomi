@@ -12,13 +12,13 @@ This board tracks governance and technical debt remediation tasks for the `rayni
 | R43 | P1 | Add risk-tier model (T1/T2/T3) | Review | PR #85 |
 | R44 | P1 | Enforce WIP limits and branch ownership | Done | Merged (#86) |
 | R45 | P1 | Enforce rebase-before-merge guardrails | Review | PR #88 |
-| R46 | P1 | Require rollback notes for P0/T3 tickets | In Progress | `r46/rollback-enforcement` |
+| R46 | P1 | Require rollback notes for P0/T3 tickets | Review | PR #89 |
+| R47 | P2 | Failure-learning loop (post-mortems) | In Progress | `r47/failure-learning` |
 
 ## Backlog (Lane C)
 
 | ID | Priority | Task | Status |
 |---|---|---|---|
-| R47 | P2 | Failure-learning loop (post-mortems) | Todo |
 | R48 | P2 | Weekly workflow retro metrics | Todo |
 | R62 | P3 | Audit and remove stale upstream app-name remnants | Todo |
 | R63 | P1 | Rewrite README for fork identity | Todo |
