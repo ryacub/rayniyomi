@@ -11,7 +11,7 @@ Discover and watch anime, cartoons, series, and more – with a focus on stable 
 
 [![CI](https://img.shields.io/github/actions/workflow/status/ryacub/rayniyomi/build_push.yml?labelColor=27303D)](https://github.com/ryacub/rayniyomi/actions/workflows/build_push.yml)
 [![License: Apache-2.0](https://img.shields.io/github/license/ryacub/rayniyomi?labelColor=27303D&color=818cf8)](/LICENSE)
-[![Remediation Status](https://img.shields.io/badge/remediation-phase_6-blueviolet?labelColor=27303D)]( .github/REMEDIATION_BOARD.md)
+[![Performance](https://img.shields.io/badge/performance-optimized-green?labelColor=27303D)](https://github.com/ryacub/rayniyomi)
 
 ---
 
@@ -25,21 +25,23 @@ This fork was created to implement advanced agentic coding governance, tech debt
 
 - **Hardened Governance**: Mandatory ticket-driven workflow, risk-tier verification, and automated PR guardrails.
 - **Fork Compliance**: Explicitly isolated identity, applicationId, and telemetry endpoints.
-- **Remediation Focus**: Active tech debt reduction and dependency modernization (see [Remediation Board]( .github/REMEDIATION_BOARD.md)).
+- **Remediation Focus**: Active tech debt reduction and dependency modernization tracked via GitHub Issues.
 
 ## Features
 
-<div align="left">
-
-* **Standard Aniyomi Features**: Local reading/watching, mpv-based player, tracker support (MAL, AniList, etc.), light/dark themes, and backups.
-* **Enhanced Quality Gates**: Automated validation for PR titles, descriptions, and rollback plans.
-* **Failure Analysis**: Formal learning loop for every significant incident.
-
-</div>
+* Local reading and watching of content.
+* A configurable reader with multiple viewers, reading directions and other settings.
+* A configurable player built on mpv-android with multiple options and settings.
+* Tracker support: [MyAnimeList](https://myanimelist.net/), [AniList](https://anilist.co/), [Kitsu](https://kitsu.io/), [MangaUpdates](https://mangaupdates.com), [Shikimori](https://shikimori.one), [Simkl](https://simkl.com/), and [Bangumi](https://bgm.tv/) support.
+* Categories to organize your library.
+* Light and dark themes.
+* Schedule updating your library for new chapters/episodes.
+* Create backups locally to read/watch offline or to your desired cloud service.
+* **Hardened Governance**: Automated validation for PR titles, descriptions, and rollback plans.
+* **Failure Analysis**: Formal learning loop for every technical incident.
 
 ## Governance & Contributing
 
-We follow a strict **Ticket-First** development workflow.
 
 - **Developer Guidelines**: See [AGENTS.md](docs/agent-templates/AGENTS.md) and [GEMINI.md](docs/agent-templates/GEMINI.md).
 - **Workflow Policy**: Formalized in [Agent Workflow Policy](docs/governance/agent-workflow.md).

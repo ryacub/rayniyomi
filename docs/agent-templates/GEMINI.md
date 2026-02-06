@@ -4,7 +4,7 @@ These guidelines apply to all Gemini CLI work in this repository.
 
 ## Required Process
 
-1. **Prime first:** Always load context by reading `.github/REMEDIATION_BOARD.md` and `.local/LLM_DELIVERY_PLAYBOOK.md` before ANY work.
+1. **Prime first:** Always load context by reading GitHub Issues and `.local/LLM_DELIVERY_PLAYBOOK.md` before ANY work.
 2. **Choose exactly one ticket** before editing code.
 3. **Create/use dedicated branch:** `<agent-prefix>/<ticket-id>-<slug>` (default: `gemini/<ticket-id>-<slug>`).
 4. **Follow workflow:** `.local/LLM_DELIVERY_PLAYBOOK.md`.
@@ -13,7 +13,7 @@ These guidelines apply to all Gemini CLI work in this repository.
 7. **Perform self-review** before commit.
 8. **Commit with ticket prefix:** `<ticket-id>: <summary>`.
 9. **Open/update PR** with compliant title and fully updated description.
-10. **Update sprint board** notes after work.
+10. Update the GitHub Issue status after work.
 
 ## Hard Stops
 
@@ -39,7 +39,7 @@ These guidelines apply to all Gemini CLI work in this repository.
   - Rollback plan (required for P0/T3).
 
 ### Workflow Compliance
-- Sprint board updates mandatory after ticket completion.
+- GitHub Issue status updates mandatory after ticket completion.
 - Branch naming format enforced: `gemini/<ticket-id>-<slug>`.
 - One ticket per branch.
 
@@ -135,14 +135,14 @@ To rollback: git revert <commit-hash>
 - `AGENTS.md` - General agent rules.
 - `CLAUDE.md` - Reference for fellow agent Claude.
 - `.local/LLM_DELIVERY_PLAYBOOK.md` - Detailed workflow process.
-- `.github/REMEDIATION_BOARD.md` - Current tickets and priorities.
+- Tickets: GitHub Issues - Current scope and priorities.
 
 ## Special Notes for Gemini CLI
 
 ### Context Management (Priming)
 - Gemini CLI does not have a native `/aniyomi-prime` command. 
 - **Manual Priming:** At the start of every session, you MUST:
-  1. Read `.github/REMEDIATION_BOARD.md` to identify the current ticket and project status.
+  1. Read relevant GitHub Issues to identify the current ticket and project status.
   2. Read `.local/LLM_DELIVERY_PLAYBOOK.md` before each session.
   3. Save a memory summary of the priming to persist across turns if necessary.
 

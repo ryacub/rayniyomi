@@ -9,10 +9,10 @@ This repository follows ticket-driven delivery with explicit verification and re
 4. Run verification by risk tier (`T1`/`T2`/`T3`).
 5. Run self-review.
 6. Commit with ticket-prefixed message.
-7. Update PR title/description and sprint state.
+7. Update PR title/description and link to GitHub Issue.
 
 ## PR Requirements
-- Title format: `[R123] short imperative summary`
+- Title format: `<type>: <summary> (R123)` (matched against Conventional Commits)
 - Body must include: Ticket, Objective, Scope, Non-goals, Files Changed, Verification, Risk, Rollback, Release Notes.
 
 ## High-Risk Rules
