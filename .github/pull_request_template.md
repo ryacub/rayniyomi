@@ -39,6 +39,7 @@
 
 ## Checklist
 - [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
+- [ ] Branch rebased on latest main and verification re-run (see [rebase policy](../docs/governance/agent-workflow.md#rebase-before-merge-policy-r45))
 
 <<<<<<< HEAD
 ## Fork Compliance Checklist (for new forks only)
@@ -56,6 +57,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) Forks section for details.
 - [ ] Acceptance criteria met and non-goals respected
 - [ ] Verification matrix completed (Risk Tier: T__)
 - [ ] Self-review completed
+- [ ] Rebased on latest `main` and revalidated (mandatory for merge)
 - [ ] Sprint board updated (branch, commit, checks, PR link)
 - [ ] Release notes drafted (if applicable)
 >>>>>>> ryacub/main
