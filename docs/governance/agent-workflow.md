@@ -25,3 +25,5 @@ For `P0` or `T3` work:
 - Verification evidence captured.
 - PR metadata complete and accurate.
 - Risks + rollback documented.
+
+Smoke ticket execution validated on 2026-02-06.
