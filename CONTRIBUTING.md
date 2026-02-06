@@ -66,7 +66,7 @@ When creating a fork, remember to:
     - Change or disable the [app update checker](https://github.com/aniyomiorg/aniyomi/blob/main/app/src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateChecker.kt)
 - To avoid installation conflicts:
     - Change the `applicationId` in [`build.gradle.kts`](https://github.com/aniyomiorg/aniyomi/blob/main/app/build.gradle.kts)
-- **Analytics and crash reporting are disabled in this fork** (R37):
+- **Analytics and crash reporting are disabled in this fork** (R37, R38):
     - Firebase Analytics is explicitly disabled via `app/src/main/res/values/firebase_analytics_disabled.xml`
-    - ACRA crash reporting is commented out in [`app/build.gradle.kts`](app/build.gradle.kts)
+    - ACRA crash reporting is disabled via `app/src/main/res/values/acra_disabled.xml` and commented out in [`app/build.gradle.kts`](app/build.gradle.kts)
     - If you create your own fork and want analytics, you'll need to set up your own Firebase project and configure ACRA endpoints
