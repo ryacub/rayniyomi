@@ -6,7 +6,7 @@ This repository follows ticket-driven delivery with explicit verification and re
 1. Pick one ticket and verify dependencies (via GitHub Issues).
 2. Create a branch: `r<ticket-id>/<short-slug>` or `codex/<ticket-id>-<short-slug>`.
 3. Implement only in-scope changes.
-4. Run verification by risk tier (`T1`/`T2`/`T3`).
+4. Run verification by risk tier (`T1`/`T2`/`T3`) - see [Risk Tier Policy](./risk-tier-policy.md).
 5. Run self-review.
 6. Commit with ticket-prefixed message.
 7. Update PR title/description and link to GitHub Issue.
