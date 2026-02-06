@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.BroadcastReceiver.PendingResult
 import android.net.Uri
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.core.common.Constants
@@ -102,18 +103,22 @@ class NotificationReceiver : BroadcastReceiver() {
             ACTION_CANCEL_APP_UPDATE_DOWNLOAD -> cancelDownloadAppUpdate(context)
             // Open reader activity
             ACTION_OPEN_CHAPTER -> {
+                val pendingResult = goAsync()
                 openChapter(
                     context,
                     intent.getLongExtra(EXTRA_MANGA_ID, -1),
                     intent.getLongExtra(EXTRA_CHAPTER_ID, -1),
+                    pendingResult,
                 )
             }
             // Open player activity
             ACTION_OPEN_EPISODE -> {
+                val pendingResult = goAsync()
                 openEpisode(
                     context,
                     intent.getLongExtra(EXTRA_MANGA_ID, -1),
                     intent.getLongExtra(EXTRA_CHAPTER_ID, -1),
+                    pendingResult,
                 )
             }
             // Mark updated manga chapters as read
@@ -219,20 +224,30 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param context context of application
      * @param mangaId id of manga
      * @param chapterId id of chapter
+     * @param pendingResult pending result from goAsync() to signal completion
      */
-    private fun openChapter(context: Context, mangaId: Long, chapterId: Long) {
+    private fun openChapter(context: Context, mangaId: Long, chapterId: Long, pendingResult: PendingResult) {
+        val appContext = context.applicationContext
         launchIO {
-            val manga = getManga.await(mangaId)
-            val chapter = getChapter.await(chapterId)
-            withUIContext {
-                if (manga != null && chapter != null) {
-                    val intent = ReaderActivity.newIntent(context, manga.id, chapter.id).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            try {
+                val manga = getManga.await(mangaId)
+                val chapter = getChapter.await(chapterId)
+                withUIContext {
+                    if (manga != null && chapter != null) {
+                        val intent = ReaderActivity.newIntent(appContext, manga.id, chapter.id).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        appContext.startActivity(intent)
+                    } else {
+                        appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                     }
-                    context.startActivity(intent)
-                } else {
-                    context.toast(context.stringResource(AYMR.strings.download_error))
                 }
+            } catch (e: Exception) {
+                withUIContext {
+                    appContext.toast(appContext.stringResource(AYMR.strings.download_error))
+                }
+            } finally {
+                pendingResult.finish()
             }
         }
     }
@@ -243,20 +258,30 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param context context of application
      * @param animeId id of anime
      * @param episodeId id of episode
+     * @param pendingResult pending result from goAsync() to signal completion
      */
-    private fun openEpisode(context: Context, animeId: Long, episodeId: Long) {
+    private fun openEpisode(context: Context, animeId: Long, episodeId: Long, pendingResult: PendingResult) {
+        val appContext = context.applicationContext
         launchIO {
-            val anime = getAnime.await(animeId)
-            val episode = getEpisode.await(episodeId)
-            withUIContext {
-                if (anime != null && episode != null) {
-                    val intent = PlayerActivity.newIntent(context, anime.id, episode.id).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            try {
+                val anime = getAnime.await(animeId)
+                val episode = getEpisode.await(episodeId)
+                withUIContext {
+                    if (anime != null && episode != null) {
+                        val intent = PlayerActivity.newIntent(appContext, anime.id, episode.id).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        appContext.startActivity(intent)
+                    } else {
+                        appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                     }
-                    context.startActivity(intent)
-                } else {
-                    context.toast(context.stringResource(AYMR.strings.download_error))
                 }
+            } catch (e: Exception) {
+                withUIContext {
+                    appContext.toast(appContext.stringResource(AYMR.strings.download_error))
+                }
+            } finally {
+                pendingResult.finish()
             }
         }
     }
