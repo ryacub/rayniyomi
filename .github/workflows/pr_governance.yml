@@ -44,6 +44,14 @@ jobs:
               errors.push("PR description is too short. Add a brief summary and testing notes.");
             }
 
+            const closesIssuePattern =
+              /\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+((?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+|https?:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/issues\/\d+)\b/i;
+            if (!closesIssuePattern.test(normalizedBody)) {
+              errors.push(
+                "PR description must include an issue auto-close reference (for example: `Closes #123`).",
+              );
+            }
+
             if (errors.length > 0) {
               core.setFailed(errors.map((e) => `- ${e}`).join("\n"));
             } else {
