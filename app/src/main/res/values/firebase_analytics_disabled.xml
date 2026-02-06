@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R37: Fork compliance - Firebase Analytics explicitly disabled.
+
+  This file serves as documentation that Firebase Analytics is intentionally
+  disabled in this fork to prevent data pollution of upstream services.
+
+  This fork does NOT use Firebase Analytics. Do not add google-services.json
+  or Firebase dependencies without updating fork compliance documentation.
+
+  See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
+-->
+<resources>
+    <!-- Explicitly disables Firebase Analytics collection -->
+    <bool name="firebase_analytics_collection_enabled" translatable="false">false</bool>
+    <bool name="firebase_analytics_collection_deactivated" translatable="false">true</bool>
+    <bool name="google_analytics_adid_collection_enabled" translatable="false">false</bool>
+    <bool name="google_analytics_ssaid_collection_enabled" translatable="false">false</bool>
+    <bool name="firebase_crashlytics_collection_enabled" translatable="false">false</bool>
+    <bool name="firebase_crashlytics_collection_deactivated" translatable="false">true</bool>
+</resources>
