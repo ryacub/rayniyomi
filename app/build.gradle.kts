@@ -27,7 +27,8 @@ android {
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
 
-        // R37/R38: Firebase Analytics and ACRA crash reporting are explicitly disabled
+        // R43: Risk-tier policy defines T1/T2/T3 verification matrix
+// R37/R38: Firebase Analytics and ACRA crash reporting are explicitly disabled
         // to prevent fork data from polluting upstream services.
         // This fork does not use Firebase or ACRA telemetry.
         // See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
