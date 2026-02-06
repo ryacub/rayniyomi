@@ -73,7 +73,7 @@ class ImageUtilTest {
             0x00, // Units
             0x00, 0x01, // X density
             0x00, 0x01, // Y density
-            0x00, 0x00  // Thumbnail
+            0x00, 0x00, // Thumbnail
         )
 
         // DQT (Define Quantization Table)
