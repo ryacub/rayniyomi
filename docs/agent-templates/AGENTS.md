@@ -45,5 +45,5 @@ The following files require coordination with owners to prevent merge conflicts:
 
 ## Source of Truth
 - Playbook: `.local/LLM_DELIVERY_PLAYBOOK.md`
-- Sprint board: `.github/REMEDIATION_BOARD.md`
+- Sprint board: GitHub Issues
 - Agent Guidelines: `CLAUDE.md`, `GEMINI.md`
