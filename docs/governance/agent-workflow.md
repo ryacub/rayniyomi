@@ -61,4 +61,11 @@ All critical failures (broken main, failed releases, process bypasses) require a
 3. Create follow-up remediation tickets (Lane C) before closing the analysis.
 4. See [Failure Analysis Policy](failure-analysis-policy.md) for details.
 
+## Metrics & Retrospectives (R48)
+We track workflow performance to continuously improve:
+- **Cycle Time** (Target < 2 days).
+- **Escaped Defects** (Target 0).
+- **CI Health** and **Flaky Checks**.
+- See [Workflow Metrics Policy](workflow-metrics.md) for details.
+
 Smoke ticket execution validated on 2026-02-06.
