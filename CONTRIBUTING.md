@@ -2,7 +2,17 @@ Looking to report an issue/bug or make a feature request? Please refer to the [R
 
 ---
 
-Thanks for your interest in contributing to Aniyomi!
+## Fork Identity
+
+**Rayniyomi** is a personal fork of [Aniyomi](https://github.com/aniyomiorg/aniyomi).
+
+When contributing, please use "Rayniyomi" in user-facing text (documentation, PR descriptions, comments) while keeping code structures compatible with upstream.
+
+**See [Naming Conventions](docs/governance/naming-conventions.md) for detailed guidelines.**
+
+---
+
+Thanks for your interest in contributing to Rayniyomi!
 
 
 # Code contributions
