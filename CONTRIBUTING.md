@@ -41,6 +41,9 @@ Before you start, please note that the ability to use following technologies is 
 
 - [Android Studio](https://developer.android.com/studio)
 - Emulator or phone with developer options enabled to test changes.
+- **JDK 17** is required for building and running tests.
+  - Recommended: [Eclipse Temurin 17](https://adoptium.net/temurin/releases/?version=17) (matches CI environment)
+  - The project uses `GradleJavaVersion.VERSION_17` as defined in `buildSrc/src/main/kotlin/mihon/buildlogic/AndroidConfig.kt`
 
 ## Getting help
 
@@ -63,6 +66,7 @@ When creating a fork, remember to:
     - Change or disable the [app update checker](https://github.com/aniyomiorg/aniyomi/blob/main/app/src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateChecker.kt)
 - To avoid installation conflicts:
     - Change the `applicationId` in [`build.gradle.kts`](https://github.com/aniyomiorg/aniyomi/blob/main/app/build.gradle.kts)
-- To avoid having your data polluting the main app's analytics and crash report services:
-    - If you want to use Firebase analytics, replace [`google-services.json`](https://github.com/aniyomiorg/aniyomi/blob/main/app/src/standard/google-services.json) with your own
-    - If you want to use ACRA crash reporting, replace the `ACRA_URI` endpoint in [`build.gradle.kts`](https://github.com/aniyomiorg/aniyomi/blob/main/app/build.gradle.kts) with your own
+- **Analytics and crash reporting are disabled in this fork** (R37):
+    - Firebase Analytics is explicitly disabled via `app/src/main/res/values/firebase_analytics_disabled.xml`
+    - ACRA crash reporting is commented out in [`app/build.gradle.kts`](app/build.gradle.kts)
+    - If you create your own fork and want analytics, you'll need to set up your own Firebase project and configure ACRA endpoints

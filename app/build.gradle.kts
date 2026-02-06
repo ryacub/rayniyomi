@@ -27,7 +27,12 @@ android {
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
 
-        // Put these fields in acra.properties
+        // R37: Firebase Analytics and ACRA crash reporting are explicitly disabled
+        // to prevent fork data from polluting upstream services.
+        // This fork does not use Firebase or ACRA telemetry.
+        // See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
+        //
+        // If you want to enable ACRA for your own fork, uncomment and configure:
         // val acraProperties = Properties()
         // rootProject.file("acra.properties")
         //     .takeIf { it.exists() }
@@ -35,9 +40,9 @@ android {
         // val acraUri = acraProperties.getProperty("ACRA_URI", "")
         // val acraLogin = acraProperties.getProperty("ACRA_LOGIN", "")
         // val acraPassword = acraProperties.getProperty("ACRA_PASSWORD", "")
-        // buildConfigField("String", "ACRA_URI", "\"$acraUri\"")
-        // buildConfigField("String", "ACRA_LOGIN", "\"$acraLogin\"")
-        // buildConfigField("String", "ACRA_PASSWORD", "\"$acraPassword\"")
+        // buildConfigField("String", "ACRA_URI", ""$acraUri"")
+        // buildConfigField("String", "ACRA_LOGIN", ""$acraLogin"")
+        // buildConfigField("String", "ACRA_PASSWORD", ""$acraPassword"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
