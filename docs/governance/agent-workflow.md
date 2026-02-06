@@ -12,7 +12,7 @@ This repository follows ticket-driven delivery with explicit verification and re
 7. Update PR title/description and sprint state.
 
 ## PR Requirements
-- Title format: `[R123] short imperative summary`
+- Title format: `<type>: <summary> (R123)` (following Conventional Commits, e.g. `feat: add feature (R123)`)
 - Body must include: Ticket, Objective, Scope, Non-goals, Files Changed, Verification, Risk, Rollback, Release Notes.
 
 ## High-Risk Rules
@@ -37,6 +37,12 @@ The following files have single-owner constraints to prevent merge conflicts:
 - Coordinate with file owner before modifying high-conflict files
 - If owner is unavailable, create follow-up ticket rather than bypassing
 - Conflicts on these files require explicit human review before merge
+
+## Rebase & Revalidation (R45)
+To ensure code quality and prevent regressions in a fast-moving fork:
+- **PRs must be rebased on latest `main` immediately before merging.**
+- **Post-rebase revalidation is mandatory.** If conflicts were resolved, re-run all tests and verification steps.
+- **Do not merge PRs with stale merge status.** If `main` has moved significantly since the last CI run, a re-check is required.
 
 ## Definition of Done
 - Acceptance criteria met.

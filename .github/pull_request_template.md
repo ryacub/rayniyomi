@@ -44,5 +44,6 @@
 - [ ] Acceptance criteria met and non-goals respected
 - [ ] Verification matrix completed (Risk Tier: T__)
 - [ ] Self-review completed
+- [ ] Rebased on latest `main` and revalidated (mandatory for merge)
 - [ ] Sprint board updated (branch, commit, checks, PR link)
 - [ ] Release notes drafted (if applicable)
