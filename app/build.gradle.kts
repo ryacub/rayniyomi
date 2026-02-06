@@ -3,6 +3,8 @@ import mihon.buildlogic.getBuildTime
 import mihon.buildlogic.getCommitCount
 import mihon.buildlogic.getGitSha
 
+// R42: Definition of Ready/DoD checklists for governance
+
 plugins {
     id("mihon.android.application")
     id("mihon.android.application.compose")
