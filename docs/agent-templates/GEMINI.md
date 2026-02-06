@@ -134,7 +134,8 @@ To rollback: git revert <commit-hash>
 - This file (`GEMINI.md`) - Gemini CLI-specific guidelines.
 - `AGENTS.md` - General agent rules.
 - `CLAUDE.md` - Reference for fellow agent Claude.
-- `.local/LLM_DELIVERY_PLAYBOOK.md` - Detailed workflow- Sprint board: `.github/REMEDIATION_BOARD.md` - Current tickets and priorities.
+- `.local/LLM_DELIVERY_PLAYBOOK.md` - Detailed workflow process.
+- `.github/REMEDIATION_BOARD.md` - Current tickets and priorities.
 
 ## Special Notes for Gemini CLI
 
