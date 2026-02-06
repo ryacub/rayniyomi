@@ -4,9 +4,11 @@
     <img src="./.github/assets/logo.png" alt="Aniyomi logo" title="Aniyomi logo" width="80"/>
 </a>
 
-# Aniyomi [App](#)
+# Rayniyomi
 
-### Full-featured player and reader, based on ~~Tachiyomi~~ Mihon.
+### Personal fork of Aniyomi - Full-featured anime player and manga reader
+
+**Rayniyomi** is a personal fork of [Aniyomi](https://github.com/aniyomiorg/aniyomi), based on ~~Tachiyomi~~ Mihon.
 Discover and watch anime, cartoons, series, and more – easier than ever on your Android device.
 
 [![Discord server](https://img.shields.io/discord/841701076242530374.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/F32UjdJZrR)

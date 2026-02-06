@@ -35,3 +35,6 @@
 ## Release Notes
 - User-facing summary for changelog.
 - If no user-facing impact, explain why.
+
+## Checklist
+- [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
