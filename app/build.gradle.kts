@@ -3,6 +3,8 @@ import mihon.buildlogic.getBuildTime
 import mihon.buildlogic.getCommitCount
 import mihon.buildlogic.getGitSha
 
+// R39: Fork compliance checklist added to PR template
+
 plugins {
     id("mihon.android.application")
     id("mihon.android.application.compose")
