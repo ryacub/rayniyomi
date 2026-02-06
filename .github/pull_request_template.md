@@ -39,6 +39,7 @@
 
 ## Checklist
 - [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
+- [ ] Branch rebased on latest main and verification re-run (see [rebase policy](../docs/governance/agent-workflow.md#rebase-before-merge-policy-r45))
 
 ## Definition of Done (DoD)
 - [ ] Acceptance criteria met and non-goals respected
