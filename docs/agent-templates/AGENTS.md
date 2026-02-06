@@ -11,7 +11,7 @@ These rules apply to all agent work in this folder.
 6. Perform self-review before commit.
 7. Commit with ticket prefix: `<ticket-id>: <summary>`.
 8. Open/update PR with compliant title and fully updated description.
-9. Update the local sprint board notes after work.
+9. Update the GitHub Issue status after work.
 
 ## Hard Stops
 - If ticket ID, acceptance criteria, or dependencies are unclear: stop and clarify.
@@ -45,5 +45,5 @@ The following files require coordination with owners to prevent merge conflicts:
 
 ## Source of Truth
 - Playbook: `.local/LLM_DELIVERY_PLAYBOOK.md`
-- Sprint board: `.local/remediation-sprint-board.md`
+- Sprint board: GitHub Issues
 - Agent Guidelines: `CLAUDE.md`, `GEMINI.md`
