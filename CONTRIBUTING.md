@@ -17,6 +17,8 @@ You do not need to ask for permission nor an assignment.
 - Use ticket-based PR titles: `[R123] short imperative summary`
 - Fill out all required sections in the PR template.
 - Include verification evidence and risk/rollback notes.
+- Use TDD for behavior changes: write/adjust a failing test first, implement, then refactor.
+- Include a `TDD Evidence` section in PR descriptions (or state why TDD is not applicable).
 - For `P0` or `T3` changes, include `breaking-change` and `rollback-tested` labels.
 - For user-facing changes, include a concrete Release Notes section.
 
@@ -28,6 +30,7 @@ See governance docs:
 - [`docs/governance/release-notes-policy.md`](docs/governance/release-notes-policy.md)
 - [`docs/governance/rollback-drills.md`](docs/governance/rollback-drills.md)
 - [`docs/governance/slo-policy.md`](docs/governance/slo-policy.md)
+- [`docs/governance/tdd-policy.md`](docs/governance/tdd-policy.md)
 - ADRs: [`docs/adr/`](docs/adr/)
 
 ## Prerequisites

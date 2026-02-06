@@ -113,6 +113,22 @@ jobs:
               }
             }
 
+            const hasTddSection = /^##\s+TDD Evidence/m.test(body);
+            if (!hasTddSection) {
+              errors.push("PR description must include a `## TDD Evidence` section.");
+            } else {
+              const tddMatch = body.match(/##\s+TDD Evidence\s*[\r\n]+([\s\S]*?)(?=\n##\s+|$)/i);
+              const tddBody = tddMatch ? tddMatch[1].trim() : "";
+              if (!tddBody || /^[-*\s`:.]*$/i.test(tddBody)) {
+                errors.push("`## TDD Evidence` section is empty.");
+              }
+              const hasMeaningfulTddText =
+                /(failing test|red|green|refactor|not applicable|docs-only|workflow-only|metadata-only)/i.test(tddBody);
+              if (!hasMeaningfulTddText) {
+                errors.push("`## TDD Evidence` must include concrete TDD steps or a clear non-applicable reason.");
+              }
+            }
+
             if (errors.length > 0) {
               core.setFailed(errors.map((e) => `- ${e}`).join("\n"));
             } else {
