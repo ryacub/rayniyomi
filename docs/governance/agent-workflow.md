@@ -12,7 +12,8 @@ This repository follows ticket-driven delivery with explicit verification and re
 7. Update PR title/description and sprint state.
 
 ## PR Requirements
-- Title format: `[R123] short imperative summary`
+- Title format: `type: short imperative summary (R123)` following Conventional Commits
+  - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - Body must include: Ticket, Objective, Scope, Non-goals, Files Changed, Verification, Risk, Rollback, Release Notes.
 
 ## High-Risk Rules

@@ -22,7 +22,7 @@ These rules apply to all agent work in this folder.
 - No new `runBlocking` in UI-thread callbacks.
 - No new top-level `GlobalScope` usage.
 - No multi-ticket commit unless explicitly planned.
-- PR title must include ticket ID and concise scope.
+- PR title must follow Conventional Commits: `type: summary (ticket-id)`
 - PR description must include scope, verification, risk, and rollback notes.
 
 ## Priority Enforcement
