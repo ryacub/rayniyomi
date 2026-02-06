@@ -325,13 +325,18 @@ class MainActivity : BaseActivity() {
             if (result.resultCode == Activity.RESULT_OK) {
                 val animeId = savedInstanceState?.getLong(SAVED_STATE_ANIME_KEY)
                 val episodeId = savedInstanceState?.getLong(SAVED_STATE_EPISODE_KEY)
+                val intentData = result.data // Capture before async to avoid race condition
 
                 lifecycleScope.launchIO {
-                    if (animeId != null && episodeId != null) {
-                        ExternalIntents.externalIntents.initAnime(animeId, episodeId)
-                    }
+                    try {
+                        if (animeId != null && episodeId != null) {
+                            ExternalIntents.externalIntents.initAnime(animeId, episodeId)
+                        }
 
-                    ExternalIntents.externalIntents.onActivityResult(result.data)
+                        ExternalIntents.externalIntents.onActivityResult(intentData)
+                    } catch (e: Exception) {
+                        logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
+                    }
                 }
             }
         }
