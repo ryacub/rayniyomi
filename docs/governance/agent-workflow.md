@@ -18,7 +18,11 @@ This repository follows ticket-driven delivery with explicit verification and re
 ## High-Risk Rules
 For `P0` or `T3` work:
 - Labels required: `breaking-change`, `rollback-tested`
-- Rollback section must describe exact reversal steps.
+- **Rollback section must describe exact reversal steps.** This include:
+  - CLI commands to revert migrations (if any).
+  - Feature flag toggle names.
+  - Manual cleanup steps for cache or local storage.
+  - Revert commit reference if rollback is non-trivial.
 
 ## Work-in-Progress Limits (R44)
 To maintain velocity and prevent context-switching overhead:
