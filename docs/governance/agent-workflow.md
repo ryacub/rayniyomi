@@ -17,7 +17,7 @@ This repository follows ticket-driven delivery with explicit verification and re
 7. Update PR title/description and link to GitHub Issue.
 
 ## PR Requirements
-- Title format: `<type>: <summary> (R123)` (matched against Conventional Commits)
+- Title format: `<type>: <summary> (R123)` (following Conventional Commits, e.g. `feat: add feature (R123)`)
 - Body must include: Ticket, Objective, Scope, Non-goals, Files Changed, Verification, Risk, Rollback, Release Notes.
 
 ## High-Risk Rules
@@ -43,31 +43,11 @@ The following files have single-owner constraints to prevent merge conflicts:
 - If owner is unavailable, create follow-up ticket rather than bypassing
 - Conflicts on these files require explicit human review before merge
 
-## Rebase-Before-Merge Policy (R45)
-
-### Required Steps
-1. **Fetch latest target branch** daily for active branches
-   ```bash
-   git fetch --prune && git rebase origin/main
-   ```
-2. **Rebase before final verification** - always rebase on latest main before marking PR ready
-3. **Re-run verification matrix** after rebase based on ticket risk tier:
-   - T1: targeted tests + lint
-   - T2: targeted + module tests + sanity check
-   - T3: full suite + regression checks
-
-### Post-Rebase Revalidation Checklist
-- [ ] Conflicts resolved without scope creep
-- [ ] High-conflict files reviewed (if touched)
-- [ ] PR title/description still accurate
-- [ ] Verification re-run and passing
-- [ ] No unexpected changes in diff
-
-### Merge Conflict Response
-- On conflict, pause new work and resolve first
-- Keep resolution scoped (no unrelated refactors)
-- Record in PR notes: conflicting files, resolution choice, behavior risks
-- Re-run full verification matrix after resolution
+## Rebase & Revalidation (R45)
+To ensure code quality and prevent regressions in a fast-moving fork:
+- **PRs must be rebased on latest `main` immediately before merging.**
+- **Post-rebase revalidation is mandatory.** If conflicts were resolved, re-run all tests and verification steps.
+- **Do not merge PRs with stale merge status.** If `main` has moved significantly since the last CI run, a re-check is required.
 
 ## Definition of Done
 - Acceptance criteria met.
