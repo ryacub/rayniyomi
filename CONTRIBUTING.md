@@ -16,8 +16,7 @@ You do not need to ask for permission nor an assignment.
 
 - Use ticket-based PR titles: `[R123] short imperative summary`
 - Fill out all required sections in the PR template.
-- Include verification evidence and risk/rollback notes.
-- For `P0` or `T3` changes, include `breaking-change` and `rollback-tested` labels.
+- Include verification evidence.
 - For user-facing changes, include a concrete Release Notes section.
 
 See governance docs:
@@ -26,8 +25,7 @@ See governance docs:
 - [`docs/governance/dependency-policy.md`](docs/governance/dependency-policy.md)
 - [`docs/governance/labels-policy.md`](docs/governance/labels-policy.md)
 - [`docs/governance/release-notes-policy.md`](docs/governance/release-notes-policy.md)
-- [`docs/governance/rollback-drills.md`](docs/governance/rollback-drills.md)
-- [`docs/governance/slo-policy.md`](docs/governance/slo-policy.md)
+
 - ADRs: [`docs/adr/`](docs/adr/)
 
 ## Prerequisites

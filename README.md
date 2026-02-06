@@ -6,6 +6,9 @@
 
 # Rayniyomi [App](#)
 
+### Full-featured player and reader, based on ~~Tachiyomi~~ Mihon.
+Discover and watch anime, cartoons, series, and more – easier than ever on your Android device.
+
 [![CI](https://img.shields.io/github/actions/workflow/status/ryacub/rayniyomi/build_push.yml?labelColor=27303D)](https://github.com/ryacub/rayniyomi/actions/workflows/build_push.yml)
 [![License: Apache-2.0](https://img.shields.io/github/license/ryacub/rayniyomi?labelColor=27303D&color=818cf8)](/LICENSE)
 

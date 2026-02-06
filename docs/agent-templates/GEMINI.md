@@ -9,7 +9,7 @@ These guidelines apply to all Gemini CLI work in this repository.
 3. **Create/use dedicated branch:** `<agent-prefix>/<ticket-id>-<slug>` (default: `gemini/<ticket-id>-<slug>`).
 4. **Follow workflow:** `.local/LLM_DELIVERY_PLAYBOOK.md`.
 5. **Implement only in-ticket scope** (no unrelated refactors).
-6. **Run verification** appropriate to the ticket risk tier.
+6. **Run verification.**
 7. **Perform self-review** before commit.
 8. **Commit with ticket prefix:** `<ticket-id>: <summary>`.
 9. **Open/update PR** with compliant title and fully updated description.
@@ -32,16 +32,7 @@ These guidelines apply to all Gemini CLI work in this repository.
 
 ### Documentation Requirements
 - PR title must follow Conventional Commits and include ticket ID: `type: summary (R123)` (e.g. `feat: add feature (R123)`).
-- PR description must include:
-  - Scope (done) and Non-goals (not done).
-  - Verification commands and outcomes.
-  - Risk assessment.
-  - Rollback plan (required for P0/T3).
 
-### Workflow Compliance
-- GitHub Issue status updates mandatory after ticket completion.
-- Branch naming format enforced: `gemini/<ticket-id>-<slug>`.
-- One ticket per branch.
 
 ## Priority Enforcement
 
@@ -53,19 +44,7 @@ These MUST be completed before any external fork distribution:
 - R37: Set up fork-owned Firebase config (or explicitly disable).
 - R38: Set fork-owned ACRA endpoint (or explicitly disable).
 
-## Risk Tiers & Verification
 
-### T1 (Low Risk)
-- **Criteria:** Localized change, no data migration, no concurrency changes.
-- **Verification:** Targeted tests + lint/type checks (`./gradlew test`).
-
-### T2 (Medium Risk)
-- **Criteria:** Multi-file behavior change or API boundary change.
-- **Verification:** Targeted tests + affected module tests + manual sanity path.
-
-### T3 (High Risk)
-- **Criteria:** Concurrency/threading, storage/migration, startup/critical flows.
-- **Verification:** Targeted tests + broader suite + explicit regression checks + rollback validation.
 
 ## High-Conflict Files (Single Owner)
 
@@ -110,11 +89,7 @@ type: summary (R##)
 ./gradlew lint
 ```
 
-## Risk Assessment
-Risk tier: T2 (medium)
 
-## Rollback Plan
-To rollback: git revert <commit-hash>
 
 🤖 Generated with Gemini CLI
 ```
