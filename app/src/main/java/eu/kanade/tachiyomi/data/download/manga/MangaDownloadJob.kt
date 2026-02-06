@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.util.system.networkStateFlow
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.setForegroundSafely
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combineTransform
 import kotlinx.coroutines.flow.launchIn
@@ -58,15 +59,13 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
             applicationContext.activeNetworkState(),
             downloadPreferences.downloadOnlyOverWifi().get(),
         )
-        var active = networkCheck && downloadManager.downloaderStart()
-
-        if (!active) {
+        if (!(networkCheck && downloadManager.downloaderStart())) {
             return Result.failure()
         }
 
         setForegroundSafely()
 
-        coroutineScope {
+        return coroutineScope {
             combineTransform(
                 applicationContext.networkStateFlow(),
                 downloadPreferences.downloadOnlyOverWifi().changes(),
@@ -74,14 +73,13 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
             )
                 .onEach { networkCheck = it }
                 .launchIn(this)
-        }
 
-        // Keep the worker running when needed
-        while (active) {
-            active = !isStopped && downloadManager.isRunning && networkCheck
+            // Keep the worker active while downloads are running and network constraints allow it.
+            while (!isStopped && downloadManager.isRunning && networkCheck) {
+                delay(250)
+            }
+            Result.success()
         }
-
-        return Result.success()
     }
 
     private fun checkNetworkState(state: NetworkState, requireWifi: Boolean): Boolean {

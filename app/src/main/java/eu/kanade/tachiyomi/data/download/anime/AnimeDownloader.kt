@@ -49,7 +49,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
-import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
@@ -200,7 +199,7 @@ class AnimeDownloader(
                             it.status.value <= AnimeDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
                         .groupBy { it.source }
-                        .toList().take(3) // Concurrently download from 5 different sources
+                        .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
                     emit(activeDownloads)
 
@@ -283,10 +282,18 @@ class AnimeDownloader(
 
         val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: return
         val wasEmpty = queueState.value.isEmpty()
+        val downloadedEpisodeNames = provider.findAnimeDir(anime.title, source)
+            ?.listFiles()
+            .orEmpty()
+            .mapNotNull { it.name }
+            .toSet()
 
         val episodesToQueue = episodes.asSequence()
             // Filter out those already downloaded.
-            .filter { provider.findEpisodeDir(it.name, it.scanlator, anime.title, source) == null }
+            .filter { episode ->
+                provider.getValidEpisodeDirNames(episode.name, episode.scanlator)
+                    .none { it in downloadedEpisodeNames }
+            }
             // Add episodes to queue from the start.
             .sortedByDescending { it.sourceOrder }
             // Filter out those already enqueued.
@@ -431,10 +438,11 @@ class AnimeDownloader(
                     // If videoFile is not existing then download it
                     if (preferences.useExternalDownloader().get() == download.changeDownloader) {
                         progressJob = scope.launch {
-                            while (download.status == AnimeDownload.State.DOWNLOADING) {
-                                delay(50)
-                                notifier.onProgressChange(download)
-                            }
+                            download.progressFlow
+                                .collect {
+                                    if (download.status != AnimeDownload.State.DOWNLOADING) return@collect
+                                    notifier.onProgressChange(download)
+                                }
                         }
 
                         downloadVideo(download, tmpDir, filename)
@@ -450,11 +458,11 @@ class AnimeDownloader(
             video.videoUrl = file.uri.path ?: ""
             download.progress = 100
             video.status = Video.State.READY
-            progressJob?.cancel()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             video.status = Video.State.ERROR
             notifier.onError(e.message, download.episode.name, download.anime.title, download.anime.id)
+        } finally {
             progressJob?.cancel()
         }
     }
@@ -746,7 +754,9 @@ class AnimeDownloader(
         download: AnimeDownload,
         tmpDir: UniFile,
     ): Boolean {
-        val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { it.extension == ".tmp" }
+        val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { file ->
+            file.name.orEmpty().endsWith(".tmp", ignoreCase = true)
+        }
         return downloadedVideo.size == 1
     }
 
@@ -765,7 +775,9 @@ class AnimeDownloader(
         dirname: String,
     ) {
         // Ensure that the episode folder has the full video
-        val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { it.extension == ".tmp" }
+        val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { file ->
+            file.name.orEmpty().endsWith(".tmp", ignoreCase = true)
+        }
 
         download.status = if (downloadedVideo.size == 1) {
             // Only rename the directory if it's downloaded
@@ -848,7 +860,7 @@ class AnimeDownloader(
     }
 
     fun updateQueue(downloads: List<AnimeDownload>) {
-        if (queueState == downloads) return
+        if (queueState.value == downloads) return
 
         if (downloads.isEmpty()) {
             clearQueue()
@@ -865,6 +877,10 @@ class AnimeDownloader(
         if (wasRunning) {
             start()
         }
+    }
+
+    private fun getDownloadSlots(): Int {
+        return preferences.numberOfDownloads().get().coerceIn(1, 5)
     }
 
     companion object {

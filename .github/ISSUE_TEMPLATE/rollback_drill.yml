@@ -1,0 +1,41 @@
+name: 🔁 Rollback drill
+description: Plan and record a rollback readiness drill
+labels: [Operations]
+body:
+  - type: input
+    id: target_change
+    attributes:
+      label: Target change or PR
+    validations:
+      required: true
+
+  - type: input
+    id: date
+    attributes:
+      label: Drill date
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback_steps
+    attributes:
+      label: Rollback steps executed
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcomes
+    attributes:
+      label: Outcomes
+      description: Include time-to-detect and time-to-restore.
+    validations:
+      required: true
+
+  - type: textarea
+    id: followups
+    attributes:
+      label: Follow-up tickets
+      description: Link improvements discovered in drill.
+    validations:
+      required: true

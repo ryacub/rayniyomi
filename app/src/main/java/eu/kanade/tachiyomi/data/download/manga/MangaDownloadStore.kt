@@ -29,7 +29,9 @@ class MangaDownloadStore(
     /**
      * Preference file where active downloads are stored.
      */
-    private val preferences = context.getSharedPreferences("active_downloads", Context.MODE_PRIVATE)
+    private val preferences = context.getSharedPreferences("active_downloads_manga", Context.MODE_PRIVATE)
+    private val legacyPreferences = context.getSharedPreferences("active_downloads", Context.MODE_PRIVATE)
+    private val migrationPreferences = context.getSharedPreferences("active_downloads_migration", Context.MODE_PRIVATE)
 
     /**
      * Counter used to keep the queue order.
@@ -91,10 +93,15 @@ class MangaDownloadStore(
      * Returns the list of downloads to restore. It should be called in a background thread.
      */
     fun restore(): List<MangaDownload> {
-        val objs = preferences.all
-            .mapNotNull { it.value as? String }
+        val shouldImportLegacy = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
+        val serializedEntries = preferences.all.values +
+            if (shouldImportLegacy) legacyPreferences.all.values else emptyList()
+
+        val objs = serializedEntries
+            .mapNotNull { it as? String }
             .mapNotNull { deserialize(it) }
             .sortedBy { it.order }
+            .distinctBy { it.chapterId }
 
         val downloads = mutableListOf<MangaDownload>()
         if (objs.isNotEmpty()) {
@@ -111,6 +118,11 @@ class MangaDownloadStore(
 
         // Clear the store, downloads will be added again immediately.
         clear()
+        if (shouldImportLegacy) {
+            migrationPreferences.edit {
+                putBoolean(KEY_MIGRATION_DONE, true)
+            }
+        }
         return downloads
     }
 
@@ -135,6 +147,10 @@ class MangaDownloadStore(
         } catch (e: Exception) {
             null
         }
+    }
+
+    companion object {
+        private const val KEY_MIGRATION_DONE = "manga_active_downloads_migrated"
     }
 }
 

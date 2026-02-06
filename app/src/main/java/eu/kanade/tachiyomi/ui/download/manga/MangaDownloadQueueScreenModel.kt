@@ -7,16 +7,10 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.databinding.DownloadListBinding
-import eu.kanade.tachiyomi.source.model.Page
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -214,17 +208,9 @@ class MangaDownloadQueueScreenModel(
      */
     private fun launchProgressJob(download: MangaDownload) {
         val job = screenModelScope.launch {
-            while (download.pages == null) {
-                delay(50)
+            download.progressFlow.collect {
+                onUpdateProgress(download)
             }
-
-            val progressFlows = download.pages!!.map(Page::progressFlow)
-            combine(progressFlows, Array<Int>::sum)
-                .distinctUntilChanged()
-                .debounce(50)
-                .collectLatest {
-                    onUpdateProgress(download)
-                }
         }
 
         // Avoid leaking jobs
