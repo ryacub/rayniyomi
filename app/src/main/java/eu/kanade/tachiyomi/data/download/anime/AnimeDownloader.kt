@@ -439,7 +439,6 @@ class AnimeDownloader(
                     if (preferences.useExternalDownloader().get() == download.changeDownloader) {
                         progressJob = scope.launch {
                             download.progressFlow
-                                .distinctUntilChanged()
                                 .collect {
                                     if (download.status != AnimeDownload.State.DOWNLOADING) return@collect
                                     notifier.onProgressChange(download)
