@@ -1,0 +1,52 @@
+name: 🚨 Failure Analysis (Post-Mortem)
+description: Analyze a failure, identify root cause, and plan prevention
+labels: [Failure Analysis, Lane C]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Failure Incident Details
+  - type: input
+    id: incident_id
+    attributes:
+      label: Incident Reference
+      description: e.g. "PR #85 Merge Failure" or "CI Broken on main"
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary of Failure
+      description: What happened, when, and what was the impact?
+    validations:
+      required: true
+  - type: textarea
+    id: root_cause
+    attributes:
+      label: Root Cause (The "5 Whys")
+      description: Why did this happen? Drill down to the fundamental cause.
+    validations:
+      required: true
+  - type: textarea
+    id: missing_guardrail
+    attributes:
+      label: Missing or Failed Guardrail
+      description: What automated check or process step *should* have caught this?
+    validations:
+      required: true
+  - type: textarea
+    id: prevention_plan
+    attributes:
+      label: Prevention Plan
+      description: List remediation tickets (e.g. R45) created to prevent recurrence.
+    validations:
+      required: true
+  - type: checklist
+    id: check-off
+    attributes:
+      label: Completion Checklist
+      options:
+        - label: Root cause identified
+        - label: Missing guardrail documented
+        - label: Remediation ticket(s) created and linked
+        - label: Learning shared with the team
