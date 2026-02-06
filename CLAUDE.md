@@ -130,6 +130,8 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 ```
 [R##] Imperative summary of change
 
+Closes #____ (link to related GitHub issue)
+
 ## Scope
 - What was done
 - What was changed

@@ -2,6 +2,7 @@
 - ID: R____
 - Priority: P0 | P1 | P2
 - Risk Tier: T1 | T2 | T3
+- GitHub Issue: Closes #____ (link to related issue)
 
 ## Objective
 - What problem does this PR solve?
