@@ -216,7 +216,7 @@ class MangaDownloader(
                             it.status.value <= MangaDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
                         .groupBy { it.source }
-                        .toList().take(5) // Concurrently download from 5 different sources
+                        .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
                     emit(activeDownloads)
 
@@ -289,9 +289,17 @@ class MangaDownloader(
 
         val source = sourceManager.get(manga.source) as? HttpSource ?: return
         val wasEmpty = queueState.value.isEmpty()
+        val downloadedChapterNames = provider.findMangaDir(manga.title, source)
+            ?.listFiles()
+            .orEmpty()
+            .mapNotNull { it.name }
+            .toSet()
         val chaptersToQueue = chapters.asSequence()
             // Filter out those already downloaded.
-            .filter { provider.findChapterDir(it.name, it.scanlator, manga.title, source) == null }
+            .filter { chapter ->
+                provider.getValidChapterDirNames(chapter.name, chapter.scanlator)
+                    .none { it in downloadedChapterNames }
+            }
             // Add chapters to queue from the start.
             .sortedByDescending { it.sourceOrder }
             // Filter out those already enqueued.
@@ -684,6 +692,10 @@ class MangaDownloader(
      */
     private fun areAllDownloadsFinished(): Boolean {
         return queueState.value.none { it.status.value <= MangaDownload.State.DOWNLOADING.value }
+    }
+
+    private fun getDownloadSlots(): Int {
+        return downloadPreferences.numberOfDownloads().get().coerceIn(1, 5)
     }
 
     private fun addAllToQueue(downloads: List<MangaDownload>) {
