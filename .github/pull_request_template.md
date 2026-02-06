@@ -44,5 +44,5 @@
 - [ ] Acceptance criteria met and non-goals respected
 - [ ] Verification matrix completed (Risk Tier: T__)
 - [ ] Self-review completed
-- [ ] Sprint board updated (branch, commit, checks, PR link)
+- [ ] GitHub Issue updated with PR link and status
 - [ ] Release notes drafted (if applicable)
