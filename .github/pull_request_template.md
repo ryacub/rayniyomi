@@ -1,12 +1,37 @@
-<!--
-  Please include a summary of the change and which issue is fixed.
-  Also make sure you've tested your code and also done a self-review of it.
-  Don't forget to check all base themes and tablet mode for relevant changes.
-  
-  If your changes are visual, please provide images below:
+## Ticket
+- ID: R____
+- Priority: P0 | P1 | P2
+- Risk Tier: T1 | T2 | T3
 
-### Images
-| Image 1 | Image 2 |
-| ------- | ------- |
-| ![](https://github.githubassets.com/images/modules/logos_page/Octocat.png) | ![](https://github.githubassets.com/images/modules/logos_page/Octocat.png) |
--->
+## Objective
+- What problem does this PR solve?
+
+## Scope
+- What is included in this PR?
+
+## Non-goals
+- What is intentionally not included?
+
+## Files Changed
+- List high-level areas changed.
+
+## Verification
+- Commands run:
+  - `...`
+- Results:
+  - ...
+- Not tested:
+  - ...
+
+## Risk
+- Regression risks and mitigations.
+
+## SLO Impact
+- Which runtime SLOs are affected (if any), and expected impact.
+
+## Rollback
+- How to safely disable or revert this change.
+
+## Release Notes
+- User-facing summary for changelog.
+- If no user-facing impact, explain why.

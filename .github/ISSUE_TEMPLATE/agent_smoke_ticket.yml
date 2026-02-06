@@ -1,0 +1,46 @@
+name: 🤖 Agent smoke ticket
+description: Small ticket to validate end-to-end agent workflow
+labels: [Chore]
+body:
+  - type: input
+    id: objective
+    attributes:
+      label: Objective
+      description: Keep this tiny and reversible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk tier
+      options:
+        - T1
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification commands
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: workflow_checks
+    attributes:
+      label: Workflow checks
+      options:
+        - label: Branch follows `codex/<ticket-id>-<slug>`
+          required: true
+        - label: PR title follows `[R123] summary`
+          required: true
+        - label: PR description includes all required sections
+          required: true
