@@ -111,7 +111,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
 import mihon.core.migration.Migrator
 import tachiyomi.core.common.i18n.stringResource
@@ -327,13 +326,13 @@ class MainActivity : BaseActivity() {
                 val animeId = savedInstanceState?.getLong(SAVED_STATE_ANIME_KEY)
                 val episodeId = savedInstanceState?.getLong(SAVED_STATE_EPISODE_KEY)
 
-                if (animeId != null && episodeId != null) {
-                    runBlocking {
+                lifecycleScope.launchIO {
+                    if (animeId != null && episodeId != null) {
                         ExternalIntents.externalIntents.initAnime(animeId, episodeId)
                     }
-                }
 
-                ExternalIntents.externalIntents.onActivityResult(result.data)
+                    ExternalIntents.externalIntents.onActivityResult(result.data)
+                }
             }
         }
     }
