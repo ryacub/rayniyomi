@@ -203,7 +203,7 @@ object ImageUtil {
      *
      * @return true if the height:width ratio is greater than 3.
      */
-    private fun isTallImage(imageSource: BufferedSource): Boolean {
+    fun isTallImage(imageSource: BufferedSource): Boolean {
         val options = extractImageOptions(imageSource)
         return (options.outHeight / options.outWidth) > 3
     }
