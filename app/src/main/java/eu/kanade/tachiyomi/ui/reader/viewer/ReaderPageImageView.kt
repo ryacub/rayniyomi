@@ -314,8 +314,19 @@ open class ReaderPageImageView @JvmOverloads constructor(
                 isVisible = true
             }
             is BufferedSource -> {
+                // Performance optimization: single header read for both checks when needed
                 if (!isWebtoon || alwaysDecodeLongStripWithSSIV) {
+                    // Use SSIV path without checking if tall
                     setHardwareConfig(ImageUtil.canUseHardwareBitmap(data))
+                    setImage(ImageSource.inputStream(data.inputStream()))
+                    isVisible = true
+                    return@apply
+                }
+
+                // Webtoon mode: analyze image once for both tall check and hardware bitmap compatibility
+                val analysis = ImageUtil.analyzeImageForReader(data)
+                if (analysis.isTallImage) {
+                    setHardwareConfig(analysis.canUseHardwareBitmap)
                     setImage(ImageSource.inputStream(data.inputStream()))
                     isVisible = true
                     return@apply

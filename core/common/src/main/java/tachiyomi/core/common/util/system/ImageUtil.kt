@@ -199,13 +199,71 @@ object ImageUtil {
     }
 
     /**
-     * Check whether the image is considered a tall image.
+     * Check whether the image is considered a tall image suitable for SubsamplingScaleImageView.
      *
-     * @return true if the height:width ratio is greater than 3.
+     * This function should be called from a background thread only, as it performs I/O operations
+     * to read image headers. Animated images always return false regardless of aspect ratio, as
+     * SSIV does not support animation.
+     *
+     * @param imageSource The buffered source containing the image data. The source is peeked and not consumed.
+     * @return true if the height:width ratio is greater than 3 and the image is not animated.
      */
-    private fun isTallImage(imageSource: BufferedSource): Boolean {
+    fun isTallImage(imageSource: BufferedSource): Boolean {
+        // Animated images should not use SSIV regardless of aspect ratio
+        if (isAnimatedAndSupported(imageSource)) {
+            return false
+        }
+
         val options = extractImageOptions(imageSource)
-        return (options.outHeight / options.outWidth) > 3
+
+        // Guard against invalid dimensions
+        if (options.outWidth <= 0 || options.outHeight <= 0) {
+            return false
+        }
+
+        return (options.outHeight.toFloat() / options.outWidth) > 3
+    }
+
+    /**
+     * Data class holding image analysis results for reader optimization.
+     * Combines tall image detection and hardware bitmap compatibility in a single header read.
+     */
+    data class ImageAnalysis(
+        val isTallImage: Boolean,
+        val canUseHardwareBitmap: Boolean,
+    )
+
+    /**
+     * Analyzes an image for reader rendering optimizations with a single header read.
+     * This is more efficient than calling isTallImage() and canUseHardwareBitmap() separately.
+     *
+     * @param imageSource The buffered source containing the image data. The source is peeked and not consumed.
+     * @return ImageAnalysis containing both tall image status and hardware bitmap compatibility.
+     */
+    fun analyzeImageForReader(imageSource: BufferedSource): ImageAnalysis {
+        // Check animation first (early exit if animated)
+        val isAnimated = isAnimatedAndSupported(imageSource)
+        if (isAnimated) {
+            // Animated images: cannot use SSIV but may still use hardware bitmap
+            val options = extractImageOptions(imageSource)
+            return ImageAnalysis(
+                isTallImage = false,
+                canUseHardwareBitmap = canUseHardwareBitmap(options.outWidth, options.outHeight),
+            )
+        }
+
+        // Single header read for both checks
+        val options = extractImageOptions(imageSource)
+
+        // Guard against invalid dimensions
+        if (options.outWidth <= 0 || options.outHeight <= 0) {
+            return ImageAnalysis(isTallImage = false, canUseHardwareBitmap = false)
+        }
+
+        return ImageAnalysis(
+            isTallImage = (options.outHeight.toFloat() / options.outWidth) > 3,
+            canUseHardwareBitmap = canUseHardwareBitmap(options.outWidth, options.outHeight),
+        )
     }
 
     /**
