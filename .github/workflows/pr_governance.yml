@@ -28,9 +28,9 @@ jobs:
             const title = pr.title || "";
             const body = pr.body || "";
             const conventionalTitle =
-              /^(feat|fix|docs|chore|refactor|test|build|ci|perf|revert)(\([^)]+\))?:\s.+/i;
+              /^(feat|fix|docs|chore|refactor|test|build|ci|perf|revert)(\([^)]+\))?:\s.+\(R\d+\)$/i;
             if (!conventionalTitle.test(title)) {
-              errors.push("PR title must follow Conventional Commits (e.g. `fix: short summary`).");
+              errors.push("PR title must follow Conventional Commits and include ticket ID (e.g. `fix: short summary (R123)`).");
             }
 
             if (/\b(wip|dnm|do not merge)\b/i.test(title)) {
@@ -40,12 +40,24 @@ jobs:
             const normalizedBody = body
               .replace(/<!--[\s\S]*?-->/g, "")
               .trim();
-            if (normalizedBody.length < 20) {
-              errors.push("PR description is too short. Add a brief summary and testing notes.");
+            if (normalizedBody.length < 50) {
+              errors.push("PR description is too short. Please use the template.");
+            }
+
+            const requiredSections = [
+              "## Objective",
+              "## Scope",
+              "## Verification",
+              "## Risk",
+            ];
+            for (const section of requiredSections) {
+              if (!normalizedBody.includes(section)) {
+                errors.push(`PR description is missing required section: ${section}`);
+              }
             }
 
             const closesIssuePattern =
-              /\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+((?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+|https?:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/issues\/\d+)\b/i;
+              /\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+((?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+|https?:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]\/issues\/\d+)\b/i;
             if (!closesIssuePattern.test(normalizedBody)) {
               errors.push(
                 "PR description must include an issue auto-close reference (for example: `Closes #123`).",

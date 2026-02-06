@@ -22,7 +22,7 @@ These rules apply to all agent work in this folder.
 - No new `runBlocking` in UI-thread callbacks.
 - No new top-level `GlobalScope` usage.
 - No multi-ticket commit unless explicitly planned.
-- PR title must include ticket ID and concise scope.
+- PR title must follow Conventional Commits and include ticket ID: `type: summary (R123)`
 - PR description must include scope, verification, risk, and rollback notes.
 
 ## Priority Enforcement
@@ -45,5 +45,5 @@ The following files require coordination with owners to prevent merge conflicts:
 
 ## Source of Truth
 - Playbook: `.local/LLM_DELIVERY_PLAYBOOK.md`
-- Sprint board: `.local/remediation-sprint-board.md`
+- Sprint board: `.github/REMEDIATION_BOARD.md`
 - Agent Guidelines: `CLAUDE.md`, `GEMINI.md`
