@@ -14,14 +14,14 @@ This board tracks governance and technical debt remediation tasks for the `rayni
 | R45 | P1 | Enforce rebase-before-merge guardrails | Review | PR #88 |
 | R46 | P1 | Require rollback notes for P0/T3 tickets | Review | PR #89 |
 | R47 | P2 | Failure-learning loop (post-mortems) | Review | PR #90 |
-| R48 | P2 | Weekly workflow retro metrics | In Progress | `r48/workflow-metrics` |
+| R48 | P2 | Weekly workflow retro metrics | Review | PR #91 |
+| R63 | P1 | Rewrite README for fork identity | In Progress | `r63/rewrite-readme` |
 
 ## Backlog (Lane C)
 
 | ID | Priority | Task | Status |
 |---|---|---|---|
 | R62 | P3 | Audit and remove stale upstream app-name remnants | Todo |
-| R63 | P1 | Rewrite README for fork identity | Todo |
 
 ## Governance Rules
 1. **One ticket per branch.**

@@ -1,75 +1,61 @@
 <div align="center">
 
-<a href="https://aniyomi.org">
-    <img src="./.github/assets/logo.png" alt="Aniyomi logo" title="Aniyomi logo" width="80"/>
+<a href="https://github.com/ryacub/rayniyomi">
+    <img src="./.github/assets/logo.png" alt="Rayniyomi logo" title="Rayniyomi logo" width="80"/>
 </a>
 
-# Aniyomi [App](#)
+# Rayniyomi [App](#)
 
-### Full-featured player and reader, based on ~~Tachiyomi~~ Mihon.
-Discover and watch anime, cartoons, series, and more – easier than ever on your Android device.
+### A hardened fork of Aniyomi, focusing on Governance, Quality, and Fork Compliance.
+Discover and watch anime, cartoons, series, and more – with a focus on stable delivery and rigorous remediation.
 
-[![Discord server](https://img.shields.io/discord/841701076242530374.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/F32UjdJZrR)
-[![GitHub downloads](https://img.shields.io/github/downloads/aniyomiorg/aniyomi/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/aniyomiorg/aniyomi/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/ryacub/rayniyomi/build_push.yml?labelColor=27303D)](https://github.com/ryacub/rayniyomi/actions/workflows/build_push.yml)
+[![License: Apache-2.0](https://img.shields.io/github/license/ryacub/rayniyomi?labelColor=27303D&color=818cf8)](/LICENSE)
+[![Remediation Status](https://img.shields.io/badge/remediation-phase_6-blueviolet?labelColor=27303D)]( .github/REMEDIATION_BOARD.md)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/aniyomiorg/aniyomi/build_push.yml?labelColor=27303D)](https://github.com/aniyomiorg/aniyomi/actions/workflows/build_push.yml)
-[![License: Apache-2.0](https://img.shields.io/github/license/aniyomiorg/aniyomi?labelColor=27303D&color=818cf8)](/LICENSE)
-[![Translation status](https://img.shields.io/weblate/progress/aniyomi?labelColor=27303D&color=946300)](https://hosted.weblate.org/engage/aniyomi/)
+---
 
-## Download
+## About Rayniyomi
 
-[![Aniyomi Stable](https://img.shields.io/github/release/aniyomiorg/aniyomi.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/aniyomiorg/aniyomi/releases)
-[![Aniyomi Preview](https://img.shields.io/github/v/release/aniyomiorg/aniyomi-preview.svg?maxAge=3600&label=Beta&labelColor=2c2c47&color=1c1c39)](https://github.com/aniyomiorg/aniyomi-preview/releases)
+Rayniyomi is a fork of [Aniyomi](https://github.com/aniyomiorg/aniyomi) (which is based on [Mihon](https://github.com/mihonapp/mihon)). 
 
-*Requires Android 8.0 or higher.*
+This fork was created to implement advanced agentic coding governance, tech debt remediation, and strict fork compliance standards. We prioritize stability, automated guardrails, and structured delivery.
+
+## Key Differences
+
+- **Hardened Governance**: Mandatory ticket-driven workflow, risk-tier verification, and automated PR guardrails.
+- **Fork Compliance**: Explicitly isolated identity, applicationId, and telemetry endpoints.
+- **Remediation Focus**: Active tech debt reduction and dependency modernization (see [Remediation Board]( .github/REMEDIATION_BOARD.md)).
 
 ## Features
 
 <div align="left">
 
-* Local reading and watching of content.
-* A configurable reader with multiple viewers, reading directions and other settings.
-* A configurable player built on mpv-android with multiple options and settings.
-* Tracker support: [MyAnimeList](https://myanimelist.net/), [AniList](https://anilist.co/), [Kitsu](https://kitsu.app/), [MangaUpdates](https://mangaupdates.com), [Shikimori](https://shikimori.one), [Simkl](https://simkl.com/), and [Bangumi](https://bgm.tv/) support.
-* Categories to organize your library.
-* Light and dark themes.
-* Schedule updating your library for new chapters/episodes.
-* Create backups locally to read/watch offline or to your desired cloud service.
-* Plus much more...
+* **Standard Aniyomi Features**: Local reading/watching, mpv-based player, tracker support (MAL, AniList, etc.), light/dark themes, and backups.
+* **Enhanced Quality Gates**: Automated validation for PR titles, descriptions, and rollback plans.
+* **Failure Analysis**: Formal learning loop for every significant incident.
 
 </div>
 
-## Contributing
+## Governance & Contributing
 
-[Code of conduct](./CODE_OF_CONDUCT.md) · [Contributing guide](./CONTRIBUTING.md)
+We follow a strict **Ticket-First** development workflow.
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+- **Developer Guidelines**: See [AGENTS.md](docs/agent-templates/AGENTS.md) and [GEMINI.md](docs/agent-templates/GEMINI.md).
+- **Workflow Policy**: Formalized in [Agent Workflow Policy](docs/governance/agent-workflow.md).
+- **Contributing**: Please read our [Contributing Guide](CONTRIBUTING.md) and [Naming Conventions](docs/governance/naming-conventions.md).
 
-Before reporting a new issue, take a look at the [FAQ](https://aniyomi.org/docs/faq/general), the [changelog](https://aniyomi.org/changelogs/) and the already opened [issues](https://github.com/aniyomiorg/aniyomi/issues); if you got any questions, join our [Discord server](https://discord.gg/F32UjdJZrR).
+## Download
 
-### Repositories
+*Note: Rayniyomi is currently in a remediation phase. Official releases will be available once fork compliance (P0) is finalized.*
 
-[![aniyomiorg/aniyomi-website - GitHub](https://github-readme-stats.vercel.app/api/pin/?username=aniyomiorg&repo=aniyomi-website&bg_color=161B22&text_color=c9d1d9&title_color=818cf8&icon_color=818cf8&border_radius=8&hide_border=true&description_lines_count=2)](https://github.com/aniyomiorg/aniyomi-website/)
-[![aniyomiorg/aniyomi-mpv-lib - GitHub](https://github-readme-stats.vercel.app/api/pin/?username=aniyomiorg&repo=aniyomi-mpv-lib&bg_color=161B22&text_color=c9d1d9&title_color=818cf8&icon_color=818cf8&border_radius=8&hide_border=true&description_lines_count=2)](https://github.com/aniyomiorg/aniyomi-mpv-lib/)
-
-### Credits
-
-Thank you to all the people who have contributed!
-
-<a href="https://github.com/aniyomiorg/aniyomi/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=aniyomiorg/aniyomi" alt="Aniyomi app contributors" title="Aniyomi app contributors" width="800"/>
-</a>
-
-### Disclaimer
-
-The developer(s) of this application does not have any affiliation with the content providers available, and this application hosts zero content.
-
-### License
+## License
 
 <pre>
 Copyright © 2015 Javier Tomás
 Copyright © 2024 Mihon Open Source Project
 Copyright © 2024 Aniyomi Open Source Project
+Copyright © 2026 Rayniyomi Fork Project
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
