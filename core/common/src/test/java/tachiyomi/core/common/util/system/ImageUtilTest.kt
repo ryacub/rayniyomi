@@ -65,8 +65,12 @@ class ImageUtilTest {
     }
 
     private fun mockBitmapDimensions(width: Int, height: Int) {
-        every { 
-            BitmapFactory.decodeStream(any<InputStream>(), any(), any()) 
+        every {
+            BitmapFactory.decodeStream(
+                any<InputStream>(),
+                any(),
+                any(),
+            )
         } answers {
             val options = thirdArg<BitmapFactory.Options>()
             options.outWidth = width
