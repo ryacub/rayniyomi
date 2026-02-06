@@ -25,3 +25,5 @@ For `P0` or `T3` work:
 - Verification evidence captured.
 - PR metadata complete and accurate.
 - Risks + rollback documented.
+
+Validation note: codeowner review enforcement test.
