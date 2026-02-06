@@ -35,12 +35,51 @@ This fork was created to implement advanced agentic coding governance, tech debt
 * **Hardened Governance**: Automated validation for PR titles, descriptions, and rollback plans.
 * **Failure Analysis**: Formal learning loop for every technical incident.
 
-## Governance & Contributing
+## Issues, Feature Requests and Contributing
 
+Please make sure to read the full guidelines. Your issue may be closed without warning if you do not.
+
+<details><summary>Issues</summary>
+
+1. **Before reporting a new issue, take a look at the already opened and closed [issues](https://github.com/aniyomiorg/aniyomi/issues), and [recent release version changes](https://aniyomi.org/changelogs/).**
+2. If you are unsure, ask on Discord: [![Discord](https://img.shields.io/discord/841701076242530374?label=discord&labelColor=7289da&color=2c2f33&style=flat)](https://discord.gg/F32UjdJZrR)
+
+</details>
+
+<details><summary>Bugs</summary>
+
+* Include version (More → About → Version)
+  * If not latest, try updating, it may have already been solved
+  * Preview version is equal to the number of commits as seen on the main page
+* Include steps to reproduce (if not obvious from description)
+* Include screenshot (if needed)
+* If it could be device-dependent, try reproducing on another device (if possible)
+* Don't group unrelated requests into one issue
+
+</details>
+
+<details><summary>Feature Requests</summary>
+
+* Write a detailed issue, explaining what it should do or how. Avoid writing just "like X app does"
+* Include screenshot (if needed)
+
+</details>
+
+<details><summary>Contributing</summary>
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
+</details>
+
+<details><summary>Code of Conduct</summary>
+
+See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
+</details>
+
+## Governance
 
 - **Developer Guidelines**: See [AGENTS.md](docs/agent-templates/AGENTS.md) and [GEMINI.md](docs/agent-templates/GEMINI.md).
 - **Workflow Policy**: Formalized in [Agent Workflow Policy](docs/governance/agent-workflow.md).
-- **Contributing**: Please read our [Contributing Guide](CONTRIBUTING.md) and [Naming Conventions](docs/governance/naming-conventions.md).
+- **Naming Conventions**: See [Naming Conventions](docs/governance/naming-conventions.md).
 
 ## Download
 
