@@ -2,7 +2,7 @@
 - ID: R____
 - Priority: P0 | P1 | P2
 - Risk Tier: T1 | T2 | T3
-- GitHub Issue: Closes #____ (link to related issue)
+- GitHub Issue: Closes #____ (required; use `Closes`, `Fixes`, or `Resolves`)
 
 ## Objective
 - What problem does this PR solve?
