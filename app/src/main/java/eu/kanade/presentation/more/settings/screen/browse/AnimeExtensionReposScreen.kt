@@ -18,7 +18,14 @@ import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.flow.collectLatest
+import mihon.domain.extensionrepo.anime.interactor.CreateAnimeExtensionRepo
+import mihon.domain.extensionrepo.anime.interactor.DeleteAnimeExtensionRepo
+import mihon.domain.extensionrepo.anime.interactor.GetAnimeExtensionRepo
+import mihon.domain.extensionrepo.anime.interactor.ReplaceAnimeExtensionRepo
+import mihon.domain.extensionrepo.anime.interactor.UpdateAnimeExtensionRepo
 import tachiyomi.presentation.core.screens.LoadingScreen
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 class AnimeExtensionReposScreen(
     private val url: String? = null,
@@ -29,7 +36,17 @@ class AnimeExtensionReposScreen(
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = rememberScreenModel { AnimeExtensionReposScreenModel() }
+        val screenModel = rememberScreenModel {
+            ExtensionReposScreenModel(
+                AnimeExtensionRepoDependencies(
+                    getExtensionRepo = Injekt.get<GetAnimeExtensionRepo>(),
+                    createExtensionRepo = Injekt.get<CreateAnimeExtensionRepo>(),
+                    deleteExtensionRepo = Injekt.get<DeleteAnimeExtensionRepo>(),
+                    replaceExtensionRepo = Injekt.get<ReplaceAnimeExtensionRepo>(),
+                    updateExtensionRepo = Injekt.get<UpdateAnimeExtensionRepo>(),
+                ),
+            )
+        }
         val state by screenModel.state.collectAsState()
 
         LaunchedEffect(url) {
