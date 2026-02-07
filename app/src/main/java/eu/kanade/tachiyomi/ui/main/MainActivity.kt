@@ -144,7 +144,6 @@ class MainActivity : BaseActivity() {
     private var navigator: Navigator? = null
 
     // External player state - instance scoped to avoid multi-window conflicts
-    // Restored from savedInstanceState on process death
     private var currentExternalPlayerAnimeId: Long? = null
     private var currentExternalPlayerEpisodeId: Long? = null
 
