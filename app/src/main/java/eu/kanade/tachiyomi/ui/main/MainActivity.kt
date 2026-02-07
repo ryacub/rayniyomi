@@ -618,6 +618,12 @@ class MainActivity : BaseActivity() {
         const val SAVED_STATE_ANIME_KEY = "saved_state_anime_key"
         const val SAVED_STATE_EPISODE_KEY = "saved_state_episode_key"
 
+        /**
+         * Start player activity.
+         * Forwards to ExternalIntents for consistency.
+         *
+         * @deprecated Use ExternalIntents.startPlayerActivity directly
+         */
         suspend fun startPlayerActivity(
             context: Context,
             animeId: Long,
@@ -628,34 +634,16 @@ class MainActivity : BaseActivity() {
             videoIndex: Int = -1,
             hosterList: List<Hoster>? = null,
         ) {
-            if (extPlayer) {
-                val intent = try {
-                    ExternalIntents.newIntent(context, animeId, episodeId, video)
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR, e)
-                    withUIContext { Injekt.get<Application>().toast(e.message) }
-                    null
-                } ?: return
-
-                // Access MainActivity instance to set state and launch result
-                (context as? MainActivity)?.let { activity ->
-                    // Store IDs for ActivityResult callback (fresh launch) and savedInstanceState (process death)
-                    activity.currentExternalPlayerAnimeId = animeId
-                    activity.currentExternalPlayerEpisodeId = episodeId
-                    activity.externalPlayerResult.launch(intent)
-                }
-            } else {
-                context.startActivity(
-                    PlayerActivity.newIntent(
-                        context,
-                        animeId,
-                        episodeId,
-                        hosterList,
-                        hosterIndex,
-                        videoIndex,
-                    ),
-                )
-            }
+            ExternalIntents.startPlayerActivity(
+                context,
+                animeId,
+                episodeId,
+                extPlayer,
+                video,
+                hosterIndex,
+                videoIndex,
+                hosterList,
+            )
         }
     }
 }

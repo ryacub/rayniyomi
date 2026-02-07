@@ -617,6 +617,64 @@ class ExternalIntents {
         val externalIntents: ExternalIntents by injectLazy()
 
         /**
+         * Start player activity (internal or external).
+         * Moved from MainActivity to consolidate external player logic.
+         *
+         * @param context Application context
+         * @param animeId ID of anime to play
+         * @param episodeId ID of episode to play
+         * @param extPlayer true for external player, false for internal PlayerActivity
+         * @param video Optional specific video to play
+         * @param hosterIndex Index of hoster (for internal player)
+         * @param videoIndex Index of video (for internal player)
+         * @param hosterList List of hosters (for internal player)
+         */
+        suspend fun startPlayerActivity(
+            context: Context,
+            animeId: Long,
+            episodeId: Long,
+            extPlayer: Boolean,
+            video: Video? = null,
+            hosterIndex: Int = -1,
+            videoIndex: Int = -1,
+            hosterList: List<eu.kanade.tachiyomi.animesource.model.Hoster>? = null,
+        ) {
+            if (extPlayer) {
+                val intent = try {
+                    newIntent(context, animeId, episodeId, video)
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e)
+                    tachiyomi.core.common.util.lang.withUIContext {
+                        uy.kohesive.injekt.Injekt.get<android.app.Application>()
+                            .tachiyomi.core.common.util.system.toast(e.message)
+                    }
+                    null
+                } ?: return
+
+                // Launch through manager instead of static state
+                if (!externalIntents.launchExternalPlayer(intent)) {
+                    logcat(LogPriority.ERROR) { "Failed to launch external player - no active MainActivity" }
+                    tachiyomi.core.common.util.lang.withUIContext {
+                        uy.kohesive.injekt.Injekt.get<android.app.Application>()
+                            .tachiyomi.core.common.util.system.toast("Cannot launch external player")
+                    }
+                }
+            } else {
+                // Internal player - unchanged
+                context.startActivity(
+                    eu.kanade.tachiyomi.ui.player.PlayerActivity.newIntent(
+                        context,
+                        animeId,
+                        episodeId,
+                        hosterList,
+                        hosterIndex,
+                        videoIndex,
+                    ),
+                )
+            }
+        }
+
+        /**
          * Used to direct the [Intent] of a chosen episode to an external player.
          *
          * @param context the application context.
