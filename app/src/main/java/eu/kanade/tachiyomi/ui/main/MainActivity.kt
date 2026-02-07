@@ -143,11 +143,7 @@ class MainActivity : BaseActivity() {
 
     private var navigator: Navigator? = null
 
-    // External player state - instance scoped to avoid multi-window conflicts
-    private var currentExternalPlayerAnimeId: Long? = null
-    private var currentExternalPlayerEpisodeId: Long? = null
-
-    // External player result launcher - instance scoped to prevent context leaks
+    // External player result launcher - registered with ExternalIntents manager
     private lateinit var externalPlayerResult: ActivityResultLauncher<Intent>
 
     init {
@@ -162,14 +158,27 @@ class MainActivity : BaseActivity() {
 
         super.onCreate(savedInstanceState)
 
-        // Restore external player state after process death
-        // Using containsKey to distinguish between missing key (null) and valid 0L ID
-        currentExternalPlayerAnimeId = savedInstanceState
-            ?.takeIf { it.containsKey(SAVED_STATE_ANIME_KEY) }
-            ?.getLong(SAVED_STATE_ANIME_KEY)
-        currentExternalPlayerEpisodeId = savedInstanceState
-            ?.takeIf { it.containsKey(SAVED_STATE_ANIME_KEY) }
-            ?.getLong(SAVED_STATE_EPISODE_KEY)
+        // Register ActivityResultLauncher for external player
+        // Must be called before setContent (Fragment/Activity result API requirement)
+        externalPlayerResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result: ActivityResult ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val intentData = result.data
+                if (intentData == null) {
+                    logcat(LogPriority.WARN) { "External player returned null Intent" }
+                    return@registerForActivityResult
+                }
+
+                lifecycleScope.launchIO {
+                    try {
+                        ExternalIntents.externalIntents.onActivityResult(intentData)
+                    } catch (e: Exception) {
+                        logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
+                    }
+                }
+            }
+        }
 
         val didMigration = Migrator.awaitAndRelease()
 
@@ -367,6 +376,19 @@ class MainActivity : BaseActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Register this Activity with ExternalIntents manager
+        // Only the active (resumed) Activity handles external player results
+        ExternalIntents.externalIntents.registerActivity(this, externalPlayerResult)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Unregister to prevent stale references
+        ExternalIntents.externalIntents.unregisterActivity()
     }
 
     override fun onProvideAssistContent(outContent: AssistContent) {
@@ -598,14 +620,7 @@ class MainActivity : BaseActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-
-        // Save external player state to survive process death
-        currentExternalPlayerAnimeId?.let {
-            outState.putLong(SAVED_STATE_ANIME_KEY, it)
-        }
-        currentExternalPlayerEpisodeId?.let {
-            outState.putLong(SAVED_STATE_EPISODE_KEY, it)
-        }
+        // Note: External player state not saved - manager pattern handles config changes naturally
     }
 
     companion object {
