@@ -150,6 +150,10 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val isLaunch = savedInstanceState == null
 
+        // Restore external player state if returning from process death
+        currentExternalPlayerAnimeId = savedInstanceState?.getLong(SAVED_STATE_ANIME_KEY)
+        currentExternalPlayerEpisodeId = savedInstanceState?.getLong(SAVED_STATE_EPISODE_KEY)
+
         // Prevent splash screen showing up on configuration changes
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
@@ -323,9 +327,9 @@ class MainActivity : BaseActivity() {
             ActivityResultContracts.StartActivityForResult(),
         ) { result: ActivityResult ->
             if (result.resultCode == Activity.RESULT_OK) {
-                val animeId = savedInstanceState?.getLong(SAVED_STATE_ANIME_KEY)
-                val episodeId = savedInstanceState?.getLong(SAVED_STATE_EPISODE_KEY)
                 val intentData = result.data // Capture before async to avoid race condition
+                val animeId = currentExternalPlayerAnimeId
+                val episodeId = currentExternalPlayerEpisodeId
 
                 lifecycleScope.launchIO {
                     try {
@@ -572,10 +576,11 @@ class MainActivity : BaseActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
 
-        ExternalIntents.externalIntents.animeId?.let {
+        // Save external player state to survive process death
+        currentExternalPlayerAnimeId?.let {
             outState.putLong(SAVED_STATE_ANIME_KEY, it)
         }
-        ExternalIntents.externalIntents.episodeId?.let {
+        currentExternalPlayerEpisodeId?.let {
             outState.putLong(SAVED_STATE_EPISODE_KEY, it)
         }
     }
@@ -589,6 +594,11 @@ class MainActivity : BaseActivity() {
 
         const val SAVED_STATE_ANIME_KEY = "saved_state_anime_key"
         const val SAVED_STATE_EPISODE_KEY = "saved_state_episode_key"
+
+        // Store anime/episode IDs for external player result handling
+        // Stored in companion to be accessible from startPlayerActivity
+        private var currentExternalPlayerAnimeId: Long? = null
+        private var currentExternalPlayerEpisodeId: Long? = null
 
         private var externalPlayerResult: ActivityResultLauncher<Intent>? = null
 
@@ -610,6 +620,11 @@ class MainActivity : BaseActivity() {
                     withUIContext { Injekt.get<Application>().toast(e.message) }
                     null
                 } ?: return
+
+                // Store IDs for result callback (fresh launch) and savedInstanceState (process death)
+                currentExternalPlayerAnimeId = animeId
+                currentExternalPlayerEpisodeId = episodeId
+
                 externalPlayerResult?.launch(intent) ?: return
             } else {
                 context.startActivity(
