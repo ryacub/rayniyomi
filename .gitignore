@@ -15,8 +15,9 @@ local.properties
 # macOS specific files
 .DS_Store
 
-# AI Agent configuration files (environment-specific)
-# Copy from docs/agent-templates/ for AI-assisted development
+# AI Agent configuration and session files
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+.claude/
+logs/
