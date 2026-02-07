@@ -600,11 +600,11 @@ class MainActivity : BaseActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
 
-        // Save external player state - validate IDs are meaningful (> 0)
-        currentExternalPlayerAnimeId?.takeIf { it > 0 }?.let {
+        // Save external player state to survive process death
+        currentExternalPlayerAnimeId?.let {
             outState.putLong(SAVED_STATE_ANIME_KEY, it)
         }
-        currentExternalPlayerEpisodeId?.takeIf { it > 0 }?.let {
+        currentExternalPlayerEpisodeId?.let {
             outState.putLong(SAVED_STATE_EPISODE_KEY, it)
         }
     }
