@@ -143,6 +143,14 @@ class MainActivity : BaseActivity() {
 
     private var navigator: Navigator? = null
 
+    // External player state - instance scoped to avoid multi-window conflicts
+    // Restored from savedInstanceState on process death
+    private var currentExternalPlayerAnimeId: Long? = null
+    private var currentExternalPlayerEpisodeId: Long? = null
+
+    // External player result launcher - instance scoped to prevent context leaks
+    private lateinit var externalPlayerResult: ActivityResultLauncher<Intent>
+
     init {
         registerSecureActivity(this)
     }
@@ -154,6 +162,15 @@ class MainActivity : BaseActivity() {
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
         super.onCreate(savedInstanceState)
+
+        // Restore external player state after process death
+        // Using containsKey to distinguish between missing key (null) and valid 0L ID
+        currentExternalPlayerAnimeId = savedInstanceState
+            ?.takeIf { it.containsKey(SAVED_STATE_ANIME_KEY) }
+            ?.getLong(SAVED_STATE_ANIME_KEY)
+        currentExternalPlayerEpisodeId = savedInstanceState
+            ?.takeIf { it.containsKey(SAVED_STATE_EPISODE_KEY) }
+            ?.getLong(SAVED_STATE_EPISODE_KEY)
 
         val didMigration = Migrator.awaitAndRelease()
 
@@ -323,9 +340,16 @@ class MainActivity : BaseActivity() {
             ActivityResultContracts.StartActivityForResult(),
         ) { result: ActivityResult ->
             if (result.resultCode == Activity.RESULT_OK) {
-                val animeId = savedInstanceState?.getLong(SAVED_STATE_ANIME_KEY)
-                val episodeId = savedInstanceState?.getLong(SAVED_STATE_EPISODE_KEY)
-                val intentData = result.data // Capture before async to avoid race condition
+                // Capture values before async to avoid race conditions
+                val intentData = result.data
+                val animeId = currentExternalPlayerAnimeId
+                val episodeId = currentExternalPlayerEpisodeId
+
+                // Validate Intent data
+                if (intentData == null) {
+                    logcat(LogPriority.WARN) { "External player returned null Intent" }
+                    return@registerForActivityResult
+                }
 
                 lifecycleScope.launchIO {
                     try {
@@ -336,6 +360,10 @@ class MainActivity : BaseActivity() {
                         ExternalIntents.externalIntents.onActivityResult(intentData)
                     } catch (e: Exception) {
                         logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
+                    } finally {
+                        // Cleanup state after processing to prevent stale data
+                        currentExternalPlayerAnimeId = null
+                        currentExternalPlayerEpisodeId = null
                     }
                 }
             }
@@ -572,10 +600,11 @@ class MainActivity : BaseActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
 
-        ExternalIntents.externalIntents.animeId?.let {
+        // Save external player state - validate IDs are meaningful (> 0)
+        currentExternalPlayerAnimeId?.takeIf { it > 0 }?.let {
             outState.putLong(SAVED_STATE_ANIME_KEY, it)
         }
-        ExternalIntents.externalIntents.episodeId?.let {
+        currentExternalPlayerEpisodeId?.takeIf { it > 0 }?.let {
             outState.putLong(SAVED_STATE_EPISODE_KEY, it)
         }
     }
@@ -587,10 +616,9 @@ class MainActivity : BaseActivity() {
         const val INTENT_SEARCH_FILTER = "filter"
         const val INTENT_SEARCH_TYPE = "type"
 
-        const val SAVED_STATE_ANIME_KEY = "saved_state_anime_key"
-        const val SAVED_STATE_EPISODE_KEY = "saved_state_episode_key"
-
-        private var externalPlayerResult: ActivityResultLauncher<Intent>? = null
+        // Use prefixed keys to avoid Bundle key collisions
+        private const val SAVED_STATE_ANIME_KEY = "eu.kanade.tachiyomi.main.external_player_anime"
+        private const val SAVED_STATE_EPISODE_KEY = "eu.kanade.tachiyomi.main.external_player_episode"
 
         suspend fun startPlayerActivity(
             context: Context,
@@ -610,7 +638,14 @@ class MainActivity : BaseActivity() {
                     withUIContext { Injekt.get<Application>().toast(e.message) }
                     null
                 } ?: return
-                externalPlayerResult?.launch(intent) ?: return
+
+                // Access MainActivity instance to set state and launch result
+                (context as? MainActivity)?.let { activity ->
+                    // Store IDs for ActivityResult callback (fresh launch) and savedInstanceState (process death)
+                    activity.currentExternalPlayerAnimeId = animeId
+                    activity.currentExternalPlayerEpisodeId = episodeId
+                    activity.externalPlayerResult.launch(intent)
+                }
             } else {
                 context.startActivity(
                     PlayerActivity.newIntent(
