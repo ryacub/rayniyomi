@@ -67,6 +67,37 @@ class ExternalIntents {
     var animeId: Long? = null
     var episodeId: Long? = null
 
+    // Activity lifecycle management
+    private var activeActivity: eu.kanade.tachiyomi.ui.main.MainActivity? = null
+    private var externalPlayerLauncher: androidx.activity.result.ActivityResultLauncher<Intent>? = null
+
+    /**
+     * Register MainActivity and its ActivityResultLauncher for external player results.
+     * Called from MainActivity.onResume() to handle multi-window scenarios.
+     *
+     * @param activity The MainActivity instance to register
+     * @param launcher The ActivityResultLauncher for external player
+     */
+    fun registerActivity(activity: eu.kanade.tachiyomi.ui.main.MainActivity, launcher: androidx.activity.result.ActivityResultLauncher<Intent>) {
+        activeActivity = activity
+        externalPlayerLauncher = launcher
+    }
+
+    /**
+     * Unregister the active MainActivity.
+     * Called from MainActivity.onPause() to prevent stale references.
+     */
+    fun unregisterActivity() {
+        activeActivity = null
+        externalPlayerLauncher = null
+    }
+
+    /**
+     * Get the currently active MainActivity (for testing).
+     * @return The active MainActivity or null if none registered
+     */
+    internal fun getActiveActivity(): eu.kanade.tachiyomi.ui.main.MainActivity? = activeActivity
+
     /**
      * Returns the [Intent] to be sent to an external player.
      *
