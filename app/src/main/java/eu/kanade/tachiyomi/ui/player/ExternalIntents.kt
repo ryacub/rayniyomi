@@ -594,6 +594,24 @@ class ExternalIntents {
         }
     }
 
+    /**
+     * Launch external player with the given intent.
+     * Uses the registered ActivityResultLauncher from the active MainActivity.
+     *
+     * @param intent The Intent to launch external player with
+     * @return true if launched successfully, false if no active Activity
+     */
+    fun launchExternalPlayer(intent: Intent): Boolean {
+        val launcher = externalPlayerLauncher
+        if (launcher == null) {
+            logcat(LogPriority.WARN) { "No active MainActivity to launch external player" }
+            return false
+        }
+
+        launcher.launch(intent)
+        return true
+    }
+
     companion object {
 
         val externalIntents: ExternalIntents by injectLazy()

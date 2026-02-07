@@ -55,4 +55,24 @@ class ExternalIntentsTest {
         // Only second activity should be registered
         assertEquals(secondActivity, externalIntents.getActiveActivity())
     }
+
+    @Test
+    fun `launchExternalPlayer launches intent when activity registered`() {
+        val mockIntent: Intent = mock(Intent::class.java)
+        externalIntents.registerActivity(mockActivity, mockLauncher)
+
+        val result = externalIntents.launchExternalPlayer(mockIntent)
+
+        assertEquals(true, result)
+        org.mockito.Mockito.verify(mockLauncher).launch(mockIntent)
+    }
+
+    @Test
+    fun `launchExternalPlayer returns false when no activity registered`() {
+        val mockIntent: Intent = mock(Intent::class.java)
+
+        val result = externalIntents.launchExternalPlayer(mockIntent)
+
+        assertEquals(false, result)
+    }
 }
