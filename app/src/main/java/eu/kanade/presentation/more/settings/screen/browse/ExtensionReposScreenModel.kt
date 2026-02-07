@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import logcat.LogPriority
+import logcat.logcat
 import mihon.domain.extensionrepo.model.ExtensionRepo
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
@@ -23,7 +25,7 @@ class ExtensionReposScreenModel(
     private val deps: Dependencies,
 ) : StateScreenModel<RepoScreenState>(RepoScreenState.Loading) {
 
-    private val _events: Channel<RepoEvent> = Channel(Int.MAX_VALUE)
+    private val _events: Channel<RepoEvent> = Channel(Channel.BUFFERED) // 64-event buffer, sufficient for UI events
     val events = _events.receiveAsFlow()
 
     init {
@@ -52,7 +54,10 @@ class ExtensionReposScreenModel(
                 is CreateResult.DuplicateFingerprint -> {
                     showDialog(RepoDialog.Conflict(result.oldRepo, result.newRepo))
                 }
-                else -> {}
+                CreateResult.Success -> { /* Handled by state update in subscribeAll */ }
+                CreateResult.Error -> {
+                    logcat(LogPriority.ERROR) { "Failed to create extension repo: $baseUrl" }
+                }
             }
         }
     }
