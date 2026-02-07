@@ -169,7 +169,7 @@ class MainActivity : BaseActivity() {
             ?.takeIf { it.containsKey(SAVED_STATE_ANIME_KEY) }
             ?.getLong(SAVED_STATE_ANIME_KEY)
         currentExternalPlayerEpisodeId = savedInstanceState
-            ?.takeIf { it.containsKey(SAVED_STATE_EPISODE_KEY) }
+            ?.takeIf { it.containsKey(SAVED_STATE_ANIME_KEY) }
             ?.getLong(SAVED_STATE_EPISODE_KEY)
 
         val didMigration = Migrator.awaitAndRelease()
@@ -616,9 +616,8 @@ class MainActivity : BaseActivity() {
         const val INTENT_SEARCH_FILTER = "filter"
         const val INTENT_SEARCH_TYPE = "type"
 
-        // Use prefixed keys to avoid Bundle key collisions
-        private const val SAVED_STATE_ANIME_KEY = "eu.kanade.tachiyomi.main.external_player_anime"
-        private const val SAVED_STATE_EPISODE_KEY = "eu.kanade.tachiyomi.main.external_player_episode"
+        const val SAVED_STATE_ANIME_KEY = "saved_state_anime_key"
+        const val SAVED_STATE_EPISODE_KEY = "saved_state_episode_key"
 
         suspend fun startPlayerActivity(
             context: Context,
