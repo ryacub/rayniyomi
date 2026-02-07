@@ -11,7 +11,6 @@ import android.os.Bundle
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
-import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.track.anime.model.toDbTrack
 import eu.kanade.domain.track.anime.service.DelayedAnimeTrackingUpdateJob
@@ -23,6 +22,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
