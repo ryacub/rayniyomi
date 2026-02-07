@@ -156,7 +156,7 @@ class MangaUpdatesScreenModel(
 
     fun downloadChapters(items: List<MangaUpdatesItem>, action: ChapterDownloadAction) {
         if (items.isEmpty()) return
-        screenModelScope.launch {
+        screenModelScope.launchIO {
             when (action) {
                 ChapterDownloadAction.START -> {
                     downloadChapters(items)
@@ -165,11 +165,11 @@ class MangaUpdatesScreenModel(
                     }
                 }
                 ChapterDownloadAction.START_NOW -> {
-                    val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launch
+                    val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launchIO
                     startDownloadingNow(chapterId)
                 }
                 ChapterDownloadAction.CANCEL -> {
-                    val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launch
+                    val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launchIO
                     cancelDownload(chapterId)
                 }
                 ChapterDownloadAction.DELETE -> {
@@ -180,7 +180,7 @@ class MangaUpdatesScreenModel(
         }
     }
 
-    private fun startDownloadingNow(chapterId: Long) {
+    private suspend fun startDownloadingNow(chapterId: Long) {
         downloadManager.startDownloadNow(chapterId)
     }
 
