@@ -188,7 +188,7 @@ class AnimeUpdatesScreenModel(
         }
     }
 
-    private fun startDownloadingNow(episodeId: Long) {
+    private suspend fun startDownloadingNow(episodeId: Long) {
         downloadManager.startDownloadNow(episodeId)
     }
 
