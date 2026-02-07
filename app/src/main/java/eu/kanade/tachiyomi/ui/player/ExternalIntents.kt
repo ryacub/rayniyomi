@@ -8,8 +8,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.track.anime.model.toDbTrack
 import eu.kanade.domain.track.anime.service.DelayedAnimeTrackingUpdateJob
@@ -68,8 +70,8 @@ class ExternalIntents {
     var episodeId: Long? = null
 
     // Activity lifecycle management
-    private var activeActivity: eu.kanade.tachiyomi.ui.main.MainActivity? = null
-    private var externalPlayerLauncher: androidx.activity.result.ActivityResultLauncher<Intent>? = null
+    private var activeActivity: MainActivity? = null
+    private var externalPlayerLauncher: ActivityResultLauncher<Intent>? = null
 
     /**
      * Register MainActivity and its ActivityResultLauncher for external player results.
@@ -78,7 +80,7 @@ class ExternalIntents {
      * @param activity The MainActivity instance to register
      * @param launcher The ActivityResultLauncher for external player
      */
-    fun registerActivity(activity: eu.kanade.tachiyomi.ui.main.MainActivity, launcher: androidx.activity.result.ActivityResultLauncher<Intent>) {
+    fun registerActivity(activity: MainActivity, launcher: ActivityResultLauncher<Intent>) {
         activeActivity = activity
         externalPlayerLauncher = launcher
     }
@@ -96,7 +98,7 @@ class ExternalIntents {
      * Get the currently active MainActivity (for testing).
      * @return The active MainActivity or null if none registered
      */
-    internal fun getActiveActivity(): eu.kanade.tachiyomi.ui.main.MainActivity? = activeActivity
+    internal fun getActiveActivity(): MainActivity? = activeActivity
 
     /**
      * Returns the [Intent] to be sent to an external player.

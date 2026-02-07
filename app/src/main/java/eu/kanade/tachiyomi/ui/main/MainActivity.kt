@@ -630,9 +630,6 @@ class MainActivity : BaseActivity() {
         const val INTENT_SEARCH_FILTER = "filter"
         const val INTENT_SEARCH_TYPE = "type"
 
-        const val SAVED_STATE_ANIME_KEY = "saved_state_anime_key"
-        const val SAVED_STATE_EPISODE_KEY = "saved_state_episode_key"
-
         /**
          * Start player activity.
          * Forwards to ExternalIntents for consistency.
