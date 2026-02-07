@@ -156,31 +156,35 @@ class MangaUpdatesScreenModel(
 
     fun downloadChapters(items: List<MangaUpdatesItem>, action: ChapterDownloadAction) {
         if (items.isEmpty()) return
-        screenModelScope.launch {
-            when (action) {
-                ChapterDownloadAction.START -> {
-                    downloadChapters(items)
-                    if (items.any { it.downloadStateProvider() == MangaDownload.State.ERROR }) {
-                        downloadManager.startDownloads()
+        screenModelScope.launchNonCancellable {
+            try {
+                when (action) {
+                    ChapterDownloadAction.START -> {
+                        downloadChapters(items)
+                        if (items.any { it.downloadStateProvider() == MangaDownload.State.ERROR }) {
+                            downloadManager.startDownloads()
+                        }
+                    }
+                    ChapterDownloadAction.START_NOW -> {
+                        val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launchNonCancellable
+                        startDownloadingNow(chapterId)
+                    }
+                    ChapterDownloadAction.CANCEL -> {
+                        val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launchNonCancellable
+                        cancelDownload(chapterId)
+                    }
+                    ChapterDownloadAction.DELETE -> {
+                        deleteChapters(items)
                     }
                 }
-                ChapterDownloadAction.START_NOW -> {
-                    val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launch
-                    startDownloadingNow(chapterId)
-                }
-                ChapterDownloadAction.CANCEL -> {
-                    val chapterId = items.singleOrNull()?.update?.chapterId ?: return@launch
-                    cancelDownload(chapterId)
-                }
-                ChapterDownloadAction.DELETE -> {
-                    deleteChapters(items)
-                }
+                toggleAllSelection(false)
+            } catch (e: Throwable) {
+                logcat(LogPriority.ERROR, e)
             }
-            toggleAllSelection(false)
         }
     }
 
-    private fun startDownloadingNow(chapterId: Long) {
+    private suspend fun startDownloadingNow(chapterId: Long) {
         downloadManager.startDownloadNow(chapterId)
     }
 
