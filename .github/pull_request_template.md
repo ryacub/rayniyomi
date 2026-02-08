@@ -41,14 +41,7 @@
 - [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
 - [ ] Branch rebased on latest main and verification re-run (see [rebase policy](../docs/governance/agent-workflow.md#rebase-before-merge-policy-r45))
 
-## Definition of Done (DoD)
-- [ ] Acceptance criteria met and non-goals respected
-- [ ] Verification matrix completed (Risk Tier: T__)
-- [ ] Self-review completed
-- [ ] Rebased on latest `main` and revalidated (mandatory for merge)
-- [ ] Sprint board updated (branch, commit, checks, PR link)
-- [ ] Release notes drafted (if applicable)
-
+<<<<<<< HEAD
 ## Fork Compliance Checklist (for new forks only)
 If you are creating a new fork of this project, ensure the following:
 - [ ] **App Identity**: Changed app name from "Aniyomi" to your fork name
@@ -59,3 +52,12 @@ If you are creating a new fork of this project, ensure the following:
 - [ ] **Crash Reporting**: Either disabled ACRA crash reporting or configured with your own endpoint credentials
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) Forks section for details.
+=======
+## Definition of Done (DoD)
+- [ ] Acceptance criteria met and non-goals respected
+- [ ] Verification matrix completed (Risk Tier: T__)
+- [ ] Self-review completed
+- [ ] Rebased on latest `main` and revalidated (mandatory for merge)
+- [ ] Sprint board updated (branch, commit, checks, PR link)
+- [ ] Release notes drafted (if applicable)
+>>>>>>> ryacub/main
