@@ -343,12 +343,7 @@ class MainActivity : BaseActivity() {
             ActivityResultContracts.StartActivityForResult(),
         ) { result: ActivityResult ->
             if (result.resultCode == Activity.RESULT_OK) {
-                // Capture values before async to avoid race conditions
                 val intentData = result.data
-                val animeId = currentExternalPlayerAnimeId
-                val episodeId = currentExternalPlayerEpisodeId
-
-                // Validate Intent data
                 if (intentData == null) {
                     logcat(LogPriority.WARN) { "External player returned null Intent" }
                     return@registerForActivityResult
@@ -356,17 +351,9 @@ class MainActivity : BaseActivity() {
 
                 lifecycleScope.launchIO {
                     try {
-                        if (animeId != null && episodeId != null) {
-                            ExternalIntents.externalIntents.initAnime(animeId, episodeId)
-                        }
-
                         ExternalIntents.externalIntents.onActivityResult(intentData)
                     } catch (e: Exception) {
                         logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
-                    } finally {
-                        // Cleanup state after processing to prevent stale data
-                        currentExternalPlayerAnimeId = null
-                        currentExternalPlayerEpisodeId = null
                     }
                 }
             }
