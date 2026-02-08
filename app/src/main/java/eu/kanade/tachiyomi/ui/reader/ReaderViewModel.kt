@@ -680,7 +680,7 @@ class ReaderViewModel @JvmOverloads constructor(
      */
     fun setMangaReadingMode(readingMode: ReadingMode) {
         val manga = manga ?: return
-        runBlocking(Dispatchers.IO) {
+        viewModelScope.launchIO {
             setMangaViewerFlags.awaitSetReadingMode(
                 manga.id,
                 readingMode.flagValue.toLong(),
@@ -691,13 +691,15 @@ class ReaderViewModel @JvmOverloads constructor(
                 val currChapter = currChapters.currChapter
                 currChapter.requestedPage = currChapter.chapter.last_page_read
 
-                mutableState.update {
-                    it.copy(
-                        manga = getManga.await(manga.id),
-                        viewerChapters = currChapters,
-                    )
+                withUIContext {
+                    mutableState.update {
+                        it.copy(
+                            manga = getManga.await(manga.id),
+                            viewerChapters = currChapters,
+                        )
+                    }
+                    eventChannel.send(Event.ReloadViewerChapters)
                 }
-                eventChannel.send(Event.ReloadViewerChapters)
             }
         }
     }
