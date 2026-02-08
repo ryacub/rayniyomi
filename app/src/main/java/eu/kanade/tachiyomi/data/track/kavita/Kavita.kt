@@ -76,7 +76,8 @@ class Kavita(id: Long) : BaseTracker(id, "Kavita"), EnhancedMangaTracker, MangaT
     }
 
     override suspend fun searchManga(query: String): List<MangaTrackSearch> {
-        TODO("Not yet implemented: search")
+        // Search not supported for this tracker
+        return emptyList()
     }
 
     override suspend fun refresh(track: MangaTrack): MangaTrack {
