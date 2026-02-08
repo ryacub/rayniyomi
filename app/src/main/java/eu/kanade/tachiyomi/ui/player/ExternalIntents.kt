@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.ui.main.MainActivity
+import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
@@ -646,9 +647,8 @@ class ExternalIntents {
                     newIntent(context, animeId, episodeId, video)
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e)
-                    tachiyomi.core.common.util.lang.withUIContext {
-                        uy.kohesive.injekt.Injekt.get<android.app.Application>()
-                            .tachiyomi.core.common.util.system.toast(e.message)
+                    withUIContext {
+                        Injekt.get<Application>().toast(e.message)
                     }
                     null
                 } ?: return
@@ -656,15 +656,14 @@ class ExternalIntents {
                 // Launch through manager instead of static state
                 if (!externalIntents.launchExternalPlayer(intent)) {
                     logcat(LogPriority.ERROR) { "Failed to launch external player - no active MainActivity" }
-                    tachiyomi.core.common.util.lang.withUIContext {
-                        uy.kohesive.injekt.Injekt.get<android.app.Application>()
-                            .tachiyomi.core.common.util.system.toast("Cannot launch external player")
+                    withUIContext {
+                        Injekt.get<Application>().toast("Cannot launch external player")
                     }
                 }
             } else {
                 // Internal player - unchanged
                 context.startActivity(
-                    eu.kanade.tachiyomi.ui.player.PlayerActivity.newIntent(
+                    PlayerActivity.newIntent(
                         context,
                         animeId,
                         episodeId,
