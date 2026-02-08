@@ -67,7 +67,8 @@ class Suwayomi(id: Long) : BaseTracker(id, "Suwayomi"), EnhancedMangaTracker, Ma
     }
 
     override suspend fun searchManga(query: String): List<MangaTrackSearch> {
-        TODO("Not yet implemented")
+        // Search not supported for this tracker
+        return emptyList()
     }
 
     override suspend fun refresh(track: MangaTrack): MangaTrack {
