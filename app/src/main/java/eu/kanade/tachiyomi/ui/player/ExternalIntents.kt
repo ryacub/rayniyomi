@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import eu.kanade.domain.base.BasePreferences
@@ -21,6 +22,8 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.ui.main.MainActivity
+import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
@@ -66,6 +69,37 @@ class ExternalIntents {
 
     var animeId: Long? = null
     var episodeId: Long? = null
+
+    // Activity lifecycle management
+    private var activeActivity: MainActivity? = null
+    private var externalPlayerLauncher: ActivityResultLauncher<Intent>? = null
+
+    /**
+     * Register MainActivity and its ActivityResultLauncher for external player results.
+     * Called from MainActivity.onResume() to handle multi-window scenarios.
+     *
+     * @param activity The MainActivity instance to register
+     * @param launcher The ActivityResultLauncher for external player
+     */
+    fun registerActivity(activity: MainActivity, launcher: ActivityResultLauncher<Intent>) {
+        activeActivity = activity
+        externalPlayerLauncher = launcher
+    }
+
+    /**
+     * Unregister the active MainActivity.
+     * Called from MainActivity.onPause() to prevent stale references.
+     */
+    fun unregisterActivity() {
+        activeActivity = null
+        externalPlayerLauncher = null
+    }
+
+    /**
+     * Get the currently active MainActivity (for testing).
+     * @return The active MainActivity or null if none registered
+     */
+    internal fun getActiveActivity(): MainActivity? = activeActivity
 
     /**
      * Returns the [Intent] to be sent to an external player.
@@ -563,9 +597,83 @@ class ExternalIntents {
         }
     }
 
+    /**
+     * Launch external player with the given intent.
+     * Uses the registered ActivityResultLauncher from the active MainActivity.
+     *
+     * @param intent The Intent to launch external player with
+     * @return true if launched successfully, false if no active Activity
+     */
+    fun launchExternalPlayer(intent: Intent): Boolean {
+        val launcher = externalPlayerLauncher
+        if (launcher == null) {
+            logcat(LogPriority.WARN) { "No active MainActivity to launch external player" }
+            return false
+        }
+
+        launcher.launch(intent)
+        return true
+    }
+
     companion object {
 
         val externalIntents: ExternalIntents by injectLazy()
+
+        /**
+         * Start player activity (internal or external).
+         * Moved from MainActivity to consolidate external player logic.
+         *
+         * @param context Application context
+         * @param animeId ID of anime to play
+         * @param episodeId ID of episode to play
+         * @param extPlayer true for external player, false for internal PlayerActivity
+         * @param video Optional specific video to play
+         * @param hosterIndex Index of hoster (for internal player)
+         * @param videoIndex Index of video (for internal player)
+         * @param hosterList List of hosters (for internal player)
+         */
+        suspend fun startPlayerActivity(
+            context: Context,
+            animeId: Long,
+            episodeId: Long,
+            extPlayer: Boolean,
+            video: Video? = null,
+            hosterIndex: Int = -1,
+            videoIndex: Int = -1,
+            hosterList: List<eu.kanade.tachiyomi.animesource.model.Hoster>? = null,
+        ) {
+            if (extPlayer) {
+                val intent = try {
+                    newIntent(context, animeId, episodeId, video)
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e)
+                    withUIContext {
+                        Injekt.get<Application>().toast(e.message)
+                    }
+                    null
+                } ?: return
+
+                // Launch through manager instead of static state
+                if (!externalIntents.launchExternalPlayer(intent)) {
+                    logcat(LogPriority.ERROR) { "Failed to launch external player - no active MainActivity" }
+                    withUIContext {
+                        Injekt.get<Application>().toast("Cannot launch external player")
+                    }
+                }
+            } else {
+                // Internal player - unchanged
+                context.startActivity(
+                    PlayerActivity.newIntent(
+                        context,
+                        animeId,
+                        episodeId,
+                        hosterList,
+                        hosterIndex,
+                        videoIndex,
+                    ),
+                )
+            }
+        }
 
         /**
          * Used to direct the [Intent] of a chosen episode to an external player.
