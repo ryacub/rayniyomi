@@ -41,6 +41,15 @@
 - [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
 - [ ] Branch rebased on latest main and verification re-run (see [rebase policy](../docs/governance/agent-workflow.md#rebase-before-merge-policy-r45))
 
+## Anti-Duplication Checklist
+Review for code reuse opportunities:
+- [ ] **Checked for similar implementations**: Searched codebase for existing code that solves the same problem
+- [ ] **Considered shared abstractions**: Identified opportunities to extract common patterns into reusable components
+- [ ] **Verified no anime/manga parallel duplication**: If implementing for anime or manga, checked whether parallel code exists and can be unified
+- [ ] **Reviewed ViewModels for duplication**: PlayerViewModel and ReaderViewModel should share common patterns where applicable
+- [ ] **Considered utility functions**: Repeated logic extracted into helper functions or extension functions
+- [ ] **Documented intentional duplication**: If duplication is necessary, added comments explaining why
+
 ## Definition of Done (DoD)
 - [ ] Acceptance criteria met and non-goals respected
 - [ ] Verification matrix completed (Risk Tier: T__)
