@@ -3,13 +3,12 @@
 This repository follows ticket-driven delivery with explicit verification and review gates.
 
 ## Required Flow
-<<<<<<< HEAD
 1. Pick one ticket and verify dependencies (via GitHub Issues).
-2. Create a branch: `codex/<ticket-id>-<short-slug>`.
-=======
-1. Pick one ticket and verify dependencies.
-2. Create a branch: `r<ticket-id>/<short-slug>` or `codex/<ticket-id>-<short-slug>`.
->>>>>>> e70d68b7b (docs: update agent workflows and ensure issue template exists (R42))
+2. Create a branch by agent:
+   - **Claude:** `claude/<ticket-id>-<short-slug>`
+   - **Codex:** `codex/<ticket-id>-<short-slug>`
+   - **Gemini:** `gemini/<ticket-id>-<short-slug>`
+   - **Generic:** `r<ticket-id>/<short-slug>` (avoid if possible)
 3. Implement only in-scope changes.
 4. Run verification by risk tier (`T1`/`T2`/`T3`).
 5. Run self-review.
@@ -17,7 +16,14 @@ This repository follows ticket-driven delivery with explicit verification and re
 7. Update PR title/description and link to GitHub Issue.
 
 ## PR Requirements
-- Title format: `[R123] short imperative summary`
+- **Title format:** `<type>: <short summary> (R##)` following Conventional Commits
+  - **MUST end with `(R##)` format** - Validation will FAIL for other formats like `[R##]` or `(#)`
+  - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`, `revert`
+  - Examples:
+    - ✅ `feat: change applicationId (R35)`
+    - ✅ `fix: remove runBlocking from MainActivity (R02)`
+    - ❌ `[R35] change applicationId` - FAILS validation
+    - ❌ `feat: change applicationId (#35)` - FAILS validation
 - Body must include: Ticket, Objective, Scope, Non-goals, Files Changed, Verification, Risk, Rollback, Release Notes.
 
 ## High-Risk Rules
