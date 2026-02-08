@@ -1,0 +1,24 @@
+phase: A1_conservative
+tickets: [R03, R06]
+date: 2026-02-07T18:30:00Z
+strategy: Sonnet planning + Sonnet execution (batched, sequential)
+expected_tokens: 86000
+expected_per_ticket: 43000
+batching_savings: 10000 (shared planning)
+
+baseline_comparisons:
+  v2_orchestration: 242000  # 2 × 121k with debates
+  single_agent: 60000  # 2 × 30k simple approach
+
+goals:
+  - Establish batching mechanics
+  - Measure shared planning efficiency
+  - Validate conservative Sonnet-only approach
+  - Prove review gates work
+  - Collect baseline for Phase A2 comparison
+
+success_criteria:
+  token_efficiency: "< 100k total"
+  quality: "Both tickets pass review within 2 attempts"
+  batching: "Planning cost < 15k (shared)"
+  time: "< 30 minutes total"
