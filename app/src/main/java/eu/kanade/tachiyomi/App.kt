@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Looper
+import android.os.StrictMode
 import android.webkit.WebView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -81,6 +82,29 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
         super<Application>.onCreate()
+
+        // Enable StrictMode in debug builds to detect main-thread I/O violations
+        // Logs violations to logcat for investigation during development
+        if (BuildConfig.DEBUG) {
+            try {
+                StrictMode.setThreadPolicy(
+                    StrictMode.ThreadPolicy.Builder()
+                        .detectAll()
+                        .penaltyLog()
+                        .penaltyFlashScreen()
+                        .build(),
+                )
+                StrictMode.setVmPolicy(
+                    StrictMode.VmPolicy.Builder()
+                        .detectAll()
+                        .penaltyLog()
+                        .build(),
+                )
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to configure StrictMode" }
+            }
+        }
+
         patchInjekt()
 
         GlobalExceptionHandler.initialize(applicationContext, CrashActivity::class.java)
