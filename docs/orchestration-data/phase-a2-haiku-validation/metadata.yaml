@@ -1,0 +1,128 @@
+phase: A2_haiku_validation
+tickets: [R07, R27, R28, R29, R30]
+date: 2026-02-08T02:45:00Z
+strategy: Sonnet planning + Haiku execution (T1) + Sonnet execution (T2)
+
+experiment_goal: |
+  Validate if Haiku can maintain quality for T1 mechanical tickets while
+  reducing costs from 56k (Sonnet) to ~28k (Haiku) per ticket.
+
+hypothesis:
+  haiku_t1_cost: 28000  # 8k spawn + 8k impl + 5k review + overhead
+  sonnet_t2_cost: 56000  # 15k spawn + 12k impl + 15k review + overhead
+  total_target: 184000  # (4 × 28k) + (1 × 56k) + 16k overhead
+
+baseline_comparison:
+  phase_a1_conservative: 280000  # 5 × 56k (all Sonnet)
+  single_agent: 150000  # 5 × 30k
+  phase_a2_target: 184000  # Mixed Haiku/Sonnet
+  savings_vs_a1: 34%
+  overhead_vs_single: 23%
+
+tickets_detail:
+  R07:
+    issue: 16
+    title: "Add regression test: notification async path"
+    complexity: mechanical
+    type: test_implementation
+    review_tier: T1
+    execution_model: haiku
+    estimated_tokens: 28000
+
+  R27:
+    issue: 36
+    title: "Replace tracker TODOs with graceful unsupported behavior"
+    complexity: mechanical
+    type: refactor
+    review_tier: T1
+    execution_model: haiku
+    estimated_tokens: 28000
+
+  R28:
+    issue: 37
+    title: "Add tests for InMemoryPreferenceStore behavior"
+    complexity: mechanical
+    type: test_creation
+    review_tier: T1
+    execution_model: haiku
+    estimated_tokens: 28000
+
+  R29:
+    issue: 38
+    title: "Add tests for tracker unsupported-search behavior"
+    complexity: mechanical
+    type: test_creation
+    review_tier: T1
+    execution_model: haiku
+    estimated_tokens: 28000
+
+  R30:
+    issue: 39
+    title: "Add coroutine test harness for player/reader flows"
+    complexity: infrastructure
+    type: test_framework
+    review_tier: T2
+    execution_model: sonnet
+    estimated_tokens: 56000
+
+success_criteria:
+  haiku_success_rate: "> 70% (3/4 T1 tickets pass review without major rework)"
+  quality_maintained: "T1 checklist pass rate same as Phase A1"
+  cost_savings: "< 200k total (vs 280k A1 conservative)"
+  fix_loop_rate: "< 2 fix loops across all tickets"
+  time: "< 60 minutes total"
+
+key_metrics_to_track:
+  haiku_quality:
+    - First-pass review success rate
+    - Fix loop frequency (Haiku vs Sonnet)
+    - Types of issues found (mechanical vs logic)
+    - Code quality compared to Sonnet
+
+  cost_efficiency:
+    - Actual Haiku tokens per ticket
+    - Actual Sonnet tokens per ticket
+    - Overhead costs
+    - Total cost vs projections
+
+  time_efficiency:
+    - Haiku execution time vs Sonnet
+    - Fix loop impact on schedule
+    - Parallel execution opportunities
+
+decision_criteria:
+  adopt_haiku_if:
+    - Success rate > 70% (3/4 T1 tickets)
+    - Fix loops < 2 per ticket on average
+    - Quality issues are minor/mechanical only
+    - Total cost < 200k
+
+  reject_haiku_if:
+    - Success rate < 70% (2/4 or worse)
+    - Fix loops > 2 per ticket (excessive rework)
+    - Logic errors or architectural issues found
+    - Total cost > 220k (savings eliminated by rework)
+
+baseline_sha: edacf75f28f2b18f75b400b8b7117f4f3e41e2b3
+
+workspace:
+  worker_a: /tmp/rayniyomi-workspaces/worker-a
+  worker_b: /tmp/rayniyomi-workspaces/worker-b  # If parallel execution tested
+
+execution_strategy:
+  sequential: true  # Conservative for Phase A2
+  parallel: false   # Save for Phase A3
+  reason: "Validate Haiku quality first before introducing parallelization complexity"
+
+next_steps_after_a2:
+  if_haiku_succeeds:
+    - Document Haiku success rate and patterns
+    - Update cost model with actual Haiku data
+    - Phase A3: Test parallel execution with validated models
+    - Production: Use Haiku for T1, Sonnet for T2, batch 5-8 tickets
+
+  if_haiku_fails:
+    - Document failure patterns (types of issues)
+    - Stick with Sonnet for all execution
+    - Focus on batch size optimization (8-10 tickets minimum)
+    - Accept 40-50% overhead as cost of quality and coordination

@@ -110,11 +110,7 @@ class AnimeDownloadManager(
         val existingDownload = getQueuedDownloadOrNull(episodeId)
         // If not in queue try to start a new download
         val toAdd = existingDownload ?: AnimeDownload.fromEpisodeId(episodeId) ?: return
-        queueState.value.toMutableList().apply {
-            existingDownload?.let { remove(it) }
-            add(0, toAdd)
-            reorderQueue(this)
-        }
+        downloader.moveToFront(toAdd)
         startDownloads()
     }
 
@@ -153,9 +149,9 @@ class AnimeDownloadManager(
      */
     fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
         if (downloads.isEmpty()) return
-        queueState.value.toMutableList().apply {
-            addAll(0, downloads)
-            reorderQueue(this)
+        // Add each download to front in reverse order to maintain order
+        downloads.reversed().forEach { download ->
+            downloader.moveToFront(download)
         }
         if (!AnimeDownloadJob.isRunning(context)) startDownloads()
     }

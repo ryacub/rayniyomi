@@ -113,11 +113,7 @@ class MangaDownloadManager(
         val existingDownload = getQueuedDownloadOrNull(chapterId)
         // If not in queue try to start a new download
         val toAdd = existingDownload ?: MangaDownload.fromChapterId(chapterId) ?: return
-        queueState.value.toMutableList().apply {
-            existingDownload?.let { remove(it) }
-            add(0, toAdd)
-            reorderQueue(this)
-        }
+        downloader.moveToFront(toAdd)
         startDownloads()
     }
 
@@ -148,9 +144,9 @@ class MangaDownloadManager(
      */
     fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
         if (downloads.isEmpty()) return
-        queueState.value.toMutableList().apply {
-            addAll(0, downloads)
-            reorderQueue(this)
+        // Add each download to front in reverse order to maintain order
+        downloads.reversed().forEach { download ->
+            downloader.moveToFront(download)
         }
         if (!MangaDownloadJob.isRunning(context)) startDownloads()
     }

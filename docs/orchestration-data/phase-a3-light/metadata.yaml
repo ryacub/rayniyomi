@@ -1,0 +1,109 @@
+phase: A3_light
+execution_date: 2026-02-08T03:30:00Z
+goal: "Validate Haiku at production scale with diverse T1 tasks"
+
+strategy:
+  total_tickets: 8
+  bring_total_to: 12 (4 from A2 + 8 new)
+  execution_model: haiku (all T1)
+  review_tier: t1_checklist
+  monitoring_model: sonnet (lead)
+
+ticket_selection_criteria:
+  - T1 mechanical tasks only
+  - 0.5-1 day estimates
+  - Diverse task types (migrations, tests, lint, docs, refactors)
+  - Independent (no blocking dependencies)
+
+selected_tickets:
+  R09:
+    issue: 18
+    title: "Migrate NotificationReceiver off top-level global launch"
+    type: code_migration
+    estimate: 0.5d
+    complexity: mechanical
+
+  R11:
+    issue: 20
+    title: "Migrate ExternalIntents off top-level global launch"
+    type: code_migration
+    estimate: 0.5d
+    complexity: mechanical
+
+  R13:
+    issue: 22
+    title: "Add lint check for runBlocking in callbacks"
+    type: lint_rule
+    estimate: 0.5d
+    complexity: mechanical
+
+  R19:
+    issue: 28
+    title: "Add anti-duplication PR checklist"
+    type: documentation
+    estimate: 0.5d
+    complexity: mechanical
+
+  R31:
+    issue: 40
+    title: "TBD - Additional T1 ticket"
+    type: tbd
+    estimate: 0.5d
+    complexity: mechanical
+
+  R32:
+    issue: 41
+    title: "TBD - Additional T1 ticket"
+    type: tbd
+    estimate: 0.5d
+    complexity: mechanical
+
+  R33:
+    issue: 42
+    title: "TBD - Additional T1 ticket"
+    type: tbd
+    estimate: 0.5d
+    complexity: mechanical
+
+  R34:
+    issue: 43
+    title: "TBD - Additional T1 ticket"
+    type: tbd
+    estimate: 0.5d
+    complexity: mechanical
+
+task_type_diversity:
+  code_migration: 2 tickets (R09, R11)
+  lint_rules: 1 ticket (R13)
+  documentation: 1 ticket (R19)
+  other_mechanical: 4 tickets (R31-R34)
+
+success_criteria:
+  fix_loop_rate: "< 40% (5/12 tickets)"
+  cost_savings: "> 40% vs Sonnet baseline"
+  quality: "All T1 reviews pass"
+  total_cost: "< 250k tokens"
+
+decision_criteria:
+  adopt_haiku:
+    - Fix loop rate ≤ 40%
+    - Cost savings ≥ 40%
+    - Quality maintained (all pass)
+
+  cautious_adopt:
+    - Fix loop rate = 41-50%
+    - Cost savings ≥ 30%
+    - Quality acceptable
+
+  reject_haiku:
+    - Fix loop rate > 50%
+    - Cost savings < 30%
+    - Quality issues
+
+baseline_sha: edacf75f28f2b18f75b400b8b7117f4f3e41e2b3
+
+token_budget:
+  phase_a2_used: 106k
+  phase_a3_target: 200k
+  total_budget: 306k
+  remaining: 94k buffer

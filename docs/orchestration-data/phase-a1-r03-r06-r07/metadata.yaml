@@ -1,0 +1,52 @@
+phase: A1_conservative
+tickets: [R03, R06, R07]
+date: 2026-02-07T18:45:00Z
+strategy: Sonnet planning + Sonnet execution (batched, sequential)
+
+expected_costs:
+  shared_planning: 15000  # 5k per ticket
+  r03_execution: 27000    # T1 mechanical
+  r06_execution: 37000    # T2 infrastructure
+  r07_execution: 32000    # T1/T2 test
+  total: 111000           # 37k per ticket average
+
+baseline_comparisons:
+  v2_orchestration: 363000  # 3 × 121k with debates
+  single_agent: 90000       # 3 × 30k simple approach
+  orchestration_overhead: 21000  # 111k vs 90k
+
+goals:
+  - Validate 3-ticket break-even point
+  - Measure shared planning efficiency (15k vs 30k separate)
+  - Test adaptive review tiers (T1 + T2)
+  - Prove conservative Sonnet approach
+  - Collect baseline for Phase A2
+
+success_criteria:
+  token_efficiency: "< 120k total (vs 363k V2 = 67% savings)"
+  per_ticket_cost: "< 40k average"
+  quality: "All 3 tickets pass review within 2 attempts"
+  batching: "Planning savings > 10k"
+  time: "< 45 minutes total"
+
+tickets_detail:
+  R03:
+    issue: 12
+    title: "Make ReaderViewModel.setMangaReadingMode non-blocking"
+    complexity: mechanical
+    review_tier: T1
+    estimated_tokens: 27000
+
+  R06:
+    issue: 15
+    title: "Add StrictMode/dev checks for main-thread I/O"
+    complexity: infrastructure
+    review_tier: T2
+    estimated_tokens: 37000
+
+  R07:
+    issue: 16
+    title: "Add regression test: notification async path"
+    complexity: test
+    review_tier: T1/T2
+    estimated_tokens: 32000

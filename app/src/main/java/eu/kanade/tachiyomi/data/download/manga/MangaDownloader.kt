@@ -756,20 +756,61 @@ class MangaDownloader(
         }
     }
 
+    /**
+     * Moves the given download to the front of the queue atomically.
+     * If the download is already in the queue, it's moved to position 0.
+     * If it's not in the queue, it's added at position 0.
+     *
+     * @param download the download to move to the front.
+     */
+    fun moveToFront(download: MangaDownload) {
+        _queueState.update { queue ->
+            val filtered = queue.filter { it.chapter.id != download.chapter.id }
+            val newQueue = listOf(download) + filtered
+            store.clear()
+            store.addAll(newQueue)
+            newQueue
+        }
+    }
+
     fun updateQueue(downloads: List<MangaDownload>) {
         val wasRunning = isRunning
+        if (wasRunning) pause()
 
-        if (downloads.isEmpty()) {
-            clearQueue()
-            stop()
-            return
+        _queueState.update { currentQueue ->
+            if (downloads.isEmpty()) {
+                // Clear all downloads and mark them as not downloaded
+                currentQueue.forEach { download ->
+                    if (download.status == MangaDownload.State.DOWNLOADING ||
+                        download.status == MangaDownload.State.QUEUE
+                    ) {
+                        download.status = MangaDownload.State.NOT_DOWNLOADED
+                    }
+                }
+                store.clear()
+                emptyList()
+            } else {
+                // Mark downloads not in new list as NOT_DOWNLOADED
+                val newIds = downloads.map { it.chapter.id }.toSet()
+                currentQueue.filter { it.chapter.id !in newIds }.forEach { download ->
+                    if (download.status == MangaDownload.State.DOWNLOADING ||
+                        download.status == MangaDownload.State.QUEUE
+                    ) {
+                        download.status = MangaDownload.State.NOT_DOWNLOADED
+                    }
+                }
+                // Replace store with new list atomically
+                store.clear()
+                store.addAll(downloads)
+                downloads
+            }
         }
 
-        pause()
-        internalClearQueue()
-        addAllToQueue(downloads)
-
-        if (wasRunning) {
+        // Handle post-update state
+        if (queueState.value.isEmpty()) {
+            notifier.dismissProgress()
+            stop()
+        } else if (wasRunning) {
             start()
         }
     }

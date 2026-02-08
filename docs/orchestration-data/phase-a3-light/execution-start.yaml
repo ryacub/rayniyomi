@@ -1,0 +1,61 @@
+phase_a3_light_execution:
+  start_time: 2026-02-08T03:35:00Z
+  baseline_sha: edacf75f28f2b18f75b400b8b7117f4f3e41e2b3
+
+  goal: "Final validation: Scale + diversity + fix loop rate"
+
+  tickets:
+    R09:
+      issue: 18
+      title: "Migrate NotificationReceiver off top-level global launch"
+      type: code_migration
+
+    R11:
+      issue: 20
+      title: "Migrate ExternalIntents off top-level global launch"
+      type: code_migration
+
+    R13:
+      issue: 22
+      title: "Add lint check for runBlocking in callbacks"
+      type: lint_rule
+
+    R19:
+      issue: 28
+      title: "Add anti-duplication PR checklist"
+      type: documentation
+
+    R31:
+      issue: 40
+      title: "Canary rollout checklist and rollback playbook"
+      type: documentation
+
+    R32:
+      issue: 41
+      title: "Release monitoring dashboard updates"
+      type: config_metrics
+
+    R40:
+      issue: 49
+      title: "Fork identity/compliance changes"
+      type: text_config
+
+    R62:
+      issue: 70
+      title: "Remove stale upstream app-name remnants"
+      type: text_cleanup
+
+  execution_strategy:
+    model: haiku
+    review: t1_checklist
+    parallel: false  # Sequential for data consistency
+
+  decision_point:
+    after_8_tickets: "Combine with A2 results (4 tickets) = 12 total"
+    fix_loop_threshold: "≤ 5 loops (42%) = adopt, > 6 loops (50%) = reject"
+    cost_threshold: "> 40% savings = adopt"
+
+  token_budget:
+    a2_used: 106k
+    a3_target: 200k
+    total: 306k

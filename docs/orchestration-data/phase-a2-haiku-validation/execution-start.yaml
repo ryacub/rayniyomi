@@ -1,0 +1,79 @@
+phase_a2_execution:
+  start_time: 2026-02-08T02:50:00Z
+  baseline_sha: edacf75f28f2b18f75b400b8b7117f4f3e41e2b3
+  phase: A2_haiku_validation
+
+  experiment:
+    hypothesis: "Haiku can execute T1 mechanical tasks with 70%+ success rate and 50% cost savings"
+    test_approach: "Execute 4 T1 tickets with Haiku, 1 T2 ticket with Sonnet, measure quality and cost"
+
+  tickets:
+    R07:
+      issue: 16
+      title: "Add regression test: notification async path"
+      complexity: mechanical
+      type: test_creation
+      review_tier: T1
+      execution_model: haiku  # EXPERIMENT
+      estimated_tokens: 28000
+      context: "R01 made NotificationReceiver async (goAsync pattern), need regression tests"
+
+    R27:
+      issue: 36
+      title: "Replace tracker TODOs with graceful unsupported behavior"
+      complexity: mechanical
+      type: refactor
+      review_tier: T1
+      execution_model: haiku  # EXPERIMENT
+      estimated_tokens: 28000
+
+    R28:
+      issue: 37
+      title: "Add tests for InMemoryPreferenceStore behavior"
+      complexity: mechanical
+      type: test_creation
+      review_tier: T1
+      execution_model: haiku  # EXPERIMENT
+      estimated_tokens: 28000
+
+    R29:
+      issue: 38
+      title: "Add tests for tracker unsupported-search behavior"
+      complexity: mechanical
+      type: test_creation
+      review_tier: T1
+      execution_model: haiku  # EXPERIMENT
+      estimated_tokens: 28000
+
+    R30:
+      issue: 39
+      title: "Add coroutine test harness"
+      complexity: infrastructure
+      type: test_framework
+      review_tier: T2
+      execution_model: sonnet  # CONTROL
+      estimated_tokens: 56000
+
+  strategy:
+    planning: sonnet
+    execution_t1: haiku  # KEY EXPERIMENT
+    execution_t2: sonnet
+    monitoring: sonnet  # Keep lead as Sonnet for now
+    review_t1: checklist
+    review_t2: simple_review
+
+  token_tracking:
+    start_tokens: 89000
+    target: 184000
+    max_acceptable: 220000
+    savings_goal: 34% vs Phase A1 all-Sonnet
+
+  workspace:
+    worker_a: /tmp/rayniyomi-workspaces/worker-a
+
+  execution_order:
+    - R07  # Start with simplest T1 to validate Haiku
+    - R27  # Continue if R07 succeeds
+    - R28  # Build confidence
+    - R29  # Validate pattern
+    - R30  # Sonnet control for T2
