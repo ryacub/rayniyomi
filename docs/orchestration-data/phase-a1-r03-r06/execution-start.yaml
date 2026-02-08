@@ -1,0 +1,36 @@
+phase_a1_execution:
+  start_time: 2026-02-07T18:35:00Z
+  baseline_sha: bd0676a411ca95c1d221b26d1aecb526d396606e
+
+  tickets:
+    R03:
+      issue: 12
+      title: "Make ReaderViewModel.setMangaReadingMode non-blocking"
+      complexity: mechanical
+      estimated_execution: sonnet
+      estimated_review: T1
+      github_url: "https://github.com/ryacub/rayniyomi/issues/12"
+
+    R06:
+      issue: 15
+      title: "Add StrictMode/dev checks for main-thread I/O"
+      complexity: infrastructure
+      estimated_execution: sonnet
+      estimated_review: T2
+      github_url: "https://github.com/ryacub/rayniyomi/issues/15"
+
+  workspace:
+    worker_a: /tmp/rayniyomi-workspaces/worker-a
+    gradle_port: 55313
+
+  strategy:
+    phase: A1_conservative
+    planning: sonnet (shared)
+    execution: sonnet (both tickets)
+    monitoring: haiku
+    review: T1/T2 (no debates)
+
+  token_tracking:
+    start_tokens: 117784
+    target: 86000
+    max_acceptable: 100000
