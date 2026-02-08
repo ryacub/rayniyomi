@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.ui.main
 
 import android.animation.ValueAnimator
 import android.app.Activity
-import android.app.Application
 import android.app.SearchManager
 import android.app.assist.AssistContent
 import android.content.Context
@@ -96,11 +95,9 @@ import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
 import eu.kanade.tachiyomi.ui.player.ExternalIntents
-import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import eu.kanade.tachiyomi.util.system.dpToPx
 import eu.kanade.tachiyomi.util.system.isNavigationBarNeedsScrim
 import eu.kanade.tachiyomi.util.system.openInBrowser
-import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.updaterEnabled
 import eu.kanade.tachiyomi.util.view.setComposeContent
 import kotlinx.coroutines.channels.awaitClose
@@ -115,14 +112,12 @@ import logcat.LogPriority
 import mihon.core.migration.Migrator
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
@@ -143,6 +138,9 @@ class MainActivity : BaseActivity() {
 
     private var navigator: Navigator? = null
 
+    // External player result launcher - registered with ExternalIntents manager
+    private lateinit var externalPlayerResult: ActivityResultLauncher<Intent>
+
     init {
         registerSecureActivity(this)
     }
@@ -150,14 +148,32 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val isLaunch = savedInstanceState == null
 
-        // Restore external player state if returning from process death
-        currentExternalPlayerAnimeId = savedInstanceState?.getLong(SAVED_STATE_ANIME_KEY)
-        currentExternalPlayerEpisodeId = savedInstanceState?.getLong(SAVED_STATE_EPISODE_KEY)
-
         // Prevent splash screen showing up on configuration changes
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
         super.onCreate(savedInstanceState)
+
+        // Register ActivityResultLauncher for external player
+        // Must be called before setContent (Fragment/Activity result API requirement)
+        externalPlayerResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result: ActivityResult ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val intentData = result.data
+                if (intentData == null) {
+                    logcat(LogPriority.WARN) { "External player returned null Intent" }
+                    return@registerForActivityResult
+                }
+
+                lifecycleScope.launchIO {
+                    try {
+                        ExternalIntents.externalIntents.onActivityResult(intentData)
+                    } catch (e: Exception) {
+                        logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
+                    }
+                }
+            }
+        }
 
         val didMigration = Migrator.awaitAndRelease()
 
@@ -327,16 +343,14 @@ class MainActivity : BaseActivity() {
             ActivityResultContracts.StartActivityForResult(),
         ) { result: ActivityResult ->
             if (result.resultCode == Activity.RESULT_OK) {
-                val intentData = result.data // Capture before async to avoid race condition
-                val animeId = currentExternalPlayerAnimeId
-                val episodeId = currentExternalPlayerEpisodeId
+                val intentData = result.data
+                if (intentData == null) {
+                    logcat(LogPriority.WARN) { "External player returned null Intent" }
+                    return@registerForActivityResult
+                }
 
                 lifecycleScope.launchIO {
                     try {
-                        if (animeId != null && episodeId != null) {
-                            ExternalIntents.externalIntents.initAnime(animeId, episodeId)
-                        }
-
                         ExternalIntents.externalIntents.onActivityResult(intentData)
                     } catch (e: Exception) {
                         logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
@@ -344,6 +358,19 @@ class MainActivity : BaseActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Register this Activity with ExternalIntents manager
+        // Only the active (resumed) Activity handles external player results
+        ExternalIntents.externalIntents.registerActivity(this, externalPlayerResult)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Unregister to prevent stale references
+        ExternalIntents.externalIntents.unregisterActivity()
     }
 
     override fun onProvideAssistContent(outContent: AssistContent) {
@@ -575,14 +602,7 @@ class MainActivity : BaseActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-
-        // Save external player state to survive process death
-        currentExternalPlayerAnimeId?.let {
-            outState.putLong(SAVED_STATE_ANIME_KEY, it)
-        }
-        currentExternalPlayerEpisodeId?.let {
-            outState.putLong(SAVED_STATE_EPISODE_KEY, it)
-        }
+        // Note: External player state not saved - manager pattern handles config changes naturally
     }
 
     companion object {
@@ -592,16 +612,12 @@ class MainActivity : BaseActivity() {
         const val INTENT_SEARCH_FILTER = "filter"
         const val INTENT_SEARCH_TYPE = "type"
 
-        const val SAVED_STATE_ANIME_KEY = "saved_state_anime_key"
-        const val SAVED_STATE_EPISODE_KEY = "saved_state_episode_key"
-
-        // Store anime/episode IDs for external player result handling
-        // Stored in companion to be accessible from startPlayerActivity
-        private var currentExternalPlayerAnimeId: Long? = null
-        private var currentExternalPlayerEpisodeId: Long? = null
-
-        private var externalPlayerResult: ActivityResultLauncher<Intent>? = null
-
+        /**
+         * Start player activity.
+         * Forwards to ExternalIntents for consistency.
+         *
+         * @deprecated Use ExternalIntents.startPlayerActivity directly
+         */
         suspend fun startPlayerActivity(
             context: Context,
             animeId: Long,
@@ -612,32 +628,16 @@ class MainActivity : BaseActivity() {
             videoIndex: Int = -1,
             hosterList: List<Hoster>? = null,
         ) {
-            if (extPlayer) {
-                val intent = try {
-                    ExternalIntents.newIntent(context, animeId, episodeId, video)
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR, e)
-                    withUIContext { Injekt.get<Application>().toast(e.message) }
-                    null
-                } ?: return
-
-                // Store IDs for result callback (fresh launch) and savedInstanceState (process death)
-                currentExternalPlayerAnimeId = animeId
-                currentExternalPlayerEpisodeId = episodeId
-
-                externalPlayerResult?.launch(intent) ?: return
-            } else {
-                context.startActivity(
-                    PlayerActivity.newIntent(
-                        context,
-                        animeId,
-                        episodeId,
-                        hosterList,
-                        hosterIndex,
-                        videoIndex,
-                    ),
-                )
-            }
+            ExternalIntents.startPlayerActivity(
+                context,
+                animeId,
+                episodeId,
+                extPlayer,
+                video,
+                hosterIndex,
+                videoIndex,
+                hosterList,
+            )
         }
     }
 }
