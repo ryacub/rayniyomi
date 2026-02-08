@@ -680,7 +680,7 @@ class ReaderViewModel @JvmOverloads constructor(
      */
     fun setMangaReadingMode(readingMode: ReadingMode) {
         val manga = manga ?: return
-        runBlocking(Dispatchers.IO) {
+        viewModelScope.launchIO {
             setMangaViewerFlags.awaitSetReadingMode(
                 manga.id,
                 readingMode.flagValue.toLong(),
