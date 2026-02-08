@@ -4,14 +4,17 @@ These rules apply to all agent work in this folder.
 
 ## Required Process
 1. Choose exactly one ticket before editing code.
-2. Create/use a dedicated branch: `r<ticket-id>/<slug>` or `codex/<ticket-id>-<slug>`.
+2. Create/use a dedicated branch: `<agent>/<ticket-id>-<slug>` (e.g., `codex/r05-async-download`, `gemini/r12-scope-policy`, `claude/r16-backup-validator`).
 3. Follow the workflow in `.local/LLM_DELIVERY_PLAYBOOK.md`.
 4. Implement only in-ticket scope (no unrelated refactors).
 5. Run verification appropriate to the ticket risk tier.
 6. Perform self-review before commit.
 7. Commit with ticket prefix: `<ticket-id>: <summary>`.
-8. Open/update PR with compliant title and fully updated description.
-9. Update the local sprint board notes after work.
+8. Open/update PR with compliant title and complete description (must include `Closes #<issue-number>`).
+9. Merge PR after checks pass.
+10. **Delete branches** (local: `git branch -D <branch>`, remote: `git push <remote> --delete <branch>`).
+11. **Update R-BOARD (#71)** to check off completed ticket (GitHub auto-closes issue, but R-BOARD checklist is manual).
+12. Update the local sprint board notes after work.
 
 ## Hard Stops
 - If ticket ID, acceptance criteria, or dependencies are unclear: stop and clarify.
