@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
@@ -64,6 +66,12 @@ class MangaDownloadManager(
      * Uses SupervisorJob to prevent child failures from cancelling other operations.
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Mutex to synchronize download queue manipulation operations.
+     * Prevents race conditions when multiple coroutines modify the queue concurrently.
+     */
+    private val queueMutex = Mutex()
 
     private val downloader = MangaDownloader(context, provider, cache)
 
@@ -258,7 +266,9 @@ class MangaDownloadManager(
     }
 
     fun cancelQueuedDownloads(downloads: List<MangaDownload>) {
-        removeFromDownloadQueue(downloads.map { it.chapter })
+        scope.launch {
+            removeFromDownloadQueue(downloads.map { it.chapter })
+        }
     }
 
     /**
@@ -312,19 +322,21 @@ class MangaDownloadManager(
         }
     }
 
-    private fun removeFromDownloadQueue(chapters: List<Chapter>) {
-        val wasRunning = downloader.isRunning
-        if (wasRunning) {
-            downloader.pause()
-        }
+    private suspend fun removeFromDownloadQueue(chapters: List<Chapter>) {
+        queueMutex.withLock {
+            val wasRunning = downloader.isRunning
+            if (wasRunning) {
+                downloader.pause()
+            }
 
-        downloader.removeFromQueue(chapters)
+            downloader.removeFromQueue(chapters)
 
-        if (wasRunning) {
-            if (queueState.value.isEmpty()) {
-                downloader.stop()
-            } else {
-                downloader.start()
+            if (wasRunning) {
+                if (queueState.value.isEmpty()) {
+                    downloader.stop()
+                } else {
+                    downloader.start()
+                }
             }
         }
     }
