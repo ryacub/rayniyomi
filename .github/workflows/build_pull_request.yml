@@ -46,6 +46,18 @@ jobs:
       - name: Check code format
         run: ./gradlew spotlessCheck
 
+      - name: Check for deprecated global launch helpers (R08)
+        run: |
+          output=$(./gradlew :app:compileDebugKotlin 2>&1 | grep -i "deprecated.*launchIO\|deprecated.*launchUI\|deprecated.*launchNow" || true)
+          if [ -n "$output" ]; then
+            echo "ERROR: Usage of deprecated global launch helpers detected:"
+            echo "$output"
+            echo ""
+            echo "Please migrate to owned scopes (viewModelScope, lifecycleScope, or service-bound scope)."
+            echo "See: https://github.com/ryacub/rayniyomi/issues/17"
+            exit 1
+          fi
+
       - name: Build app
         run: ./gradlew assembleRelease
 
