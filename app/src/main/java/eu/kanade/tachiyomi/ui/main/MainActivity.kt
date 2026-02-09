@@ -338,26 +338,6 @@ class MainActivity : BaseActivity() {
                 chapterCache.clear()
             }
         }
-
-        externalPlayerResult = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult(),
-        ) { result: ActivityResult ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val intentData = result.data
-                if (intentData == null) {
-                    logcat(LogPriority.WARN) { "External player returned null Intent" }
-                    return@registerForActivityResult
-                }
-
-                lifecycleScope.launchIO {
-                    try {
-                        ExternalIntents.externalIntents.onActivityResult(intentData)
-                    } catch (e: Exception) {
-                        logcat(LogPriority.ERROR, e) { "Failed to process external player result" }
-                    }
-                }
-            }
-        }
     }
 
     override fun onResume() {
