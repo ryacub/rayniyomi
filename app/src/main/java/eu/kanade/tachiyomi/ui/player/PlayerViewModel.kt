@@ -962,6 +962,77 @@ class PlayerViewModel @JvmOverloads constructor(
         )
     }
 
+    /**
+     * Internal episode switching logic moved from PlayerActivity.
+     * Handles episode loading, hoster setup, and error handling.
+     */
+    fun changeEpisode(
+        episodeId: Long?,
+        autoPlay: Boolean,
+        isInPictureInPictureMode: Boolean,
+        onError: (Throwable) -> Unit,
+    ) {
+        sheetShown.update { Sheets.None }
+        panelShown.update { Panels.None }
+        pause()
+        isLoading.update { true }
+        resetHosterState()
+
+        viewModelScope.launch {
+            updateIsLoadingEpisode(true)
+            updateIsLoadingHosters(true)
+            cancelHosterVideoLinksJob()
+
+            val pipEpisodeToasts = playerPreferences.pipEpisodeToasts().get()
+            val switchMethod = loadEpisode(episodeId)
+
+            updateIsLoadingHosters(false)
+
+            when (switchMethod) {
+                null -> {
+                    if (currentAnime.value != null && !autoPlay) {
+                        withUIContext {
+                            Injekt.get<Application>().toast(AYMR.strings.no_next_episode)
+                        }
+                    }
+                    isLoading.update { false }
+                }
+
+                else -> {
+                    if (switchMethod.hosterList != null) {
+                        when {
+                            switchMethod.hosterList.isEmpty() -> {
+                                val error = ExceptionWithStringResource(
+                                    "Hoster list is empty",
+                                    AYMR.strings.no_hosters,
+                                )
+                                withUIContext { onError(error) }
+                            }
+                            else -> {
+                                loadHosters(
+                                    source = switchMethod.source,
+                                    hosterList = switchMethod.hosterList,
+                                    hosterIndex = -1,
+                                    videoIndex = -1,
+                                )
+                            }
+                        }
+                    } else {
+                        logcat(LogPriority.ERROR) { "Error getting links" }
+                    }
+
+                    if (isInPictureInPictureMode && pipEpisodeToasts) {
+                        withUIContext {
+                            Injekt.get<Application>().toast(switchMethod.episodeTitle)
+                        }
+                    }
+                }
+            }
+        }
+
+        episodeListManager.updateNavigationState()
+    }
+
     fun handleLeftDoubleTap() {
         when (gesturePreferences.leftDoubleTapGesture().get()) {
             SingleActionGesture.Seek -> {
