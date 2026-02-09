@@ -192,6 +192,8 @@ class ReaderConfigManager(
     }
 
     private fun loadDisplayProfile(path: String): ByteArray? {
+        if (path.isBlank()) return null
+
         val file = UniFile.fromUri(null, path.toUri()) ?: return null
         if (!file.exists()) return null
 
