@@ -25,8 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class HosterOrchestrator(
     private val scope: CoroutineScope,
 ) {
-    // === State Flows ===
-
     private val _hosterList = MutableStateFlow<List<Hoster>>(emptyList())
     val hosterList: StateFlow<List<Hoster>> = _hosterList.asStateFlow()
 
@@ -45,17 +43,11 @@ class HosterOrchestrator(
     private val _currentVideo = MutableStateFlow<Video?>(null)
     val currentVideo: StateFlow<Video?> = _currentVideo.asStateFlow()
 
-    // === Callbacks ===
-
     var onVideoReady: ((Video) -> Unit)? = null
     var onLoadingStateChanged: ((Boolean) -> Unit)? = null
     var onPauseRequested: (() -> Unit)? = null
 
-    // === Internal State ===
-
     private var getHosterVideoLinksJob: Job? = null
-
-    // === Public API ===
 
     fun updateIsLoadingHosters(value: Boolean) {
         _isLoadingHosters.update { value }
@@ -72,9 +64,6 @@ class HosterOrchestrator(
         getHosterVideoLinksJob?.cancel()
     }
 
-    /**
-     * Set the video list for hosters.
-     */
     fun loadHosters(source: AnimeSource, hosterList: List<Hoster>, hosterIndex: Int, videoIndex: Int) {
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
@@ -175,7 +164,6 @@ class HosterOrchestrator(
             selectedHosterState.getChangedAt(videoIndex, video, Video.State.LOAD_VIDEO),
         )
 
-        // Pause until everything has loaded
         onPauseRequested?.invoke()
 
         val resolvedVideo = if (selectedHosterState.videoState[videoIndex] != Video.State.READY) {
@@ -235,7 +223,7 @@ class HosterOrchestrator(
         val hosterState = _hosterState.value[hosterIndex] as? HosterState.Ready
         val video = hosterState?.videoList
             ?.getOrNull(videoIndex)
-            ?: return // Shouldn't happen, but just in case™
+            ?: return
 
         val videoState = hosterState.videoState
             .getOrNull(videoIndex)

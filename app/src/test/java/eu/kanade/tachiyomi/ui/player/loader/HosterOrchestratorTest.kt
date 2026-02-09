@@ -25,13 +25,10 @@ class HosterOrchestratorTest {
 
     @Test
     fun `reset clears all state`() = runTest {
-        // Given: orchestrator with some state
         orchestrator.updateIsLoadingHosters(false)
 
-        // When: reset is called
         orchestrator.reset()
 
-        // Then: all state is cleared
         assertEquals(emptyList<Hoster>(), orchestrator.hosterList.first())
         assertEquals(emptyList<HosterState>(), orchestrator.hosterState.first())
         assertEquals(emptyList<Boolean>(), orchestrator.hosterExpandedList.first())
@@ -41,19 +38,15 @@ class HosterOrchestratorTest {
 
     @Test
     fun `updateIsLoadingHosters updates state`() = runTest {
-        // Given: initial loading state is true
         assertEquals(true, orchestrator.isLoadingHosters.first())
 
-        // When: updateIsLoadingHosters is called with false
         orchestrator.updateIsLoadingHosters(false)
 
-        // Then: loading state is updated
         assertEquals(false, orchestrator.isLoadingHosters.first())
     }
 
     @Test
     fun `initial state is correct`() = runTest {
-        // Then: initial state values are correct
         assertEquals(emptyList<Hoster>(), orchestrator.hosterList.first())
         assertEquals(true, orchestrator.isLoadingHosters.first())
         assertEquals(emptyList<HosterState>(), orchestrator.hosterState.first())
@@ -64,8 +57,6 @@ class HosterOrchestratorTest {
 
     @Test
     fun `cancelHosterVideoLinksJob does not throw`() {
-        // When: cancelHosterVideoLinksJob is called without any active job
-        // Then: it should not throw an exception
         orchestrator.cancelHosterVideoLinksJob()
     }
 }

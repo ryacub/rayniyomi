@@ -210,7 +210,6 @@ class PlayerViewModel @JvmOverloads constructor(
 
     val isLoadingTracks = MutableStateFlow(true)
 
-    // Hoster orchestration delegated to HosterOrchestrator
     private val hosterOrchestrator = HosterOrchestrator(viewModelScope).apply {
         onVideoReady = { video ->
             // Update quality index for SavedState persistence
