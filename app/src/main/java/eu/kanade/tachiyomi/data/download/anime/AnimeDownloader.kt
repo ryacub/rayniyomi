@@ -867,7 +867,7 @@ class AnimeDownloader(
         _queueState.update { currentQueue ->
             downloads.forEach { download ->
                 download.status = AnimeDownload.State.QUEUE
-                store.addOrUpdate(download)
+                store.addAll(listOf(download))
             }
             // Prepend new downloads, removing duplicates by episode ID
             val existingIds = currentQueue.map { it.episode.id }.toSet()
@@ -885,7 +885,7 @@ class AnimeDownloader(
             // Remove from current position and prepend
             val filtered = currentQueue.filterNot { it.episode.id == download.episode.id }
             download.status = AnimeDownload.State.QUEUE
-            store.addOrUpdate(download)
+            store.addAll(listOf(download))
             listOf(download) + filtered
         }
     }

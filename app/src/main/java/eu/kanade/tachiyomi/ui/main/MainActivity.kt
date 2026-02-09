@@ -364,7 +364,7 @@ class MainActivity : BaseActivity() {
         super.onResume()
         // Register this Activity with ExternalIntents manager
         // Only the active (resumed) Activity handles external player results
-        ExternalIntents.externalIntents.registerActivity(this, externalPlayerResult)
+        ExternalIntents.externalIntents.registerActivity(this, externalPlayerResult, lifecycleScope)
     }
 
     override fun onPause() {
