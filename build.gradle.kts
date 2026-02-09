@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.aboutLibraries) apply false
     alias(libs.plugins.moko) apply false
     alias(libs.plugins.sqldelight) apply false
+    id("com.google.gms.google-services") version "4.4.0" apply false
 }
 
 tasks.register<Delete>("clean") {

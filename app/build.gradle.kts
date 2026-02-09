@@ -11,6 +11,7 @@ plugins {
     id("com.github.zellius.shortcut-helper")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
+    id("com.google.gms.google-services")
 }
 
 shortcutHelper.setFilePath("./shortcuts.xml")
@@ -295,6 +296,10 @@ dependencies {
 
     // Logging
     implementation(libs.logcat)
+
+    // Firebase Crashlytics for crash monitoring (R64)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
 
     // Shizuku
     implementation(libs.bundles.shizuku)

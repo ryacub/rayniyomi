@@ -80,3 +80,15 @@
 
 # XmlUtil
 -keep public enum nl.adaptivity.xmlutil.EventType { *; }
+##---------------Begin: proguard configuration for Firebase Crashlytics (R64)  ----------
+# Keep Firebase Crashlytics classes and methods
+-keep class com.google.firebase.crashlytics.** { *; }
+-keep class com.google.firebase.crashlytics.internal.** { *; }
+
+# Keep annotations and line number information for crash stack traces
+-keepattributes SourceFile,LineNumberTable,*Annotation*
+-renamesourcefileattribute SourceFile
+
+# Don't warn about Firebase Crashlytics
+-dontwarn com.google.firebase.crashlytics.**
+##---------------End: proguard configuration for Firebase Crashlytics  ----------

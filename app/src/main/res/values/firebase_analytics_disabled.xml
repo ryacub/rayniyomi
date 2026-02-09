@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   R37: Fork compliance - Firebase Analytics explicitly disabled.
+  R64: Firebase Crashlytics enabled for crash monitoring.
 
-  This file serves as documentation that Firebase Analytics is intentionally
-  disabled in this fork to prevent data pollution of upstream services.
-
-  This fork does NOT use Firebase Analytics. Do not add google-services.json
-  or Firebase dependencies without updating fork compliance documentation.
+  This file documents Firebase configuration for this fork:
+  - Firebase Analytics: DISABLED (prevents upstream data pollution)
+  - Firebase Crashlytics: ENABLED (monitors app crashes)
 
   See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
 -->
@@ -16,6 +15,8 @@
     <bool name="firebase_analytics_collection_deactivated" translatable="false">true</bool>
     <bool name="google_analytics_adid_collection_enabled" translatable="false">false</bool>
     <bool name="google_analytics_ssaid_collection_enabled" translatable="false">false</bool>
-    <bool name="firebase_crashlytics_collection_enabled" translatable="false">false</bool>
-    <bool name="firebase_crashlytics_collection_deactivated" translatable="false">true</bool>
+
+    <!-- Enables Firebase Crashlytics for crash monitoring (R64) -->
+    <bool name="firebase_crashlytics_collection_enabled" translatable="false">true</bool>
+    <bool name="firebase_crashlytics_collection_deactivated" translatable="false">false</bool>
 </resources>
