@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.util.chapter.removeDuplicates
 import kotlinx.coroutines.runBlocking
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
+import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
 import tachiyomi.domain.items.chapter.service.getChapterSort
 
@@ -36,74 +37,10 @@ internal class ReaderChapterListManager(
      * sorts them, and converts to ReaderChapter objects.
      */
     fun initChapterList(manga: Manga): List<ReaderChapter> {
-        val chapters = runBlocking { getChaptersByMangaId.await(manga.id, applyScanlatorFilter = true) }
-
-        val selectedChapter = chapters.find { it.id == chapterId }
-            ?: error("Requested chapter of id $chapterId not found in chapter list")
-
-        val chaptersForReader = when {
-            (readerPreferences.skipRead().get() || readerPreferences.skipFiltered().get()) -> {
-                val filteredChapters = chapters.filterNot {
-                    when {
-                        readerPreferences.skipRead().get() && it.read -> true
-                        readerPreferences.skipFiltered().get() -> {
-                            (manga.unreadFilterRaw == Manga.CHAPTER_SHOW_READ && !it.read) ||
-                                (manga.unreadFilterRaw == Manga.CHAPTER_SHOW_UNREAD && it.read) ||
-                                (
-                                    manga.downloadedFilterRaw ==
-                                        Manga.CHAPTER_SHOW_DOWNLOADED &&
-                                        !downloadManager.isChapterDownloaded(
-                                            it.name,
-                                            it.scanlator,
-                                            manga.title,
-                                            manga.source,
-                                        )
-                                    ) ||
-                                (
-                                    manga.downloadedFilterRaw ==
-                                        Manga.CHAPTER_SHOW_NOT_DOWNLOADED &&
-                                        downloadManager.isChapterDownloaded(
-                                            it.name,
-                                            it.scanlator,
-                                            manga.title,
-                                            manga.source,
-                                        )
-                                    ) ||
-                                (manga.bookmarkedFilterRaw == Manga.CHAPTER_SHOW_BOOKMARKED && !it.bookmark) ||
-                                (manga.bookmarkedFilterRaw == Manga.CHAPTER_SHOW_NOT_BOOKMARKED && it.bookmark)
-                        }
-                        else -> false
-                    }
-                }
-
-                if (filteredChapters.any { it.id == chapterId }) {
-                    filteredChapters
-                } else {
-                    filteredChapters + listOf(selectedChapter)
-                }
-            }
-            else -> chapters
-        }
-
-        _chapterList = chaptersForReader
-            .sortedWith(getChapterSort(manga, sortDescending = false))
-            .run {
-                if (readerPreferences.skipDupe().get()) {
-                    removeDuplicates(selectedChapter)
-                } else {
-                    this
-                }
-            }
-            .run {
-                if (basePreferences.downloadedOnly().get()) {
-                    filterDownloadedChapters(manga)
-                } else {
-                    this
-                }
-            }
-            .map { it.toDbChapter() }
-            .map(::ReaderChapter)
-
+        val chapters = fetchChapters(manga)
+        val selectedChapter = findSelectedChapter(chapters)
+        val filteredChapters = applyUserFilters(chapters, selectedChapter, manga)
+        _chapterList = processChapterList(filteredChapters, selectedChapter, manga)
         return _chapterList
     }
 
@@ -116,15 +53,16 @@ internal class ReaderChapterListManager(
     }
 
     /**
-     * Get the adjacent chapters (current, previous, next) for the given chapter.
-     * Returns a Triple of (current, previous, next) where previous/next may be null at boundaries.
+     * Get the adjacent chapters for navigation.
+     * Returns AdjacentChapters with current, previous, and next chapters.
+     * Previous/next may be null at list boundaries.
      */
-    fun getAdjacentChapters(chapter: ReaderChapter): Triple<ReaderChapter, ReaderChapter?, ReaderChapter?> {
+    fun getAdjacentChapters(chapter: ReaderChapter): AdjacentChapters {
         val chapterPos = chapterList.indexOf(chapter)
-        return Triple(
-            chapter,
-            chapterList.getOrNull(chapterPos - 1),
-            chapterList.getOrNull(chapterPos + 1),
+        return AdjacentChapters(
+            current = chapter,
+            previous = chapterList.getOrNull(chapterPos - 1),
+            next = chapterList.getOrNull(chapterPos + 1),
         )
     }
 
@@ -158,4 +96,124 @@ internal class ReaderChapterListManager(
                 }
             }
     }
+
+    // Private helper methods
+
+    private fun fetchChapters(manga: Manga): List<Chapter> {
+        return runBlocking { getChaptersByMangaId.await(manga.id, applyScanlatorFilter = true) }
+    }
+
+    private fun findSelectedChapter(chapters: List<Chapter>): Chapter {
+        return chapters.find { it.id == chapterId }
+            ?: error("Requested chapter of id $chapterId not found in chapter list")
+    }
+
+    private fun applyUserFilters(
+        chapters: List<Chapter>,
+        selectedChapter: Chapter,
+        manga: Manga,
+    ): List<Chapter> {
+        val shouldApplyFilters = readerPreferences.skipRead().get() || readerPreferences.skipFiltered().get()
+        if (!shouldApplyFilters) {
+            return chapters
+        }
+
+        val filteredChapters = chapters.filterNot { chapter ->
+            shouldFilterChapter(chapter, manga)
+        }
+
+        // Always include selected chapter even if it would be filtered
+        return if (filteredChapters.any { it.id == chapterId }) {
+            filteredChapters
+        } else {
+            filteredChapters + listOf(selectedChapter)
+        }
+    }
+
+    private fun shouldFilterChapter(chapter: Chapter, manga: Manga): Boolean {
+        return when {
+            shouldSkipByReadStatus(chapter) -> true
+            shouldSkipByMangaFilters(chapter, manga) -> true
+            else -> false
+        }
+    }
+
+    private fun shouldSkipByReadStatus(chapter: Chapter): Boolean {
+        return readerPreferences.skipRead().get() && chapter.read
+    }
+
+    private fun shouldSkipByMangaFilters(chapter: Chapter, manga: Manga): Boolean {
+        if (!readerPreferences.skipFiltered().get()) {
+            return false
+        }
+
+        return shouldSkipByUnreadFilter(chapter, manga) ||
+            shouldSkipByDownloadFilter(chapter, manga) ||
+            shouldSkipByBookmarkFilter(chapter, manga)
+    }
+
+    private fun shouldSkipByUnreadFilter(chapter: Chapter, manga: Manga): Boolean {
+        return when (manga.unreadFilterRaw) {
+            Manga.CHAPTER_SHOW_READ -> !chapter.read
+            Manga.CHAPTER_SHOW_UNREAD -> chapter.read
+            else -> false
+        }
+    }
+
+    private fun shouldSkipByDownloadFilter(chapter: Chapter, manga: Manga): Boolean {
+        val isDownloaded = downloadManager.isChapterDownloaded(
+            chapter.name,
+            chapter.scanlator,
+            manga.title,
+            manga.source,
+        )
+
+        return when (manga.downloadedFilterRaw) {
+            Manga.CHAPTER_SHOW_DOWNLOADED -> !isDownloaded
+            Manga.CHAPTER_SHOW_NOT_DOWNLOADED -> isDownloaded
+            else -> false
+        }
+    }
+
+    private fun shouldSkipByBookmarkFilter(chapter: Chapter, manga: Manga): Boolean {
+        return when (manga.bookmarkedFilterRaw) {
+            Manga.CHAPTER_SHOW_BOOKMARKED -> !chapter.bookmark
+            Manga.CHAPTER_SHOW_NOT_BOOKMARKED -> chapter.bookmark
+            else -> false
+        }
+    }
+
+    private fun processChapterList(
+        chapters: List<Chapter>,
+        selectedChapter: Chapter,
+        manga: Manga,
+    ): List<ReaderChapter> {
+        return chapters
+            .sortedWith(getChapterSort(manga, sortDescending = false))
+            .let { sorted ->
+                if (readerPreferences.skipDupe().get()) {
+                    sorted.removeDuplicates(selectedChapter)
+                } else {
+                    sorted
+                }
+            }
+            .let { processed ->
+                if (basePreferences.downloadedOnly().get()) {
+                    processed.filterDownloadedChapters(manga)
+                } else {
+                    processed
+                }
+            }
+            .map { it.toDbChapter() }
+            .map(::ReaderChapter)
+    }
+
+    /**
+     * Holds adjacent chapters for reader navigation.
+     */
+    data class AdjacentChapters(
+        val current: ReaderChapter,
+        val previous: ReaderChapter?,
+        val next: ReaderChapter?,
+    )
 }

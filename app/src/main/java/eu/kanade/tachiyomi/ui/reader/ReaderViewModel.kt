@@ -242,11 +242,11 @@ class ReaderViewModel @JvmOverloads constructor(
     ): ViewerChapters {
         loader.loadChapter(chapter)
 
-        val (curr, prev, next) = chapterListManager.getAdjacentChapters(chapter)
+        val adjacent = chapterListManager.getAdjacentChapters(chapter)
         val newChapters = ViewerChapters(
-            curr,
-            prev,
-            next,
+            adjacent.current,
+            adjacent.previous,
+            adjacent.next,
         )
 
         withUIContext {
