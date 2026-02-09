@@ -3,6 +3,9 @@ package eu.kanade.tachiyomi.data.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
+import eu.kanade.tachiyomi.animesource.model.FetchType
+import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -249,7 +252,7 @@ class NotificationReceiverTest {
         genre = null,
         status = 0L,
         thumbnailUrl = null,
-        updateStrategy = eu.kanade.tachiyomi.source.model.UpdateStrategy.ALWAYS_UPDATE,
+        updateStrategy = UpdateStrategy.ALWAYS_UPDATE,
         initialized = true,
         lastModifiedAt = 0L,
         favoriteModifiedAt = null,
@@ -302,12 +305,12 @@ class NotificationReceiverTest {
         status = 0L,
         thumbnailUrl = null,
         backgroundUrl = null,
-        updateStrategy = eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy.ALWAYS_UPDATE,
+        updateStrategy = AnimeUpdateStrategy.ALWAYS_UPDATE,
         initialized = true,
         lastModifiedAt = 0L,
         favoriteModifiedAt = null,
         version = 0L,
-        fetchType = eu.kanade.tachiyomi.animesource.model.FetchType.Episodes,
+        fetchType = FetchType.Episodes,
         parentId = null,
         seasonFlags = 0L,
         seasonNumber = -1.0,
