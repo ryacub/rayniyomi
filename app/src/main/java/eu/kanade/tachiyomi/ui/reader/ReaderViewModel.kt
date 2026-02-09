@@ -151,6 +151,12 @@ class ReaderViewModel @JvmOverloads constructor(
         basePreferences = basePreferences,
     )
 
+    /**
+     * Configuration manager for reader preferences and derived values.
+     */
+    lateinit var readerConfig: ReaderConfigManager
+        private set
+
     private val incognitoMode: Boolean by lazy { getIncognitoState.await(manga?.source) }
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading().get()
 
@@ -167,8 +173,26 @@ class ReaderViewModel @JvmOverloads constructor(
                     currentChapter.requestedPage = currentChapter.chapter.last_page_read
                 }
                 chapterId = currentChapter.chapter.id!!
+
+                // Update assist URL for current chapter
+                viewModelScope.launchIO {
+                    val url = getChapterUrl()
+                    mutableState.update { it.copy(assistUrl = url) }
+                }
             }
             .launchIn(viewModelScope)
+    }
+
+    /**
+     * Initializes the ReaderConfigManager. Must be called early in ReaderActivity lifecycle.
+     */
+    fun initReaderConfig(isNightMode: Boolean) {
+        readerConfig = ReaderConfigManager(
+            readerPreferences = readerPreferences,
+            basePreferences = basePreferences,
+            scope = viewModelScope,
+            isNightMode = isNightMode,
+        )
     }
 
     override fun onCleared() {
@@ -886,6 +910,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val dialog: Dialog? = null,
         val menuVisible: Boolean = false,
         @IntRange(from = -100, to = 100) val brightnessOverlayValue: Int = 0,
+        val assistUrl: String? = null,
     ) {
         val currentChapter: ReaderChapter?
             get() = viewerChapters?.currChapter
