@@ -298,7 +298,7 @@ class AnimeDownloadManager(
      * @param removeQueued whether to also remove queued downloads.
      */
     fun deleteAnime(anime: Anime, source: AnimeSource, removeQueued: Boolean = true) {
-        launchIO {
+        scope.launch {
             if (removeQueued) {
                 downloader.removeFromQueue(anime)
             }
