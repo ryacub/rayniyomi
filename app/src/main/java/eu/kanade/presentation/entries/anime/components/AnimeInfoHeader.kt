@@ -177,7 +177,6 @@ fun AnimeActionRow(
 ) {
     val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
 
-    // TODO: show something better when using custom interval
     val nextUpdateDays = remember(nextUpdate) {
         return@remember if (nextUpdate != null) {
             val now = Instant.now()
@@ -185,6 +184,20 @@ fun AnimeActionRow(
         } else {
             null
         }
+    }
+    val nextUpdateLabel = when (nextUpdateDays) {
+        null -> stringResource(MR.strings.not_applicable)
+        0 -> stringResource(MR.strings.manga_interval_expected_update_soon)
+        else -> pluralStringResource(
+            MR.plurals.day,
+            count = nextUpdateDays,
+            nextUpdateDays,
+        )
+    }
+    val intervalTitle = if (isUserIntervalMode) {
+        stringResource(MR.strings.manga_interval_custom_next_update, nextUpdateLabel)
+    } else {
+        nextUpdateLabel
     }
 
     Row(modifier = modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)) {
@@ -200,15 +213,7 @@ fun AnimeActionRow(
             onLongClick = onEditCategory,
         )
         AnimeActionButton(
-            title = when (nextUpdateDays) {
-                null -> stringResource(MR.strings.not_applicable)
-                0 -> stringResource(MR.strings.manga_interval_expected_update_soon)
-                else -> pluralStringResource(
-                    MR.plurals.day,
-                    count = nextUpdateDays,
-                    nextUpdateDays,
-                )
-            },
+            title = intervalTitle,
             icon = Icons.Default.HourglassEmpty,
             color = if (isUserIntervalMode) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
             onClick = { onEditIntervalClicked?.invoke() },

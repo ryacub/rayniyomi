@@ -179,6 +179,8 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                 .distinctBy { it.manga.id }
         }
 
+        // Smart-update restrictions control background update selection and are independent
+        // from library UI-only filters like "customized update frequency".
         val restrictions = libraryPreferences.autoUpdateItemRestrictions().get()
         val skippedUpdates = mutableListOf<Pair<Manga, String?>>()
         val (_, fetchWindowUpperBound) = mangaFetchInterval.getWindow(ZonedDateTime.now())

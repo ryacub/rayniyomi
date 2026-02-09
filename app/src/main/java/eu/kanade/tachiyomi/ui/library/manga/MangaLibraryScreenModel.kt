@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.ui.library.matchesCustomIntervalFilter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
@@ -177,7 +178,6 @@ class MangaLibraryScreenModel(
     ): MangaLibraryMap {
         val prefs = getLibraryItemPreferencesFlow().first()
         val downloadedOnly = prefs.globalFilterDownloaded
-        val skipOutsideReleasePeriod = prefs.skipOutsideReleasePeriod
         val filterDownloaded = if (downloadedOnly) TriState.ENABLED_IS else prefs.filterDownloaded
         val filterUnread = prefs.filterUnread
         val filterStarted = prefs.filterStarted
@@ -216,11 +216,7 @@ class MangaLibraryScreenModel(
         }
 
         val filterFnIntervalCustom: (MangaLibraryItem) -> Boolean = {
-            if (skipOutsideReleasePeriod) {
-                applyFilter(filterIntervalCustom) { it.libraryManga.manga.fetchInterval < 0 }
-            } else {
-                true
-            }
+            matchesCustomIntervalFilter(filterIntervalCustom, it.libraryManga.manga.fetchInterval)
         }
 
         val filterFnTracking: (MangaLibraryItem) -> Boolean = tracking@{ item ->
@@ -331,8 +327,6 @@ class MangaLibraryScreenModel(
             libraryPreferences.unreadBadge().changes(),
             libraryPreferences.localBadge().changes(),
             libraryPreferences.languageBadge().changes(),
-            libraryPreferences.autoUpdateItemRestrictions().changes(),
-
             preferences.downloadedOnly().changes(),
             libraryPreferences.filterDownloadedManga().changes(),
             libraryPreferences.filterUnread().changes(),
@@ -346,14 +340,13 @@ class MangaLibraryScreenModel(
                 unreadBadge = it[1] as Boolean,
                 localBadge = it[2] as Boolean,
                 languageBadge = it[3] as Boolean,
-                skipOutsideReleasePeriod = LibraryPreferences.ENTRY_OUTSIDE_RELEASE_PERIOD in (it[4] as Set<*>),
-                globalFilterDownloaded = it[5] as Boolean,
-                filterDownloaded = it[6] as TriState,
-                filterUnread = it[7] as TriState,
-                filterStarted = it[8] as TriState,
-                filterBookmarked = it[9] as TriState,
-                filterCompleted = it[10] as TriState,
-                filterIntervalCustom = it[11] as TriState,
+                globalFilterDownloaded = it[4] as Boolean,
+                filterDownloaded = it[5] as TriState,
+                filterUnread = it[6] as TriState,
+                filterStarted = it[7] as TriState,
+                filterBookmarked = it[8] as TriState,
+                filterCompleted = it[9] as TriState,
+                filterIntervalCustom = it[10] as TriState,
             )
         }
     }
@@ -725,8 +718,6 @@ class MangaLibraryScreenModel(
         val unreadBadge: Boolean,
         val localBadge: Boolean,
         val languageBadge: Boolean,
-        val skipOutsideReleasePeriod: Boolean,
-
         val globalFilterDownloaded: Boolean,
         val filterDownloaded: TriState,
         val filterUnread: TriState,
