@@ -11,7 +11,6 @@ plugins {
     id("com.github.zellius.shortcut-helper")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
-    id("com.google.gms.google-services")
 }
 
 shortcutHelper.setFilePath("./shortcuts.xml")
