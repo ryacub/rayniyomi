@@ -12,7 +12,6 @@ import android.os.Looper
 import android.os.StrictMode
 import android.provider.Settings
 import android.webkit.WebView
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -24,6 +23,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.allowRgb565
 import coil3.request.crossfade
 import coil3.util.DebugLogger
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dev.mihon.injekt.patchInjekt
 import eu.kanade.domain.DomainModule
 import eu.kanade.domain.SYDomainModule
