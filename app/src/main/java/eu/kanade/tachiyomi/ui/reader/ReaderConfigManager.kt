@@ -76,7 +76,6 @@ class ReaderConfigManager(
     companion object {
         // Reader theme constants
         private const val THEME_WHITE = 0
-        private const val THEME_BLACK = 1
         private const val THEME_GRAY = 2
         private const val THEME_AUTOMATIC = 3
     }
