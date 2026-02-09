@@ -3,13 +3,10 @@ package eu.kanade.tachiyomi.data.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import eu.kanade.tachiyomi.ui.player.PlayerActivity
-import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -22,7 +19,6 @@ import tachiyomi.domain.items.chapter.interactor.GetChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.model.Episode
-import java.time.Instant
 
 /**
  * Regression tests for NotificationReceiver async chapter/episode opening (R01 changes).
