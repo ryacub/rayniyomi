@@ -26,32 +26,6 @@ This repository follows ticket-driven delivery with explicit verification and re
     - ❌ `feat: change applicationId (#35)` - FAILS validation
 - Body must include: Ticket, Objective, Scope, Non-goals, Files Changed, Verification, Risk, Rollback, Release Notes.
 
-## Code Style Guidelines
-
-### Avoid Fully Qualified Class Names
-**Always use imports instead of inline fully qualified class names.**
-
-Bad:
-```kotlin
-updateStrategy = eu.kanade.tachiyomi.source.model.UpdateStrategy.ALWAYS_UPDATE,
-```
-
-Good:
-```kotlin
-import eu.kanade.tachiyomi.source.model.UpdateStrategy
-updateStrategy = UpdateStrategy.ALWAYS_UPDATE,
-```
-
-**Why:** Improves readability, follows Kotlin conventions, avoids ktlint violations.
-
-### Pre-Submission Checks
-Run before pushing any PR:
-
-1. **Check for fully qualified names:** `grep -r "= [a-z]*\.[a-z]*\.[a-z]*\." app/src/ core/`
-2. **Format code:** `./gradlew spotlessApply`
-3. **Run tests:** `./gradlew :module:testDebugUnitTest`
-4. **Rebase on main:** `git fetch origin && git rebase origin/main`
-
 ## High-Risk Rules
 For `P0` or `T3` work:
 - Labels required: `breaking-change`, `rollback-tested`
