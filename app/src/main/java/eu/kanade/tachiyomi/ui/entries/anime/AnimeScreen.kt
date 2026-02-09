@@ -349,8 +349,7 @@ class AnimeScreen(
                     nextUpdate = dialog.anime.expectedNextUpdate,
                     onDismissRequest = onDismissRequest,
                     isManga = false,
-                    onValueChanged = { interval: Int -> screenModel.setFetchInterval(dialog.anime, interval) }
-                        .takeIf { screenModel.isUpdateIntervalEnabled },
+                    onValueChanged = { interval: Int -> screenModel.setFetchInterval(dialog.anime, interval) },
                 )
             }
             AnimeScreenModel.Dialog.ChangeAnimeSkipIntro -> {

@@ -288,8 +288,7 @@ class MangaScreen(
                     nextUpdate = dialog.manga.expectedNextUpdate,
                     onDismissRequest = onDismissRequest,
                     isManga = true,
-                    onValueChanged = { interval: Int -> screenModel.setFetchInterval(dialog.manga, interval) }
-                        .takeIf { screenModel.isUpdateIntervalEnabled },
+                    onValueChanged = { interval: Int -> screenModel.setFetchInterval(dialog.manga, interval) },
                 )
             }
         }

@@ -27,6 +27,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.ui.library.matchesCustomIntervalFilter
 import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeBackgrounds
 import eu.kanade.tachiyomi.util.removeCovers
@@ -180,7 +181,6 @@ class AnimeLibraryScreenModel(
     ): AnimeLibraryMap {
         val prefs = getAnimelibItemPreferencesFlow().first()
         val downloadedOnly = prefs.globalFilterDownloaded
-        val skipOutsideReleasePeriod = prefs.skipOutsideReleasePeriod
         val filterDownloaded = if (downloadedOnly) TriState.ENABLED_IS else prefs.filterDownloaded
         val filterUnseen = prefs.filterUnseen
         val filterStarted = prefs.filterStarted
@@ -219,11 +219,7 @@ class AnimeLibraryScreenModel(
         }
 
         val filterFnIntervalCustom: (AnimeLibraryItem) -> Boolean = {
-            if (skipOutsideReleasePeriod) {
-                applyFilter(filterIntervalCustom) { it.libraryAnime.anime.fetchInterval < 0 }
-            } else {
-                true
-            }
+            matchesCustomIntervalFilter(filterIntervalCustom, it.libraryAnime.anime.fetchInterval)
         }
 
         val filterFnTracking: (AnimeLibraryItem) -> Boolean = tracking@{ item ->
@@ -344,8 +340,6 @@ class AnimeLibraryScreenModel(
             libraryPreferences.unreadBadge().changes(),
             libraryPreferences.localBadge().changes(),
             libraryPreferences.languageBadge().changes(),
-            libraryPreferences.autoUpdateItemRestrictions().changes(),
-
             preferences.downloadedOnly().changes(),
             libraryPreferences.filterDownloadedAnime().changes(),
             libraryPreferences.filterUnseen().changes(),
@@ -359,14 +353,13 @@ class AnimeLibraryScreenModel(
                     unseenBadge = it[1] as Boolean,
                     localBadge = it[2] as Boolean,
                     languageBadge = it[3] as Boolean,
-                    skipOutsideReleasePeriod = LibraryPreferences.ENTRY_OUTSIDE_RELEASE_PERIOD in (it[4] as Set<*>),
-                    globalFilterDownloaded = it[5] as Boolean,
-                    filterDownloaded = it[6] as TriState,
-                    filterUnseen = it[7] as TriState,
-                    filterStarted = it[8] as TriState,
-                    filterBookmarked = it[9] as TriState,
-                    filterCompleted = it[10] as TriState,
-                    filterIntervalCustom = it[11] as TriState,
+                    globalFilterDownloaded = it[4] as Boolean,
+                    filterDownloaded = it[5] as TriState,
+                    filterUnseen = it[6] as TriState,
+                    filterStarted = it[7] as TriState,
+                    filterBookmarked = it[8] as TriState,
+                    filterCompleted = it[9] as TriState,
+                    filterIntervalCustom = it[10] as TriState,
                 )
             },
         )
@@ -740,8 +733,6 @@ class AnimeLibraryScreenModel(
         val unseenBadge: Boolean,
         val localBadge: Boolean,
         val languageBadge: Boolean,
-        val skipOutsideReleasePeriod: Boolean,
-
         val globalFilterDownloaded: Boolean,
         val filterDownloaded: TriState,
         val filterUnseen: TriState,
