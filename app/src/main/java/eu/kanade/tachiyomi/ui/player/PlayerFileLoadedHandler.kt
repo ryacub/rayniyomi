@@ -58,7 +58,7 @@ internal class PlayerFileLoadedHandler(
 
     /**
      * Called when MPV fires the FILE_LOADED event.
-     * Orchestrates all setup operations for the newly loaded video file.
+     * Orchestrates all setup operations for the newly loaded video file in clear stages.
      */
     suspend fun onFileLoaded(
         currentVideo: Video?,
@@ -76,30 +76,95 @@ internal class PlayerFileLoadedHandler(
         onSetChapter: (Float) -> Unit,
         aniSkipFetcher: suspend (Int?) -> List<TimeStamp>?,
     ) = withContext(Dispatchers.IO) {
-        setMpvOptions(currentVideo)
+        configurePlayback(currentVideo)
+        setupMetadata(animeTitle, episodeName, episodeNumber, onVideoAspectUpdate)
+        setupMediaElements(currentVideo, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
+        integrateAniSkip(
+            playerDuration = playerDuration,
+            currentPos = currentPos,
+            aniSkipEnabled = aniSkipEnabled,
+            introSkipEnabled = introSkipEnabled,
+            disableAniSkipOnChapters = disableAniSkipOnChapters,
+            aniSkipFetcher = aniSkipFetcher,
+            onChaptersUpdated = onChaptersUpdated,
+            onSetChapter = onSetChapter,
+        )
+    }
+
+    // Pipeline Stage 1: Configure Playback Options
+
+    private fun configurePlayback(video: Video?) {
+        setMpvOptions(video)
+    }
+
+    // Pipeline Stage 2: Setup Metadata
+
+    private fun setupMetadata(
+        animeTitle: String?,
+        episodeName: String?,
+        episodeNumber: Double?,
+        onVideoAspectUpdate: () -> Unit,
+    ) {
         setMpvMediaTitle(animeTitle, episodeName, episodeNumber)
         onVideoAspectUpdate()
-        setupChapters(currentVideo, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
-        setupTracks(currentVideo)
+    }
 
-        // AniSkip integration
-        if (
-            introSkipEnabled &&
-            aniSkipEnabled &&
-            !(disableAniSkipOnChapters && chapters.value.isNotEmpty())
-        ) {
-            aniSkipFetcher(playerDuration)?.let { stamps ->
-                val mergedChapters = ChapterUtils.mergeChapters(
-                    currentChapters = chapters.value,
-                    stamps = stamps,
-                    duration = playerDuration,
-                )
-                _chapters.update { mergedChapters }
-                onChaptersUpdated(mergedChapters)
-                onSetChapter(currentPos)
-            }
+    // Pipeline Stage 3: Setup Media Elements (Chapters and Tracks)
+
+    private suspend fun setupMediaElements(
+        video: Video?,
+        currentChapters: List<IndexedSegment>,
+        playerDuration: Int?,
+        onChaptersUpdated: (List<IndexedSegment>) -> Unit,
+        onSetChapter: (Float) -> Unit,
+    ) {
+        setupChapters(video, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
+        setupTracks(video)
+    }
+
+    // Pipeline Stage 4: Integrate AniSkip
+
+    private suspend fun integrateAniSkip(
+        playerDuration: Int?,
+        currentPos: Float,
+        aniSkipEnabled: Boolean,
+        introSkipEnabled: Boolean,
+        disableAniSkipOnChapters: Boolean,
+        aniSkipFetcher: suspend (Int?) -> List<TimeStamp>?,
+        onChaptersUpdated: (List<IndexedSegment>) -> Unit,
+        onSetChapter: (Float) -> Unit,
+    ) {
+        if (!shouldIntegrateAniSkip(aniSkipEnabled, introSkipEnabled, disableAniSkipOnChapters)) {
+            return
+        }
+
+        aniSkipFetcher(playerDuration)?.let { stamps ->
+            val mergedChapters = ChapterUtils.mergeChapters(
+                currentChapters = chapters.value,
+                stamps = stamps,
+                duration = playerDuration,
+            )
+            _chapters.update { mergedChapters }
+            onChaptersUpdated(mergedChapters)
+            onSetChapter(currentPos)
         }
     }
+
+    private fun shouldIntegrateAniSkip(
+        aniSkipEnabled: Boolean,
+        introSkipEnabled: Boolean,
+        disableAniSkipOnChapters: Boolean,
+    ): Boolean {
+        // AniSkip requires both flags enabled
+        if (!introSkipEnabled || !aniSkipEnabled) return false
+
+        // Don't integrate if user disabled AniSkip when chapters exist
+        if (disableAniSkipOnChapters && chapters.value.isNotEmpty()) return false
+
+        return true
+    }
+
+    // Private helper methods
 
     private fun setMpvOptions(video: Video?) {
         video ?: return
