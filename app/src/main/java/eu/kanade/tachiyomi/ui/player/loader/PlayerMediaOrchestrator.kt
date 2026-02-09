@@ -165,10 +165,10 @@ class PlayerMediaOrchestrator(
         _chapters.update { chapters }
     }
 
-    private val introSkipEnabled = playerPreferences.enableSkipIntro().get()
-    private val autoSkip = playerPreferences.autoSkipIntro().get()
-    private val netflixStyle = playerPreferences.enableNetflixStyleIntroSkip().get()
-    private val defaultWaitingTime = playerPreferences.waitingTimeIntroSkip().get()
+    private val introSkipEnabled get() = playerPreferences.enableSkipIntro().get()
+    private val autoSkip get() = playerPreferences.autoSkipIntro().get()
+    private val netflixStyle get() = playerPreferences.enableNetflixStyleIntroSkip().get()
+    private val defaultWaitingTime get() = playerPreferences.waitingTimeIntroSkip().get()
     private var waitingSkipIntro = defaultWaitingTime
 
     var onSeekRequested: ((Int, String?) -> Unit)? = null
