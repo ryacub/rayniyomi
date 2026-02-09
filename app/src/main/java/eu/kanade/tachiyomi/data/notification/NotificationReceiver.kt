@@ -7,8 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
-import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
@@ -24,10 +22,15 @@ import eu.kanade.tachiyomi.util.system.getParcelableExtraCompat
 import eu.kanade.tachiyomi.util.system.notificationManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
@@ -50,9 +53,9 @@ import uy.kohesive.injekt.injectLazy
 import eu.kanade.tachiyomi.BuildConfig.APPLICATION_ID as ID
 
 /**
- * Global [BroadcastReceiver] that runs on UI thread
- * Pending Broadcasts should be made from here.
- * NOTE: Use local broadcasts if possible.
+ * BroadcastReceiver for notification actions with lifecycle-aware coroutines.
+ * User-initiated actions (open chapter/episode) use goAsync() with timeout protection.
+ * Fire-and-forget operations (mark as read/seen, downloads) use custom CoroutineScope with goAsync().
  */
 class NotificationReceiver : BroadcastReceiver() {
 
@@ -137,7 +140,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 val urls = intent.getStringArrayExtra(EXTRA_CHAPTER_URL) ?: return
                 val mangaId = intent.getLongExtra(EXTRA_MANGA_ID, -1)
                 if (mangaId > -1) {
-                    markAsRead(urls, mangaId)
+                    val pendingResult = goAsync()
+                    markAsRead(urls, mangaId, pendingResult)
                 }
             }
             // Mark updated anime episodes as seen
@@ -153,7 +157,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 val urls = intent.getStringArrayExtra(EXTRA_CHAPTER_URL) ?: return
                 val animeId = intent.getLongExtra(EXTRA_MANGA_ID, -1)
                 if (animeId > -1) {
-                    markAsSeen(urls, animeId)
+                    val pendingResult = goAsync()
+                    markAsSeen(urls, animeId, pendingResult)
                 }
             }
             // Download manga chapters
@@ -169,7 +174,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 val urls = intent.getStringArrayExtra(EXTRA_CHAPTER_URL) ?: return
                 val mangaId = intent.getLongExtra(EXTRA_MANGA_ID, -1)
                 if (mangaId > -1) {
-                    downloadChapters(urls, mangaId)
+                    val pendingResult = goAsync()
+                    downloadChapters(urls, mangaId, pendingResult)
                 }
             }
             // Download anime episodes
@@ -185,7 +191,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 val urls = intent.getStringArrayExtra(EXTRA_CHAPTER_URL) ?: return
                 val animeId = intent.getLongExtra(EXTRA_MANGA_ID, -1)
                 if (animeId > -1) {
-                    downloadEpisodes(urls, animeId)
+                    val pendingResult = goAsync()
+                    downloadEpisodes(urls, animeId, pendingResult)
                 }
             }
         }
@@ -231,21 +238,34 @@ class NotificationReceiver : BroadcastReceiver() {
      */
     private fun openChapter(context: Context, mangaId: Long, chapterId: Long, pendingResult: PendingResult) {
         val appContext = context.applicationContext
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
             try {
-                val manga = getManga.await(mangaId)
-                val chapter = getChapter.await(chapterId)
-                withContext(Dispatchers.Main) {
-                    if (manga != null && chapter != null) {
-                        val intent = ReaderActivity.newIntent(appContext, manga.id, chapter.id).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                withTimeout(10_000L) {
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: openChapter started for manga=$mangaId chapter=$chapterId"
+                    }
+                    val manga = getManga.await(mangaId)
+                    val chapter = getChapter.await(chapterId)
+                    withContext(Dispatchers.Main) {
+                        if (manga != null && chapter != null) {
+                            val intent = ReaderActivity.newIntent(appContext, manga.id, chapter.id).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            appContext.startActivity(intent)
+                            logcat(LogPriority.DEBUG) { "NotificationReceiver: openChapter completed successfully" }
+                        } else {
+                            appContext.toast(appContext.stringResource(AYMR.strings.download_error))
+                            logcat(LogPriority.WARN) {
+                                "NotificationReceiver: openChapter failed - manga or chapter not found"
+                            }
                         }
-                        appContext.startActivity(intent)
-                    } else {
-                        appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                     }
                 }
             } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) {
+                    "NotificationReceiver: openChapter failed for manga=$mangaId chapter=$chapterId"
+                }
                 withContext(Dispatchers.Main) {
                     appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                 }
@@ -265,21 +285,34 @@ class NotificationReceiver : BroadcastReceiver() {
      */
     private fun openEpisode(context: Context, animeId: Long, episodeId: Long, pendingResult: PendingResult) {
         val appContext = context.applicationContext
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
             try {
-                val anime = getAnime.await(animeId)
-                val episode = getEpisode.await(episodeId)
-                withContext(Dispatchers.Main) {
-                    if (anime != null && episode != null) {
-                        val intent = PlayerActivity.newIntent(appContext, anime.id, episode.id).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                withTimeout(10_000L) {
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: openEpisode started for anime=$animeId episode=$episodeId"
+                    }
+                    val anime = getAnime.await(animeId)
+                    val episode = getEpisode.await(episodeId)
+                    withContext(Dispatchers.Main) {
+                        if (anime != null && episode != null) {
+                            val intent = PlayerActivity.newIntent(appContext, anime.id, episode.id).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            appContext.startActivity(intent)
+                            logcat(LogPriority.DEBUG) { "NotificationReceiver: openEpisode completed successfully" }
+                        } else {
+                            appContext.toast(appContext.stringResource(AYMR.strings.download_error))
+                            logcat(LogPriority.WARN) {
+                                "NotificationReceiver: openEpisode failed - anime or episode not found"
+                            }
                         }
-                        appContext.startActivity(intent)
-                    } else {
-                        appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                     }
                 }
             } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) {
+                    "NotificationReceiver: openEpisode failed for anime=$animeId episode=$episodeId"
+                }
                 withContext(Dispatchers.Main) {
                     appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                 }
@@ -330,27 +363,43 @@ class NotificationReceiver : BroadcastReceiver() {
      *
      * @param chapterUrls URLs of chapter to mark as read
      * @param mangaId id of manga
+     * @param pendingResult pending result from goAsync() to signal completion
      */
-    private fun markAsRead(chapterUrls: Array<String>, mangaId: Long) {
+    private fun markAsRead(chapterUrls: Array<String>, mangaId: Long, pendingResult: PendingResult) {
         val downloadPreferences: DownloadPreferences = Injekt.get()
         val sourceManager: MangaSourceManager = Injekt.get()
 
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
-            val toUpdate = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
-                .map {
-                    val chapter = it.copy(read = true)
-                    if (downloadPreferences.removeAfterMarkedAsRead().get()) {
-                        val manga = getManga.await(mangaId)
-                        if (manga != null) {
-                            val source = sourceManager.get(manga.source)
-                            if (source != null) {
-                                mangaDownloadManager.deleteChapters(listOf(it), manga, source)
-                            }
-                        }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
+            try {
+                withTimeout(10_000L) {
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: markAsRead started for manga=$mangaId (${chapterUrls.size} chapters)"
                     }
-                    chapter.toChapterUpdate()
+                    val toUpdate = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
+                        .map {
+                            val chapter = it.copy(read = true)
+                            if (downloadPreferences.removeAfterMarkedAsRead().get()) {
+                                val manga = getManga.await(mangaId)
+                                if (manga != null) {
+                                    val source = sourceManager.get(manga.source)
+                                    if (source != null) {
+                                        mangaDownloadManager.deleteChapters(listOf(it), manga, source)
+                                    }
+                                }
+                            }
+                            chapter.toChapterUpdate()
+                        }
+                    updateChapter.awaitAll(toUpdate)
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: markAsRead completed - ${toUpdate.size} chapters updated"
+                    }
                 }
-            updateChapter.awaitAll(toUpdate)
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "NotificationReceiver: markAsRead failed for manga=$mangaId" }
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 
@@ -359,27 +408,43 @@ class NotificationReceiver : BroadcastReceiver() {
      *
      * @param episodeUrls URLs of episodes to mark as seen
      * @param animeId id of anime
+     * @param pendingResult pending result from goAsync() to signal completion
      */
-    private fun markAsSeen(episodeUrls: Array<String>, animeId: Long) {
+    private fun markAsSeen(episodeUrls: Array<String>, animeId: Long, pendingResult: PendingResult) {
         val downloadPreferences: DownloadPreferences = Injekt.get()
         val sourceManager: AnimeSourceManager = Injekt.get()
 
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
-            val toUpdate = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
-                .map {
-                    val episode = it.copy(seen = true)
-                    if (downloadPreferences.removeAfterMarkedAsRead().get()) {
-                        val anime = getAnime.await(animeId)
-                        if (anime != null) {
-                            val source = sourceManager.get(anime.source)
-                            if (source != null) {
-                                animeDownloadManager.deleteEpisodes(listOf(it), anime, source)
-                            }
-                        }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
+            try {
+                withTimeout(10_000L) {
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: markAsSeen started for anime=$animeId (${episodeUrls.size} episodes)"
                     }
-                    episode.toEpisodeUpdate()
+                    val toUpdate = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
+                        .map {
+                            val episode = it.copy(seen = true)
+                            if (downloadPreferences.removeAfterMarkedAsRead().get()) {
+                                val anime = getAnime.await(animeId)
+                                if (anime != null) {
+                                    val source = sourceManager.get(anime.source)
+                                    if (source != null) {
+                                        animeDownloadManager.deleteEpisodes(listOf(it), anime, source)
+                                    }
+                                }
+                            }
+                            episode.toEpisodeUpdate()
+                        }
+                    updateEpisode.awaitAll(toUpdate)
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: markAsSeen completed - ${toUpdate.size} episodes updated"
+                    }
                 }
-            updateEpisode.awaitAll(toUpdate)
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "NotificationReceiver: markAsSeen failed for anime=$animeId" }
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 
@@ -388,12 +453,32 @@ class NotificationReceiver : BroadcastReceiver() {
      *
      * @param chapterUrls URLs of chapter to download
      * @param mangaId id of manga
+     * @param pendingResult pending result from goAsync() to signal completion
      */
-    private fun downloadChapters(chapterUrls: Array<String>, mangaId: Long) {
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
-            val manga = getManga.await(mangaId) ?: return@launch
-            val chapters = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
-            mangaDownloadManager.downloadChapters(manga, chapters)
+    private fun downloadChapters(chapterUrls: Array<String>, mangaId: Long, pendingResult: PendingResult) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
+            try {
+                withTimeout(10_000L) {
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: downloadChapters started for manga=$mangaId (${chapterUrls.size} chapters)"
+                    }
+                    val manga = getManga.await(mangaId)
+                    if (manga != null) {
+                        val chapters = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
+                        mangaDownloadManager.downloadChapters(manga, chapters)
+                        logcat(LogPriority.DEBUG) {
+                            "NotificationReceiver: downloadChapters enqueued ${chapters.size} chapters"
+                        }
+                    } else {
+                        logcat(LogPriority.WARN) { "NotificationReceiver: downloadChapters failed - manga not found" }
+                    }
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "NotificationReceiver: downloadChapters failed for manga=$mangaId" }
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 
@@ -402,12 +487,32 @@ class NotificationReceiver : BroadcastReceiver() {
      *
      * @param episodeUrls URLs of episode to download
      * @param animeId id of manga
+     * @param pendingResult pending result from goAsync() to signal completion
      */
-    private fun downloadEpisodes(episodeUrls: Array<String>, animeId: Long) {
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
-            val anime = getAnime.await(animeId) ?: return@launch
-            val episodes = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
-            animeDownloadManager.downloadEpisodes(anime, episodes)
+    private fun downloadEpisodes(episodeUrls: Array<String>, animeId: Long, pendingResult: PendingResult) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
+            try {
+                withTimeout(10_000L) {
+                    logcat(LogPriority.DEBUG) {
+                        "NotificationReceiver: downloadEpisodes started for anime=$animeId (${episodeUrls.size} episodes)"
+                    }
+                    val anime = getAnime.await(animeId)
+                    if (anime != null) {
+                        val episodes = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
+                        animeDownloadManager.downloadEpisodes(anime, episodes)
+                        logcat(LogPriority.DEBUG) {
+                            "NotificationReceiver: downloadEpisodes enqueued ${episodes.size} episodes"
+                        }
+                    } else {
+                        logcat(LogPriority.WARN) { "NotificationReceiver: downloadEpisodes failed - anime not found" }
+                    }
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "NotificationReceiver: downloadEpisodes failed for anime=$animeId" }
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 
