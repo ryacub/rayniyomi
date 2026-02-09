@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.view.WindowManager
 import androidx.core.net.toUri
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.hippo.unifile.UniFile
@@ -21,12 +22,16 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
+import logcat.LogPriority
+import logcat.logcat
 
 /**
  * Manages reactive configuration subscriptions for the reader.
  * Computes derived values (brightness, colors, display profile) without Android Window/View references.
  * Extracted from ReaderActivity to improve separation of concerns and testability.
+ *
+ * All StateFlows emit initial values from preferences immediately, then react to preference changes.
+ * All file I/O operations are executed on IO dispatcher to prevent blocking the main thread.
  */
 class ReaderConfigManager(
     private val readerPreferences: ReaderPreferences,
@@ -68,16 +73,24 @@ class ReaderConfigManager(
         observeFullscreen()
     }
 
+    companion object {
+        // Reader theme constants
+        private const val THEME_WHITE = 0
+        private const val THEME_BLACK = 1
+        private const val THEME_GRAY = 2
+        private const val THEME_AUTOMATIC = 3
+    }
+
     private fun observeReaderTheme() {
         readerPreferences.readerTheme().changes()
             .onStart { emit(readerPreferences.readerTheme().get()) }
             .onEach { theme ->
                 _backgroundColor.update {
                     when (theme) {
-                        0 -> Color.WHITE
-                        2 -> getGrayBackgroundColor()
-                        3 -> automaticBackgroundColor()
-                        else -> Color.BLACK
+                        THEME_WHITE -> Color.WHITE
+                        THEME_GRAY -> getGrayBackgroundColor()
+                        THEME_AUTOMATIC -> automaticBackgroundColor()
+                        else -> Color.BLACK // THEME_BLACK or unknown
                     }
                 }
             }
@@ -184,15 +197,9 @@ class ReaderConfigManager(
         if (!file.exists()) return null
 
         return try {
-            val inputStream = file.openInputStream()
-            val outputStream = ByteArrayOutputStream()
-            inputStream.use { input ->
-                outputStream.use { output ->
-                    input.copyTo(output)
-                }
-            }
-            outputStream.toByteArray()
+            file.openInputStream().use { it.readBytes() }
         } catch (e: Exception) {
+            logcat(LogPriority.ERROR) { "Failed to load display profile from $path: ${e.message}" }
             null
         }
     }
@@ -232,7 +239,7 @@ class ReaderConfigManager(
         return when {
             value > 0 -> value / 100f
             value < 0 -> 0.01f
-            else -> android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            else -> WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         }
     }
 }
