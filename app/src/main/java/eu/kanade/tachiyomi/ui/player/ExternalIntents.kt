@@ -425,6 +425,7 @@ class ExternalIntents {
 
         // Update the episode's progress and history
         // Use activity's lifecycle scope to ensure proper cancellation on destruction
+        // If scope is null (activity paused/destroyed), skip saving - user is no longer active
         activityScope?.launch {
             withIOContext {
                 if (cause == "playback_completion" || (currentPosition == duration && duration == 0L)) {
