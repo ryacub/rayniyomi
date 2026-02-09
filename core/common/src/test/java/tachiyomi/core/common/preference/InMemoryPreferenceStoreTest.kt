@@ -1,6 +1,8 @@
 package tachiyomi.core.common.preference
 
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
 class InMemoryPreferenceStoreTest {
@@ -347,5 +349,54 @@ class InMemoryPreferenceStoreTest {
         all.size shouldBe 1
         all.containsKey("initial_key") shouldBe true
         all.containsKey("runtime_key") shouldBe false
+    }
+
+    // changes() behavior
+
+    @Test
+    fun `changes emits initial value on first collection`() = runBlocking {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getString("test_key", "default_value")
+
+        val firstValue = pref.changes().first()
+
+        firstValue shouldBe "default_value"
+    }
+
+    @Test
+    fun `changes emits updated value after set`() = runBlocking {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getString("test_key", "default_value")
+
+        pref.set("new_value")
+        val emittedValue = pref.changes().first()
+
+        emittedValue shouldBe "new_value"
+    }
+
+    @Test
+    fun `changes emits default value after delete`() = runBlocking {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getString("test_key", "default_value")
+
+        pref.set("new_value")
+        pref.delete()
+        val emittedValue = pref.changes().first()
+
+        emittedValue shouldBe "default_value"
+    }
+
+    @Test
+    fun `changes emits to multiple collectors`() = runBlocking {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getInt("test_key", 0)
+
+        pref.set(42)
+
+        val value1 = pref.changes().first()
+        val value2 = pref.changes().first()
+
+        value1 shouldBe 42
+        value2 shouldBe 42
     }
 }
