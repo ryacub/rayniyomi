@@ -1,15 +1,17 @@
-Looking to report an issue/bug or make a feature request? Please refer to the [README file](https://github.com/aniyomiorg/aniyomi#issues-feature-requests-and-contributing).
+Looking to report an issue/bug or make a feature request? Please refer to the [README file](https://github.com/ryacub/rayniyomi#readme).
 
 ---
 
-Thanks for your interest in contributing to Aniyomi!
+Thanks for your interest in contributing to Rayniyomi!
+
+**Note:** Rayniyomi is a fork of [Aniyomi](https://github.com/aniyomiorg/aniyomi). For contributing to the upstream project, see [Aniyomi's contributing guide](https://github.com/aniyomiorg/aniyomi/blob/main/CONTRIBUTING.md).
 
 
 # Code contributions
 
 Pull requests are welcome!
 
-If you're interested in taking on [an open issue](https://github.com/aniyomiorg/aniyomi/issues), please comment on it so others are aware.
+If you're interested in taking on [an open issue](https://github.com/ryacub/rayniyomi/issues), please comment on it so others are aware.
 You do not need to ask for permission nor an assignment.
 
 ## Pull Request policy
@@ -45,11 +47,12 @@ Before you start, please note that the ability to use following technologies is 
 
 ## Getting help
 
-- Join [the Discord server](https://discord.gg/F32UjdJZrR) for online help and to ask questions while developing.
+- For Rayniyomi-specific questions, open an issue in this repository.
+- For general development questions, you may also reference [Aniyomi's Discord server](https://discord.gg/F32UjdJZrR).
 
 # Translations
 
-Translations are done externally via Weblate. See [our website](https://aniyomi.org/docs/contribute#translation) for more details.
+Translations are inherited from upstream Aniyomi. For translation contributions, see [Aniyomi's translation guide](https://aniyomi.org/docs/contribute#translation).
 
 
 # Forks
