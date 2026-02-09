@@ -21,6 +21,9 @@ import androidx.work.workDataOf
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.toSManga
 import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
+import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
+import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -56,10 +59,6 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_CHARGING
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_NETWORK_NOT_METERED
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_ONLY_ON_WIFI
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_HAS_UNVIEWED
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_COMPLETED
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_VIEWED
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_OUTSIDE_RELEASE_PERIOD
 import tachiyomi.domain.source.manga.model.SourceNotInstalledException
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.MR
@@ -187,42 +186,24 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         mangaToUpdate = listToUpdate
             .filter {
-                when {
-                    it.manga.updateStrategy != UpdateStrategy.ALWAYS_UPDATE -> {
-                        skippedUpdates.add(
-                            it.manga to context.stringResource(MR.strings.skipped_reason_not_always_update),
-                        )
-                        false
-                    }
+                val skipReason = evaluateAutoUpdateCandidate(
+                    candidate = AutoUpdateCandidate(
+                        alwaysUpdate = it.manga.updateStrategy == UpdateStrategy.ALWAYS_UPDATE,
+                        isCompleted = it.manga.status.toInt() == SManga.COMPLETED,
+                        hasUnviewed = it.unreadCount != 0L,
+                        hasStarted = it.hasStarted,
+                        totalCount = it.totalChapters,
+                        nextUpdate = it.manga.nextUpdate,
+                    ),
+                    restrictions = restrictions,
+                    fetchWindowUpperBound = fetchWindowUpperBound,
+                )
 
-                    ENTRY_NON_COMPLETED in restrictions && it.manga.status.toInt() == SManga.COMPLETED -> {
-                        skippedUpdates.add(
-                            it.manga to context.stringResource(MR.strings.skipped_reason_completed),
-                        )
-                        false
-                    }
-
-                    ENTRY_HAS_UNVIEWED in restrictions && it.unreadCount != 0L -> {
-                        skippedUpdates.add(
-                            it.manga to context.stringResource(MR.strings.skipped_reason_not_caught_up),
-                        )
-                        false
-                    }
-
-                    ENTRY_NON_VIEWED in restrictions && it.totalChapters > 0L && !it.hasStarted -> {
-                        skippedUpdates.add(
-                            it.manga to context.stringResource(MR.strings.skipped_reason_not_started),
-                        )
-                        false
-                    }
-
-                    ENTRY_OUTSIDE_RELEASE_PERIOD in restrictions && it.manga.nextUpdate > fetchWindowUpperBound -> {
-                        skippedUpdates.add(
-                            it.manga to context.stringResource(MR.strings.skipped_reason_not_in_release_period),
-                        )
-                        false
-                    }
-                    else -> true
+                if (skipReason != null) {
+                    skippedUpdates.add(it.manga to skipReason.toLocalizedReason())
+                    false
+                } else {
+                    true
                 }
             }
             .sortedBy { it.manga.title }
@@ -238,6 +219,16 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                     .joinToString()
             }
         }
+    }
+
+    private fun AutoUpdateSkipReason.toLocalizedReason(): String = when (this) {
+        AutoUpdateSkipReason.NOT_ALWAYS_UPDATE -> context.stringResource(MR.strings.skipped_reason_not_always_update)
+        AutoUpdateSkipReason.COMPLETED -> context.stringResource(MR.strings.skipped_reason_completed)
+        AutoUpdateSkipReason.NOT_CAUGHT_UP -> context.stringResource(MR.strings.skipped_reason_not_caught_up)
+        AutoUpdateSkipReason.NOT_STARTED -> context.stringResource(MR.strings.skipped_reason_not_started)
+        AutoUpdateSkipReason.OUTSIDE_RELEASE_PERIOD -> context.stringResource(
+            MR.strings.skipped_reason_not_in_release_period,
+        )
     }
 
     /**
