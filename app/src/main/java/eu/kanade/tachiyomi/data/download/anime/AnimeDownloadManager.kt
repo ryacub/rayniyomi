@@ -5,6 +5,9 @@ import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.util.size
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.drop
@@ -13,9 +16,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.download.service.DownloadPreferences
@@ -44,6 +47,12 @@ class AnimeDownloadManager(
     private val sourceManager: AnimeSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
 ) {
+
+    /**
+     * Manager-owned coroutine scope for background operations.
+     * Uses SupervisorJob to prevent child failures from cancelling other operations.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Downloader whose only task is to download episodes.
@@ -110,11 +119,7 @@ class AnimeDownloadManager(
         val existingDownload = getQueuedDownloadOrNull(episodeId)
         // If not in queue try to start a new download
         val toAdd = existingDownload ?: AnimeDownload.fromEpisodeId(episodeId) ?: return
-        queueState.value.toMutableList().apply {
-            existingDownload?.let { remove(it) }
-            add(0, toAdd)
-            reorderQueue(this)
-        }
+        downloader.moveToFront(toAdd)
         startDownloads()
     }
 
@@ -153,10 +158,7 @@ class AnimeDownloadManager(
      */
     fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
         if (downloads.isEmpty()) return
-        queueState.value.toMutableList().apply {
-            addAll(0, downloads)
-            reorderQueue(this)
-        }
+        downloader.addToStartOfQueue(downloads)
         if (!AnimeDownloadJob.isRunning(context)) startDownloads()
     }
 
@@ -266,10 +268,10 @@ class AnimeDownloadManager(
      * @param source the source of the episodes.
      */
     fun deleteEpisodes(episodes: List<Episode>, anime: Anime, source: AnimeSource) {
-        launchIO {
+        scope.launch {
             val filteredEpisodes = getEpisodesToDelete(episodes, anime)
             if (filteredEpisodes.isEmpty()) {
-                return@launchIO
+                return@launch
             }
 
             removeFromDownloadQueue(filteredEpisodes)
