@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
@@ -22,9 +24,10 @@ import eu.kanade.tachiyomi.util.system.getParcelableExtraCompat
 import eu.kanade.tachiyomi.util.system.notificationManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.core.common.i18n.stringResource
-import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
@@ -228,11 +231,11 @@ class NotificationReceiver : BroadcastReceiver() {
      */
     private fun openChapter(context: Context, mangaId: Long, chapterId: Long, pendingResult: PendingResult) {
         val appContext = context.applicationContext
-        launchIO {
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val manga = getManga.await(mangaId)
                 val chapter = getChapter.await(chapterId)
-                withUIContext {
+                withContext(Dispatchers.Main) {
                     if (manga != null && chapter != null) {
                         val intent = ReaderActivity.newIntent(appContext, manga.id, chapter.id).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -243,7 +246,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     }
                 }
             } catch (e: Exception) {
-                withUIContext {
+                withContext(Dispatchers.Main) {
                     appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                 }
             } finally {
@@ -262,11 +265,11 @@ class NotificationReceiver : BroadcastReceiver() {
      */
     private fun openEpisode(context: Context, animeId: Long, episodeId: Long, pendingResult: PendingResult) {
         val appContext = context.applicationContext
-        launchIO {
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val anime = getAnime.await(animeId)
                 val episode = getEpisode.await(episodeId)
-                withUIContext {
+                withContext(Dispatchers.Main) {
                     if (anime != null && episode != null) {
                         val intent = PlayerActivity.newIntent(appContext, anime.id, episode.id).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -277,7 +280,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     }
                 }
             } catch (e: Exception) {
-                withUIContext {
+                withContext(Dispatchers.Main) {
                     appContext.toast(appContext.stringResource(AYMR.strings.download_error))
                 }
             } finally {
@@ -332,7 +335,7 @@ class NotificationReceiver : BroadcastReceiver() {
         val downloadPreferences: DownloadPreferences = Injekt.get()
         val sourceManager: MangaSourceManager = Injekt.get()
 
-        launchIO {
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
             val toUpdate = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
                 .map {
                     val chapter = it.copy(read = true)
@@ -361,7 +364,7 @@ class NotificationReceiver : BroadcastReceiver() {
         val downloadPreferences: DownloadPreferences = Injekt.get()
         val sourceManager: AnimeSourceManager = Injekt.get()
 
-        launchIO {
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
             val toUpdate = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
                 .map {
                     val episode = it.copy(seen = true)
@@ -387,8 +390,8 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param mangaId id of manga
      */
     private fun downloadChapters(chapterUrls: Array<String>, mangaId: Long) {
-        launchIO {
-            val manga = getManga.await(mangaId) ?: return@launchIO
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+            val manga = getManga.await(mangaId) ?: return@launch
             val chapters = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
             mangaDownloadManager.downloadChapters(manga, chapters)
         }
@@ -401,8 +404,8 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param animeId id of manga
      */
     private fun downloadEpisodes(episodeUrls: Array<String>, animeId: Long) {
-        launchIO {
-            val anime = getAnime.await(animeId) ?: return@launchIO
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+            val anime = getAnime.await(animeId) ?: return@launch
             val episodes = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
             animeDownloadManager.downloadEpisodes(anime, episodes)
         }
