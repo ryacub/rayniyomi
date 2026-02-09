@@ -11,6 +11,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
 /**
@@ -87,7 +89,9 @@ class ReaderConfigManager(
     private fun observeDisplayProfile() {
         basePreferences.displayProfile().changes()
             .onEach { path ->
-                val profile = loadDisplayProfile(path)
+                val profile = withContext(Dispatchers.IO) {
+                    loadDisplayProfile(path)
+                }
                 _displayProfile.update { profile }
                 profile?.let {
                     SubsamplingScaleImageView.setDisplayProfile(it)

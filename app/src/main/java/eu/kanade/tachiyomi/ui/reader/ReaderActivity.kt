@@ -76,6 +76,8 @@ import eu.kanade.tachiyomi.util.view.setComposeContent
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -818,7 +820,14 @@ class ReaderActivity : BaseActivity() {
                 .launchIn(lifecycleScope)
 
             viewModel.readerConfig.customBrightnessEnabled
-                .onEach(::setCustomBrightness)
+                .flatMapLatest { enabled ->
+                    if (enabled) {
+                        viewModel.readerConfig.customBrightnessValue.sample(100)
+                    } else {
+                        flowOf(0)
+                    }
+                }
+                .onEach(::setCustomBrightnessValue)
                 .launchIn(lifecycleScope)
 
             viewModel.readerConfig.fullscreen
@@ -849,20 +858,6 @@ class ReaderActivity : BaseActivity() {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             } else {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
-        }
-
-        /**
-         * Sets the custom brightness overlay according to [enabled].
-         */
-        private fun setCustomBrightness(enabled: Boolean) {
-            if (enabled) {
-                viewModel.readerConfig.customBrightnessValue
-                    .sample(100)
-                    .onEach(::setCustomBrightnessValue)
-                    .launchIn(lifecycleScope)
-            } else {
-                setCustomBrightnessValue(0)
             }
         }
 

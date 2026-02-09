@@ -154,8 +154,9 @@ class ReaderViewModel @JvmOverloads constructor(
     /**
      * Configuration manager for reader preferences and derived values.
      */
-    lateinit var readerConfig: ReaderConfigManager
-        private set
+    private var _readerConfig: ReaderConfigManager? = null
+    val readerConfig: ReaderConfigManager
+        get() = _readerConfig ?: error("ReaderConfigManager not initialized. Call initReaderConfig() first.")
 
     private val incognitoMode: Boolean by lazy { getIncognitoState.await(manga?.source) }
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading().get()
@@ -185,9 +186,10 @@ class ReaderViewModel @JvmOverloads constructor(
 
     /**
      * Initializes the ReaderConfigManager. Must be called early in ReaderActivity lifecycle.
+     * Safe to call multiple times (e.g., on configuration changes).
      */
     fun initReaderConfig(isNightMode: Boolean) {
-        readerConfig = ReaderConfigManager(
+        _readerConfig = ReaderConfigManager(
             readerPreferences = readerPreferences,
             basePreferences = basePreferences,
             scope = viewModelScope,
