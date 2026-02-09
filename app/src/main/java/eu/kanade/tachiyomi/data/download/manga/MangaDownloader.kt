@@ -764,7 +764,7 @@ class MangaDownloader(
         _queueState.update { currentQueue ->
             downloads.forEach { download ->
                 download.status = MangaDownload.State.QUEUE
-                store.addOrUpdate(download)
+                store.addAll(listOf(download))
             }
             // Prepend new downloads, removing duplicates by chapter ID
             val existingIds = currentQueue.map { it.chapter.id }.toSet()
@@ -782,7 +782,7 @@ class MangaDownloader(
             // Remove from current position and prepend
             val filtered = currentQueue.filterNot { it.chapter.id == download.chapter.id }
             download.status = MangaDownload.State.QUEUE
-            store.addOrUpdate(download)
+            store.addAll(listOf(download))
             listOf(download) + filtered
         }
     }
