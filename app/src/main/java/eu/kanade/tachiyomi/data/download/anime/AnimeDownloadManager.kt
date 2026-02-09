@@ -330,7 +330,7 @@ class AnimeDownloadManager(
         if (wasRunning) {
             if (queueState.value.isEmpty()) {
                 downloader.stop()
-            } else if (queueState.value.isNotEmpty()) {
+            } else {
                 downloader.start()
             }
         }
@@ -348,6 +348,8 @@ class AnimeDownloadManager(
 
     /**
      * Triggers the execution of the deletion of pending episodes.
+     * Note: This queues async deletion operations for each anime.
+     * The method returns immediately; deletions execute in the background.
      */
     fun deletePendingEpisodes() {
         val pendingEpisodes = pendingDeleter.getPendingEpisodes()

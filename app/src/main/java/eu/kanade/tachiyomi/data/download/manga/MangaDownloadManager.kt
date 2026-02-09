@@ -323,7 +323,7 @@ class MangaDownloadManager(
         if (wasRunning) {
             if (queueState.value.isEmpty()) {
                 downloader.stop()
-            } else if (queueState.value.isNotEmpty()) {
+            } else {
                 downloader.start()
             }
         }
@@ -341,6 +341,8 @@ class MangaDownloadManager(
 
     /**
      * Triggers the execution of the deletion of pending chapters.
+     * Note: This queues async deletion operations for each manga.
+     * The method returns immediately; deletions execute in the background.
      */
     fun deletePendingChapters() {
         val pendingChapters = pendingDeleter.getPendingChapters()
