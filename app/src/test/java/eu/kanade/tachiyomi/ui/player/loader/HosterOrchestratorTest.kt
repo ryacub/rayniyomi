@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.player.loader
 
 import eu.kanade.tachiyomi.animesource.model.Hoster
-import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
