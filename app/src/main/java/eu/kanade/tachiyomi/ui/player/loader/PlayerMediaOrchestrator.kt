@@ -2,10 +2,11 @@ package eu.kanade.tachiyomi.ui.player.loader
 
 import android.content.Context
 import android.net.Uri
-import androidx.core.net.toUri
-import eu.kanade.tachiyomi.ui.player.model.VideoTrack
+import ChapterType
 import eu.kanade.tachiyomi.ui.player.controls.components.SeekBar.IndexedSegment
+import eu.kanade.tachiyomi.ui.player.model.VideoTrack
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
 import eu.kanade.tachiyomi.util.system.getFileName
 import eu.kanade.tachiyomi.util.system.openContentFd
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import logcat.logcat
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.aniyomi.AYMR
 
 class PlayerMediaOrchestrator(
     private val scope: CoroutineScope,
@@ -68,21 +70,14 @@ class PlayerMediaOrchestrator(
                 for (i in 0..<tracksCount) {
                     val type = MPVLib.getPropertyString("track-list/$i/type")
                     if (!possibleTrackTypes.contains(type) || type == null) continue
+
+                    val trackId = MPVLib.getPropertyInt("track-list/$i/id") ?: continue
+                    val trackTitle = MPVLib.getPropertyString("track-list/$i/title") ?: ""
+                    val trackLang = MPVLib.getPropertyString("track-list/$i/lang")
+
                     when (type) {
-                        "sub" -> subTracks.add(
-                            VideoTrack(
-                                MPVLib.getPropertyInt("track-list/$i/id")!!,
-                                MPVLib.getPropertyString("track-list/$i/title") ?: "",
-                                MPVLib.getPropertyString("track-list/$i/lang"),
-                            ),
-                        )
-                        "audio" -> audioTracks.add(
-                            VideoTrack(
-                                MPVLib.getPropertyInt("track-list/$i/id")!!,
-                                MPVLib.getPropertyString("track-list/$i/title") ?: "",
-                                MPVLib.getPropertyString("track-list/$i/lang"),
-                            ),
-                        )
+                        "sub" -> subTracks.add(VideoTrack(trackId, trackTitle, trackLang))
+                        "audio" -> audioTracks.add(VideoTrack(trackId, trackTitle, trackLang))
                     }
                 }
             } catch (e: Exception) {
@@ -189,7 +184,7 @@ class PlayerMediaOrchestrator(
                 return
             }
 
-            if (chapter.chapterType == eu.kanade.tachiyomi.animesource.model.ChapterType.Other) {
+            if (chapter.chapterType == ChapterType.Other) {
                 _skipIntroText.update { null }
                 waitingSkipIntro = defaultWaitingTime
             } else {
@@ -200,7 +195,7 @@ class PlayerMediaOrchestrator(
                     if (waitingSkipIntro == defaultWaitingTime) {
                         onToastRequested?.invoke(
                             "Skip Intro: ${context.getString(
-                                tachiyomi.i18n.aniyomi.AYMR.strings.player_aniskip_dontskip_toast.resourceId,
+                                AYMR.strings.player_aniskip_dontskip_toast.resourceId,
                                 chapter.name,
                                 waitingSkipIntro,
                             )}",
@@ -212,7 +207,7 @@ class PlayerMediaOrchestrator(
                     onSeekRequested?.invoke(
                         nextChapterPos.toInt(),
                         context.getString(
-                            tachiyomi.i18n.aniyomi.AYMR.strings.player_intro_skipped.resourceId,
+                            AYMR.strings.player_intro_skipped.resourceId,
                             chapter.name,
                         ),
                     )
@@ -223,15 +218,15 @@ class PlayerMediaOrchestrator(
         }
     }
 
-    private fun updateSkipIntroButton(chapterType: eu.kanade.tachiyomi.animesource.model.ChapterType) {
-        val skipButtonString = with(eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion) {
+    private fun updateSkipIntroButton(chapterType: ChapterType) {
+        val skipButtonString = with(ChapterUtils.Companion) {
             chapterType.getStringRes()
         }
 
         _skipIntroText.update {
             skipButtonString?.let {
                 context.getString(
-                    tachiyomi.i18n.aniyomi.AYMR.strings.player_skip_action.resourceId,
+                    AYMR.strings.player_skip_action.resourceId,
                     context.getString(it.resourceId),
                 )
             }
@@ -242,13 +237,13 @@ class PlayerMediaOrchestrator(
         if (waitingTime > -1) {
             if (waitingTime > 0) {
                 _skipIntroText.update {
-                    context.getString(tachiyomi.i18n.aniyomi.AYMR.strings.player_aniskip_dontskip.resourceId)
+                    context.getString(AYMR.strings.player_aniskip_dontskip.resourceId)
                 }
             } else {
                 onSeekRequested?.invoke(
                     nextChapterPos.toInt(),
                     context.getString(
-                        tachiyomi.i18n.aniyomi.AYMR.strings.player_aniskip_skip.resourceId,
+                        AYMR.strings.player_aniskip_skip.resourceId,
                         chapter.name,
                     ),
                 )
@@ -272,7 +267,7 @@ class PlayerMediaOrchestrator(
             onSeekRequested?.invoke(
                 nextChapterPos.toInt(),
                 context.getString(
-                    tachiyomi.i18n.aniyomi.AYMR.strings.player_aniskip_skip.resourceId,
+                    AYMR.strings.player_aniskip_skip.resourceId,
                     chapter.name,
                 ),
             )

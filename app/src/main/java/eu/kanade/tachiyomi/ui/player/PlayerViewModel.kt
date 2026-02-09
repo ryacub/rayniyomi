@@ -418,6 +418,12 @@ class PlayerViewModel @JvmOverloads constructor(
         mediaOrchestrator.setLoadingTracks(loading)
     }
 
+    fun updateChapter(index: Long) {
+        if (chapters.value.isEmpty() || index == -1L) return
+        val chapter = chapters.value.getOrNull(index.toInt()) ?: return
+        mediaOrchestrator.setChapter(chapter.start)
+    }
+
     fun selectChapter(index: Int) {
         val time = chapters.value[index].start
         seekTo(time.toInt())
