@@ -57,20 +57,14 @@ class AnimeDownloadManager(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * Downloader whose only task is to download episodes.
-     */
-    /**
-     * Manager-owned coroutine scope for background operations.
-     * Uses SupervisorJob to prevent child failures from cancelling other operations.
-     */
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    /**
      * Mutex to synchronize download queue manipulation operations.
      * Prevents race conditions when multiple coroutines modify the queue concurrently.
      */
     private val queueMutex = Mutex()
 
+    /**
+     * Downloader whose only task is to download episodes.
+     */
     private val downloader = AnimeDownloader(context, provider, cache, sourceManager)
 
     val isRunning: Boolean
