@@ -92,26 +92,12 @@ class PlayerMediaOrchestrator(
             _subtitleTracks.update { subTracks }
             _audioTracks.update { audioTracks }
 
-            if (!_isLoadingTracks.value) {
-                onFinishLoadingTracks()
-            }
             onTracksLoaded?.invoke()
         }
     }
 
-    private fun onFinishLoadingTracks() {
-        val preferredSubtitle = trackSelect.getPreferredTrackIndex(subtitleTracks.value)
-        (preferredSubtitle ?: subtitleTracks.value.firstOrNull())?.let {
-            MPVLib.setPropertyInt("sid", it.id)
-            MPVLib.setPropertyInt("secondary-sid", -1)
-        }
-
-        val preferredAudio = trackSelect.getPreferredTrackIndex(audioTracks.value, subtitle = false)
-        (preferredAudio ?: audioTracks.value.getOrNull(1))?.let {
-            MPVLib.setPropertyInt("aid", it.id)
-        }
-
-        _isLoadingTracks.update { true }
+    fun setLoadingTracks(loading: Boolean) {
+        _isLoadingTracks.update { loading }
     }
 
     fun selectAudio(id: Int) {
@@ -178,6 +164,10 @@ class PlayerMediaOrchestrator(
             )
         }
         _chapters.update { chapters.sortedBy { it.start } }
+    }
+
+    fun updateChapters(chapters: List<IndexedSegment>) {
+        _chapters.update { chapters }
     }
 
     private val introSkipEnabled = playerPreferences.enableSkipIntro().get()

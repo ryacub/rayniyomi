@@ -401,14 +401,21 @@ class PlayerViewModel @JvmOverloads constructor(
             activity.player.aid = it.id
         }
 
-        mediaOrchestrator.isLoadingTracks.update { true }
+        mediaOrchestrator.setLoadingTracks(true)
         updateIsLoadingEpisode(false)
         setPausedState()
     }
 
-
     fun loadChapters() {
         mediaOrchestrator.loadChapters()
+    }
+
+    fun updateChapters(chapters: List<IndexedSegment>) {
+        mediaOrchestrator.updateChapters(chapters)
+    }
+
+    fun setLoadingTracks(loading: Boolean) {
+        mediaOrchestrator.setLoadingTracks(loading)
     }
 
     fun selectChapter(index: Int) {
