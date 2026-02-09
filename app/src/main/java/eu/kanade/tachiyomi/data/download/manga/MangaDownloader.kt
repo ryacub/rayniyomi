@@ -756,6 +756,37 @@ class MangaDownloader(
         }
     }
 
+    /**
+     * Atomically adds downloads to the start of the queue.
+     * This replaces the non-atomic snapshot-then-modify pattern.
+     */
+    fun addToStartOfQueue(downloads: List<MangaDownload>) {
+        _queueState.update { currentQueue ->
+            downloads.forEach { download ->
+                download.status = MangaDownload.State.QUEUE
+                store.addAll(listOf(download))
+            }
+            // Prepend new downloads, removing duplicates by chapter ID
+            val existingIds = currentQueue.map { it.chapter.id }.toSet()
+            val newDownloads = downloads.filterNot { it.chapter.id in existingIds }
+            newDownloads + currentQueue
+        }
+    }
+
+    /**
+     * Atomically moves a download to the front of the queue.
+     * This replaces the non-atomic read-modify-write pattern.
+     */
+    fun moveToFront(download: MangaDownload) {
+        _queueState.update { currentQueue ->
+            // Remove from current position and prepend
+            val filtered = currentQueue.filterNot { it.chapter.id == download.chapter.id }
+            download.status = MangaDownload.State.QUEUE
+            store.addAll(listOf(download))
+            listOf(download) + filtered
+        }
+    }
+
     fun updateQueue(downloads: List<MangaDownload>) {
         val wasRunning = isRunning
 

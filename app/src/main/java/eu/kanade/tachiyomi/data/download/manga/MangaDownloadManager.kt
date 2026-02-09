@@ -5,6 +5,9 @@ import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.size
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.drop
@@ -13,10 +16,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
@@ -46,6 +49,12 @@ class MangaDownloadManager(
     private val sourceManager: MangaSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
 ) {
+
+    /**
+     * Manager-owned coroutine scope for background operations.
+     * Uses SupervisorJob to prevent child failures from cancelling other operations.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Downloader whose only task is to download chapters.
@@ -113,11 +122,7 @@ class MangaDownloadManager(
         val existingDownload = getQueuedDownloadOrNull(chapterId)
         // If not in queue try to start a new download
         val toAdd = existingDownload ?: MangaDownload.fromChapterId(chapterId) ?: return
-        queueState.value.toMutableList().apply {
-            existingDownload?.let { remove(it) }
-            add(0, toAdd)
-            reorderQueue(this)
-        }
+        downloader.moveToFront(toAdd)
         startDownloads()
     }
 
@@ -148,10 +153,7 @@ class MangaDownloadManager(
      */
     fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
         if (downloads.isEmpty()) return
-        queueState.value.toMutableList().apply {
-            addAll(0, downloads)
-            reorderQueue(this)
-        }
+        downloader.addToStartOfQueue(downloads)
         if (!MangaDownloadJob.isRunning(context)) startDownloads()
     }
 
@@ -261,10 +263,10 @@ class MangaDownloadManager(
      * @param source the source of the chapters.
      */
     fun deleteChapters(chapters: List<Chapter>, manga: Manga, source: MangaSource) {
-        launchIO {
+        scope.launch {
             val filteredChapters = getChaptersToDelete(chapters, manga)
             if (filteredChapters.isEmpty()) {
-                return@launchIO
+                return@launch
             }
 
             removeFromDownloadQueue(filteredChapters)
@@ -288,7 +290,7 @@ class MangaDownloadManager(
      * @param removeQueued whether to also remove queued downloads.
      */
     fun deleteManga(manga: Manga, source: MangaSource, removeQueued: Boolean = true) {
-        launchIO {
+        scope.launch {
             if (removeQueued) {
                 downloader.removeFromQueue(manga)
             }

@@ -21,3 +21,6 @@ CLAUDE.md
 GEMINI.md
 .claude/
 logs/
+
+# Git worktrees
+.worktrees/
