@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.player.loader
 
+import ChapterType
 import android.content.Context
 import android.net.Uri
-import ChapterType
 import eu.kanade.tachiyomi.ui.player.controls.components.SeekBar.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.model.VideoTrack
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
