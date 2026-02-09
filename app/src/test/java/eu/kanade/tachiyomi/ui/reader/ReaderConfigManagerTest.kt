@@ -70,7 +70,7 @@ class ReaderConfigManagerTest {
         return ReaderConfigManager(
             readerPreferences = readerPreferences,
             basePreferences = basePreferences,
-            scope = scope.backgroundScope,
+            scope = scope,
             isNightMode = false,
         )
     }
