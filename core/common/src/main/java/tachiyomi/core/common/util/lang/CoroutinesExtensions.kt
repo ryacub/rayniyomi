@@ -17,6 +17,11 @@ import kotlinx.coroutines.withContext
  * - suspend function
  * - custom scope like view or presenter scope
  */
+@Deprecated(
+    message = "Use CoroutineScope.launchUI() with an appropriate scope instead of GlobalScope",
+    replaceWith = ReplaceWith("scope.launchUI(block)", "tachiyomi.core.common.util.lang.launchUI"),
+    level = DeprecationLevel.WARNING,
+)
 @DelicateCoroutinesApi
 fun launchUI(block: suspend CoroutineScope.() -> Unit): Job =
     GlobalScope.launch(Dispatchers.Main, CoroutineStart.DEFAULT, block)
