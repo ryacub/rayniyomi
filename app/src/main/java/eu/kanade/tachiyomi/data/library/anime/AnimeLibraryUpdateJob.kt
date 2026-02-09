@@ -24,6 +24,9 @@ import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
+import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
@@ -59,10 +62,6 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_CHARGING
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_NETWORK_NOT_METERED
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_ONLY_ON_WIFI
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_HAS_UNVIEWED
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_COMPLETED
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_VIEWED
-import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_OUTSIDE_RELEASE_PERIOD
 import tachiyomi.domain.source.anime.model.AnimeSourceNotInstalledException
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.i18n.MR
@@ -208,42 +207,24 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         animeToUpdate = lastToUpdateWithSeasons
             .filter {
-                when {
-                    it.anime.updateStrategy != AnimeUpdateStrategy.ALWAYS_UPDATE -> {
-                        skippedUpdates.add(
-                            it.anime to context.stringResource(MR.strings.skipped_reason_not_always_update),
-                        )
-                        false
-                    }
+                val skipReason = evaluateAutoUpdateCandidate(
+                    candidate = AutoUpdateCandidate(
+                        alwaysUpdate = it.anime.updateStrategy == AnimeUpdateStrategy.ALWAYS_UPDATE,
+                        isCompleted = it.anime.status.toInt() == SAnime.COMPLETED,
+                        hasUnviewed = it.unseenCount != 0L,
+                        hasStarted = it.hasStarted,
+                        totalCount = it.totalCount,
+                        nextUpdate = it.anime.nextUpdate,
+                    ),
+                    restrictions = restrictions,
+                    fetchWindowUpperBound = fetchWindowUpperBound,
+                )
 
-                    ENTRY_NON_COMPLETED in restrictions && it.anime.status.toInt() == SAnime.COMPLETED -> {
-                        skippedUpdates.add(
-                            it.anime to context.stringResource(MR.strings.skipped_reason_completed),
-                        )
-                        false
-                    }
-
-                    ENTRY_HAS_UNVIEWED in restrictions && it.unseenCount != 0L -> {
-                        skippedUpdates.add(
-                            it.anime to context.stringResource(MR.strings.skipped_reason_not_caught_up),
-                        )
-                        false
-                    }
-
-                    ENTRY_NON_VIEWED in restrictions && it.totalCount > 0L && !it.hasStarted -> {
-                        skippedUpdates.add(
-                            it.anime to context.stringResource(MR.strings.skipped_reason_not_started),
-                        )
-                        false
-                    }
-
-                    ENTRY_OUTSIDE_RELEASE_PERIOD in restrictions && it.anime.nextUpdate > fetchWindowUpperBound -> {
-                        skippedUpdates.add(
-                            it.anime to context.stringResource(MR.strings.skipped_reason_not_in_release_period),
-                        )
-                        false
-                    }
-                    else -> true
+                if (skipReason != null) {
+                    skippedUpdates.add(it.anime to skipReason.toLocalizedReason())
+                    false
+                } else {
+                    true
                 }
             }
             .sortedBy { it.anime.title }
@@ -259,6 +240,16 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                     .joinToString()
             }
         }
+    }
+
+    private fun AutoUpdateSkipReason.toLocalizedReason(): String = when (this) {
+        AutoUpdateSkipReason.NOT_ALWAYS_UPDATE -> context.stringResource(MR.strings.skipped_reason_not_always_update)
+        AutoUpdateSkipReason.COMPLETED -> context.stringResource(MR.strings.skipped_reason_completed)
+        AutoUpdateSkipReason.NOT_CAUGHT_UP -> context.stringResource(MR.strings.skipped_reason_not_caught_up)
+        AutoUpdateSkipReason.NOT_STARTED -> context.stringResource(MR.strings.skipped_reason_not_started)
+        AutoUpdateSkipReason.OUTSIDE_RELEASE_PERIOD -> context.stringResource(
+            MR.strings.skipped_reason_not_in_release_period,
+        )
     }
 
     /**
