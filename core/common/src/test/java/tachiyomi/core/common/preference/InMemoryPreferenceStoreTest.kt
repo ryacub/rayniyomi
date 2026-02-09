@@ -92,6 +92,23 @@ class InMemoryPreferenceStoreTest {
         pref.get() shouldBe true
     }
 
+    @Test
+    fun `getStringSet returns default when preference not set`() {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getStringSet("test_key", setOf("default1", "default2"))
+
+        pref.get() shouldBe setOf("default1", "default2")
+    }
+
+    @Test
+    fun `getStringSet returns stored value after set`() {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getStringSet("test_key", setOf("default1", "default2"))
+
+        pref.set(setOf("new1", "new2", "new3"))
+        pref.get() shouldBe setOf("new1", "new2", "new3")
+    }
+
     // isSet behavior
 
     @Test
@@ -188,6 +205,14 @@ class InMemoryPreferenceStoreTest {
         pref.defaultValue() shouldBe true
     }
 
+    @Test
+    fun `defaultValue returns correct default for StringSet`() {
+        val store = InMemoryPreferenceStore()
+        val pref = store.getStringSet("test_key", setOf("a", "b", "c"))
+
+        pref.defaultValue() shouldBe setOf("a", "b", "c")
+    }
+
     // Initial preferences
 
     @Test
@@ -203,6 +228,19 @@ class InMemoryPreferenceStoreTest {
 
         pref1.get() shouldBe "value1"
         pref2.get() shouldBe 42L
+    }
+
+    @Test
+    fun `constructor with initial StringSet preferences works`() {
+        val initialPrefs = sequenceOf(
+            InMemoryPreferenceStore.InMemoryPreference<Set<String>>("key_set", setOf("a", "b"), emptySet()),
+        )
+        val store = InMemoryPreferenceStore(initialPrefs)
+
+        val pref = store.getStringSet("key_set", emptySet())
+
+        pref.get() shouldBe setOf("a", "b")
+        pref.isSet() shouldBe true
     }
 
     @Test
