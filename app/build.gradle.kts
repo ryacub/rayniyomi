@@ -296,7 +296,7 @@ dependencies {
     // Logging
     implementation(libs.logcat)
 
-    // Firebase Crashlytics for crash monitoring (R64)
+    // Firebase Crashlytics for crash monitoring
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-crashlytics-ktx")
 

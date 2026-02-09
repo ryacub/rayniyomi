@@ -8,7 +8,6 @@ import logcat.logcat
  * Utility for logging critical events to Firebase Crashlytics.
  * Used for crash monitoring and debugging in production.
  * Thread-safe wrapper around Firebase Crashlytics SDK.
- * (R64)
  */
 object CrashlyticLogger {
 

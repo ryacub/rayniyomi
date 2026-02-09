@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  R37: Fork compliance - Firebase Analytics explicitly disabled.
-  R64: Firebase Crashlytics enabled for crash monitoring.
+  Fork compliance - Firebase configuration for this fork.
 
-  This file documents Firebase configuration for this fork:
+  This file documents Firebase configuration:
   - Firebase Analytics: DISABLED (prevents upstream data pollution)
   - Firebase Crashlytics: ENABLED (monitors app crashes)
 

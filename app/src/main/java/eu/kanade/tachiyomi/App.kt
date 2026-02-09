@@ -85,7 +85,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     override fun onCreate() {
         super<Application>.onCreate()
 
-        // Initialize Firebase Crashlytics early to capture all crashes (R64)
+        // Initialize Firebase Crashlytics early to capture all crashes
         initializeCrashlytics()
 
         // Enable StrictMode in debug builds to detect main-thread I/O violations
