@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -69,6 +70,7 @@ class ReaderConfigManager(
 
     private fun observeReaderTheme() {
         readerPreferences.readerTheme().changes()
+            .onStart { emit(readerPreferences.readerTheme().get()) }
             .onEach { theme ->
                 _backgroundColor.update {
                     when (theme) {
@@ -88,6 +90,7 @@ class ReaderConfigManager(
 
     private fun observeDisplayProfile() {
         basePreferences.displayProfile().changes()
+            .onStart { emit(basePreferences.displayProfile().get()) }
             .onEach { path ->
                 val profile = withContext(Dispatchers.IO) {
                     loadDisplayProfile(path)
@@ -103,6 +106,7 @@ class ReaderConfigManager(
 
     private fun observeCutoutShort() {
         readerPreferences.cutoutShort().changes()
+            .onStart { emit(readerPreferences.cutoutShort().get()) }
             .onEach { enabled ->
                 _cutoutShort.update { enabled }
             }
@@ -111,6 +115,7 @@ class ReaderConfigManager(
 
     private fun observeKeepScreenOn() {
         readerPreferences.keepScreenOn().changes()
+            .onStart { emit(readerPreferences.keepScreenOn().get()) }
             .onEach { enabled ->
                 _keepScreenOn.update { enabled }
             }
@@ -119,6 +124,7 @@ class ReaderConfigManager(
 
     private fun observeCustomBrightness() {
         readerPreferences.customBrightness().changes()
+            .onStart { emit(readerPreferences.customBrightness().get()) }
             .onEach { enabled ->
                 _customBrightnessEnabled.update { enabled }
                 if (!enabled) {
@@ -128,6 +134,7 @@ class ReaderConfigManager(
             .launchIn(scope)
 
         readerPreferences.customBrightnessValue().changes()
+            .onStart { emit(readerPreferences.customBrightnessValue().get()) }
             .onEach { value ->
                 if (_customBrightnessEnabled.value) {
                     _customBrightnessValue.update { value }
@@ -138,8 +145,8 @@ class ReaderConfigManager(
 
     private fun observeColorFilters() {
         merge(
-            readerPreferences.grayscale().changes(),
-            readerPreferences.invertedColors().changes(),
+            readerPreferences.grayscale().changes().onStart { emit(readerPreferences.grayscale().get()) },
+            readerPreferences.invertedColors().changes().onStart { emit(readerPreferences.invertedColors().get()) },
         )
             .onEach {
                 val grayscale = readerPreferences.grayscale().get()
@@ -157,6 +164,7 @@ class ReaderConfigManager(
 
     private fun observeFullscreen() {
         readerPreferences.fullscreen().changes()
+            .onStart { emit(readerPreferences.fullscreen().get()) }
             .onEach { enabled ->
                 _fullscreen.update { enabled }
             }
