@@ -8,6 +8,7 @@ import eu.kanade.domain.entries.manga.model.getComicInfo
 import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
@@ -37,7 +38,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -93,15 +93,36 @@ class MangaDownloader(
 ) {
 
     /**
+     * Queue where active downloads are kept.
+     */
+    private val _queueState = MutableStateFlow<List<MangaDownload>>(emptyList())
+    val queueState = _queueState.asStateFlow()
+
+    /**
      * Store for persisting downloads across restarts.
      */
     private val store = MangaDownloadStore(context)
 
     /**
-     * Queue where active downloads are kept.
+     * Shared queue mutation operations.
      */
-    private val _queueState = MutableStateFlow<List<MangaDownload>>(emptyList())
-    val queueState = _queueState.asStateFlow()
+    private val queueOps = DownloadQueueOperations(
+        _queueState = _queueState,
+        store = store,
+        itemId = { it.chapter.id },
+        isActive = {
+            it.status == MangaDownload.State.DOWNLOADING ||
+                it.status == MangaDownload.State.QUEUE
+        },
+        markQueued = { it.status = MangaDownload.State.QUEUE },
+        markInactive = {
+            if (it.status == MangaDownload.State.DOWNLOADING ||
+                it.status == MangaDownload.State.QUEUE
+            ) {
+                it.status = MangaDownload.State.NOT_DOWNLOADED
+            }
+        },
+    )
 
     /**
      * Notifier for the downloader state and progress.
@@ -698,94 +719,24 @@ class MangaDownloader(
         return downloadPreferences.numberOfDownloads().get().coerceIn(1, 5)
     }
 
-    private fun addAllToQueue(downloads: List<MangaDownload>) {
-        _queueState.update {
-            downloads.forEach { download ->
-                download.status = MangaDownload.State.QUEUE
-            }
-            store.addAll(downloads)
-            it + downloads
-        }
-    }
+    private fun addAllToQueue(downloads: List<MangaDownload>) = queueOps.addAll(downloads)
 
-    private fun removeFromQueue(download: MangaDownload) {
-        _queueState.update {
-            store.remove(download)
-            if (download.status == MangaDownload.State.DOWNLOADING || download.status == MangaDownload.State.QUEUE) {
-                download.status = MangaDownload.State.NOT_DOWNLOADED
-            }
-            it - download
-        }
-    }
-
-    private inline fun removeFromQueueIf(predicate: (MangaDownload) -> Boolean) {
-        _queueState.update { queue ->
-            val downloads = queue.filter { predicate(it) }
-            store.removeAll(downloads)
-            downloads.forEach { download ->
-                if (download.status == MangaDownload.State.DOWNLOADING ||
-                    download.status == MangaDownload.State.QUEUE
-                ) {
-                    download.status = MangaDownload.State.NOT_DOWNLOADED
-                }
-            }
-            queue - downloads
-        }
-    }
+    private fun removeFromQueue(download: MangaDownload) = queueOps.remove(download)
 
     fun removeFromQueue(chapters: List<Chapter>) {
         val chapterIds = chapters.map { it.id }
-        removeFromQueueIf { it.chapter.id in chapterIds }
+        queueOps.removeIf { it.chapter.id in chapterIds }
     }
 
     fun removeFromQueue(manga: Manga) {
-        removeFromQueueIf { it.manga.id == manga.id }
+        queueOps.removeIf { it.manga.id == manga.id }
     }
 
-    private fun internalClearQueue() {
-        _queueState.update {
-            it.forEach { download ->
-                if (download.status == MangaDownload.State.DOWNLOADING ||
-                    download.status == MangaDownload.State.QUEUE
-                ) {
-                    download.status = MangaDownload.State.NOT_DOWNLOADED
-                }
-            }
-            store.clear()
-            emptyList()
-        }
-    }
+    private fun internalClearQueue() = queueOps.internalClear()
 
-    /**
-     * Atomically adds downloads to the start of the queue.
-     * This replaces the non-atomic snapshot-then-modify pattern.
-     */
-    fun addToStartOfQueue(downloads: List<MangaDownload>) {
-        _queueState.update { currentQueue ->
-            downloads.forEach { download ->
-                download.status = MangaDownload.State.QUEUE
-                store.addAll(listOf(download))
-            }
-            // Prepend new downloads, removing duplicates by chapter ID
-            val existingIds = currentQueue.map { it.chapter.id }.toSet()
-            val newDownloads = downloads.filterNot { it.chapter.id in existingIds }
-            newDownloads + currentQueue
-        }
-    }
+    fun addToStartOfQueue(downloads: List<MangaDownload>) = queueOps.addToStart(downloads)
 
-    /**
-     * Atomically moves a download to the front of the queue.
-     * This replaces the non-atomic read-modify-write pattern.
-     */
-    fun moveToFront(download: MangaDownload) {
-        _queueState.update { currentQueue ->
-            // Remove from current position and prepend
-            val filtered = currentQueue.filterNot { it.chapter.id == download.chapter.id }
-            download.status = MangaDownload.State.QUEUE
-            store.addAll(listOf(download))
-            listOf(download) + filtered
-        }
-    }
+    fun moveToFront(download: MangaDownload) = queueOps.moveToFront(download)
 
     fun updateQueue(downloads: List<MangaDownload>) {
         val wasRunning = isRunning

@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import androidx.core.content.edit
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.runBlocking
@@ -24,7 +25,7 @@ class MangaDownloadStore(
     private val json: Json = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val getChapter: GetChapter = Injekt.get(),
-) {
+) : DownloadQueueStore<MangaDownload> {
 
     /**
      * Preference file where active downloads are stored.
@@ -43,7 +44,7 @@ class MangaDownloadStore(
      *
      * @param downloads the list of downloads to add.
      */
-    fun addAll(downloads: List<MangaDownload>) {
+    override fun addAll(downloads: List<MangaDownload>) {
         preferences.edit {
             downloads.forEach { putString(getKey(it), serialize(it)) }
         }
@@ -54,7 +55,7 @@ class MangaDownloadStore(
      *
      * @param download the download to remove.
      */
-    fun remove(download: MangaDownload) {
+    override fun remove(download: MangaDownload) {
         preferences.edit {
             remove(getKey(download))
         }
@@ -65,7 +66,7 @@ class MangaDownloadStore(
      *
      * @param downloads the download to remove.
      */
-    fun removeAll(downloads: List<MangaDownload>) {
+    override fun removeAll(downloads: List<MangaDownload>) {
         preferences.edit {
             downloads.forEach { remove(getKey(it)) }
         }
@@ -74,7 +75,7 @@ class MangaDownloadStore(
     /**
      * Removes all the downloads from the store.
      */
-    fun clear() {
+    override fun clear() {
         preferences.edit {
             clear()
         }

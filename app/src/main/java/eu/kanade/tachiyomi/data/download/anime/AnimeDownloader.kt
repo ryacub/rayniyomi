@@ -18,6 +18,7 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
@@ -43,7 +44,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -80,15 +80,36 @@ class AnimeDownloader(
     private val sourceManager: AnimeSourceManager = Injekt.get(),
 ) {
     /**
+     * Queue where active downloads are kept.
+     */
+    private val _queueState = MutableStateFlow<List<AnimeDownload>>(emptyList())
+    val queueState = _queueState.asStateFlow()
+
+    /**
      * Store for persisting downloads across restarts.
      */
     private val store = AnimeDownloadStore(context)
 
     /**
-     * Queue where active downloads are kept.
+     * Shared queue mutation operations.
      */
-    private val _queueState = MutableStateFlow<List<AnimeDownload>>(emptyList())
-    val queueState = _queueState.asStateFlow()
+    private val queueOps = DownloadQueueOperations(
+        _queueState = _queueState,
+        store = store,
+        itemId = { it.episode.id },
+        isActive = {
+            it.status == AnimeDownload.State.DOWNLOADING ||
+                it.status == AnimeDownload.State.QUEUE
+        },
+        markQueued = { it.status = AnimeDownload.State.QUEUE },
+        markInactive = {
+            if (it.status == AnimeDownload.State.DOWNLOADING ||
+                it.status == AnimeDownload.State.QUEUE
+            ) {
+                it.status = AnimeDownload.State.NOT_DOWNLOADED
+            }
+        },
+    )
 
     /**
      * Notifier for the downloader state and progress.
@@ -801,94 +822,24 @@ class AnimeDownloader(
         return queueState.value.none { it.status.value <= AnimeDownload.State.DOWNLOADING.value }
     }
 
-    private fun addAllToQueue(downloads: List<AnimeDownload>) {
-        _queueState.update {
-            downloads.forEach { download ->
-                download.status = AnimeDownload.State.QUEUE
-            }
-            store.addAll(downloads)
-            it + downloads
-        }
-    }
+    private fun addAllToQueue(downloads: List<AnimeDownload>) = queueOps.addAll(downloads)
 
-    private fun removeFromQueue(download: AnimeDownload) {
-        _queueState.update {
-            store.remove(download)
-            if (download.status == AnimeDownload.State.DOWNLOADING || download.status == AnimeDownload.State.QUEUE) {
-                download.status = AnimeDownload.State.NOT_DOWNLOADED
-            }
-            it - download
-        }
-    }
-
-    private inline fun removeFromQueueIf(predicate: (AnimeDownload) -> Boolean) {
-        _queueState.update { queue ->
-            val downloads = queue.filter { predicate(it) }
-            store.removeAll(downloads)
-            downloads.forEach { download ->
-                if (download.status == AnimeDownload.State.DOWNLOADING ||
-                    download.status == AnimeDownload.State.QUEUE
-                ) {
-                    download.status = AnimeDownload.State.NOT_DOWNLOADED
-                }
-            }
-            queue - downloads.toSet()
-        }
-    }
+    private fun removeFromQueue(download: AnimeDownload) = queueOps.remove(download)
 
     fun removeFromQueue(episodes: List<Episode>) {
         val episodeIds = episodes.map { it.id }
-        removeFromQueueIf { it.episode.id in episodeIds }
+        queueOps.removeIf { it.episode.id in episodeIds }
     }
 
     fun removeFromQueue(anime: Anime) {
-        removeFromQueueIf { it.anime.id == anime.id }
+        queueOps.removeIf { it.anime.id == anime.id }
     }
 
-    private fun internalClearQueue() {
-        _queueState.update {
-            it.forEach { download ->
-                if (download.status == AnimeDownload.State.DOWNLOADING ||
-                    download.status == AnimeDownload.State.QUEUE
-                ) {
-                    download.status = AnimeDownload.State.NOT_DOWNLOADED
-                }
-            }
-            store.clear()
-            emptyList()
-        }
-    }
+    private fun internalClearQueue() = queueOps.internalClear()
 
-    /**
-     * Atomically adds downloads to the start of the queue.
-     * This replaces the non-atomic snapshot-then-modify pattern.
-     */
-    fun addToStartOfQueue(downloads: List<AnimeDownload>) {
-        _queueState.update { currentQueue ->
-            downloads.forEach { download ->
-                download.status = AnimeDownload.State.QUEUE
-                store.addAll(listOf(download))
-            }
-            // Prepend new downloads, removing duplicates by episode ID
-            val existingIds = currentQueue.map { it.episode.id }.toSet()
-            val newDownloads = downloads.filterNot { it.episode.id in existingIds }
-            newDownloads + currentQueue
-        }
-    }
+    fun addToStartOfQueue(downloads: List<AnimeDownload>) = queueOps.addToStart(downloads)
 
-    /**
-     * Atomically moves a download to the front of the queue.
-     * This replaces the non-atomic read-modify-write pattern.
-     */
-    fun moveToFront(download: AnimeDownload) {
-        _queueState.update { currentQueue ->
-            // Remove from current position and prepend
-            val filtered = currentQueue.filterNot { it.episode.id == download.episode.id }
-            download.status = AnimeDownload.State.QUEUE
-            store.addAll(listOf(download))
-            listOf(download) + filtered
-        }
-    }
+    fun moveToFront(download: AnimeDownload) = queueOps.moveToFront(download)
 
     fun updateQueue(downloads: List<AnimeDownload>) {
         if (queueState.value == downloads) return

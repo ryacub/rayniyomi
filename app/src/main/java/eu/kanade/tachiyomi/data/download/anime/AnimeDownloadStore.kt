@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -24,7 +25,7 @@ class AnimeDownloadStore(
     private val json: Json = Injekt.get(),
     private val getAnime: GetAnime = Injekt.get(),
     private val getEpisode: GetEpisode = Injekt.get(),
-) {
+) : DownloadQueueStore<AnimeDownload> {
 
     /**
      * Preference file where active downloads are stored.
@@ -43,7 +44,7 @@ class AnimeDownloadStore(
      *
      * @param downloads the list of downloads to add.
      */
-    fun addAll(downloads: List<AnimeDownload>) {
+    override fun addAll(downloads: List<AnimeDownload>) {
         preferences.edit {
             downloads.forEach { putString(getKey(it), serialize(it)) }
         }
@@ -54,7 +55,7 @@ class AnimeDownloadStore(
      *
      * @param download the download to remove.
      */
-    fun remove(download: AnimeDownload) {
+    override fun remove(download: AnimeDownload) {
         preferences.edit {
             remove(getKey(download))
         }
@@ -65,7 +66,7 @@ class AnimeDownloadStore(
      *
      * @param downloads the download to remove.
      */
-    fun removeAll(downloads: List<AnimeDownload>) {
+    override fun removeAll(downloads: List<AnimeDownload>) {
         preferences.edit {
             downloads.forEach { remove(getKey(it)) }
         }
@@ -74,7 +75,7 @@ class AnimeDownloadStore(
     /**
      * Removes all the downloads from the store.
      */
-    fun clear() {
+    override fun clear() {
         preferences.edit {
             clear()
         }
