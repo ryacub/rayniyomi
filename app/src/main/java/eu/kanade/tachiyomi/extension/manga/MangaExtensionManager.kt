@@ -150,7 +150,18 @@ class MangaExtensionManager(
 
         enableAdditionalSubLanguages(extensions)
 
-        availableExtensionsMapFlow.value = extensions.associateBy { it.pkgName }
+        val installedMap = installedExtensionsMapFlow.value
+        availableExtensionsMapFlow.value = extensions
+            .groupBy { it.pkgName }
+            .mapValues { (pkgName, candidates) ->
+                val installed = installedMap[pkgName]
+                if (installed != null && candidates.size > 1) {
+                    candidates.find { installed.isSignatureCompatibleWith(it) }
+                        ?: candidates.first()
+                } else {
+                    candidates.first()
+                }
+            }
         updatedInstalledExtensionsStatuses(extensions)
         setupAvailableExtensionsSourcesDataMap(extensions)
     }
@@ -202,11 +213,14 @@ class MangaExtensionManager(
         var changed = false
 
         for ((pkgName, extension) in installedExtensionsMap) {
-            val availableExt = availableExtensions.find { it.pkgName == pkgName }
+            val candidates = availableExtensions.filter { it.pkgName == pkgName }
+            val availableExt = candidates.find { extension.isSignatureCompatibleWith(it) }
 
             if (availableExt == null && !extension.isObsolete) {
-                installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
-                changed = true
+                if (candidates.isEmpty()) {
+                    installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
+                    changed = true
+                }
             } else if (availableExt != null) {
                 val hasUpdate = extension.updateExists(availableExt)
                 if (extension.hasUpdate != hasUpdate) {
@@ -363,6 +377,10 @@ class MangaExtensionManager(
             this
         }
     }
+
+    private fun MangaExtension.Installed.isSignatureCompatibleWith(
+        available: MangaExtension.Available,
+    ): Boolean = signatureHash == null || available.signingKeyFingerprint == signatureHash
 
     private fun MangaExtension.Installed.updateExists(
         availableExtension: MangaExtension.Available? = null,
