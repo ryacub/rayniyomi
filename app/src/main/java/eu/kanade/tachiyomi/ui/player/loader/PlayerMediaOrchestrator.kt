@@ -60,33 +60,36 @@ class PlayerMediaOrchestrator(
     fun loadTracks() {
         trackLoadingJob?.cancel()
         trackLoadingJob = scope.launch {
-            val possibleTrackTypes = listOf("audio", "sub")
-            val subTracks = mutableListOf<VideoTrack>()
+            val supportedTrackTypes = listOf("audio", "sub")
+            val subtitleTracks = mutableListOf<VideoTrack>()
             val audioTracks = mutableListOf(
                 VideoTrack(-1, context.getString(MR.strings.off.resourceId), null),
             )
+
             try {
-                val tracksCount = MPVLib.getPropertyInt("track-list/count") ?: 0
-                for (i in 0..<tracksCount) {
-                    val type = MPVLib.getPropertyString("track-list/$i/type")
-                    if (!possibleTrackTypes.contains(type) || type == null) continue
+                val totalTracks = MPVLib.getPropertyInt("track-list/count") ?: 0
 
-                    val trackId = MPVLib.getPropertyInt("track-list/$i/id") ?: continue
-                    val trackTitle = MPVLib.getPropertyString("track-list/$i/title") ?: ""
-                    val trackLang = MPVLib.getPropertyString("track-list/$i/lang")
+                for (trackIndex in 0..<totalTracks) {
+                    val trackType = MPVLib.getPropertyString("track-list/$trackIndex/type")
+                    if (trackType == null || trackType !in supportedTrackTypes) continue
 
-                    when (type) {
-                        "sub" -> subTracks.add(VideoTrack(trackId, trackTitle, trackLang))
-                        "audio" -> audioTracks.add(VideoTrack(trackId, trackTitle, trackLang))
+                    val trackId = MPVLib.getPropertyInt("track-list/$trackIndex/id") ?: continue
+                    val trackTitle = MPVLib.getPropertyString("track-list/$trackIndex/title") ?: ""
+                    val trackLanguage = MPVLib.getPropertyString("track-list/$trackIndex/lang")
+
+                    val videoTrack = VideoTrack(trackId, trackTitle, trackLanguage)
+                    when (trackType) {
+                        "sub" -> subtitleTracks.add(videoTrack)
+                        "audio" -> audioTracks.add(videoTrack)
                     }
                 }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR) { "Couldn't load tracks: ${e.message}" }
                 return@launch
             }
-            _subtitleTracks.update { subTracks }
-            _audioTracks.update { audioTracks }
 
+            _subtitleTracks.update { subtitleTracks }
+            _audioTracks.update { audioTracks }
             onTracksLoaded?.invoke()
         }
     }

@@ -415,9 +415,13 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     fun updateChapter(index: Long) {
-        if (chapters.value.isEmpty() || index == -1L) return
-        val chapter = chapters.value.getOrNull(index.toInt()) ?: return
-        mediaOrchestrator.setChapter(chapter.start)
+        val currentChapters = chapters.value
+
+        val isValidIndex = index != -1L && currentChapters.isNotEmpty()
+        if (!isValidIndex) return
+
+        val selectedChapter = currentChapters.getOrNull(index.toInt()) ?: return
+        mediaOrchestrator.setChapter(selectedChapter.start)
     }
 
     fun selectChapter(index: Int) {
