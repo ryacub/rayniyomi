@@ -4,7 +4,6 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
-import android.view.WindowManager
 import androidx.core.net.toUri
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.hippo.unifile.UniFile
@@ -78,6 +77,24 @@ class ReaderConfigManager(
         private const val THEME_WHITE = 0
         private const val THEME_GRAY = 2
         private const val THEME_AUTOMATIC = 3
+
+        // Brightness calculation constant
+        private const val BRIGHTNESS_OVERRIDE_NONE = -1.0f
+
+        /**
+         * Calculate reader brightness value for window attributes.
+         * Range is [-75, 100].
+         * From -75 to -1: minimum brightness (0.01f)
+         * From 1 to 100: percentage brightness
+         * 0: system brightness (BRIGHTNESS_OVERRIDE_NONE)
+         */
+        fun calculateBrightness(value: Int): Float {
+            return when {
+                value > 0 -> value / 100f
+                value < 0 -> 0.01f
+                else -> BRIGHTNESS_OVERRIDE_NONE
+            }
+        }
     }
 
     private fun observeReaderTheme() {
@@ -229,16 +246,7 @@ class ReaderConfigManager(
 
     /**
      * Calculate reader brightness value for window attributes.
-     * Range is [-75, 100].
-     * From -75 to -1: minimum brightness (0.01f)
-     * From 1 to 100: percentage brightness
-     * 0: system brightness (BRIGHTNESS_OVERRIDE_NONE)
+     * Delegates to companion object for testability.
      */
-    fun calculateReaderBrightness(value: Int): Float {
-        return when {
-            value > 0 -> value / 100f
-            value < 0 -> 0.01f
-            else -> WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
-    }
+    fun calculateReaderBrightness(value: Int): Float = calculateBrightness(value)
 }
