@@ -58,7 +58,7 @@ internal class MangaExtensionApi {
             with(json) {
                 response
                     .parseAs<List<ExtensionJsonObject>>()
-                    .toExtensions(repoBaseUrl)
+                    .toExtensions(repoBaseUrl, extRepo.signingKeyFingerprint)
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
@@ -93,7 +93,11 @@ internal class MangaExtensionApi {
         val extensionsWithUpdate = mutableListOf<MangaExtension.Installed>()
         for (installedExt in installedExtensions) {
             val pkgName = installedExt.pkgName
-            val availableExt = extensions.find { it.pkgName == pkgName } ?: continue
+            val installedSig = installedExt.signatureHash
+            val availableExt = extensions.find {
+                it.pkgName == pkgName &&
+                    (installedSig == null || it.signingKeyFingerprint == installedSig)
+            } ?: continue
             val hasUpdatedVer = availableExt.versionCode > installedExt.versionCode
             val hasUpdatedLib = availableExt.libVersion > installedExt.libVersion
             val hasUpdate = hasUpdatedVer || hasUpdatedLib
@@ -109,7 +113,10 @@ internal class MangaExtensionApi {
         return extensionsWithUpdate
     }
 
-    private fun List<ExtensionJsonObject>.toExtensions(repoUrl: String): List<MangaExtension.Available> {
+    private fun List<ExtensionJsonObject>.toExtensions(
+        repoUrl: String,
+        signingKeyFingerprint: String = "",
+    ): List<MangaExtension.Available> {
         return this
             .filter {
                 val libVersion = it.extractLibVersion()
@@ -128,6 +135,7 @@ internal class MangaExtensionApi {
                     apkName = it.apk,
                     iconUrl = "$repoUrl/icon/${it.pkg}.png",
                     repoUrl = repoUrl,
+                    signingKeyFingerprint = signingKeyFingerprint,
                 )
             }
     }

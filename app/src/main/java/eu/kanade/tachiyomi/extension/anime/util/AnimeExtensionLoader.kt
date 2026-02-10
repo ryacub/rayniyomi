@@ -354,6 +354,7 @@ internal object AnimeExtensionLoader {
             pkgFactory = appInfo.metaData.getString(METADATA_SOURCE_FACTORY),
             icon = appInfo.loadIcon(pkgManager),
             isShared = extensionInfo.isShared,
+            signatureHash = signatures.last(),
         )
         return AnimeLoadResult.Success(extension)
     }
