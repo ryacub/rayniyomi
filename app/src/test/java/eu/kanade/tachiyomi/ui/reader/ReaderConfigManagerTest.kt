@@ -1,16 +1,24 @@
 package eu.kanade.tachiyomi.ui.reader
 
+import android.graphics.Color
 import android.view.WindowManager
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -21,6 +29,7 @@ import tachiyomi.core.common.preference.Preference
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReaderConfigManagerTest {
 
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var testScope: TestScope
     private lateinit var readerPreferences: ReaderPreferences
     private lateinit var basePreferences: BasePreferences
@@ -38,6 +47,14 @@ class ReaderConfigManagerTest {
 
     @BeforeEach
     fun setup() {
+        Dispatchers.setMain(testDispatcher)
+
+        // Mock Android framework classes
+        mockkStatic(Color::class)
+        every { Color.BLACK } returns -16777216
+        every { Color.WHITE } returns -1
+        every { Color.rgb(any(), any(), any()) } returns -2039584 // Gray color
+
         // Initialize flows
         readerThemeFlow = MutableStateFlow(1) // Default: Black
         displayProfileFlow = MutableStateFlow("")
@@ -64,6 +81,12 @@ class ReaderConfigManagerTest {
         basePreferences = mockk {
             every { displayProfile() } returns mockPreference(displayProfileFlow)
         }
+    }
+
+    @AfterEach
+    fun tearDown() {
+        Dispatchers.resetMain()
+        unmockkAll()
     }
 
     private fun createConfigManager(scope: TestScope): ReaderConfigManager {
