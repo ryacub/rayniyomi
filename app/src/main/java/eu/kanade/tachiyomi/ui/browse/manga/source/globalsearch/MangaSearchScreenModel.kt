@@ -6,6 +6,7 @@ import androidx.compose.runtime.produceState
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
+import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
@@ -14,8 +15,9 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
@@ -31,7 +33,6 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.util.concurrent.Executors
 
 abstract class MangaSearchScreenModel(
     initialState: State = State(),
@@ -41,9 +42,10 @@ abstract class MangaSearchScreenModel(
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val preferences: SourcePreferences = Injekt.get(),
+    private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
 ) : StateScreenModel<MangaSearchScreenModel.State>(initialState) {
 
-    private val coroutineDispatcher = Executors.newFixedThreadPool(5).asCoroutineDispatcher()
+    private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()
@@ -133,6 +135,7 @@ abstract class MangaSearchScreenModel(
         this.lastSourceFilter = sourceFilter
 
         searchJob?.cancel()
+        val requestId = requestCoordinator.nextRequestId()
         val sources = getSelectedSources()
 
         // Reuse previous results if possible
@@ -157,7 +160,7 @@ abstract class MangaSearchScreenModel(
                         return@async
                     }
                     try {
-                        val page = withContext(coroutineDispatcher) {
+                        val page = withContext(searchDispatcher) {
                             source.getSearchManga(1, query, source.getFilterList())
                         }
 
@@ -165,11 +168,11 @@ abstract class MangaSearchScreenModel(
                             networkToLocalManga.await(it.toDomainManga(source.id))
                         }
 
-                        if (isActive) {
+                        if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, MangaSearchItemResult.Success(titles))
                         }
                     } catch (e: Exception) {
-                        if (isActive) {
+                        if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, MangaSearchItemResult.Error(e))
                         }
                     }

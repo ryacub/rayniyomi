@@ -6,6 +6,7 @@ import androidx.compose.runtime.produceState
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.anime.model.toDomainAnime
+import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
@@ -14,8 +15,9 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
@@ -31,7 +33,6 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.util.concurrent.Executors
 
 abstract class AnimeSearchScreenModel(
     initialState: State = State(),
@@ -41,9 +42,10 @@ abstract class AnimeSearchScreenModel(
     private val networkToLocalAnime: NetworkToLocalAnime = Injekt.get(),
     private val getAnime: GetAnime = Injekt.get(),
     private val preferences: SourcePreferences = Injekt.get(),
+    private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
 ) : StateScreenModel<AnimeSearchScreenModel.State>(initialState) {
 
-    private val coroutineDispatcher = Executors.newFixedThreadPool(5).asCoroutineDispatcher()
+    private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()
@@ -132,6 +134,8 @@ abstract class AnimeSearchScreenModel(
         this.lastQuery = query
         this.lastSourceFilter = sourceFilter
 
+        searchJob?.cancel()
+        val requestId = requestCoordinator.nextRequestId()
         val sources = getSelectedSources()
 
         // Reuse previous results if possible
@@ -157,7 +161,7 @@ abstract class AnimeSearchScreenModel(
                         return@async
                     }
                     try {
-                        val page = withContext(coroutineDispatcher) {
+                        val page = withContext(searchDispatcher) {
                             source.getSearchAnime(1, query, source.getFilterList())
                         }
 
@@ -165,11 +169,11 @@ abstract class AnimeSearchScreenModel(
                             networkToLocalAnime.await(it.toDomainAnime(source.id))
                         }
 
-                        if (isActive) {
+                        if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, AnimeSearchItemResult.Success(titles))
                         }
                     } catch (e: Exception) {
-                        if (isActive) {
+                        if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, AnimeSearchItemResult.Error(e))
                         }
                     }
