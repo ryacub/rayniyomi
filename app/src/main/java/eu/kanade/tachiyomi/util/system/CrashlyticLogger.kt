@@ -11,7 +11,13 @@ import logcat.logcat
  */
 object CrashlyticLogger {
 
-    private val crashlytics = FirebaseCrashlytics.getInstance()
+    private val crashlytics: FirebaseCrashlytics? by lazy {
+        try {
+            FirebaseCrashlytics.getInstance()
+        } catch (_: Throwable) {
+            null
+        }
+    }
     private val lock = Any()
 
     /**
@@ -22,7 +28,7 @@ object CrashlyticLogger {
         logcat(LogPriority.INFO) { message }
         try {
             synchronized(lock) {
-                crashlytics.log(message)
+                crashlytics?.log(message)
             }
         } catch (e: Exception) {
             logcat(LogPriority.WARN) { "Failed to log message to Crashlytics: $message" }
@@ -43,9 +49,9 @@ object CrashlyticLogger {
         try {
             synchronized(lock) {
                 if (context.isNotEmpty()) {
-                    crashlytics.setCustomKey("exception_context", context)
+                    crashlytics?.setCustomKey("exception_context", context)
                 }
-                crashlytics.recordException(exception)
+                crashlytics?.recordException(exception)
             }
         } catch (e: Exception) {
             logcat(LogPriority.WARN) { "Failed to record exception to Crashlytics" }
@@ -59,7 +65,7 @@ object CrashlyticLogger {
     fun setCustomKey(key: String, value: String) {
         try {
             synchronized(lock) {
-                crashlytics.setCustomKey(key, value)
+                crashlytics?.setCustomKey(key, value)
             }
         } catch (e: Exception) {
             logcat(LogPriority.WARN) { "Failed to set custom key to Crashlytics: $key=$value" }
@@ -73,7 +79,7 @@ object CrashlyticLogger {
     fun setCustomKey(key: String, value: Int) {
         try {
             synchronized(lock) {
-                crashlytics.setCustomKey(key, value)
+                crashlytics?.setCustomKey(key, value)
             }
         } catch (e: Exception) {
             logcat(LogPriority.WARN) { "Failed to set custom key to Crashlytics: $key=$value" }
@@ -87,7 +93,7 @@ object CrashlyticLogger {
     fun setCustomKey(key: String, value: Boolean) {
         try {
             synchronized(lock) {
-                crashlytics.setCustomKey(key, value)
+                crashlytics?.setCustomKey(key, value)
             }
         } catch (e: Exception) {
             logcat(LogPriority.WARN) { "Failed to set custom key to Crashlytics: $key=$value" }
