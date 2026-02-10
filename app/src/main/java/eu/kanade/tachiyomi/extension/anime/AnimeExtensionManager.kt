@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionInstallReceiver
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionInstaller
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -155,20 +156,22 @@ class AnimeExtensionManager(
 
         enableAdditionalSubLanguages(extensions)
 
-        val installedMap = installedExtensionsMapFlow.value
-        availableExtensionsMapFlow.value = extensions
+        val selectedAvailableExtensions = extensions
             .groupBy { it.pkgName }
             .mapValues { (pkgName, candidates) ->
-                val installed = installedMap[pkgName]
-                if (installed != null && candidates.size > 1) {
-                    candidates.find { installed.isSignatureCompatibleWith(it) }
-                        ?: candidates.first()
-                } else {
-                    candidates.first()
-                }
+                val installedExtension = installedExtensionsMapFlow.value[pkgName]
+                selectPreferredExtensionCandidate(
+                    candidates = candidates,
+                    installedSignatureHash = installedExtension?.signatureHash,
+                    installedRepoUrl = installedExtension?.repoUrl,
+                    candidateSignatureHash = AnimeExtension.Available::signingKeyFingerprint,
+                    candidateRepoUrl = AnimeExtension.Available::repoUrl,
+                )
             }
-        updatedInstalledAnimeExtensionsStatuses(extensions)
-        setupAvailableAnimeExtensionsSourcesDataMap(extensions)
+
+        availableExtensionsMapFlow.value = selectedAvailableExtensions
+        updatedInstalledAnimeExtensionsStatuses(selectedAvailableExtensions)
+        setupAvailableAnimeExtensionsSourcesDataMap(selectedAvailableExtensions.values.toList())
     }
 
     /**
@@ -206,9 +209,7 @@ class AnimeExtensionManager(
      *
      * @param availableExtensions The list of animeextensions given by the [api].
      */
-    private fun updatedInstalledAnimeExtensionsStatuses(
-        availableExtensions: List<AnimeExtension.Available>,
-    ) {
+    private fun updatedInstalledAnimeExtensionsStatuses(availableExtensions: Map<String, AnimeExtension.Available>) {
         if (availableExtensions.isEmpty()) {
             preferences.animeExtensionUpdatesCount().set(0)
             return
@@ -218,14 +219,11 @@ class AnimeExtensionManager(
         var changed = false
 
         for ((pkgName, extension) in installedExtensionsMap) {
-            val candidates = availableExtensions.filter { it.pkgName == pkgName }
-            val availableExt = candidates.find { extension.isSignatureCompatibleWith(it) }
+            val availableExt = availableExtensions[pkgName]
 
             if (availableExt == null && !extension.isObsolete) {
-                if (candidates.isEmpty()) {
-                    installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
-                    changed = true
-                }
+                installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
+                changed = true
             } else if (availableExt != null) {
                 val hasUpdate = extension.updateExists(availableExt)
                 if (extension.hasUpdate != hasUpdate) {
@@ -382,10 +380,6 @@ class AnimeExtensionManager(
             this
         }
     }
-
-    private fun AnimeExtension.Installed.isSignatureCompatibleWith(
-        available: AnimeExtension.Available,
-    ): Boolean = signatureHash == null || available.signingKeyFingerprint == signatureHash
 
     private fun AnimeExtension.Installed.updateExists(
         availableExtension: AnimeExtension.Available? = null,

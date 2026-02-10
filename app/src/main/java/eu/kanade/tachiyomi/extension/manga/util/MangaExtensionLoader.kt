@@ -281,7 +281,7 @@ internal object MangaExtensionLoader {
                 versionName,
                 versionCode,
                 libVersion,
-                signatures.last(),
+                signatures.first(),
             )
             logcat(LogPriority.WARN) { "Extension $pkgName isn't trusted" }
             return MangaLoadResult.Untrusted(extension)
@@ -364,7 +364,7 @@ internal object MangaExtensionLoader {
             pkgFactory = appInfo.metaData.getString(METADATA_SOURCE_FACTORY),
             icon = appInfo.loadIcon(pkgManager),
             isShared = extensionInfo.isShared,
-            signatureHash = signatures.last(),
+            signatureHash = signatures.first(),
         )
         return MangaLoadResult.Success(extension)
     }

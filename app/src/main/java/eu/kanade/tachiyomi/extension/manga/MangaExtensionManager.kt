@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionInstallReceiver
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionInstaller
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -150,20 +151,22 @@ class MangaExtensionManager(
 
         enableAdditionalSubLanguages(extensions)
 
-        val installedMap = installedExtensionsMapFlow.value
-        availableExtensionsMapFlow.value = extensions
+        val selectedAvailableExtensions = extensions
             .groupBy { it.pkgName }
             .mapValues { (pkgName, candidates) ->
-                val installed = installedMap[pkgName]
-                if (installed != null && candidates.size > 1) {
-                    candidates.find { installed.isSignatureCompatibleWith(it) }
-                        ?: candidates.first()
-                } else {
-                    candidates.first()
-                }
+                val installedExtension = installedExtensionsMapFlow.value[pkgName]
+                selectPreferredExtensionCandidate(
+                    candidates = candidates,
+                    installedSignatureHash = installedExtension?.signatureHash,
+                    installedRepoUrl = installedExtension?.repoUrl,
+                    candidateSignatureHash = MangaExtension.Available::signingKeyFingerprint,
+                    candidateRepoUrl = MangaExtension.Available::repoUrl,
+                )
             }
-        updatedInstalledExtensionsStatuses(extensions)
-        setupAvailableExtensionsSourcesDataMap(extensions)
+
+        availableExtensionsMapFlow.value = selectedAvailableExtensions
+        updatedInstalledExtensionsStatuses(selectedAvailableExtensions)
+        setupAvailableExtensionsSourcesDataMap(selectedAvailableExtensions.values.toList())
     }
 
     /**
@@ -201,9 +204,7 @@ class MangaExtensionManager(
      *
      * @param availableExtensions The list of extensions given by the [api].
      */
-    private fun updatedInstalledExtensionsStatuses(
-        availableExtensions: List<MangaExtension.Available>,
-    ) {
+    private fun updatedInstalledExtensionsStatuses(availableExtensions: Map<String, MangaExtension.Available>) {
         if (availableExtensions.isEmpty()) {
             preferences.mangaExtensionUpdatesCount().set(0)
             return
@@ -213,14 +214,11 @@ class MangaExtensionManager(
         var changed = false
 
         for ((pkgName, extension) in installedExtensionsMap) {
-            val candidates = availableExtensions.filter { it.pkgName == pkgName }
-            val availableExt = candidates.find { extension.isSignatureCompatibleWith(it) }
+            val availableExt = availableExtensions[pkgName]
 
             if (availableExt == null && !extension.isObsolete) {
-                if (candidates.isEmpty()) {
-                    installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
-                    changed = true
-                }
+                installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
+                changed = true
             } else if (availableExt != null) {
                 val hasUpdate = extension.updateExists(availableExt)
                 if (extension.hasUpdate != hasUpdate) {
@@ -377,10 +375,6 @@ class MangaExtensionManager(
             this
         }
     }
-
-    private fun MangaExtension.Installed.isSignatureCompatibleWith(
-        available: MangaExtension.Available,
-    ): Boolean = signatureHash == null || available.signingKeyFingerprint == signatureHash
 
     private fun MangaExtension.Installed.updateExists(
         availableExtension: MangaExtension.Available? = null,

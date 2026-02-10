@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -58,7 +59,10 @@ internal class AnimeExtensionApi {
             with(json) {
                 response
                     .parseAs<List<AnimeExtensionJsonObject>>()
-                    .toExtensions(repoBaseUrl, extRepo.signingKeyFingerprint)
+                    .toExtensions(
+                        repoUrl = repoBaseUrl,
+                        signingKeyFingerprint = extRepo.signingKeyFingerprint,
+                    )
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
@@ -91,13 +95,19 @@ internal class AnimeExtensionApi {
             .map { it.extension }
 
         val extensionsWithUpdate = mutableListOf<AnimeExtension.Installed>()
+        val availableExtensionsByPackage = extensions.groupBy { it.pkgName }
         for (installedExt in installedExtensions) {
-            val pkgName = installedExt.pkgName
-            val installedSig = installedExt.signatureHash
-            val availableExt = extensions.find {
-                it.pkgName == pkgName &&
-                    (installedSig == null || it.signingKeyFingerprint == installedSig)
-            } ?: continue
+            val availableExt = availableExtensionsByPackage[installedExt.pkgName]
+                ?.let {
+                    selectPreferredExtensionCandidate(
+                        candidates = it,
+                        installedSignatureHash = installedExt.signatureHash,
+                        installedRepoUrl = installedExt.repoUrl,
+                        candidateSignatureHash = AnimeExtension.Available::signingKeyFingerprint,
+                        candidateRepoUrl = AnimeExtension.Available::repoUrl,
+                    )
+                }
+                ?: continue
 
             val hasUpdatedVer = availableExt.versionCode > installedExt.versionCode
             val hasUpdatedLib = availableExt.libVersion > installedExt.libVersion
@@ -119,7 +129,7 @@ internal class AnimeExtensionApi {
 
     private fun List<AnimeExtensionJsonObject>.toExtensions(
         repoUrl: String,
-        signingKeyFingerprint: String = "",
+        signingKeyFingerprint: String,
     ): List<AnimeExtension.Available> {
         return this
             .filter {

@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -58,7 +59,10 @@ internal class MangaExtensionApi {
             with(json) {
                 response
                     .parseAs<List<ExtensionJsonObject>>()
-                    .toExtensions(repoBaseUrl, extRepo.signingKeyFingerprint)
+                    .toExtensions(
+                        repoUrl = repoBaseUrl,
+                        signingKeyFingerprint = extRepo.signingKeyFingerprint,
+                    )
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
@@ -91,13 +95,19 @@ internal class MangaExtensionApi {
             .map { it.extension }
 
         val extensionsWithUpdate = mutableListOf<MangaExtension.Installed>()
+        val availableExtensionsByPackage = extensions.groupBy { it.pkgName }
         for (installedExt in installedExtensions) {
-            val pkgName = installedExt.pkgName
-            val installedSig = installedExt.signatureHash
-            val availableExt = extensions.find {
-                it.pkgName == pkgName &&
-                    (installedSig == null || it.signingKeyFingerprint == installedSig)
-            } ?: continue
+            val availableExt = availableExtensionsByPackage[installedExt.pkgName]
+                ?.let {
+                    selectPreferredExtensionCandidate(
+                        candidates = it,
+                        installedSignatureHash = installedExt.signatureHash,
+                        installedRepoUrl = installedExt.repoUrl,
+                        candidateSignatureHash = MangaExtension.Available::signingKeyFingerprint,
+                        candidateRepoUrl = MangaExtension.Available::repoUrl,
+                    )
+                }
+                ?: continue
             val hasUpdatedVer = availableExt.versionCode > installedExt.versionCode
             val hasUpdatedLib = availableExt.libVersion > installedExt.libVersion
             val hasUpdate = hasUpdatedVer || hasUpdatedLib
@@ -115,7 +125,7 @@ internal class MangaExtensionApi {
 
     private fun List<ExtensionJsonObject>.toExtensions(
         repoUrl: String,
-        signingKeyFingerprint: String = "",
+        signingKeyFingerprint: String,
     ): List<MangaExtension.Available> {
         return this
             .filter {

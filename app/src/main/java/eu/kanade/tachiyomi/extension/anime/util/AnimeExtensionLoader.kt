@@ -271,7 +271,7 @@ internal object AnimeExtensionLoader {
                 versionName,
                 versionCode,
                 libVersion,
-                signatures.last(),
+                signatures.first(),
             )
             logcat(LogPriority.WARN, message = { "Extension $pkgName isn't trusted" })
             return AnimeLoadResult.Untrusted(extension)
@@ -354,7 +354,7 @@ internal object AnimeExtensionLoader {
             pkgFactory = appInfo.metaData.getString(METADATA_SOURCE_FACTORY),
             icon = appInfo.loadIcon(pkgManager),
             isShared = extensionInfo.isShared,
-            signatureHash = signatures.last(),
+            signatureHash = signatures.first(),
         )
         return AnimeLoadResult.Success(extension)
     }
