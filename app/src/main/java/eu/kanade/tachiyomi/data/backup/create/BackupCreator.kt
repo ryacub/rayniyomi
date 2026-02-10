@@ -6,12 +6,13 @@ import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.backup.BackupFileValidator
 import eu.kanade.tachiyomi.data.backup.create.creators.AnimeBackupCreator
+import eu.kanade.tachiyomi.data.backup.create.creators.AnimeCategoriesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.AnimeExtensionRepoBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.AnimeSourcesBackupCreator
-import eu.kanade.tachiyomi.data.backup.create.creators.CategoriesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.CustomButtonBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.ExtensionsBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaBackupCreator
+import eu.kanade.tachiyomi.data.backup.create.creators.MangaCategoriesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaExtensionRepoBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaSourcesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.PreferenceBackupCreator
@@ -34,8 +35,6 @@ import okio.sink
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
-import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
-import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
@@ -62,12 +61,8 @@ class BackupCreator(
     private val mangaRepository: MangaRepository = Injekt.get(),
     private val animeRepository: AnimeRepository = Injekt.get(),
 
-    private val animeCategoriesBackupCreator: CategoriesBackupCreator = CategoriesBackupCreator(
-        getCategories = { Injekt.get<GetAnimeCategories>().await() },
-    ),
-    private val mangaCategoriesBackupCreator: CategoriesBackupCreator = CategoriesBackupCreator(
-        getCategories = { Injekt.get<GetMangaCategories>().await() },
-    ),
+    private val animeCategoriesBackupCreator: AnimeCategoriesBackupCreator = AnimeCategoriesBackupCreator(),
+    private val mangaCategoriesBackupCreator: MangaCategoriesBackupCreator = MangaCategoriesBackupCreator(),
     private val animeBackupCreator: AnimeBackupCreator = AnimeBackupCreator(),
     private val mangaBackupCreator: MangaBackupCreator = MangaBackupCreator(),
     private val preferenceBackupCreator: PreferenceBackupCreator = PreferenceBackupCreator(),
