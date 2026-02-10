@@ -376,10 +376,6 @@ class MangaExtensionManager(
         }
     }
 
-    private fun MangaExtension.Installed.isSignatureCompatibleWith(
-        available: MangaExtension.Available,
-    ): Boolean = signatureHash == null || available.signingKeyFingerprint == signatureHash
-
     private fun MangaExtension.Installed.updateExists(
         availableExtension: MangaExtension.Available? = null,
     ): Boolean {

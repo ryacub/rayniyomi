@@ -381,10 +381,6 @@ class AnimeExtensionManager(
         }
     }
 
-    private fun AnimeExtension.Installed.isSignatureCompatibleWith(
-        available: AnimeExtension.Available,
-    ): Boolean = signatureHash == null || available.signingKeyFingerprint == signatureHash
-
     private fun AnimeExtension.Installed.updateExists(
         availableExtension: AnimeExtension.Available? = null,
     ): Boolean {
