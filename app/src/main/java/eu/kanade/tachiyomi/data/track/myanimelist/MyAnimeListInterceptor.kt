@@ -25,17 +25,24 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
             refreshToken(chain)
         }
 
-        if (oauth == null) {
-            throw IOException("MAL: User is not authenticated")
-        }
+        val currentOAuth = oauth ?: throw IOException("MAL: User is not authenticated")
 
         // Add the authorization header to the original request
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
-            // .header("User-Agent", "Aniyomi v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
+            .addHeader("Authorization", "Bearer ${currentOAuth.accessToken}")
             .build()
 
-        return chain.proceed(authRequest)
+        val response = chain.proceed(authRequest)
+
+        // Handle rate limiting with single retry and server-specified backoff
+        if (response.code == 429) {
+            val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: RATE_LIMIT_DEFAULT_WAIT_SECONDS
+            response.close()
+            Thread.sleep(retryAfter.coerceAtMost(MAX_RETRY_WAIT_SECONDS) * 1000)
+            return chain.proceed(authRequest)
+        }
+
+        return response
     }
 
     /**
@@ -51,13 +58,16 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
         if (tokenExpired) throw MALTokenExpired()
         oauth?.takeUnless { it.isExpired() }?.let { return@synchronized it }
 
+        val currentOAuth = oauth ?: throw MALTokenRefreshFailed()
+
         val response = try {
-            chain.proceed(MyAnimeListApi.refreshTokenRequest(oauth!!))
-        } catch (_: Throwable) {
+            chain.proceed(MyAnimeListApi.refreshTokenRequest(currentOAuth))
+        } catch (e: IOException) {
             throw MALTokenRefreshFailed()
         }
 
         if (response.code == 401) {
+            response.close()
             myanimelist.setAuthExpired()
             throw MALTokenExpired()
         }
@@ -76,6 +86,11 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
                 myanimelist.saveOAuth(it)
             }
             ?: throw MALTokenRefreshFailed()
+    }
+
+    companion object {
+        private const val RATE_LIMIT_DEFAULT_WAIT_SECONDS = 5L
+        private const val MAX_RETRY_WAIT_SECONDS = 60L
     }
 }
 

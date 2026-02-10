@@ -24,29 +24,39 @@ class AnilistInterceptor(val anilist: Anilist, private var token: String?) : Int
         val originalRequest = chain.request()
 
         if (token.isNullOrEmpty()) {
-            throw Exception("Not authenticated with Anilist")
+            throw IOException("Not authenticated with AniList")
         }
         if (oauth == null) {
             oauth = anilist.loadOAuth()
         }
-        // Refresh access token if null or expired.
-        if (oauth!!.isExpired()) {
-            anilist.logout()
-            throw IOException("Token expired")
-        }
 
-        // Throw on null auth.
-        if (oauth == null) {
-            throw IOException("No authentication token")
+        val currentOAuth = oauth
+        // Refresh access token if null or expired.
+        if (currentOAuth == null) {
+            throw IOException("AniList: No authentication token")
+        }
+        if (currentOAuth.isExpired()) {
+            anilist.logout()
+            throw IOException("AniList: Login has expired")
         }
 
         // Add the authorization header to the original request.
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
+            .addHeader("Authorization", "Bearer ${currentOAuth.accessToken}")
             .header("User-Agent", "Aniyomi v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
             .build()
 
-        return chain.proceed(authRequest)
+        val response = chain.proceed(authRequest)
+
+        // Handle rate limiting with single retry and server-specified backoff
+        if (response.code == 429) {
+            val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: RATE_LIMIT_DEFAULT_WAIT_SECONDS
+            response.close()
+            Thread.sleep(retryAfter.coerceAtMost(MAX_RETRY_WAIT_SECONDS) * 1000)
+            return chain.proceed(authRequest)
+        }
+
+        return response
     }
 
     /**
@@ -57,5 +67,10 @@ class AnilistInterceptor(val anilist: Anilist, private var token: String?) : Int
         token = oauth?.accessToken
         this.oauth = oauth
         anilist.saveOAuth(oauth)
+    }
+
+    companion object {
+        private const val RATE_LIMIT_DEFAULT_WAIT_SECONDS = 5L
+        private const val MAX_RETRY_WAIT_SECONDS = 60L
     }
 }

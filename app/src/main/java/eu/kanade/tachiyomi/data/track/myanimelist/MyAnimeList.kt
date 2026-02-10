@@ -256,6 +256,7 @@ class MyAnimeList(id: Long) :
             saveCredentials(username, oauth.accessToken)
         } catch (e: Throwable) {
             logout()
+            throw e
         }
     }
 
