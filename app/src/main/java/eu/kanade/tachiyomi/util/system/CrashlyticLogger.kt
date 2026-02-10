@@ -117,4 +117,15 @@ object CrashlyticLogger {
         log("Download Error - Type: $errorType, ItemId: $itemId")
         setCustomKey("last_download_error", errorType)
     }
+
+    /**
+     * Log migration error for crash investigation.
+     * Captures migration name, version, and exception details.
+     */
+    fun logMigrationError(migrationName: String, migrationVersion: Float, exception: Exception) {
+        log("Migration Error - Name: $migrationName, Version: $migrationVersion, Error: ${exception.message}")
+        setCustomKey("last_migration_error_name", migrationName)
+        setCustomKey("last_migration_error_version", migrationVersion.toString())
+        logException(Exception("Migration failed: $migrationName (v$migrationVersion)", exception))
+    }
 }
