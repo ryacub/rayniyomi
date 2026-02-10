@@ -100,6 +100,14 @@ class MangaDownloadCache(
     private val rootDownloadsDirMutex = Mutex()
     private var rootDownloadsDir = RootDirectory(storageManager.getDownloadsDirectory())
 
+    /**
+     * Whether the initial disk cache load has completed. Used to prevent
+     * [renewCache] from starting a redundant filesystem scan while the
+     * init block is still loading the persisted index.
+     */
+    @Volatile
+    private var isInitialized = false
+
     init {
         // Attempt to read cache file
         scope.launch {
@@ -117,6 +125,8 @@ class MangaDownloadCache(
                     diskCacheFile.delete()
                 }
             }
+            isInitialized = true
+            notifyChanges()
         }
 
         storageManager.changes
@@ -331,8 +341,13 @@ class MangaDownloadCache(
      * Renews the downloads cache.
      */
     private fun renewCache() {
-        // Avoid renewing cache if in the process nor too often
-        if (lastRenew + renewInterval >= System.currentTimeMillis() || renewalJob?.isActive == true) {
+        // Avoid renewing cache if in the process nor too often.
+        // Also skip if the init block hasn't finished loading the disk cache yet,
+        // as starting a filesystem scan would race with it and produce empty results.
+        if (lastRenew + renewInterval >= System.currentTimeMillis() ||
+            renewalJob?.isActive == true ||
+            !isInitialized
+        ) {
             return
         }
 
