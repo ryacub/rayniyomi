@@ -1,11 +1,15 @@
 package mihon.core.migration
 
+import eu.kanade.tachiyomi.util.system.CrashlyticLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
+import kotlin.coroutines.cancellation.CancellationException
 
 object Migrator {
 
@@ -28,7 +32,20 @@ object Migrator {
 
     suspend fun await(): Boolean {
         val result = result ?: CompletableDeferred(false)
-        return result.await()
+        return try {
+            result.await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) {
+                "Migration framework error: ${e.message}"
+            }
+            CrashlyticLogger.logException(
+                Exception("Migration framework failure", e),
+                "Uncaught exception in Migrator.await()",
+            )
+            false
+        }
     }
 
     fun release() {
