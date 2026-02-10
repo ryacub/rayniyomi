@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.anime.api
 
 import android.content.Context
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
@@ -91,13 +92,19 @@ internal class AnimeExtensionApi {
             .map { it.extension }
 
         val extensionsWithUpdate = mutableListOf<AnimeExtension.Installed>()
+        val availableExtensionsByPackage = extensions.groupBy { it.pkgName }
         for (installedExt in installedExtensions) {
-            val pkgName = installedExt.pkgName
-            val installedSig = installedExt.signatureHash
-            val availableExt = extensions.find {
-                it.pkgName == pkgName &&
-                    (installedSig == null || it.signingKeyFingerprint == installedSig)
-            } ?: continue
+            val availableExt = availableExtensionsByPackage[installedExt.pkgName]
+                ?.let {
+                    selectPreferredExtensionCandidate(
+                        candidates = it,
+                        installedSignatureHash = installedExt.signatureHash,
+                        installedRepoUrl = installedExt.repoUrl,
+                        candidateSignatureHash = AnimeExtension.Available::signingKeyFingerprint,
+                        candidateRepoUrl = AnimeExtension.Available::repoUrl,
+                    )
+                }
+                ?: continue
 
             val hasUpdatedVer = availableExt.versionCode > installedExt.versionCode
             val hasUpdatedLib = availableExt.libVersion > installedExt.libVersion

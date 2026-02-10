@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.manga.api
 
 import android.content.Context
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
@@ -91,13 +92,19 @@ internal class MangaExtensionApi {
             .map { it.extension }
 
         val extensionsWithUpdate = mutableListOf<MangaExtension.Installed>()
+        val availableExtensionsByPackage = extensions.groupBy { it.pkgName }
         for (installedExt in installedExtensions) {
-            val pkgName = installedExt.pkgName
-            val installedSig = installedExt.signatureHash
-            val availableExt = extensions.find {
-                it.pkgName == pkgName &&
-                    (installedSig == null || it.signingKeyFingerprint == installedSig)
-            } ?: continue
+            val availableExt = availableExtensionsByPackage[installedExt.pkgName]
+                ?.let {
+                    selectPreferredExtensionCandidate(
+                        candidates = it,
+                        installedSignatureHash = installedExt.signatureHash,
+                        installedRepoUrl = installedExt.repoUrl,
+                        candidateSignatureHash = MangaExtension.Available::signingKeyFingerprint,
+                        candidateRepoUrl = MangaExtension.Available::repoUrl,
+                    )
+                }
+                ?: continue
             val hasUpdatedVer = availableExt.versionCode > installedExt.versionCode
             val hasUpdatedLib = availableExt.libVersion > installedExt.libVersion
             val hasUpdate = hasUpdatedVer || hasUpdatedLib
