@@ -30,7 +30,6 @@ import android.net.Uri
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.inputmethod.InputMethodManager
-import androidx.compose.runtime.Immutable
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -41,6 +40,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
+import eu.kanade.domain.items.episode.model.toDbEpisode
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
 import eu.kanade.domain.track.service.TrackPreferences
@@ -48,7 +48,6 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.more.settings.screen.player.custombutton.CustomButtonFetchState
 import eu.kanade.presentation.more.settings.screen.player.custombutton.getButtons
 import eu.kanade.tachiyomi.animesource.AnimeSource
-import eu.kanade.tachiyomi.animesource.model.ChapterType
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.toHosterList
 import eu.kanade.tachiyomi.animesource.model.TimeStamp
@@ -68,15 +67,16 @@ import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
 import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterOrchestrator
+import eu.kanade.tachiyomi.ui.player.loader.PlayerMediaOrchestrator
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.AniSkipApi
-import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion.getStringRes
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
 import eu.kanade.tachiyomi.ui.reader.SaveImageNotifier
 import eu.kanade.tachiyomi.util.editBackground
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.editThumbnail
+import eu.kanade.tachiyomi.util.episode.filterDownloadedEpisodes
 import eu.kanade.tachiyomi.util.lang.byteSize
 import eu.kanade.tachiyomi.util.lang.takeBytes
 import eu.kanade.tachiyomi.util.storage.DiskUtil
@@ -115,10 +115,10 @@ import tachiyomi.domain.history.anime.model.AnimeHistoryUpdate
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
 import tachiyomi.domain.items.episode.model.EpisodeUpdate
+import tachiyomi.domain.items.episode.service.getEpisodeSort
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
-import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
 import uy.kohesive.injekt.Injekt
@@ -162,16 +162,17 @@ class PlayerViewModel @JvmOverloads constructor(
     uiPreferences: UiPreferences = Injekt.get(),
 ) : ViewModel() {
 
-    internal val episodeListManager = PlayerEpisodeListManager(
-        getEpisodesByAnimeId = getEpisodesByAnimeId,
-        downloadManager = downloadManager,
-        basePreferences = basePreferences,
-    )
+    private val _currentPlaylist = MutableStateFlow<List<Episode>>(emptyList())
+    val currentPlaylist = _currentPlaylist.asStateFlow()
 
-    val currentPlaylist get() = episodeListManager.currentPlaylist
-    val hasPreviousEpisode get() = episodeListManager.hasPreviousEpisode
-    val hasNextEpisode get() = episodeListManager.hasNextEpisode
-    val currentEpisode get() = episodeListManager.currentEpisode
+    private val _hasPreviousEpisode = MutableStateFlow(false)
+    val hasPreviousEpisode = _hasPreviousEpisode.asStateFlow()
+
+    private val _hasNextEpisode = MutableStateFlow(false)
+    val hasNextEpisode = _hasNextEpisode.asStateFlow()
+
+    private val _currentEpisode = MutableStateFlow<Episode?>(null)
+    val currentEpisode = _currentEpisode.asStateFlow()
 
     private val _currentAnime = MutableStateFlow<Anime?>(null)
     val currentAnime = _currentAnime.asStateFlow()
@@ -193,18 +194,6 @@ class PlayerViewModel @JvmOverloads constructor(
 
     val isLoading = MutableStateFlow(true)
     val playbackSpeed = MutableStateFlow(playerPreferences.playerSpeed().get())
-
-    private val _subtitleTracks = MutableStateFlow<List<VideoTrack>>(emptyList())
-    val subtitleTracks = _subtitleTracks.asStateFlow()
-    private val _selectedSubtitles = MutableStateFlow(Pair(-1, -1))
-    val selectedSubtitles = _selectedSubtitles.asStateFlow()
-
-    private val _audioTracks = MutableStateFlow<List<VideoTrack>>(emptyList())
-    val audioTracks = _audioTracks.asStateFlow()
-    private val _selectedAudio = MutableStateFlow(-1)
-    val selectedAudio = _selectedAudio.asStateFlow()
-
-    val isLoadingTracks = MutableStateFlow(true)
 
     private val hosterOrchestrator = HosterOrchestrator(viewModelScope).apply {
         onVideoReady = { video ->
@@ -228,12 +217,33 @@ class PlayerViewModel @JvmOverloads constructor(
     val selectedHosterVideoIndex = hosterOrchestrator.selectedHosterVideoIndex
     val currentVideo = hosterOrchestrator.currentVideo
 
-    private val _chapters = MutableStateFlow<List<IndexedSegment>>(emptyList())
-    val chapters = _chapters.asStateFlow()
-    private val _currentChapter = MutableStateFlow<IndexedSegment?>(null)
-    val currentChapter = _currentChapter.asStateFlow()
-    private val _skipIntroText = MutableStateFlow<String?>(null)
-    val skipIntroText = _skipIntroText.asStateFlow()
+    private val mediaOrchestrator = PlayerMediaOrchestrator(
+        scope = viewModelScope,
+        context = activity,
+        playerPreferences = playerPreferences,
+        trackSelect = trackSelect,
+    ).apply {
+        onTracksLoaded = {
+            if (!isLoadingTracks.value) {
+                onFinishLoadingTracks()
+            }
+        }
+        onSeekRequested = { seekValue, text ->
+            seekToWithText(seekValue, text ?: "")
+        }
+        onToastRequested = { message ->
+            activity.showToast(message)
+        }
+    }
+
+    val subtitleTracks = mediaOrchestrator.subtitleTracks
+    val selectedSubtitles = mediaOrchestrator.selectedSubtitles
+    val audioTracks = mediaOrchestrator.audioTracks
+    val selectedAudio = mediaOrchestrator.selectedAudio
+    val isLoadingTracks = mediaOrchestrator.isLoadingTracks
+    val chapters = mediaOrchestrator.chapters
+    val currentChapter = mediaOrchestrator.currentChapter
+    val skipIntroText = mediaOrchestrator.skipIntroText
 
     private val _pos = MutableStateFlow(0f)
     val pos = _pos.asStateFlow()
@@ -355,6 +365,10 @@ class PlayerViewModel @JvmOverloads constructor(
         _isLoadingEpisode.update { _ -> value }
     }
 
+    private fun updateEpisodeList(episodeList: List<Episode>) {
+        _currentPlaylist.update { _ -> filterEpisodeList(episodeList) }
+    }
+
     fun getDecoder() {
         _currentDecoder.update { getDecoderFromValue(activity.player.hwdecActive) }
     }
@@ -363,62 +377,8 @@ class PlayerViewModel @JvmOverloads constructor(
         MPVLib.setPropertyString("hwdec", decoder.value)
     }
 
-    val getTrackLanguage: (Int) -> String = {
-        if (it != -1) {
-            MPVLib.getPropertyString("track-list/$it/lang") ?: ""
-        } else {
-            activity.stringResource(MR.strings.off)
-        }
-    }
-    val getTrackTitle: (Int) -> String = {
-        if (it != -1) {
-            MPVLib.getPropertyString("track-list/$it/title") ?: ""
-        } else {
-            activity.stringResource(MR.strings.off)
-        }
-    }
-    val getTrackMPVId: (Int) -> Int = {
-        if (it != -1) {
-            MPVLib.getPropertyInt("track-list/$it/id")
-        } else {
-            -1
-        }
-    }
-    val getTrackType: (Int) -> String? = {
-        MPVLib.getPropertyString("track-list/$it/type")
-    }
-
-    private var trackLoadingJob: Job? = null
     fun loadTracks() {
-        trackLoadingJob?.cancel()
-        trackLoadingJob = viewModelScope.launch {
-            val possibleTrackTypes = listOf("audio", "sub")
-            val subTracks = mutableListOf<VideoTrack>()
-            val audioTracks = mutableListOf(
-                VideoTrack(-1, activity.stringResource(MR.strings.off), null),
-            )
-            try {
-                val tracksCount = MPVLib.getPropertyInt("track-list/count") ?: 0
-                for (i in 0..<tracksCount) {
-                    val type = getTrackType(i)
-                    if (!possibleTrackTypes.contains(type) || type == null) continue
-                    when (type) {
-                        "sub" -> subTracks.add(VideoTrack(getTrackMPVId(i), getTrackTitle(i), getTrackLanguage(i)))
-                        "audio" -> audioTracks.add(VideoTrack(getTrackMPVId(i), getTrackTitle(i), getTrackLanguage(i)))
-                        else -> error("Unrecognized track type")
-                    }
-                }
-            } catch (e: NullPointerException) {
-                logcat(LogPriority.ERROR) { "Couldn't load tracks, probably cause mpv was destroyed" }
-                return@launch
-            }
-            _subtitleTracks.update { subTracks }
-            _audioTracks.update { audioTracks }
-
-            if (!isLoadingTracks.value) {
-                onFinishLoadingTracks()
-            }
-        }
+        mediaOrchestrator.loadTracks()
     }
 
     /**
@@ -437,37 +397,31 @@ class PlayerViewModel @JvmOverloads constructor(
             activity.player.aid = it.id
         }
 
-        isLoadingTracks.update { _ -> true }
+        mediaOrchestrator.setLoadingTracks(true)
         updateIsLoadingEpisode(false)
         setPausedState()
     }
 
-    @Immutable
-    data class VideoTrack(
-        val id: Int,
-        val name: String,
-        val language: String?,
-    )
-
     fun loadChapters() {
-        val chapters = mutableListOf<IndexedSegment>()
-        val count = MPVLib.getPropertyInt("chapter-list/count")!!
-        for (i in 0 until count) {
-            val title = MPVLib.getPropertyString("chapter-list/$i/title")
-            val time = MPVLib.getPropertyInt("chapter-list/$i/time")!!
-            chapters.add(
-                IndexedSegment(
-                    name = title,
-                    start = time.toFloat(),
-                    index = 0,
-                ),
-            )
-        }
-        updateChapters(chapters.sortedBy { it.start })
+        mediaOrchestrator.loadChapters()
     }
 
     fun updateChapters(chapters: List<IndexedSegment>) {
-        _chapters.update { _ -> chapters }
+        mediaOrchestrator.updateChapters(chapters)
+    }
+
+    fun setLoadingTracks(loading: Boolean) {
+        mediaOrchestrator.setLoadingTracks(loading)
+    }
+
+    fun updateChapter(index: Long) {
+        val currentChapters = chapters.value
+
+        val isValidIndex = index != -1L && currentChapters.isNotEmpty()
+        if (!isValidIndex) return
+
+        val selectedChapter = currentChapters.getOrNull(index.toInt()) ?: return
+        mediaOrchestrator.setChapter(selectedChapter.start)
     }
 
     fun selectChapter(index: Int) {
@@ -475,66 +429,28 @@ class PlayerViewModel @JvmOverloads constructor(
         seekTo(time.toInt())
     }
 
-    fun updateChapter(index: Long) {
-        if (chapters.value.isEmpty() || index == -1L) return
-        _currentChapter.update { chapters.value.getOrNull(index.toInt()) ?: return }
-    }
-
     fun addAudio(uri: Uri) {
-        val url = uri.toString()
-        val isContentUri = url.startsWith("content://")
-        val path = (if (isContentUri) uri.openContentFd(activity) else url)
-            ?: return
-        val name = if (isContentUri) uri.getFileName(activity) else null
-        if (name == null) {
-            MPVLib.command(arrayOf("audio-add", path, "cached"))
-        } else {
-            MPVLib.command(arrayOf("audio-add", path, "cached", name))
-        }
+        mediaOrchestrator.addAudio(uri)
     }
 
     fun selectAudio(id: Int) {
-        activity.player.aid = id
+        mediaOrchestrator.selectAudio(id)
     }
 
     fun updateAudio(id: Int) {
-        _selectedAudio.update { id }
+        mediaOrchestrator.updateAudioState(id)
     }
 
     fun addSubtitle(uri: Uri) {
-        val url = uri.toString()
-        val isContentUri = url.startsWith("content://")
-        val path = (if (isContentUri) uri.openContentFd(activity) else url)
-            ?: return
-        val name = if (isContentUri) uri.getFileName(activity) else null
-        if (name == null) {
-            MPVLib.command(arrayOf("sub-add", path, "cached"))
-        } else {
-            MPVLib.command(arrayOf("sub-add", path, "cached", name))
-        }
+        mediaOrchestrator.addSubtitle(uri)
     }
 
     fun selectSub(id: Int) {
-        val selectedSubs = selectedSubtitles.value
-        _selectedSubtitles.update {
-            when (id) {
-                selectedSubs.first -> Pair(selectedSubs.second, -1)
-                selectedSubs.second -> Pair(selectedSubs.first, -1)
-                else -> {
-                    if (selectedSubs.first != -1) {
-                        Pair(selectedSubs.first, id)
-                    } else {
-                        Pair(id, -1)
-                    }
-                }
-            }
-        }
-        activity.player.secondarySid = _selectedSubtitles.value.second
-        activity.player.sid = _selectedSubtitles.value.first
+        mediaOrchestrator.selectSub(id)
     }
 
     fun updateSubtitle(sid: Int, secondarySid: Int) {
-        _selectedSubtitles.update { Pair(sid, secondarySid) }
+        mediaOrchestrator.updateSubtitleState(sid, secondarySid)
     }
 
     fun updatePlayBackPos(pos: Float) {
@@ -957,7 +873,7 @@ class PlayerViewModel @JvmOverloads constructor(
         }
 
         activity.changeEpisode(
-            episodeId = episodeListManager.getAdjacentEpisodeId(previous = previous),
+            episodeId = getAdjacentEpisodeId(previous = previous),
             autoPlay = autoPlay,
         )
     }
@@ -1030,7 +946,7 @@ class PlayerViewModel @JvmOverloads constructor(
             }
         }
 
-        episodeListManager.updateNavigationState()
+        updateNavigationState()
     }
 
     fun handleLeftDoubleTap() {
@@ -1120,20 +1036,82 @@ class PlayerViewModel @JvmOverloads constructor(
     /**
      * The episode id of the currently loaded episode. Used to restore from process kill.
      */
-    private var episodeId: Long
-        get() = episodeListManager.episodeId
+    private var episodeId = savedState.get<Long>("episode_id") ?: -1L
         set(value) {
             savedState["episode_id"] = value
-            episodeListManager.episodeId = value
+            field = value
         }
-
-    init {
-        episodeListManager.episodeId = savedState.get<Long>("episode_id") ?: -1L
-    }
 
     private var episodeToDownload: AnimeDownload? = null
 
-    fun getCurrentEpisodeIndex() = episodeListManager.getCurrentEpisodeIndex()
+    private fun filterEpisodeList(episodes: List<Episode>): List<Episode> {
+        val anime = currentAnime.value ?: return episodes
+        val selectedEpisode = episodes.find { it.id == episodeId }
+            ?: error("Requested episode of id $episodeId not found in episode list")
+
+        val episodesForPlayer = episodes.filterNot {
+            anime.unseenFilterRaw == Anime.EPISODE_SHOW_SEEN &&
+                !it.seen ||
+                anime.unseenFilterRaw == Anime.EPISODE_SHOW_UNSEEN &&
+                it.seen ||
+                anime.downloadedFilterRaw == Anime.EPISODE_SHOW_DOWNLOADED &&
+                !downloadManager.isEpisodeDownloaded(
+                    it.name,
+                    it.scanlator,
+                    anime.title,
+                    anime.source,
+                ) ||
+                anime.downloadedFilterRaw == Anime.EPISODE_SHOW_NOT_DOWNLOADED &&
+                downloadManager.isEpisodeDownloaded(
+                    it.name,
+                    it.scanlator,
+                    anime.title,
+                    anime.source,
+                ) ||
+                anime.bookmarkedFilterRaw == Anime.EPISODE_SHOW_BOOKMARKED &&
+                !it.bookmark ||
+                anime.bookmarkedFilterRaw == Anime.EPISODE_SHOW_NOT_BOOKMARKED &&
+                it.bookmark ||
+                anime.fillermarkedFilterRaw == Anime.EPISODE_SHOW_FILLERMARKED &&
+                !it.fillermark ||
+                anime.fillermarkedFilterRaw == Anime.EPISODE_SHOW_NOT_FILLERMARKED &&
+                it.fillermark
+        }.toMutableList()
+
+        if (episodesForPlayer.all { it.id != episodeId }) {
+            episodesForPlayer += listOf(selectedEpisode)
+        }
+
+        return episodesForPlayer
+    }
+
+    fun getCurrentEpisodeIndex(): Int {
+        return currentPlaylist.value.indexOfFirst { currentEpisode.value?.id == it.id }
+    }
+
+    private fun getAdjacentEpisodeId(previous: Boolean): Long {
+        val newIndex = if (previous) getCurrentEpisodeIndex() - 1 else getCurrentEpisodeIndex() + 1
+
+        return when {
+            previous && getCurrentEpisodeIndex() == 0 -> -1L
+            !previous && currentPlaylist.value.lastIndex == getCurrentEpisodeIndex() -> -1L
+            else -> currentPlaylist.value.getOrNull(newIndex)?.id ?: -1L
+        }
+    }
+
+    fun updateHasNextEpisode(value: Boolean) {
+        _hasNextEpisode.update { _ -> value }
+    }
+
+    fun updateHasPreviousEpisode(value: Boolean) {
+        _hasPreviousEpisode.update { _ -> value }
+    }
+
+    fun updateNavigationState() {
+        val currentIndex = getCurrentEpisodeIndex()
+        _hasPreviousEpisode.update { currentIndex != 0 }
+        _hasNextEpisode.update { currentIndex != currentPlaylist.value.size - 1 }
+    }
 
     fun showEpisodeListDialog() {
         if (currentAnime.value != null) {
@@ -1197,17 +1175,18 @@ class PlayerViewModel @JvmOverloads constructor(
 
                 checkTrackers(anime)
 
-                episodeListManager.updateEpisodeList(episodeListManager.initEpisodeList(anime), anime)
+                updateEpisodeList(initEpisodeList(anime))
 
                 val episode = currentPlaylist.value.first { it.id == episodeId }
                 val source = sourceManager.getOrStub(anime.source)
 
-                episodeListManager.setCurrentEpisode(episode)
+                _currentEpisode.update { _ -> episode }
                 _currentSource.update { _ -> source }
 
                 updateEpisode(episode)
 
-                episodeListManager.updateNavigationState()
+                _hasPreviousEpisode.update { _ -> getCurrentEpisodeIndex() != 0 }
+                _hasNextEpisode.update { _ -> getCurrentEpisodeIndex() != currentPlaylist.value.size - 1 }
 
                 // Write to mpv table
                 MPVLib.setPropertyString("user-data/current-anime/anime-title", anime.title)
@@ -1261,6 +1240,21 @@ class PlayerViewModel @JvmOverloads constructor(
         MPVLib.setPropertyDouble("user-data/current-anime/episode-number", episode.episode_number.toDouble())
     }
 
+    private fun initEpisodeList(anime: Anime): List<Episode> {
+        val episodes = runBlocking { getEpisodesByAnimeId.await(anime.id) }
+
+        return episodes
+            .sortedWith(getEpisodeSort(anime, sortDescending = false))
+            .run {
+                if (basePreferences.downloadedOnly().get()) {
+                    filterDownloadedEpisodes(anime)
+                } else {
+                    this
+                }
+            }
+            .map { it.toDbEpisode() }
+    }
+
     private var hasTrackers: Boolean = false
     private val checkTrackers: (Anime) -> Unit = { anime ->
         val tracks = runBlocking { getTracks.await(anime.id) }
@@ -1310,7 +1304,7 @@ class PlayerViewModel @JvmOverloads constructor(
 
         val chosenEpisode = currentPlaylist.value.firstOrNull { ep -> ep.id == episodeId } ?: return null
 
-        episodeListManager.setCurrentEpisode(chosenEpisode)
+        _currentEpisode.update { _ -> chosenEpisode }
         updateEpisode(chosenEpisode)
 
         return withIOContext {
@@ -1746,96 +1740,11 @@ class PlayerViewModel @JvmOverloads constructor(
     var waitingSkipIntro = defaultWaitingTime
 
     fun setChapter(position: Float) {
-        getCurrentChapter(position)?.let { (chapterIndex, chapter) ->
-            if (currentChapter.value != chapter) {
-                _currentChapter.update { _ -> chapter }
-            }
-
-            if (!introSkipEnabled) {
-                return
-            }
-
-            if (chapter.chapterType == ChapterType.Other) {
-                _skipIntroText.update { _ -> null }
-                waitingSkipIntro = defaultWaitingTime
-            } else {
-                val nextChapterPos = chapters.value.getOrNull(chapterIndex + 1)?.start ?: pos.value
-
-                if (netflixStyle) {
-                    // show a toast with the seconds before the skip
-                    if (waitingSkipIntro == defaultWaitingTime) {
-                        activity.showToast(
-                            "Skip Intro: ${activity.stringResource(
-                                AYMR.strings.player_aniskip_dontskip_toast,
-                                chapter.name,
-                                waitingSkipIntro,
-                            )}",
-                        )
-                    }
-                    showSkipIntroButton(chapter, nextChapterPos, waitingSkipIntro)
-                    waitingSkipIntro--
-                } else if (autoSkip) {
-                    seekToWithText(
-                        seekValue = nextChapterPos.toInt(),
-                        text = activity.stringResource(AYMR.strings.player_intro_skipped, chapter.name),
-                    )
-                } else {
-                    updateSkipIntroButton(chapter.chapterType)
-                }
-            }
-        }
-    }
-
-    private fun updateSkipIntroButton(chapterType: ChapterType) {
-        val skipButtonString = chapterType.getStringRes()
-
-        _skipIntroText.update { _ ->
-            skipButtonString?.let {
-                activity.stringResource(
-                    AYMR.strings.player_skip_action,
-                    activity.stringResource(skipButtonString),
-                )
-            }
-        }
-    }
-
-    private fun showSkipIntroButton(chapter: IndexedSegment, nextChapterPos: Float, waitingTime: Int) {
-        if (waitingTime > -1) {
-            if (waitingTime > 0) {
-                _skipIntroText.update { _ -> activity.stringResource(AYMR.strings.player_aniskip_dontskip) }
-            } else {
-                seekToWithText(
-                    seekValue = nextChapterPos.toInt(),
-                    text = activity.stringResource(AYMR.strings.player_aniskip_skip, chapter.name),
-                )
-            }
-        } else {
-            // when waitingTime is -1, it means that the user cancelled the skip
-            updateSkipIntroButton(chapter.chapterType)
-        }
+        mediaOrchestrator.setChapter(position)
     }
 
     fun onSkipIntro() {
-        getCurrentChapter()?.let { (chapterIndex, chapter) ->
-            // this stops the counter
-            if (waitingSkipIntro > 0 && netflixStyle) {
-                waitingSkipIntro = -1
-                return
-            }
-
-            val nextChapterPos = chapters.value.getOrNull(chapterIndex + 1)?.start ?: pos.value
-
-            seekToWithText(
-                seekValue = nextChapterPos.toInt(),
-                text = activity.stringResource(AYMR.strings.player_aniskip_skip, chapter.name),
-            )
-        }
-    }
-
-    private fun getCurrentChapter(position: Float? = null): IndexedValue<IndexedSegment>? {
-        return chapters.value.withIndex()
-            .filter { it.value.start <= (position ?: pos.value) }
-            .maxByOrNull { it.value.start }
+        mediaOrchestrator.onSkipIntro(pos.value)
     }
 
     fun setPrimaryCustomButtonTitle(button: CustomButton) {
