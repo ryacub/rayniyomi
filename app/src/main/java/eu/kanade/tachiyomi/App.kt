@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Looper
 import android.os.StrictMode
+import android.provider.Settings
 import android.webkit.WebView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -22,6 +23,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.allowRgb565
 import coil3.request.crossfade
 import coil3.util.DebugLogger
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dev.mihon.injekt.patchInjekt
 import eu.kanade.domain.DomainModule
 import eu.kanade.domain.SYDomainModule
@@ -82,6 +84,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
         super<Application>.onCreate()
+
+        // Initialize Firebase Crashlytics early to capture all crashes
+        initializeCrashlytics()
 
         // Enable StrictMode in debug builds to detect main-thread I/O violations
         // Logs violations to logcat for investigation during development
@@ -257,6 +262,29 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         return super.getPackageName()
+    }
+
+    private fun initializeCrashlytics() {
+        try {
+            val deviceId = getOrCreateDeviceId()
+            FirebaseCrashlytics.getInstance().apply {
+                setUserId(deviceId)
+                log("App.onCreate - Crashlytics initialized with device ID: $deviceId")
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to initialize Firebase Crashlytics" }
+            // Continue app startup even if Crashlytics initialization fails
+        }
+    }
+
+    private fun getOrCreateDeviceId(): String {
+        return try {
+            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                ?: "unknown_device_${System.currentTimeMillis()}"
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to get device ID" }
+            "unknown_device_${System.currentTimeMillis()}"
+        }
     }
 
     private fun setupNotificationChannels() {
