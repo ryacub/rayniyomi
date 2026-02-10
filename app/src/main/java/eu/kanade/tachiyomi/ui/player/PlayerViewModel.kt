@@ -946,7 +946,7 @@ class PlayerViewModel @JvmOverloads constructor(
             }
         }
 
-        episodeListManager.updateNavigationState()
+        updateNavigationState()
     }
 
     fun handleLeftDoubleTap() {
@@ -1105,6 +1105,12 @@ class PlayerViewModel @JvmOverloads constructor(
 
     fun updateHasPreviousEpisode(value: Boolean) {
         _hasPreviousEpisode.update { _ -> value }
+    }
+
+    fun updateNavigationState() {
+        val currentIndex = getCurrentEpisodeIndex()
+        _hasPreviousEpisode.update { currentIndex != 0 }
+        _hasNextEpisode.update { currentIndex != currentPlaylist.value.size - 1 }
     }
 
     fun showEpisodeListDialog() {

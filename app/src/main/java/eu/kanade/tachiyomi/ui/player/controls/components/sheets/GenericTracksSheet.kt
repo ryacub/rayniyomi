@@ -39,7 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.player.components.PlayerSheet
-import eu.kanade.tachiyomi.ui.player.PlayerViewModel.VideoTrack
+import eu.kanade.tachiyomi.ui.player.model.VideoTrack
 import kotlinx.collections.immutable.ImmutableList
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding

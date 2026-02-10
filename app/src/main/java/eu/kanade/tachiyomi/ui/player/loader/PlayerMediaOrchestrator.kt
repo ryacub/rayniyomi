@@ -1,15 +1,15 @@
 package eu.kanade.tachiyomi.ui.player.loader
 
-import ChapterType
 import android.content.Context
 import android.net.Uri
-import eu.kanade.tachiyomi.ui.player.controls.components.SeekBar.IndexedSegment
+import eu.kanade.tachiyomi.animesource.model.ChapterType
+import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
+import eu.kanade.tachiyomi.ui.player.getFileName
 import eu.kanade.tachiyomi.ui.player.model.VideoTrack
+import eu.kanade.tachiyomi.ui.player.openContentFd
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
-import eu.kanade.tachiyomi.util.system.getFileName
-import eu.kanade.tachiyomi.util.system.openContentFd
 import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
