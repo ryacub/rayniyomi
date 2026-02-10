@@ -10,6 +10,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeout
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.minutes
 
 class MigrationJobFactory(
@@ -71,6 +72,8 @@ class MigrationJobFactory(
             CrashlyticLogger.setCustomKey("last_failed_migration", migrationName)
             CrashlyticLogger.setCustomKey("current_migration_name", "none")
             false
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) {
                 "Migration failed: { name = $migrationName, version = $migrationVersion }"

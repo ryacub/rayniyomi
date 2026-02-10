@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import kotlin.coroutines.cancellation.CancellationException
 
 object Migrator {
 
@@ -33,6 +34,8 @@ object Migrator {
         val result = result ?: CompletableDeferred(false)
         return try {
             result.await()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) {
                 "Migration framework error: ${e.message}"
@@ -50,18 +53,6 @@ object Migrator {
     }
 
     fun awaitAndRelease(): Boolean = runBlocking {
-        try {
-            await().also { release() }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) {
-                "Critical migration error in awaitAndRelease: ${e.message}"
-            }
-            CrashlyticLogger.logException(
-                Exception("Critical migration error in awaitAndRelease", e),
-                "Uncaught exception in Migrator.awaitAndRelease()",
-            )
-            release()
-            false
-        }
+        await().also { release() }
     }
 }
