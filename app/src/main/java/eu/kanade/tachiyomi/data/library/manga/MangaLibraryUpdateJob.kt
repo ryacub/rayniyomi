@@ -21,11 +21,11 @@ import androidx.work.workDataOf
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.toSManga
 import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
+import eu.kanade.tachiyomi.data.cache.MangaCoverCache
+import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
-import eu.kanade.tachiyomi.data.cache.MangaCoverCache
-import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
