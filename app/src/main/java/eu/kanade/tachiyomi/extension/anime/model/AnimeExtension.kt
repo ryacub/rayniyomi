@@ -29,7 +29,7 @@ sealed class AnimeExtension {
         val isObsolete: Boolean = false,
         val isShared: Boolean,
         val repoUrl: String? = null,
-        val signatureHash: String? = null, // SHA-256 of APK signing cert; matches Available.signingKeyFingerprint
+        val signatureHash: String, // SHA-256 of APK signing cert; matches Available.signingKeyFingerprint
     ) : AnimeExtension()
 
     data class Available(
@@ -44,7 +44,7 @@ sealed class AnimeExtension {
         val apkName: String,
         val iconUrl: String,
         val repoUrl: String,
-        val signingKeyFingerprint: String = "", // SHA-256 of repo signing key; matches Installed.signatureHash
+        val signingKeyFingerprint: String, // SHA-256 of repo signing key; matches Installed.signatureHash
     ) : AnimeExtension() {
 
         data class AnimeSource(

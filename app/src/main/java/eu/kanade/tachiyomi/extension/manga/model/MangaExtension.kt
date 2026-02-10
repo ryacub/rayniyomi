@@ -29,7 +29,7 @@ sealed class MangaExtension {
         val isObsolete: Boolean = false,
         val isShared: Boolean,
         val repoUrl: String? = null,
-        val signatureHash: String? = null, // SHA-256 of APK signing cert; matches Available.signingKeyFingerprint
+        val signatureHash: String, // SHA-256 of APK signing cert; matches Available.signingKeyFingerprint
     ) : MangaExtension()
 
     data class Available(
@@ -44,7 +44,7 @@ sealed class MangaExtension {
         val apkName: String,
         val iconUrl: String,
         val repoUrl: String,
-        val signingKeyFingerprint: String = "", // SHA-256 of repo signing key; matches Installed.signatureHash
+        val signingKeyFingerprint: String, // SHA-256 of repo signing key; matches Installed.signatureHash
     ) : MangaExtension() {
 
         data class MangaSource(

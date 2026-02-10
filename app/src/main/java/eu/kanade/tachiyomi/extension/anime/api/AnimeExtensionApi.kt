@@ -2,11 +2,11 @@ package eu.kanade.tachiyomi.extension.anime.api
 
 import android.content.Context
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
-import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -59,7 +59,10 @@ internal class AnimeExtensionApi {
             with(json) {
                 response
                     .parseAs<List<AnimeExtensionJsonObject>>()
-                    .toExtensions(repoBaseUrl, extRepo.signingKeyFingerprint)
+                    .toExtensions(
+                        repoUrl = repoBaseUrl,
+                        signingKeyFingerprint = extRepo.signingKeyFingerprint,
+                    )
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
@@ -126,7 +129,7 @@ internal class AnimeExtensionApi {
 
     private fun List<AnimeExtensionJsonObject>.toExtensions(
         repoUrl: String,
-        signingKeyFingerprint: String = "",
+        signingKeyFingerprint: String,
     ): List<AnimeExtension.Available> {
         return this
             .filter {
