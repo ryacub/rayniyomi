@@ -106,6 +106,11 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                     return Result.retry()
                 }
             }
+
+            // Find a running manual worker. If exists, try again later
+            if (context.workManager.isRunning(WORK_NAME_MANUAL)) {
+                return Result.retry()
+            }
         }
 
         try {
