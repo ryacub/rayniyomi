@@ -12,12 +12,11 @@ import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
-import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeRestorer
+import eu.kanade.tachiyomi.data.backup.restore.restorers.CategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.CustomButtonRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.ExtensionsRestorer
-import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
@@ -27,8 +26,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
+import tachiyomi.data.handlers.manga.MangaDatabaseHandler
+import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
+import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -39,8 +44,24 @@ class BackupRestorer(
     private val notifier: BackupNotifier,
     private val isSync: Boolean,
 
-    private val animeCategoriesRestorer: AnimeCategoriesRestorer = AnimeCategoriesRestorer(),
-    private val mangaCategoriesRestorer: MangaCategoriesRestorer = MangaCategoriesRestorer(),
+    private val animeCategoriesRestorer: CategoriesRestorer = CategoriesRestorer(
+        getCategories = { Injekt.get<GetAnimeCategories>().await() },
+        insertCategory = { name, order, flags ->
+            Injekt.get<AnimeDatabaseHandler>().awaitOneExecutable {
+                categoriesQueries.insert(name, order, flags)
+                categoriesQueries.selectLastInsertedRowId()
+            }
+        },
+    ),
+    private val mangaCategoriesRestorer: CategoriesRestorer = CategoriesRestorer(
+        getCategories = { Injekt.get<GetMangaCategories>().await() },
+        insertCategory = { name, order, flags ->
+            Injekt.get<MangaDatabaseHandler>().awaitOneExecutable {
+                categoriesQueries.insert(name, order, flags)
+                categoriesQueries.selectLastInsertedRowId()
+            }
+        },
+    ),
     private val preferenceRestorer: PreferenceRestorer = PreferenceRestorer(context),
     private val animeExtensionRepoRestorer: AnimeExtensionRepoRestorer = AnimeExtensionRepoRestorer(),
     private val mangaExtensionRepoRestorer: MangaExtensionRepoRestorer = MangaExtensionRepoRestorer(),
