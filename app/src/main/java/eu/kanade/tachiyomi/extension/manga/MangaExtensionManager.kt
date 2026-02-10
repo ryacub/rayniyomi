@@ -6,13 +6,13 @@ import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.InstallStep
-import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionInstallReceiver
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionInstaller
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob

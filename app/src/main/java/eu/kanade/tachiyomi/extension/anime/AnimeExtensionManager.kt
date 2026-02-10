@@ -6,13 +6,13 @@ import eu.kanade.domain.extension.anime.interactor.TrustAnimeExtension
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.InstallStep
-import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.extension.anime.api.AnimeExtensionApi
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionInstallReceiver
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionInstaller
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
+import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
