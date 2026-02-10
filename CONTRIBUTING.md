@@ -18,7 +18,6 @@ You do not need to ask for permission nor an assignment.
 - Fill out all required sections in the PR template.
 - Include verification evidence.
 - For user-facing changes, include a concrete Release Notes section.
-- Run local preflight before push: `./scripts/preflight.sh` (or install hook once with `./scripts/install-git-hooks.sh`).
 
 See governance docs:
 - [`docs/governance/agent-workflow.md`](docs/governance/agent-workflow.md)

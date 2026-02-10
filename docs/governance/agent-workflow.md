@@ -47,12 +47,10 @@ updateStrategy = UpdateStrategy.ALWAYS_UPDATE,
 ### Pre-Submission Checks
 Run before pushing any PR:
 
-1. **Install repo pre-push hook (once per clone/worktree):** `./scripts/install-git-hooks.sh`
-2. **Run preflight manually anytime:** `./scripts/preflight.sh`
-3. **Check for fully qualified names:** `grep -r "= [a-z]*\.[a-z]*\.[a-z]*\." app/src/ core/`
-4. **Format code when needed:** `./gradlew spotlessApply`
-5. **Run risk-tier tests:** `./gradlew :module:testDebugUnitTest`
-6. **Rebase on main:** `git fetch origin && git rebase origin/main`
+1. **Check for fully qualified names:** `grep -r "= [a-z]*\.[a-z]*\.[a-z]*\." app/src/ core/`
+2. **Format code:** `./gradlew spotlessApply`
+3. **Run tests:** `./gradlew :module:testDebugUnitTest`
+4. **Rebase on main:** `git fetch origin && git rebase origin/main`
 
 ## High-Risk Rules
 For `P0` or `T3` work:
