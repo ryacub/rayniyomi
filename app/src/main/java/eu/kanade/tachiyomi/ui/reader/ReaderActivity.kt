@@ -7,10 +7,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -38,10 +34,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
-import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.google.android.material.elevation.SurfaceColors
 import com.google.android.material.transition.platform.MaterialContainerTransform
-import com.hippo.unifile.UniFile
 import dev.chrisbanes.insetter.applyInsetter
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.domain.base.BasePreferences
@@ -55,7 +49,6 @@ import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
-import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.databinding.ReaderActivityBinding
@@ -83,9 +76,10 @@ import eu.kanade.tachiyomi.util.view.setComposeContent
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
@@ -99,7 +93,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.io.ByteArrayOutputStream
 
 class ReaderActivity : BaseActivity() {
 
@@ -119,7 +112,6 @@ class ReaderActivity : BaseActivity() {
     lateinit var binding: ReaderActivityBinding
 
     val viewModel by viewModels<ReaderViewModel>()
-    private var assistUrl: String? = null
 
     private val hasCutout by lazy { hasDisplayCutout() }
 
@@ -159,6 +151,8 @@ class ReaderActivity : BaseActivity() {
 
         binding = ReaderActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        viewModel.initReaderConfig(isNightMode())
 
         if (viewModel.needsInit()) {
             val manga = intent.extras?.getLong("manga", -1) ?: -1L
@@ -283,7 +277,7 @@ class ReaderActivity : BaseActivity() {
 
     override fun onProvideAssistContent(outContent: AssistContent) {
         super.onProvideAssistContent(outContent)
-        assistUrl?.let { outContent.webUri = it.toUri() }
+        viewModel.state.value.assistUrl?.let { outContent.webUri = it.toUri() }
     }
 
     /**
@@ -577,20 +571,20 @@ class ReaderActivity : BaseActivity() {
     private fun openChapterInWebView() {
         val manga = viewModel.manga ?: return
         val source = viewModel.getSource() ?: return
-        assistUrl?.let {
+        viewModel.state.value.assistUrl?.let {
             val intent = WebViewActivity.newIntent(this@ReaderActivity, it, source.id, manga.title)
             startActivity(intent)
         }
     }
 
     private fun openChapterInBrowser() {
-        assistUrl?.let {
+        viewModel.state.value.assistUrl?.let {
             openInBrowser(it.toUri(), forceDefaultBrowser = false)
         }
     }
 
     private fun shareChapter() {
-        assistUrl?.let {
+        viewModel.state.value.assistUrl?.let {
             val intent = it.toUri().toShareIntent(this, type = "text/plain")
             startActivity(Intent.createChooser(intent, stringResource(MR.strings.action_share)))
         }
@@ -614,12 +608,6 @@ class ReaderActivity : BaseActivity() {
     private fun setChapters(viewerChapters: ViewerChapters) {
         binding.readerContainer.removeView(loadingIndicator)
         viewModel.state.value.viewer?.setChapters(viewerChapters)
-
-        lifecycleScope.launchIO {
-            viewModel.getChapterUrl()?.let { url ->
-                assistUrl = url
-            }
-        }
     }
 
     /**
@@ -803,109 +791,51 @@ class ReaderActivity : BaseActivity() {
     }
 
     /**
-     * Class that handles the user preferences of the reader.
+     * Class that observes ReaderConfigManager and applies config to Android Window/Views.
      */
     private inner class ReaderConfig {
 
-        private fun getCombinedPaint(grayscale: Boolean, invertedColors: Boolean): Paint {
-            return Paint().apply {
-                colorFilter = ColorMatrixColorFilter(
-                    ColorMatrix().apply {
-                        if (grayscale) {
-                            setSaturation(0f)
-                        }
-                        if (invertedColors) {
-                            postConcat(
-                                ColorMatrix(
-                                    floatArrayOf(
-                                        -1f, 0f, 0f, 0f, 255f,
-                                        0f, -1f, 0f, 0f, 255f,
-                                        0f, 0f, -1f, 0f, 255f,
-                                        0f, 0f, 0f, 1f, 0f,
-                                    ),
-                                ),
-                            )
-                        }
-                    },
-                )
-            }
-        }
-
-        private val grayBackgroundColor = Color.rgb(0x20, 0x21, 0x25)
-
         /**
-         * Initializes the reader subscriptions.
+         * Initializes the reader config observers.
          */
         init {
-            readerPreferences.readerTheme().changes()
-                .onEach { theme ->
-                    binding.readerContainer.setBackgroundColor(
-                        when (theme) {
-                            0 -> Color.WHITE
-                            2 -> grayBackgroundColor
-                            3 -> automaticBackgroundColor()
-                            else -> Color.BLACK
-                        },
-                    )
+            viewModel.readerConfig.backgroundColor
+                .onEach { color ->
+                    binding.readerContainer.setBackgroundColor(color)
                 }
                 .launchIn(lifecycleScope)
 
-            preferences.displayProfile().changes()
-                .onEach { setDisplayProfile(it) }
+            viewModel.readerConfig.layerPaint
+                .onEach { paint ->
+                    binding.viewerContainer.setLayerType(LAYER_TYPE_HARDWARE, paint)
+                }
                 .launchIn(lifecycleScope)
 
-            readerPreferences.cutoutShort().changes()
+            viewModel.readerConfig.cutoutShort
                 .onEach(::setCutoutShort)
                 .launchIn(lifecycleScope)
 
-            readerPreferences.keepScreenOn().changes()
+            viewModel.readerConfig.keepScreenOn
                 .onEach(::setKeepScreenOn)
                 .launchIn(lifecycleScope)
 
-            readerPreferences.customBrightness().changes()
-                .onEach(::setCustomBrightness)
-                .launchIn(lifecycleScope)
-
-            merge(readerPreferences.grayscale().changes(), readerPreferences.invertedColors().changes())
-                .onEach { setLayerPaint(readerPreferences.grayscale().get(), readerPreferences.invertedColors().get()) }
-                .launchIn(lifecycleScope)
-
-            readerPreferences.fullscreen().changes()
-                .onEach {
-                    WindowCompat.setDecorFitsSystemWindows(window, !it)
-                    updateViewerInset(it)
-                }
-                .launchIn(lifecycleScope)
-        }
-
-        /**
-         * Picks background color for [ReaderActivity] based on light/dark theme preference
-         */
-        private fun automaticBackgroundColor(): Int {
-            return if (baseContext.isNightMode()) {
-                grayBackgroundColor
-            } else {
-                Color.WHITE
-            }
-        }
-
-        /**
-         * Sets the display profile to [path].
-         */
-        private fun setDisplayProfile(path: String) {
-            val file = UniFile.fromUri(baseContext, path.toUri())
-            if (file != null && file.exists()) {
-                val inputStream = file.openInputStream()
-                val outputStream = ByteArrayOutputStream()
-                inputStream.use { input ->
-                    outputStream.use { output ->
-                        input.copyTo(output)
+            viewModel.readerConfig.customBrightnessEnabled
+                .flatMapLatest { enabled ->
+                    if (enabled) {
+                        viewModel.readerConfig.customBrightnessValue.sample(100)
+                    } else {
+                        flowOf(0)
                     }
                 }
-                val data = outputStream.toByteArray()
-                SubsamplingScaleImageView.setDisplayProfile(data)
-                TachiyomiImageDecoder.displayProfile = data
-            }
+                .onEach(::setCustomBrightnessValue)
+                .launchIn(lifecycleScope)
+
+            viewModel.readerConfig.fullscreen
+                .onEach { fullscreen ->
+                    WindowCompat.setDecorFitsSystemWindows(window, !fullscreen)
+                    updateViewerInset(fullscreen)
+                }
+                .launchIn(lifecycleScope)
         }
 
         private fun setCutoutShort(enabled: Boolean) {
@@ -932,43 +862,16 @@ class ReaderActivity : BaseActivity() {
         }
 
         /**
-         * Sets the custom brightness overlay according to [enabled].
-         */
-        private fun setCustomBrightness(enabled: Boolean) {
-            if (enabled) {
-                readerPreferences.customBrightnessValue().changes()
-                    .sample(100)
-                    .onEach(::setCustomBrightnessValue)
-                    .launchIn(lifecycleScope)
-            } else {
-                setCustomBrightnessValue(0)
-            }
-        }
-
-        /**
          * Sets the brightness of the screen. Range is [-75, 100].
          * From -75 to -1 a semi-transparent black view is overlaid with the minimum brightness.
          * From 1 to 100 it sets that value as brightness.
          * 0 sets system brightness and hides the overlay.
          */
         private fun setCustomBrightnessValue(value: Int) {
-            // Calculate and set reader brightness.
-            val readerBrightness = when {
-                value > 0 -> {
-                    value / 100f
-                }
-                value < 0 -> {
-                    0.01f
-                }
-                else -> WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-            }
+            val readerBrightness = viewModel.readerConfig.calculateReaderBrightness(value)
             window.attributes = window.attributes.apply { screenBrightness = readerBrightness }
 
             viewModel.setBrightnessOverlayValue(value)
-        }
-        private fun setLayerPaint(grayscale: Boolean, invertedColors: Boolean) {
-            val paint = if (grayscale || invertedColors) getCombinedPaint(grayscale, invertedColors) else null
-            binding.viewerContainer.setLayerType(LAYER_TYPE_HARDWARE, paint)
         }
     }
 }
