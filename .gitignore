@@ -12,6 +12,10 @@ build
 # Configuration files
 local.properties
 
+# Signing keys and keystores (NEVER commit)
+*.keystore
+rayniyomi-release.keystore
+
 # macOS specific files
 .DS_Store
 
