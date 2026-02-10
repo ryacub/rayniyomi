@@ -48,12 +48,11 @@ class AnilistInterceptor(val anilist: Anilist, private var token: String?) : Int
 
         val response = chain.proceed(authRequest)
 
-        // Handle rate limiting with retry and backoff
+        // Handle rate limiting with single retry and server-specified backoff
         if (response.code == 429) {
-            response.close()
             val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: RATE_LIMIT_DEFAULT_WAIT_SECONDS
-            val waitMs = retryAfter * 1000
-            Thread.sleep(waitMs)
+            response.close()
+            Thread.sleep(retryAfter.coerceAtMost(MAX_RETRY_WAIT_SECONDS) * 1000)
             return chain.proceed(authRequest)
         }
 
@@ -72,5 +71,6 @@ class AnilistInterceptor(val anilist: Anilist, private var token: String?) : Int
 
     companion object {
         private const val RATE_LIMIT_DEFAULT_WAIT_SECONDS = 5L
+        private const val MAX_RETRY_WAIT_SECONDS = 60L
     }
 }

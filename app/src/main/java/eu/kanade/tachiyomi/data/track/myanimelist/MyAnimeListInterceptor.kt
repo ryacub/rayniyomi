@@ -25,23 +25,20 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
             refreshToken(chain)
         }
 
-        if (oauth == null) {
-            throw IOException("MAL: User is not authenticated")
-        }
+        val currentOAuth = oauth ?: throw IOException("MAL: User is not authenticated")
 
         // Add the authorization header to the original request
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
+            .addHeader("Authorization", "Bearer ${currentOAuth.accessToken}")
             .build()
 
         val response = chain.proceed(authRequest)
 
-        // Handle rate limiting with retry and backoff
+        // Handle rate limiting with single retry and server-specified backoff
         if (response.code == 429) {
-            response.close()
             val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: RATE_LIMIT_DEFAULT_WAIT_SECONDS
-            val waitMs = retryAfter * 1000
-            Thread.sleep(waitMs)
+            response.close()
+            Thread.sleep(retryAfter.coerceAtMost(MAX_RETRY_WAIT_SECONDS) * 1000)
             return chain.proceed(authRequest)
         }
 
@@ -93,6 +90,7 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
 
     companion object {
         private const val RATE_LIMIT_DEFAULT_WAIT_SECONDS = 5L
+        private const val MAX_RETRY_WAIT_SECONDS = 60L
     }
 }
 
