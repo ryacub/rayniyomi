@@ -352,6 +352,7 @@ class Anilist(id: Long) :
             saveCredentials(username.toString(), oauth.accessToken)
         } catch (e: Throwable) {
             logout()
+            throw e
         }
     }
 
