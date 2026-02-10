@@ -53,7 +53,7 @@ class ReaderConfigManagerTest {
         mockkStatic(Color::class)
         every { Color.BLACK } returns -16777216
         every { Color.WHITE } returns -1
-        every { Color.rgb(any(), any(), any()) } returns -2039584 // Gray color
+        every { Color.rgb(any<Int>(), any<Int>(), any<Int>()) } returns -2039584 // Gray color
 
         // Initialize flows
         readerThemeFlow = MutableStateFlow(1) // Default: Black
