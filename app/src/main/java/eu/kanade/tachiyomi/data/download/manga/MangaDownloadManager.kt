@@ -148,7 +148,10 @@ class MangaDownloadManager(
      */
     fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
         if (downloads.isEmpty()) return
-        downloader.addToStartOfQueue(downloads)
+        queueState.value.toMutableList().apply {
+            addAll(0, downloads)
+            reorderQueue(this)
+        }
         if (!MangaDownloadJob.isRunning(context)) startDownloads()
     }
 
