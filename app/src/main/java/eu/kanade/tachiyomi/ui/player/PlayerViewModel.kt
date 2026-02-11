@@ -1028,7 +1028,10 @@ class PlayerViewModel @JvmOverloads constructor(
         }
 
     /**
-     * The episode id of the currently loaded episode. Used to restore from process kill.
+     * ID of the currently loaded episode.
+     *
+     * This property is the source of truth for persisted state. Setting it updates
+     * savedState so the episode can be restored after process death.
      */
     private var episodeId = savedState.get<Long>("episode_id") ?: -1L
         set(value) {
