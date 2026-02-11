@@ -233,6 +233,63 @@ class DownloadQueueMutationsTest {
     }
 
     @Test
+    fun `removeFromQueueSafely skips pause and restart when not running`() = runTest {
+        val entity1 = FakeEntity(1, "Entity 1")
+        val queueState = MutableStateFlow(listOf(FakeDownload(1, entity1)))
+        var paused = false
+        var started = false
+        var stopped = false
+
+        val mutations = createMutations(
+            queueState = queueState,
+            isRunning = { false },
+            pauseDownloader = { paused = true },
+            startDownloader = { started = true },
+            stopDownloader = { stopped = true },
+        )
+
+        mutations.removeFromQueueSafely(listOf(entity1))
+
+        assertEquals(false, paused, "Should not pause when not running")
+        assertEquals(false, started, "Should not start when not running")
+        assertEquals(false, stopped, "Should not stop when not running")
+        assertEquals(emptyList<FakeDownload>(), queueState.value)
+    }
+
+    @Test
+    fun `reorderQueue delegates to updateQueue`() {
+        val reordered = mutableListOf<List<FakeDownload>>()
+        val mutations = createMutations(
+            updateQueue = { reordered.add(it) },
+        )
+        val newOrder = listOf(
+            FakeDownload(3, FakeEntity(3, "Entity 3")),
+            FakeDownload(1, FakeEntity(1, "Entity 1")),
+        )
+
+        mutations.reorderQueue(newOrder)
+
+        assertEquals(1, reordered.size)
+        assertEquals(newOrder, reordered[0])
+    }
+
+    @Test
+    fun `addDownloadsToStart calls addToStart and startIfNeeded`() {
+        val added = mutableListOf<List<FakeDownload>>()
+        var started = false
+        val mutations = createMutations(
+            addToStart = { added.add(it) },
+        )
+        val downloads = listOf(FakeDownload(1, FakeEntity(1, "Entity 1")))
+
+        mutations.addDownloadsToStart(downloads) { started = true }
+
+        assertEquals(1, added.size)
+        assertEquals(downloads, added[0])
+        assertTrue(started, "startIfNeeded should be called")
+    }
+
+    @Test
     fun `startDownloadNow handles createFromId failure gracefully`() = runTest {
         val mutations = createMutations(
             createFromId = { throw RuntimeException("Creation failed") },
@@ -242,5 +299,21 @@ class DownloadQueueMutationsTest {
         mutations.startDownloadNow(99)
 
         // No exception means test passes
+    }
+
+    @Test
+    fun `startDownloadNow does nothing when createFromId returns null`() = runTest {
+        var moved = false
+        var started = false
+        val mutations = createMutations(
+            createFromId = { null },
+            moveToFront = { moved = true },
+            startDownloads = { started = true },
+        )
+
+        mutations.startDownloadNow(99)
+
+        assertEquals(false, moved, "Should not move when createFromId returns null")
+        assertEquals(false, started, "Should not start when createFromId returns null")
     }
 }
