@@ -151,6 +151,10 @@ class MainActivity : BaseActivity() {
         // Prevent splash screen showing up on configuration changes
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
+        // Keep splash screen visible until migration completes
+        var migrationComplete = false
+        splashScreen?.setKeepOnScreenCondition { !migrationComplete }
+
         super.onCreate(savedInstanceState)
 
         // Register ActivityResultLauncher for external player
@@ -189,6 +193,7 @@ class MainActivity : BaseActivity() {
                 didMigration = Migrator.await()
                 Migrator.release()
                 migrationChecked = true
+                migrationComplete = true
             }
 
             if (!migrationChecked) return@setComposeContent
