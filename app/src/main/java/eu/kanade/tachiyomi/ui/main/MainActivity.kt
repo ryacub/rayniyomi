@@ -175,8 +175,6 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        val didMigration = Migrator.awaitAndRelease()
-
         // Do not let the launcher create a new activity http://stackoverflow.com/questions/16283079
         if (!isTaskRoot) {
             finish()
@@ -184,6 +182,17 @@ class MainActivity : BaseActivity() {
         }
 
         setComposeContent {
+            var didMigration by remember { mutableStateOf(false) }
+            var migrationChecked by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                didMigration = Migrator.await()
+                Migrator.release()
+                migrationChecked = true
+            }
+
+            if (!migrationChecked) return@setComposeContent
+
             val context = LocalContext.current
 
             var incognito by remember { mutableStateOf(getMangaIncognitoState.await(null)) }
