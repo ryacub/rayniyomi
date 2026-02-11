@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.Page
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
@@ -68,6 +68,22 @@ class MangaDownloadManager(
      * Downloader whose only task is to download chapters.
      */
     private val downloader = MangaDownloader(context, provider, cache)
+
+    private val queueMutations = DownloadQueueMutations(
+        queueState = downloader.queueState,
+        itemId = { it.chapter.id },
+        createFromId = { id -> MangaDownload.fromChapterId(id) },
+        moveToFront = downloader::moveToFront,
+        updateQueue = downloader::updateQueue,
+        addToStart = downloader::addToStartOfQueue,
+        removeFromQueue = downloader::removeFromQueue,
+        isRunning = { downloader.isRunning },
+        pauseDownloader = downloader::pause,
+        startDownloader = downloader::start,
+        stopDownloader = { downloader.stop() },
+        startDownloads = ::startDownloads,
+        queueMutex = queueMutex,
+    )
 
     val isRunning: Boolean
         get() = downloader.isRunning
@@ -123,15 +139,11 @@ class MangaDownloadManager(
      * @param chapterId the chapter to check.
      */
     fun getQueuedDownloadOrNull(chapterId: Long): MangaDownload? {
-        return queueState.value.find { it.chapter.id == chapterId }
+        return queueMutations.getQueuedDownloadOrNull(chapterId)
     }
 
     suspend fun startDownloadNow(chapterId: Long) {
-        val existingDownload = getQueuedDownloadOrNull(chapterId)
-        // If not in queue try to start a new download
-        val toAdd = existingDownload ?: MangaDownload.fromChapterId(chapterId) ?: return
-        downloader.moveToFront(toAdd)
-        startDownloads()
+        queueMutations.startDownloadNow(chapterId)
     }
 
     /**
@@ -140,7 +152,7 @@ class MangaDownloadManager(
      * @param downloads value to set the download queue to
      */
     fun reorderQueue(downloads: List<MangaDownload>) {
-        downloader.updateQueue(downloads)
+        queueMutations.reorderQueue(downloads)
     }
 
     /**
@@ -160,9 +172,9 @@ class MangaDownloadManager(
      * @param downloads the list of downloads to enqueue.
      */
     fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
-        if (downloads.isEmpty()) return
-        downloader.addToStartOfQueue(downloads)
-        if (!MangaDownloadJob.isRunning(context)) startDownloads()
+        queueMutations.addDownloadsToStart(downloads) {
+            if (!MangaDownloadJob.isRunning(context)) startDownloads()
+        }
     }
 
     /**
@@ -317,22 +329,7 @@ class MangaDownloadManager(
     }
 
     private suspend fun removeFromDownloadQueue(chapters: List<Chapter>) {
-        queueMutex.withLock {
-            val wasRunning = downloader.isRunning
-            if (wasRunning) {
-                downloader.pause()
-            }
-
-            downloader.removeFromQueue(chapters)
-
-            if (wasRunning) {
-                if (queueState.value.isEmpty()) {
-                    downloader.stop()
-                } else {
-                    downloader.start()
-                }
-            }
-        }
+        queueMutations.removeFromQueueSafely(chapters)
     }
 
     /**
