@@ -8,7 +8,7 @@ import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.domain.source.manga.service.MangaSourceManager
@@ -37,7 +38,7 @@ class AndroidMangaSourceManager(
 
     private val downloadManager: MangaDownloadManager by injectLazy()
 
-    private val scope = CoroutineScope(Job() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val sourcesMapFlow = MutableStateFlow(ConcurrentHashMap<Long, MangaSource>())
 
@@ -74,10 +75,7 @@ class AndroidMangaSourceManager(
         scope.launch {
             sourceRepository.subscribeAllManga()
                 .collectLatest { sources ->
-                    val mutableMap = stubSourcesMap.toMutableMap()
-                    sources.forEach {
-                        mutableMap[it.id] = it
-                    }
+                    sources.forEach { stubSourcesMap[it.id] = it }
                 }
         }
     }
@@ -87,9 +85,19 @@ class AndroidMangaSourceManager(
     }
 
     override fun getOrStub(sourceKey: Long): MangaSource {
-        return sourcesMapFlow.value[sourceKey] ?: stubSourcesMap.getOrPut(sourceKey) {
-            runBlocking { createStubSource(sourceKey) }
-        }
+        return sourcesMapFlow.value[sourceKey]
+            ?: stubSourcesMap[sourceKey]
+            ?: StubMangaSource(id = sourceKey, lang = "", name = "").also {
+                if (stubSourcesMap.putIfAbsent(sourceKey, it) == null) {
+                    scope.launch {
+                        try {
+                            refreshStubSource(sourceKey)
+                        } catch (e: Exception) {
+                            logcat(LogPriority.ERROR, e) { "Failed to refresh stub source $sourceKey" }
+                        }
+                    }
+                }
+            }
     }
 
     override fun getOnlineSources() = sourcesMapFlow.value.values.filterIsInstance<HttpSource>()
@@ -112,14 +120,14 @@ class AndroidMangaSourceManager(
         }
     }
 
-    private suspend fun createStubSource(id: Long): StubMangaSource {
+    private suspend fun refreshStubSource(id: Long) {
         sourceRepository.getStubMangaSource(id)?.let {
-            return it
+            stubSourcesMap[id] = it
+            return
         }
         extensionManager.getSourceData(id)?.let {
             registerStubSource(it)
-            return it
+            stubSourcesMap[id] = it
         }
-        return StubMangaSource(id = id, lang = "", name = "")
     }
 }
