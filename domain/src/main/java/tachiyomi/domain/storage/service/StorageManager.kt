@@ -6,6 +6,7 @@ import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -20,7 +21,8 @@ class StorageManager(
     storagePreferences: StoragePreferences,
 ) {
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    /** Application-lifetime scope. Uses SupervisorJob for failure isolation. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var baseDir: UniFile? = getBaseDir(storagePreferences.baseStorageDirectory().get())
 

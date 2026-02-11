@@ -11,6 +11,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -70,7 +71,8 @@ class MangaDownloadCache(
     private val storageManager: StorageManager = Injekt.get(),
 ) {
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    /** Application-lifetime scope. Uses SupervisorJob for failure isolation. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _changes: Channel<Unit> = Channel(Channel.UNLIMITED)
     val changes = _changes.receiveAsFlow()
