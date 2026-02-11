@@ -2,9 +2,11 @@ package eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch
 
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import io.mockk.coEvery
 import io.mockk.every
@@ -14,6 +16,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -29,6 +35,7 @@ import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,8 +78,22 @@ class AnimeSearchScreenModelTest {
             }
         }
 
-        val sourceManager = mockk<AnimeSourceManager>()
-        every { sourceManager.getCatalogueSources() } returns listOf(source)
+        val sourceManager = object : AnimeSourceManager {
+            override val isInitialized: StateFlow<Boolean> = MutableStateFlow(true)
+            override val catalogueSources: Flow<List<AnimeCatalogueSource>> = flowOf(listOf(source))
+
+            override fun get(sourceKey: Long): AnimeSource? = null
+
+            override fun getOrStub(sourceKey: Long): AnimeSource {
+                error("Not used in this test")
+            }
+
+            override fun getOnlineSources(): List<AnimeHttpSource> = emptyList()
+
+            override fun getCatalogueSources(): List<AnimeCatalogueSource> = listOf(source)
+
+            override fun getStubSources(): List<StubAnimeSource> = emptyList()
+        }
 
         val networkToLocalAnime = mockk<NetworkToLocalAnime>()
         coEvery { networkToLocalAnime.await(any()) } coAnswers {

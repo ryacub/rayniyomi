@@ -3,9 +3,11 @@ package eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.online.HttpSource
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -14,6 +16,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -29,6 +35,7 @@ import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,8 +78,22 @@ class MangaSearchScreenModelTest {
             }
         }
 
-        val sourceManager = mockk<MangaSourceManager>()
-        every { sourceManager.getCatalogueSources() } returns listOf(source)
+        val sourceManager = object : MangaSourceManager {
+            override val isInitialized: StateFlow<Boolean> = MutableStateFlow(true)
+            override val catalogueSources: Flow<List<CatalogueSource>> = flowOf(listOf(source))
+
+            override fun get(sourceKey: Long): MangaSource? = null
+
+            override fun getOrStub(sourceKey: Long): MangaSource {
+                error("Not used in this test")
+            }
+
+            override fun getOnlineSources(): List<HttpSource> = emptyList()
+
+            override fun getCatalogueSources(): List<CatalogueSource> = listOf(source)
+
+            override fun getStubSources(): List<StubMangaSource> = emptyList()
+        }
 
         val networkToLocalManga = mockk<NetworkToLocalManga>()
         coEvery { networkToLocalManga.await(any()) } coAnswers {
