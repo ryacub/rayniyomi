@@ -22,10 +22,11 @@ import eu.kanade.domain.items.episode.model.toDbEpisode
 import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.util.episode.filterDownloadedEpisodes
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.service.getEpisodeSort
@@ -58,8 +59,10 @@ internal class PlayerEpisodeListManager(
      * Retrieves episodes, sorts them, filters by downloaded-only preference if enabled,
      * and converts to database Episode objects.
      */
-    fun initEpisodeList(anime: Anime): List<Episode> {
-        val episodes = runBlocking { getEpisodesByAnimeId.await(anime.id) }
+    suspend fun initEpisodeList(anime: Anime): List<Episode> {
+        val episodes = withContext(Dispatchers.IO) {
+            getEpisodesByAnimeId.await(anime.id)
+        }
 
         return episodes
             .sortedWith(getEpisodeSort(anime, sortDescending = false))
@@ -82,6 +85,10 @@ internal class PlayerEpisodeListManager(
         val currentAnime = anime ?: return episodes
         val selectedEpisode = episodes.find { it.id == episodeId }
             ?: error("Requested episode of id $episodeId not found in episode list")
+
+        if (!hasActiveFilters(currentAnime)) {
+            return episodes
+        }
 
         val episodesForPlayer = episodes.filterNot {
             currentAnime.unseenFilterRaw == Anime.EPISODE_SHOW_SEEN &&
@@ -119,6 +126,13 @@ internal class PlayerEpisodeListManager(
         return episodesForPlayer
     }
 
+    private fun hasActiveFilters(anime: Anime): Boolean {
+        return anime.unseenFilterRaw != Anime.SHOW_ALL ||
+            anime.downloadedFilterRaw != Anime.SHOW_ALL ||
+            anime.bookmarkedFilterRaw != Anime.SHOW_ALL ||
+            anime.fillermarkedFilterRaw != Anime.SHOW_ALL
+    }
+
     /**
      * Update the episode list with filtering and navigation state updates.
      */
@@ -138,11 +152,12 @@ internal class PlayerEpisodeListManager(
      * Returns -1L if at boundaries.
      */
     fun getAdjacentEpisodeId(previous: Boolean): Long {
-        val newIndex = if (previous) getCurrentEpisodeIndex() - 1 else getCurrentEpisodeIndex() + 1
+        val currentIndex = getCurrentEpisodeIndex()
+        val newIndex = if (previous) currentIndex - 1 else currentIndex + 1
 
         return when {
-            previous && getCurrentEpisodeIndex() == 0 -> -1L
-            !previous && currentPlaylist.value.lastIndex == getCurrentEpisodeIndex() -> -1L
+            previous && currentIndex == 0 -> -1L
+            !previous && currentPlaylist.value.lastIndex == currentIndex -> -1L
             else -> currentPlaylist.value.getOrNull(newIndex)?.id ?: -1L
         }
     }

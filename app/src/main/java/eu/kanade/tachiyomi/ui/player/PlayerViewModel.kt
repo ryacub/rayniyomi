@@ -40,7 +40,6 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
-import eu.kanade.domain.items.episode.model.toDbEpisode
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
 import eu.kanade.domain.track.service.TrackPreferences
@@ -76,7 +75,6 @@ import eu.kanade.tachiyomi.ui.reader.SaveImageNotifier
 import eu.kanade.tachiyomi.util.editBackground
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.editThumbnail
-import eu.kanade.tachiyomi.util.episode.filterDownloadedEpisodes
 import eu.kanade.tachiyomi.util.lang.byteSize
 import eu.kanade.tachiyomi.util.lang.takeBytes
 import eu.kanade.tachiyomi.util.storage.DiskUtil
@@ -95,7 +93,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -115,7 +112,6 @@ import tachiyomi.domain.history.anime.model.AnimeHistoryUpdate
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
 import tachiyomi.domain.items.episode.model.EpisodeUpdate
-import tachiyomi.domain.items.episode.service.getEpisodeSort
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
@@ -162,17 +158,15 @@ class PlayerViewModel @JvmOverloads constructor(
     uiPreferences: UiPreferences = Injekt.get(),
 ) : ViewModel() {
 
-    private val _currentPlaylist = MutableStateFlow<List<Episode>>(emptyList())
-    val currentPlaylist = _currentPlaylist.asStateFlow()
-
-    private val _hasPreviousEpisode = MutableStateFlow(false)
-    val hasPreviousEpisode = _hasPreviousEpisode.asStateFlow()
-
-    private val _hasNextEpisode = MutableStateFlow(false)
-    val hasNextEpisode = _hasNextEpisode.asStateFlow()
-
-    private val _currentEpisode = MutableStateFlow<Episode?>(null)
-    val currentEpisode = _currentEpisode.asStateFlow()
+    private val episodeListManager = PlayerEpisodeListManager(
+        getEpisodesByAnimeId = getEpisodesByAnimeId,
+        downloadManager = downloadManager,
+        basePreferences = basePreferences,
+    )
+    val currentPlaylist = episodeListManager.currentPlaylist
+    val hasPreviousEpisode = episodeListManager.hasPreviousEpisode
+    val hasNextEpisode = episodeListManager.hasNextEpisode
+    val currentEpisode = episodeListManager.currentEpisode
 
     private val _currentAnime = MutableStateFlow<Anime?>(null)
     val currentAnime = _currentAnime.asStateFlow()
@@ -366,7 +360,7 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     private fun updateEpisodeList(episodeList: List<Episode>) {
-        _currentPlaylist.update { _ -> filterEpisodeList(episodeList) }
+        episodeListManager.updateEpisodeList(episodeList, currentAnime.value)
     }
 
     fun getDecoder() {
@@ -1040,77 +1034,29 @@ class PlayerViewModel @JvmOverloads constructor(
         set(value) {
             savedState["episode_id"] = value
             field = value
+            episodeListManager.episodeId = value
         }
 
     private var episodeToDownload: AnimeDownload? = null
 
-    private fun filterEpisodeList(episodes: List<Episode>): List<Episode> {
-        val anime = currentAnime.value ?: return episodes
-        val selectedEpisode = episodes.find { it.id == episodeId }
-            ?: error("Requested episode of id $episodeId not found in episode list")
-
-        val episodesForPlayer = episodes.filterNot {
-            anime.unseenFilterRaw == Anime.EPISODE_SHOW_SEEN &&
-                !it.seen ||
-                anime.unseenFilterRaw == Anime.EPISODE_SHOW_UNSEEN &&
-                it.seen ||
-                anime.downloadedFilterRaw == Anime.EPISODE_SHOW_DOWNLOADED &&
-                !downloadManager.isEpisodeDownloaded(
-                    it.name,
-                    it.scanlator,
-                    anime.title,
-                    anime.source,
-                ) ||
-                anime.downloadedFilterRaw == Anime.EPISODE_SHOW_NOT_DOWNLOADED &&
-                downloadManager.isEpisodeDownloaded(
-                    it.name,
-                    it.scanlator,
-                    anime.title,
-                    anime.source,
-                ) ||
-                anime.bookmarkedFilterRaw == Anime.EPISODE_SHOW_BOOKMARKED &&
-                !it.bookmark ||
-                anime.bookmarkedFilterRaw == Anime.EPISODE_SHOW_NOT_BOOKMARKED &&
-                it.bookmark ||
-                anime.fillermarkedFilterRaw == Anime.EPISODE_SHOW_FILLERMARKED &&
-                !it.fillermark ||
-                anime.fillermarkedFilterRaw == Anime.EPISODE_SHOW_NOT_FILLERMARKED &&
-                it.fillermark
-        }.toMutableList()
-
-        if (episodesForPlayer.all { it.id != episodeId }) {
-            episodesForPlayer += listOf(selectedEpisode)
-        }
-
-        return episodesForPlayer
-    }
-
     fun getCurrentEpisodeIndex(): Int {
-        return currentPlaylist.value.indexOfFirst { currentEpisode.value?.id == it.id }
+        return episodeListManager.getCurrentEpisodeIndex()
     }
 
     private fun getAdjacentEpisodeId(previous: Boolean): Long {
-        val newIndex = if (previous) getCurrentEpisodeIndex() - 1 else getCurrentEpisodeIndex() + 1
-
-        return when {
-            previous && getCurrentEpisodeIndex() == 0 -> -1L
-            !previous && currentPlaylist.value.lastIndex == getCurrentEpisodeIndex() -> -1L
-            else -> currentPlaylist.value.getOrNull(newIndex)?.id ?: -1L
-        }
+        return episodeListManager.getAdjacentEpisodeId(previous)
     }
 
     fun updateHasNextEpisode(value: Boolean) {
-        _hasNextEpisode.update { _ -> value }
+        episodeListManager.updateHasNextEpisode(value)
     }
 
     fun updateHasPreviousEpisode(value: Boolean) {
-        _hasPreviousEpisode.update { _ -> value }
+        episodeListManager.updateHasPreviousEpisode(value)
     }
 
     fun updateNavigationState() {
-        val currentIndex = getCurrentEpisodeIndex()
-        _hasPreviousEpisode.update { currentIndex != 0 }
-        _hasNextEpisode.update { currentIndex != currentPlaylist.value.size - 1 }
+        episodeListManager.updateNavigationState()
     }
 
     fun showEpisodeListDialog() {
@@ -1180,13 +1126,12 @@ class PlayerViewModel @JvmOverloads constructor(
                 val episode = currentPlaylist.value.first { it.id == episodeId }
                 val source = sourceManager.getOrStub(anime.source)
 
-                _currentEpisode.update { _ -> episode }
+                episodeListManager.setCurrentEpisode(episode)
                 _currentSource.update { _ -> source }
 
                 updateEpisode(episode)
 
-                _hasPreviousEpisode.update { _ -> getCurrentEpisodeIndex() != 0 }
-                _hasNextEpisode.update { _ -> getCurrentEpisodeIndex() != currentPlaylist.value.size - 1 }
+                updateNavigationState()
 
                 // Write to mpv table
                 MPVLib.setPropertyString("user-data/current-anime/anime-title", anime.title)
@@ -1240,24 +1185,13 @@ class PlayerViewModel @JvmOverloads constructor(
         MPVLib.setPropertyDouble("user-data/current-anime/episode-number", episode.episode_number.toDouble())
     }
 
-    private fun initEpisodeList(anime: Anime): List<Episode> {
-        val episodes = runBlocking { getEpisodesByAnimeId.await(anime.id) }
-
-        return episodes
-            .sortedWith(getEpisodeSort(anime, sortDescending = false))
-            .run {
-                if (basePreferences.downloadedOnly().get()) {
-                    filterDownloadedEpisodes(anime)
-                } else {
-                    this
-                }
-            }
-            .map { it.toDbEpisode() }
+    private suspend fun initEpisodeList(anime: Anime): List<Episode> {
+        return episodeListManager.initEpisodeList(anime)
     }
 
     private var hasTrackers: Boolean = false
-    private val checkTrackers: (Anime) -> Unit = { anime ->
-        val tracks = runBlocking { getTracks.await(anime.id) }
+    private suspend fun checkTrackers(anime: Anime) {
+        val tracks = withIOContext { getTracks.await(anime.id) }
         hasTrackers = tracks.isNotEmpty()
     }
 
@@ -1304,7 +1238,7 @@ class PlayerViewModel @JvmOverloads constructor(
 
         val chosenEpisode = currentPlaylist.value.firstOrNull { ep -> ep.id == episodeId } ?: return null
 
-        _currentEpisode.update { _ -> chosenEpisode }
+        episodeListManager.setCurrentEpisode(chosenEpisode)
         updateEpisode(chosenEpisode)
 
         return withIOContext {
