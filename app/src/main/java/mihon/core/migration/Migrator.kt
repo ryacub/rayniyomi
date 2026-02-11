@@ -5,7 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -14,7 +14,9 @@ import kotlin.coroutines.cancellation.CancellationException
 object Migrator {
 
     private var result: Deferred<Boolean>? = null
-    val scope = CoroutineScope(Dispatchers.IO + Job())
+
+    /** Application-lifetime scope. Uses SupervisorJob for failure isolation. */
+    internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun initialize(
         old: Int,

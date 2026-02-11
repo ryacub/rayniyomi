@@ -14,7 +14,6 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.jsonMime
 import eu.kanade.tachiyomi.network.parseAs
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -201,8 +200,8 @@ class SimklApi(private val client: OkHttpClient, interceptor: SimklInterceptor) 
         }
     }
 
-    fun getCurrentUser(): Int {
-        return runBlocking {
+    suspend fun getCurrentUser(): Int {
+        return withIOContext {
             with(json) {
                 authClient.newCall(GET("$API_URL/users/settings"))
                     .awaitSuccess()
