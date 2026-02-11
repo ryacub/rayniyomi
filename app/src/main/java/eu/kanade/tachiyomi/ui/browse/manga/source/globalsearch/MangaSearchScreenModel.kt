@@ -7,7 +7,6 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
@@ -153,7 +152,7 @@ abstract class MangaSearchScreenModel(
                     .toPersistentMap(),
             )
         }
-        searchJob = ioCoroutineScope.launch {
+        searchJob = screenModelScope.launch(Dispatchers.IO) {
             sources.map { source ->
                 async {
                     if (state.value.items[source] !is MangaSearchItemResult.Loading) {

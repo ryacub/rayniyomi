@@ -7,7 +7,6 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
@@ -154,7 +153,7 @@ abstract class AnimeSearchScreenModel(
             )
         }
 
-        searchJob = ioCoroutineScope.launch {
+        searchJob = screenModelScope.launch(Dispatchers.IO) {
             sources.map { source ->
                 async {
                     if (state.value.items[source] !is AnimeSearchItemResult.Loading) {
