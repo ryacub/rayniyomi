@@ -60,6 +60,9 @@ class AnimeSearchScreenModelTest {
             when (query) {
                 "old" -> {
                     oldRequestStarted.complete(Unit)
+                    // NonCancellable ensures the old request completes even after being
+                    // superseded by a new search. This simulates a slow source that responds
+                    // late, which is the race condition this coordinator prevents.
                     withContext(NonCancellable) { releaseOldRequest.await() }
                     AnimesPage(listOf(createSAnime("Old title", "/old")), false)
                 }
