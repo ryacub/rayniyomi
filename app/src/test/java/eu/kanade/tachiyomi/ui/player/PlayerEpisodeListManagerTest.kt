@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -151,6 +152,39 @@ class PlayerEpisodeListManagerTest {
         assertEquals(2, filtered.size)
         assertTrue(filtered.any { it.id == 1L }) // Selected episode included
         assertTrue(filtered.any { it.id == 2L })
+    }
+
+    @Test
+    fun `filterEpisodeList skips download checks when no filters are active`() = runTest {
+        val episodes = listOf(
+            createMockEpisode(1, seen = false),
+            createMockEpisode(2, seen = true),
+        )
+        val anime = createMockAnime()
+        manager.episodeId = 1L
+
+        manager.filterEpisodeList(episodes, anime)
+
+        verify(exactly = 0) {
+            mockDownloadManager.isEpisodeDownloaded(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `filterEpisodeList checks downloads when downloaded filter is active`() = runTest {
+        val episodes = listOf(
+            createMockEpisode(1, seen = false),
+            createMockEpisode(2, seen = true),
+        )
+        val anime = createMockAnime(downloadedFilter = Anime.EPISODE_SHOW_DOWNLOADED)
+        manager.episodeId = 1L
+        every { mockDownloadManager.isEpisodeDownloaded(any(), any(), any(), any(), any()) } returns true
+
+        manager.filterEpisodeList(episodes, anime)
+
+        verify(exactly = episodes.size) {
+            mockDownloadManager.isEpisodeDownloaded(any(), any(), any(), any(), any())
+        }
     }
 
     @Test

@@ -15,6 +15,9 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class HosterLoader {
     companion object {
+        private const val HOSTER_LOAD_PARALLELISM = 4
+        private val hosterLoadDispatcher = Dispatchers.IO.limitedParallelism(HOSTER_LOAD_PARALLELISM)
+
         /**
          * Check for the best video from the current hosterState.
          *
@@ -79,7 +82,7 @@ class HosterLoader {
             val hosterStates = MutableList<HosterState>(hosterList.size) { HosterState.Idle("") }
 
             return try {
-                withContext(Dispatchers.IO) {
+                withContext(hosterLoadDispatcher) {
                     hosterList.mapIndexed { hosterIdx, hoster ->
                         async {
                             val hosterState = EpisodeLoader.loadHosterVideos(source, hoster)

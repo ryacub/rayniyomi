@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.getChangedAt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -25,6 +26,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 class HosterOrchestrator(
     private val scope: CoroutineScope,
 ) {
+    private companion object {
+        const val HOSTER_LOAD_PARALLELISM = 4
+    }
+
+    private val hosterLoadDispatcher = Dispatchers.IO.limitedParallelism(HOSTER_LOAD_PARALLELISM)
+
     private val _hosterList = MutableStateFlow<List<Hoster>>(emptyList())
     val hosterList: StateFlow<List<Hoster>> = _hosterList.asStateFlow()
 
@@ -73,7 +80,7 @@ class HosterOrchestrator(
         }
 
         getHosterVideoLinksJob?.cancel()
-        getHosterVideoLinksJob = scope.launch {
+        getHosterVideoLinksJob = scope.launch(hosterLoadDispatcher) {
             _hosterState.update {
                 hosterList.map { hoster ->
                     if (hoster.lazy) {
@@ -153,64 +160,74 @@ class HosterOrchestrator(
     }
 
     private suspend fun loadVideo(source: AnimeSource?, video: Video, hosterIndex: Int, videoIndex: Int): Boolean {
-        val selectedHosterState = (_hosterState.value[hosterIndex] as? HosterState.Ready) ?: return false
+        var currentHosterIndex = hosterIndex
+        var currentVideoIndex = videoIndex
+        var currentVideo = video
+        val oldSelectedIndex = _selectedHosterVideoIndex.value
+
         onLoadingStateChanged?.invoke(true)
 
-        val oldSelectedIndex = _selectedHosterVideoIndex.value
-        _selectedHosterVideoIndex.update { Pair(hosterIndex, videoIndex) }
+        while (true) {
+            val selectedHosterState =
+                (_hosterState.value.getOrNull(currentHosterIndex) as? HosterState.Ready)
+                    ?: return false
 
-        _hosterState.updateAt(
-            hosterIndex,
-            selectedHosterState.getChangedAt(videoIndex, video, Video.State.LOAD_VIDEO),
-        )
+            _selectedHosterVideoIndex.update { Pair(currentHosterIndex, currentVideoIndex) }
+            _hosterState.updateAt(
+                currentHosterIndex,
+                selectedHosterState.getChangedAt(currentVideoIndex, currentVideo, Video.State.LOAD_VIDEO),
+            )
 
-        onPauseRequested?.invoke()
+            onPauseRequested?.invoke()
 
-        val resolvedVideo = if (selectedHosterState.videoState[videoIndex] != Video.State.READY) {
-            HosterLoader.getResolvedVideo(source, video)
-        } else {
-            video
-        }
-
-        if (resolvedVideo == null || resolvedVideo.videoUrl.isEmpty()) {
-            if (currentVideo.value == null) {
-                _hosterState.updateAt(
-                    hosterIndex,
-                    selectedHosterState.getChangedAt(videoIndex, video, Video.State.ERROR),
-                )
-
-                val (newHosterIdx, newVideoIdx) = HosterLoader.selectBestVideo(hosterState.value)
-                if (newHosterIdx == -1) {
-                    if (_hosterState.value.any { it is HosterState.Loading }) {
-                        _selectedHosterVideoIndex.update { Pair(-1, -1) }
-                        return false
-                    } else {
-                        throw Exception("No available videos")
-                    }
-                }
-
-                val newVideo = (hosterState.value[newHosterIdx] as HosterState.Ready).videoList[newVideoIdx]
-
-                return loadVideo(source, newVideo, newHosterIdx, newVideoIdx)
+            val resolvedVideo = if (selectedHosterState.videoState[currentVideoIndex] != Video.State.READY) {
+                HosterLoader.getResolvedVideo(source, currentVideo)
             } else {
-                _selectedHosterVideoIndex.update { oldSelectedIndex }
-                _hosterState.updateAt(
-                    hosterIndex,
-                    selectedHosterState.getChangedAt(videoIndex, video, Video.State.ERROR),
-                )
-                return false
+                currentVideo
             }
+
+            if (resolvedVideo == null || resolvedVideo.videoUrl.isEmpty()) {
+                if (this.currentVideo.value == null) {
+                    _hosterState.updateAt(
+                        currentHosterIndex,
+                        selectedHosterState.getChangedAt(currentVideoIndex, currentVideo, Video.State.ERROR),
+                    )
+
+                    val (newHosterIdx, newVideoIdx) = HosterLoader.selectBestVideo(hosterState.value)
+                    if (newHosterIdx == -1) {
+                        if (_hosterState.value.any { it is HosterState.Loading }) {
+                            _selectedHosterVideoIndex.update { Pair(-1, -1) }
+                            return false
+                        } else {
+                            throw Exception("No available videos")
+                        }
+                    }
+
+                    val newVideo = (hosterState.value[newHosterIdx] as HosterState.Ready).videoList[newVideoIdx]
+                    currentHosterIndex = newHosterIdx
+                    currentVideoIndex = newVideoIdx
+                    currentVideo = newVideo
+                    continue
+                } else {
+                    _selectedHosterVideoIndex.update { oldSelectedIndex }
+                    _hosterState.updateAt(
+                        currentHosterIndex,
+                        selectedHosterState.getChangedAt(currentVideoIndex, currentVideo, Video.State.ERROR),
+                    )
+                    return false
+                }
+            }
+
+            _hosterState.updateAt(
+                currentHosterIndex,
+                selectedHosterState.getChangedAt(currentVideoIndex, resolvedVideo, Video.State.READY),
+            )
+
+            _currentVideo.update { resolvedVideo }
+
+            onVideoReady?.invoke(resolvedVideo)
+            return true
         }
-
-        _hosterState.updateAt(
-            hosterIndex,
-            selectedHosterState.getChangedAt(videoIndex, resolvedVideo, Video.State.READY),
-        )
-
-        _currentVideo.update { resolvedVideo }
-
-        onVideoReady?.invoke(resolvedVideo)
-        return true
     }
 
     fun onVideoClicked(
@@ -233,7 +250,7 @@ class HosterOrchestrator(
             return
         }
 
-        scope.launch {
+        scope.launch(hosterLoadDispatcher) {
             val success = loadVideo(currentSource, video, hosterIndex, videoIndex)
             if (success) {
                 onSuccess()
@@ -252,7 +269,7 @@ class HosterOrchestrator(
                 val hosterName = hosterList.value[index].hosterName
                 _hosterState.updateAt(index, HosterState.Loading(hosterName))
 
-                scope.launch {
+                scope.launch(hosterLoadDispatcher) {
                     val hosterState = EpisodeLoader.loadHosterVideos(
                         source = currentSource!!,
                         hoster = hosterList.value[index],
