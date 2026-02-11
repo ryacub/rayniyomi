@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -76,7 +78,14 @@ class AnimeExtensionManager(
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
 
     init {
-        initAnimeExtensions()
+        scope.launch(Dispatchers.IO) {
+            try {
+                initAnimeExtensions()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to initialize anime extensions" }
+                _isInitialized.value = true
+            }
+        }
         AnimeExtensionInstallReceiver(AnimeInstallationListener()).register(context)
     }
 
@@ -128,7 +137,7 @@ class AnimeExtensionManager(
     /**
      * Loads and registers the installed animeextensions.
      */
-    private fun initAnimeExtensions() {
+    private suspend fun initAnimeExtensions() {
         val animeextensions = AnimeExtensionLoader.loadExtensions(context)
 
         installedExtensionsMapFlow.value = animeextensions
