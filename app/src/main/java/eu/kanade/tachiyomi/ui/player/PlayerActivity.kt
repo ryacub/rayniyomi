@@ -281,6 +281,12 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
+        // Restore global handler FIRST to prevent leak if cleanup throws
+        previousUncaughtExceptionHandler?.let {
+            Thread.setDefaultUncaughtExceptionHandler(it)
+        }
+        previousUncaughtExceptionHandler = null
+
         player.isExiting = true
 
         audioFocusRequest?.let {
@@ -301,11 +307,6 @@ class PlayerActivity : BaseActivity() {
         MPVLib.removeLogObserver(playerObserver)
         MPVLib.removeObserver(playerObserver)
         player.destroy()
-
-        previousUncaughtExceptionHandler?.let {
-            Thread.setDefaultUncaughtExceptionHandler(it)
-        }
-        previousUncaughtExceptionHandler = null
 
         super.onDestroy()
     }
