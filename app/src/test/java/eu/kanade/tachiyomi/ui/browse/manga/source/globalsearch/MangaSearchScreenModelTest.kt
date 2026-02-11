@@ -76,12 +76,14 @@ class MangaSearchScreenModelTest {
             firstArg<Manga>().copy(id = 1L)
         }
 
+        val sourcePreferences = testSourcePreferences()
         val model = object : MangaSearchScreenModel(
-            sourcePreferences = testSourcePreferences(),
+            sourcePreferences = sourcePreferences,
             sourceManager = sourceManager,
             extensionManager = mockk<MangaExtensionManager>(relaxed = true),
             networkToLocalManga = networkToLocalManga,
             getManga = mockk<GetManga>(relaxed = true),
+            preferences = sourcePreferences,
         ) {}
 
         model.updateSearchQuery("old")

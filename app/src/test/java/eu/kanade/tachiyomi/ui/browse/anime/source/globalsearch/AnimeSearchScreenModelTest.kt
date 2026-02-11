@@ -76,12 +76,14 @@ class AnimeSearchScreenModelTest {
             firstArg<Anime>().copy(id = 1L)
         }
 
+        val sourcePreferences = testSourcePreferences()
         val model = object : AnimeSearchScreenModel(
-            sourcePreferences = testSourcePreferences(),
+            sourcePreferences = sourcePreferences,
             sourceManager = sourceManager,
             extensionManager = mockk<AnimeExtensionManager>(relaxed = true),
             networkToLocalAnime = networkToLocalAnime,
             getAnime = mockk<GetAnime>(relaxed = true),
+            preferences = sourcePreferences,
         ) {}
 
         model.updateSearchQuery("old")
