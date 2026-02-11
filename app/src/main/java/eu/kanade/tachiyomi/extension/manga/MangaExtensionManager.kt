@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -73,7 +75,14 @@ class MangaExtensionManager(
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
 
     init {
-        initExtensions()
+        scope.launch(Dispatchers.IO) {
+            try {
+                initExtensions()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to initialize manga extensions" }
+                _isInitialized.value = true
+            }
+        }
         MangaExtensionInstallReceiver(InstallationListener()).register(context)
     }
 
@@ -123,7 +132,7 @@ class MangaExtensionManager(
     /**
      * Loads and registers the installed extensions.
      */
-    private fun initExtensions() {
+    private suspend fun initExtensions() {
         val extensions = MangaExtensionLoader.loadMangaExtensions(context)
 
         installedExtensionsMapFlow.value = extensions

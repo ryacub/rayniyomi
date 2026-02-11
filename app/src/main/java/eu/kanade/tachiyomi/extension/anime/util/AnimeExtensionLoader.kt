@@ -20,7 +20,7 @@ import eu.kanade.tachiyomi.util.storage.copyAndSetReadOnlyTo
 import eu.kanade.tachiyomi.util.system.ChildFirstPathClassLoader
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.coroutineScope
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.injectLazy
@@ -117,7 +117,7 @@ internal object AnimeExtensionLoader {
      *
      * @param context The application context.
      */
-    fun loadExtensions(context: Context): List<AnimeLoadResult> {
+    suspend fun loadExtensions(context: Context): List<AnimeLoadResult> {
         val pkgManager = context.packageManager
 
         val installedPkgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -165,11 +165,10 @@ internal object AnimeExtensionLoader {
         if (extPkgs.isEmpty()) return emptyList()
 
         // Load each extension concurrently and wait for completion
-        return runBlocking {
-            val deferred = extPkgs.map {
+        return coroutineScope {
+            extPkgs.map {
                 async { loadExtension(context, it) }
-            }
-            deferred.awaitAll()
+            }.awaitAll()
         }
     }
 
