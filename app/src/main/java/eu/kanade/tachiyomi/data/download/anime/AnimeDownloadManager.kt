@@ -4,6 +4,7 @@ import android.content.Context
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -66,6 +66,22 @@ class AnimeDownloadManager(
      * Downloader whose only task is to download episodes.
      */
     private val downloader = AnimeDownloader(context, provider, cache, sourceManager)
+
+    private val queueMutations = DownloadQueueMutations(
+        queueState = downloader.queueState,
+        itemId = { it.episode.id },
+        createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
+        moveToFront = downloader::moveToFront,
+        updateQueue = downloader::updateQueue,
+        addToStart = downloader::addToStartOfQueue,
+        removeFromQueue = downloader::removeFromQueue,
+        isRunning = { downloader.isRunning },
+        pauseDownloader = downloader::pause,
+        startDownloader = downloader::start,
+        stopDownloader = { downloader.stop() },
+        startDownloads = ::startDownloads,
+        queueMutex = queueMutex,
+    )
 
     val isRunning: Boolean
         get() = downloader.isRunning
@@ -120,15 +136,11 @@ class AnimeDownloadManager(
      * @param episodeId the episode to check.
      */
     fun getQueuedDownloadOrNull(episodeId: Long): AnimeDownload? {
-        return queueState.value.find { it.episode.id == episodeId }
+        return queueMutations.getQueuedDownloadOrNull(episodeId)
     }
 
     suspend fun startDownloadNow(episodeId: Long) {
-        val existingDownload = getQueuedDownloadOrNull(episodeId)
-        // If not in queue try to start a new download
-        val toAdd = existingDownload ?: AnimeDownload.fromEpisodeId(episodeId) ?: return
-        downloader.moveToFront(toAdd)
-        startDownloads()
+        queueMutations.startDownloadNow(episodeId)
     }
 
     /**
@@ -137,7 +149,7 @@ class AnimeDownloadManager(
      * @param downloads value to set the download queue to
      */
     fun reorderQueue(downloads: List<AnimeDownload>) {
-        downloader.updateQueue(downloads)
+        queueMutations.reorderQueue(downloads)
     }
 
     /**
@@ -165,9 +177,9 @@ class AnimeDownloadManager(
      * @param downloads the list of downloads to enqueue.
      */
     fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
-        if (downloads.isEmpty()) return
-        downloader.addToStartOfQueue(downloads)
-        if (!AnimeDownloadJob.isRunning(context)) startDownloads()
+        queueMutations.addDownloadsToStart(downloads) {
+            if (!AnimeDownloadJob.isRunning(context)) startDownloads()
+        }
     }
 
     /**
@@ -324,22 +336,7 @@ class AnimeDownloadManager(
     }
 
     private suspend fun removeFromDownloadQueue(episodes: List<Episode>) {
-        queueMutex.withLock {
-            val wasRunning = downloader.isRunning
-            if (wasRunning) {
-                downloader.pause()
-            }
-
-            downloader.removeFromQueue(episodes)
-
-            if (wasRunning) {
-                if (queueState.value.isEmpty()) {
-                    downloader.stop()
-                } else {
-                    downloader.start()
-                }
-            }
-        }
+        queueMutations.removeFromQueueSafely(episodes)
     }
 
     /**
