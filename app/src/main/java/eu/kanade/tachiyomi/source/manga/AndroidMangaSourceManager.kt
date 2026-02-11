@@ -89,7 +89,6 @@ class AndroidMangaSourceManager(
             ?: stubSourcesMap[sourceKey]
             ?: StubMangaSource(id = sourceKey, lang = "", name = "").also {
                 if (stubSourcesMap.putIfAbsent(sourceKey, it) == null) {
-                    logcat(LogPriority.DEBUG) { "Creating stub source for $sourceKey (will refresh in background)" }
                     scope.launch {
                         try {
                             refreshStubSource(sourceKey)
