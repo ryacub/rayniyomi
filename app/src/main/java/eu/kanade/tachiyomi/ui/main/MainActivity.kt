@@ -151,6 +151,10 @@ class MainActivity : BaseActivity() {
         // Prevent splash screen showing up on configuration changes
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
+        // Keep splash screen visible until migration completes
+        var migrationComplete = false
+        splashScreen?.setKeepOnScreenCondition { !migrationComplete }
+
         super.onCreate(savedInstanceState)
 
         // Register ActivityResultLauncher for external player
@@ -175,8 +179,6 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        val didMigration = Migrator.awaitAndRelease()
-
         // Do not let the launcher create a new activity http://stackoverflow.com/questions/16283079
         if (!isTaskRoot) {
             finish()
@@ -184,6 +186,18 @@ class MainActivity : BaseActivity() {
         }
 
         setComposeContent {
+            var didMigration by remember { mutableStateOf(false) }
+            var migrationChecked by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                didMigration = Migrator.await()
+                Migrator.release()
+                migrationChecked = true
+                migrationComplete = true
+            }
+
+            if (!migrationChecked) return@setComposeContent
+
             val context = LocalContext.current
 
             var incognito by remember { mutableStateOf(getMangaIncognitoState.await(null)) }
