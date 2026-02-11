@@ -5,7 +5,6 @@ import androidx.core.content.edit
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -93,7 +92,7 @@ class AnimeDownloadStore(
     /**
      * Returns the list of downloads to restore. It should be called in a background thread.
      */
-    fun restore(): List<AnimeDownload> {
+    suspend fun restore(): List<AnimeDownload> {
         val shouldImportLegacy = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
         val serializedEntries = preferences.all.values +
             if (shouldImportLegacy) legacyPreferences.all.values else emptyList()
@@ -109,10 +108,10 @@ class AnimeDownloadStore(
             val cachedAnime = mutableMapOf<Long, Anime?>()
             for ((animeId, episodeId) in objs) {
                 val anime = cachedAnime.getOrPut(animeId) {
-                    runBlocking { getAnime.await(animeId) }
+                    getAnime.await(animeId)
                 } ?: continue
                 val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: continue
-                val episode = runBlocking { getEpisode.await(episodeId) } ?: continue
+                val episode = getEpisode.await(episodeId) ?: continue
                 downloads.add(AnimeDownload(source, anime, episode))
             }
         }
