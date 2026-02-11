@@ -53,6 +53,11 @@ internal class PlayerEpisodeListManager(
     val currentEpisode = _currentEpisode.asStateFlow()
 
     var episodeId: Long = -1L
+        private set
+
+    fun setEpisodeId(id: Long) {
+        episodeId = id
+    }
 
     /**
      * Initialize the episode list for the given anime.
