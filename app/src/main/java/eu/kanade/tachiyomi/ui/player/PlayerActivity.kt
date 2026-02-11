@@ -99,6 +99,7 @@ class PlayerActivity : BaseActivity() {
     val windowInsetsController by lazy { WindowCompat.getInsetsController(window, window.decorView) }
     val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
+    private var previousUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private var mediaSession: MediaSession? = null
     private val gesturePreferences: GesturePreferences by lazy { viewModel.gesturePreferences }
     private val playerPreferences: PlayerPreferences by lazy { viewModel.playerPreferences }
@@ -225,6 +226,7 @@ class PlayerActivity : BaseActivity() {
         setupMediaSession()
         setupPlayerOrientation()
 
+        previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             runOnUiThread {
                 toast(throwable.message)
@@ -279,6 +281,12 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
+        // Restore global handler FIRST to prevent leak if cleanup throws
+        previousUncaughtExceptionHandler?.let {
+            Thread.setDefaultUncaughtExceptionHandler(it)
+        }
+        previousUncaughtExceptionHandler = null
+
         player.isExiting = true
 
         audioFocusRequest?.let {
