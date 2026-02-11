@@ -77,7 +77,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3, seen = false),
         )
         val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_UNSEEN)
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
 
         val filtered = manager.filterEpisodeList(episodes, anime)
 
@@ -95,7 +95,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3, seen = false),
         )
         val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_SEEN)
-        manager.episodeId = 2L
+        manager.setEpisodeId(2L)
 
         val filtered = manager.filterEpisodeList(episodes, anime)
 
@@ -111,7 +111,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3, bookmark = false),
         )
         val anime = createMockAnime(bookmarkedFilter = Anime.EPISODE_SHOW_NOT_BOOKMARKED)
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
 
         val filtered = manager.filterEpisodeList(episodes, anime)
 
@@ -128,7 +128,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3, fillermark = false),
         )
         val anime = createMockAnime(fillermarkedFilter = Anime.EPISODE_SHOW_NOT_FILLERMARKED)
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
 
         val filtered = manager.filterEpisodeList(episodes, anime)
 
@@ -145,7 +145,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3, seen = false),
         )
         val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_SEEN)
-        manager.episodeId = 1L // Selected episode is unseen
+        manager.setEpisodeId(1L) // Selected episode is unseen
 
         val filtered = manager.filterEpisodeList(episodes, anime)
 
@@ -161,7 +161,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(2, seen = true),
         )
         val anime = createMockAnime()
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
 
         manager.filterEpisodeList(episodes, anime)
 
@@ -177,7 +177,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(2, seen = true),
         )
         val anime = createMockAnime(downloadedFilter = Anime.EPISODE_SHOW_DOWNLOADED)
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
         every { mockDownloadManager.isEpisodeDownloaded(any(), any(), any(), any(), any()) } returns true
 
         manager.filterEpisodeList(episodes, anime)
@@ -195,7 +195,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 2L
+        manager.setEpisodeId(2L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[1])
 
@@ -211,7 +211,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(2),
         )
         val anime = createMockAnime()
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(createMockEpisode(99)) // Not in list
 
@@ -228,7 +228,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[0])
 
@@ -245,7 +245,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 3L
+        manager.setEpisodeId(3L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[2])
 
@@ -262,7 +262,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 2L
+        manager.setEpisodeId(2L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[1])
 
@@ -279,7 +279,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 2L
+        manager.setEpisodeId(2L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[1])
 
@@ -296,7 +296,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[0])
 
@@ -314,7 +314,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 3L
+        manager.setEpisodeId(3L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[2])
 
@@ -332,7 +332,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(3),
         )
         val anime = createMockAnime()
-        manager.episodeId = 2L
+        manager.setEpisodeId(2L)
         manager.updateEpisodeList(episodes, anime)
         manager.setCurrentEpisode(episodes[1])
 
@@ -349,7 +349,7 @@ class PlayerEpisodeListManagerTest {
             createMockEpisode(2),
         )
         val anime = createMockAnime()
-        manager.episodeId = 1L
+        manager.setEpisodeId(1L)
 
         manager.updateEpisodeList(episodes, anime)
 

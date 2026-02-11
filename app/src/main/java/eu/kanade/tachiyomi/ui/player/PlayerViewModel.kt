@@ -1034,7 +1034,7 @@ class PlayerViewModel @JvmOverloads constructor(
         set(value) {
             savedState["episode_id"] = value
             field = value
-            episodeListManager.episodeId = value
+            episodeListManager.setEpisodeId(value)
         }
 
     private var episodeToDownload: AnimeDownload? = null
