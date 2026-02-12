@@ -65,8 +65,8 @@ fun MangaChapterListItem(
     onClick: () -> Unit,
     onDownloadClick: ((ChapterDownloadAction) -> Unit)?,
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
-    translationStateProvider: () -> TranslationState = { TranslationState.Idle },
-    onTranslationClick: ((ChapterTranslationAction) -> Unit)? = null,
+    translationStateProvider: () -> TranslationState,
+    onTranslationClick: ((ChapterTranslationAction) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val start = getSwipeAction(

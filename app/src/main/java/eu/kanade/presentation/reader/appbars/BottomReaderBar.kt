@@ -33,8 +33,8 @@ fun BottomReaderBar(
     onClickOrientation: () -> Unit,
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
-    translationEnabled: Boolean = false,
-    onClickTranslation: (() -> Unit)? = null,
+    translationEnabled: Boolean,
+    onClickTranslation: (() -> Unit)?,
     onClickSettings: () -> Unit,
 ) {
     Row(

@@ -130,7 +130,7 @@ fun MangaScreen(
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
 
     // For translation
-    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)? = null,
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -271,7 +271,7 @@ private fun MangaScreenSmallImpl(
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
 
     // For translation
-    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)? = null,
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -524,7 +524,7 @@ fun MangaScreenLargeImpl(
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
 
     // For translation
-    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)? = null,
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -782,7 +782,7 @@ private fun LazyListScope.sharedChapterItems(
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
-    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)? = null,
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 ) {
     items(
         items = chapters,

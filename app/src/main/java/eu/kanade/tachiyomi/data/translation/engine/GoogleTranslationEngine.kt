@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.translation.engine
 import android.util.Base64
 import eu.kanade.tachiyomi.data.translation.TranslationEngine
 import eu.kanade.tachiyomi.data.translation.TranslationResult
+import eu.kanade.tachiyomi.network.awaitSuccess
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
@@ -84,7 +85,8 @@ class GoogleTranslationEngine(
             .post(requestBody.toRequestBody("application/json".toMediaType()))
             .build()
 
-        val body = executeAsync(client, request)
+        val response = client.newCall(request).awaitSuccess()
+        val body = response.body.string()
 
         val apiResponse = json.decodeFromString<GeminiResponse>(body)
         val textContent = apiResponse.candidates.firstOrNull()
