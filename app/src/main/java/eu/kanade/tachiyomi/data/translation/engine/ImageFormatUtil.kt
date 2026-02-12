@@ -41,15 +41,15 @@ object ImageFormatUtil {
     }
 
     private fun isWebP(imageBytes: ByteArray): Boolean {
-        // RIFF header at bytes 0-3, "WEBP" at bytes 8-11
+        // RIFF header (bytes 0-3) + WEBP marker (bytes 8-11)
         return imageBytes.size >= 12 &&
-            imageBytes[0] == 0x52.toByte() && // R
-            imageBytes[1] == 0x49.toByte() && // I
-            imageBytes[2] == 0x46.toByte() && // F
-            imageBytes[3] == 0x46.toByte() && // F
-            imageBytes[8] == 0x57.toByte() && // W
-            imageBytes[9] == 0x45.toByte() && // E
-            imageBytes[10] == 0x42.toByte() && // B
-            imageBytes[11] == 0x50.toByte() // P
+            imageBytes[0] == 0x52.toByte() &&
+            imageBytes[1] == 0x49.toByte() &&
+            imageBytes[2] == 0x46.toByte() &&
+            imageBytes[3] == 0x46.toByte() &&
+            imageBytes[8] == 0x57.toByte() &&
+            imageBytes[9] == 0x45.toByte() &&
+            imageBytes[10] == 0x42.toByte() &&
+            imageBytes[11] == 0x50.toByte()
     }
 }
