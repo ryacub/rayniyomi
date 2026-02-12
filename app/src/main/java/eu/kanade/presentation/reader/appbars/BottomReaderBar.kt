@@ -33,8 +33,9 @@ fun BottomReaderBar(
     onClickOrientation: () -> Unit,
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
+    hasTranslation: Boolean,
     translationEnabled: Boolean,
-    onClickTranslation: (() -> Unit)?,
+    onClickTranslation: () -> Unit,
     onClickSettings: () -> Unit,
 ) {
     Row(
@@ -66,7 +67,7 @@ fun BottomReaderBar(
             )
         }
 
-        if (onClickTranslation != null) {
+        if (hasTranslation) {
             IconButton(onClick = onClickTranslation) {
                 Icon(
                     imageVector = Icons.Outlined.Translate,
