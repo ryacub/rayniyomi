@@ -421,6 +421,9 @@ class ReaderActivity : BaseActivity() {
                     menuToggleToast?.cancel()
                     menuToggleToast = toast(if (enabled) MR.strings.on else MR.strings.off)
                 },
+                hasTranslation = state.hasTranslation,
+                translationEnabled = state.showTranslatedPages,
+                onClickTranslation = viewModel::toggleTranslatedPages,
                 onClickSettings = viewModel::openSettingsDialog,
             )
 

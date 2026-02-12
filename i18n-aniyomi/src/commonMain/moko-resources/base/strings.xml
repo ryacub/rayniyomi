@@ -582,4 +582,23 @@
     <string name="pref_download_fillermarked_items">Allow downloading of fillermarked episodes</string>
     <string name="show_episode_previews">Episode thumbnails</string>
     <string name="show_episode_summaries">Episode summaries</string>
+
+    <!-- Translation settings -->
+    <string name="pref_category_translation">Translation</string>
+    <string name="pref_translation_summary">LLM-powered manga page translation</string>
+    <string name="pref_translation_provider">Translation provider</string>
+    <string name="pref_translation_api_key">API key</string>
+    <string name="pref_translation_api_key_set">API key is set</string>
+    <string name="pref_translation_api_key_not_set">No API key configured</string>
+    <string name="pref_translation_target_language">Target language</string>
+    <string name="pref_translation_model">Model</string>
+    <string name="pref_translation_model_summary">Leave blank for default</string>
+    <string name="translation_action_translate">Translate</string>
+    <string name="translation_action_delete">Delete translation</string>
+    <string name="translation_progress">Translating page %1$d of %2$d</string>
+    <string name="translation_complete">Translation complete</string>
+    <string name="translation_error">Translation failed: %s</string>
+    <string name="translation_no_provider">No translation provider configured</string>
+    <string name="translation_cost_warning">This will make API calls for each page. Continue?</string>
+    <string name="pref_show_translated_pages">Show translated pages</string>
 </resources>

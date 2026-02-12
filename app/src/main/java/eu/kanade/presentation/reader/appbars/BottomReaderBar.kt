@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,6 +21,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
@@ -30,6 +33,9 @@ fun BottomReaderBar(
     onClickOrientation: () -> Unit,
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
+    hasTranslation: Boolean,
+    translationEnabled: Boolean,
+    onClickTranslation: () -> Unit,
     onClickSettings: () -> Unit,
 ) {
     Row(
@@ -59,6 +65,20 @@ fun BottomReaderBar(
                 painter = painterResource(if (cropEnabled) R.drawable.ic_crop_24dp else R.drawable.ic_crop_off_24dp),
                 contentDescription = stringResource(MR.strings.pref_crop_borders),
             )
+        }
+
+        if (hasTranslation) {
+            IconButton(onClick = onClickTranslation) {
+                Icon(
+                    imageVector = Icons.Outlined.Translate,
+                    contentDescription = stringResource(AYMR.strings.pref_category_translation),
+                    tint = if (translationEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                )
+            }
         }
 
         IconButton(onClick = onClickSettings) {

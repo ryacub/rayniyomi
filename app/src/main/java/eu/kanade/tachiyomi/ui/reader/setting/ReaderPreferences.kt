@@ -137,6 +137,12 @@ class ReaderPreferences(
 
     // endregion
 
+    // region Translation
+
+    fun showTranslatedPages() = preferenceStore.getBoolean("pref_show_translated_pages", false)
+
+    // endregion
+
     // region Controls
 
     fun readWithLongTap() = preferenceStore.getBoolean("reader_long_tap", true)

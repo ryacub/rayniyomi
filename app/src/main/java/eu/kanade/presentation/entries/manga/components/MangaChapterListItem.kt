@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.entries.components.DotSeparatorText
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import me.saket.swipe.SwipeableActionsBox
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
@@ -64,6 +65,8 @@ fun MangaChapterListItem(
     onClick: () -> Unit,
     onDownloadClick: ((ChapterDownloadAction) -> Unit)?,
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
+    translationStateProvider: () -> TranslationState,
+    onTranslationClick: ((ChapterTranslationAction) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val start = getSwipeAction(
@@ -180,6 +183,14 @@ fun MangaChapterListItem(
                 downloadProgressProvider = downloadProgressProvider,
                 onClick = { onDownloadClick?.invoke(it) },
             )
+            if (onTranslationClick != null) {
+                ChapterTranslationIndicator(
+                    enabled = downloadIndicatorEnabled,
+                    isDownloaded = downloadStateProvider() == MangaDownload.State.DOWNLOADED,
+                    translationStateProvider = translationStateProvider,
+                    onClick = { onTranslationClick(it) },
+                )
+            }
         }
     }
 }

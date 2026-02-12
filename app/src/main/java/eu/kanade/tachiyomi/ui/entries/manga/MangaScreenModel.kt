@@ -36,6 +36,8 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.translation.TranslationManager
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
@@ -120,6 +122,7 @@ class MangaScreenModel(
     private val setMangaCategories: SetMangaCategories = Injekt.get(),
     private val mangaRepository: MangaRepository = Injekt.get(),
     private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get(),
+    private val translationManager: TranslationManager = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<MangaScreenModel.State>(State.Loading) {
 
@@ -551,11 +554,15 @@ class MangaScreenModel(
                 else -> MangaDownload.State.NOT_DOWNLOADED
             }
 
+            val translState = translationManager.translationStates.value[chapter.id]
+                ?: TranslationState.Idle
+
             ChapterList.Item(
                 chapter = chapter,
                 downloadState = downloadState,
                 downloadProgress = activeDownload?.progress ?: 0,
                 selected = chapter.id in selectedChapterIds,
+                translationState = translState,
             )
         }
     }
@@ -733,6 +740,24 @@ class MangaScreenModel(
         val activeDownload = downloadManager.getQueuedDownloadOrNull(chapterId) ?: return
         downloadManager.cancelQueuedDownloads(listOf(activeDownload))
         updateDownloadState(activeDownload.apply { status = MangaDownload.State.NOT_DOWNLOADED })
+    }
+
+    // Translation
+
+    fun translateChapter(chapter: Chapter) {
+        val manga = successState?.manga ?: return
+        val source = successState?.source ?: return
+        translationManager.translateChapter(manga, chapter, source)
+    }
+
+    fun deleteTranslation(chapter: Chapter) {
+        val manga = successState?.manga ?: return
+        val source = successState?.source ?: return
+        translationManager.deleteTranslation(chapter, manga.title, source)
+    }
+
+    fun getTranslationState(chapterId: Long): TranslationState {
+        return translationManager.getState(chapterId)
     }
 
     fun markPreviousChapterRead(pointer: Chapter) {
@@ -1233,6 +1258,7 @@ sealed class ChapterList {
         val downloadState: MangaDownload.State,
         val downloadProgress: Int,
         val selected: Boolean = false,
+        val translationState: TranslationState = TranslationState.Idle,
     ) : ChapterList() {
         val id = chapter.id
         val isDownloaded = downloadState == MangaDownload.State.DOWNLOADED

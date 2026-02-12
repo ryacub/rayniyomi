@@ -57,6 +57,7 @@ import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
+import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescription
 import eu.kanade.presentation.entries.manga.components.MangaActionRow
 import eu.kanade.presentation.entries.manga.components.MangaChapterListItem
@@ -128,6 +129,9 @@ fun MangaScreen(
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
 
+    // For translation
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
+
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
@@ -176,6 +180,7 @@ fun MangaScreen(
             onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
             onMultiDeleteClicked = onMultiDeleteClicked,
             onChapterSwipe = onChapterSwipe,
+            onTranslationChapter = onTranslationChapter,
             onChapterSelected = onChapterSelected,
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
@@ -212,6 +217,7 @@ fun MangaScreen(
             onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
             onMultiDeleteClicked = onMultiDeleteClicked,
             onChapterSwipe = onChapterSwipe,
+            onTranslationChapter = onTranslationChapter,
             onChapterSelected = onChapterSelected,
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
@@ -263,6 +269,9 @@ private fun MangaScreenSmallImpl(
 
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
+
+    // For translation
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -462,6 +471,7 @@ private fun MangaScreenSmallImpl(
                         onDownloadChapter = onDownloadChapter,
                         onChapterSelected = onChapterSelected,
                         onChapterSwipe = onChapterSwipe,
+                        onTranslationChapter = onTranslationChapter,
                     )
                 }
             }
@@ -512,6 +522,9 @@ fun MangaScreenLargeImpl(
 
     // For swipe actions
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
+
+    // For translation
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -706,6 +719,7 @@ fun MangaScreenLargeImpl(
                                 onDownloadChapter = onDownloadChapter,
                                 onChapterSelected = onChapterSelected,
                                 onChapterSwipe = onChapterSwipe,
+                                onTranslationChapter = onTranslationChapter,
                             )
                         }
                     }
@@ -768,6 +782,7 @@ private fun LazyListScope.sharedChapterItems(
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
+    onTranslationChapter: ((ChapterList.Item, ChapterTranslationAction) -> Unit)?,
 ) {
     items(
         items = chapters,
@@ -832,6 +847,12 @@ private fun LazyListScope.sharedChapterItems(
                     },
                     onChapterSwipe = {
                         onChapterSwipe(item, it)
+                    },
+                    translationStateProvider = { item.translationState },
+                    onTranslationClick = if (onTranslationChapter != null) {
+                        { onTranslationChapter(item, it) }
+                    } else {
+                        null
                     },
                 )
             }
