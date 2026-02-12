@@ -25,6 +25,10 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
+import eu.kanade.tachiyomi.data.translation.TranslationManager
+import eu.kanade.tachiyomi.data.translation.TranslationPreferences
+import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
@@ -224,6 +228,10 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { LocalEpisodeThumbnailManager(app, get()) }
 
         addSingletonFactory { StorageManager(app, get()) }
+
+        addSingletonFactory { TranslationEngineFactory(get<TranslationPreferences>()) }
+        addSingletonFactory { TranslationStorageManager(get<MangaDownloadProvider>()) }
+        addSingletonFactory { TranslationManager(app) }
 
         addSingletonFactory { ExternalIntents() }
 

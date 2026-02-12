@@ -35,6 +35,7 @@ import eu.kanade.presentation.entries.components.SetIntervalDialog
 import eu.kanade.presentation.entries.manga.ChapterSettingsDialog
 import eu.kanade.presentation.entries.manga.DuplicateMangaDialog
 import eu.kanade.presentation.entries.manga.MangaScreen
+import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.MangaCoverDialog
 import eu.kanade.presentation.entries.manga.components.ScanlatorFilterDialog
 import eu.kanade.presentation.util.AssistContentScreen
@@ -169,6 +170,12 @@ class MangaScreen(
             onMarkPreviousAsReadClicked = screenModel::markPreviousChapterRead,
             onMultiDeleteClicked = screenModel::showDeleteChapterDialog,
             onChapterSwipe = screenModel::chapterSwipe,
+            onTranslationChapter = { item, action ->
+                when (action) {
+                    ChapterTranslationAction.TRANSLATE -> screenModel.translateChapter(item.chapter)
+                    ChapterTranslationAction.DELETE -> screenModel.deleteTranslation(item.chapter)
+                }
+            },
             onChapterSelected = screenModel::toggleSelection,
             onAllChapterSelected = screenModel::toggleAllSelection,
             onInvertSelection = screenModel::invertSelection,
