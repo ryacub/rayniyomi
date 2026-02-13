@@ -8,7 +8,6 @@ import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.filterDownloadedChapters
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
-import kotlinx.coroutines.runBlocking
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -36,7 +35,7 @@ internal class ReaderChapterListManager(
      * Retrieves chapters, applies filters (skip-read, skip-filtered, skip-dupe, downloaded-only),
      * sorts them, and converts to ReaderChapter objects.
      */
-    fun initChapterList(manga: Manga): List<ReaderChapter> {
+    suspend fun initChapterList(manga: Manga): List<ReaderChapter> {
         val chapters = fetchChapters(manga)
         val selectedChapter = findSelectedChapter(chapters)
         val filteredChapters = applyUserFilters(chapters, selectedChapter, manga)
@@ -99,8 +98,8 @@ internal class ReaderChapterListManager(
 
     // Private helper methods
 
-    private fun fetchChapters(manga: Manga): List<Chapter> {
-        return runBlocking { getChaptersByMangaId.await(manga.id, applyScanlatorFilter = true) }
+    private suspend fun fetchChapters(manga: Manga): List<Chapter> {
+        return getChaptersByMangaId.await(manga.id, applyScanlatorFilter = true)
     }
 
     private fun findSelectedChapter(chapters: List<Chapter>): Chapter {
