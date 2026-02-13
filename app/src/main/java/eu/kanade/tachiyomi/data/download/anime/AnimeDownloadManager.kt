@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.download.anime
 
 import android.content.Context
+import android.os.PowerManager
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
@@ -95,7 +96,13 @@ class AnimeDownloadManager(
         get() = downloader.queueState
 
     // For use by DownloadService only
-    fun downloaderStart() = downloader.start()
+    fun downloaderStart(): Boolean {
+        // Reset crash count on successful start
+        if (downloadPreferences.animeDownloadJobCrashCount().get() > 0) {
+            downloadPreferences.animeDownloadJobCrashCount().set(0)
+        }
+        return downloader.start()
+    }
     fun downloaderStop(reason: String? = null) = downloader.stop(reason)
 
     val isDownloaderRunning
@@ -168,6 +175,10 @@ class AnimeDownloadManager(
         video: Video? = null,
     ) {
         val filteredEpisodes = getEpisodesToDownload(episodes)
+        // Check if we should prompt for battery optimization exemption
+        if (filteredEpisodes.size >= 10 && !downloadPreferences.batteryOptimizationPromptShown().get()) {
+            checkBatteryOptimization()
+        }
         downloader.queueEpisodes(anime, filteredEpisodes, autoStart, alt, video)
     }
 
@@ -475,4 +486,41 @@ class AnimeDownloadManager(
                     .asFlow(),
             )
         }
+
+    /**
+     * Increments the job crash counter and notifies user if threshold is reached.
+     * Called when WorkManager job crashes with unhandled exception.
+     */
+    fun incrementJobCrashCount() {
+        val currentCount = downloadPreferences.animeDownloadJobCrashCount().get()
+        val newCount = currentCount + 1
+        downloadPreferences.animeDownloadJobCrashCount().set(newCount)
+
+        if (newCount >= 3) {
+            logcat(LogPriority.ERROR) { "Anime download job crashed $newCount times consecutively" }
+            // TODO: Show notification to user about repeated crashes
+            // This would require access to NotificationManager which should be injected
+        }
+    }
+
+    /**
+     * Checks if battery optimization is disabled and logs a warning if not.
+     * Called when user queues 10+ items for download.
+     */
+    private fun checkBatteryOptimization() {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val isIgnoringBatteryOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+
+        if (!isIgnoringBatteryOptimizations) {
+            logcat(LogPriority.WARN) {
+                "Battery optimization is enabled - bulk downloads may be interrupted. " +
+                    "Consider exempting app from battery optimization."
+            }
+            // TODO: Show dialog prompting user to disable battery optimization
+            // This would require access to UI layer (Activity/Fragment context)
+        }
+
+        // Mark as shown so we don't prompt again
+        downloadPreferences.batteryOptimizationPromptShown().set(true)
+    }
 }
