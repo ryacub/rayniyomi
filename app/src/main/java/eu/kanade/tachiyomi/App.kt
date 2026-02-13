@@ -55,6 +55,7 @@ import eu.kanade.tachiyomi.util.system.notify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.LogcatLogger
@@ -85,8 +86,11 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     override fun onCreate() {
         super<Application>.onCreate()
 
-        // Initialize Firebase Crashlytics early to capture all crashes
-        initializeCrashlytics()
+        // Defer Firebase Crashlytics initialization to background thread to reduce cold start time
+        // Crash handler is still registered via GlobalExceptionHandler below
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+            initializeCrashlytics()
+        }
 
         // Enable StrictMode in debug builds to detect main-thread I/O violations
         // Logs violations to logcat for investigation during development
