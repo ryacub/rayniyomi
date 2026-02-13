@@ -73,6 +73,10 @@ class DownloadPreferences(
     fun downloadNewUnreadChaptersOnly() = preferenceStore.getBoolean("download_new_unread_chapters_only", false)
     fun downloadNewUnseenEpisodesOnly() = preferenceStore.getBoolean("download_new_unread_episodes_only", false)
 
+    fun mangaDownloadJobCrashCount() = preferenceStore.getInt("manga_download_job_crash_count", 0)
+    fun animeDownloadJobCrashCount() = preferenceStore.getInt("anime_download_job_crash_count", 0)
+    fun batteryOptimizationPromptShown() = preferenceStore.getBoolean("battery_optimization_prompt_shown", false)
+
     companion object {
         private const val REMOVE_EXCLUDE_MANGA_CATEGORIES_PREF_KEY = "remove_exclude_categories"
         private const val REMOVE_EXCLUDE_ANIME_CATEGORIES_PREF_KEY = "remove_exclude_anime_categories"

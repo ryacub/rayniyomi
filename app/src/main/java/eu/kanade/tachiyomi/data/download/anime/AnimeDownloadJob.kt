@@ -4,10 +4,12 @@ import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.lifecycle.asFlow
+import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -25,9 +27,12 @@ import kotlinx.coroutines.flow.combineTransform
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.download.service.DownloadPreferences
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.concurrent.TimeUnit
 
 /**
  * This worker is used to manage the downloader. The system can decide to stop the worker, in
@@ -55,30 +60,36 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
     }
 
     override suspend fun doWork(): Result {
-        var networkCheck = checkNetworkState(
-            applicationContext.activeNetworkState(),
-            downloadPreferences.downloadOnlyOverWifi().get(),
-        )
-        if (!(networkCheck && downloadManager.downloaderStart())) {
-            return Result.failure()
-        }
-
-        setForegroundSafely()
-
-        return coroutineScope {
-            combineTransform(
-                applicationContext.networkStateFlow(),
-                downloadPreferences.downloadOnlyOverWifi().changes(),
-                transform = { a, b -> emit(checkNetworkState(a, b)) },
+        return try {
+            var networkCheck = checkNetworkState(
+                applicationContext.activeNetworkState(),
+                downloadPreferences.downloadOnlyOverWifi().get(),
             )
-                .onEach { networkCheck = it }
-                .launchIn(this)
-
-            // Keep the worker active while downloads are running and network constraints allow it.
-            while (!isStopped && downloadManager.isRunning && networkCheck) {
-                delay(250)
+            if (!(networkCheck && downloadManager.downloaderStart())) {
+                return Result.failure()
             }
-            Result.success()
+
+            setForegroundSafely()
+
+            coroutineScope {
+                combineTransform(
+                    applicationContext.networkStateFlow(),
+                    downloadPreferences.downloadOnlyOverWifi().changes(),
+                    transform = { a, b -> emit(checkNetworkState(a, b)) },
+                )
+                    .onEach { networkCheck = it }
+                    .launchIn(this)
+
+                // Keep the worker active while downloads are running and network constraints allow it.
+                while (!isStopped && downloadManager.isRunning && networkCheck) {
+                    delay(250)
+                }
+                Result.success()
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "AnimeDownloadJob failed" }
+            downloadManager.incrementJobCrashCount()
+            Result.retry()
         }
     }
 
@@ -103,6 +114,12 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
         fun start(context: Context) {
             val request = OneTimeWorkRequestBuilder<AnimeDownloadJob>()
                 .addTag(TAG)
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    30,
+                    TimeUnit.SECONDS,
+                )
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
             WorkManager.getInstance(context)
                 .enqueueUniqueWork(TAG, ExistingWorkPolicy.REPLACE, request)
