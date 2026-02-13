@@ -4,8 +4,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.util.fastAny
 import eu.kanade.presentation.library.components.DownloadsBadge
 import eu.kanade.presentation.library.components.EntryCompactGridItem
 import eu.kanade.presentation.library.components.LanguageBadge
@@ -29,6 +30,10 @@ fun AnimeLibraryCompactGrid(
     searchQuery: String?,
     onGlobalSearchClicked: () -> Unit,
 ) {
+    val selectionIds = remember(selection) {
+        derivedStateOf { selection.map { it.id }.toSet() }
+    }
+
     LazyLibraryGrid(
         modifier = Modifier.fillMaxSize(),
         columns = columns,
@@ -38,11 +43,12 @@ fun AnimeLibraryCompactGrid(
 
         items(
             items = items,
+            key = { it.libraryAnime.id },
             contentType = { "anime_library_compact_grid_item" },
         ) { libraryItem ->
             val anime = libraryItem.libraryAnime.anime
             EntryCompactGridItem(
-                isSelected = selection.fastAny { it.id == libraryItem.libraryAnime.id },
+                isSelected = libraryItem.libraryAnime.id in selectionIds.value,
                 title = anime.title.takeIf { showTitle },
                 coverData = AnimeCover(
                     animeId = anime.id,
