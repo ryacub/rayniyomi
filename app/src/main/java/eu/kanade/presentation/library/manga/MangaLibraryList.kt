@@ -5,9 +5,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastAny
 import eu.kanade.presentation.library.components.DownloadsBadge
 import eu.kanade.presentation.library.components.EntryListItem
 import eu.kanade.presentation.library.components.GlobalSearchItem
@@ -32,6 +33,10 @@ internal fun MangaLibraryList(
     searchQuery: String?,
     onGlobalSearchClicked: () -> Unit,
 ) {
+    val selectionIds = remember(selection) {
+        derivedStateOf { selection.map { it.id }.toSet() }
+    }
+
     FastScrollLazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
@@ -48,11 +53,12 @@ internal fun MangaLibraryList(
 
         items(
             items = items,
+            key = { it.libraryManga.id },
             contentType = { "manga_library_list_item" },
         ) { libraryItem ->
             val manga = libraryItem.libraryManga.manga
             EntryListItem(
-                isSelected = selection.fastAny { it.id == libraryItem.libraryManga.id },
+                isSelected = libraryItem.libraryManga.id in selectionIds.value,
                 title = manga.title,
                 coverData = MangaCover(
                     mangaId = manga.id,
