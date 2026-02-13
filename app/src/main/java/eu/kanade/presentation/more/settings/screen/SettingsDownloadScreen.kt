@@ -104,6 +104,12 @@ object SettingsDownloadScreen : SearchableSettings {
                 title = stringResource(AYMR.strings.pref_download_slots),
             ),
             Preference.PreferenceItem.InfoPreference(stringResource(AYMR.strings.download_slots_info)),
+            Preference.PreferenceItem.ListPreference(
+                preference = downloadPreferences.pageDownloadConcurrency(),
+                entries = (1..6).associateWith { it.toString() }.toImmutableMap(),
+                title = stringResource(AYMR.strings.pref_page_download_concurrency),
+            ),
+            Preference.PreferenceItem.InfoPreference(stringResource(AYMR.strings.page_download_concurrency_info)),
             getDeleteChaptersGroup(
                 downloadPreferences = downloadPreferences,
                 animeCategories = allAnimeCategories.toImmutableList(),
