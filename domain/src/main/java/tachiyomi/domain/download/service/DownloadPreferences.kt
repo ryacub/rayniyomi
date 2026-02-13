@@ -67,6 +67,7 @@ class DownloadPreferences(
     )
 
     fun numberOfDownloads() = preferenceStore.getInt("download_slots", 1)
+    fun pageDownloadConcurrency() = preferenceStore.getInt("page_download_concurrency", 4)
     fun downloadSpeedLimit() = preferenceStore.getInt("download_speed_limit", 0)
 
     fun downloadNewUnreadChaptersOnly() = preferenceStore.getBoolean("download_new_unread_chapters_only", false)

@@ -559,6 +559,8 @@
     <string name="bandwidth_data_saver_server">Bandwidth Hero Proxy Server</string>
     <string name="data_saver_server_summary">Put Bandwidth Hero Proxy server url here</string>
     <string name="download_slots_info">Will only download concurrently from self-hosted or unmetered sources</string>
+    <string name="pref_page_download_concurrency">Page download concurrency</string>
+    <string name="page_download_concurrency_info">Number of pages to download simultaneously per chapter (1-6). Higher values may trigger rate limits on some sources.</string>
     <string name="unseen">Unseen</string>
     <string name="label_manga_extension_repos">Manga extension repos</string>
     <string name="label_anime_extension_repos">Anime extension repos</string>
