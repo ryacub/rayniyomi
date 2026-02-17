@@ -48,7 +48,10 @@ class LightNovelPluginManager(
     private var signerPinsProvider: () -> Set<String> = ::trustedSignerPinsFromBuildConfig
 
     init {
-        cleanupOrphanedPluginApk()
+        // Avoid filesystem work on main when manager is first created from UI.
+        installScope.async {
+            cleanupOrphanedPluginApk()
+        }
     }
 
     @VisibleForTesting
@@ -236,13 +239,19 @@ class LightNovelPluginManager(
                         "Archive package info not found",
                     )
 
-                if (archivePackage.packageName != PLUGIN_PACKAGE_NAME ||
-                    archivePackage.packageName != manifest.packageName
-                ) {
+                if (archivePackage.packageName != PLUGIN_PACKAGE_NAME) {
                     return@withLock rejectWithCleanup(
                         apkFile,
                         RejectionReason.PACKAGE_NAME_MISMATCH,
-                        "Package mismatch for archive=${archivePackage.packageName}, manifest=${manifest.packageName}",
+                        "Archive package mismatch for expected=$PLUGIN_PACKAGE_NAME, archive=${archivePackage.packageName}",
+                    )
+                }
+
+                if (archivePackage.packageName != manifest.packageName) {
+                    return@withLock rejectWithCleanup(
+                        apkFile,
+                        RejectionReason.PACKAGE_NAME_MISMATCH,
+                        "Archive package mismatch for manifest=${manifest.packageName}, archive=${archivePackage.packageName}",
                     )
                 }
 
@@ -315,7 +324,7 @@ class LightNovelPluginManager(
 
     fun uninstallPlugin() {
         cleanupOrphanedPluginApk()
-        val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$PLUGIN_PACKAGE_NAME"))
+        val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$PLUGIN_PACKAGE_NAME"))
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
     }
@@ -365,7 +374,7 @@ class LightNovelPluginManager(
             BuildConfig.LIGHT_NOVEL_PLUGIN_SIGNER_SHA256_TERTIARY,
         )
             .map { it.trim().lowercase() }
-            .filter { it.length == SHA256_HEX_LENGTH && it.all(Char::isLetterOrDigit) }
+            .filter { it.length == SHA256_HEX_LENGTH && it.all { c -> c in '0'..'9' || c in 'a'..'f' } }
             .toSet()
     }
 
@@ -504,11 +513,7 @@ class LightNovelPluginManager(
         override fun getSignatures(packageInfo: PackageInfo): List<String> {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val signingInfo = packageInfo.signingInfo ?: return emptyList()
-                if (signingInfo.hasMultipleSigners()) {
-                    signingInfo.apkContentsSigners
-                } else {
-                    signingInfo.signingCertificateHistory
-                }
+                signingInfo.apkContentsSigners
             } else {
                 @Suppress("DEPRECATION")
                 packageInfo.signatures
@@ -530,6 +535,8 @@ class LightNovelPluginManager(
         private const val META_TARGET_HOST_VERSION = "rayniyomi.plugin.target_host_version"
 
         private const val EXPECTED_PLUGIN_API_VERSION = 1
+
+        // TODO(R236-B): Enable in release builds after production signer pins are configured.
         private const val ENABLE_PLUGIN_INSTALL_FOR_RELEASE = false
 
         private const val STABLE_MANIFEST_URL =
@@ -544,7 +551,6 @@ class LightNovelPluginManager(
 
         @Suppress("DEPRECATION")
         private val ARCHIVE_PACKAGE_FLAGS = PackageManager.GET_META_DATA or
-            PackageManager.GET_SIGNATURES or
-            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0)
+            PackageManager.GET_SIGNATURES
     }
 }
