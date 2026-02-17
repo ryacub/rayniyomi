@@ -97,6 +97,30 @@ class WebtoonAutoScrollControllerTest {
     }
 
     @Test
+    fun `toggle starts then pauses scrolling`() = runTest {
+        val deltas = mutableListOf<Int>()
+        val stateChanges = mutableListOf<Boolean>()
+        val controller = newController(
+            canScrollDown = { true },
+            onScrollBy = { deltas.add(it) },
+            onStateChanged = { stateChanges.add(it) },
+            onReachedEnd = {},
+        )
+
+        controller.toggle()
+        advanceTimeBy(50)
+        val afterStartTotal = deltas.sum()
+
+        controller.toggle()
+        advanceTimeBy(50)
+
+        assertTrue(afterStartTotal > 0)
+        assertEquals(afterStartTotal, deltas.sum())
+        assertFalse(controller.isRunning())
+        assertEquals(listOf(true, false), stateChanges)
+    }
+
+    @Test
     fun `start at end only notifies onReachedEnd once until scrollable again`() = runTest {
         var canScrollDown = false
         var reachedEndCalls = 0

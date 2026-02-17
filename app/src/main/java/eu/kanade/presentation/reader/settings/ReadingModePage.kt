@@ -163,7 +163,7 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
     val webtoonSidePadding by screenModel.preferences.webtoonSidePadding().collectAsState()
     SliderItem(
         value = webtoonSidePadding,
-        valueRange = ReaderPreferences.let { it.WEBTOON_PADDING_MIN..it.WEBTOON_PADDING_MAX },
+        valueRange = ReaderPreferences.WEBTOON_PADDING_MIN..ReaderPreferences.WEBTOON_PADDING_MAX,
         label = stringResource(MR.strings.pref_webtoon_side_padding),
         valueText = numberFormat.format(webtoonSidePadding / 100f),
         onChange = {
@@ -175,9 +175,7 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
     val webtoonAutoScrollSpeed by screenModel.preferences.webtoonAutoScrollSpeedTenths().collectAsState()
     SliderItem(
         value = webtoonAutoScrollSpeed,
-        valueRange = ReaderPreferences.let {
-            it.WEBTOON_AUTO_SCROLL_SPEED_MIN..it.WEBTOON_AUTO_SCROLL_SPEED_MAX
-        },
+        valueRange = ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN..ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
         label = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
         valueText = formatWebtoonAutoScrollSpeed(webtoonAutoScrollSpeed),
         onChange = {

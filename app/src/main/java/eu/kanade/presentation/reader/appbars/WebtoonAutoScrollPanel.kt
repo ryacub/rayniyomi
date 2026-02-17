@@ -61,7 +61,7 @@ fun WebtoonAutoScrollPanel(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
         ) {
-            listOf(10, 20, 30).forEach { preset ->
+            presetSpeedValues().forEach { preset ->
                 FilterChip(
                     selected = clampedSpeedTenths == preset,
                     onClick = { onSelectPreset(preset) },
@@ -82,6 +82,12 @@ fun WebtoonAutoScrollPanel(
     }
 }
 
+private fun presetSpeedValues(): List<Int> {
+    return PREFERRED_PRESET_SPEEDS.filter { preset ->
+        preset in ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN..ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX
+    }
+}
+
 @PreviewLightDark
 @Composable
 private fun WebtoonAutoScrollPanelPreview() {
@@ -93,3 +99,5 @@ private fun WebtoonAutoScrollPanelPreview() {
         )
     }
 }
+
+private val PREFERRED_PRESET_SPEEDS = listOf(10, 20, 30)

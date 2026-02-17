@@ -85,12 +85,11 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
         onStateChanged = { autoScrollStateChangedListener?.invoke(it) },
         onReachedEnd = { activity.showMenu() },
     )
-    private var autoScrollSpeedTenths = readerPreferences.webtoonAutoScrollSpeedTenths().get()
 
     var autoScrollStateChangedListener: ((Boolean) -> Unit)? = null
 
     init {
-        autoScrollController.setSpeedTenths(autoScrollSpeedTenths)
+        autoScrollController.setSpeedTenths(readerPreferences.webtoonAutoScrollSpeedTenths().get())
         recycler.setItemViewCacheSize(RECYCLER_VIEW_CACHE_SIZE)
         recycler.isVisible = false // Don't let the recycler layout yet
         recycler.layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
@@ -228,11 +227,11 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
     }
 
     fun setAutoScrollSpeedTenths(value: Int) {
-        autoScrollSpeedTenths = value.coerceIn(
+        val speedTenths = value.coerceIn(
             ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
             ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
         )
-        autoScrollController.setSpeedTenths(autoScrollSpeedTenths)
+        autoScrollController.setSpeedTenths(speedTenths)
     }
 
     fun isAutoScrollRunning(): Boolean {
