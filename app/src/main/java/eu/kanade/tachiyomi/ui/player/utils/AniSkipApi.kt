@@ -14,14 +14,16 @@ import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import uy.kohesive.injekt.injectLazy
 
-class AniSkipApi {
-    private val client = OkHttpClient()
+class AniSkipApi(
+    private val client: OkHttpClient = OkHttpClient(),
+) {
     private val json: Json by injectLazy()
 
     // credits: https://github.com/saikou-app/saikou/blob/main/app/src/main/java/ani/saikou/others/AniSkip.kt
-    fun getResult(malId: Int, episodeNumber: Int, episodeLength: Long): List<TimeStamp>? {
+    fun getResult(malId: Int, episodeNumber: Double, episodeLength: Long): List<TimeStamp>? {
+        val episodeNumberPath = normalizedEpisodeNumber(episodeNumber)
         val url =
-            "https://api.aniskip.com/v2/skip-times/$malId/$episodeNumber?types[]=ed" +
+            "https://api.aniskip.com/v2/skip-times/$malId/$episodeNumberPath?types[]=ed" +
                 "&types[]=mixed-ed&types[]=mixed-op&types[]=op&types[]=recap&episodeLength=$episodeLength"
         return try {
             val a = client.newCall(GET(url)).execute().body.string()

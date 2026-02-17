@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.ui.player.openContentFd
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
+import eu.kanade.tachiyomi.ui.player.utils.shouldAutoSkipSegment
 import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -169,7 +170,8 @@ class PlayerMediaOrchestrator(
     }
 
     private val introSkipEnabled get() = playerPreferences.enableSkipIntro().get()
-    private val autoSkip get() = playerPreferences.autoSkipIntro().get()
+    private val autoSkipOpening get() = playerPreferences.autoSkipOpening().get()
+    private val autoSkipEnding get() = playerPreferences.autoSkipEnding().get()
     private val netflixStyle get() = playerPreferences.enableNetflixStyleIntroSkip().get()
     private val defaultWaitingTime get() = playerPreferences.waitingTimeIntroSkip().get()
     private var waitingSkipIntro = defaultWaitingTime
@@ -192,8 +194,13 @@ class PlayerMediaOrchestrator(
                 waitingSkipIntro = defaultWaitingTime
             } else {
                 val nextChapterPos = _chapters.value.getOrNull(chapterIndex + 1)?.start ?: position
+                val autoSkipEnabledForSegment = shouldAutoSkipSegment(
+                    chapterType = chapter.chapterType,
+                    autoSkipOpening = autoSkipOpening,
+                    autoSkipEnding = autoSkipEnding,
+                )
 
-                if (netflixStyle) {
+                if (netflixStyle && autoSkipEnabledForSegment) {
                     // show a toast with the seconds before the skip
                     if (waitingSkipIntro == defaultWaitingTime) {
                         onToastRequested?.invoke(
@@ -206,7 +213,7 @@ class PlayerMediaOrchestrator(
                     }
                     showSkipIntroButton(chapter, nextChapterPos, waitingSkipIntro)
                     waitingSkipIntro--
-                } else if (autoSkip) {
+                } else if (autoSkipEnabledForSegment) {
                     onSeekRequested?.invoke(
                         nextChapterPos.toInt(),
                         context.getString(

@@ -8,6 +8,10 @@ import tachiyomi.core.common.preference.getEnum
 class PlayerPreferences(
     private val preferenceStore: PreferenceStore,
 ) {
+    init {
+        migrateAniSkipAutoSkipPreferences()
+    }
+
     fun preserveWatchingPosition() = preferenceStore.getBoolean(
         "pref_preserve_watching_position",
         false,
@@ -47,6 +51,9 @@ class PlayerPreferences(
 
     fun enableSkipIntro() = preferenceStore.getBoolean("pref_enable_skip_intro", true)
     fun autoSkipIntro() = preferenceStore.getBoolean("pref_enable_auto_skip_ani_skip", false)
+    fun autoSkipOpening() = preferenceStore.getBoolean("pref_enable_auto_skip_opening_ani_skip", false)
+    fun autoSkipEnding() = preferenceStore.getBoolean("pref_enable_auto_skip_ending_ani_skip", false)
+
     fun enableNetflixStyleIntroSkip() = preferenceStore.getBoolean(
         "pref_enable_netflixStyle_aniskip",
         false,
@@ -83,4 +90,20 @@ class PlayerPreferences(
     // Old
 
     fun autoplayEnabled() = preferenceStore.getBoolean("pref_auto_play_enabled", false)
+
+    private fun migrateAniSkipAutoSkipPreferences() {
+        val oldPreference = autoSkipIntro()
+        if (!oldPreference.isSet()) return
+
+        val oldValue = oldPreference.get()
+        val openingPreference = autoSkipOpening()
+        if (!openingPreference.isSet()) {
+            openingPreference.set(oldValue)
+        }
+
+        val endingPreference = autoSkipEnding()
+        if (!endingPreference.isSet()) {
+            endingPreference.set(oldValue)
+        }
+    }
 }

@@ -201,7 +201,8 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
         val enableSkipIntro = playerPreferences.enableSkipIntro()
         val isIntroSkipEnabled by enableSkipIntro.collectAsState()
 
-        val enableAutoAniSkip = playerPreferences.autoSkipIntro()
+        val enableAutoSkipOpening = playerPreferences.autoSkipOpening()
+        val enableAutoSkipEnding = playerPreferences.autoSkipEnding()
         val enableNetflixAniSkip = playerPreferences.enableNetflixStyleIntroSkip()
         val waitingTimeAniSkip = playerPreferences.waitingTimeIntroSkip()
 
@@ -218,8 +219,13 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
                     title = stringResource(AYMR.strings.pref_enable_intro_skip),
                 ),
                 Preference.PreferenceItem.SwitchPreference(
-                    preference = enableAutoAniSkip,
-                    title = stringResource(AYMR.strings.pref_enable_auto_skip_ani_skip),
+                    preference = enableAutoSkipOpening,
+                    title = stringResource(AYMR.strings.pref_enable_auto_skip_opening_ani_skip),
+                    enabled = isIntroSkipEnabled,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = enableAutoSkipEnding,
+                    title = stringResource(AYMR.strings.pref_enable_auto_skip_ending_ani_skip),
                     enabled = isIntroSkipEnabled,
                 ),
                 Preference.PreferenceItem.SwitchPreference(
