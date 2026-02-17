@@ -1,3 +1,15 @@
+/**
+ * Shared composables for entry (anime/manga) info headers.
+ *
+ * Contains [EntryInfoBox], [EntryActionRow], [ExpandableEntryDescription], and supporting
+ * composables extracted from the 97% identical AnimeInfoHeader and MangaInfoHeader files.
+ *
+ * The [EntryInfoBox.imageRequestBuilder] lambda allows callers to customize the Coil image
+ * request (e.g., anime passes `useBackground(true)` for backdrop images).
+ *
+ * Domain-specific wrappers in `anime/components/` and `manga/components/` delegate to these
+ * shared composables, preserving the existing public API with zero call-site changes.
+ */
 package eu.kanade.presentation.entries.components
 
 import androidx.compose.animation.animateContentSize
@@ -70,6 +82,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -719,4 +732,52 @@ fun RowScope.EntryActionButton(
             )
         }
     }
+}
+
+@PreviewLightDark
+@Composable
+private fun EntryInfoBoxPreview() {
+    EntryInfoBox(
+        isTabletUi = false,
+        appBarPadding = 0.dp,
+        coverData = null,
+        title = "Sample Entry Title",
+        author = "Author Name",
+        artist = "Artist Name",
+        status = 1L,
+        sourceName = "Source",
+        isStubSource = false,
+        onCoverClick = {},
+        doSearch = { _, _ -> },
+    )
+}
+
+@PreviewLightDark
+@Composable
+private fun EntryActionRowPreview() {
+    EntryActionRow(
+        favorite = true,
+        trackingCount = 2,
+        nextUpdate = null,
+        isUserIntervalMode = false,
+        onAddToLibraryClicked = {},
+        onWebViewClicked = {},
+        onWebViewLongClicked = {},
+        onTrackingClicked = {},
+        onEditIntervalClicked = {},
+        onEditCategory = {},
+    )
+}
+
+@PreviewLightDark
+@Composable
+private fun ExpandableEntryDescriptionPreview() {
+    ExpandableEntryDescription(
+        defaultExpandState = false,
+        description = "This is a sample description for an entry." +
+            " It can contain multiple lines.",
+        tagsProvider = { listOf("Action", "Adventure", "Comedy") },
+        onTagSearch = {},
+        onCopyTagToClipboard = {},
+    )
 }
