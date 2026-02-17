@@ -1,4 +1,4 @@
-package mihon.feature.upcoming.anime.components
+package mihon.feature.upcoming.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,15 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.entries.components.ItemCover
-import tachiyomi.domain.entries.anime.model.Anime
-import tachiyomi.domain.entries.anime.model.asAnimeCover
 import tachiyomi.presentation.core.components.material.padding
 
 private val UpcomingItemHeight = 96.dp
 
 @Composable
 fun UpcomingItem(
-    upcoming: Anime,
+    coverData: Any?,
+    title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -40,11 +39,11 @@ fun UpcomingItem(
     ) {
         ItemCover.Book(
             modifier = Modifier.fillMaxHeight(),
-            data = upcoming.asAnimeCover(),
+            data = coverData,
         )
         Text(
             modifier = Modifier.weight(1f),
-            text = upcoming.title,
+            text = title,
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

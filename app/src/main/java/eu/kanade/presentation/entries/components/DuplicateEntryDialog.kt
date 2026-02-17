@@ -1,4 +1,4 @@
-package eu.kanade.presentation.entries.anime
+package eu.kanade.presentation.entries.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,11 +32,12 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
-fun DuplicateAnimeDialog(
+fun DuplicateEntryDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
-    onOpenAnime: () -> Unit,
+    onOpenEntry: () -> Unit,
     onMigrate: () -> Unit,
+    isManga: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val minHeight = LocalPreferenceMinHeight.current
@@ -67,11 +68,13 @@ fun DuplicateAnimeDialog(
             Spacer(Modifier.height(PaddingSize))
 
             TextPreferenceWidget(
-                title = stringResource(AYMR.strings.action_show_anime),
+                title = stringResource(
+                    if (isManga) AYMR.strings.action_show_manga else AYMR.strings.action_show_anime,
+                ),
                 icon = Icons.Outlined.Book,
                 onPreferenceClick = {
                     onDismissRequest()
-                    onOpenAnime()
+                    onOpenEntry()
                 },
             )
 

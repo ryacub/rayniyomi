@@ -30,12 +30,12 @@ import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.entries.EditCoverAction
 import eu.kanade.presentation.entries.anime.AnimeScreen
-import eu.kanade.presentation.entries.anime.DuplicateAnimeDialog
 import eu.kanade.presentation.entries.anime.EpisodeOptionsDialogScreen
 import eu.kanade.presentation.entries.anime.EpisodeSettingsDialog
 import eu.kanade.presentation.entries.anime.SeasonSettingsDialog
 import eu.kanade.presentation.entries.anime.components.AnimeImagesDialog
 import eu.kanade.presentation.entries.components.DeleteItemsDialog
+import eu.kanade.presentation.entries.components.DuplicateEntryDialog
 import eu.kanade.presentation.entries.components.SetIntervalDialog
 import eu.kanade.presentation.more.settings.screen.player.PlayerSettingsGesturesScreen.SkipIntroLengthDialog
 import eu.kanade.presentation.util.AssistContentScreen
@@ -248,13 +248,14 @@ class AnimeScreen(
             }
 
             is AnimeScreenModel.Dialog.DuplicateAnime -> {
-                DuplicateAnimeDialog(
+                DuplicateEntryDialog(
                     onDismissRequest = onDismissRequest,
                     onConfirm = { screenModel.toggleFavorite(onRemoved = {}, checkDuplicate = false) },
-                    onOpenAnime = { navigator.push(AnimeScreen(dialog.duplicate.id)) },
+                    onOpenEntry = { navigator.push(AnimeScreen(dialog.duplicate.id)) },
                     onMigrate = {
                         screenModel.showMigrateDialog(dialog.duplicate)
                     },
+                    isManga = false,
                 )
             }
 
