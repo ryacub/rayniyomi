@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.library.components.DownloadsBadge
@@ -30,9 +29,7 @@ fun AnimeLibraryCompactGrid(
     searchQuery: String?,
     onGlobalSearchClicked: () -> Unit,
 ) {
-    val selectionIds = remember(selection) {
-        derivedStateOf { selection.map { it.id }.toSet() }
-    }
+    val selectedIds = remember(selection) { selection.mapTo(HashSet()) { it.id } }
 
     LazyLibraryGrid(
         modifier = Modifier.fillMaxSize(),
@@ -48,7 +45,7 @@ fun AnimeLibraryCompactGrid(
         ) { libraryItem ->
             val anime = libraryItem.libraryAnime.anime
             EntryCompactGridItem(
-                isSelected = libraryItem.libraryAnime.id in selectionIds.value,
+                isSelected = libraryItem.libraryAnime.id in selectedIds,
                 title = anime.title.takeIf { showTitle },
                 coverData = AnimeCover(
                     animeId = anime.id,
@@ -69,10 +66,16 @@ fun AnimeLibraryCompactGrid(
                 },
                 onLongClick = { onLongClick(libraryItem.libraryAnime) },
                 onClick = { onClick(libraryItem.libraryAnime) },
-                onClickContinueViewing = if (onClickContinueWatching != null && libraryItem.unseenCount > 0) {
-                    { onClickContinueWatching(libraryItem.libraryAnime) }
-                } else {
-                    null
+                onClickContinueViewing = remember(
+                    onClickContinueWatching,
+                    libraryItem.libraryAnime.id,
+                    libraryItem.unseenCount,
+                ) {
+                    if (onClickContinueWatching != null && libraryItem.unseenCount > 0) {
+                        { onClickContinueWatching(libraryItem.libraryAnime) }
+                    } else {
+                        null
+                    }
                 },
             )
         }
