@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal data class AniSkipCacheEntry(
     val malId: Long,
-    val episodeNumber: Int,
+    val episodeNumber: Double,
     val roundedEpisodeLength: Long,
     val createdAt: Long,
     val timestamps: List<TimeStamp>,

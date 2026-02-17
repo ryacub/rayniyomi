@@ -160,7 +160,8 @@ class PlayerViewModel @JvmOverloads constructor(
     private val getIncognitoState: GetAnimeIncognitoState = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     uiPreferences: UiPreferences = Injekt.get(),
-    private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.cacheDir),
+    private val aniSkipApi: AniSkipApi = AniSkipApi(),
+    private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.applicationContext.cacheDir),
 ) : ViewModel() {
 
     private val episodeListManager = PlayerEpisodeListManager(
@@ -1652,7 +1653,7 @@ class PlayerViewModel @JvmOverloads constructor(
     suspend fun aniSkipResponse(playerDuration: Int?): List<TimeStamp>? {
         val animeId = currentAnime.value?.id ?: return null
         val duration = playerDuration ?: return null
-        val episodeNumber = currentEpisode.value?.episode_number?.toInt() ?: return null
+        val episodeNumber = currentEpisode.value?.episode_number?.toDouble() ?: return null
         val tracks = getTracks.await(animeId)
         if (tracks.isEmpty()) {
             logcat { "AniSkip: No tracks found for anime $animeId" }
@@ -1660,7 +1661,6 @@ class PlayerViewModel @JvmOverloads constructor(
         }
 
         val trackerManager = Injekt.get<TrackerManager>()
-        val aniSkipApi = AniSkipApi()
         val malId = resolveMalId(
             tracks = tracks,
             trackerKindForId = { trackerId ->

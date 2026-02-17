@@ -26,9 +26,9 @@ class AniSkipGapClosureTest {
         )
         val timestamps = listOf(TimeStamp(start = 10.0, end = 30.0, name = "Opening", type = ChapterType.Opening))
 
-        cache.put(malId = 1L, episodeNumber = 1, episodeLength = 1_500L, timestamps = timestamps)
+        cache.put(malId = 1L, episodeNumber = 1.0, episodeLength = 1_500L, timestamps = timestamps)
 
-        val cached = cache.get(malId = 1L, episodeNumber = 1, episodeLength = 1_500L)
+        val cached = cache.get(malId = 1L, episodeNumber = 1.0, episodeLength = 1_500L)
         assertNotNull(cached)
         assertEquals(timestamps, cached)
         tmpDir.deleteRecursively()
@@ -39,7 +39,7 @@ class AniSkipGapClosureTest {
         val tmpDir = createTempDirectory(prefix = "aniskip_cache_test").toFile()
         val cache = AniSkipDiskCache(cacheDir = tmpDir)
 
-        assertNull(cache.get(malId = 999L, episodeNumber = 5, episodeLength = 1_500L))
+        assertNull(cache.get(malId = 999L, episodeNumber = 5.0, episodeLength = 1_500L))
         tmpDir.deleteRecursively()
     }
 
@@ -53,13 +53,16 @@ class AniSkipGapClosureTest {
             nowProvider = { now },
         )
         val timestamps = listOf(TimeStamp(start = 10.0, end = 30.0, name = "Opening", type = ChapterType.Opening))
-        cache.put(malId = 1L, episodeNumber = 1, episodeLength = 1_500L, timestamps = timestamps)
+        cache.put(malId = 1L, episodeNumber = 1.0, episodeLength = 1_500L, timestamps = timestamps)
 
         now += 101L
-        val cached = cache.get(malId = 1L, episodeNumber = 1, episodeLength = 1_500L)
+        val cached = cache.get(malId = 1L, episodeNumber = 1.0, episodeLength = 1_500L)
         assertNull(cached)
 
-        val cacheFile = File(tmpDir, "aniskip_1_1_${roundedEpisodeLength(1_500L)}.json")
+        val cacheFile = File(
+            tmpDir,
+            "aniskip_1_${normalizedEpisodeNumber(1.0)}_${roundedEpisodeLength(1_500L)}.json",
+        )
         assertFalse(cacheFile.exists())
         tmpDir.deleteRecursively()
     }
@@ -67,14 +70,30 @@ class AniSkipGapClosureTest {
     @Test
     fun `malformed cache entry falls back safely`() {
         val tmpDir = createTempDirectory(prefix = "aniskip_cache_test").toFile()
-        val cacheFile = File(tmpDir, "aniskip_1_1_${roundedEpisodeLength(1_500L)}.json")
+        val cacheFile = File(
+            tmpDir,
+            "aniskip_1_${normalizedEpisodeNumber(1.0)}_${roundedEpisodeLength(1_500L)}.json",
+        )
         cacheFile.parentFile?.mkdirs()
         cacheFile.writeText("not valid json")
 
         val cache = AniSkipDiskCache(cacheDir = tmpDir)
-        val cached = cache.get(malId = 1L, episodeNumber = 1, episodeLength = 1_500L)
+        val cached = cache.get(malId = 1L, episodeNumber = 1.0, episodeLength = 1_500L)
         assertNull(cached)
         assertFalse(cacheFile.exists())
+        tmpDir.deleteRecursively()
+    }
+
+    @Test
+    fun `cache key keeps fractional episode numbers distinct`() {
+        val tmpDir = createTempDirectory(prefix = "aniskip_cache_test").toFile()
+        val cache = AniSkipDiskCache(cacheDir = tmpDir)
+        val timestamps = listOf(TimeStamp(start = 12.0, end = 22.0, name = "Opening", type = ChapterType.Opening))
+
+        cache.put(malId = 1L, episodeNumber = 1.5, episodeLength = 1_500L, timestamps = timestamps)
+
+        assertNull(cache.get(malId = 1L, episodeNumber = 1.0, episodeLength = 1_500L))
+        assertEquals(timestamps, cache.get(malId = 1L, episodeNumber = 1.5, episodeLength = 1_500L))
         tmpDir.deleteRecursively()
     }
 

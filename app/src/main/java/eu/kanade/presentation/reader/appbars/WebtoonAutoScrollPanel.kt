@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -33,6 +34,7 @@ fun WebtoonAutoScrollPanel(
         ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
         ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
     )
+    val presetSpeeds = remember { presetSpeedValues() }
     val speedText = formatWebtoonAutoScrollSpeed(clampedSpeedTenths)
 
     Column(
@@ -61,7 +63,7 @@ fun WebtoonAutoScrollPanel(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
         ) {
-            presetSpeedValues().forEach { preset ->
+            presetSpeeds.forEach { preset ->
                 FilterChip(
                     selected = clampedSpeedTenths == preset,
                     onClick = { onSelectPreset(preset) },
