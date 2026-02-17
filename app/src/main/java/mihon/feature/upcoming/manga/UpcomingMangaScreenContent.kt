@@ -29,9 +29,10 @@ import eu.kanade.tachiyomi.core.common.Constants
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.coroutines.launch
+import mihon.feature.upcoming.components.UpcomingItem
 import mihon.feature.upcoming.components.calendar.Calendar
-import mihon.feature.upcoming.manga.components.UpcomingItem
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.model.asMangaCover
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.TwoPanelBox
@@ -169,7 +170,8 @@ private fun UpcomingMangaScreenSmallImpl(
             when (item) {
                 is UpcomingMangaUIModel.Item -> {
                     UpcomingItem(
-                        upcoming = item.manga,
+                        coverData = item.manga.asMangaCover(),
+                        title = item.manga.title,
                         onClick = { onClickUpcoming(item.manga) },
                     )
                 }
@@ -220,7 +222,8 @@ private fun UpcomingMangaScreenLargeImpl(
                     when (item) {
                         is UpcomingMangaUIModel.Item -> {
                             UpcomingItem(
-                                upcoming = item.manga,
+                                coverData = item.manga.asMangaCover(),
+                                title = item.manga.title,
                                 onClick = { onClickUpcoming(item.manga) },
                             )
                         }

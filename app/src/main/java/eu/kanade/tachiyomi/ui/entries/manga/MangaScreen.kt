@@ -31,9 +31,9 @@ import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.entries.EditCoverAction
 import eu.kanade.presentation.entries.components.DeleteItemsDialog
+import eu.kanade.presentation.entries.components.DuplicateEntryDialog
 import eu.kanade.presentation.entries.components.SetIntervalDialog
 import eu.kanade.presentation.entries.manga.ChapterSettingsDialog
-import eu.kanade.presentation.entries.manga.DuplicateMangaDialog
 import eu.kanade.presentation.entries.manga.MangaScreen
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.MangaCoverDialog
@@ -217,13 +217,14 @@ class MangaScreen(
             }
 
             is MangaScreenModel.Dialog.DuplicateManga -> {
-                DuplicateMangaDialog(
+                DuplicateEntryDialog(
                     onDismissRequest = onDismissRequest,
                     onConfirm = { screenModel.toggleFavorite(onRemoved = {}, checkDuplicate = false) },
-                    onOpenManga = { navigator.push(MangaScreen(dialog.duplicate.id)) },
+                    onOpenEntry = { navigator.push(MangaScreen(dialog.duplicate.id)) },
                     onMigrate = {
                         screenModel.showMigrateDialog(dialog.duplicate)
                     },
+                    isManga = true,
                 )
             }
 

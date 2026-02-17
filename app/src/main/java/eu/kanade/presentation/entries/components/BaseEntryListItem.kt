@@ -1,4 +1,4 @@
-package eu.kanade.presentation.entries.manga.components
+package eu.kanade.presentation.entries.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -13,20 +13,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
-import eu.kanade.presentation.entries.components.ItemCover
-import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.presentation.core.components.material.padding
 
 @Composable
-fun BaseMangaListItem(
-    manga: Manga,
+fun BaseEntryListItem(
+    coverData: Any?,
+    title: String,
     modifier: Modifier = Modifier,
     onClickItem: () -> Unit = {},
     onClickCover: () -> Unit = onClickItem,
-    cover: @Composable RowScope.() -> Unit = { defaultCover(manga, onClickCover) },
+    cover: @Composable RowScope.() -> Unit = { defaultCover(coverData, onClickCover) },
     actions: @Composable RowScope.() -> Unit = {},
-    content: @Composable RowScope.() -> Unit = { defaultContent(manga) },
+    content: @Composable RowScope.() -> Unit = { defaultContent(title) },
 ) {
     Row(
         modifier = modifier
@@ -41,23 +41,34 @@ fun BaseMangaListItem(
     }
 }
 
-private val defaultCover: @Composable RowScope.(Manga, () -> Unit) -> Unit = { manga, onClick ->
+private val defaultCover: @Composable RowScope.(Any?, () -> Unit) -> Unit = { coverData, onClick ->
     ItemCover.Book(
         modifier = Modifier
             .fillMaxHeight(),
-        data = manga,
+        data = coverData,
         onClick = onClick,
     )
 }
 
-private val defaultContent: @Composable RowScope.(Manga) -> Unit = {
+private val defaultContent: @Composable RowScope.(String) -> Unit = { title ->
     Box(modifier = Modifier.weight(1f)) {
         Text(
-            text = it.title,
+            text = title,
             modifier = Modifier
                 .padding(start = MaterialTheme.padding.medium),
             overflow = TextOverflow.Ellipsis,
+            maxLines = 2,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+@PreviewLightDark
+@Composable
+private fun BaseEntryListItemPreview() {
+    BaseEntryListItem(
+        coverData = null,
+        title = "Sample Entry Title",
+        onClickItem = {},
+    )
 }

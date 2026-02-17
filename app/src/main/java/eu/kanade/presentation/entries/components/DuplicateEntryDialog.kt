@@ -1,6 +1,5 @@
-package eu.kanade.presentation.entries.anime
+package eu.kanade.presentation.entries.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.components.AdaptiveSheet
@@ -32,11 +32,12 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
-fun DuplicateAnimeDialog(
+fun DuplicateEntryDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
-    onOpenAnime: () -> Unit,
+    onOpenEntry: () -> Unit,
     onMigrate: () -> Unit,
+    isManga: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val minHeight = LocalPreferenceMinHeight.current
@@ -67,11 +68,13 @@ fun DuplicateAnimeDialog(
             Spacer(Modifier.height(PaddingSize))
 
             TextPreferenceWidget(
-                title = stringResource(AYMR.strings.action_show_anime),
+                title = stringResource(
+                    if (isManga) AYMR.strings.action_show_manga else AYMR.strings.action_show_anime,
+                ),
                 icon = Icons.Outlined.Book,
                 onPreferenceClick = {
                     onDismissRequest()
-                    onOpenAnime()
+                    onOpenEntry()
                 },
             )
 
@@ -100,7 +103,6 @@ fun DuplicateAnimeDialog(
             Row(
                 modifier = Modifier
                     .sizeIn(minHeight = minHeight)
-                    .clickable { onDismissRequest.invoke() }
                     .padding(ButtonPadding)
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -119,6 +121,18 @@ fun DuplicateAnimeDialog(
             }
         }
     }
+}
+
+@PreviewLightDark
+@Composable
+private fun DuplicateEntryDialogPreview() {
+    DuplicateEntryDialog(
+        onDismissRequest = {},
+        onConfirm = {},
+        onOpenEntry = {},
+        onMigrate = {},
+        isManga = true,
+    )
 }
 
 private val PaddingSize = 16.dp
