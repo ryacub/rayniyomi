@@ -11,7 +11,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -85,6 +88,7 @@ private fun CategoryContent(
 ) {
     val context = LocalContext.current
     val categoriesState = remember { categories.flattenForDisplay().toMutableStateList() }
+    var pendingCategoriesStateSync by remember { mutableStateOf<List<Category>?>(null) }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
         if (alphabeticalSortEnabled) return@rememberReorderableLazyListState
         val item = categoriesState.removeAt(from.index)
@@ -93,9 +97,23 @@ private fun CategoryContent(
     }
 
     LaunchedEffect(categories) {
+        val flattenedCategories = categories.flattenForDisplay()
         if (!reorderableState.isAnyItemDragging) {
             categoriesState.clear()
-            categoriesState.addAll(categories.flattenForDisplay())
+            categoriesState.addAll(flattenedCategories)
+            pendingCategoriesStateSync = null
+        } else {
+            pendingCategoriesStateSync = flattenedCategories
+        }
+    }
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging) {
+            pendingCategoriesStateSync?.let { pending ->
+                categoriesState.clear()
+                categoriesState.addAll(pending)
+                pendingCategoriesStateSync = null
+            }
         }
     }
 

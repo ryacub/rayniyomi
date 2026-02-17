@@ -19,6 +19,19 @@ class MangaCategoriesRestorer(
                 categoriesQueries.selectLastInsertedRowId()
             }
         },
+        updateCategoryParent = { categoryId, parentId ->
+            mangaHandler.await {
+                categoriesQueries.update(
+                    name = null,
+                    order = null,
+                    flags = null,
+                    hidden = null,
+                    parentId = parentId,
+                    updateParentId = true,
+                    categoryId = categoryId,
+                )
+            }
+        },
     )
 
     suspend operator fun invoke(backupCategories: List<BackupCategory>) {

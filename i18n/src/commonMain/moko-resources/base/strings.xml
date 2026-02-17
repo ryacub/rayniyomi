@@ -803,6 +803,7 @@
 
     <!-- Category activity -->
     <string name="error_category_exists">A category with this name already exists!</string>
+    <string name="error_invalid_parent_category">Selected parent category is invalid.</string>
     <!-- missing undo feature after Compose rewrite #7454 -->
     <string name="snack_categories_deleted">Categories deleted</string>
 
@@ -948,6 +949,7 @@
     <string name="getting_started_guide">Getting started guide</string>
     <string name="information_empty_category">You have no categories. Tap the plus button to create one for organizing your library.</string>
     <string name="information_empty_category_dialog">You don\'t have any categories yet.</string>
+    <string name="information_delete_category_orphan_children">Child categories will be kept and moved to top level.</string>
     <string name="hint_search_categories">Search categories</string>
     <string name="information_no_matching_categories">No matching categories</string>
     <string name="information_cloudflare_bypass_failure">Failed to bypass Cloudflare</string>

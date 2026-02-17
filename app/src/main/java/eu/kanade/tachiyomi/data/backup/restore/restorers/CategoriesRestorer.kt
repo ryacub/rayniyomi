@@ -9,6 +9,7 @@ import uy.kohesive.injekt.api.get
 class CategoriesRestorer(
     private val getCategories: suspend () -> List<Category>,
     private val insertCategory: suspend (name: String, order: Long, flags: Long, parentId: Long?) -> Long,
+    private val updateCategoryParent: suspend (categoryId: Long, parentId: Long?) -> Unit,
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
 ) {
 
@@ -21,6 +22,7 @@ class CategoriesRestorer(
             val insertedByOldId = mutableMapOf<Long, Category>()
             val categories = mutableListOf<Category>()
             val pendingChildren = mutableListOf<BackupCategory>()
+            val pendingExistingParentUpdates = mutableListOf<Pair<Category, Long?>>()
 
             backupCategories
                 .sortedBy { it.order }
@@ -29,6 +31,7 @@ class CategoriesRestorer(
                     if (dbCategory != null) {
                         categories += dbCategory
                         insertedByOldId[backupCategory.id] = dbCategory
+                        pendingExistingParentUpdates += dbCategory to backupCategory.parentId
                         return@forEach
                     }
 
@@ -55,6 +58,13 @@ class CategoriesRestorer(
                 ).let { id -> backupCategory.toCategory(id).copy(order = order, parentId = remappedParentId) }
                 categories += created
                 insertedByOldId[backupCategory.id] = created
+            }
+
+            pendingExistingParentUpdates.forEach { (dbCategory, backupParentId) ->
+                val remappedParentId = backupParentId?.let { insertedByOldId[it]?.id }
+                if (dbCategory.parentId != remappedParentId) {
+                    updateCategoryParent(dbCategory.id, remappedParentId)
+                }
             }
 
             libraryPreferences.categorizedDisplaySettings().set(

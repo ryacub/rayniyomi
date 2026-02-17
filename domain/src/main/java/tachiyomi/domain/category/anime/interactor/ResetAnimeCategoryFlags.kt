@@ -15,6 +15,7 @@ class ResetAnimeCategoryFlags(
     suspend fun await() {
         val sort = preferences.animeSortingMode().get()
         val updates = categoryRepository.getAllAnimeCategories().map {
+            // Reset only sort mode bits; keep auxiliary flags such as alphabetical category sorting.
             CategoryUpdate(
                 id = it.id,
                 flags = (it.flags and sortMask.inv()) + sort.type + sort.direction,

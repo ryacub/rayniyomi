@@ -87,6 +87,7 @@ class MangaCategoryRepositoryImpl(
             flags = update.flags,
             hidden = update.hidden?.let { if (it) 1L else 0L },
             parentId = update.parentId,
+            updateParentId = update.updateParentId,
             categoryId = update.id,
         )
     }

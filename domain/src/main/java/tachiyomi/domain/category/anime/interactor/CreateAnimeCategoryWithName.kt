@@ -22,6 +22,7 @@ class CreateAnimeCategoryWithName(
         val categories = categoryRepository.getAllAnimeCategories()
         val validatedParentId = parentId?.let { id ->
             categories.find { it.id == id && it.parentId == null }?.id
+                ?: return@withNonCancellableContext Result.InvalidParent
         }
         val nextOrder = categories.maxOfOrNull { it.order }?.plus(1) ?: 0
         val newCategory = Category(
@@ -44,6 +45,7 @@ class CreateAnimeCategoryWithName(
 
     sealed interface Result {
         data object Success : Result
+        data object InvalidParent : Result
         data class InternalError(val error: Throwable) : Result
     }
 }

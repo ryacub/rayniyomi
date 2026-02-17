@@ -19,6 +19,7 @@ fun List<Category>.flattenForDisplay(): List<Category> {
         compareBy<Category> { it.order }.thenBy { it.id }
     }
 
+    // Display model is intentionally depth-limited to two levels (root + direct child).
     val roots = filter { it.parentId == null || it.parentId !in categoriesById }
         .sortedWith(categoryComparator)
     val childrenByParent = filter { it.parentId != null && it.parentId in categoriesById }

@@ -67,6 +67,9 @@ class MangaCategoryScreenModel(
     fun createCategory(name: String, parentId: Long?) {
         screenModelScope.launch {
             when (createCategoryWithName.await(name, parentId)) {
+                CreateMangaCategoryWithName.Result.InvalidParent -> _events.send(
+                    MangaCategoryEvent.InvalidParentCategory,
+                )
                 is CreateMangaCategoryWithName.Result.InternalError -> _events.send(
                     MangaCategoryEvent.InternalError,
                 )
@@ -155,6 +158,7 @@ sealed interface MangaCategoryDialog {
 
 sealed interface MangaCategoryEvent {
     sealed class LocalizedMessage(val stringRes: StringResource) : MangaCategoryEvent
+    data object InvalidParentCategory : LocalizedMessage(MR.strings.error_invalid_parent_category)
     data object InternalError : LocalizedMessage(MR.strings.internal_error)
 }
 

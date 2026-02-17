@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
+import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.service.LibraryPreferences
 
 class CategoriesRestorerTest {
@@ -26,6 +27,7 @@ class CategoriesRestorerTest {
                 inserts += InsertCall(name, order, flags, parentId)
                 nextId++
             },
+            updateCategoryParent = { _, _ -> },
             libraryPreferences = libraryPreferences,
         )
 
@@ -58,6 +60,7 @@ class CategoriesRestorerTest {
                 inserts += InsertCall(name, order, flags, parentId)
                 nextId++
             },
+            updateCategoryParent = { _, _ -> },
             libraryPreferences = libraryPreferences,
         )
 
@@ -69,6 +72,36 @@ class CategoriesRestorerTest {
         )
 
         assertEquals(listOf(null, null), inserts.map { it.parentId })
+        verify { categorizedDisplayPreference.set(any()) }
+    }
+
+    @Test
+    fun `restorer updates existing category parent linkage to match backup hierarchy`() = runTest {
+        val libraryPreferences = mockk<LibraryPreferences>()
+        val categorizedDisplayPreference = mockk<Preference<Boolean>>(relaxed = true)
+        every { libraryPreferences.categorizedDisplaySettings() } returns categorizedDisplayPreference
+
+        val existing = listOf(
+            Category(id = 10, name = "Action", order = 0, flags = 0, hidden = false, parentId = null),
+            Category(id = 11, name = "Isekai", order = 1, flags = 0, hidden = false, parentId = null),
+        )
+        val parentUpdates = mutableListOf<Pair<Long, Long?>>()
+
+        val restorer = CategoriesRestorer(
+            getCategories = { existing },
+            insertCategory = { _, _, _, _ -> error("No inserts expected") },
+            updateCategoryParent = { id, parentId -> parentUpdates += id to parentId },
+            libraryPreferences = libraryPreferences,
+        )
+
+        restorer(
+            listOf(
+                BackupCategory(name = "Action", order = 0, id = 1, flags = 0, parentId = null),
+                BackupCategory(name = "Isekai", order = 1, id = 2, flags = 0, parentId = 1),
+            ),
+        )
+
+        assertEquals(listOf(11L to 10L), parentUpdates)
         verify { categorizedDisplayPreference.set(any()) }
     }
 

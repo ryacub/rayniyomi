@@ -26,8 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import eu.kanade.core.preference.asToggleableState
 import eu.kanade.presentation.category.visualName
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
@@ -73,7 +75,9 @@ fun CategoryCreateDialog(
             Text(text = stringResource(MR.strings.action_add_category))
         },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 OutlinedTextField(
                     modifier = Modifier
                         .focusRequester(focusRequester),
@@ -203,6 +207,7 @@ fun CategoryDeleteDialog(
     onDismissRequest: () -> Unit,
     onDelete: () -> Unit,
     category: String,
+    hasChildren: Boolean,
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -223,7 +228,14 @@ fun CategoryDeleteDialog(
             Text(text = stringResource(MR.strings.delete_category))
         },
         text = {
-            Text(text = stringResource(MR.strings.delete_category_confirmation, category))
+            val message = buildString {
+                append(stringResource(MR.strings.delete_category_confirmation, category))
+                if (hasChildren) {
+                    append("\n\n")
+                    append(stringResource(MR.strings.information_delete_category_orphan_children))
+                }
+            }
+            Text(text = message)
         },
     )
 }
@@ -259,7 +271,7 @@ fun ChangeCategoryDialog(
     }
     var selection by remember { mutableStateOf(initialSelection) }
     var searchQuery by remember { mutableStateOf("") }
-    val categoriesById = remember(selection) { selection.associate { it.value.id to it.value } }
+    val categoriesById = remember(initialSelection) { initialSelection.associate { it.value.id to it.value } }
     val visibleSelection = remember(selection, searchQuery, categoriesById) {
         if (searchQuery.isBlank()) {
             selection
@@ -358,4 +370,33 @@ fun ChangeCategoryDialog(
             }
         },
     )
+}
+
+@PreviewLightDark
+@Composable
+private fun CategoryCreateDialogPreview() {
+    TachiyomiPreviewTheme {
+        CategoryCreateDialog(
+            onDismissRequest = {},
+            onCreate = { _, _ -> },
+            categories = listOf("Action", "Drama").toImmutableList(),
+            parentCategories = listOf(
+                Category(id = 1, name = "Action", order = 0, flags = 0, hidden = false, parentId = null),
+                Category(id = 2, name = "Comedy", order = 1, flags = 0, hidden = false, parentId = null),
+            ).toImmutableList(),
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun CategoryDeleteDialogPreview() {
+    TachiyomiPreviewTheme {
+        CategoryDeleteDialog(
+            onDismissRequest = {},
+            onDelete = {},
+            category = "Action",
+            hasChildren = true,
+        )
+    }
 }

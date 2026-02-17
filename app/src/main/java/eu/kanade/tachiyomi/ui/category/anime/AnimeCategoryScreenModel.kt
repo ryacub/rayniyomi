@@ -67,6 +67,9 @@ class AnimeCategoryScreenModel(
     fun createCategory(name: String, parentId: Long?) {
         screenModelScope.launch {
             when (createCategoryWithName.await(name, parentId)) {
+                CreateAnimeCategoryWithName.Result.InvalidParent -> _events.send(
+                    AnimeCategoryEvent.InvalidParentCategory,
+                )
                 is CreateAnimeCategoryWithName.Result.InternalError -> _events.send(
                     AnimeCategoryEvent.InternalError,
                 )
@@ -155,6 +158,7 @@ sealed interface AnimeCategoryDialog {
 
 sealed interface AnimeCategoryEvent {
     sealed class LocalizedMessage(val stringRes: StringResource) : AnimeCategoryEvent
+    data object InvalidParentCategory : LocalizedMessage(MR.strings.error_invalid_parent_category)
     data object InternalError : LocalizedMessage(MR.strings.internal_error)
 }
 

@@ -19,7 +19,13 @@ BEGIN SELECT CASE
 END;
 
 getCategory:
-SELECT *
+SELECT
+_id AS id,
+name,
+sort AS `order`,
+flags,
+hidden,
+parent_id AS parentId
 FROM categories
 WHERE _id = :id
 LIMIT 1;
@@ -87,7 +93,10 @@ SET name = coalesce(:name, name),
     sort = coalesce(:order, sort),
     flags = coalesce(:flags, flags),
     hidden = coalesce(:hidden, hidden),
-    parent_id = coalesce(:parentId, parent_id)
+    parent_id = CASE
+        WHEN :updateParentId THEN :parentId
+        ELSE parent_id
+    END
 WHERE _id = :categoryId;
 
 updateAllFlags:

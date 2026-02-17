@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DragHandle
@@ -19,6 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import tachiyomi.domain.category.model.Category
 import tachiyomi.i18n.MR
@@ -37,6 +40,31 @@ fun ReorderableCollectionItemScope.CategoryListItem(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    CategoryListItemContent(
+        category = category,
+        title = title,
+        showDragHandle = showDragHandle,
+        isChild = isChild,
+        onRename = onRename,
+        onHide = onHide,
+        onDelete = onDelete,
+        dragHandleModifier = Modifier.draggableHandle(),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CategoryListItemContent(
+    category: Category,
+    title: String,
+    showDragHandle: Boolean,
+    isChild: Boolean,
+    onRename: () -> Unit,
+    onHide: () -> Unit,
+    onDelete: () -> Unit,
+    dragHandleModifier: Modifier,
+    modifier: Modifier = Modifier,
+) {
     ElevatedCard(modifier = modifier) {
         Row(
             modifier = Modifier
@@ -50,7 +78,7 @@ fun ReorderableCollectionItemScope.CategoryListItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (isChild) {
-                Spacer(modifier = Modifier.padding(start = MaterialTheme.padding.medium))
+                Spacer(modifier = Modifier.width(MaterialTheme.padding.medium))
             }
             if (showDragHandle) {
                 Icon(
@@ -58,7 +86,7 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                     contentDescription = null,
                     modifier = Modifier
                         .padding(MaterialTheme.padding.medium)
-                        .draggableHandle(),
+                        .then(dragHandleModifier),
                 )
             }
             Text(
@@ -91,5 +119,29 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 )
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun CategoryListItemPreview() {
+    TachiyomiPreviewTheme {
+        CategoryListItemContent(
+            category = Category(
+                id = 1,
+                name = "Isekai",
+                order = 0,
+                flags = 0,
+                hidden = false,
+                parentId = 2,
+            ),
+            title = "Action / Isekai",
+            showDragHandle = true,
+            isChild = true,
+            onRename = {},
+            onHide = {},
+            onDelete = {},
+            dragHandleModifier = Modifier,
+        )
     }
 }

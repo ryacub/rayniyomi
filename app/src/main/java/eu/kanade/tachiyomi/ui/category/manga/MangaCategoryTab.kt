@@ -87,6 +87,7 @@ fun Screen.mangaCategoryTab(): TabContent {
                             onDismissRequest = screenModel::dismissDialog,
                             onDelete = { screenModel.deleteCategory(dialog.category.id) },
                             category = dialog.category.name,
+                            hasChildren = successState.categories.any { it.parentId == dialog.category.id },
                         )
                     }
                 }
