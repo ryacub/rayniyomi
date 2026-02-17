@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,8 +50,12 @@ object SettingsLightNovelScreen : SearchableSettings {
 
         var status by remember(enabled, channel) { mutableStateOf(pluginManager.getPluginStatus()) }
 
-        fun refreshStatus() {
-            status = pluginManager.getPluginStatus()
+        suspend fun refreshStatus() {
+            status = pluginManager.getPluginStatus(channel)
+        }
+
+        LaunchedEffect(channel) {
+            refreshStatus()
         }
 
         DisposableEffect(context) {
@@ -58,7 +63,9 @@ object SettingsLightNovelScreen : SearchableSettings {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     val packageName = intent?.data?.schemeSpecificPart ?: return
                     if (packageName == LightNovelPluginManager.PLUGIN_PACKAGE_NAME) {
-                        refreshStatus()
+                        scope.launch {
+                            refreshStatus()
+                        }
                     }
                 }
             }
@@ -81,7 +88,21 @@ object SettingsLightNovelScreen : SearchableSettings {
         val statusText = when {
             !status.installed -> stringResource(AYMR.strings.light_novel_plugin_status_missing)
             !status.signedAndTrusted -> stringResource(AYMR.strings.light_novel_plugin_status_untrusted)
-            !status.compatible -> stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
+            !status.compatible -> when (status.compatibilityState) {
+                LightNovelPluginManager.CompatibilityState.API_MISMATCH,
+                LightNovelPluginManager.CompatibilityState.MISSING_METADATA,
+                -> stringResource(AYMR.strings.light_novel_plugin_status_api_mismatch)
+                LightNovelPluginManager.CompatibilityState.HOST_TOO_OLD ->
+                    stringResource(AYMR.strings.light_novel_plugin_status_host_too_old)
+                LightNovelPluginManager.CompatibilityState.HOST_TOO_NEW ->
+                    stringResource(AYMR.strings.light_novel_plugin_status_host_too_new)
+                LightNovelPluginManager.CompatibilityState.READY ->
+                    stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
+            }
+            status.versionState == LightNovelPluginManager.VersionState.INSTALLED_OUTDATED -> {
+                val availableVersion = status.availableVersionCode ?: 0L
+                stringResource(AYMR.strings.light_novel_plugin_status_outdated, availableVersion)
+            }
             else -> {
                 val version = status.installedVersionCode ?: 0L
                 stringResource(AYMR.strings.light_novel_plugin_status_ready, version)
@@ -107,11 +128,12 @@ object SettingsLightNovelScreen : SearchableSettings {
                                         is LightNovelPluginManager.InstallResult.InstallLaunched -> {
                                             context.toast(AYMR.strings.light_novel_plugin_install_started)
                                         }
-                                        is LightNovelPluginManager.InstallResult.Error -> {
+                                        is LightNovelPluginManager.InstallResult.Rejected -> {
                                             enableLightNovelsPref.set(false)
-                                            context.toast(result.message)
+                                            context.toast(result.reason.toMessageRes())
                                         }
                                     }
+                                    refreshStatus()
                                 }
                             }
                             true
@@ -146,10 +168,11 @@ object SettingsLightNovelScreen : SearchableSettings {
                                     is LightNovelPluginManager.InstallResult.InstallLaunched -> {
                                         context.toast(AYMR.strings.light_novel_plugin_install_started)
                                     }
-                                    is LightNovelPluginManager.InstallResult.Error -> {
-                                        context.toast(result.message)
+                                    is LightNovelPluginManager.InstallResult.Rejected -> {
+                                        context.toast(result.reason.toMessageRes())
                                     }
                                 }
+                                refreshStatus()
                             }
                         },
                     ),
@@ -158,10 +181,42 @@ object SettingsLightNovelScreen : SearchableSettings {
                         enabled = status.installed,
                         onClick = {
                             pluginManager.uninstallPlugin()
+                            scope.launch { refreshStatus() }
                         },
                     ),
                 ),
             ),
         )
     }
+}
+
+private fun LightNovelPluginManager.RejectionReason.toMessageRes() = when (this) {
+    LightNovelPluginManager.RejectionReason.INSTALL_DISABLED ->
+        AYMR.strings.light_novel_plugin_error_install_disabled
+    LightNovelPluginManager.RejectionReason.MANIFEST_FETCH_FAILED ->
+        AYMR.strings.light_novel_plugin_error_manifest_fetch_failed
+    LightNovelPluginManager.RejectionReason.INVALID_MANIFEST ->
+        AYMR.strings.light_novel_plugin_error_invalid_manifest
+    LightNovelPluginManager.RejectionReason.DOWNLOAD_FAILED ->
+        AYMR.strings.light_novel_plugin_error_download_failed
+    LightNovelPluginManager.RejectionReason.CHECKSUM_MISMATCH ->
+        AYMR.strings.light_novel_plugin_error_checksum_mismatch
+    LightNovelPluginManager.RejectionReason.INVALID_PLUGIN_APK ->
+        AYMR.strings.light_novel_plugin_error_invalid_apk
+    LightNovelPluginManager.RejectionReason.UNSIGNED_PLUGIN_APK ->
+        AYMR.strings.light_novel_plugin_error_unsigned_apk
+    LightNovelPluginManager.RejectionReason.PACKAGE_NAME_MISMATCH ->
+        AYMR.strings.light_novel_plugin_error_package_mismatch
+    LightNovelPluginManager.RejectionReason.MISSING_SIGNER_PINS ->
+        AYMR.strings.light_novel_plugin_error_missing_signer_pins
+    LightNovelPluginManager.RejectionReason.SIGNER_MISMATCH ->
+        AYMR.strings.light_novel_plugin_error_signer_mismatch
+    LightNovelPluginManager.RejectionReason.PLUGIN_API_MISMATCH ->
+        AYMR.strings.light_novel_plugin_error_api_mismatch
+    LightNovelPluginManager.RejectionReason.HOST_VERSION_TOO_OLD ->
+        AYMR.strings.light_novel_plugin_error_host_too_old
+    LightNovelPluginManager.RejectionReason.HOST_VERSION_TOO_NEW ->
+        AYMR.strings.light_novel_plugin_error_host_too_new
+    LightNovelPluginManager.RejectionReason.INSTALL_LAUNCH_FAILED ->
+        AYMR.strings.light_novel_plugin_error_install_launch_failed
 }

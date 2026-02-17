@@ -619,7 +619,25 @@
     <string name="light_novel_plugin_status_missing">Not installed</string>
     <string name="light_novel_plugin_status_untrusted">Installed but signature is not trusted</string>
     <string name="light_novel_plugin_status_incompatible">Installed but incompatible with this app version</string>
+    <string name="light_novel_plugin_status_api_mismatch">Installed but plugin API metadata is incompatible</string>
+    <string name="light_novel_plugin_status_host_too_old">Installed plugin requires a newer app version</string>
+    <string name="light_novel_plugin_status_host_too_new">Installed plugin targets an older app version</string>
+    <string name="light_novel_plugin_status_outdated">Installed but update available (latest version %1$d)</string>
     <string name="light_novel_plugin_status_ready">Installed (version %1$d), trusted, and compatible</string>
     <string name="light_novel_plugin_status_ready_short">Plugin is already ready</string>
     <string name="light_novel_plugin_install_started">Plugin installer launched</string>
+    <string name="light_novel_plugin_error_install_disabled">Plugin install is disabled for this build</string>
+    <string name="light_novel_plugin_error_manifest_fetch_failed">Failed to fetch plugin manifest</string>
+    <string name="light_novel_plugin_error_invalid_manifest">Plugin manifest is invalid</string>
+    <string name="light_novel_plugin_error_download_failed">Failed to download plugin APK</string>
+    <string name="light_novel_plugin_error_checksum_mismatch">Plugin checksum validation failed</string>
+    <string name="light_novel_plugin_error_invalid_apk">Plugin APK is invalid</string>
+    <string name="light_novel_plugin_error_unsigned_apk">Plugin APK is unsigned</string>
+    <string name="light_novel_plugin_error_package_mismatch">Plugin package name mismatch</string>
+    <string name="light_novel_plugin_error_missing_signer_pins">Plugin signer pins are not configured in this build</string>
+    <string name="light_novel_plugin_error_signer_mismatch">Plugin signer is not trusted</string>
+    <string name="light_novel_plugin_error_api_mismatch">Plugin API version is incompatible</string>
+    <string name="light_novel_plugin_error_host_too_old">This plugin requires a newer app version</string>
+    <string name="light_novel_plugin_error_host_too_new">This plugin targets an older app version</string>
+    <string name="light_novel_plugin_error_install_launch_failed">Failed to launch plugin installer</string>
 </resources>
