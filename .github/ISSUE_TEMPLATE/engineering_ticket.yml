@@ -1,0 +1,143 @@
+name: "🧭 Engineering ticket (R##)"
+description: "Create an internal delivery ticket with Definition of Ready/Done checklists"
+labels: ["Lane C"]
+body:
+  - type: input
+    id: ticket-id
+    attributes:
+      label: Ticket ID
+      description: Use the canonical ticket ID format.
+      placeholder: "R42"
+    validations:
+      required: true
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: "Governance: adopt Definition of Ready/Done checklists for all tickets"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: lane
+    attributes:
+      label: Lane
+      options:
+        - "A"
+        - "B"
+        - "C"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - "P0"
+        - "P1"
+        - "P2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk-tier
+    attributes:
+      label: Risk tier
+      options:
+        - "T1"
+        - "T2"
+        - "T3"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Describe what is included.
+      placeholder: "List in-scope changes only."
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: Describe what is explicitly out of scope.
+      placeholder: "List what this ticket will not change."
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Reference required predecessor tickets/issues.
+      placeholder: "- R41"
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - [ ] Implementation complete for defined scope
+        - [ ] Verification evidence attached in PR
+        - [ ] Rollback notes included for risky changes
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification-plan
+    attributes:
+      label: Verification Plan
+      description: Commands/evidence expected for completion.
+      placeholder: |
+        - `./gradlew ...`
+        - CI checks to validate
+        - Manual checks (if needed)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: definition-of-ready
+    attributes:
+      label: Definition of Ready (DoR)
+      description: Must be true before implementation begins.
+      options:
+        - label: Scope is explicit, bounded, and testable
+          required: true
+        - label: Dependencies are listed and in a done/available state
+          required: true
+        - label: Priority and risk tier are assigned
+          required: true
+        - label: Verification approach is identified
+          required: true
+        - label: Non-goals and rollback expectations are clear for risky work
+          required: true
+
+  - type: checkboxes
+    id: definition-of-done
+    attributes:
+      label: Definition of Done (DoD)
+      description: Used during execution and PR review.
+      options:
+        - label: Acceptance criteria met and non-goals respected
+        - label: Verification evidence captured in PR
+        - label: PR metadata complete and accurate
+        - label: Risks and rollback documented
