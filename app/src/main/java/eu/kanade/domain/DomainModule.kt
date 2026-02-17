@@ -95,6 +95,7 @@ import tachiyomi.domain.category.anime.interactor.RenameAnimeCategory
 import tachiyomi.domain.category.anime.interactor.ReorderAnimeCategory
 import tachiyomi.domain.category.anime.interactor.ResetAnimeCategoryFlags
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
+import tachiyomi.domain.category.anime.interactor.SetAnimeCategoryAlphabeticalSort
 import tachiyomi.domain.category.anime.interactor.SetAnimeDisplayMode
 import tachiyomi.domain.category.anime.interactor.SetSortModeForAnimeCategory
 import tachiyomi.domain.category.anime.interactor.UpdateAnimeCategory
@@ -108,6 +109,7 @@ import tachiyomi.domain.category.manga.interactor.RenameMangaCategory
 import tachiyomi.domain.category.manga.interactor.ReorderMangaCategory
 import tachiyomi.domain.category.manga.interactor.ResetMangaCategoryFlags
 import tachiyomi.domain.category.manga.interactor.SetMangaCategories
+import tachiyomi.domain.category.manga.interactor.SetMangaCategoryAlphabeticalSort
 import tachiyomi.domain.category.manga.interactor.SetMangaDisplayMode
 import tachiyomi.domain.category.manga.interactor.SetSortModeForMangaCategory
 import tachiyomi.domain.category.manga.interactor.UpdateMangaCategory
@@ -209,6 +211,7 @@ class DomainModule : InjektModule {
         addFactory { ResetAnimeCategoryFlags(get(), get()) }
         addFactory { SetAnimeDisplayMode(get()) }
         addFactory { SetSortModeForAnimeCategory(get(), get()) }
+        addFactory { SetAnimeCategoryAlphabeticalSort(get()) }
         addFactory { CreateAnimeCategoryWithName(get(), get()) }
         addFactory { RenameAnimeCategory(get()) }
         addFactory { ReorderAnimeCategory(get()) }
@@ -222,6 +225,7 @@ class DomainModule : InjektModule {
         addFactory { ResetMangaCategoryFlags(get(), get()) }
         addFactory { SetMangaDisplayMode(get()) }
         addFactory { SetSortModeForMangaCategory(get(), get()) }
+        addFactory { SetMangaCategoryAlphabeticalSort(get()) }
         addFactory { CreateMangaCategoryWithName(get(), get()) }
         addFactory { RenameMangaCategory(get()) }
         addFactory { ReorderMangaCategory(get()) }

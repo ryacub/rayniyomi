@@ -53,6 +53,8 @@ import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
 import tachiyomi.domain.category.manga.interactor.SetMangaCategories
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.flattenForDisplay
+import tachiyomi.domain.category.model.prefixedDisplayName
 import tachiyomi.domain.entries.applyFilter
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.entries.manga.model.Manga
@@ -379,7 +381,9 @@ class MangaLibraryScreenModel(
                 categories
             }
 
-            displayCategories.associateWith { libraryManga[it.id].orEmpty() }
+            displayCategories
+                .flattenForDisplay()
+                .associateWith { libraryManga[it.id].orEmpty() }
         }
     }
 
@@ -741,6 +745,7 @@ class MangaLibraryScreenModel(
         val selectionMode = selection.isNotEmpty()
 
         val categories = library.keys.toList()
+        private val categoriesById = categories.associateBy { it.id }
 
         fun getLibraryItemsByCategoryId(categoryId: Long): List<MangaLibraryItem>? {
             return library.firstNotNullOfOrNull { (k, v) -> v.takeIf { k.id == categoryId } }
@@ -761,7 +766,7 @@ class MangaLibraryScreenModel(
         ): LibraryToolbarTitle {
             val category = categories.getOrNull(page) ?: return LibraryToolbarTitle(defaultTitle)
             val categoryName = category.let {
-                if (it.isSystemCategory) defaultCategoryTitle else it.name
+                if (it.isSystemCategory) defaultCategoryTitle else it.prefixedDisplayName(categoriesById)
             }
             val title = if (showCategoryTabs) defaultTitle else categoryName
             val count = when {

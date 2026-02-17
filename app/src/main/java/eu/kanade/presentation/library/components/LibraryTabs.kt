@@ -8,6 +8,7 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import eu.kanade.presentation.category.visualName
@@ -22,6 +23,8 @@ internal fun LibraryTabs(
     onTabItemClick: (Int) -> Unit,
 ) {
     val currentPageIndex = pagerState.currentPage.coerceAtMost(categories.lastIndex)
+    val categoriesById = categories.associateBy { it.id }
+    val context = LocalContext.current
     Column(
         modifier = Modifier.zIndex(1f),
     ) {
@@ -38,7 +41,7 @@ internal fun LibraryTabs(
                     onClick = { onTabItemClick(index) },
                     text = {
                         TabText(
-                            text = category.visualName,
+                            text = category.visualName(categoriesById, context),
                             badgeCount = getNumberOfItemsForCategory(category),
                         )
                     },

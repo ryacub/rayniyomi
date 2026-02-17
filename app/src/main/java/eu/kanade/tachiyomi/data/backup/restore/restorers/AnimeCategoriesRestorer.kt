@@ -13,10 +13,23 @@ class AnimeCategoriesRestorer(
 
     private val restorer = CategoriesRestorer(
         getCategories = { getAnimeCategories.await() },
-        insertCategory = { name, order, flags ->
+        insertCategory = { name, order, flags, parentId ->
             animeHandler.awaitOneExecutable {
-                categoriesQueries.insert(name, order, flags)
+                categoriesQueries.insert(name, order, flags, parentId)
                 categoriesQueries.selectLastInsertedRowId()
+            }
+        },
+        updateCategoryParent = { categoryId, parentId ->
+            animeHandler.await {
+                categoriesQueries.update(
+                    name = null,
+                    order = null,
+                    flags = null,
+                    hidden = null,
+                    parentId = parentId,
+                    updateParentId = true,
+                    categoryId = categoryId,
+                )
             }
         },
     )

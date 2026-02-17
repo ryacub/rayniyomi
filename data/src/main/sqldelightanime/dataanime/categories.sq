@@ -3,7 +3,8 @@ CREATE TABLE categories(
     name TEXT NOT NULL,
     sort INTEGER NOT NULL,
     flags INTEGER NOT NULL,
-    hidden INTEGER NOT NULL DEFAULT 0
+    hidden INTEGER NOT NULL DEFAULT 0,
+    parent_id INTEGER DEFAULT NULL
 );
 
 -- Insert system category
@@ -18,7 +19,13 @@ BEGIN SELECT CASE
 END;
 
 getCategory:
-SELECT *
+SELECT
+_id AS id,
+name,
+sort AS `order`,
+flags,
+hidden,
+parent_id AS parentId
 FROM categories
 WHERE _id = :id
 LIMIT 1;
@@ -29,7 +36,8 @@ _id AS id,
 name,
 sort AS `order`,
 flags,
-hidden
+hidden,
+parent_id AS parentId
 FROM categories
 ORDER BY sort;
 
@@ -39,7 +47,8 @@ _id AS id,
 name,
 sort AS `order`,
 flags,
-hidden
+hidden,
+parent_id AS parentId
 FROM categories
 WHERE hidden = 0
 ORDER BY sort;
@@ -50,7 +59,8 @@ C._id AS id,
 C.name,
 C.sort AS `order`,
 C.flags,
-C.hidden
+C.hidden,
+C.parent_id AS parentId
 FROM categories C
 JOIN animes_categories AC
 ON C._id = AC.category_id
@@ -62,15 +72,16 @@ C._id AS id,
 C.name,
 C.sort AS `order`,
 C.flags,
-C.hidden
+C.hidden,
+C.parent_id AS parentId
 FROM categories C
 JOIN animes_categories AC
 ON C._id = AC.category_id
 WHERE AC.anime_id = :animeId AND C.hidden = 0;
 
 insert:
-INSERT INTO categories(name, sort, flags)
-VALUES (:name, :order, :flags);
+INSERT INTO categories(name, sort, flags, parent_id)
+VALUES (:name, :order, :flags, :parentId);
 
 delete:
 DELETE FROM categories
@@ -81,7 +92,11 @@ UPDATE categories
 SET name = coalesce(:name, name),
     sort = coalesce(:order, sort),
     flags = coalesce(:flags, flags),
-    hidden = coalesce(:hidden, hidden)
+    hidden = coalesce(:hidden, hidden),
+    parent_id = CASE
+        WHEN :updateParentId THEN :parentId
+        ELSE parent_id
+    END
 WHERE _id = :categoryId;
 
 updateAllFlags:

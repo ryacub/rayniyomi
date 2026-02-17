@@ -27,6 +27,8 @@ class DeleteMangaCategory(
             CategoryUpdate(
                 id = category.id,
                 order = index.toLong(),
+                parentId = if (category.parentId == categoryId) null else category.parentId,
+                updateParentId = category.parentId == categoryId,
             )
         }
 

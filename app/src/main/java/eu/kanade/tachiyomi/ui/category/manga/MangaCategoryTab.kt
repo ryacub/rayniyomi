@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.category.manga
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SortByAlpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -12,9 +14,13 @@ import eu.kanade.presentation.category.MangaCategoryScreen
 import eu.kanade.presentation.category.components.CategoryCreateDialog
 import eu.kanade.presentation.category.components.CategoryDeleteDialog
 import eu.kanade.presentation.category.components.CategoryRenameDialog
+import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
 
 @Composable
@@ -27,6 +33,22 @@ fun Screen.mangaCategoryTab(): TabContent {
     return TabContent(
         titleRes = AYMR.strings.label_manga,
         searchEnabled = false,
+        actions = when (val current = state) {
+            is MangaCategoryScreenState.Success -> persistentListOf(
+                AppBar.Action(
+                    title = stringResource(
+                        if (current.alphabeticalSortEnabled) {
+                            MR.strings.action_sort_categories_manual
+                        } else {
+                            MR.strings.action_sort_categories_alphabetically
+                        },
+                    ),
+                    icon = Icons.Outlined.SortByAlpha,
+                    onClick = { screenModel.setAlphabeticalSort(!current.alphabeticalSortEnabled) },
+                ),
+            )
+            else -> persistentListOf()
+        },
         content = { contentPadding, _ ->
             if (state is MangaCategoryScreenState.Loading) {
                 LoadingScreen()
@@ -49,6 +71,7 @@ fun Screen.mangaCategoryTab(): TabContent {
                             onDismissRequest = screenModel::dismissDialog,
                             onCreate = screenModel::createCategory,
                             categories = successState.categories.fastMap { it.name }.toImmutableList(),
+                            parentCategories = successState.parentCategories,
                         )
                     }
                     is MangaCategoryDialog.Rename -> {
@@ -64,6 +87,7 @@ fun Screen.mangaCategoryTab(): TabContent {
                             onDismissRequest = screenModel::dismissDialog,
                             onDelete = { screenModel.deleteCategory(dialog.category.id) },
                             category = dialog.category.name,
+                            hasChildren = successState.categories.any { it.parentId == dialog.category.id },
                         )
                     }
                 }

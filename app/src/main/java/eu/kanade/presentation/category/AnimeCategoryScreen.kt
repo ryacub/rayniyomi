@@ -19,6 +19,7 @@ fun AnimeCategoryScreen(
 ) {
     CategoryScreen(
         categories = state.categories,
+        alphabeticalSortEnabled = state.alphabeticalSortEnabled,
         isEmpty = state.isEmpty,
         onClickCreate = onClickCreate,
         onClickRename = onClickRename,

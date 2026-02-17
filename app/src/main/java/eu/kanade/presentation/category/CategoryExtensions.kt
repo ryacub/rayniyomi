@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.prefixedDisplayName
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
@@ -19,3 +20,12 @@ fun Category.visualName(context: Context): String =
         isSystemCategory -> context.stringResource(MR.strings.label_default)
         else -> name
     }
+
+fun Category.visualName(
+    categoriesById: Map<Long, Category>,
+    context: Context? = null,
+): String = when {
+    isSystemCategory && context != null -> context.stringResource(MR.strings.label_default)
+    isSystemCategory -> name
+    else -> prefixedDisplayName(categoriesById)
+}

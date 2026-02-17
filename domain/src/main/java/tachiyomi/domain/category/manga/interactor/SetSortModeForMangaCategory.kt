@@ -13,13 +13,15 @@ class SetSortModeForMangaCategory(
     private val categoryRepository: MangaCategoryRepository,
 ) {
 
+    private val sortMask: Long = MangaLibrarySort.Type.Alphabetical.mask or MangaLibrarySort.Direction.Ascending.mask
+
     suspend fun await(
         categoryId: Long?,
         type: MangaLibrarySort.Type,
         direction: MangaLibrarySort.Direction,
     ) {
         val category = categoryId?.let { categoryRepository.getMangaCategory(it) }
-        val flags = (category?.flags ?: 0) + type + direction
+        val flags = ((category?.flags ?: 0L) and sortMask.inv()) + type + direction
         if (type == MangaLibrarySort.Type.Random) {
             preferences.randomMangaSortSeed().set(Random.nextInt())
         }
@@ -32,7 +34,13 @@ class SetSortModeForMangaCategory(
             )
         } else {
             preferences.mangaSortingMode().set(MangaLibrarySort(type, direction))
-            categoryRepository.updateAllMangaCategoryFlags(flags)
+            val updates = categoryRepository.getAllMangaCategories().map {
+                CategoryUpdate(
+                    id = it.id,
+                    flags = (it.flags and sortMask.inv()) + type + direction,
+                )
+            }
+            categoryRepository.updatePartialMangaCategories(updates)
         }
     }
 
