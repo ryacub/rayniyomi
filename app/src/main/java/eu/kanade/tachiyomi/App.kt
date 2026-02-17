@@ -44,7 +44,6 @@ import eu.kanade.tachiyomi.data.coil.MangaKeyer
 import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.di.AppModule
-import eu.kanade.tachiyomi.di.NovelFeatureModule
 import eu.kanade.tachiyomi.di.PreferenceModule
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -134,7 +133,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         Injekt.importModule(PreferenceModule(this))
-        Injekt.importModule(NovelFeatureModule(this))
         Injekt.importModule(AppModule(this))
         Injekt.importModule(DomainModule())
         // SY -->
