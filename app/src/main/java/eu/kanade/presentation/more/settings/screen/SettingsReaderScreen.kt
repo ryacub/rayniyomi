@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
@@ -311,11 +312,13 @@ object SettingsReaderScreen : SearchableSettings {
         val dualPageSplitPref = readerPreferences.dualPageSplitWebtoon()
         val rotateToFitPref = readerPreferences.dualPageRotateToFitWebtoon()
         val webtoonSidePaddingPref = readerPreferences.webtoonSidePadding()
+        val webtoonAutoScrollSpeedPref = readerPreferences.webtoonAutoScrollSpeedTenths()
 
         val navMode by navModePref.collectAsState()
         val dualPageSplit by dualPageSplitPref.collectAsState()
         val rotateToFit by rotateToFitPref.collectAsState()
         val webtoonSidePadding by webtoonSidePaddingPref.collectAsState()
+        val webtoonAutoScrollSpeed by webtoonAutoScrollSpeedPref.collectAsState()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webtoon_viewer),
@@ -343,13 +346,22 @@ object SettingsReaderScreen : SearchableSettings {
                 ),
                 Preference.PreferenceItem.SliderPreference(
                     value = webtoonSidePadding,
-                    valueRange = ReaderPreferences.let {
-                        it.WEBTOON_PADDING_MIN..it.WEBTOON_PADDING_MAX
-                    },
+                    valueRange = ReaderPreferences.WEBTOON_PADDING_MIN..ReaderPreferences.WEBTOON_PADDING_MAX,
                     title = stringResource(MR.strings.pref_webtoon_side_padding),
                     subtitle = numberFormat.format(webtoonSidePadding / 100f),
                     onValueChanged = {
                         webtoonSidePaddingPref.set(it)
+                        true
+                    },
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = webtoonAutoScrollSpeed,
+                    valueRange =
+                    ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN..ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
+                    title = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
+                    subtitle = formatWebtoonAutoScrollSpeed(webtoonAutoScrollSpeed),
+                    onValueChanged = {
+                        webtoonAutoScrollSpeedPref.set(it)
                         true
                     },
                 ),

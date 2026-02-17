@@ -481,7 +481,10 @@
     <string name="pref_always_show_chapter_transition">Always show chapter transition</string>
     <string name="pref_category_reading_mode">Reading mode</string>
     <string name="pref_category_reading">Reading</string>
+    <string name="action_start_auto_scroll">Start auto-scroll</string>
+    <string name="action_pause_auto_scroll">Pause auto-scroll</string>
     <string name="pref_webtoon_side_padding">Side padding</string>
+    <string name="pref_webtoon_auto_scroll_speed">Auto-scroll speed</string>
     <string name="pref_hide_threshold">Sensitivity for hiding menu on scroll</string>
     <string name="pref_highest">Highest</string>
     <string name="pref_high">High</string>

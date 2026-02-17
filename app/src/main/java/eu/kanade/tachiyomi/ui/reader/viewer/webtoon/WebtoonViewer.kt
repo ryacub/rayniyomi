@@ -77,8 +77,19 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
             .readerHideThreshold()
             .get()
             .threshold
+    private val readerPreferences = Injekt.get<ReaderPreferences>()
+    private val autoScrollController = WebtoonAutoScrollController(
+        scope = scope,
+        canScrollDown = { recycler.canScrollVertically(1) },
+        onScrollBy = { recycler.scrollBy(0, it) },
+        onStateChanged = { autoScrollStateChangedListener?.invoke(it) },
+        onReachedEnd = { activity.showMenu() },
+    )
+
+    var autoScrollStateChangedListener: ((Boolean) -> Unit)? = null
 
     init {
+        autoScrollController.setSpeedTenths(readerPreferences.webtoonAutoScrollSpeedTenths().get())
         recycler.setItemViewCacheSize(RECYCLER_VIEW_CACHE_SIZE)
         recycler.isVisible = false // Don't let the recycler layout yet
         recycler.layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
@@ -112,18 +123,22 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
             },
         )
         recycler.tapListener = { event ->
-            val viewPosition = IntArray(2)
-            recycler.getLocationOnScreen(viewPosition)
-            val viewPositionRelativeToWindow = IntArray(2)
-            recycler.getLocationInWindow(viewPositionRelativeToWindow)
-            val pos = PointF(
-                (event.rawX - viewPosition[0] + viewPositionRelativeToWindow[0]) / recycler.width,
-                (event.rawY - viewPosition[1] + viewPositionRelativeToWindow[1]) / recycler.originalHeight,
-            )
-            when (config.navigator.getAction(pos)) {
-                NavigationRegion.MENU -> activity.toggleMenu()
-                NavigationRegion.NEXT, NavigationRegion.RIGHT -> scrollDown()
-                NavigationRegion.PREV, NavigationRegion.LEFT -> scrollUp()
+            if (autoScrollController.isRunning()) {
+                pauseAutoScroll()
+            } else {
+                val viewPosition = IntArray(2)
+                recycler.getLocationOnScreen(viewPosition)
+                val viewPositionRelativeToWindow = IntArray(2)
+                recycler.getLocationInWindow(viewPositionRelativeToWindow)
+                val pos = PointF(
+                    (event.rawX - viewPosition[0] + viewPositionRelativeToWindow[0]) / recycler.width,
+                    (event.rawY - viewPosition[1] + viewPositionRelativeToWindow[1]) / recycler.originalHeight,
+                )
+                when (config.navigator.getAction(pos)) {
+                    NavigationRegion.MENU -> activity.toggleMenu()
+                    NavigationRegion.NEXT, NavigationRegion.RIGHT -> scrollDown()
+                    NavigationRegion.PREV, NavigationRegion.LEFT -> scrollUp()
+                }
             }
         }
         recycler.longTapListener = f@{ event ->
@@ -198,7 +213,29 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
      */
     override fun destroy() {
         super.destroy()
+        autoScrollStateChangedListener = null
+        autoScrollController.pause()
         scope.cancel()
+    }
+
+    fun toggleAutoScroll() {
+        autoScrollController.toggle()
+    }
+
+    fun pauseAutoScroll() {
+        autoScrollController.pause()
+    }
+
+    fun setAutoScrollSpeedTenths(value: Int) {
+        val speedTenths = value.coerceIn(
+            ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
+            ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
+        )
+        autoScrollController.setSpeedTenths(speedTenths)
+    }
+
+    fun isAutoScrollRunning(): Boolean {
+        return autoScrollController.isRunning()
     }
 
     /**

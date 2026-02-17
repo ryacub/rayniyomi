@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import eu.kanade.domain.entries.manga.model.readerOrientation
 import eu.kanade.domain.entries.manga.model.readingMode
+import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
@@ -162,11 +163,23 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
     val webtoonSidePadding by screenModel.preferences.webtoonSidePadding().collectAsState()
     SliderItem(
         value = webtoonSidePadding,
-        valueRange = ReaderPreferences.let { it.WEBTOON_PADDING_MIN..it.WEBTOON_PADDING_MAX },
+        valueRange = ReaderPreferences.WEBTOON_PADDING_MIN..ReaderPreferences.WEBTOON_PADDING_MAX,
         label = stringResource(MR.strings.pref_webtoon_side_padding),
         valueText = numberFormat.format(webtoonSidePadding / 100f),
         onChange = {
             screenModel.preferences.webtoonSidePadding().set(it)
+        },
+        pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+    )
+
+    val webtoonAutoScrollSpeed by screenModel.preferences.webtoonAutoScrollSpeedTenths().collectAsState()
+    SliderItem(
+        value = webtoonAutoScrollSpeed,
+        valueRange = ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN..ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
+        label = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
+        valueText = formatWebtoonAutoScrollSpeed(webtoonAutoScrollSpeed),
+        onChange = {
+            screenModel.preferences.webtoonAutoScrollSpeedTenths().set(it)
         },
         pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
     )
