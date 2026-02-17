@@ -10,7 +10,7 @@ class LightNovelFeatureGateTest {
 
     @Test
     fun `feature unavailable when toggle is off even if plugin is ready`() {
-        val prefs = NovelFeaturePreferences(InMemoryPreferenceStore())
+        val prefs = createPreferences(enabled = false)
         val gate = LightNovelFeatureGate(
             preferences = prefs,
             pluginReadiness = object : LightNovelPluginReadiness {
@@ -18,14 +18,12 @@ class LightNovelFeatureGateTest {
             },
         )
 
-        prefs.enableLightNovels().set(false)
-
         assertFalse(gate.isFeatureAvailable())
     }
 
     @Test
     fun `feature unavailable when toggle is on but plugin is not ready`() {
-        val prefs = NovelFeaturePreferences(InMemoryPreferenceStore())
+        val prefs = createPreferences(enabled = true)
         val gate = LightNovelFeatureGate(
             preferences = prefs,
             pluginReadiness = object : LightNovelPluginReadiness {
@@ -33,14 +31,12 @@ class LightNovelFeatureGateTest {
             },
         )
 
-        prefs.enableLightNovels().set(true)
-
         assertFalse(gate.isFeatureAvailable())
     }
 
     @Test
     fun `feature available when toggle is on and plugin is ready`() {
-        val prefs = NovelFeaturePreferences(InMemoryPreferenceStore())
+        val prefs = createPreferences(enabled = true)
         val gate = LightNovelFeatureGate(
             preferences = prefs,
             pluginReadiness = object : LightNovelPluginReadiness {
@@ -48,8 +44,19 @@ class LightNovelFeatureGateTest {
             },
         )
 
-        prefs.enableLightNovels().set(true)
-
         assertTrue(gate.isFeatureAvailable())
+    }
+
+    private fun createPreferences(enabled: Boolean): NovelFeaturePreferences {
+        val store = InMemoryPreferenceStore(
+            sequenceOf(
+                InMemoryPreferenceStore.InMemoryPreference(
+                    key = "enable_light_novels",
+                    data = enabled,
+                    defaultValue = false,
+                ),
+            ),
+        )
+        return NovelFeaturePreferences(store)
     }
 }

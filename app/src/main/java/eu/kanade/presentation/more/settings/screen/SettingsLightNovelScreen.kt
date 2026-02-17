@@ -35,8 +35,11 @@ object SettingsLightNovelScreen : SearchableSettings {
         val preferences = remember { Injekt.get<NovelFeaturePreferences>() }
         val pluginManager = remember { Injekt.get<LightNovelPluginManager>() }
 
-        val enabled by preferences.enableLightNovels().collectAsState()
-        val channel by preferences.lightNovelPluginChannel().collectAsState()
+        val enableLightNovelsPref = remember { preferences.enableLightNovels() }
+        val lightNovelPluginChannelPref = remember { preferences.lightNovelPluginChannel() }
+
+        val enabled by enableLightNovelsPref.collectAsState()
+        val channel by lightNovelPluginChannelPref.collectAsState()
 
         var status by remember(enabled, channel) { mutableStateOf(pluginManager.getPluginStatus()) }
 
@@ -59,7 +62,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                 title = stringResource(AYMR.strings.pref_category_light_novels),
                 preferenceItems = persistentListOf(
                     Preference.PreferenceItem.SwitchPreference(
-                        preference = preferences.enableLightNovels(),
+                        preference = enableLightNovelsPref,
                         title = stringResource(AYMR.strings.pref_enable_light_novels),
                         subtitle = stringResource(AYMR.strings.pref_enable_light_novels_summary),
                         onValueChanged = { newValue ->
@@ -74,7 +77,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                                             context.toast(AYMR.strings.light_novel_plugin_install_started)
                                         }
                                         is LightNovelPluginManager.InstallResult.Error -> {
-                                            preferences.enableLightNovels().set(false)
+                                            enableLightNovelsPref.set(false)
                                             context.toast(result.message)
                                         }
                                     }
@@ -85,7 +88,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                         },
                     ),
                     Preference.PreferenceItem.ListPreference(
-                        preference = preferences.lightNovelPluginChannel(),
+                        preference = lightNovelPluginChannelPref,
                         entries = mapOf(
                             NovelFeaturePreferences.CHANNEL_STABLE to
                                 stringResource(AYMR.strings.pref_light_novel_plugin_channel_stable),

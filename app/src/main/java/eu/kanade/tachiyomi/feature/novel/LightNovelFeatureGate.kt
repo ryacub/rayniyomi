@@ -10,7 +10,9 @@ class LightNovelFeatureGate(
     private val preferences: NovelFeaturePreferences,
     private val pluginReadiness: LightNovelPluginReadiness,
 ) {
+    private val enableLightNovelsPref = preferences.enableLightNovels()
+
     fun isFeatureAvailable(): Boolean {
-        return preferences.enableLightNovels().get() && pluginReadiness.isPluginReady()
+        return enableLightNovelsPref.get() && pluginReadiness.isPluginReady()
     }
 }

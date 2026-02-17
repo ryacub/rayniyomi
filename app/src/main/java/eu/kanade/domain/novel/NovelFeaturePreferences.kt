@@ -5,12 +5,9 @@ import tachiyomi.core.common.preference.PreferenceStore
 class NovelFeaturePreferences(
     private val preferenceStore: PreferenceStore,
 ) {
-    private val enableLightNovelsPref = preferenceStore.getBoolean("enable_light_novels", false)
-    private val lightNovelPluginChannelPref = preferenceStore.getString("light_novel_plugin_channel", CHANNEL_STABLE)
+    fun enableLightNovels() = preferenceStore.getBoolean("enable_light_novels", false)
 
-    fun enableLightNovels() = enableLightNovelsPref
-
-    fun lightNovelPluginChannel() = lightNovelPluginChannelPref
+    fun lightNovelPluginChannel() = preferenceStore.getString("light_novel_plugin_channel", CHANNEL_STABLE)
 
     companion object {
         const val CHANNEL_STABLE = "stable"
