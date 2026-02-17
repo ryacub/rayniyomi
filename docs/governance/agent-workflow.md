@@ -3,7 +3,7 @@
 This repository follows ticket-driven delivery with explicit verification and review gates.
 
 ## Required Flow
-1. Pick one ticket and verify dependencies (via GitHub Issues).
+1. Pick one ticket and verify dependencies + ticket readiness (via GitHub Issues).
 2. Create a branch by agent:
    - **Claude:** `claude/<ticket-id>-<short-slug>`
    - **Codex:** `codex/<ticket-id>-<short-slug>`
@@ -100,6 +100,14 @@ The following files have single-owner constraints to prevent merge conflicts:
 - Keep resolution scoped (no unrelated refactors)
 - Record in PR notes: conflicting files, resolution choice, behavior risks
 - Re-run full verification matrix after resolution
+
+## Definition of Ready (DoR)
+Before implementation starts, the ticket must satisfy all of the following:
+- Scope is explicit, bounded, and testable.
+- Dependencies are listed and in a done/available state.
+- Risk tier (`T1`/`T2`/`T3`) and priority (`P0`/`P1`/`P2`) are assigned.
+- Verification approach is identified (what commands/evidence will prove success).
+- Non-goals and rollback expectations are clear for risky work.
 
 ## Definition of Done
 - Acceptance criteria met.
