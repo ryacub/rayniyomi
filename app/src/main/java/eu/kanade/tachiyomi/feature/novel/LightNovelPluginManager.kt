@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.pm.PackageInfoCompat
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.tachiyomi.BuildConfig
@@ -30,16 +31,30 @@ class LightNovelPluginManager(
     private val network: NetworkHelper,
     private val json: Json,
     private val packageInspector: PackageInspector = AndroidPackageInspector(context.packageManager),
-    private val manifestFetcherOverride: (suspend (String) -> Result<LightNovelPluginManifest>)? = null,
-    private val pluginDownloaderOverride: (suspend (LightNovelPluginManifest) -> Result<File>)? = null,
-    private val installLauncherOverride: (suspend (File) -> Result<Unit>)? = null,
-    private val signerPinsProviderOverride: (() -> Set<String>)? = null,
 ) : LightNovelPluginReadiness {
 
     private val installMutex = Mutex()
+    private var manifestFetcher: suspend (String) -> Result<LightNovelPluginManifest> = ::fetchManifestFromNetwork
+    private var pluginDownloader: suspend (LightNovelPluginManifest) -> Result<File> = ::downloadPluginFromNetwork
+    private var installLauncher: suspend (File) -> Result<Unit> = ::launchInstallIntent
+    private var signerPinsProvider: () -> Set<String> = ::trustedSignerPinsFromBuildConfig
 
     init {
         cleanupOrphanedPluginApk()
+    }
+
+    @VisibleForTesting
+    internal constructor(
+        context: Context,
+        network: NetworkHelper,
+        json: Json,
+        packageInspector: PackageInspector = AndroidPackageInspector(context.packageManager),
+        testHooks: TestHooks,
+    ) : this(context, network, json, packageInspector) {
+        testHooks.manifestFetcher?.let { manifestFetcher = it }
+        testHooks.pluginDownloader?.let { pluginDownloader = it }
+        testHooks.installLauncher?.let { installLauncher = it }
+        testHooks.signerPinsProvider?.let { signerPinsProvider = it }
     }
 
     enum class VersionState {
@@ -99,6 +114,14 @@ class LightNovelPluginManager(
         fun getSignatures(packageInfo: PackageInfo): List<String>
         fun getCompatibilityState(packageInfo: PackageInfo): CompatibilityState? = null
     }
+
+    @VisibleForTesting
+    internal data class TestHooks(
+        val manifestFetcher: (suspend (String) -> Result<LightNovelPluginManifest>)? = null,
+        val pluginDownloader: (suspend (LightNovelPluginManifest) -> Result<File>)? = null,
+        val installLauncher: (suspend (File) -> Result<Unit>)? = null,
+        val signerPinsProvider: (() -> Set<String>)? = null,
+    )
 
     override fun isPluginReady(): Boolean {
         val status = getPluginStatus()
@@ -290,19 +313,19 @@ class LightNovelPluginManager(
     }
 
     private suspend fun fetchManifest(channel: String): Result<LightNovelPluginManifest> {
-        return manifestFetcherOverride?.invoke(channel) ?: fetchManifestFromNetwork(channel)
+        return manifestFetcher(channel)
     }
 
     private suspend fun downloadPlugin(manifest: LightNovelPluginManifest): Result<File> {
-        return pluginDownloaderOverride?.invoke(manifest) ?: downloadPluginFromNetwork(manifest)
+        return pluginDownloader(manifest)
     }
 
     private suspend fun launchInstall(apkFile: File): Result<Unit> {
-        return installLauncherOverride?.invoke(apkFile) ?: launchInstallIntent(apkFile)
+        return installLauncher(apkFile)
     }
 
     private fun trustedSignerPins(): Set<String> {
-        return signerPinsProviderOverride?.invoke() ?: trustedSignerPinsFromBuildConfig()
+        return signerPinsProvider()
     }
 
     private fun rejectWithCleanup(apkFile: File, reason: RejectionReason, logMessage: String): InstallResult.Rejected {

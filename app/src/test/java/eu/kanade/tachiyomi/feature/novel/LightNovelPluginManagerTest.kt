@@ -242,10 +242,12 @@ class LightNovelPluginManagerTest {
             network = mockk(relaxed = true),
             json = mockk(relaxed = true),
             packageInspector = packageInspector,
-            manifestFetcherOverride = manifestFetcher,
-            pluginDownloaderOverride = pluginDownloader,
-            installLauncherOverride = installLauncher,
-            signerPinsProviderOverride = signerPinsProvider,
+            testHooks = LightNovelPluginManager.TestHooks(
+                manifestFetcher = manifestFetcher,
+                pluginDownloader = pluginDownloader,
+                installLauncher = installLauncher,
+                signerPinsProvider = signerPinsProvider,
+            ),
         )
     }
 
