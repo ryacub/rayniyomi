@@ -37,7 +37,7 @@ class LightNovelPluginManager(
 ) : LightNovelPluginReadiness {
     private val installMutex = Mutex()
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val inFlightLock = Any()
+    private val inFlightInstallMutex = Mutex()
     private var inFlightInstall: Deferred<InstallResult>? = null
     init {
         cleanupOrphanedPluginApk()
@@ -83,17 +83,15 @@ class LightNovelPluginManager(
     }
 
     suspend fun ensurePluginReady(channel: String): InstallResult {
-        val installDeferred = synchronized(inFlightLock) {
-            inFlightInstall?.takeIf { it.isActive } ?: installScope.async {
-                ensurePluginReadyInternal(channel)
-            }.also { deferred ->
-                inFlightInstall = deferred
-                deferred.invokeOnCompletion {
-                    synchronized(inFlightLock) {
-                        if (inFlightInstall === deferred) {
-                            inFlightInstall = null
-                        }
-                    }
+        val installDeferred = inFlightInstallMutex.withLock {
+            val inFlight = inFlightInstall
+            if (inFlight != null && inFlight.isActive) {
+                inFlight
+            } else {
+                installScope.async {
+                    ensurePluginReadyInternal(channel)
+                }.also {
+                    inFlightInstall = it
                 }
             }
         }
