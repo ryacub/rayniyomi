@@ -72,6 +72,15 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
+# Explicit keep for Light Novel plugin manifest serializers.
+-keep,includedescriptorclasses class eu.kanade.tachiyomi.feature.novel.**$$serializer { *; }
+-keepclassmembers class eu.kanade.tachiyomi.feature.novel.** {
+    *** Companion;
+}
+-keepclasseswithmembers class eu.kanade.tachiyomi.feature.novel.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
 -keep class kotlinx.serialization.**
 -keepclassmembers class kotlinx.serialization.** {
     <methods>;
