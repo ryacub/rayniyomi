@@ -534,6 +534,7 @@ class AnimeScreenModel(
                 idSelector = { it.id },
                 updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
             )
+            if (newEpisodes === successState.episodes) return@updateSuccessState successState
             successState.copy(episodes = newEpisodes)
         }
     }
@@ -1374,13 +1375,15 @@ class AnimeScreenModel(
     ) {
         updateSuccessState { successState ->
             val newEpisodes = selectionController.toggleSelection(
-                items = successState.processedEpisodes,
+                visibleItems = successState.processedEpisodes,
+                allItems = successState.episodes,
                 itemId = item.id,
                 selected = selected,
                 userSelected = userSelected,
                 fromLongPress = fromLongPress,
                 updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
             )
+            if (newEpisodes === successState.episodes) return@updateSuccessState successState
             successState.copy(episodes = newEpisodes)
         }
     }

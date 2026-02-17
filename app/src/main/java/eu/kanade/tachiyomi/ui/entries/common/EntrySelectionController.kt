@@ -16,22 +16,26 @@ internal class EntrySelectionController(
     private val rangeState = SelectionRangeState()
 
     fun <T : SelectableEntryItem> toggleSelection(
-        items: List<T>,
+        visibleItems: List<T>,
+        allItems: List<T>,
         itemId: Long,
         selected: Boolean,
         userSelected: Boolean,
         fromLongPress: Boolean,
         updateSelection: (T, Boolean) -> T,
     ): List<T> {
-        val newItems = items.toMutableList()
-        val selectedIndex = items.indexOfFirst { it.id == itemId }
-        if (selectedIndex < 0) return items
+        val selectedIndex = visibleItems.indexOfFirst { it.id == itemId }
+        if (selectedIndex < 0) return allItems
 
-        val selectedItem = newItems[selectedIndex]
-        if ((selectedItem.selected && selected) || (!selectedItem.selected && !selected)) return items
+        val allIndexById = allItems.indices.associateBy { allItems[it].id }
+        val selectedCanonicalIndex = allIndexById[itemId] ?: return allItems
+        val newItems = allItems.toMutableList()
 
-        val firstSelection = newItems.none { it.selected }
-        newItems[selectedIndex] = updateSelection(selectedItem, selected)
+        val selectedItem = newItems[selectedCanonicalIndex]
+        if ((selectedItem.selected && selected) || (!selectedItem.selected && !selected)) return allItems
+
+        val firstSelection = selectedIds.isEmpty()
+        newItems[selectedCanonicalIndex] = updateSelection(selectedItem, selected)
         addOrRemoveSelection(itemId, selected)
 
         if (selected && userSelected && fromLongPress) {
@@ -54,24 +58,37 @@ internal class EntrySelectionController(
                 }
 
                 range.forEach { index ->
-                    val inbetweenItem = newItems[index]
+                    val inbetweenId = visibleItems[index].id
+                    val inbetweenCanonicalIndex = allIndexById[inbetweenId] ?: return@forEach
+                    val inbetweenItem = newItems[inbetweenCanonicalIndex]
                     if (!inbetweenItem.selected) {
                         addOrRemoveSelection(inbetweenItem.id, true)
-                        newItems[index] = updateSelection(inbetweenItem, true)
+                        newItems[inbetweenCanonicalIndex] = updateSelection(inbetweenItem, true)
                     }
                 }
             }
         } else if (userSelected && !fromLongPress) {
             if (!selected) {
                 if (selectedIndex == rangeState.first) {
-                    rangeState.first = newItems.indexOfFirst { it.selected }
+                    val reanchoredFirst = visibleItems.indexOfFirst { it.id in selectedIds }
+                    if (reanchoredFirst == -1) {
+                        resetRange()
+                    } else {
+                        rangeState.first = reanchoredFirst
+                    }
                 } else if (selectedIndex == rangeState.last) {
-                    rangeState.last = newItems.indexOfLast { it.selected }
+                    val reanchoredLast = visibleItems.indexOfLast { it.id in selectedIds }
+                    if (reanchoredLast == -1) {
+                        resetRange()
+                    } else {
+                        rangeState.last = reanchoredLast
+                    }
                 }
             } else {
-                if (selectedIndex < rangeState.first) {
+                if (rangeState.first == -1 || selectedIndex < rangeState.first) {
                     rangeState.first = selectedIndex
-                } else if (selectedIndex > rangeState.last) {
+                }
+                if (rangeState.last == -1 || selectedIndex > rangeState.last) {
                     rangeState.last = selectedIndex
                 }
             }

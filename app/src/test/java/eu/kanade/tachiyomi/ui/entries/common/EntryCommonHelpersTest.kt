@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Field
 
 class EntryCommonHelpersTest {
 
@@ -21,7 +22,8 @@ class EntryCommonHelpersTest {
         val items = (1L..5L).map { TestSelectableItem(id = it, selected = false) }
 
         val firstSelected = controller.toggleSelection(
-            items = items,
+            visibleItems = items,
+            allItems = items,
             itemId = 1L,
             selected = true,
             userSelected = true,
@@ -30,7 +32,8 @@ class EntryCommonHelpersTest {
         )
 
         val rangeSelected = controller.toggleSelection(
-            items = firstSelected,
+            visibleItems = firstSelected,
+            allItems = firstSelected,
             itemId = 4L,
             selected = true,
             userSelected = true,
@@ -44,6 +47,214 @@ class EntryCommonHelpersTest {
         assertTrue(rangeSelected.first { it.id == 4L }.selected)
         assertFalse(rangeSelected.first { it.id == 5L }.selected)
         assertEquals(setOf(1L, 2L, 3L, 4L), selectedIds)
+    }
+
+    @Test
+    fun `selection controller mutates canonical list when visible list is filtered`() {
+        val selectedIds = mutableSetOf<Long>()
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = listOf(
+            TestSelectableItem(id = 1L, selected = false),
+            TestSelectableItem(id = 2L, selected = false),
+            TestSelectableItem(id = 3L, selected = false),
+            TestSelectableItem(id = 4L, selected = false),
+            TestSelectableItem(id = 5L, selected = false),
+        )
+        val visible = listOf(canonical[0], canonical[2], canonical[4]) // ids 1,3,5
+
+        val updated = controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 3L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = false,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        assertFalse(updated.first { it.id == 2L }.selected)
+        assertTrue(updated.first { it.id == 3L }.selected)
+        assertEquals(setOf(3L), selectedIds)
+    }
+
+    @Test
+    fun `selection controller applies filtered range selection to canonical list`() {
+        val selectedIds = mutableSetOf<Long>()
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = (1L..7L).map { TestSelectableItem(id = it, selected = false) }
+        val visible = listOf(canonical[0], canonical[2], canonical[4], canonical[6]) // ids 1,3,5,7
+
+        val firstSelected = controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 1L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        val visibleAfterFirst = firstSelected.filter { it.id in setOf(1L, 3L, 5L, 7L) }
+
+        val rangeSelected = controller.toggleSelection(
+            visibleItems = visibleAfterFirst,
+            allItems = firstSelected,
+            itemId = 7L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        assertEquals(setOf(1L, 3L, 5L, 7L), selectedIds)
+        assertFalse(rangeSelected.first { it.id == 2L }.selected)
+        assertTrue(rangeSelected.first { it.id == 3L }.selected)
+        assertFalse(rangeSelected.first { it.id == 4L }.selected)
+        assertTrue(rangeSelected.first { it.id == 5L }.selected)
+    }
+
+    @Test
+    fun `selection controller all and invert remain canonical under filtered view`() {
+        val selectedIds = mutableSetOf<Long>()
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = (1L..5L).map { TestSelectableItem(id = it, selected = false) }
+        val visible = listOf(canonical[0], canonical[2], canonical[4])
+
+        val selectedFromFiltered = controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 3L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = false,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        assertEquals(setOf(3L), selectedIds)
+
+        val allSelected = controller.toggleAllSelection(
+            items = selectedFromFiltered,
+            selected = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        assertEquals(setOf(1L, 2L, 3L, 4L, 5L), selectedIds)
+        assertTrue(allSelected.all { it.selected })
+
+        val inverted = controller.invertSelection(
+            items = allSelected,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        assertTrue(selectedIds.isEmpty())
+        assertTrue(inverted.none { it.selected })
+    }
+
+    @Test
+    fun `selection controller keeps range anchors when hidden item is pre-selected`() {
+        val selectedIds = mutableSetOf(2L)
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = listOf(
+            TestSelectableItem(id = 1L, selected = false),
+            TestSelectableItem(id = 2L, selected = true), // hidden pre-selection
+            TestSelectableItem(id = 3L, selected = false),
+            TestSelectableItem(id = 4L, selected = false),
+            TestSelectableItem(id = 5L, selected = false),
+        )
+        val visible = listOf(canonical[0], canonical[2], canonical[4]) // ids 1,3,5
+
+        setRangeState(controller, first = 0, last = 2)
+
+        controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 3L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        assertEquals(0, getRangeStateValue(controller, "first"))
+        assertEquals(2, getRangeStateValue(controller, "last"))
+    }
+
+    @Test
+    fun `selection controller resets range when re-anchor cannot find visible selection`() {
+        val selectedIds = mutableSetOf(2L, 3L)
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = listOf(
+            TestSelectableItem(id = 1L, selected = false),
+            TestSelectableItem(id = 2L, selected = true), // hidden remaining selection
+            TestSelectableItem(id = 3L, selected = true), // visible and will be deselected
+            TestSelectableItem(id = 4L, selected = false),
+            TestSelectableItem(id = 5L, selected = false),
+        )
+        val visible = listOf(canonical[0], canonical[2], canonical[4]) // ids 1,3,5
+
+        setRangeState(controller, first = 1, last = 1)
+
+        controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 3L,
+            selected = false,
+            userSelected = true,
+            fromLongPress = false,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        assertEquals(-1, getRangeStateValue(controller, "first"))
+        assertEquals(-1, getRangeStateValue(controller, "last"))
+    }
+
+    @Test
+    fun `selection flows stay behaviorally aligned under filters with long-press range`() {
+        val animeController = EntrySelectionController(mutableSetOf())
+        val mangaController = EntrySelectionController(mutableSetOf())
+
+        val animeCanonical = (1L..6L).map { TestSelectableItem(id = it, selected = false) }
+        val mangaCanonical = (1L..6L).map { TestSelectableItem(id = it, selected = false) }
+        val animeVisible = animeCanonical.filter { it.id % 2L == 1L } // 1,3,5
+        val mangaVisible = mangaCanonical.filter { it.id % 2L == 1L } // 1,3,5
+
+        val animeAfterFirstLongPress = animeController.toggleSelection(
+            visibleItems = animeVisible,
+            allItems = animeCanonical,
+            itemId = 1L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        val mangaAfterFirstLongPress = mangaController.toggleSelection(
+            visibleItems = mangaVisible,
+            allItems = mangaCanonical,
+            itemId = 1L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        val animeAfter = animeController.toggleSelection(
+            visibleItems = animeAfterFirstLongPress.filter { it.id % 2L == 1L },
+            allItems = animeAfterFirstLongPress,
+            itemId = 5L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        val mangaAfter = mangaController.toggleSelection(
+            visibleItems = mangaAfterFirstLongPress.filter { it.id % 2L == 1L },
+            allItems = mangaAfterFirstLongPress,
+            itemId = 5L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        val animeSelectedIds = animeAfter.filter { it.selected }.map { it.id }.toSet()
+        val mangaSelectedIds = mangaAfter.filter { it.selected }.map { it.id }.toSet()
+        assertEquals(animeSelectedIds, mangaSelectedIds)
     }
 
     @Test
@@ -191,5 +402,28 @@ class EntryCommonHelpersTest {
 
         override val animeService: AnimeTracker
             get() = throw UnsupportedOperationException("not needed")
+    }
+
+    private fun setRangeState(controller: EntrySelectionController, first: Int, last: Int) {
+        val state = getRangeState(controller)
+        getRangeStateField(state, "first").setInt(state, first)
+        getRangeStateField(state, "last").setInt(state, last)
+    }
+
+    private fun getRangeStateValue(controller: EntrySelectionController, fieldName: String): Int {
+        val state = getRangeState(controller)
+        return getRangeStateField(state, fieldName).getInt(state)
+    }
+
+    private fun getRangeState(controller: EntrySelectionController): Any {
+        val field = controller::class.java.getDeclaredField("rangeState")
+        field.isAccessible = true
+        return requireNotNull(field.get(controller))
+    }
+
+    private fun getRangeStateField(state: Any, fieldName: String): Field {
+        return state::class.java.getDeclaredField(fieldName).apply {
+            isAccessible = true
+        }
     }
 }

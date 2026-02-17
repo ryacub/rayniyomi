@@ -525,6 +525,7 @@ class MangaScreenModel(
                 idSelector = { it.id },
                 updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
             )
+            if (newChapters === successState.chapters) return@updateSuccessState successState
             successState.copy(chapters = newChapters)
         }
     }
@@ -997,13 +998,15 @@ class MangaScreenModel(
     ) {
         updateSuccessState { successState ->
             val newChapters = selectionController.toggleSelection(
-                items = successState.processedChapters,
+                visibleItems = successState.processedChapters,
+                allItems = successState.chapters,
                 itemId = item.id,
                 selected = selected,
                 userSelected = userSelected,
                 fromLongPress = fromLongPress,
                 updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
             )
+            if (newChapters === successState.chapters) return@updateSuccessState successState
             successState.copy(chapters = newChapters)
         }
     }
