@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.manga.model
 
+import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ data class MangaDownload(
     val source: HttpSource,
     val manga: Manga,
     val chapter: Chapter,
+    var priority: DownloadPriority = DownloadPriority.NORMAL,
 ) {
 
     @Transient

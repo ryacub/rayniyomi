@@ -1,10 +1,12 @@
 package eu.kanade.tachiyomi.ui.download.manga
 
 import android.view.View
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import eu.davidea.viewholders.FlexibleViewHolder
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.databinding.DownloadItemBinding
 import eu.kanade.tachiyomi.util.view.popupMenu
 
@@ -39,6 +41,21 @@ class MangaDownloadHolder(private val view: View, val adapter: MangaDownloadAdap
 
         // Update the manga title
         binding.mangaFullTitle.text = download.manga.title
+
+        // Update priority badge
+        when (download.priority) {
+            DownloadPriority.HIGH -> {
+                binding.priorityBadge.isVisible = true
+                binding.priorityBadge.text = "HIGH"
+            }
+            DownloadPriority.LOW -> {
+                binding.priorityBadge.isVisible = true
+                binding.priorityBadge.text = "LOW"
+            }
+            DownloadPriority.NORMAL -> {
+                binding.priorityBadge.isVisible = false
+            }
+        }
 
         // Update the progress bar and the number of downloaded pages
         val pages = download.pages

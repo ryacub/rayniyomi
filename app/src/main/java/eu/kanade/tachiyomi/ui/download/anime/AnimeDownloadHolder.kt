@@ -1,10 +1,12 @@
 package eu.kanade.tachiyomi.ui.download.anime
 
 import android.view.View
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import eu.davidea.viewholders.FlexibleViewHolder
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.databinding.DownloadItemBinding
 import eu.kanade.tachiyomi.util.view.popupMenu
 import tachiyomi.core.common.i18n.stringResource
@@ -42,6 +44,21 @@ class AnimeDownloadHolder(private val view: View, val adapter: AnimeDownloadAdap
 
         // Update the manga title
         binding.mangaFullTitle.text = download.anime.title
+
+        // Update priority badge
+        when (download.priority) {
+            DownloadPriority.HIGH -> {
+                binding.priorityBadge.isVisible = true
+                binding.priorityBadge.text = "HIGH"
+            }
+            DownloadPriority.LOW -> {
+                binding.priorityBadge.isVisible = true
+                binding.priorityBadge.text = "LOW"
+            }
+            DownloadPriority.NORMAL -> {
+                binding.priorityBadge.isVisible = false
+            }
+        }
 
         // Update the progress bar and the number of downloaded pages
         val video = download.video
