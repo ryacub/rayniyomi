@@ -90,9 +90,14 @@ class WebtoonPageHolder(
      * Binds the given [page] with this view holder, subscribing to its state.
      */
     fun bind(page: ReaderPage) {
+        // Cancel old resources before creating new ones
+        loadJob?.cancel()
+        loadJob = null
+        scope.cancel()
+
+        // Create new scope for this bind cycle
         scope = MainScope()
         this.page = page
-        loadJob?.cancel()
         loadJob = scope.launch { loadPageAndProcessStatus() }
         refreshLayoutParams()
     }
@@ -113,6 +118,8 @@ class WebtoonPageHolder(
      * Called when the view is recycled and added to the view pool.
      */
     override fun recycle() {
+        // Cancel scope first (cancels all child jobs)
+        scope.cancel()
         loadJob?.cancel()
         loadJob = null
 
@@ -120,7 +127,6 @@ class WebtoonPageHolder(
         frame.recycle()
         progressIndicator.setProgress(0)
         progressContainer.isVisible = true
-        scope.cancel()
     }
 
     /**

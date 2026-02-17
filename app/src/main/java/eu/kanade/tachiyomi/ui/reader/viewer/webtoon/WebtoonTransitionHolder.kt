@@ -65,6 +65,12 @@ class WebtoonTransitionHolder(
      * Binds the given [transition] with this view holder, subscribing to its state.
      */
     fun bind(transition: ChapterTransition) {
+        // Cancel old resources before creating new ones
+        stateJob?.cancel()
+        stateJob = null
+        scope.cancel()
+
+        // Create new scope for this bind cycle
         scope = MainScope()
         transitionView.bind(transition, viewer.downloadManager, viewer.activity.viewModel.manga)
 
@@ -75,8 +81,10 @@ class WebtoonTransitionHolder(
      * Called when the view is recycled and being added to the view pool.
      */
     override fun recycle() {
-        stateJob?.cancel()
+        // Cancel scope first (cancels all child jobs)
         scope.cancel()
+        stateJob?.cancel()
+        stateJob = null
     }
 
     /**
