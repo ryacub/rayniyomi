@@ -997,7 +997,8 @@ class MangaScreenModel(
     ) {
         updateSuccessState { successState ->
             val newChapters = selectionController.toggleSelection(
-                items = successState.processedChapters,
+                visibleItems = successState.processedChapters,
+                allItems = successState.chapters,
                 itemId = item.id,
                 selected = selected,
                 userSelected = userSelected,

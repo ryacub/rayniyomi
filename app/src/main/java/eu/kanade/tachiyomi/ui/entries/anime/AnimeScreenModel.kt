@@ -1374,7 +1374,8 @@ class AnimeScreenModel(
     ) {
         updateSuccessState { successState ->
             val newEpisodes = selectionController.toggleSelection(
-                items = successState.processedEpisodes,
+                visibleItems = successState.processedEpisodes,
+                allItems = successState.episodes,
                 itemId = item.id,
                 selected = selected,
                 userSelected = userSelected,
