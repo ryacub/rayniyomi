@@ -15,6 +15,11 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.lang.Hash
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.storage.saveTo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -31,6 +36,9 @@ class LightNovelPluginManager(
     private val json: Json,
 ) : LightNovelPluginReadiness {
     private val installMutex = Mutex()
+    private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val inFlightLock = Any()
+    private var inFlightInstall: Deferred<InstallResult>? = null
     init {
         cleanupOrphanedPluginApk()
     }
@@ -75,6 +83,24 @@ class LightNovelPluginManager(
     }
 
     suspend fun ensurePluginReady(channel: String): InstallResult {
+        val installDeferred = synchronized(inFlightLock) {
+            inFlightInstall?.takeIf { it.isActive } ?: installScope.async {
+                ensurePluginReadyInternal(channel)
+            }.also { deferred ->
+                inFlightInstall = deferred
+                deferred.invokeOnCompletion {
+                    synchronized(inFlightLock) {
+                        if (inFlightInstall === deferred) {
+                            inFlightInstall = null
+                        }
+                    }
+                }
+            }
+        }
+        return installDeferred.await()
+    }
+
+    private suspend fun ensurePluginReadyInternal(channel: String): InstallResult {
         if (!isPluginInstallEnabled()) {
             return InstallResult.Error("Light Novel plugin install is disabled for this build")
         }
@@ -96,8 +122,8 @@ class LightNovelPluginManager(
             )
                 ?: return@withLock InstallResult.Error("Invalid plugin APK")
 
-            if (archivePackage.packageName != PLUGIN_PACKAGE_NAME ||
-                archivePackage.packageName != manifest.packageName
+            if (manifest.packageName != PLUGIN_PACKAGE_NAME ||
+                archivePackage.packageName != PLUGIN_PACKAGE_NAME
             ) {
                 apkFile.delete()
                 return@withLock InstallResult.Error("Plugin package name mismatch")
