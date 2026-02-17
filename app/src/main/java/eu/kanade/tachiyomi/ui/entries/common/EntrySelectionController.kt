@@ -1,19 +1,20 @@
 package eu.kanade.tachiyomi.ui.entries.common
 
-data class SelectionRangeState(
-    var first: Int = -1,
-    var last: Int = -1,
-)
-
-interface SelectableEntryItem {
+internal interface SelectableEntryItem {
     val id: Long
     val selected: Boolean
 }
 
-class EntrySelectionController(
+internal class EntrySelectionController(
     private val selectedIds: MutableSet<Long>,
-    private val rangeState: SelectionRangeState = SelectionRangeState(),
 ) {
+    private class SelectionRangeState(
+        var first: Int = -1,
+        var last: Int = -1,
+    )
+
+    private val rangeState = SelectionRangeState()
+
     fun <T : SelectableEntryItem> toggleSelection(
         items: List<T>,
         itemId: Long,
@@ -55,7 +56,7 @@ class EntrySelectionController(
                 range.forEach { index ->
                     val inbetweenItem = newItems[index]
                     if (!inbetweenItem.selected) {
-                        selectedIds.add(inbetweenItem.id)
+                        addOrRemoveSelection(inbetweenItem.id, true)
                         newItems[index] = updateSelection(inbetweenItem, true)
                     }
                 }

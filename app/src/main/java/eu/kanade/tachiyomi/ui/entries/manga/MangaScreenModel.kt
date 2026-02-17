@@ -468,7 +468,7 @@ class MangaScreenModel(
      * @param categories the selected categories.
      */
     private fun moveMangaToCategories(categories: List<Category>) {
-        val categoryIds = EntryCategoryActions.toCategoryIds(categories)
+        val categoryIds = categories.map { it.id }
         moveMangaToCategory(categoryIds)
     }
 
@@ -484,7 +484,7 @@ class MangaScreenModel(
      * @param category the selected category, or null for default category.
      */
     private fun moveMangaToCategory(category: Category?) {
-        moveMangaToCategories(EntryCategoryActions.toCategoryList(category))
+        moveMangaToCategories(listOfNotNull(category))
     }
 
     // Manga info - end
@@ -1141,7 +1141,7 @@ class MangaScreenModel(
                     itemId = { it.id },
                     itemNumber = { it.chapter.chapterNumber },
                     calculateGap = { higher, lower -> calculateChapterGap(higher.chapter, lower.chapter) },
-                    mapItem = { it as ChapterList },
+                    mapItem = { it },
                     mapMissing = { id, count -> ChapterList.MissingCount(id = id, count = count) },
                 )
             }

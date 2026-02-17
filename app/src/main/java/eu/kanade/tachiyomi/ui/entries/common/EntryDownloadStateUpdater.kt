@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.entries.common
 
-object EntryDownloadStateUpdater {
+internal object EntryDownloadStateUpdater {
     fun <T> update(
         items: List<T>,
         entryId: Long,
@@ -11,8 +11,7 @@ object EntryDownloadStateUpdater {
         if (modifiedIndex < 0) return items
 
         return items.toMutableList().apply {
-            val item = removeAt(modifiedIndex)
-            add(modifiedIndex, updateItem(item))
+            this[modifiedIndex] = updateItem(this[modifiedIndex])
         }
     }
 }

@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.entries.common
 
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.Tracker
+import io.mockk.mockk
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -156,7 +157,7 @@ class EntryCommonHelpersTest {
         override val id: Long,
     ) : Tracker {
         override val name: String = "test"
-        override val client: OkHttpClient = OkHttpClient()
+        override val client: OkHttpClient = mockk()
         override val supportsReadingDates: Boolean = false
         override val supportsPrivateTracking: Boolean = false
         override val isLoggedIn: Boolean = true

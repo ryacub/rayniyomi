@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi.ui.entries.common
 
 import kotlin.math.floor
 
-object EntryListGapSeparator {
+internal object EntryListGapSeparator {
     fun <T, R> withMissingCount(
         items: List<T>,
         sortDescending: Boolean,

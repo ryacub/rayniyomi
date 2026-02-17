@@ -477,7 +477,7 @@ class AnimeScreenModel(
      * @param categories the selected categories.
      */
     private fun moveAnimeToCategories(categories: List<Category>) {
-        val categoryIds = EntryCategoryActions.toCategoryIds(categories)
+        val categoryIds = categories.map { it.id }
         moveAnimeToCategory(categoryIds)
     }
 
@@ -493,7 +493,7 @@ class AnimeScreenModel(
      * @param category the selected category, or null for default category.
      */
     private fun moveAnimeToCategory(category: Category?) {
-        moveAnimeToCategories(EntryCategoryActions.toCategoryList(category))
+        moveAnimeToCategories(listOfNotNull(category))
     }
 
     // Anime info - end
@@ -1557,7 +1557,7 @@ class AnimeScreenModel(
                     itemId = { it.id },
                     itemNumber = { it.episode.episodeNumber },
                     calculateGap = { higher, lower -> calculateEpisodeGap(higher.episode, lower.episode) },
-                    mapItem = { it as EpisodeList },
+                    mapItem = { it },
                     mapMissing = { id, count -> EpisodeList.MissingCount(id = id, count = count) },
                 )
             }

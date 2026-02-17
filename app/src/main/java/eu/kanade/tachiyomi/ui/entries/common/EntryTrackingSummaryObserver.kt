@@ -2,12 +2,12 @@ package eu.kanade.tachiyomi.ui.entries.common
 
 import eu.kanade.tachiyomi.data.track.Tracker
 
-data class EntryTrackingSummary(
+internal data class EntryTrackingSummary(
     val trackingCount: Int,
     val hasLoggedInTrackers: Boolean,
 )
 
-object EntryTrackingSummaryObserver {
+internal object EntryTrackingSummaryObserver {
     fun <T> summarize(
         tracks: List<T>,
         loggedInTrackers: List<Tracker>,
