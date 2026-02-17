@@ -98,6 +98,13 @@ internal class ReaderChapterListManager(
 
     // Private helper methods
 
+    /**
+     * Fetches chapters asynchronously from the DB layer.
+     *
+     * This path is suspend-only because reader initialization runs from UI-driven flows in
+     * [ReaderActivity] and [ReaderViewModel]. Keeping this as a suspend call avoids reintroducing
+     * blocking bridges (for example, runBlocking) that previously caused startup/read-open ANR risk.
+     */
     private suspend fun fetchChapters(manga: Manga): List<Chapter> {
         return getChaptersByMangaId.await(manga.id, applyScanlatorFilter = true)
     }
