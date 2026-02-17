@@ -96,6 +96,29 @@ class WebtoonAutoScrollControllerTest {
         assertEquals(singleStartTotal, repeatedStartTotal)
     }
 
+    @Test
+    fun `start at end only notifies onReachedEnd once until scrollable again`() = runTest {
+        var canScrollDown = false
+        var reachedEndCalls = 0
+        val controller = newController(
+            canScrollDown = { canScrollDown },
+            onScrollBy = {},
+            onStateChanged = {},
+            onReachedEnd = { reachedEndCalls++ },
+        )
+
+        controller.start()
+        controller.start()
+        assertEquals(1, reachedEndCalls)
+
+        canScrollDown = true
+        controller.start()
+        advanceTimeBy(20)
+        canScrollDown = false
+        advanceTimeBy(20)
+        assertEquals(2, reachedEndCalls)
+    }
+
     private fun TestScope.runWithSpeed(speedTenths: Int): Int {
         val deltas = mutableListOf<Int>()
         val controller = newController(

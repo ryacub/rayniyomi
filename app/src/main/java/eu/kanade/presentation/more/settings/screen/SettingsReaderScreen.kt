@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
@@ -361,7 +362,7 @@ object SettingsReaderScreen : SearchableSettings {
                         it.WEBTOON_AUTO_SCROLL_SPEED_MIN..it.WEBTOON_AUTO_SCROLL_SPEED_MAX
                     },
                     title = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
-                    subtitle = "${webtoonAutoScrollSpeed / 10f}x",
+                    subtitle = formatWebtoonAutoScrollSpeed(webtoonAutoScrollSpeed),
                     onValueChanged = {
                         webtoonAutoScrollSpeedPref.set(it)
                         true

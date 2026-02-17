@@ -215,7 +215,7 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
     override fun destroy() {
         super.destroy()
         autoScrollStateChangedListener = null
-        autoScrollController.stop()
+        autoScrollController.pause()
         scope.cancel()
     }
 

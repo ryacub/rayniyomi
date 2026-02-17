@@ -12,14 +12,16 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.BaseSliderItem
 import tachiyomi.presentation.core.components.Pill
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import java.util.Locale
 
 @Composable
 fun WebtoonAutoScrollPanel(
@@ -31,15 +33,12 @@ fun WebtoonAutoScrollPanel(
         ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
         ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
     )
-    val speedText = speedText(clampedSpeedTenths)
+    val speedText = formatWebtoonAutoScrollSpeed(clampedSpeedTenths)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .padding(bottom = 8.dp)
-            .padding(MaterialTheme.padding.small)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
     ) {
         Row(
@@ -66,7 +65,7 @@ fun WebtoonAutoScrollPanel(
                 FilterChip(
                     selected = clampedSpeedTenths == preset,
                     onClick = { onSelectPreset(preset) },
-                    label = { Text(speedText(preset)) },
+                    label = { Text(formatWebtoonAutoScrollSpeed(preset)) },
                 )
             }
         }
@@ -83,6 +82,14 @@ fun WebtoonAutoScrollPanel(
     }
 }
 
-private fun speedText(value: Int): String {
-    return String.format(Locale.US, "%.1fx", value / 10f)
+@PreviewLightDark
+@Composable
+private fun WebtoonAutoScrollPanelPreview() {
+    TachiyomiPreviewTheme {
+        WebtoonAutoScrollPanel(
+            speedTenths = 17,
+            onSelectPreset = {},
+            onSpeedChange = {},
+        )
+    }
 }

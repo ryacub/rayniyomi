@@ -101,6 +101,9 @@ import uy.kohesive.injekt.api.get
 class ReaderActivity : BaseActivity() {
 
     companion object {
+        private const val KEY_SHOW_AUTO_SCROLL_PANEL = "reader_show_auto_scroll_panel"
+        private const val KEY_IS_AUTO_SCROLL_RUNNING = "reader_is_auto_scroll_running"
+
         fun newIntent(context: Context, mangaId: Long?, chapterId: Long?): Intent {
             return Intent(context, ReaderActivity::class.java).apply {
                 putExtra("manga", mangaId)
@@ -158,6 +161,8 @@ class ReaderActivity : BaseActivity() {
 
         binding = ReaderActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        showAutoScrollPanel = savedInstanceState?.getBoolean(KEY_SHOW_AUTO_SCROLL_PANEL, false) ?: false
+        isAutoScrollRunning = savedInstanceState?.getBoolean(KEY_IS_AUTO_SCROLL_RUNNING, false) ?: false
 
         viewModel.initReaderConfig(isNightMode())
 
@@ -261,6 +266,12 @@ class ReaderActivity : BaseActivity() {
         config = null
         menuToggleToast?.cancel()
         readingModeToast?.cancel()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(KEY_SHOW_AUTO_SCROLL_PANEL, showAutoScrollPanel)
+        outState.putBoolean(KEY_IS_AUTO_SCROLL_RUNNING, isAutoScrollRunning)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onPause() {
@@ -601,9 +612,10 @@ class ReaderActivity : BaseActivity() {
             ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
             ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
         )
-        autoScrollSpeedTenths = speed
-        readerPreferences.webtoonAutoScrollSpeedTenths().set(speed)
-        (viewModel.state.value.viewer as? WebtoonViewer)?.setAutoScrollSpeedTenths(speed)
+        val autoScrollSpeedPref = readerPreferences.webtoonAutoScrollSpeedTenths()
+        if (autoScrollSpeedPref.get() != speed) {
+            autoScrollSpeedPref.set(speed)
+        }
     }
 
     private fun openMangaScreen() {

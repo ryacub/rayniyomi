@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import eu.kanade.domain.entries.manga.model.readerOrientation
 import eu.kanade.domain.entries.manga.model.readingMode
+import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
@@ -178,7 +179,7 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
             it.WEBTOON_AUTO_SCROLL_SPEED_MIN..it.WEBTOON_AUTO_SCROLL_SPEED_MAX
         },
         label = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
-        valueText = "${webtoonAutoScrollSpeed / 10f}x",
+        valueText = formatWebtoonAutoScrollSpeed(webtoonAutoScrollSpeed),
         onChange = {
             screenModel.preferences.webtoonAutoScrollSpeedTenths().set(it)
         },

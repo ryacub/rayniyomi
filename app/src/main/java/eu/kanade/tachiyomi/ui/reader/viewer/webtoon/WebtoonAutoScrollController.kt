@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webtoon
 
+import androidx.annotation.MainThread
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -18,16 +19,24 @@ class WebtoonAutoScrollController(
 ) {
 
     private var speedTenths = DEFAULT_SPEED_TENTHS
+
+    @Volatile
     private var running = false
     private var remainderPixels = 0f
+    private var endReached = false
     private var scrollJob: Job? = null
 
+    @MainThread
     fun start() {
         if (running) return
         if (!canScrollDown()) {
-            onReachedEnd()
+            if (!endReached) {
+                endReached = true
+                onReachedEnd()
+            }
             return
         }
+        endReached = false
 
         running = true
         onStateChanged(true)
@@ -38,7 +47,10 @@ class WebtoonAutoScrollController(
 
                 if (!canScrollDown()) {
                     pauseInternal()
-                    onReachedEnd()
+                    if (!endReached) {
+                        endReached = true
+                        onReachedEnd()
+                    }
                     break
                 }
 
@@ -53,11 +65,13 @@ class WebtoonAutoScrollController(
         }
     }
 
+    @MainThread
     fun pause() {
         if (!running) return
         pauseInternal()
     }
 
+    @MainThread
     fun toggle() {
         if (running) {
             pause()
@@ -66,10 +80,7 @@ class WebtoonAutoScrollController(
         }
     }
 
-    fun stop() {
-        pause()
-    }
-
+    @MainThread
     fun setSpeedTenths(value: Int) {
         speedTenths = value.coerceIn(
             ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
@@ -77,10 +88,12 @@ class WebtoonAutoScrollController(
         )
     }
 
+    @MainThread
     fun isRunning(): Boolean {
         return running
     }
 
+    @MainThread
     private fun pauseInternal() {
         running = false
         remainderPixels = 0f
