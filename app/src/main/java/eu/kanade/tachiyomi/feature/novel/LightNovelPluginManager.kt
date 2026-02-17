@@ -15,6 +15,8 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.lang.Hash
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.storage.saveTo
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
@@ -28,6 +30,10 @@ class LightNovelPluginManager(
     private val network: NetworkHelper,
     private val json: Json,
 ) : LightNovelPluginReadiness {
+    private val installMutex = Mutex()
+    init {
+        cleanupOrphanedPluginApk()
+    }
 
     data class PluginStatus(
         val installed: Boolean,
@@ -69,40 +75,49 @@ class LightNovelPluginManager(
     }
 
     suspend fun ensurePluginReady(channel: String): InstallResult {
-        if (isPluginReady()) return InstallResult.AlreadyReady
-
-        val manifest = fetchManifest(channel).getOrElse {
-            return InstallResult.Error("Failed to fetch plugin manifest")
+        if (!isPluginInstallEnabled()) {
+            return InstallResult.Error("Light Novel plugin install is disabled for this build")
         }
 
-        val apkFile = downloadPlugin(manifest).getOrElse {
-            return InstallResult.Error(it.message ?: "Failed to download plugin")
-        }
+        return installMutex.withLock {
+            if (isPluginReady()) return@withLock InstallResult.AlreadyReady
 
-        val archivePackage = context.packageManager.getPackageArchiveInfo(
-            apkFile.absolutePath,
-            PACKAGE_FLAGS,
-        )
-            ?: return InstallResult.Error("Invalid plugin APK")
+            val manifest = fetchManifest(channel).getOrElse {
+                return@withLock InstallResult.Error("Failed to fetch plugin manifest")
+            }
 
-        if (archivePackage.packageName != PLUGIN_PACKAGE_NAME || archivePackage.packageName != manifest.packageName) {
-            return InstallResult.Error("Plugin package name mismatch")
-        }
+            val apkFile = downloadPlugin(manifest).getOrElse {
+                return@withLock InstallResult.Error(it.message ?: "Failed to download plugin")
+            }
 
-        if (!verifyPinnedSignature(archivePackage)) {
-            return InstallResult.Error("Plugin signature is not trusted")
-        }
+            val archivePackage = context.packageManager.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                ARCHIVE_PACKAGE_FLAGS,
+            )
+                ?: return@withLock InstallResult.Error("Invalid plugin APK")
 
-        return try {
-            launchInstall(apkFile)
-            InstallResult.InstallLaunched
-        } catch (e: Throwable) {
-            logcat(LogPriority.ERROR, e) { "Failed to launch plugin install" }
-            InstallResult.Error("Failed to launch plugin installer")
+            if (archivePackage.packageName != PLUGIN_PACKAGE_NAME ||
+                archivePackage.packageName != manifest.packageName
+            ) {
+                apkFile.delete()
+                return@withLock InstallResult.Error("Plugin package name mismatch")
+            }
+
+            return@withLock try {
+                launchInstall(apkFile)
+                // Best-effort cleanup. Package installer may already have opened the stream.
+                apkFile.delete()
+                InstallResult.InstallLaunched
+            } catch (e: Throwable) {
+                logcat(LogPriority.ERROR, e) { "Failed to launch plugin install" }
+                apkFile.delete()
+                InstallResult.Error("Failed to launch plugin installer")
+            }
         }
     }
 
     fun uninstallPlugin() {
+        cleanupOrphanedPluginApk()
         val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$PLUGIN_PACKAGE_NAME"))
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
@@ -115,7 +130,7 @@ class LightNovelPluginManager(
         }
     }
 
-    fun verifyPinnedSignature(packageInfo: PackageInfo): Boolean {
+    private fun verifyPinnedSignature(packageInfo: PackageInfo): Boolean {
         val signatures = getSignatures(packageInfo)
         return signatures.any { it in TRUSTED_PLUGIN_CERT_SHA256 }
     }
@@ -135,7 +150,7 @@ class LightNovelPluginManager(
             withIOContext {
                 val response = network.client.newCall(GET(manifest.apkUrl)).awaitSuccess()
                 response.use {
-                    val apkFile = File(context.externalCacheDir, PLUGIN_APK_FILE_NAME)
+                    val apkFile = File(context.cacheDir, PLUGIN_APK_FILE_NAME)
                     it.body.source().saveTo(apkFile)
 
                     val sha256 = sha256File(apkFile)
@@ -164,11 +179,11 @@ class LightNovelPluginManager(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.getPackageInfo(
                     PLUGIN_PACKAGE_NAME,
-                    PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
+                    PackageManager.PackageInfoFlags.of(INSTALLED_PACKAGE_FLAGS.toLong()),
                 )
             } else {
                 @Suppress("DEPRECATION")
-                context.packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, PACKAGE_FLAGS)
+                context.packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, INSTALLED_PACKAGE_FLAGS)
             }
         } catch (_: PackageManager.NameNotFoundException) {
             null
@@ -180,10 +195,11 @@ class LightNovelPluginManager(
         val pluginApiVersion = metaData.getInt(META_PLUGIN_API_VERSION, -1)
         val minHostVersion = metaData.getLong(META_MIN_HOST_VERSION, Long.MAX_VALUE)
         val targetHostVersion = metaData.getLong(META_TARGET_HOST_VERSION, Long.MIN_VALUE)
+        val hostVersionCode = BuildConfig.VERSION_CODE.toLong()
 
         if (pluginApiVersion != EXPECTED_PLUGIN_API_VERSION) return false
-        if (HOST_VERSION_CODE < minHostVersion) return false
-        if (targetHostVersion != Long.MIN_VALUE && HOST_VERSION_CODE > targetHostVersion) return false
+        if (hostVersionCode < minHostVersion) return false
+        if (targetHostVersion != Long.MIN_VALUE && hostVersionCode > targetHostVersion) return false
 
         return true
     }
@@ -218,6 +234,16 @@ class LightNovelPluginManager(
         return hashBytes.joinToString(separator = "") { "%02x".format(it) }
     }
 
+    private fun cleanupOrphanedPluginApk() {
+        File(context.cacheDir, PLUGIN_APK_FILE_NAME)
+            .takeIf { it.exists() }
+            ?.delete()
+    }
+
+    private fun isPluginInstallEnabled(): Boolean {
+        return BuildConfig.DEBUG || ENABLE_PLUGIN_INSTALL_FOR_RELEASE
+    }
+
     companion object {
         const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
 
@@ -229,7 +255,7 @@ class LightNovelPluginManager(
         private const val META_TARGET_HOST_VERSION = "rayniyomi.plugin.target_host_version"
 
         private const val EXPECTED_PLUGIN_API_VERSION = 1
-        private const val HOST_VERSION_CODE = BuildConfig.VERSION_CODE.toLong()
+        private const val ENABLE_PLUGIN_INSTALL_FOR_RELEASE = false
 
         private const val STABLE_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
@@ -243,8 +269,10 @@ class LightNovelPluginManager(
         )
 
         @Suppress("DEPRECATION")
-        private val PACKAGE_FLAGS = PackageManager.GET_META_DATA or
+        private val INSTALLED_PACKAGE_FLAGS = PackageManager.GET_META_DATA or
             PackageManager.GET_SIGNATURES or
             (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0)
+
+        private const val ARCHIVE_PACKAGE_FLAGS = PackageManager.GET_META_DATA
     }
 }

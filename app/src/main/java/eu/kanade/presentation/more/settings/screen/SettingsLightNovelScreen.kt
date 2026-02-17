@@ -1,6 +1,12 @@
 package eu.kanade.presentation.more.settings.screen
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +53,31 @@ object SettingsLightNovelScreen : SearchableSettings {
             status = pluginManager.getPluginStatus()
         }
 
+        DisposableEffect(context) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val packageName = intent?.data?.schemeSpecificPart ?: return
+                    if (packageName == LightNovelPluginManager.PLUGIN_PACKAGE_NAME) {
+                        refreshStatus()
+                    }
+                }
+            }
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addDataScheme("package")
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("DEPRECATION")
+                context.registerReceiver(receiver, filter)
+            }
+            onDispose {
+                context.unregisterReceiver(receiver)
+            }
+        }
+
         val statusText = when {
             !status.installed -> stringResource(AYMR.strings.light_novel_plugin_status_missing)
             !status.signedAndTrusted -> stringResource(AYMR.strings.light_novel_plugin_status_untrusted)
@@ -81,7 +112,6 @@ object SettingsLightNovelScreen : SearchableSettings {
                                             context.toast(result.message)
                                         }
                                     }
-                                    refreshStatus()
                                 }
                             }
                             true
@@ -120,7 +150,6 @@ object SettingsLightNovelScreen : SearchableSettings {
                                         context.toast(result.message)
                                     }
                                 }
-                                refreshStatus()
                             }
                         },
                     ),
@@ -129,7 +158,6 @@ object SettingsLightNovelScreen : SearchableSettings {
                         enabled = status.installed,
                         onClick = {
                             pluginManager.uninstallPlugin()
-                            refreshStatus()
                         },
                     ),
                 ),
