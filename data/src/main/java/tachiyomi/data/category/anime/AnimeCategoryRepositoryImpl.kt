@@ -61,6 +61,7 @@ class AnimeCategoryRepositoryImpl(
                 name = category.name,
                 order = category.order,
                 flags = category.flags,
+                parentId = category.parentId,
             )
         }
     }
@@ -85,6 +86,7 @@ class AnimeCategoryRepositoryImpl(
             order = update.order,
             flags = update.flags,
             hidden = update.hidden?.let { if (it) 1L else 0L },
+            parentId = update.parentId,
             categoryId = update.id,
         )
     }
@@ -109,6 +111,7 @@ class AnimeCategoryRepositoryImpl(
         order: Long,
         flags: Long,
         hidden: Long,
+        parentId: Long?,
     ): Category {
         return Category(
             id = id,
@@ -116,6 +119,7 @@ class AnimeCategoryRepositoryImpl(
             order = order,
             flags = flags,
             hidden = hidden == 1L,
+            parentId = parentId,
         )
     }
 }

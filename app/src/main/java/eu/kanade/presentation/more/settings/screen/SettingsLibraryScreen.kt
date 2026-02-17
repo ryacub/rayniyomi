@@ -85,9 +85,12 @@ object SettingsLibraryScreen : SearchableSettings {
         allAnimeCategories: List<Category>,
         libraryPreferences: LibraryPreferences,
     ): Preference.PreferenceGroup {
+        val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val userCategoriesCount = allCategories.filterNot(Category::isSystemCategory).size
         val userAnimeCategoriesCount = allAnimeCategories.filterNot(Category::isSystemCategory).size
+        val mangaById = allCategories.associateBy { it.id }
+        val animeById = allAnimeCategories.associateBy { it.id }
 
         // For default category
         val mangaIds = listOf(libraryPreferences.defaultMangaCategory().defaultValue()) +
@@ -96,9 +99,9 @@ object SettingsLibraryScreen : SearchableSettings {
             allAnimeCategories.fastMap { it.id.toInt() }
 
         val mangaLabels = listOf(stringResource(MR.strings.default_category_summary)) +
-            allCategories.fastMap { it.visualName }
+            allCategories.fastMap { it.visualName(mangaById, context) }
         val animeLabels = listOf(stringResource(MR.strings.default_category_summary)) +
-            allAnimeCategories.fastMap { it.visualName }
+            allAnimeCategories.fastMap { it.visualName(animeById, context) }
 
         return Preference.PreferenceGroup(
             title = stringResource(AYMR.strings.general_categories),
@@ -161,6 +164,8 @@ object SettingsLibraryScreen : SearchableSettings {
         libraryPreferences: LibraryPreferences,
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
+        val mangaById = allMangaCategories.associateBy { it.id }
+        val animeById = allAnimeCategories.associateBy { it.id }
 
         val autoUpdateIntervalPref = libraryPreferences.autoUpdateInterval()
         val autoUpdateInterval by autoUpdateIntervalPref.collectAsState()
@@ -179,7 +184,7 @@ object SettingsLibraryScreen : SearchableSettings {
                 items = allAnimeCategories,
                 initialChecked = includedAnime.mapNotNull { id -> allAnimeCategories.find { it.id.toString() == id } },
                 initialInversed = excludedAnime.mapNotNull { id -> allAnimeCategories.find { it.id.toString() == id } },
-                itemLabel = { it.visualName },
+                itemLabel = { it.visualName(animeById, context) },
                 onDismissRequest = { showAnimeCategoriesDialog = false },
                 onValueChanged = { newIncluded, newExcluded ->
                     animeAutoUpdateCategoriesPref.set(newIncluded.map { it.id.toString() }.toSet())
@@ -206,7 +211,7 @@ object SettingsLibraryScreen : SearchableSettings {
                 items = allMangaCategories,
                 initialChecked = includedManga.mapNotNull { id -> allMangaCategories.find { it.id.toString() == id } },
                 initialInversed = excludedManga.mapNotNull { id -> allMangaCategories.find { it.id.toString() == id } },
-                itemLabel = { it.visualName },
+                itemLabel = { it.visualName(mangaById, context) },
                 onDismissRequest = { showMangaCategoriesDialog = false },
                 onValueChanged = { newIncluded, newExcluded ->
                     autoUpdateCategoriesPref.set(newIncluded.map { it.id.toString() }.toSet())

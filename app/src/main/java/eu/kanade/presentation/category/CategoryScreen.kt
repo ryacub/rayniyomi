@@ -14,12 +14,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.presentation.category.components.CategoryFloatingActionButton
 import eu.kanade.presentation.category.components.CategoryListItem
 import kotlinx.collections.immutable.ImmutableList
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.flattenForDisplay
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
@@ -32,6 +34,7 @@ import tachiyomi.presentation.core.screens.EmptyScreen
 @Composable
 fun CategoryScreen(
     categories: ImmutableList<Category>,
+    alphabeticalSortEnabled: Boolean,
     isEmpty: Boolean,
     onClickCreate: () -> Unit,
     onClickRename: (Category) -> Unit,
@@ -58,6 +61,7 @@ fun CategoryScreen(
 
         CategoryContent(
             categories = categories,
+            alphabeticalSortEnabled = alphabeticalSortEnabled,
             lazyListState = lazyListState,
             paddingValues = paddingValues,
             onClickRename = onClickRename,
@@ -71,6 +75,7 @@ fun CategoryScreen(
 @Composable
 private fun CategoryContent(
     categories: ImmutableList<Category>,
+    alphabeticalSortEnabled: Boolean,
     lazyListState: LazyListState,
     paddingValues: PaddingValues,
     onClickRename: (Category) -> Unit,
@@ -78,8 +83,10 @@ private fun CategoryContent(
     onClickDelete: (Category) -> Unit,
     onChangeOrder: (Category, Int) -> Unit,
 ) {
-    val categoriesState = remember { categories.toMutableStateList() }
+    val context = LocalContext.current
+    val categoriesState = remember { categories.flattenForDisplay().toMutableStateList() }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
+        if (alphabeticalSortEnabled) return@rememberReorderableLazyListState
         val item = categoriesState.removeAt(from.index)
         categoriesState.add(to.index, item)
         onChangeOrder(item, to.index)
@@ -88,9 +95,11 @@ private fun CategoryContent(
     LaunchedEffect(categories) {
         if (!reorderableState.isAnyItemDragging) {
             categoriesState.clear()
-            categoriesState.addAll(categories)
+            categoriesState.addAll(categories.flattenForDisplay())
         }
     }
+
+    val categoryById = remember(categoriesState) { categoriesState.associateBy { it.id } }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -106,6 +115,9 @@ private fun CategoryContent(
                 CategoryListItem(
                     modifier = Modifier.animateItem(),
                     category = category,
+                    title = category.visualName(categoryById, context),
+                    showDragHandle = !alphabeticalSortEnabled,
+                    isChild = category.parentId != null,
                     onRename = { onClickRename(category) },
                     onHide = { onClickHide(category) },
                     onDelete = { onClickDelete(category) },

@@ -18,7 +18,9 @@ import tachiyomi.domain.category.anime.interactor.GetVisibleAnimeCategories
 import tachiyomi.domain.category.anime.interactor.HideAnimeCategory
 import tachiyomi.domain.category.anime.interactor.RenameAnimeCategory
 import tachiyomi.domain.category.anime.interactor.ReorderAnimeCategory
+import tachiyomi.domain.category.anime.interactor.SetAnimeCategoryAlphabeticalSort
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.isAlphabeticalCategorySortEnabled
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
@@ -32,6 +34,7 @@ class AnimeCategoryScreenModel(
     private val deleteCategory: DeleteAnimeCategory = Injekt.get(),
     private val reorderCategory: ReorderAnimeCategory = Injekt.get(),
     private val renameCategory: RenameAnimeCategory = Injekt.get(),
+    private val setAlphabeticalSortInteractor: SetAnimeCategoryAlphabeticalSort = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
 ) : StateScreenModel<AnimeCategoryScreenState>(AnimeCategoryScreenState.Loading) {
 
@@ -47,10 +50,13 @@ class AnimeCategoryScreenModel(
             }
 
             allCategories.collectLatest { categories ->
+                val userCategories = categories.filterNot(Category::isSystemCategory)
                 mutableState.update {
                     AnimeCategoryScreenState.Success(
-                        categories = categories
-                            .filterNot(Category::isSystemCategory)
+                        categories = userCategories.toImmutableList(),
+                        alphabeticalSortEnabled = userCategories.isAlphabeticalCategorySortEnabled(),
+                        parentCategories = userCategories
+                            .filter { it.parentId == null }
                             .toImmutableList(),
                     )
                 }
@@ -58,9 +64,9 @@ class AnimeCategoryScreenModel(
         }
     }
 
-    fun createCategory(name: String) {
+    fun createCategory(name: String, parentId: Long?) {
         screenModelScope.launch {
-            when (createCategoryWithName.await(name)) {
+            when (createCategoryWithName.await(name, parentId)) {
                 is CreateAnimeCategoryWithName.Result.InternalError -> _events.send(
                     AnimeCategoryEvent.InternalError,
                 )
@@ -93,6 +99,8 @@ class AnimeCategoryScreenModel(
     }
 
     fun changeOrder(category: Category, newIndex: Int) {
+        val currentState = state.value as? AnimeCategoryScreenState.Success ?: return
+        if (currentState.alphabeticalSortEnabled) return
         screenModelScope.launch {
             when (reorderCategory.await(category, newIndex)) {
                 is ReorderAnimeCategory.Result.InternalError -> _events.send(
@@ -111,6 +119,12 @@ class AnimeCategoryScreenModel(
                 )
                 else -> {}
             }
+        }
+    }
+
+    fun setAlphabeticalSort(enabled: Boolean) {
+        screenModelScope.launch {
+            setAlphabeticalSortInteractor.await(enabled)
         }
     }
 
@@ -152,6 +166,8 @@ sealed interface AnimeCategoryScreenState {
     @Immutable
     data class Success(
         val categories: ImmutableList<Category>,
+        val alphabeticalSortEnabled: Boolean,
+        val parentCategories: ImmutableList<Category>,
         val dialog: AnimeCategoryDialog? = null,
     ) : AnimeCategoryScreenState {
 

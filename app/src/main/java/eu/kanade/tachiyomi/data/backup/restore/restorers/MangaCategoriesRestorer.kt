@@ -13,9 +13,9 @@ class MangaCategoriesRestorer(
 
     private val restorer = CategoriesRestorer(
         getCategories = { getMangaCategories.await() },
-        insertCategory = { name, order, flags ->
+        insertCategory = { name, order, flags, parentId ->
             mangaHandler.awaitOneExecutable {
-                categoriesQueries.insert(name, order, flags)
+                categoriesQueries.insert(name, order, flags, parentId)
                 categoriesQueries.selectLastInsertedRowId()
             }
         },

@@ -2,6 +2,7 @@ package eu.kanade.presentation.category.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,9 @@ import tachiyomi.presentation.core.i18n.stringResource
 @Composable
 fun ReorderableCollectionItemScope.CategoryListItem(
     category: Category,
+    title: String,
+    showDragHandle: Boolean,
+    isChild: Boolean,
     onRename: () -> Unit,
     onHide: () -> Unit,
     onDelete: () -> Unit,
@@ -45,15 +49,20 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.DragHandle,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(MaterialTheme.padding.medium)
-                    .draggableHandle(),
-            )
+            if (isChild) {
+                Spacer(modifier = Modifier.padding(start = MaterialTheme.padding.medium))
+            }
+            if (showDragHandle) {
+                Icon(
+                    imageVector = Icons.Outlined.DragHandle,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(MaterialTheme.padding.medium)
+                        .draggableHandle(),
+                )
+            }
             Text(
-                text = category.name,
+                text = title,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onRename) {

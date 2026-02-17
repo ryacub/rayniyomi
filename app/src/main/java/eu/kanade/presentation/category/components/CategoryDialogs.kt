@@ -12,6 +12,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TriStateCheckbox
@@ -40,10 +41,12 @@ import kotlin.time.Duration.Companion.seconds
 @Composable
 fun CategoryCreateDialog(
     onDismissRequest: () -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: (String, Long?) -> Unit,
     categories: ImmutableList<String>,
+    parentCategories: ImmutableList<Category>,
 ) {
     var name by remember { mutableStateOf("") }
+    var parentId by remember { mutableStateOf<Long?>(null) }
 
     val focusRequester = remember { FocusRequester() }
     val nameAlreadyExists = remember(name) { categories.contains(name) }
@@ -54,7 +57,7 @@ fun CategoryCreateDialog(
             TextButton(
                 enabled = name.isNotEmpty() && !nameAlreadyExists,
                 onClick = {
-                    onCreate(name)
+                    onCreate(name, parentId)
                     onDismissRequest()
                 },
             ) {
@@ -70,25 +73,57 @@ fun CategoryCreateDialog(
             Text(text = stringResource(MR.strings.action_add_category))
         },
         text = {
-            OutlinedTextField(
-                modifier = Modifier
-                    .focusRequester(focusRequester),
-                value = name,
-                onValueChange = { name = it },
-                label = {
-                    Text(text = stringResource(MR.strings.name))
-                },
-                supportingText = {
-                    val msgRes = if (name.isNotEmpty() && nameAlreadyExists) {
-                        MR.strings.error_category_exists
-                    } else {
-                        MR.strings.information_required_plain
+            Column {
+                OutlinedTextField(
+                    modifier = Modifier
+                        .focusRequester(focusRequester),
+                    value = name,
+                    onValueChange = { name = it },
+                    label = {
+                        Text(text = stringResource(MR.strings.name))
+                    },
+                    supportingText = {
+                        val msgRes = if (name.isNotEmpty() && nameAlreadyExists) {
+                            MR.strings.error_category_exists
+                        } else {
+                            MR.strings.information_required_plain
+                        }
+                        Text(text = stringResource(msgRes))
+                    },
+                    isError = name.isNotEmpty() && nameAlreadyExists,
+                    singleLine = true,
+                )
+                Text(
+                    text = stringResource(MR.strings.label_parent_category),
+                    modifier = Modifier.padding(top = MaterialTheme.padding.small),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { parentId = null },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = parentId == null,
+                        onClick = { parentId = null },
+                    )
+                    Text(text = stringResource(MR.strings.label_no_parent_category))
+                }
+                parentCategories.forEach { category ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { parentId = category.id },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = parentId == category.id,
+                            onClick = { parentId = category.id },
+                        )
+                        Text(text = category.name)
                     }
-                    Text(text = stringResource(msgRes))
-                },
-                isError = name.isNotEmpty() && nameAlreadyExists,
-                singleLine = true,
-            )
+                }
+            }
         },
     )
 
@@ -223,6 +258,17 @@ fun ChangeCategoryDialog(
         return
     }
     var selection by remember { mutableStateOf(initialSelection) }
+    var searchQuery by remember { mutableStateOf("") }
+    val categoriesById = remember(selection) { selection.associate { it.value.id to it.value } }
+    val visibleSelection = remember(selection, searchQuery, categoriesById) {
+        if (searchQuery.isBlank()) {
+            selection
+        } else {
+            selection.filter {
+                it.value.visualName(categoriesById).contains(searchQuery, ignoreCase = true)
+            }.toImmutableList()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismissRequest,
         confirmButton = {
@@ -261,9 +307,21 @@ fun ChangeCategoryDialog(
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
-                selection.forEach { checkbox ->
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    label = { Text(stringResource(MR.strings.hint_search_categories)) },
+                )
+                if (visibleSelection.isEmpty()) {
+                    Text(
+                        text = stringResource(MR.strings.information_no_matching_categories),
+                        modifier = Modifier.padding(MaterialTheme.padding.medium),
+                    )
+                }
+                visibleSelection.forEach { checkbox ->
                     val onChange: (CheckboxState<Category>) -> Unit = {
-                        val index = selection.indexOf(it)
+                        val index = selection.indexOfFirst { state -> state.value.id == it.value.id }
                         if (index != -1) {
                             val mutableList = selection.toMutableList()
                             mutableList[index] = it.next()
@@ -292,7 +350,7 @@ fun ChangeCategoryDialog(
                         }
 
                         Text(
-                            text = checkbox.value.visualName,
+                            text = checkbox.value.visualName(categoriesById),
                             modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium),
                         )
                     }

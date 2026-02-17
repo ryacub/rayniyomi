@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.util.fastMap
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.category.visualName
@@ -178,10 +179,13 @@ object SettingsDownloadScreen : SearchableSettings {
         downloadPreferences: DownloadPreferences,
         categories: () -> List<Category>,
     ): Preference.PreferenceItem.MultiSelectListPreference {
+        val context = LocalContext.current
+        val allCategories = categories()
+        val categoriesById = allCategories.associateBy { it.id }
         return Preference.PreferenceItem.MultiSelectListPreference(
             preference = downloadPreferences.removeExcludeCategories(),
-            entries = categories()
-                .associate { it.id.toString() to it.visualName }
+            entries = allCategories
+                .associate { it.id.toString() to it.visualName(categoriesById, context) }
                 .toImmutableMap(),
             title = stringResource(AYMR.strings.pref_remove_exclude_categories_manga),
         )
@@ -192,10 +196,13 @@ object SettingsDownloadScreen : SearchableSettings {
         downloadPreferences: DownloadPreferences,
         categories: () -> List<Category>,
     ): Preference.PreferenceItem.MultiSelectListPreference {
+        val context = LocalContext.current
+        val allCategories = categories()
+        val categoriesById = allCategories.associateBy { it.id }
         return Preference.PreferenceItem.MultiSelectListPreference(
             preference = downloadPreferences.removeExcludeAnimeCategories(),
-            entries = categories()
-                .associate { it.id.toString() to it.visualName }
+            entries = allCategories
+                .associate { it.id.toString() to it.visualName(categoriesById, context) }
                 .toImmutableMap(),
             title = stringResource(AYMR.strings.pref_remove_exclude_categories_anime),
         )
@@ -207,6 +214,9 @@ object SettingsDownloadScreen : SearchableSettings {
         allAnimeCategories: ImmutableList<Category>,
         allMangaCategories: ImmutableList<Category>,
     ): Preference.PreferenceGroup {
+        val context = LocalContext.current
+        val animeById = allAnimeCategories.associateBy { it.id }
+        val mangaById = allMangaCategories.associateBy { it.id }
         val downloadNewEpisodesPref = downloadPreferences.downloadNewEpisodes()
         val downloadNewUnseenEpisodesOnlyPref = downloadPreferences.downloadNewUnseenEpisodesOnly()
         val downloadNewEpisodeCategoriesPref = downloadPreferences.downloadNewEpisodeCategories()
@@ -224,7 +234,7 @@ object SettingsDownloadScreen : SearchableSettings {
                 items = allAnimeCategories,
                 initialChecked = includedAnime.mapNotNull { id -> allAnimeCategories.find { it.id.toString() == id } },
                 initialInversed = excludedAnime.mapNotNull { id -> allAnimeCategories.find { it.id.toString() == id } },
-                itemLabel = { it.visualName },
+                itemLabel = { it.visualName(animeById, context) },
                 onDismissRequest = { showAnimeDialog = false },
                 onValueChanged = { newIncluded, newExcluded ->
                     downloadNewEpisodeCategoriesPref.set(
@@ -255,7 +265,7 @@ object SettingsDownloadScreen : SearchableSettings {
                 items = allMangaCategories,
                 initialChecked = included.mapNotNull { id -> allMangaCategories.find { it.id.toString() == id } },
                 initialInversed = excluded.mapNotNull { id -> allMangaCategories.find { it.id.toString() == id } },
-                itemLabel = { it.visualName },
+                itemLabel = { it.visualName(mangaById, context) },
                 onDismissRequest = { showDialog = false },
                 onValueChanged = { newIncluded, newExcluded ->
                     downloadNewChapterCategoriesPref.set(
