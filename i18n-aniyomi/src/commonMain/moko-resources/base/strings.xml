@@ -80,6 +80,8 @@
     <string name="pref_category_intro_skip">Intro skip</string>
     <string name="pref_enable_intro_skip">Enable intro skip</string>
     <string name="pref_enable_auto_skip_ani_skip">Enable auto skip</string>
+    <string name="pref_enable_auto_skip_opening_ani_skip">Auto skip opening segments</string>
+    <string name="pref_enable_auto_skip_ending_ani_skip">Auto skip ending/recap segments</string>
     <string name="pref_enable_netflix_style_aniskip">Enable Netflix style</string>
     <string name="pref_waiting_time_aniskip">Button timeout</string>
     <string name="pref_waiting_time_aniskip_5">5 seconds</string>

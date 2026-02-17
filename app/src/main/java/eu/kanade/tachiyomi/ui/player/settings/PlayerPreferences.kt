@@ -47,6 +47,22 @@ class PlayerPreferences(
 
     fun enableSkipIntro() = preferenceStore.getBoolean("pref_enable_skip_intro", true)
     fun autoSkipIntro() = preferenceStore.getBoolean("pref_enable_auto_skip_ani_skip", false)
+    fun autoSkipOpening() = preferenceStore.getBoolean("pref_enable_auto_skip_opening_ani_skip", false)
+        .also { openingPreference ->
+            val oldPreference = autoSkipIntro()
+            if (!openingPreference.isSet() && oldPreference.isSet()) {
+                openingPreference.set(oldPreference.get())
+            }
+        }
+
+    fun autoSkipEnding() = preferenceStore.getBoolean("pref_enable_auto_skip_ending_ani_skip", false)
+        .also { endingPreference ->
+            val oldPreference = autoSkipIntro()
+            if (!endingPreference.isSet() && oldPreference.isSet()) {
+                endingPreference.set(oldPreference.get())
+            }
+        }
+
     fun enableNetflixStyleIntroSkip() = preferenceStore.getBoolean(
         "pref_enable_netflixStyle_aniskip",
         false,

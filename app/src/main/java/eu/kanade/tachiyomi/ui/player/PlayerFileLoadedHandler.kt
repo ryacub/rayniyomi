@@ -155,13 +155,12 @@ internal class PlayerFileLoadedHandler(
         introSkipEnabled: Boolean,
         disableAniSkipOnChapters: Boolean,
     ): Boolean {
-        // AniSkip requires both flags enabled
-        if (!introSkipEnabled || !aniSkipEnabled) return false
-
-        // Don't integrate if user disabled AniSkip when chapters exist
-        if (disableAniSkipOnChapters && chapters.value.isNotEmpty()) return false
-
-        return true
+        return shouldIntegrateAniSkipOnFileLoad(
+            aniSkipEnabled = aniSkipEnabled,
+            introSkipEnabled = introSkipEnabled,
+            disableAniSkipOnChapters = disableAniSkipOnChapters,
+            hasExistingChapters = chapters.value.isNotEmpty(),
+        )
     }
 
     // Private helper methods
@@ -273,4 +272,15 @@ internal class PlayerFileLoadedHandler(
     fun updateChapters(chapters: List<IndexedSegment>) {
         _chapters.update { chapters }
     }
+}
+
+internal fun shouldIntegrateAniSkipOnFileLoad(
+    aniSkipEnabled: Boolean,
+    introSkipEnabled: Boolean,
+    disableAniSkipOnChapters: Boolean,
+    hasExistingChapters: Boolean,
+): Boolean {
+    if (!introSkipEnabled || !aniSkipEnabled) return false
+    if (disableAniSkipOnChapters && hasExistingChapters) return false
+    return true
 }

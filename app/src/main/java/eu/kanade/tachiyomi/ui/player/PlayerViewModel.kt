@@ -70,7 +70,11 @@ import eu.kanade.tachiyomi.ui.player.loader.PlayerMediaOrchestrator
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.AniSkipApi
+import eu.kanade.tachiyomi.ui.player.utils.AniSkipCache
+import eu.kanade.tachiyomi.ui.player.utils.AniSkipDiskCache
+import eu.kanade.tachiyomi.ui.player.utils.AniSkipTrackerKind
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
+import eu.kanade.tachiyomi.ui.player.utils.resolveMalId
 import eu.kanade.tachiyomi.ui.reader.SaveImageNotifier
 import eu.kanade.tachiyomi.util.editBackground
 import eu.kanade.tachiyomi.util.editCover
@@ -156,6 +160,7 @@ class PlayerViewModel @JvmOverloads constructor(
     private val getIncognitoState: GetAnimeIncognitoState = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     uiPreferences: UiPreferences = Injekt.get(),
+    private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.cacheDir),
 ) : ViewModel() {
 
     private val episodeListManager = PlayerEpisodeListManager(
@@ -1646,32 +1651,50 @@ class PlayerViewModel @JvmOverloads constructor(
      */
     suspend fun aniSkipResponse(playerDuration: Int?): List<TimeStamp>? {
         val animeId = currentAnime.value?.id ?: return null
-        val trackerManager = Injekt.get<TrackerManager>()
-        var malId: Long?
+        val duration = playerDuration ?: return null
         val episodeNumber = currentEpisode.value?.episode_number?.toInt() ?: return null
-        if (getTracks.await(animeId).isEmpty()) {
+        val tracks = getTracks.await(animeId)
+        if (tracks.isEmpty()) {
             logcat { "AniSkip: No tracks found for anime $animeId" }
             return null
         }
 
-        getTracks.await(animeId).map { track ->
-            val tracker = trackerManager.get(track.trackerId)
-            malId = when (tracker) {
-                is MyAnimeList -> track.remoteId
-                is Anilist -> AniSkipApi().getMalIdFromAL(track.remoteId)
-                else -> null
-            }
-            val duration = playerDuration ?: return null
-            return malId?.let {
-                AniSkipApi().getResult(it.toInt(), episodeNumber, duration.toLong())
-            }
-        }
-        return null
+        val trackerManager = Injekt.get<TrackerManager>()
+        val aniSkipApi = AniSkipApi()
+        val malId = resolveMalId(
+            tracks = tracks,
+            trackerKindForId = { trackerId ->
+                when (trackerManager.get(trackerId)) {
+                    is MyAnimeList -> AniSkipTrackerKind.MAL
+                    is Anilist -> AniSkipTrackerKind.ANILIST
+                    else -> AniSkipTrackerKind.OTHER
+                }
+            },
+            anilistToMalResolver = aniSkipApi::getMalIdFromAL,
+        ) ?: return null
+
+        aniSkipCache.get(
+            malId = malId,
+            episodeNumber = episodeNumber,
+            episodeLength = duration.toLong(),
+        )?.let { return it }
+
+        val fetched = aniSkipApi.getResult(
+            malId = malId.toInt(),
+            episodeNumber = episodeNumber,
+            episodeLength = duration.toLong(),
+        ) ?: return null
+
+        aniSkipCache.put(
+            malId = malId,
+            episodeNumber = episodeNumber,
+            episodeLength = duration.toLong(),
+            timestamps = fetched,
+        )
+        return fetched
     }
 
     val introSkipEnabled = playerPreferences.enableSkipIntro().get()
-    private val autoSkip = playerPreferences.autoSkipIntro().get()
-    private val netflixStyle = playerPreferences.enableNetflixStyleIntroSkip().get()
 
     private val defaultWaitingTime = playerPreferences.waitingTimeIntroSkip().get()
     var waitingSkipIntro = defaultWaitingTime
