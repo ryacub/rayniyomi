@@ -147,7 +147,7 @@ class LightNovelPluginManager(
         context.startActivity(intent)
     }
 
-    fun getManifestUrl(channel: String): String {
+    private fun getManifestUrl(channel: String): String {
         return when (channel) {
             NovelFeaturePreferences.CHANNEL_BETA -> BETA_MANIFEST_URL
             else -> STABLE_MANIFEST_URL
@@ -286,7 +286,9 @@ class LightNovelPluginManager(
         private const val BETA_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
 
-        // Primary + rotation cert fingerprints for the optional Light Novel plugin.
+        // TODO(R236-B): Replace with real SHA-256 certificate fingerprints before enabling in release.
+        // These placeholder values keep the gate fail-closed; plugin installs are blocked in release
+        // builds by ENABLE_PLUGIN_INSTALL_FOR_RELEASE = false until real certs are pinned.
         private val TRUSTED_PLUGIN_CERT_SHA256 = setOf(
             "7b7f000000000000000000000000000000000000000000000000000000000000",
             "8c8f000000000000000000000000000000000000000000000000000000000000",
