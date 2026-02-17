@@ -12,8 +12,6 @@ import androidx.lifecycle.flowWithLifecycle
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.core.preference.asState
-import eu.kanade.core.util.addOrRemove
-import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.entries.manga.interactor.GetExcludedScanlators
 import eu.kanade.domain.entries.manga.interactor.SetExcludedScanlators
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
@@ -40,12 +38,17 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
+import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
+import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
+import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
+import eu.kanade.tachiyomi.ui.entries.common.EntryTrackingSummaryObserver
+import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.catch
@@ -61,7 +64,6 @@ import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
-import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
@@ -91,7 +93,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.manga.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import kotlin.math.floor
 
 class MangaScreenModel(
     private val context: Context,
@@ -150,8 +151,8 @@ class MangaScreenModel(
 
     private val skipFiltered by readerPreferences.skipFiltered().asState(screenModelScope)
 
-    private val selectedPositions: Array<Int> = arrayOf(-1, -1) // first and last selected index in list
     private val selectedChapterIds: HashSet<Long> = HashSet()
+    private val selectionController = EntrySelectionController(selectedChapterIds)
 
     internal var isFromChangeCategory: Boolean = false
 
@@ -388,7 +389,7 @@ class MangaScreenModel(
                 successState.copy(
                     dialog = Dialog.ChangeCategory(
                         manga = manga,
-                        initialSelection = categories.mapAsCheckboxState { it.id in selection }.toImmutableList(),
+                        initialSelection = EntryCategoryActions.buildInitialSelection(categories, selection),
                     ),
                 )
             }
@@ -467,7 +468,7 @@ class MangaScreenModel(
      * @param categories the selected categories.
      */
     private fun moveMangaToCategories(categories: List<Category>) {
-        val categoryIds = categories.map { it.id }
+        val categoryIds = EntryCategoryActions.toCategoryIds(categories)
         moveMangaToCategory(categoryIds)
     }
 
@@ -483,7 +484,7 @@ class MangaScreenModel(
      * @param category the selected category, or null for default category.
      */
     private fun moveMangaToCategory(category: Category?) {
-        moveMangaToCategories(listOfNotNull(category))
+        moveMangaToCategories(EntryCategoryActions.toCategoryList(category))
     }
 
     // Manga info - end
@@ -518,14 +519,12 @@ class MangaScreenModel(
 
     private fun updateDownloadState(download: MangaDownload) {
         updateSuccessState { successState ->
-            val modifiedIndex = successState.chapters.indexOfFirst { it.id == download.chapter.id }
-            if (modifiedIndex < 0) return@updateSuccessState successState
-
-            val newChapters = successState.chapters.toMutableList().apply {
-                val item = removeAt(modifiedIndex)
-                    .copy(downloadState = download.status, downloadProgress = download.progress)
-                add(modifiedIndex, item)
-            }
+            val newChapters = EntryDownloadStateUpdater.update(
+                items = successState.chapters,
+                entryId = download.chapter.id,
+                idSelector = { it.id },
+                updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
+            )
             successState.copy(chapters = newChapters)
         }
     }
@@ -997,83 +996,35 @@ class MangaScreenModel(
         fromLongPress: Boolean = false,
     ) {
         updateSuccessState { successState ->
-            val newChapters = successState.processedChapters.toMutableList().apply {
-                val selectedIndex = successState.processedChapters.indexOfFirst { it.id == item.chapter.id }
-                if (selectedIndex < 0) return@apply
-
-                val selectedItem = get(selectedIndex)
-                if ((selectedItem.selected && selected) || (!selectedItem.selected && !selected)) return@apply
-
-                val firstSelection = none { it.selected }
-                set(selectedIndex, selectedItem.copy(selected = selected))
-                selectedChapterIds.addOrRemove(item.id, selected)
-
-                if (selected && userSelected && fromLongPress) {
-                    if (firstSelection) {
-                        selectedPositions[0] = selectedIndex
-                        selectedPositions[1] = selectedIndex
-                    } else {
-                        // Try to select the items in-between when possible
-                        val range: IntRange
-                        if (selectedIndex < selectedPositions[0]) {
-                            range = selectedIndex + 1..<selectedPositions[0]
-                            selectedPositions[0] = selectedIndex
-                        } else if (selectedIndex > selectedPositions[1]) {
-                            range = (selectedPositions[1] + 1)..<selectedIndex
-                            selectedPositions[1] = selectedIndex
-                        } else {
-                            // Just select itself
-                            range = IntRange.EMPTY
-                        }
-
-                        range.forEach {
-                            val inbetweenItem = get(it)
-                            if (!inbetweenItem.selected) {
-                                selectedChapterIds.add(inbetweenItem.id)
-                                set(it, inbetweenItem.copy(selected = true))
-                            }
-                        }
-                    }
-                } else if (userSelected && !fromLongPress) {
-                    if (!selected) {
-                        if (selectedIndex == selectedPositions[0]) {
-                            selectedPositions[0] = indexOfFirst { it.selected }
-                        } else if (selectedIndex == selectedPositions[1]) {
-                            selectedPositions[1] = indexOfLast { it.selected }
-                        }
-                    } else {
-                        if (selectedIndex < selectedPositions[0]) {
-                            selectedPositions[0] = selectedIndex
-                        } else if (selectedIndex > selectedPositions[1]) {
-                            selectedPositions[1] = selectedIndex
-                        }
-                    }
-                }
-            }
+            val newChapters = selectionController.toggleSelection(
+                items = successState.processedChapters,
+                itemId = item.id,
+                selected = selected,
+                userSelected = userSelected,
+                fromLongPress = fromLongPress,
+                updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
+            )
             successState.copy(chapters = newChapters)
         }
     }
 
     fun toggleAllSelection(selected: Boolean) {
         updateSuccessState { successState ->
-            val newChapters = successState.chapters.map {
-                selectedChapterIds.addOrRemove(it.id, selected)
-                it.copy(selected = selected)
-            }
-            selectedPositions[0] = -1
-            selectedPositions[1] = -1
+            val newChapters = selectionController.toggleAllSelection(
+                items = successState.chapters,
+                selected = selected,
+                updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
+            )
             successState.copy(chapters = newChapters)
         }
     }
 
     fun invertSelection() {
         updateSuccessState { successState ->
-            val newChapters = successState.chapters.map {
-                selectedChapterIds.addOrRemove(it.id, !it.selected)
-                it.copy(selected = !it.selected)
-            }
-            selectedPositions[0] = -1
-            selectedPositions[1] = -1
+            val newChapters = selectionController.invertSelection(
+                items = successState.chapters,
+                updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
+            )
             successState.copy(chapters = newChapters)
         }
     }
@@ -1090,21 +1041,20 @@ class MangaScreenModel(
                 getTracks.subscribe(manga.id).catch { logcat(LogPriority.ERROR, it) },
                 trackerManager.loggedInTrackersFlow(),
             ) { mangaTracks, loggedInTrackers ->
-                // Show only if the service supports this manga's source
-                val supportedTrackers = loggedInTrackers.filter {
-                    (it as? EnhancedMangaTracker)?.accept(source!!) ?: true
-                }
-                val supportedTrackerIds = supportedTrackers.map { it.id }.toHashSet()
-                val supportedTrackerTracks = mangaTracks.filter { it.trackerId in supportedTrackerIds }
-                supportedTrackerTracks.size to supportedTrackers.isNotEmpty()
+                EntryTrackingSummaryObserver.summarize(
+                    tracks = mangaTracks,
+                    loggedInTrackers = loggedInTrackers,
+                    trackId = { it.trackerId },
+                    isTrackerSupported = { (it as? EnhancedMangaTracker)?.accept(source!!) ?: true },
+                )
             }
                 .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
-                .collectLatest { (trackingCount, hasLoggedInTrackers) ->
+                .collectLatest { trackingSummary ->
                     updateSuccessState {
                         it.copy(
-                            trackingCount = trackingCount,
-                            hasLoggedInTrackers = hasLoggedInTrackers,
+                            trackingCount = trackingSummary.trackingCount,
+                            hasLoggedInTrackers = trackingSummary.hasLoggedInTrackers,
                         )
                     }
                 }
@@ -1185,30 +1135,15 @@ class MangaScreenModel(
             }
 
             val chapterListItems by lazy {
-                processedChapters.insertSeparators { before, after ->
-                    val (lowerChapter, higherChapter) = if (manga.sortDescending()) {
-                        after to before
-                    } else {
-                        before to after
-                    }
-                    if (higherChapter == null) return@insertSeparators null
-
-                    if (lowerChapter == null) {
-                        floor(higherChapter.chapter.chapterNumber)
-                            .toInt()
-                            .minus(1)
-                            .coerceAtLeast(0)
-                    } else {
-                        calculateChapterGap(higherChapter.chapter, lowerChapter.chapter)
-                    }
-                        .takeIf { it > 0 }
-                        ?.let { missingCount ->
-                            ChapterList.MissingCount(
-                                id = "${lowerChapter?.id}-${higherChapter.id}",
-                                count = missingCount,
-                            )
-                        }
-                }
+                EntryListGapSeparator.withMissingCount(
+                    items = processedChapters,
+                    sortDescending = manga.sortDescending(),
+                    itemId = { it.id },
+                    itemNumber = { it.chapter.chapterNumber },
+                    calculateGap = { higher, lower -> calculateChapterGap(higher.chapter, lower.chapter) },
+                    mapItem = { it as ChapterList },
+                    mapMissing = { id, count -> ChapterList.MissingCount(id = id, count = count) },
+                )
             }
 
             val scanlatorFilterActive: Boolean
@@ -1257,10 +1192,11 @@ sealed class ChapterList {
         val chapter: Chapter,
         val downloadState: MangaDownload.State,
         val downloadProgress: Int,
-        val selected: Boolean = false,
+        override val selected: Boolean = false,
         val translationState: TranslationState = TranslationState.Idle,
-    ) : ChapterList() {
-        val id = chapter.id
+    ) : ChapterList(), SelectableEntryItem {
+        override val id: Long
+            get() = chapter.id
         val isDownloaded = downloadState == MangaDownload.State.DOWNLOADED
     }
 }

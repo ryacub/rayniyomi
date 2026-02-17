@@ -11,8 +11,6 @@ import aniyomi.domain.anime.SeasonAnime
 import aniyomi.domain.anime.SeasonDisplayMode
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import eu.kanade.core.util.addOrRemove
-import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
 import eu.kanade.domain.entries.anime.interactor.SyncSeasonsWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
@@ -41,6 +39,12 @@ import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
+import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
+import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
+import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
+import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
+import eu.kanade.tachiyomi.ui.entries.common.EntryTrackingSummaryObserver
+import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.util.AniChartApi
@@ -48,7 +52,6 @@ import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -67,7 +70,6 @@ import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
-import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
@@ -105,7 +107,6 @@ import tachiyomi.source.local.entries.anime.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Calendar
-import kotlin.math.floor
 
 class AnimeScreenModel(
     private val context: Context,
@@ -167,8 +168,8 @@ class AnimeScreenModel(
     val alwaysUseExternalPlayer = playerPreferences.alwaysUseExternalPlayer().get()
     val useExternalDownloader = downloadPreferences.useExternalDownloader().get()
 
-    private val selectedPositions: Array<Int> = arrayOf(-1, -1) // first and last selected index in list
     private val selectedEpisodeIds: HashSet<Long> = HashSet()
+    private val selectionController = EntrySelectionController(selectedEpisodeIds)
 
     internal var isFromChangeCategory: Boolean = false
 
@@ -397,7 +398,7 @@ class AnimeScreenModel(
                 successState.copy(
                     dialog = Dialog.ChangeCategory(
                         anime = anime,
-                        initialSelection = categories.mapAsCheckboxState { it.id in selection }.toImmutableList(),
+                        initialSelection = EntryCategoryActions.buildInitialSelection(categories, selection),
                     ),
                 )
             }
@@ -476,7 +477,7 @@ class AnimeScreenModel(
      * @param categories the selected categories.
      */
     private fun moveAnimeToCategories(categories: List<Category>) {
-        val categoryIds = categories.map { it.id }
+        val categoryIds = EntryCategoryActions.toCategoryIds(categories)
         moveAnimeToCategory(categoryIds)
     }
 
@@ -492,7 +493,7 @@ class AnimeScreenModel(
      * @param category the selected category, or null for default category.
      */
     private fun moveAnimeToCategory(category: Category?) {
-        moveAnimeToCategories(listOfNotNull(category))
+        moveAnimeToCategories(EntryCategoryActions.toCategoryList(category))
     }
 
     // Anime info - end
@@ -527,14 +528,12 @@ class AnimeScreenModel(
 
     private fun updateDownloadState(download: AnimeDownload) {
         updateSuccessState { successState ->
-            val modifiedIndex = successState.episodes.indexOfFirst { it.id == download.episode.id }
-            if (modifiedIndex < 0) return@updateSuccessState successState
-
-            val newEpisodes = successState.episodes.toMutableList().apply {
-                val item = removeAt(modifiedIndex)
-                    .copy(downloadState = download.status, downloadProgress = download.progress)
-                add(modifiedIndex, item)
-            }
+            val newEpisodes = EntryDownloadStateUpdater.update(
+                items = successState.episodes,
+                entryId = download.episode.id,
+                idSelector = { it.id },
+                updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
+            )
             successState.copy(episodes = newEpisodes)
         }
     }
@@ -1374,83 +1373,35 @@ class AnimeScreenModel(
         fromLongPress: Boolean = false,
     ) {
         updateSuccessState { successState ->
-            val newEpisodes = successState.processedEpisodes.toMutableList().apply {
-                val selectedIndex = successState.processedEpisodes.indexOfFirst { it.id == item.episode.id }
-                if (selectedIndex < 0) return@apply
-
-                val selectedItem = get(selectedIndex)
-                if ((selectedItem.selected && selected) || (!selectedItem.selected && !selected)) return@apply
-
-                val firstSelection = none { it.selected }
-                set(selectedIndex, selectedItem.copy(selected = selected))
-                selectedEpisodeIds.addOrRemove(item.id, selected)
-
-                if (selected && userSelected && fromLongPress) {
-                    if (firstSelection) {
-                        selectedPositions[0] = selectedIndex
-                        selectedPositions[1] = selectedIndex
-                    } else {
-                        // Try to select the items in-between when possible
-                        val range: IntRange
-                        if (selectedIndex < selectedPositions[0]) {
-                            range = selectedIndex + 1..<selectedPositions[0]
-                            selectedPositions[0] = selectedIndex
-                        } else if (selectedIndex > selectedPositions[1]) {
-                            range = (selectedPositions[1] + 1)..<selectedIndex
-                            selectedPositions[1] = selectedIndex
-                        } else {
-                            // Just select itself
-                            range = IntRange.EMPTY
-                        }
-
-                        range.forEach {
-                            val inbetweenItem = get(it)
-                            if (!inbetweenItem.selected) {
-                                selectedEpisodeIds.add(inbetweenItem.id)
-                                set(it, inbetweenItem.copy(selected = true))
-                            }
-                        }
-                    }
-                } else if (userSelected && !fromLongPress) {
-                    if (!selected) {
-                        if (selectedIndex == selectedPositions[0]) {
-                            selectedPositions[0] = indexOfFirst { it.selected }
-                        } else if (selectedIndex == selectedPositions[1]) {
-                            selectedPositions[1] = indexOfLast { it.selected }
-                        }
-                    } else {
-                        if (selectedIndex < selectedPositions[0]) {
-                            selectedPositions[0] = selectedIndex
-                        } else if (selectedIndex > selectedPositions[1]) {
-                            selectedPositions[1] = selectedIndex
-                        }
-                    }
-                }
-            }
+            val newEpisodes = selectionController.toggleSelection(
+                items = successState.processedEpisodes,
+                itemId = item.id,
+                selected = selected,
+                userSelected = userSelected,
+                fromLongPress = fromLongPress,
+                updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
+            )
             successState.copy(episodes = newEpisodes)
         }
     }
 
     fun toggleAllSelection(selected: Boolean) {
         updateSuccessState { successState ->
-            val newEpisodes = successState.episodes.map {
-                selectedEpisodeIds.addOrRemove(it.id, selected)
-                it.copy(selected = selected)
-            }
-            selectedPositions[0] = -1
-            selectedPositions[1] = -1
+            val newEpisodes = selectionController.toggleAllSelection(
+                items = successState.episodes,
+                selected = selected,
+                updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
+            )
             successState.copy(episodes = newEpisodes)
         }
     }
 
     fun invertSelection() {
         updateSuccessState { successState ->
-            val newEpisodes = successState.episodes.map {
-                selectedEpisodeIds.addOrRemove(it.id, !it.selected)
-                it.copy(selected = !it.selected)
-            }
-            selectedPositions[0] = -1
-            selectedPositions[1] = -1
+            val newEpisodes = selectionController.invertSelection(
+                items = successState.episodes,
+                updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
+            )
             successState.copy(episodes = newEpisodes)
         }
     }
@@ -1467,21 +1418,20 @@ class AnimeScreenModel(
                 getTracks.subscribe(anime.id).catch { logcat(LogPriority.ERROR, it) },
                 trackerManager.loggedInTrackersFlow(),
             ) { animeTracks, loggedInTrackers ->
-                // Show only if the service supports this manga's source
-                val supportedTrackers = loggedInTrackers.filter {
-                    (it as? EnhancedAnimeTracker)?.accept(source!!) ?: true
-                }
-                val supportedTrackerIds = supportedTrackers.map { it.id }.toHashSet()
-                val supportedTrackerTracks = animeTracks.filter { it.trackerId in supportedTrackerIds }
-                supportedTrackerTracks.size to supportedTrackers.isNotEmpty()
+                EntryTrackingSummaryObserver.summarize(
+                    tracks = animeTracks,
+                    loggedInTrackers = loggedInTrackers,
+                    trackId = { it.trackerId },
+                    isTrackerSupported = { (it as? EnhancedAnimeTracker)?.accept(source!!) ?: true },
+                )
             }
                 .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
-                .collectLatest { (trackingCount, hasLoggedInTrackers) ->
+                .collectLatest { trackingSummary ->
                     updateSuccessState {
                         it.copy(
-                            trackingCount = trackingCount,
-                            hasLoggedInTrackers = hasLoggedInTrackers,
+                            trackingCount = trackingSummary.trackingCount,
+                            hasLoggedInTrackers = trackingSummary.hasLoggedInTrackers,
                         )
                     }
                 }
@@ -1601,30 +1551,15 @@ class AnimeScreenModel(
             }
 
             val episodeListItems by lazy {
-                processedEpisodes.insertSeparators { before, after ->
-                    val (lowerEpisode, higherEpisode) = if (anime.sortDescending()) {
-                        after to before
-                    } else {
-                        before to after
-                    }
-                    if (higherEpisode == null) return@insertSeparators null
-
-                    if (lowerEpisode == null) {
-                        floor(higherEpisode.episode.episodeNumber)
-                            .toInt()
-                            .minus(1)
-                            .coerceAtLeast(0)
-                    } else {
-                        calculateEpisodeGap(higherEpisode.episode, lowerEpisode.episode)
-                    }
-                        .takeIf { it > 0 }
-                        ?.let { missingCount ->
-                            EpisodeList.MissingCount(
-                                id = "${lowerEpisode?.id}-${higherEpisode.id}",
-                                count = missingCount,
-                            )
-                        }
-                }
+                EntryListGapSeparator.withMissingCount(
+                    items = processedEpisodes,
+                    sortDescending = anime.sortDescending(),
+                    itemId = { it.id },
+                    itemNumber = { it.episode.episodeNumber },
+                    calculateGap = { higher, lower -> calculateEpisodeGap(higher.episode, lower.episode) },
+                    mapItem = { it as EpisodeList },
+                    mapMissing = { id, count -> EpisodeList.MissingCount(id = id, count = count) },
+                )
             }
 
             val trackingAvailable: Boolean
@@ -1720,9 +1655,10 @@ sealed class EpisodeList {
         val episode: Episode,
         val downloadState: AnimeDownload.State,
         val downloadProgress: Int,
-        val selected: Boolean = false,
-    ) : EpisodeList() {
-        val id = episode.id
+        override val selected: Boolean = false,
+    ) : EpisodeList(), SelectableEntryItem {
+        override val id: Long
+            get() = episode.id
         val isDownloaded = downloadState == AnimeDownload.State.DOWNLOADED
     }
 }
