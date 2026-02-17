@@ -253,6 +253,7 @@ class AppModule(val app: Application) : InjektModule {
 
             get<MangaDownloadManager>()
             get<AnimeDownloadManager>()
+            get<LightNovelPluginManager>()
         }
     }
 }
