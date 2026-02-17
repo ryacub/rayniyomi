@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.app.Application
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -19,6 +20,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.allowRgb565
 import coil3.request.crossfade
@@ -231,6 +233,18 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 add(MangaKeyer())
                 add(AnimeCoverKeyer())
                 add(MangaCoverKeyer())
+            }
+
+            // Scale memory cache to device capability: 15% of app memory class
+            val activityManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+            val deviceMemoryMb = activityManager.memoryClass.toLong()
+            val cacheSizePercent = 15L
+            val memoryCacheMb = deviceMemoryMb * cacheSizePercent / 100
+            val memoryCacheBytes = memoryCacheMb * 1024L * 1024L
+            memoryCache {
+                MemoryCache.Builder()
+                    .maxSizeBytes(memoryCacheBytes)
+                    .build()
             }
 
             crossfade((300 * this@App.animatorDurationScale).toInt())
