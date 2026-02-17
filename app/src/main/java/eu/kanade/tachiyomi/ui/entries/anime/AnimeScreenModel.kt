@@ -534,6 +534,7 @@ class AnimeScreenModel(
                 idSelector = { it.id },
                 updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
             )
+            if (newEpisodes === successState.episodes) return@updateSuccessState successState
             successState.copy(episodes = newEpisodes)
         }
     }
@@ -1382,6 +1383,7 @@ class AnimeScreenModel(
                 fromLongPress = fromLongPress,
                 updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
             )
+            if (newEpisodes === successState.episodes) return@updateSuccessState successState
             successState.copy(episodes = newEpisodes)
         }
     }

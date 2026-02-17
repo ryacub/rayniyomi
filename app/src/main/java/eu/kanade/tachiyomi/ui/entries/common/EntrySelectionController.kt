@@ -34,7 +34,7 @@ internal class EntrySelectionController(
         val selectedItem = newItems[selectedCanonicalIndex]
         if ((selectedItem.selected && selected) || (!selectedItem.selected && !selected)) return allItems
 
-        val firstSelection = visibleItems.none { it.selected }
+        val firstSelection = selectedIds.isEmpty()
         newItems[selectedCanonicalIndex] = updateSelection(selectedItem, selected)
         addOrRemoveSelection(itemId, selected)
 
@@ -70,9 +70,19 @@ internal class EntrySelectionController(
         } else if (userSelected && !fromLongPress) {
             if (!selected) {
                 if (selectedIndex == rangeState.first) {
-                    rangeState.first = visibleItems.indexOfFirst { it.id in selectedIds }
+                    val reanchoredFirst = visibleItems.indexOfFirst { it.id in selectedIds }
+                    if (reanchoredFirst == -1) {
+                        resetRange()
+                    } else {
+                        rangeState.first = reanchoredFirst
+                    }
                 } else if (selectedIndex == rangeState.last) {
-                    rangeState.last = visibleItems.indexOfLast { it.id in selectedIds }
+                    val reanchoredLast = visibleItems.indexOfLast { it.id in selectedIds }
+                    if (reanchoredLast == -1) {
+                        resetRange()
+                    } else {
+                        rangeState.last = reanchoredLast
+                    }
                 }
             } else {
                 if (rangeState.first == -1 || selectedIndex < rangeState.first) {

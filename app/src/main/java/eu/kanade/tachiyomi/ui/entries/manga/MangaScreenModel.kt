@@ -525,6 +525,7 @@ class MangaScreenModel(
                 idSelector = { it.id },
                 updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
             )
+            if (newChapters === successState.chapters) return@updateSuccessState successState
             successState.copy(chapters = newChapters)
         }
     }
@@ -1005,6 +1006,7 @@ class MangaScreenModel(
                 fromLongPress = fromLongPress,
                 updateSelection = { value, selectedValue -> value.copy(selected = selectedValue) },
             )
+            if (newChapters === successState.chapters) return@updateSuccessState successState
             successState.copy(chapters = newChapters)
         }
     }

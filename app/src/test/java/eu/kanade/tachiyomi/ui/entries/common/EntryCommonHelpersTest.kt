@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Field
 
 class EntryCommonHelpersTest {
 
@@ -146,31 +147,108 @@ class EntryCommonHelpersTest {
     }
 
     @Test
-    fun `anime and manga style selection flows stay behaviorally aligned under filters`() {
-        val animeController = EntrySelectionController(mutableSetOf())
-        val mangaController = EntrySelectionController(mutableSetOf())
+    fun `selection controller keeps range anchors when hidden item is pre-selected`() {
+        val selectedIds = mutableSetOf(2L)
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = listOf(
+            TestSelectableItem(id = 1L, selected = false),
+            TestSelectableItem(id = 2L, selected = true), // hidden pre-selection
+            TestSelectableItem(id = 3L, selected = false),
+            TestSelectableItem(id = 4L, selected = false),
+            TestSelectableItem(id = 5L, selected = false),
+        )
+        val visible = listOf(canonical[0], canonical[2], canonical[4]) // ids 1,3,5
 
-        val animeCanonical = (1L..6L).map { AnimeSelectableItem(id = it, selected = false) }
-        val mangaCanonical = (1L..6L).map { MangaSelectableItem(id = it, selected = false) }
-        val animeVisible = animeCanonical.filter { it.id % 2L == 1L } // 1,3,5
-        val mangaVisible = mangaCanonical.filter { it.id % 2L == 1L } // 1,3,5
+        setRangeState(controller, first = 0, last = 2)
 
-        val animeAfter = animeController.toggleSelection(
-            visibleItems = animeVisible,
-            allItems = animeCanonical,
-            itemId = 5L,
+        controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 3L,
             selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        assertEquals(0, getRangeStateValue(controller, "first"))
+        assertEquals(2, getRangeStateValue(controller, "last"))
+    }
+
+    @Test
+    fun `selection controller resets range when re-anchor cannot find visible selection`() {
+        val selectedIds = mutableSetOf(2L, 3L)
+        val controller = EntrySelectionController(selectedIds)
+        val canonical = listOf(
+            TestSelectableItem(id = 1L, selected = false),
+            TestSelectableItem(id = 2L, selected = true), // hidden remaining selection
+            TestSelectableItem(id = 3L, selected = true), // visible and will be deselected
+            TestSelectableItem(id = 4L, selected = false),
+            TestSelectableItem(id = 5L, selected = false),
+        )
+        val visible = listOf(canonical[0], canonical[2], canonical[4]) // ids 1,3,5
+
+        setRangeState(controller, first = 1, last = 1)
+
+        controller.toggleSelection(
+            visibleItems = visible,
+            allItems = canonical,
+            itemId = 3L,
+            selected = false,
             userSelected = true,
             fromLongPress = false,
             updateSelection = { item, selected -> item.copy(selected = selected) },
         )
-        val mangaAfter = mangaController.toggleSelection(
+
+        assertEquals(-1, getRangeStateValue(controller, "first"))
+        assertEquals(-1, getRangeStateValue(controller, "last"))
+    }
+
+    @Test
+    fun `selection flows stay behaviorally aligned under filters with long-press range`() {
+        val animeController = EntrySelectionController(mutableSetOf())
+        val mangaController = EntrySelectionController(mutableSetOf())
+
+        val animeCanonical = (1L..6L).map { TestSelectableItem(id = it, selected = false) }
+        val mangaCanonical = (1L..6L).map { TestSelectableItem(id = it, selected = false) }
+        val animeVisible = animeCanonical.filter { it.id % 2L == 1L } // 1,3,5
+        val mangaVisible = mangaCanonical.filter { it.id % 2L == 1L } // 1,3,5
+
+        val animeAfterFirstLongPress = animeController.toggleSelection(
+            visibleItems = animeVisible,
+            allItems = animeCanonical,
+            itemId = 1L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        val mangaAfterFirstLongPress = mangaController.toggleSelection(
             visibleItems = mangaVisible,
             allItems = mangaCanonical,
+            itemId = 1L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+
+        val animeAfter = animeController.toggleSelection(
+            visibleItems = animeAfterFirstLongPress.filter { it.id % 2L == 1L },
+            allItems = animeAfterFirstLongPress,
             itemId = 5L,
             selected = true,
             userSelected = true,
-            fromLongPress = false,
+            fromLongPress = true,
+            updateSelection = { item, selected -> item.copy(selected = selected) },
+        )
+        val mangaAfter = mangaController.toggleSelection(
+            visibleItems = mangaAfterFirstLongPress.filter { it.id % 2L == 1L },
+            allItems = mangaAfterFirstLongPress,
+            itemId = 5L,
+            selected = true,
+            userSelected = true,
+            fromLongPress = true,
             updateSelection = { item, selected -> item.copy(selected = selected) },
         )
 
@@ -282,16 +360,6 @@ class EntryCommonHelpersTest {
         val value: Int,
     )
 
-    private data class AnimeSelectableItem(
-        override val id: Long,
-        override val selected: Boolean,
-    ) : SelectableEntryItem
-
-    private data class MangaSelectableItem(
-        override val id: Long,
-        override val selected: Boolean,
-    ) : SelectableEntryItem
-
     private data class TrackRow(
         val trackerId: Long,
     )
@@ -334,5 +402,28 @@ class EntryCommonHelpersTest {
 
         override val animeService: AnimeTracker
             get() = throw UnsupportedOperationException("not needed")
+    }
+
+    private fun setRangeState(controller: EntrySelectionController, first: Int, last: Int) {
+        val state = getRangeState(controller)
+        getRangeStateField(state, "first").setInt(state, first)
+        getRangeStateField(state, "last").setInt(state, last)
+    }
+
+    private fun getRangeStateValue(controller: EntrySelectionController, fieldName: String): Int {
+        val state = getRangeState(controller)
+        return getRangeStateField(state, fieldName).getInt(state)
+    }
+
+    private fun getRangeState(controller: EntrySelectionController): Any {
+        val field = controller::class.java.getDeclaredField("rangeState")
+        field.isAccessible = true
+        return requireNotNull(field.get(controller))
+    }
+
+    private fun getRangeStateField(state: Any, fieldName: String): Field {
+        return state::class.java.getDeclaredField(fieldName).apply {
+            isAccessible = true
+        }
     }
 }
