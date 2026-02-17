@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.library.anime.LibraryAnime
+import tachiyomi.domain.library.model.LibraryFilter
 import tachiyomi.domain.source.anime.model.DeletableAnime
 
 interface AnimeRepository {
@@ -24,6 +25,10 @@ interface AnimeRepository {
     suspend fun getLibraryAnime(): List<LibraryAnime>
 
     fun getLibraryAnimeAsFlow(): Flow<List<LibraryAnime>>
+
+    suspend fun getLibraryAnimeFiltered(filter: LibraryFilter): List<LibraryAnime>
+
+    fun getLibraryAnimeFilteredAsFlow(filter: LibraryFilter): Flow<List<LibraryAnime>>
 
     fun getAnimeFavoritesBySourceId(sourceId: Long): Flow<List<Anime>>
 

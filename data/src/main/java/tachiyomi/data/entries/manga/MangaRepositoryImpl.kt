@@ -10,6 +10,7 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaUpdate
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.library.manga.LibraryManga
+import tachiyomi.domain.library.model.LibraryFilter
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -59,6 +60,32 @@ class MangaRepositoryImpl(
 
     override fun getLibraryMangaAsFlow(): Flow<List<LibraryManga>> {
         return handler.subscribeToList { libraryViewQueries.library(MangaMapper::mapLibraryManga) }
+    }
+
+    override suspend fun getLibraryMangaFiltered(filter: LibraryFilter): List<LibraryManga> {
+        return handler.awaitList {
+            libraryViewQueries.libraryFiltered(
+                filterUnread = filter.filterUnread.ordinal.toLong(),
+                filterStarted = filter.filterStarted.ordinal.toLong(),
+                filterBookmarked = filter.filterBookmarked.ordinal.toLong(),
+                filterCompleted = filter.filterCompleted.ordinal.toLong(),
+                filterIntervalCustom = filter.filterIntervalCustom.ordinal.toLong(),
+                mapper = MangaMapper::mapLibraryManga,
+            )
+        }
+    }
+
+    override fun getLibraryMangaFilteredAsFlow(filter: LibraryFilter): Flow<List<LibraryManga>> {
+        return handler.subscribeToList {
+            libraryViewQueries.libraryFiltered(
+                filterUnread = filter.filterUnread.ordinal.toLong(),
+                filterStarted = filter.filterStarted.ordinal.toLong(),
+                filterBookmarked = filter.filterBookmarked.ordinal.toLong(),
+                filterCompleted = filter.filterCompleted.ordinal.toLong(),
+                filterIntervalCustom = filter.filterIntervalCustom.ordinal.toLong(),
+                mapper = MangaMapper::mapLibraryManga,
+            )
+        }
     }
 
     override fun getMangaFavoritesBySourceId(sourceId: Long): Flow<List<Manga>> {

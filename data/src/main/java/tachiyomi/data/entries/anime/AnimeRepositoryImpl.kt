@@ -12,6 +12,7 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.library.anime.LibraryAnime
+import tachiyomi.domain.library.model.LibraryFilter
 import tachiyomi.domain.source.anime.model.DeletableAnime
 import java.time.LocalDate
 import java.time.ZoneId
@@ -62,6 +63,32 @@ class AnimeRepositoryImpl(
 
     override fun getLibraryAnimeAsFlow(): Flow<List<LibraryAnime>> {
         return handler.subscribeToList { animelibViewQueries.animelib(AnimeMapper::mapLibraryAnime) }
+    }
+
+    override suspend fun getLibraryAnimeFiltered(filter: LibraryFilter): List<LibraryAnime> {
+        return handler.awaitList {
+            animelibViewQueries.animelibFiltered(
+                filterUnseen = filter.filterUnread.ordinal.toLong(),
+                filterStarted = filter.filterStarted.ordinal.toLong(),
+                filterBookmarked = filter.filterBookmarked.ordinal.toLong(),
+                filterCompleted = filter.filterCompleted.ordinal.toLong(),
+                filterIntervalCustom = filter.filterIntervalCustom.ordinal.toLong(),
+                mapper = AnimeMapper::mapLibraryAnime,
+            )
+        }
+    }
+
+    override fun getLibraryAnimeFilteredAsFlow(filter: LibraryFilter): Flow<List<LibraryAnime>> {
+        return handler.subscribeToList {
+            animelibViewQueries.animelibFiltered(
+                filterUnseen = filter.filterUnread.ordinal.toLong(),
+                filterStarted = filter.filterStarted.ordinal.toLong(),
+                filterBookmarked = filter.filterBookmarked.ordinal.toLong(),
+                filterCompleted = filter.filterCompleted.ordinal.toLong(),
+                filterIntervalCustom = filter.filterIntervalCustom.ordinal.toLong(),
+                mapper = AnimeMapper::mapLibraryAnime,
+            )
+        }
     }
 
     override fun getAnimeFavoritesBySourceId(sourceId: Long): Flow<List<Anime>> {

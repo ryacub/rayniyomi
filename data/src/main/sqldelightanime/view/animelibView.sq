@@ -40,3 +40,15 @@ WHERE M.favorite = 1;
 animelib:
 SELECT *
 FROM animelibView;
+
+-- Filtered animelib query. Filter params use TriState ordinal:
+-- 0 = DISABLED (no filter), 1 = ENABLED_IS (include), 2 = ENABLED_NOT (exclude)
+animelibFiltered:
+SELECT *
+FROM animelibView
+WHERE
+    (:filterUnseen = 0 OR (:filterUnseen = 1 AND (totalCount - seenCount) > 0) OR (:filterUnseen = 2 AND (totalCount - seenCount) = 0))
+    AND (:filterStarted = 0 OR (:filterStarted = 1 AND seenCount > 0) OR (:filterStarted = 2 AND seenCount = 0))
+    AND (:filterBookmarked = 0 OR (:filterBookmarked = 1 AND bookmarkCount > 0) OR (:filterBookmarked = 2 AND bookmarkCount = 0))
+    AND (:filterCompleted = 0 OR (:filterCompleted = 1 AND status = 2) OR (:filterCompleted = 2 AND status != 2))
+    AND (:filterIntervalCustom = 0 OR (:filterIntervalCustom = 1 AND calculate_interval < 0) OR (:filterIntervalCustom = 2 AND calculate_interval >= 0));
