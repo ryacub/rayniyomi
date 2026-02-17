@@ -10,7 +10,6 @@ import data.History
 import data.Mangas
 import dataanime.Animehistory
 import dataanime.Animes
-import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.domain.track.anime.store.DelayedAnimeTrackingStore
 import eu.kanade.domain.track.manga.store.DelayedMangaTrackingStore
 import eu.kanade.tachiyomi.BuildConfig
@@ -31,9 +30,6 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
-import eu.kanade.tachiyomi.feature.novel.LightNovelFeatureGate
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginReadiness
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.anime.AndroidAnimeSourceManager
@@ -198,9 +194,6 @@ class AppModule(val app: Application) : InjektModule {
 
         addSingletonFactory { NetworkHelper(app, get()) }
         addSingletonFactory { JavaScriptEngine(app) }
-        addSingletonFactory { LightNovelPluginManager(app, get(), get()) }
-        addSingletonFactory<LightNovelPluginReadiness> { get<LightNovelPluginManager>() }
-        addSingletonFactory { LightNovelFeatureGate(get<NovelFeaturePreferences>(), get()) }
 
         addSingletonFactory<MangaSourceManager> { AndroidMangaSourceManager(app, get(), get()) }
         addSingletonFactory<AnimeSourceManager> { AndroidAnimeSourceManager(app, get(), get()) }
