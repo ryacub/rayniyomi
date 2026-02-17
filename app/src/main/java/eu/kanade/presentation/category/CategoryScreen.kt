@@ -18,9 +18,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import eu.kanade.presentation.category.components.CategoryFloatingActionButton
 import eu.kanade.presentation.category.components.CategoryListItem
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tachiyomi.domain.category.model.Category
@@ -146,3 +149,23 @@ private fun CategoryContent(
 }
 
 private val Category.key inline get() = "category-$id"
+
+@PreviewLightDark
+@Composable
+private fun CategoryScreenPreview() {
+    TachiyomiPreviewTheme {
+        CategoryScreen(
+            categories = listOf(
+                Category(id = 1, name = "Action", order = 0, flags = 0, hidden = false, parentId = null),
+                Category(id = 2, name = "Isekai", order = 1, flags = 0, hidden = false, parentId = 1),
+            ).toImmutableList(),
+            alphabeticalSortEnabled = false,
+            isEmpty = false,
+            onClickCreate = {},
+            onClickRename = {},
+            onClickHide = {},
+            onClickDelete = {},
+            onChangeOrder = { _, _ -> },
+        )
+    }
+}
