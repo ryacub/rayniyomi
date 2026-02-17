@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,9 +32,7 @@ internal fun AnimeLibraryList(
     searchQuery: String?,
     onGlobalSearchClicked: () -> Unit,
 ) {
-    val selectionIds = remember(selection) {
-        derivedStateOf { selection.map { it.id }.toSet() }
-    }
+    val selectedIds = remember(selection) { selection.mapTo(HashSet()) { it.id } }
 
     FastScrollLazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -58,7 +55,7 @@ internal fun AnimeLibraryList(
         ) { libraryItem ->
             val anime = libraryItem.libraryAnime.anime
             EntryListItem(
-                isSelected = libraryItem.libraryAnime.id in selectionIds.value,
+                isSelected = libraryItem.libraryAnime.id in selectedIds,
                 title = anime.title,
                 coverData = AnimeCover(
                     animeId = anime.id,
@@ -77,10 +74,16 @@ internal fun AnimeLibraryList(
                 },
                 onLongClick = { onLongClick(libraryItem.libraryAnime) },
                 onClick = { onClick(libraryItem.libraryAnime) },
-                onClickContinueViewing = if (onClickContinueWatching != null && libraryItem.unseenCount > 0) {
-                    { onClickContinueWatching(libraryItem.libraryAnime) }
-                } else {
-                    null
+                onClickContinueViewing = remember(
+                    onClickContinueWatching,
+                    libraryItem.libraryAnime.id,
+                    libraryItem.unseenCount,
+                ) {
+                    if (onClickContinueWatching != null && libraryItem.unseenCount > 0) {
+                        { onClickContinueWatching(libraryItem.libraryAnime) }
+                    } else {
+                        null
+                    }
                 },
                 entries = entries,
                 containerHeight = containerHeight,
