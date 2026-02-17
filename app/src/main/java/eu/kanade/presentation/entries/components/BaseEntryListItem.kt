@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import tachiyomi.presentation.core.components.material.padding
 
@@ -56,7 +57,18 @@ private val defaultContent: @Composable RowScope.(String) -> Unit = { title ->
             modifier = Modifier
                 .padding(start = MaterialTheme.padding.medium),
             overflow = TextOverflow.Ellipsis,
+            maxLines = 2,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+@PreviewLightDark
+@Composable
+private fun BaseEntryListItemPreview() {
+    BaseEntryListItem(
+        coverData = null,
+        title = "Sample Entry Title",
+        onClickItem = {},
+    )
 }

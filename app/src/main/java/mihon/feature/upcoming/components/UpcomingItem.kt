@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.entries.components.ItemCover
 import tachiyomi.presentation.core.components.material.padding
@@ -50,4 +51,14 @@ fun UpcomingItem(
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+@PreviewLightDark
+@Composable
+private fun UpcomingItemPreview() {
+    UpcomingItem(
+        coverData = null,
+        title = "Sample Upcoming Entry",
+        onClick = {},
+    )
 }
