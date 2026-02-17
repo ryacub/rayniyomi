@@ -24,9 +24,7 @@ import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import eu.kanade.tachiyomi.ui.library.matchesCustomIntervalFilter
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
@@ -66,6 +64,7 @@ import tachiyomi.domain.library.manga.LibraryManga
 import tachiyomi.domain.library.manga.model.MangaLibrarySort
 import tachiyomi.domain.library.manga.model.sort
 import tachiyomi.domain.library.model.LibraryDisplayMode
+import tachiyomi.domain.library.model.LibraryFilter
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetTracksPerManga
@@ -106,13 +105,23 @@ class MangaLibraryScreenModel(
         screenModelScope.launchIO {
             combine(
                 state.map { it.searchQuery }.debounce(SEARCH_DEBOUNCE_MILLIS),
-                getLibraryFlow(),
+                getLibraryItemPreferencesFlow().flatMapLatest { prefs ->
+                    val downloadedOnly = prefs.globalFilterDownloaded
+                    val dbFilter = LibraryFilter(
+                        filterUnread = prefs.filterUnread,
+                        filterStarted = prefs.filterStarted,
+                        filterBookmarked = prefs.filterBookmarked,
+                        filterCompleted = prefs.filterCompleted,
+                        filterIntervalCustom = prefs.filterIntervalCustom,
+                    )
+                    getLibraryFlow(dbFilter, downloadedOnly)
+                },
                 getTracksPerManga.subscribe(),
                 getTrackingFilterFlow(),
                 downloadCache.changes,
             ) { searchQuery, library, tracks, trackingFilter, _ ->
                 library
-                    .applyFilters(tracks, trackingFilter)
+                    .applyRemainingFilters(tracks, trackingFilter)
                     .applySort(tracks, trackingFilter.keys)
                     .mapValues { (_, value) ->
                         if (searchQuery != null) {
@@ -172,18 +181,21 @@ class MangaLibraryScreenModel(
             .launchIn(screenModelScope)
     }
 
-    private suspend fun MangaLibraryMap.applyFilters(
+    /**
+     * Applies filters that cannot be pushed to the DB layer:
+     * - Download filter (relies on in-memory DownloadManager/DownloadCache)
+     * - Tracking filters (requires in-memory tracker state)
+     *
+     * Filters for unread, started, bookmarked, completed, and custom interval
+     * are handled at the DB layer via [getLibraryFlow].
+     */
+    private suspend fun MangaLibraryMap.applyRemainingFilters(
         trackMap: Map<Long, List<MangaTrack>>,
         trackingFilter: Map<Long, TriState>,
     ): MangaLibraryMap {
         val prefs = getLibraryItemPreferencesFlow().first()
         val downloadedOnly = prefs.globalFilterDownloaded
         val filterDownloaded = if (downloadedOnly) TriState.ENABLED_IS else prefs.filterDownloaded
-        val filterUnread = prefs.filterUnread
-        val filterStarted = prefs.filterStarted
-        val filterBookmarked = prefs.filterBookmarked
-        val filterCompleted = prefs.filterCompleted
-        val filterIntervalCustom = prefs.filterIntervalCustom
 
         val isNotLoggedInAnyTrack = trackingFilter.isEmpty()
 
@@ -197,26 +209,6 @@ class MangaLibraryScreenModel(
                     it.downloadCount > 0 ||
                     downloadManager.getDownloadCount(it.libraryManga.manga) > 0
             }
-        }
-
-        val filterFnUnread: (MangaLibraryItem) -> Boolean = {
-            applyFilter(filterUnread) { it.libraryManga.unreadCount > 0 }
-        }
-
-        val filterFnStarted: (MangaLibraryItem) -> Boolean = {
-            applyFilter(filterStarted) { it.libraryManga.hasStarted }
-        }
-
-        val filterFnBookmarked: (MangaLibraryItem) -> Boolean = {
-            applyFilter(filterBookmarked) { it.libraryManga.hasBookmarks }
-        }
-
-        val filterFnCompleted: (MangaLibraryItem) -> Boolean = {
-            applyFilter(filterCompleted) { it.libraryManga.manga.status.toInt() == SManga.COMPLETED }
-        }
-
-        val filterFnIntervalCustom: (MangaLibraryItem) -> Boolean = {
-            matchesCustomIntervalFilter(filterIntervalCustom, it.libraryManga.manga.fetchInterval)
         }
 
         val filterFnTracking: (MangaLibraryItem) -> Boolean = tracking@{ item ->
@@ -234,11 +226,6 @@ class MangaLibraryScreenModel(
 
         val filterFn: (MangaLibraryItem) -> Boolean = {
             filterFnDownloaded(it) &&
-                filterFnUnread(it) &&
-                filterFnStarted(it) &&
-                filterFnBookmarked(it) &&
-                filterFnCompleted(it) &&
-                filterFnIntervalCustom(it) &&
                 filterFnTracking(it)
         }
 
@@ -352,11 +339,14 @@ class MangaLibraryScreenModel(
     }
 
     /**
-     * Get the categories and all its manga from the database.
+     * Get the categories and all its manga from the database with DB-layer filtering applied.
+     *
+     * @param dbFilter DB-level filters (unread, started, bookmarked, completed, custom interval).
+     * @param downloadedOnly Whether the global "downloaded only" setting is enabled.
      */
-    private fun getLibraryFlow(): Flow<MangaLibraryMap> {
+    private fun getLibraryFlow(dbFilter: LibraryFilter, downloadedOnly: Boolean): Flow<MangaLibraryMap> {
         val libraryMangasFlow = combine(
-            getLibraryManga.subscribe(),
+            getLibraryManga.subscribe(dbFilter),
             getLibraryItemPreferencesFlow(),
             downloadCache.changes,
         ) { libraryMangaList, prefs, _ ->

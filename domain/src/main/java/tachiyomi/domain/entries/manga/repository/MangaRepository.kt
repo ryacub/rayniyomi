@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaUpdate
 import tachiyomi.domain.library.manga.LibraryManga
+import tachiyomi.domain.library.model.LibraryFilter
 
 interface MangaRepository {
 
@@ -22,6 +23,10 @@ interface MangaRepository {
     suspend fun getLibraryManga(): List<LibraryManga>
 
     fun getLibraryMangaAsFlow(): Flow<List<LibraryManga>>
+
+    suspend fun getLibraryMangaFiltered(filter: LibraryFilter): List<LibraryManga>
+
+    fun getLibraryMangaFilteredAsFlow(filter: LibraryFilter): Flow<List<LibraryManga>>
 
     fun getMangaFavoritesBySourceId(sourceId: Long): Flow<List<Manga>>
 

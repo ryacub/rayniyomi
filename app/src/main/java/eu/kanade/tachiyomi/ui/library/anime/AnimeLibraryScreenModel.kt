@@ -20,14 +20,12 @@ import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.presentation.entries.DownloadAction
 import eu.kanade.presentation.library.components.LibraryToolbarTitle
-import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.ui.library.matchesCustomIntervalFilter
 import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeBackgrounds
 import eu.kanade.tachiyomi.util.removeCovers
@@ -68,6 +66,7 @@ import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.library.anime.model.AnimeLibrarySort
 import tachiyomi.domain.library.anime.model.sort
 import tachiyomi.domain.library.model.LibraryDisplayMode
+import tachiyomi.domain.library.model.LibraryFilter
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetTracksPerAnime
@@ -109,13 +108,23 @@ class AnimeLibraryScreenModel(
         screenModelScope.launchIO {
             combine(
                 state.map { it.searchQuery }.debounce(SEARCH_DEBOUNCE_MILLIS),
-                getLibraryFlow(),
+                getAnimelibItemPreferencesFlow().flatMapLatest { prefs ->
+                    val downloadedOnly = prefs.globalFilterDownloaded
+                    val dbFilter = LibraryFilter(
+                        filterUnread = prefs.filterUnseen,
+                        filterStarted = prefs.filterStarted,
+                        filterBookmarked = prefs.filterBookmarked,
+                        filterCompleted = prefs.filterCompleted,
+                        filterIntervalCustom = prefs.filterIntervalCustom,
+                    )
+                    getLibraryFlow(dbFilter, downloadedOnly)
+                },
                 getTracksPerAnime.subscribe(),
                 getTrackingFilterFlow(),
                 downloadCache.changes,
             ) { searchQuery, library, tracks, trackingFilter, _ ->
                 library
-                    .applyFilters(tracks, trackingFilter)
+                    .applyRemainingFilters(tracks, trackingFilter)
                     .applySort(tracks, trackingFilter.keys)
                     .mapValues { (_, value) ->
                         if (searchQuery != null) {
@@ -175,18 +184,21 @@ class AnimeLibraryScreenModel(
             .launchIn(screenModelScope)
     }
 
-    private suspend fun AnimeLibraryMap.applyFilters(
+    /**
+     * Applies filters that cannot be pushed to the DB layer:
+     * - Download filter (relies on in-memory DownloadManager/DownloadCache)
+     * - Tracking filters (requires in-memory tracker state)
+     *
+     * Filters for unseen, started, bookmarked, completed, and custom interval
+     * are handled at the DB layer via [getLibraryFlow].
+     */
+    private suspend fun AnimeLibraryMap.applyRemainingFilters(
         trackMap: Map<Long, List<AnimeTrack>>,
         trackingFilter: Map<Long, TriState>,
     ): AnimeLibraryMap {
         val prefs = getAnimelibItemPreferencesFlow().first()
         val downloadedOnly = prefs.globalFilterDownloaded
         val filterDownloaded = if (downloadedOnly) TriState.ENABLED_IS else prefs.filterDownloaded
-        val filterUnseen = prefs.filterUnseen
-        val filterStarted = prefs.filterStarted
-        val filterBookmarked = prefs.filterBookmarked
-        val filterCompleted = prefs.filterCompleted
-        val filterIntervalCustom = prefs.filterIntervalCustom
 
         val isNotLoggedInAnyTrack = trackingFilter.isEmpty()
 
@@ -200,26 +212,6 @@ class AnimeLibraryScreenModel(
                     it.downloadCount > 0 ||
                     downloadManager.getDownloadCount(it.libraryAnime.anime) > 0
             }
-        }
-
-        val filterFnUnseen: (AnimeLibraryItem) -> Boolean = {
-            applyFilter(filterUnseen) { it.libraryAnime.unseenCount > 0 }
-        }
-
-        val filterFnStarted: (AnimeLibraryItem) -> Boolean = {
-            applyFilter(filterStarted) { it.libraryAnime.hasStarted }
-        }
-
-        val filterFnBookmarked: (AnimeLibraryItem) -> Boolean = {
-            applyFilter(filterBookmarked) { it.libraryAnime.hasBookmarks }
-        }
-
-        val filterFnCompleted: (AnimeLibraryItem) -> Boolean = {
-            applyFilter(filterCompleted) { it.libraryAnime.anime.status.toInt() == SAnime.COMPLETED }
-        }
-
-        val filterFnIntervalCustom: (AnimeLibraryItem) -> Boolean = {
-            matchesCustomIntervalFilter(filterIntervalCustom, it.libraryAnime.anime.fetchInterval)
         }
 
         val filterFnTracking: (AnimeLibraryItem) -> Boolean = tracking@{ item ->
@@ -237,11 +229,6 @@ class AnimeLibraryScreenModel(
 
         val filterFn: (AnimeLibraryItem) -> Boolean = {
             filterFnDownloaded(it) &&
-                filterFnUnseen(it) &&
-                filterFnStarted(it) &&
-                filterFnBookmarked(it) &&
-                filterFnCompleted(it) &&
-                filterFnIntervalCustom(it) &&
                 filterFnTracking(it)
         }
 
@@ -366,11 +353,14 @@ class AnimeLibraryScreenModel(
     }
 
     /**
-     * Get the categories and all its anime from the database.
+     * Get the categories and all its anime from the database with DB-layer filtering applied.
+     *
+     * @param dbFilter DB-level filters (unseen, started, bookmarked, completed, custom interval).
+     * @param downloadedOnly Whether the global "downloaded only" setting is enabled.
      */
-    private fun getLibraryFlow(): Flow<AnimeLibraryMap> {
+    private fun getLibraryFlow(dbFilter: LibraryFilter, downloadedOnly: Boolean): Flow<AnimeLibraryMap> {
         val animelibAnimesFlow = combine(
-            getLibraryAnime.subscribe(),
+            getLibraryAnime.subscribe(dbFilter),
             getAnimelibItemPreferencesFlow(),
             downloadCache.changes,
         ) { animelibAnimeList, prefs, _ ->
