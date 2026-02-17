@@ -231,6 +231,7 @@ class LightNovelPluginManagerTest {
         },
         installLauncher: suspend (File) -> Result<Unit> = { Result.success(Unit) },
         signerPinsProvider: () -> Set<String> = { setOf(testSigner) },
+        installEnabledProvider: () -> Boolean = { true },
     ): LightNovelPluginManager {
         val context = mockk<Context>(relaxed = true)
         val packageManager = mockk<PackageManager>(relaxed = true)
@@ -247,6 +248,7 @@ class LightNovelPluginManagerTest {
                 pluginDownloader = pluginDownloader,
                 installLauncher = installLauncher,
                 signerPinsProvider = signerPinsProvider,
+                installEnabledProvider = installEnabledProvider,
             ),
         )
     }

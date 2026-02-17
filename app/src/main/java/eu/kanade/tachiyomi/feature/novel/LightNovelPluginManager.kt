@@ -46,6 +46,7 @@ class LightNovelPluginManager(
     private var pluginDownloader: suspend (LightNovelPluginManifest) -> Result<File> = ::downloadPluginFromNetwork
     private var installLauncher: suspend (File) -> Result<Unit> = ::launchInstallIntent
     private var signerPinsProvider: () -> Set<String> = ::trustedSignerPinsFromBuildConfig
+    private var installEnabledProvider: () -> Boolean = ::isPluginInstallEnabledDefault
 
     init {
         // Avoid filesystem work on main when manager is first created from UI.
@@ -66,6 +67,7 @@ class LightNovelPluginManager(
         testHooks.pluginDownloader?.let { pluginDownloader = it }
         testHooks.installLauncher?.let { installLauncher = it }
         testHooks.signerPinsProvider?.let { signerPinsProvider = it }
+        testHooks.installEnabledProvider?.let { installEnabledProvider = it }
     }
 
     enum class VersionState {
@@ -132,6 +134,7 @@ class LightNovelPluginManager(
         val pluginDownloader: (suspend (LightNovelPluginManifest) -> Result<File>)? = null,
         val installLauncher: (suspend (File) -> Result<Unit>)? = null,
         val signerPinsProvider: (() -> Set<String>)? = null,
+        val installEnabledProvider: (() -> Boolean)? = null,
     )
 
     override fun isPluginReady(): Boolean {
@@ -483,6 +486,10 @@ class LightNovelPluginManager(
     }
 
     private fun isPluginInstallEnabled(): Boolean {
+        return installEnabledProvider()
+    }
+
+    private fun isPluginInstallEnabledDefault(): Boolean {
         return BuildConfig.DEBUG || ENABLE_PLUGIN_INSTALL_FOR_RELEASE
     }
 
