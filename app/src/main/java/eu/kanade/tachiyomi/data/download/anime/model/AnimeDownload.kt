@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.anime.model
 
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.network.ProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,7 @@ data class AnimeDownload(
     val episode: Episode,
     val changeDownloader: Boolean = false,
     var video: Video? = null,
+    var priority: DownloadPriority = DownloadPriority.NORMAL,
 ) : ProgressListener {
 
     @Transient

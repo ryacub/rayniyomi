@@ -219,6 +219,10 @@ class AnimeDownloader(
                         .filter {
                             it.status.value <= AnimeDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
+                        .sortedWith(
+                            compareByDescending<AnimeDownload> { it.priority.value }
+                                .thenBy { queue.indexOf(it) },
+                        ) // Sort by priority first, then queue position
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
