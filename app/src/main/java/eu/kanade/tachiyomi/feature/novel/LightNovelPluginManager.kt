@@ -1,0 +1,250 @@
+package eu.kanade.tachiyomi.feature.novel
+
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import androidx.core.content.pm.PackageInfoCompat
+import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.tachiyomi.BuildConfig
+import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.network.awaitSuccess
+import eu.kanade.tachiyomi.util.lang.Hash
+import eu.kanade.tachiyomi.util.storage.getUriCompat
+import eu.kanade.tachiyomi.util.storage.saveTo
+import kotlinx.serialization.json.Json
+import logcat.LogPriority
+import tachiyomi.core.common.util.lang.withIOContext
+import tachiyomi.core.common.util.lang.withUIContext
+import tachiyomi.core.common.util.system.logcat
+import java.io.File
+import java.security.MessageDigest
+
+class LightNovelPluginManager(
+    private val context: Context,
+    private val network: NetworkHelper,
+    private val json: Json,
+) : LightNovelPluginReadiness {
+
+    data class PluginStatus(
+        val installed: Boolean,
+        val signedAndTrusted: Boolean,
+        val compatible: Boolean,
+        val installedVersionCode: Long?,
+    )
+
+    sealed interface InstallResult {
+        data object AlreadyReady : InstallResult
+        data object InstallLaunched : InstallResult
+        data class Error(val message: String) : InstallResult
+    }
+
+    override fun isPluginReady(): Boolean {
+        val status = getPluginStatus()
+        return status.installed && status.signedAndTrusted && status.compatible
+    }
+
+    fun isInstalled(): Boolean = getInstalledPackageInfo() != null
+
+    fun getPluginStatus(): PluginStatus {
+        val packageInfo = getInstalledPackageInfo()
+        if (packageInfo == null) {
+            return PluginStatus(
+                installed = false,
+                signedAndTrusted = false,
+                compatible = false,
+                installedVersionCode = null,
+            )
+        }
+
+        return PluginStatus(
+            installed = true,
+            signedAndTrusted = verifyPinnedSignature(packageInfo),
+            compatible = isCompatible(packageInfo),
+            installedVersionCode = PackageInfoCompat.getLongVersionCode(packageInfo),
+        )
+    }
+
+    suspend fun ensurePluginReady(channel: String): InstallResult {
+        if (isPluginReady()) return InstallResult.AlreadyReady
+
+        val manifest = fetchManifest(channel).getOrElse {
+            return InstallResult.Error("Failed to fetch plugin manifest")
+        }
+
+        val apkFile = downloadPlugin(manifest).getOrElse {
+            return InstallResult.Error(it.message ?: "Failed to download plugin")
+        }
+
+        val archivePackage = context.packageManager.getPackageArchiveInfo(
+            apkFile.absolutePath,
+            PACKAGE_FLAGS,
+        )
+            ?: return InstallResult.Error("Invalid plugin APK")
+
+        if (archivePackage.packageName != PLUGIN_PACKAGE_NAME || archivePackage.packageName != manifest.packageName) {
+            return InstallResult.Error("Plugin package name mismatch")
+        }
+
+        if (!verifyPinnedSignature(archivePackage)) {
+            return InstallResult.Error("Plugin signature is not trusted")
+        }
+
+        return try {
+            launchInstall(apkFile)
+            InstallResult.InstallLaunched
+        } catch (e: Throwable) {
+            logcat(LogPriority.ERROR, e) { "Failed to launch plugin install" }
+            InstallResult.Error("Failed to launch plugin installer")
+        }
+    }
+
+    fun uninstallPlugin() {
+        val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$PLUGIN_PACKAGE_NAME"))
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+
+    fun getManifestUrl(channel: String): String {
+        return when (channel) {
+            NovelFeaturePreferences.CHANNEL_BETA -> BETA_MANIFEST_URL
+            else -> STABLE_MANIFEST_URL
+        }
+    }
+
+    fun verifyPinnedSignature(packageInfo: PackageInfo): Boolean {
+        val signatures = getSignatures(packageInfo)
+        return signatures.any { it in TRUSTED_PLUGIN_CERT_SHA256 }
+    }
+
+    private suspend fun fetchManifest(channel: String): Result<LightNovelPluginManifest> {
+        return runCatching {
+            val url = getManifestUrl(channel)
+            val response = network.client.newCall(GET(url)).awaitSuccess()
+            response.use {
+                json.decodeFromString<LightNovelPluginManifest>(it.body.string())
+            }
+        }
+    }
+
+    private suspend fun downloadPlugin(manifest: LightNovelPluginManifest): Result<File> {
+        return runCatching {
+            withIOContext {
+                val response = network.client.newCall(GET(manifest.apkUrl)).awaitSuccess()
+                response.use {
+                    val apkFile = File(context.externalCacheDir, PLUGIN_APK_FILE_NAME)
+                    it.body.source().saveTo(apkFile)
+
+                    val sha256 = sha256File(apkFile)
+                    if (!sha256.equals(manifest.apkSha256, ignoreCase = true)) {
+                        apkFile.delete()
+                        error("Plugin checksum validation failed")
+                    }
+
+                    apkFile
+                }
+            }
+        }
+    }
+
+    private suspend fun launchInstall(apkFile: File) {
+        withUIContext {
+            val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE)
+                .setDataAndType(apkFile.getUriCompat(context), APK_MIME)
+                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.startActivity(installIntent)
+        }
+    }
+
+    private fun getInstalledPackageInfo(): PackageInfo? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(
+                    PLUGIN_PACKAGE_NAME,
+                    PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, PACKAGE_FLAGS)
+            }
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    private fun isCompatible(packageInfo: PackageInfo): Boolean {
+        val metaData = packageInfo.applicationInfo?.metaData ?: return false
+        val pluginApiVersion = metaData.getInt(META_PLUGIN_API_VERSION, -1)
+        val minHostVersion = metaData.getLong(META_MIN_HOST_VERSION, Long.MAX_VALUE)
+        val targetHostVersion = metaData.getLong(META_TARGET_HOST_VERSION, Long.MIN_VALUE)
+
+        if (pluginApiVersion != EXPECTED_PLUGIN_API_VERSION) return false
+        if (HOST_VERSION_CODE < minHostVersion) return false
+        if (targetHostVersion != Long.MIN_VALUE && HOST_VERSION_CODE > targetHostVersion) return false
+
+        return true
+    }
+
+    private fun getSignatures(packageInfo: PackageInfo): List<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val signingInfo = packageInfo.signingInfo ?: return emptyList()
+            if (signingInfo.hasMultipleSigners()) {
+                signingInfo.apkContentsSigners
+            } else {
+                signingInfo.signingCertificateHistory
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.signatures
+        }
+            ?.map { Hash.sha256(it.toByteArray()) }
+            .orEmpty()
+    }
+
+    private fun sha256File(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        val hashBytes = digest.digest()
+        return hashBytes.joinToString(separator = "") { "%02x".format(it) }
+    }
+
+    companion object {
+        const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
+
+        private const val PLUGIN_APK_FILE_NAME = "lightnovel-plugin.apk"
+        private const val APK_MIME = "application/vnd.android.package-archive"
+
+        private const val META_PLUGIN_API_VERSION = "rayniyomi.plugin.api_version"
+        private const val META_MIN_HOST_VERSION = "rayniyomi.plugin.min_host_version"
+        private const val META_TARGET_HOST_VERSION = "rayniyomi.plugin.target_host_version"
+
+        private const val EXPECTED_PLUGIN_API_VERSION = 1
+        private const val HOST_VERSION_CODE = BuildConfig.VERSION_CODE.toLong()
+
+        private const val STABLE_MANIFEST_URL =
+            "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
+        private const val BETA_MANIFEST_URL =
+            "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
+
+        // Primary + rotation cert fingerprints for the optional Light Novel plugin.
+        private val TRUSTED_PLUGIN_CERT_SHA256 = setOf(
+            "7b7f000000000000000000000000000000000000000000000000000000000000",
+            "8c8f000000000000000000000000000000000000000000000000000000000000",
+        )
+
+        @Suppress("DEPRECATION")
+        private val PACKAGE_FLAGS = PackageManager.GET_META_DATA or
+            PackageManager.GET_SIGNATURES or
+            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0)
+    }
+}

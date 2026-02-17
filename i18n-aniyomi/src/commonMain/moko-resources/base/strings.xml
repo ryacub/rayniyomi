@@ -603,4 +603,23 @@
     <string name="translation_no_provider">No translation provider configured</string>
     <string name="translation_cost_warning">This will make API calls for each page. Continue?</string>
     <string name="pref_show_translated_pages">Show translated pages</string>
+
+    <!-- Light novel plugin settings -->
+    <string name="pref_category_light_novels">Light novels</string>
+    <string name="pref_light_novel_settings_summary">Optional plugin install and availability</string>
+    <string name="pref_enable_light_novels">Enable light novels</string>
+    <string name="pref_enable_light_novels_summary">Downloads and activates the optional Light Novel plugin when enabled.</string>
+    <string name="pref_light_novel_plugin_channel">Plugin channel</string>
+    <string name="pref_light_novel_plugin_channel_stable">Stable</string>
+    <string name="pref_light_novel_plugin_channel_beta">Beta</string>
+    <string name="pref_light_novel_plugin_status">Plugin status</string>
+    <string name="pref_light_novel_plugin_install_update">Install/Update plugin</string>
+    <string name="pref_light_novel_plugin_install_update_summary">Checks GitHub release manifest and installs the optional plugin APK.</string>
+    <string name="pref_light_novel_plugin_uninstall">Uninstall plugin</string>
+    <string name="light_novel_plugin_status_missing">Not installed</string>
+    <string name="light_novel_plugin_status_untrusted">Installed but signature is not trusted</string>
+    <string name="light_novel_plugin_status_incompatible">Installed but incompatible with this app version</string>
+    <string name="light_novel_plugin_status_ready">Installed (version %1$d), trusted, and compatible</string>
+    <string name="light_novel_plugin_status_ready_short">Plugin is already ready</string>
+    <string name="light_novel_plugin_install_started">Plugin installer launched</string>
 </resources>

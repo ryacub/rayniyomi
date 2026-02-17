@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.GetApp
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
@@ -194,6 +195,12 @@ object SettingsMainScreen : Screen() {
             subtitleRes = MR.strings.pref_reader_summary,
             icon = Icons.AutoMirrored.Outlined.ChromeReaderMode,
             screen = SettingsReaderScreen,
+        ),
+        Item(
+            titleRes = AYMR.strings.pref_category_light_novels,
+            subtitleRes = AYMR.strings.pref_light_novel_settings_summary,
+            icon = Icons.Outlined.MenuBook,
+            screen = SettingsLightNovelScreen,
         ),
         Item(
             titleRes = AYMR.strings.label_player,
