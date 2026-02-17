@@ -23,7 +23,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
@@ -66,6 +69,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
 import eu.kanade.tachiyomi.util.system.isNightMode
@@ -130,6 +134,9 @@ class ReaderActivity : BaseActivity() {
 
     var isScrollingThroughPages = false
         private set
+    private var showAutoScrollPanel by mutableStateOf(false)
+    private var isAutoScrollRunning by mutableStateOf(false)
+    private var autoScrollSpeedTenths by mutableIntStateOf(readerPreferences.webtoonAutoScrollSpeedTenths().get())
 
     /**
      * Called when the activity is created. Initializes the presenter and configuration.
@@ -187,6 +194,13 @@ class ReaderActivity : BaseActivity() {
         preferences.incognitoMode().changes()
             .drop(1)
             .onEach { if (!it) finish() }
+            .launchIn(lifecycleScope)
+
+        readerPreferences.webtoonAutoScrollSpeedTenths().changes()
+            .onEach { speed ->
+                autoScrollSpeedTenths = speed
+                (viewModel.state.value.viewer as? WebtoonViewer)?.setAutoScrollSpeedTenths(speed)
+            }
             .launchIn(lifecycleScope)
 
         viewModel.state
@@ -251,6 +265,7 @@ class ReaderActivity : BaseActivity() {
 
     override fun onPause() {
         viewModel.flushReadTimer()
+        (viewModel.state.value.viewer as? WebtoonViewer)?.pauseAutoScroll()
         super.onPause()
     }
 
@@ -424,6 +439,18 @@ class ReaderActivity : BaseActivity() {
                 hasTranslation = state.hasTranslation,
                 translationEnabled = state.showTranslatedPages,
                 onClickTranslation = viewModel::toggleTranslatedPages,
+                showWebtoonAutoScrollControls = state.viewer is WebtoonViewer,
+                isAutoScrollRunning = isAutoScrollRunning,
+                autoScrollSpeedTenths = autoScrollSpeedTenths,
+                showAutoScrollPanel = showAutoScrollPanel,
+                onToggleAutoScroll = {
+                    (state.viewer as? WebtoonViewer)?.toggleAutoScroll()
+                },
+                onToggleAutoScrollPanel = {
+                    showAutoScrollPanel = !showAutoScrollPanel
+                },
+                onSelectAutoScrollPreset = ::setWebtoonAutoScrollSpeed,
+                onAutoScrollSpeedChange = ::setWebtoonAutoScrollSpeed,
                 onClickSettings = viewModel::openSettingsDialog,
             )
 
@@ -546,6 +573,16 @@ class ReaderActivity : BaseActivity() {
             binding.viewerContainer.removeAllViews()
         }
         viewModel.onViewerLoaded(newViewer)
+        if (newViewer is WebtoonViewer) {
+            newViewer.autoScrollStateChangedListener = { running ->
+                isAutoScrollRunning = running
+            }
+            newViewer.setAutoScrollSpeedTenths(autoScrollSpeedTenths)
+            isAutoScrollRunning = newViewer.isAutoScrollRunning()
+        } else {
+            showAutoScrollPanel = false
+            isAutoScrollRunning = false
+        }
         updateViewerInset(readerPreferences.fullscreen().get())
         binding.viewerContainer.addView(newViewer.getView())
 
@@ -557,6 +594,16 @@ class ReaderActivity : BaseActivity() {
         binding.readerContainer.addView(loadingIndicator)
 
         startPostponedEnterTransition()
+    }
+
+    private fun setWebtoonAutoScrollSpeed(value: Int) {
+        val speed = value.coerceIn(
+            ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MIN,
+            ReaderPreferences.WEBTOON_AUTO_SCROLL_SPEED_MAX,
+        )
+        autoScrollSpeedTenths = speed
+        readerPreferences.webtoonAutoScrollSpeedTenths().set(speed)
+        (viewModel.state.value.viewer as? WebtoonViewer)?.setAutoScrollSpeedTenths(speed)
     }
 
     private fun openMangaScreen() {

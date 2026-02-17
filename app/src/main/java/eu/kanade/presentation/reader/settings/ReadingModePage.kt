@@ -171,6 +171,20 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
         pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
     )
 
+    val webtoonAutoScrollSpeed by screenModel.preferences.webtoonAutoScrollSpeedTenths().collectAsState()
+    SliderItem(
+        value = webtoonAutoScrollSpeed,
+        valueRange = ReaderPreferences.let {
+            it.WEBTOON_AUTO_SCROLL_SPEED_MIN..it.WEBTOON_AUTO_SCROLL_SPEED_MAX
+        },
+        label = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
+        valueText = "${webtoonAutoScrollSpeed / 10f}x",
+        onChange = {
+            screenModel.preferences.webtoonAutoScrollSpeedTenths().set(it)
+        },
+        pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+    )
+
     CheckboxItem(
         label = stringResource(MR.strings.pref_crop_borders),
         pref = screenModel.preferences.cropBordersWebtoon(),

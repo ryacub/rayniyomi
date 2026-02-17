@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +39,10 @@ fun BottomReaderBar(
     hasTranslation: Boolean,
     translationEnabled: Boolean,
     onClickTranslation: () -> Unit,
+    showWebtoonAutoScrollControls: Boolean,
+    isAutoScrollRunning: Boolean,
+    onToggleAutoScroll: () -> Unit,
+    onToggleAutoScrollPanel: () -> Unit,
     onClickSettings: () -> Unit,
 ) {
     Row(
@@ -77,6 +84,33 @@ fun BottomReaderBar(
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
+                )
+            }
+        }
+
+        if (showWebtoonAutoScrollControls) {
+            IconButton(onClick = onToggleAutoScroll) {
+                Icon(
+                    imageVector = if (isAutoScrollRunning) Icons.Outlined.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = stringResource(
+                        if (isAutoScrollRunning) {
+                            MR.strings.action_pause_auto_scroll
+                        } else {
+                            MR.strings.action_start_auto_scroll
+                        },
+                    ),
+                    tint = if (isAutoScrollRunning) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                )
+            }
+
+            IconButton(onClick = onToggleAutoScrollPanel) {
+                Icon(
+                    imageVector = Icons.Outlined.Speed,
+                    contentDescription = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
                 )
             }
         }

@@ -311,11 +311,13 @@ object SettingsReaderScreen : SearchableSettings {
         val dualPageSplitPref = readerPreferences.dualPageSplitWebtoon()
         val rotateToFitPref = readerPreferences.dualPageRotateToFitWebtoon()
         val webtoonSidePaddingPref = readerPreferences.webtoonSidePadding()
+        val webtoonAutoScrollSpeedPref = readerPreferences.webtoonAutoScrollSpeedTenths()
 
         val navMode by navModePref.collectAsState()
         val dualPageSplit by dualPageSplitPref.collectAsState()
         val rotateToFit by rotateToFitPref.collectAsState()
         val webtoonSidePadding by webtoonSidePaddingPref.collectAsState()
+        val webtoonAutoScrollSpeed by webtoonAutoScrollSpeedPref.collectAsState()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webtoon_viewer),
@@ -350,6 +352,18 @@ object SettingsReaderScreen : SearchableSettings {
                     subtitle = numberFormat.format(webtoonSidePadding / 100f),
                     onValueChanged = {
                         webtoonSidePaddingPref.set(it)
+                        true
+                    },
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = webtoonAutoScrollSpeed,
+                    valueRange = ReaderPreferences.let {
+                        it.WEBTOON_AUTO_SCROLL_SPEED_MIN..it.WEBTOON_AUTO_SCROLL_SPEED_MAX
+                    },
+                    title = stringResource(MR.strings.pref_webtoon_auto_scroll_speed),
+                    subtitle = "${webtoonAutoScrollSpeed / 10f}x",
+                    onValueChanged = {
+                        webtoonAutoScrollSpeedPref.set(it)
                         true
                     },
                 ),

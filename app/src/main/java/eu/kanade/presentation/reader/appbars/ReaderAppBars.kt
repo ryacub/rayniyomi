@@ -67,6 +67,14 @@ fun ReaderAppBars(
     hasTranslation: Boolean,
     translationEnabled: Boolean,
     onClickTranslation: () -> Unit,
+    showWebtoonAutoScrollControls: Boolean,
+    isAutoScrollRunning: Boolean,
+    autoScrollSpeedTenths: Int,
+    showAutoScrollPanel: Boolean,
+    onToggleAutoScroll: () -> Unit,
+    onToggleAutoScrollPanel: () -> Unit,
+    onSelectAutoScrollPreset: (Int) -> Unit,
+    onAutoScrollSpeedChange: (Int) -> Unit,
     onClickSettings: () -> Unit,
 ) {
     val isRtl = viewer is R2LPagerViewer
@@ -192,8 +200,19 @@ fun ReaderAppBars(
                     hasTranslation = hasTranslation,
                     translationEnabled = translationEnabled,
                     onClickTranslation = onClickTranslation,
+                    showWebtoonAutoScrollControls = showWebtoonAutoScrollControls,
+                    isAutoScrollRunning = isAutoScrollRunning,
+                    onToggleAutoScroll = onToggleAutoScroll,
+                    onToggleAutoScrollPanel = onToggleAutoScrollPanel,
                     onClickSettings = onClickSettings,
                 )
+                if (showWebtoonAutoScrollControls && showAutoScrollPanel) {
+                    WebtoonAutoScrollPanel(
+                        speedTenths = autoScrollSpeedTenths,
+                        onSelectPreset = onSelectAutoScrollPreset,
+                        onSpeedChange = onAutoScrollSpeedChange,
+                    )
+                }
             }
         }
     }
