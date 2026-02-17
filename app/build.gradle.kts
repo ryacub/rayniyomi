@@ -28,6 +28,9 @@ android {
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
+        buildConfigField("String", "LIGHT_NOVEL_PLUGIN_SIGNER_SHA256_PRIMARY", "\"\"")
+        buildConfigField("String", "LIGHT_NOVEL_PLUGIN_SIGNER_SHA256_SECONDARY", "\"\"")
+        buildConfigField("String", "LIGHT_NOVEL_PLUGIN_SIGNER_SHA256_TERTIARY", "\"\"")
 
         // R37/R38: Firebase Analytics and ACRA crash reporting are explicitly disabled
         // to prevent fork data from polluting upstream services.

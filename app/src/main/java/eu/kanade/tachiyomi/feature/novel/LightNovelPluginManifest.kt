@@ -19,4 +19,6 @@ data class LightNovelPluginManifest(
     val apkUrl: String,
     @SerialName("apk_sha256")
     val apkSha256: String,
+    @SerialName("signing_cert_sha256")
+    val signingCertSha256: String? = null,
 )
