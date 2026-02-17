@@ -4,35 +4,36 @@ import androidx.compose.runtime.Immutable
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import tachiyomi.core.common.preference.TriState
+import tachiyomi.domain.entries.EntryModel
 import java.io.Serializable
 import java.time.Instant
 
 @Immutable
 data class Manga(
-    val id: Long,
-    val source: Long,
-    val favorite: Boolean,
-    val lastUpdate: Long,
-    val nextUpdate: Long,
-    val fetchInterval: Int,
-    val dateAdded: Long,
-    val viewerFlags: Long,
+    override val id: Long,
+    override val source: Long,
+    override val favorite: Boolean,
+    override val lastUpdate: Long,
+    override val nextUpdate: Long,
+    override val fetchInterval: Int,
+    override val dateAdded: Long,
+    override val viewerFlags: Long,
     val chapterFlags: Long,
-    val coverLastModified: Long,
-    val url: String,
-    val title: String,
-    val artist: String?,
-    val author: String?,
-    val description: String?,
-    val genre: List<String>?,
-    val status: Long,
-    val thumbnailUrl: String?,
+    override val coverLastModified: Long,
+    override val url: String,
+    override val title: String,
+    override val artist: String?,
+    override val author: String?,
+    override val description: String?,
+    override val genre: List<String>?,
+    override val status: Long,
+    override val thumbnailUrl: String?,
     val updateStrategy: UpdateStrategy,
-    val initialized: Boolean,
-    val lastModifiedAt: Long,
-    val favoriteModifiedAt: Long?,
-    val version: Long,
-) : Serializable {
+    override val initialized: Boolean,
+    override val lastModifiedAt: Long,
+    override val favoriteModifiedAt: Long?,
+    override val version: Long,
+) : EntryModel, Serializable {
 
     val expectedNextUpdate: Instant?
         get() = nextUpdate

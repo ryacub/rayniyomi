@@ -7,11 +7,14 @@ import tachiyomi.domain.entries.EntryCover
  */
 data class AnimeCover(
     val animeId: Long,
-    val sourceId: Long,
+    override val sourceId: Long,
     val isAnimeFavorite: Boolean,
-    val url: String?,
-    val lastModified: Long,
-) : EntryCover
+    override val url: String?,
+    override val lastModified: Long,
+) : EntryCover {
+    override val entryId: Long get() = animeId
+    override val isFavorite: Boolean get() = isAnimeFavorite
+}
 
 fun Anime.asAnimeCover(): AnimeCover {
     return AnimeCover(

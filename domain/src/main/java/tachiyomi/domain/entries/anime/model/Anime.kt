@@ -6,43 +6,44 @@ import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import tachiyomi.core.common.preference.TriState
+import tachiyomi.domain.entries.EntryModel
 import java.io.Serializable
 import java.time.Instant
 import kotlin.math.pow
 
 @Immutable
 data class Anime(
-    val id: Long,
-    val source: Long,
-    val favorite: Boolean,
-    val lastUpdate: Long,
-    val nextUpdate: Long,
-    val fetchInterval: Int,
-    val dateAdded: Long,
-    val viewerFlags: Long,
+    override val id: Long,
+    override val source: Long,
+    override val favorite: Boolean,
+    override val lastUpdate: Long,
+    override val nextUpdate: Long,
+    override val fetchInterval: Int,
+    override val dateAdded: Long,
+    override val viewerFlags: Long,
     val episodeFlags: Long,
-    val coverLastModified: Long,
+    override val coverLastModified: Long,
     val backgroundLastModified: Long,
-    val url: String,
-    val title: String,
-    val artist: String?,
-    val author: String?,
-    val description: String?,
-    val genre: List<String>?,
-    val status: Long,
-    val thumbnailUrl: String?,
+    override val url: String,
+    override val title: String,
+    override val artist: String?,
+    override val author: String?,
+    override val description: String?,
+    override val genre: List<String>?,
+    override val status: Long,
+    override val thumbnailUrl: String?,
     val backgroundUrl: String?,
     val updateStrategy: AnimeUpdateStrategy,
-    val initialized: Boolean,
-    val lastModifiedAt: Long,
-    val favoriteModifiedAt: Long?,
-    val version: Long,
+    override val initialized: Boolean,
+    override val lastModifiedAt: Long,
+    override val favoriteModifiedAt: Long?,
+    override val version: Long,
     val fetchType: FetchType,
     val parentId: Long?,
     val seasonFlags: Long,
     val seasonNumber: Double,
     val seasonSourceOrder: Long,
-) : Serializable {
+) : EntryModel, Serializable {
 
     val expectedNextUpdate: Instant?
         get() = nextUpdate
