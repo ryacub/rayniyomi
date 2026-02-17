@@ -11,6 +11,12 @@ interface EntryModel {
     val nextUpdate: Long
     val fetchInterval: Int
     val dateAdded: Long
+
+    /**
+     * Bitmask flags with entity-specific semantics:
+     * - Anime: encodes skip-intro length, airing episode info, and airing time
+     * - Manga: encodes reading mode and reader orientation
+     */
     val viewerFlags: Long
     val coverLastModified: Long
     val url: String
