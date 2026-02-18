@@ -611,6 +611,7 @@
     <string name="pref_light_novel_settings_summary">Optional plugin install and availability</string>
     <string name="pref_enable_light_novels">Enable light novels</string>
     <string name="pref_enable_light_novels_summary">Downloads and activates the optional Light Novel plugin when enabled.</string>
+    <string name="light_novel_library">Light novel library</string>
     <string name="pref_light_novel_plugin_channel">Plugin channel</string>
     <string name="pref_light_novel_plugin_channel_stable">Stable</string>
     <string name="pref_light_novel_plugin_channel_beta">Beta</string>
