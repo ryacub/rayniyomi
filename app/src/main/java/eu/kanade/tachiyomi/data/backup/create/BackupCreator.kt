@@ -1,3 +1,4 @@
+@file:Suppress("ktlint:parameter-type")
 package eu.kanade.tachiyomi.data.backup.create
 
 import android.content.Context

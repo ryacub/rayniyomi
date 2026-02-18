@@ -5,13 +5,10 @@ import android.database.Cursor
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovel
-import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.COLUMNS
 import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.CONTENT_URI
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
-import java.io.File
 
 class LightNovelBackupCreator(
     private val context: Context,
