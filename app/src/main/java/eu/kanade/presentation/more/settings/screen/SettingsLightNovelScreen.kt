@@ -32,10 +32,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
 object SettingsLightNovelScreen : SearchableSettings {
-    private data class InstallRequest(
-        val enableFeatureAfterInstall: Boolean,
-    )
-
     @ReadOnlyComposable
     @Composable
     override fun getTitleRes() = AYMR.strings.pref_category_light_novels
@@ -57,7 +53,7 @@ object SettingsLightNovelScreen : SearchableSettings {
         var status by remember(enabled, channel) { mutableStateOf(pluginManager.getPluginStatus()) }
         var installInProgress by remember { mutableStateOf(false) }
         var installError: String? by remember { mutableStateOf(null) }
-        var pendingInstallRequest: InstallRequest? by remember { mutableStateOf(null) }
+        var pendingEnableAfterInstall: Boolean? by remember { mutableStateOf(null) }
 
         fun refreshStatus() {
             status = pluginManager.getPluginStatus()
@@ -88,11 +84,11 @@ object SettingsLightNovelScreen : SearchableSettings {
             }
         }
 
-        suspend fun runInstallFlow(request: InstallRequest) {
+        suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {
             installInProgress = true
             installError = null
 
-            if (request.enableFeatureAfterInstall) {
+            if (enableFeatureAfterInstall) {
                 enableLightNovelsPref.set(true)
             }
 
@@ -106,7 +102,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                 }
                 is LightNovelPluginManager.InstallResult.Error -> {
                     installError = result.message
-                    if (request.enableFeatureAfterInstall) {
+                    if (enableFeatureAfterInstall) {
                         enableLightNovelsPref.set(false)
                     }
                     context.toast(result.message)
@@ -117,24 +113,24 @@ object SettingsLightNovelScreen : SearchableSettings {
             installInProgress = false
         }
 
-        if (pendingInstallRequest != null) {
+        if (pendingEnableAfterInstall != null) {
             AlertDialog(
-                onDismissRequest = { pendingInstallRequest = null },
+                onDismissRequest = { pendingEnableAfterInstall = null },
                 title = { Text(text = stringResource(AYMR.strings.light_novel_plugin_install_confirm_title)) },
                 text = { Text(text = stringResource(AYMR.strings.light_novel_plugin_install_confirm_message)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            val request = pendingInstallRequest ?: return@TextButton
-                            pendingInstallRequest = null
-                            scope.launch { runInstallFlow(request) }
+                            val enableAfterInstall = pendingEnableAfterInstall ?: return@TextButton
+                            pendingEnableAfterInstall = null
+                            scope.launch { runInstallFlow(enableAfterInstall) }
                         },
                     ) {
                         Text(text = stringResource(MR.strings.action_install))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { pendingInstallRequest = null }) {
+                    TextButton(onClick = { pendingEnableAfterInstall = null }) {
                         Text(text = stringResource(MR.strings.action_cancel))
                     }
                 },
@@ -172,7 +168,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                                 if (pluginManager.isPluginReady()) {
                                     return@SwitchPreference true
                                 }
-                                pendingInstallRequest = InstallRequest(enableFeatureAfterInstall = true)
+                                pendingEnableAfterInstall = true
                                 return@SwitchPreference false
                             }
                             true
@@ -199,7 +195,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                         enabled = enabled && !installInProgress,
                         onClick = {
                             installError = null
-                            pendingInstallRequest = InstallRequest(enableFeatureAfterInstall = false)
+                            pendingEnableAfterInstall = false
                         },
                     ),
                     Preference.PreferenceItem.TextPreference(
