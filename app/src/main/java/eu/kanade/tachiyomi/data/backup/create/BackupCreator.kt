@@ -11,22 +11,9 @@ import eu.kanade.tachiyomi.data.backup.create.creators.AnimeExtensionRepoBackupC
 import eu.kanade.tachiyomi.data.backup.create.creators.AnimeSourcesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.CustomButtonBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.ExtensionsBackupCreator
+import eu.kanade.tachiyomi.data.backup.create.creators.LightNovelBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaBackupCreator
-import eu.kanade.tachiyomi.data.backup.create.creators.MangaCategoriesBackupCreator
-import eu.kanade.tachiyomi.data.backup.create.creators.MangaExtensionRepoBackupCreator
-import eu.kanade.tachiyomi.data.backup.create.creators.MangaSourcesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.PreferenceBackupCreator
-import eu.kanade.tachiyomi.data.backup.models.Backup
-import eu.kanade.tachiyomi.data.backup.models.BackupAnime
-import eu.kanade.tachiyomi.data.backup.models.BackupAnimeSource
-import eu.kanade.tachiyomi.data.backup.models.BackupCategory
-import eu.kanade.tachiyomi.data.backup.models.BackupCustomButtons
-import eu.kanade.tachiyomi.data.backup.models.BackupExtension
-import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
-import eu.kanade.tachiyomi.data.backup.models.BackupManga
-import eu.kanade.tachiyomi.data.backup.models.BackupPreference
-import eu.kanade.tachiyomi.data.backup.models.BackupSource
-import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
 import okio.buffer
@@ -55,6 +42,16 @@ class BackupCreator(
     private val isAutoBackup: Boolean,
 
     private val parser: ProtoBuf = Injekt.get(),
+    @Suppress("ktlint:json-literal")
+    private val json = kotlinx.serialization.json.Json {
+        @Suppress("OPT_IN_USAGE_ERROR")
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        prettyPrint = false
+    }
+    private val mangaRepository: MangaRepository = Injekt.get()
+    private val animeRepository: AnimeRepository = Injekt.get()
+    private val getAnimeFavorites: GetAnimeFavorites = Injekt.get()
     private val getAnimeFavorites: GetAnimeFavorites = Injekt.get(),
     private val getMangaFavorites: GetMangaFavorites = Injekt.get(),
     private val backupPreferences: BackupPreferences = Injekt.get(),
@@ -67,11 +64,11 @@ class BackupCreator(
     private val mangaBackupCreator: MangaBackupCreator = MangaBackupCreator(),
     private val preferenceBackupCreator: PreferenceBackupCreator = PreferenceBackupCreator(),
     private val animeExtensionRepoBackupCreator: AnimeExtensionRepoBackupCreator = AnimeExtensionRepoBackupCreator(),
-    private val mangaExtensionRepoBackupCreator: MangaExtensionRepoBackupCreator = MangaExtensionRepoBackupCreator(),
     private val customButtonBackupCreator: CustomButtonBackupCreator = CustomButtonBackupCreator(),
     private val animeSourcesBackupCreator: AnimeSourcesBackupCreator = AnimeSourcesBackupCreator(),
     private val mangaSourcesBackupCreator: MangaSourcesBackupCreator = MangaSourcesBackupCreator(),
     private val extensionsBackupCreator: ExtensionsBackupCreator = ExtensionsBackupCreator(context),
+    private val lightNovelBackupCreator: LightNovelBackupCreator = LightNovelBackupCreator(context),
 ) {
 
     suspend fun backup(uri: Uri, options: BackupOptions): String {
@@ -143,6 +140,9 @@ class BackupCreator(
 
             // Make sure it's a valid backup file
             BackupFileValidator(context).validate(fileUri)
+
+            // Create separate light novel backup file
+            createLightNovelBackup(file)
 
             if (isAutoBackup) {
                 backupPreferences.lastAutoBackupTimestamp().set(Instant.now().toEpochMilli())
@@ -219,8 +219,29 @@ class BackupCreator(
 
     private fun backupExtensions(options: BackupOptions): List<BackupExtension> {
         if (!options.extensions) return emptyList()
-
         return extensionsBackupCreator()
+    }
+
+    private fun createLightNovelBackup(parentBackupFile: UniFile?) {
+        try {
+            val lightNovelBackup = lightNovelBackupCreator()
+            if (lightNovelBackup == null) {
+                logcat(LogPriority.INFO, "Light Novel plugin not installed, skipping metadata backup")
+                return
+            }
+
+            val lightNovelBackupBytes = json.encodeToString(lightNovelBackup).encodeToByteArray()
+            val lightNovelBackupFile = parentBackupFile?.parent?.createChild(
+                "lightnovel_backup.tachibk",
+                lightNovelBackupBytes,
+            )
+
+            lightNovelBackupFile?.let { file ->
+                logcat(LogPriority.INFO, "Light Novel metadata backup created: ${file.name} (${lightNovelBackupBytes.size} bytes)")
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, "Failed to create Light Novel backup: ${e.message}")
+        }
     }
 
     companion object {

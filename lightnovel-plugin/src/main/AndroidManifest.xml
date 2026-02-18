@@ -16,6 +16,12 @@
             android:name="rayniyomi.plugin.min_host_version"
             android:value="131" />
 
+        <provider
+            android:name=".backup.LightNovelBackupContentProvider"
+            android:authorities="xyz.rayniyomi.plugin.lightnovel.backup"
+            android:exported="true"
+            android:enabled="true" />
+
         <activity
             android:name=".ReaderActivity"
             android:exported="false" />

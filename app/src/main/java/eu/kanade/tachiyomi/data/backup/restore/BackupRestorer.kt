@@ -26,9 +26,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovelRestorer
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -135,6 +137,23 @@ class BackupRestorer(
             if (options.extensions) {
                 restoreExtensions(backup.backupExtensions)
             }
+
+            // Restore Light Novel plugin metadata if backup file exists
+            val lightNovelBackupUri = uri.parent?.resolveChild("lightnovel_backup.tachibk")
+            val lightNovelBackupData = lightNovelBackupUri?.let {
+                try {
+                    val lightNovelBackupFile = com.hippo.unifile.UniFile.fromUri(context, it)
+                    if (lightNovelBackupFile.exists()) {
+                        lightNovelBackupFile.openInputStream().use { it.readBytes() }
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    logcat(LogPriority.WARN, "Light Novel backup file not found or unreadable")
+                    null
+                }
+            }
+            restoreLightNovels(lightNovelBackupData)
 
             // TODO: optionally trigger online library + tracker update
         }
@@ -292,11 +311,43 @@ class BackupRestorer(
 
         restoreProgress += 1
         notifier.showRestoreProgress(
-            context.stringResource(MR.strings.source_settings),
+            context.stringResource(R.strings.source_settings),
             restoreProgress,
             restoreAmount,
             isSync,
         )
+    }
+
+    private fun restoreLightNovels(lightNovelBackupData: ByteArray?) = launch {
+        if (lightNovelBackupData == null) {
+            logcat(LogPriority.INFO, "No Light Novel backup data found, skipping")
+            return@launch
+        }
+
+        try {
+            val restorer = BackupLightNovelRestorer(context)
+            val success = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                restorer.restoreBackup(lightNovelBackupData)
+            }
+
+            if (success) {
+                logcat(LogPriority.INFO, "Light Novel metadata restored successfully")
+            } else {
+                logcat(LogPriority.WARN, "Light Novel metadata restore failed")
+                errors.add(Date() to "Light Novel: metadata restore failed")
+            }
+
+            restoreProgress += 1
+            notifier.showRestoreProgress(
+                context.stringResource(R.strings.light_novel_library),
+                restoreProgress,
+                restoreAmount,
+                isSync,
+            )
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, "Failed to restore Light Novel metadata: ${e.message}")
+            errors.add(Date() to "Light Novel: ${e.message}")
+        }
     }
 
     private fun writeErrorLog(): File {
