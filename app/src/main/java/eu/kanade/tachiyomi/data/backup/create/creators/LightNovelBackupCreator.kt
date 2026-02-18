@@ -8,16 +8,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovel
-import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider
 import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.COLUMNS
 import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.CONTENT_URI
-import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
 import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.COLUMN_NAMES
+import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
 import java.io.File
 
 @Suppress("ktlint:parameter-type")
 class LightNovelBackupCreator(
-    @Suppress("ktlint:parameter-type")
     private val context: Context,
 ) {
     private const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
