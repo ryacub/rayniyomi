@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.data.backup.create.creators.LightNovelBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.PreferenceBackupCreator
 import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import okio.buffer
 import okio.gzip
@@ -43,7 +44,7 @@ class BackupCreator(
     private val isAutoBackup: Boolean,
 
     private val parser: ProtoBuf = Injekt.get(),
-    private val json = kotlinx.serialization.json.Json {
+    private val json = Json {
         @Suppress("OPT_IN_USAGE_ERROR")
         ignoreUnknownKeys = true
         encodeDefaults = true
