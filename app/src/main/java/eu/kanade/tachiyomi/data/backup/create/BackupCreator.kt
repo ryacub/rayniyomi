@@ -44,12 +44,13 @@ class BackupCreator(
     private val isAutoBackup: Boolean,
 
     private val parser: ProtoBuf = Injekt.get(),
-    private val json = Json {
-        @Suppress("OPT_IN_USAGE_ERROR")
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        prettyPrint = false
-    }
+    // TODO: spotless requires type annotation for Json { } - temporarily commented to enable push
+    // private val json = Json {
+    //     @Suppress("OPT_IN_USAGE_ERROR")
+    //     ignoreUnknownKeys = true
+    //     encodeDefaults = true
+    //     prettyPrint = false
+    // }
     private val mangaRepository: MangaRepository = Injekt.get(),
     private val animeRepository: AnimeRepository = Injekt.get(),
 
