@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
@@ -21,6 +24,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.launch
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -28,6 +32,9 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
 object SettingsLightNovelScreen : SearchableSettings {
+    private data class InstallRequest(
+        val enableFeatureAfterInstall: Boolean,
+    )
 
     @ReadOnlyComposable
     @Composable
@@ -48,6 +55,9 @@ object SettingsLightNovelScreen : SearchableSettings {
         val channel by lightNovelPluginChannelPref.collectAsState()
 
         var status by remember(enabled, channel) { mutableStateOf(pluginManager.getPluginStatus()) }
+        var installInProgress by remember { mutableStateOf(false) }
+        var installError by remember { mutableStateOf<String?>(null) }
+        var pendingInstallRequest by remember { mutableStateOf<InstallRequest?>(null) }
 
         fun refreshStatus() {
             status = pluginManager.getPluginStatus()
@@ -78,7 +88,62 @@ object SettingsLightNovelScreen : SearchableSettings {
             }
         }
 
+        suspend fun runInstallFlow(request: InstallRequest) {
+            installInProgress = true
+            installError = null
+
+            if (request.enableFeatureAfterInstall) {
+                enableLightNovelsPref.set(true)
+            }
+
+            val result = pluginManager.ensurePluginReady(channel)
+            when (result) {
+                is LightNovelPluginManager.InstallResult.AlreadyReady -> {
+                    context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
+                }
+                is LightNovelPluginManager.InstallResult.InstallLaunched -> {
+                    context.toast(AYMR.strings.light_novel_plugin_install_started)
+                }
+                is LightNovelPluginManager.InstallResult.Error -> {
+                    installError = result.message
+                    if (request.enableFeatureAfterInstall) {
+                        enableLightNovelsPref.set(false)
+                    }
+                    context.toast(result.message)
+                }
+            }
+
+            refreshStatus()
+            installInProgress = false
+        }
+
+        if (pendingInstallRequest != null) {
+            AlertDialog(
+                onDismissRequest = { pendingInstallRequest = null },
+                title = { Text(text = stringResource(AYMR.strings.light_novel_plugin_install_confirm_title)) },
+                text = { Text(text = stringResource(AYMR.strings.light_novel_plugin_install_confirm_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val request = pendingInstallRequest ?: return@TextButton
+                            pendingInstallRequest = null
+                            scope.launch { runInstallFlow(request) }
+                        },
+                    ) {
+                        Text(text = stringResource(MR.strings.action_install))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingInstallRequest = null }) {
+                        Text(text = stringResource(MR.strings.action_cancel))
+                    }
+                },
+            )
+        }
+
         val statusText = when {
+            installInProgress -> stringResource(AYMR.strings.light_novel_plugin_status_installing)
+            installError != null -> stringResource(AYMR.strings.light_novel_plugin_status_error, installError ?: "")
             !status.installed -> stringResource(AYMR.strings.light_novel_plugin_status_missing)
             !status.signedAndTrusted -> stringResource(AYMR.strings.light_novel_plugin_status_untrusted)
             !status.compatible -> stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
@@ -97,22 +162,18 @@ object SettingsLightNovelScreen : SearchableSettings {
                         title = stringResource(AYMR.strings.pref_enable_light_novels),
                         subtitle = stringResource(AYMR.strings.pref_enable_light_novels_summary),
                         onValueChanged = { newValue ->
+                            if (installInProgress) {
+                                return@SwitchPreference false
+                            }
+
+                            installError = null
+
                             if (newValue) {
-                                scope.launch {
-                                    val result = pluginManager.ensurePluginReady(channel)
-                                    when (result) {
-                                        is LightNovelPluginManager.InstallResult.AlreadyReady -> {
-                                            context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
-                                        }
-                                        is LightNovelPluginManager.InstallResult.InstallLaunched -> {
-                                            context.toast(AYMR.strings.light_novel_plugin_install_started)
-                                        }
-                                        is LightNovelPluginManager.InstallResult.Error -> {
-                                            enableLightNovelsPref.set(false)
-                                            context.toast(result.message)
-                                        }
-                                    }
+                                if (pluginManager.isPluginReady()) {
+                                    return@SwitchPreference true
                                 }
+                                pendingInstallRequest = InstallRequest(enableFeatureAfterInstall = true)
+                                return@SwitchPreference false
                             }
                             true
                         },
@@ -135,27 +196,15 @@ object SettingsLightNovelScreen : SearchableSettings {
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(AYMR.strings.pref_light_novel_plugin_install_update),
                         subtitle = stringResource(AYMR.strings.pref_light_novel_plugin_install_update_summary),
-                        enabled = enabled,
+                        enabled = enabled && !installInProgress,
                         onClick = {
-                            scope.launch {
-                                val result = pluginManager.ensurePluginReady(channel)
-                                when (result) {
-                                    is LightNovelPluginManager.InstallResult.AlreadyReady -> {
-                                        context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
-                                    }
-                                    is LightNovelPluginManager.InstallResult.InstallLaunched -> {
-                                        context.toast(AYMR.strings.light_novel_plugin_install_started)
-                                    }
-                                    is LightNovelPluginManager.InstallResult.Error -> {
-                                        context.toast(result.message)
-                                    }
-                                }
-                            }
+                            installError = null
+                            pendingInstallRequest = InstallRequest(enableFeatureAfterInstall = false)
                         },
                     ),
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(AYMR.strings.pref_light_novel_plugin_uninstall),
-                        enabled = status.installed,
+                        enabled = status.installed && !installInProgress,
                         onClick = {
                             pluginManager.uninstallPlugin()
                         },

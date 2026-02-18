@@ -619,9 +619,13 @@
     <string name="pref_light_novel_plugin_install_update_summary">Checks GitHub release manifest and installs the optional plugin APK.</string>
     <string name="pref_light_novel_plugin_uninstall">Uninstall plugin</string>
     <string name="light_novel_plugin_status_missing">Not installed</string>
+    <string name="light_novel_plugin_status_installing">Install in progress</string>
+    <string name="light_novel_plugin_status_error">Install failed: %1$s</string>
     <string name="light_novel_plugin_status_untrusted">Installed but signature is not trusted</string>
     <string name="light_novel_plugin_status_incompatible">Installed but incompatible with this app version</string>
     <string name="light_novel_plugin_status_ready">Installed (version %1$d), trusted, and compatible</string>
     <string name="light_novel_plugin_status_ready_short">Plugin is already ready</string>
     <string name="light_novel_plugin_install_started">Plugin installer launched</string>
+    <string name="light_novel_plugin_install_confirm_title">Install light novel plugin?</string>
+    <string name="light_novel_plugin_install_confirm_message">This downloads the plugin manifest and APK from GitHub before launching Android package install.</string>
 </resources>
