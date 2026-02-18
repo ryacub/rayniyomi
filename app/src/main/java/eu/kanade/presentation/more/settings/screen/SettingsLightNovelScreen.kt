@@ -56,8 +56,8 @@ object SettingsLightNovelScreen : SearchableSettings {
 
         var status by remember(enabled, channel) { mutableStateOf(pluginManager.getPluginStatus()) }
         var installInProgress by remember { mutableStateOf(false) }
-        var installError by remember { mutableStateOf<String?>(null) }
-        var pendingInstallRequest by remember { mutableStateOf<InstallRequest?>(null) }
+        var installError: String? by remember { mutableStateOf(null) }
+        var pendingInstallRequest: InstallRequest? by remember { mutableStateOf(null) }
 
         fun refreshStatus() {
             status = pluginManager.getPluginStatus()
