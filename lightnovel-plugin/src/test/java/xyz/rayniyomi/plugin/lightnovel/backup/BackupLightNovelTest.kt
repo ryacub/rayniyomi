@@ -5,7 +5,6 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovel
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
 

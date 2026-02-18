@@ -15,12 +15,12 @@ class BackupLightNovelRestorer(
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
-        prettyPrint = true
+        prettyPrint = false
     }
 
     private val storage = NovelStorage(context)
 
-    suspend fun restoreBackup(backupData: ByteArray): Boolean {
+    fun restoreBackup(backupData: ByteArray): Boolean {
         val backup = try {
             val backupString = backupData.decodeToString()
             json.decodeFromString<BackupLightNovel>(backupString)

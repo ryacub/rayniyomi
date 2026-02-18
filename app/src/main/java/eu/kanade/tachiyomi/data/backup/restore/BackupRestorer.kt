@@ -2,6 +2,8 @@ package eu.kanade.tachiyomi.data.backup.restore
 
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
+import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
@@ -23,6 +25,7 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -32,7 +35,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovelRestorer
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -87,7 +89,7 @@ class BackupRestorer(
 
         // Store source mapping for error messages
         val backupAnimeMaps = backup.backupAnimeSources
-        mangaSourceMapping = backupAnimeMaps.associate { it.sourceId to it.name }
+        animeSourceMapping = backupAnimeMaps.associate { it.sourceId to it.name }
         val backupMangaMaps = backup.backupSources
         mangaSourceMapping = backupMangaMaps.associate { it.sourceId to it.name }
 
@@ -110,6 +112,9 @@ class BackupRestorer(
             restoreAmount += 1
         }
         if (options.extensions) {
+            restoreAmount += 1
+        }
+        if (options.lightNovels) {
             restoreAmount += 1
         }
 
@@ -140,22 +145,10 @@ class BackupRestorer(
                 restoreExtensions(backup.backupExtensions)
             }
 
-            // Restore Light Novel plugin metadata if backup file exists
-            val lightNovelBackupUri = uri.parent?.resolveChild("lightnovel_backup.tachibk")
-            val lightNovelBackupData = lightNovelBackupUri?.let {
-                try {
-                    val lightNovelBackupFile = com.hippo.unifile.UniFile.fromUri(context, it)
-                    if (lightNovelBackupFile.exists()) {
-                        lightNovelBackupFile.openInputStream().use { it.readBytes() }
-                    } else {
-                        null
-                    }
-                } catch (e: Exception) {
-                    logcat(LogPriority.WARN, "Light Novel backup file not found or unreadable")
-                    null
-                }
+            if (options.lightNovels) {
+                val lightNovelBackupData = readLightNovelBackupData(uri)
+                restoreLightNovels(lightNovelBackupData)
             }
-            restoreLightNovels(lightNovelBackupData)
 
             // TODO: optionally trigger online library + tracker update
         }
@@ -320,37 +313,79 @@ class BackupRestorer(
         )
     }
 
-    private fun restoreLightNovels(lightNovelBackupData: ByteArray?) = launch {
-        if (lightNovelBackupData == null) {
-            logcat(LogPriority.INFO, "No Light Novel backup data found, skipping")
-            return@launch
-        }
-
+    private suspend fun restoreLightNovels(lightNovelBackupData: ByteArray?) {
         try {
-            val restorer = BackupLightNovelRestorer(context)
-            val success = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                restorer.restoreBackup(lightNovelBackupData)
+            val success = if (lightNovelBackupData == null) {
+                logcat(LogPriority.INFO) { "No Light Novel backup data found, skipping" }
+                false
+            } else if (!isPluginInstalled()) {
+                logcat(LogPriority.INFO) { "Light Novel plugin not installed, skipping restore" }
+                false
+            } else {
+                withContext(Dispatchers.IO) {
+                    val extras = Bundle().apply { putByteArray(CALL_EXTRA_BACKUP_DATA, lightNovelBackupData) }
+                    context.contentResolver.call(
+                        LIGHT_NOVEL_BACKUP_URI,
+                        CALL_METHOD_RESTORE_BACKUP,
+                        null,
+                        extras,
+                    )?.getBoolean(CALL_RESULT_SUCCESS, false) == true
+                }
             }
 
             if (success) {
-                logcat(LogPriority.INFO, "Light Novel metadata restored successfully")
+                logcat(LogPriority.INFO) { "Light Novel metadata restored successfully" }
             } else {
-                logcat(LogPriority.WARN, "Light Novel metadata restore failed")
-                errors.add(Date() to "Light Novel: metadata restore failed")
+                logcat(LogPriority.WARN) { "Light Novel metadata restore skipped or failed" }
             }
-
+        } catch (e: Exception) {
+            val errorMessage = "Failed to restore Light Novel metadata: ${e.message}"
+            logcat(LogPriority.ERROR, e) { errorMessage }
+            errors.add(Date() to errorMessage)
+        } finally {
             restoreProgress += 1
             notifier.showRestoreProgress(
-                context.stringResource(MR.strings.light_novel_library),
+                context.stringResource(AYMR.strings.light_novel_library),
                 restoreProgress,
                 restoreAmount,
                 isSync,
             )
-        } catch (e: Exception) {
-            val errorMessage = "Failed to restore Light Novel metadata: " + e.message
-            logcat(LogPriority.ERROR, errorMessage)
-            errors.add(Date() to errorMessage)
         }
+    }
+
+    private fun isPluginInstalled(): Boolean {
+        return runCatching {
+            context.packageManager.getPackageInfo(LIGHT_NOVEL_PLUGIN_PACKAGE_NAME, 0)
+            true
+        }.getOrElse { false }
+    }
+
+    private fun readLightNovelBackupData(uri: Uri): ByteArray? {
+        val backupFile = UniFile.fromUri(context, uri) ?: return null
+        val parent = backupFile.parentFile ?: return null
+        val backupName = backupFile.name ?: return null
+        val sidecarName = backupName.removeSuffix(".tachibk") + LIGHT_NOVEL_SIDECAR_SUFFIX
+        val sidecarFile = parent.findFile(sidecarName)
+            ?: parent.findFile(LEGACY_LIGHT_NOVEL_BACKUP_FILE_NAME)
+            ?: return null
+
+        return runCatching {
+            sidecarFile.openInputStream().use { input -> input?.readBytes() }
+        }.getOrElse {
+            logcat(LogPriority.WARN, it) { "Light Novel backup file not found or unreadable" }
+            null
+        }
+    }
+
+    private companion object {
+        const val LIGHT_NOVEL_PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
+        const val LIGHT_NOVEL_BACKUP_AUTHORITY = "xyz.rayniyomi.plugin.lightnovel.backup"
+        val LIGHT_NOVEL_BACKUP_URI: Uri = Uri.parse("content://$LIGHT_NOVEL_BACKUP_AUTHORITY/library")
+        const val LIGHT_NOVEL_SIDECAR_SUFFIX = ".lightnovel.tachibk"
+        const val LEGACY_LIGHT_NOVEL_BACKUP_FILE_NAME = "lightnovel_backup.tachibk"
+        const val CALL_METHOD_RESTORE_BACKUP = "restore_backup"
+        const val CALL_EXTRA_BACKUP_DATA = "backup_data"
+        const val CALL_RESULT_SUCCESS = "success"
     }
 
     private fun writeErrorLog(): File {

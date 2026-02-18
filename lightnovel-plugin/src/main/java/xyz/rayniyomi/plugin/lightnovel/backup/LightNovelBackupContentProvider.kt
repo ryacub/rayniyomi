@@ -5,6 +5,8 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.Bundle
+import android.util.Log
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 
 class LightNovelBackupContentProvider : ContentProvider() {
@@ -74,6 +76,27 @@ class LightNovelBackupContentProvider : ContentProvider() {
         selectionArgs: Array<String>?,
     ): Int = 0
 
+    override fun call(
+        method: String,
+        arg: String?,
+        extras: Bundle?,
+    ): Bundle? {
+        if (method != METHOD_RESTORE_BACKUP) return super.call(method, arg, extras)
+
+        val backupData = extras?.getByteArray(EXTRA_BACKUP_DATA)
+        if (backupData == null) {
+            return Bundle().apply { putBoolean(RESULT_SUCCESS, false) }
+        }
+
+        val restored = runCatching {
+            BackupLightNovelRestorer(requireNotNull(context)).restoreBackup(backupData)
+        }.getOrElse { error ->
+            Log.e(TAG, "Failed to restore backup payload", error)
+            false
+        }
+        return Bundle().apply { putBoolean(RESULT_SUCCESS, restored) }
+    }
+
     companion object {
         const val AUTHORITY = "xyz.rayniyomi.plugin.lightnovel.backup"
         const val PATH_LIBRARY = "library"
@@ -95,5 +118,10 @@ class LightNovelBackupContentProvider : ContentProvider() {
         const val COLUMN_LAST_READ_CHAPTER = "last_read_chapter"
         const val COLUMN_LAST_READ_OFFSET = "last_read_offset"
         const val COLUMN_UPDATED_AT = "updated_at"
+
+        const val METHOD_RESTORE_BACKUP = "restore_backup"
+        const val EXTRA_BACKUP_DATA = "backup_data"
+        const val RESULT_SUCCESS = "success"
+        private const val TAG = "LNBackupProvider"
     }
 }

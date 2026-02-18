@@ -32,6 +32,8 @@
         tools:ignore="ProtectedPermissions" />
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="xyz.rayniyomi.permission.READ_LIGHT_NOVEL_BACKUP" />
+    <uses-permission android:name="xyz.rayniyomi.permission.WRITE_LIGHT_NOVEL_BACKUP" />
 
     <application
         android:name=".App"
