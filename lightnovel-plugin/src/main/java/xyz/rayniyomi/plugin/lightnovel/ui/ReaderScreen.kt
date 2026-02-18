@@ -21,13 +21,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import tachiyomi.presentation.core.components.material.padding
 import xyz.rayniyomi.plugin.lightnovel.R
 import xyz.rayniyomi.plugin.lightnovel.reader.ReaderProgressMapper
 
@@ -53,9 +55,7 @@ internal fun ReaderScreen(
     onPersistOffset: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val spacingSmall = dimensionResource(id = R.dimen.ln_spacing_small)
-    val spacingMedium = dimensionResource(id = R.dimen.ln_spacing_medium)
-
+    val loadingDescription = stringResource(R.string.loading)
     val scrollState = rememberScrollState()
 
     LaunchedEffect(chapterText, restoreOffset, isLoading) {
@@ -97,8 +97,8 @@ internal fun ReaderScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(spacingMedium),
-            verticalArrangement = Arrangement.spacedBy(spacingSmall),
+                .padding(MaterialTheme.padding.mediumSmall),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
         ) {
             Text(
                 text = title,
@@ -107,7 +107,7 @@ internal fun ReaderScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacingMedium),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.mediumSmall),
             ) {
                 Button(
                     onClick = onPreviousClick,
@@ -122,7 +122,7 @@ internal fun ReaderScreen(
                 Text(
                     text = chapterIndicator,
                     modifier = Modifier
-                        .padding(vertical = spacingMedium)
+                        .padding(vertical = MaterialTheme.padding.mediumSmall)
                         .testTag(ReaderScreenTags.CHAPTER_INDICATOR),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -142,7 +142,8 @@ internal fun ReaderScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .testTag(ReaderScreenTags.LOADING),
+                        .testTag(ReaderScreenTags.LOADING)
+                        .semantics { contentDescription = loadingDescription },
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()

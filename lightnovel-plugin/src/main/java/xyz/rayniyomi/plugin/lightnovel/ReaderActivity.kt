@@ -11,6 +11,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
+import xyz.rayniyomi.plugin.lightnovel.ui.LightNovelPluginTheme
 import xyz.rayniyomi.plugin.lightnovel.ui.ReaderScreen
 import xyz.rayniyomi.plugin.lightnovel.ui.ReaderViewModel
 
@@ -30,19 +31,21 @@ class ReaderActivity : ComponentActivity() {
         }
 
         setContent {
-            val uiState by viewModel.uiState.collectAsState()
-            ReaderScreen(
-                title = uiState.title,
-                chapterIndicator = uiState.chapterIndicator,
-                chapterText = uiState.chapterText,
-                previousEnabled = uiState.previousEnabled,
-                nextEnabled = uiState.nextEnabled,
-                restoreOffset = uiState.restoreOffset,
-                isLoading = uiState.isLoading,
-                onPreviousClick = viewModel::onPreviousClick,
-                onNextClick = viewModel::onNextClick,
-                onPersistOffset = viewModel::onPersistOffset,
-            )
+            LightNovelPluginTheme {
+                val uiState by viewModel.uiState.collectAsState()
+                ReaderScreen(
+                    title = uiState.title,
+                    chapterIndicator = uiState.chapterIndicator,
+                    chapterText = uiState.chapterText,
+                    previousEnabled = uiState.previousEnabled,
+                    nextEnabled = uiState.nextEnabled,
+                    restoreOffset = uiState.restoreOffset,
+                    isLoading = uiState.isLoading,
+                    onPreviousClick = viewModel::onPreviousClick,
+                    onNextClick = viewModel::onNextClick,
+                    onPersistOffset = viewModel::onPersistOffset,
+                )
+            }
         }
 
         viewModel.initialize(

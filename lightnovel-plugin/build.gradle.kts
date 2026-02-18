@@ -20,6 +20,7 @@ dependencies {
     implementation(androidx.appcompat)
     implementation(androidx.corektx)
     implementation(androidx.bundles.lifecycle)
+    implementation(projects.presentationCore)
 
     implementation(platform(compose.bom))
     implementation(compose.activity)

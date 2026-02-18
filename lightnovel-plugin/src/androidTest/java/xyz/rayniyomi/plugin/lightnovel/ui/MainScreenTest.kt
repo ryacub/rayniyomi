@@ -1,5 +1,6 @@
 package xyz.rayniyomi.plugin.lightnovel.ui
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,13 +20,13 @@ class MainScreenTest {
                 books = emptyList(),
                 statusMessage = "",
                 isLoading = false,
+                snackbarHostState = SnackbarHostState(),
                 onImportClick = {},
                 onBookClick = {},
             )
         }
 
         composeRule.onNodeWithTag(MainScreenTags.IMPORT_BUTTON).assertIsDisplayed()
-        composeRule.onNodeWithTag(MainScreenTags.EMPTY_FACE).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTags.EMPTY_TEXT).assertIsDisplayed()
     }
 
@@ -38,6 +39,7 @@ class MainScreenTest {
                 ),
                 statusMessage = "",
                 isLoading = false,
+                snackbarHostState = SnackbarHostState(),
                 onImportClick = {},
                 onBookClick = {},
             )
@@ -53,6 +55,7 @@ class MainScreenTest {
                 books = emptyList(),
                 statusMessage = "",
                 isLoading = true,
+                snackbarHostState = SnackbarHostState(),
                 onImportClick = {},
                 onBookClick = {},
             )

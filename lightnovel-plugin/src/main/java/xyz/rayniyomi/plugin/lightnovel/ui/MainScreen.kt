@@ -8,31 +8,31 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.screens.EmptyScreen
 import xyz.rayniyomi.plugin.lightnovel.R
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
-import kotlin.random.Random
 
 object MainScreenTags {
     const val IMPORT_BUTTON = "main_import_button"
     const val EMPTY_TEXT = "main_empty_text"
-    const val EMPTY_FACE = "main_empty_face"
     const val BOOK_LIST = "main_book_list"
     const val LOADING = "main_loading"
 }
@@ -42,20 +42,22 @@ internal fun MainScreen(
     books: List<NovelBook>,
     statusMessage: String,
     isLoading: Boolean,
+    snackbarHostState: SnackbarHostState,
     onImportClick: () -> Unit,
     onBookClick: (NovelBook) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val spacingSmall = dimensionResource(id = R.dimen.ln_spacing_small)
-    val spacingMedium = dimensionResource(id = R.dimen.ln_spacing_medium)
-    val spacingLarge = dimensionResource(id = R.dimen.ln_spacing_large)
+    val loadingDescription = stringResource(R.string.loading)
 
-    Surface {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { contentPadding ->
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(spacingLarge),
-            verticalArrangement = Arrangement.spacedBy(spacingMedium),
+                .padding(contentPadding)
+                .padding(MaterialTheme.padding.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.mediumSmall),
         ) {
             Button(
                 onClick = onImportClick,
@@ -79,48 +81,35 @@ internal fun MainScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .testTag(MainScreenTags.LOADING),
+                        .testTag(MainScreenTags.LOADING)
+                        .semantics { contentDescription = loadingDescription },
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
                 }
             } else if (books.isEmpty()) {
-                val face = remember { getRandomErrorFace() }
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        text = face,
-                        modifier = Modifier.testTag(MainScreenTags.EMPTY_FACE),
-                        style = MaterialTheme.typography.displayMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.no_books),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .paddingFromBaseline(top = spacingLarge)
-                            .testTag(MainScreenTags.EMPTY_TEXT),
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                EmptyScreen(
+                    message = stringResource(R.string.no_books),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(MainScreenTags.EMPTY_TEXT),
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .testTag(MainScreenTags.BOOK_LIST),
-                    verticalArrangement = Arrangement.spacedBy(spacingSmall),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                 ) {
                     items(books, key = { it.id }) { book ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onBookClick(book) }
-                                .padding(horizontal = spacingSmall, vertical = spacingMedium),
+                                .padding(
+                                    horizontal = MaterialTheme.padding.small,
+                                    vertical = MaterialTheme.padding.mediumSmall,
+                                ),
                         ) {
                             Text(
                                 text = book.title,
@@ -144,28 +133,10 @@ private fun MainScreenPreview() {
         ),
         statusMessage = "",
         isLoading = false,
+        snackbarHostState = SnackbarHostState(),
         onImportClick = {},
         onBookClick = {},
     )
-}
-
-private val ErrorFaces = listOf(
-    "(･o･;)",
-    "Σ(ಠ_ಠ)",
-    "ಥ_ಥ",
-    "(˘･_･˘)",
-    "(；￣Д￣)",
-    "(･Д･。",
-    "(╬ಠ益ಠ)",
-    "(╥﹏╥)",
-    "(⋟﹏⋞)",
-    "Ò︵Ó",
-    " ˙ᯅ˙)",
-    "(¬_¬)",
-)
-
-private fun getRandomErrorFace(): String {
-    return ErrorFaces[Random.nextInt(ErrorFaces.size)]
 }
 
 @Preview(showBackground = true)
@@ -175,6 +146,7 @@ private fun MainScreenEmptyPreview() {
         books = emptyList(),
         statusMessage = "Failed to import EPUB",
         isLoading = false,
+        snackbarHostState = SnackbarHostState(),
         onImportClick = {},
         onBookClick = {},
     )
