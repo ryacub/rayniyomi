@@ -25,6 +25,7 @@ class MainScreenTest {
         }
 
         composeRule.onNodeWithTag(MainScreenTags.IMPORT_BUTTON).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTags.EMPTY_FACE).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTags.EMPTY_TEXT).assertIsDisplayed()
     }
 
