@@ -27,6 +27,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -106,6 +107,29 @@ object SettingsLightNovelScreen : SearchableSettings {
             }
         }
 
+        fun installErrorMessage(code: LightNovelPluginManager.InstallErrorCode) = when (code) {
+            LightNovelPluginManager.InstallErrorCode.INSTALL_DISABLED ->
+                AYMR.strings.light_novel_plugin_error_install_disabled
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED ->
+                AYMR.strings.light_novel_plugin_error_manifest_fetch_failed
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH ->
+                AYMR.strings.light_novel_plugin_error_manifest_package_mismatch
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_API_MISMATCH ->
+                AYMR.strings.light_novel_plugin_error_manifest_api_mismatch
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_OLD ->
+                AYMR.strings.light_novel_plugin_error_manifest_host_too_old
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_NEW ->
+                AYMR.strings.light_novel_plugin_error_manifest_host_too_new
+            LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED ->
+                AYMR.strings.light_novel_plugin_error_download_failed
+            LightNovelPluginManager.InstallErrorCode.INVALID_PLUGIN_APK ->
+                AYMR.strings.light_novel_plugin_error_invalid_apk
+            LightNovelPluginManager.InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH ->
+                AYMR.strings.light_novel_plugin_error_archive_package_mismatch
+            LightNovelPluginManager.InstallErrorCode.INSTALL_LAUNCH_FAILED ->
+                AYMR.strings.light_novel_plugin_error_install_launch_failed
+        }
+
         suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {
             installInProgress = true
             installError = null
@@ -127,7 +151,8 @@ object SettingsLightNovelScreen : SearchableSettings {
                         context.toast(AYMR.strings.light_novel_plugin_install_started)
                     }
                     is LightNovelPluginManager.InstallResult.Error -> {
-                        installError = result.message
+                        installError = context.stringResource(installErrorMessage(result.code))
+                        context.toast(installErrorMessage(result.code))
                         if (enableFeatureAfterInstall) {
                             enableAfterInstallAwaitingPackageAdded = false
                             enableLightNovelsPref.set(false)

@@ -53,7 +53,20 @@ class LightNovelPluginManager(
     sealed interface InstallResult {
         data object AlreadyReady : InstallResult
         data object InstallLaunched : InstallResult
-        data class Error(val message: String) : InstallResult
+        data class Error(val code: InstallErrorCode) : InstallResult
+    }
+
+    enum class InstallErrorCode {
+        INSTALL_DISABLED,
+        MANIFEST_FETCH_FAILED,
+        MANIFEST_PACKAGE_MISMATCH,
+        MANIFEST_API_MISMATCH,
+        MANIFEST_HOST_TOO_OLD,
+        MANIFEST_HOST_TOO_NEW,
+        DOWNLOAD_FAILED,
+        INVALID_PLUGIN_APK,
+        ARCHIVE_PACKAGE_MISMATCH,
+        INSTALL_LAUNCH_FAILED,
     }
 
     override fun isPluginReady(): Boolean {
@@ -100,31 +113,45 @@ class LightNovelPluginManager(
 
     private suspend fun ensurePluginReadyInternal(channel: String): InstallResult {
         if (!isPluginInstallEnabled()) {
-            return InstallResult.Error("Light Novel plugin install is disabled for this build")
+            return InstallResult.Error(InstallErrorCode.INSTALL_DISABLED)
         }
 
         return installMutex.withLock {
             if (isPluginReady()) return@withLock InstallResult.AlreadyReady
 
             val manifest = fetchManifest(channel).getOrElse {
-                return@withLock InstallResult.Error("Failed to fetch plugin manifest")
+                return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_FETCH_FAILED)
+            }
+            if (manifest.packageName != PLUGIN_PACKAGE_NAME) {
+                return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_PACKAGE_MISMATCH)
+            }
+
+            val manifestCompatibility = evaluateLightNovelPluginCompatibility(
+                pluginApiVersion = manifest.pluginApiVersion,
+                minHostVersion = manifest.minHostVersion,
+                targetHostVersion = manifest.targetHostVersion,
+                hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
+                expectedPluginApiVersion = EXPECTED_PLUGIN_API_VERSION,
+            )
+            if (manifestCompatibility != LightNovelPluginCompatibilityResult.COMPATIBLE) {
+                return@withLock InstallResult.Error(
+                    manifestCompatibility.toInstallErrorCode(),
+                )
             }
 
             val apkFile = downloadPlugin(manifest).getOrElse {
-                return@withLock InstallResult.Error(it.message ?: "Failed to download plugin")
+                return@withLock InstallResult.Error(InstallErrorCode.DOWNLOAD_FAILED)
             }
 
             val archivePackage = context.packageManager.getPackageArchiveInfo(
                 apkFile.absolutePath,
                 ARCHIVE_PACKAGE_FLAGS,
             )
-                ?: return@withLock InstallResult.Error("Invalid plugin APK")
+                ?: return@withLock InstallResult.Error(InstallErrorCode.INVALID_PLUGIN_APK)
 
-            if (manifest.packageName != PLUGIN_PACKAGE_NAME ||
-                archivePackage.packageName != PLUGIN_PACKAGE_NAME
-            ) {
+            if (archivePackage.packageName != PLUGIN_PACKAGE_NAME) {
                 apkFile.delete()
-                return@withLock InstallResult.Error("Plugin package name mismatch")
+                return@withLock InstallResult.Error(InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH)
             }
 
             return@withLock try {
@@ -135,7 +162,7 @@ class LightNovelPluginManager(
             } catch (e: Throwable) {
                 logcat(LogPriority.ERROR, e) { "Failed to launch plugin install" }
                 apkFile.delete()
-                InstallResult.Error("Failed to launch plugin installer")
+                InstallResult.Error(InstallErrorCode.INSTALL_LAUNCH_FAILED)
             }
         }
     }
@@ -226,14 +253,26 @@ class LightNovelPluginManager(
         val metaData = packageInfo.applicationInfo?.metaData ?: return false
         val pluginApiVersion = metaData.getInt(META_PLUGIN_API_VERSION, -1)
         val minHostVersion = metaData.getLong(META_MIN_HOST_VERSION, Long.MAX_VALUE)
-        val targetHostVersion = metaData.getLong(META_TARGET_HOST_VERSION, Long.MIN_VALUE)
-        val hostVersionCode = BuildConfig.VERSION_CODE.toLong()
+        val targetHostVersion = metaData.getLong(META_TARGET_HOST_VERSION, 0L)
+            .takeIf { it > 0L }
+        val compatibility = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = pluginApiVersion,
+            minHostVersion = minHostVersion,
+            targetHostVersion = targetHostVersion,
+            hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
+            expectedPluginApiVersion = EXPECTED_PLUGIN_API_VERSION,
+        )
 
-        if (pluginApiVersion != EXPECTED_PLUGIN_API_VERSION) return false
-        if (hostVersionCode < minHostVersion) return false
-        if (targetHostVersion != Long.MIN_VALUE && hostVersionCode > targetHostVersion) return false
+        return compatibility == LightNovelPluginCompatibilityResult.COMPATIBLE
+    }
 
-        return true
+    private fun LightNovelPluginCompatibilityResult.toInstallErrorCode(): InstallErrorCode {
+        return when (this) {
+            LightNovelPluginCompatibilityResult.API_MISMATCH -> InstallErrorCode.MANIFEST_API_MISMATCH
+            LightNovelPluginCompatibilityResult.HOST_TOO_OLD -> InstallErrorCode.MANIFEST_HOST_TOO_OLD
+            LightNovelPluginCompatibilityResult.HOST_TOO_NEW -> InstallErrorCode.MANIFEST_HOST_TOO_NEW
+            else -> error("unreachable")
+        }
     }
 
     private fun getSignatures(packageInfo: PackageInfo): List<String> {
