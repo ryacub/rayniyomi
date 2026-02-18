@@ -2,32 +2,34 @@ package xyz.rayniyomi.plugin.lightnovel
 
 import android.os.Bundle
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
-import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityReaderBinding
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubContent
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
+import xyz.rayniyomi.plugin.lightnovel.ui.ReaderScreen
 
-class ReaderActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityReaderBinding
+class ReaderActivity : ComponentActivity() {
     private lateinit var storage: NovelStorage
     private lateinit var book: NovelBook
     private lateinit var content: EpubContent
 
-    private var currentChapterIndex = 0
+    private var currentChapterIndex by mutableIntStateOf(0)
+    private var pendingOffset by mutableIntStateOf(0)
 
-    private var saveJob: Job? = null
+    private var chapterIndicatorText: String by mutableStateOf("")
+    private var chapterText: String by mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityReaderBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
         storage = NovelStorage(this)
 
@@ -60,101 +62,70 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         currentChapterIndex = book.lastReadChapter.coerceIn(0, content.chapters.lastIndex)
-
-        binding.previousButton.setOnClickListener {
-            if (currentChapterIndex > 0) {
-                persistProgress()
-                currentChapterIndex -= 1
-                renderChapter(restoreSavedOffset = false)
-            }
-        }
-
-        binding.nextButton.setOnClickListener {
-            if (currentChapterIndex < content.chapters.lastIndex) {
-                persistProgress()
-                currentChapterIndex += 1
-                renderChapter(restoreSavedOffset = false)
-            }
-        }
-
-        binding.chapterScroll.setOnScrollChangeListener { _, _, _, _, _ ->
-            schedulePersist()
-        }
-
         renderChapter(restoreSavedOffset = true)
+
+        setContent {
+            ReaderScreen(
+                title = content.title,
+                chapterIndicator = chapterIndicatorText,
+                chapterText = chapterText,
+                previousEnabled = currentChapterIndex > 0,
+                nextEnabled = currentChapterIndex < content.chapters.lastIndex,
+                restoreOffset = pendingOffset,
+                onPreviousClick = {
+                    if (currentChapterIndex > 0) {
+                        persistProgress(pendingOffset)
+                        currentChapterIndex -= 1
+                        renderChapter(restoreSavedOffset = false)
+                    }
+                },
+                onNextClick = {
+                    if (currentChapterIndex < content.chapters.lastIndex) {
+                        persistProgress(pendingOffset)
+                        currentChapterIndex += 1
+                        renderChapter(restoreSavedOffset = false)
+                    }
+                },
+                onPersistOffset = { offset ->
+                    pendingOffset = offset
+                    persistProgress(offset)
+                },
+            )
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        persistProgress()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        saveJob?.cancel()
+        persistProgress(pendingOffset)
     }
 
     private fun renderChapter(restoreSavedOffset: Boolean) {
         val chapter = content.chapters[currentChapterIndex]
-
-        binding.bookTitle.text = content.title
-        binding.chapterIndicator.text = getString(
+        chapterIndicatorText = getString(
             R.string.chapter_format,
             currentChapterIndex + 1,
             content.chapters.size,
         )
-        binding.chapterText.text = chapter.text
+        chapterText = chapter.text
 
-        binding.previousButton.isEnabled = currentChapterIndex > 0
-        binding.nextButton.isEnabled = currentChapterIndex < content.chapters.lastIndex
-
-        val restoreOffset = if (restoreSavedOffset && currentChapterIndex == book.lastReadChapter) {
+        pendingOffset = if (restoreSavedOffset && currentChapterIndex == book.lastReadChapter) {
             book.lastReadOffset
         } else {
             0
         }
-
-        binding.chapterScroll.post {
-            val maxScroll = maxScrollY()
-            if (maxScroll <= 0) {
-                return@post
-            }
-            val chapterLength = chapter.text.length.coerceAtLeast(1)
-            val ratio = restoreOffset.toFloat() / chapterLength
-            val targetY = (ratio * maxScroll).toInt().coerceIn(0, maxScroll)
-            binding.chapterScroll.scrollTo(0, targetY)
-        }
     }
 
-    private fun schedulePersist() {
-        saveJob?.cancel()
-        saveJob = lifecycleScope.launch {
-            delay(250)
-            persistProgress()
-        }
-    }
+    private fun persistProgress(offset: Int) {
+        if (!::book.isInitialized) return
 
-    private fun persistProgress() {
-        saveJob?.cancel()
-        saveJob = null
+        val chapterLength = chapterText.length
+        if (chapterLength == 0) return
 
-        if (!::book.isInitialized) {
-            return
-        }
-
-        val chapterText = binding.chapterText.text?.toString().orEmpty()
-        if (chapterText.isEmpty()) {
-            return
-        }
-
-        val maxScroll = maxScrollY().coerceAtLeast(1)
-        val currentScroll = binding.chapterScroll.scrollY.coerceIn(0, maxScroll)
-        val ratio = currentScroll.toFloat() / maxScroll.toFloat()
-        val charOffset = (ratio * chapterText.length).toInt().coerceIn(0, chapterText.length)
+        val boundedOffset = offset.coerceIn(0, chapterLength)
 
         val updatedBook = book.copy(
             lastReadChapter = currentChapterIndex,
-            lastReadOffset = charOffset,
+            lastReadOffset = boundedOffset,
         )
         book = updatedBook
 
@@ -165,11 +136,6 @@ class ReaderActivity : AppCompatActivity() {
                 charOffset = updatedBook.lastReadOffset,
             )
         }
-    }
-
-    private fun maxScrollY(): Int {
-        val child = binding.chapterScroll.getChildAt(0) ?: return 0
-        return (child.height - binding.chapterScroll.height).coerceAtLeast(0)
     }
 
     companion object {
