@@ -4,154 +4,56 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
-import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
-import xyz.rayniyomi.plugin.lightnovel.epub.EpubContent
-import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
 import xyz.rayniyomi.plugin.lightnovel.ui.ReaderScreen
+import xyz.rayniyomi.plugin.lightnovel.ui.ReaderViewModel
 
 class ReaderActivity : ComponentActivity() {
-    private lateinit var storage: NovelStorage
-    private lateinit var book: NovelBook
-    private lateinit var content: EpubContent
-
-    private var currentChapterIndex by mutableIntStateOf(0)
-    private var pendingOffset by mutableIntStateOf(0)
-
-    private var chapterIndicatorText: String by mutableStateOf("")
-    private var chapterText: String by mutableStateOf("")
+    private val viewModel: ReaderViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        storage = NovelStorage(this)
-
-        val bookId = intent.getStringExtra(EXTRA_BOOK_ID)
-            ?: run {
-                Toast.makeText(this, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
-
-        book = storage.getBook(bookId)
-            ?: run {
-                Toast.makeText(this, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
-
-        val bookFile = storage.getBookFile(book)
-        content = runCatching { EpubTextExtractor.parse(bookFile) }
-            .getOrElse {
-                Toast.makeText(this, getString(R.string.reader_parse_failed), Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
-
-        if (content.chapters.isEmpty()) {
-            Toast.makeText(this, getString(R.string.reader_no_chapters), Toast.LENGTH_SHORT).show()
+        val initResult = viewModel.initialize(
+            bookId = intent.getStringExtra(EXTRA_BOOK_ID),
+            restoredChapter = savedInstanceState?.getInt(ReaderViewModel.KEY_CURRENT_CHAPTER),
+            restoredOffset = savedInstanceState?.getInt(ReaderViewModel.KEY_PENDING_OFFSET),
+        )
+        if (initResult is ReaderViewModel.InitResult.Error) {
+            Toast.makeText(this, getString(initResult.messageRes), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        val restoredChapter = savedInstanceState?.getInt(KEY_CURRENT_CHAPTER)
-        currentChapterIndex = (restoredChapter ?: book.lastReadChapter).coerceIn(0, content.chapters.lastIndex)
-        val restoredOffset = savedInstanceState?.getInt(KEY_PENDING_OFFSET)
-        renderChapter(restoreSavedOffset = restoredOffset == null)
-        if (restoredOffset != null) {
-            pendingOffset = restoredOffset
-        }
-
         setContent {
+            val uiState by viewModel.uiState.collectAsState()
             ReaderScreen(
-                title = content.title,
-                chapterIndicator = chapterIndicatorText,
-                chapterText = chapterText,
-                previousEnabled = currentChapterIndex > 0,
-                nextEnabled = currentChapterIndex < content.chapters.lastIndex,
-                restoreOffset = pendingOffset,
-                onPreviousClick = {
-                    if (currentChapterIndex > 0) {
-                        persistProgress(pendingOffset)
-                        currentChapterIndex -= 1
-                        renderChapter(restoreSavedOffset = false)
-                    }
-                },
-                onNextClick = {
-                    if (currentChapterIndex < content.chapters.lastIndex) {
-                        persistProgress(pendingOffset)
-                        currentChapterIndex += 1
-                        renderChapter(restoreSavedOffset = false)
-                    }
-                },
-                onPersistOffset = { offset ->
-                    pendingOffset = offset
-                    persistProgress(offset)
-                },
+                title = uiState.title,
+                chapterIndicator = uiState.chapterIndicator,
+                chapterText = uiState.chapterText,
+                previousEnabled = uiState.previousEnabled,
+                nextEnabled = uiState.nextEnabled,
+                restoreOffset = uiState.restoreOffset,
+                onPreviousClick = viewModel::onPreviousClick,
+                onNextClick = viewModel::onNextClick,
+                onPersistOffset = viewModel::onPersistOffset,
             )
         }
     }
 
     override fun onPause() {
         super.onPause()
-        persistProgress(pendingOffset)
+        viewModel.onPause()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt(KEY_CURRENT_CHAPTER, currentChapterIndex)
-        outState.putInt(KEY_PENDING_OFFSET, pendingOffset)
-    }
-
-    private fun renderChapter(restoreSavedOffset: Boolean) {
-        val chapter = content.chapters[currentChapterIndex]
-        chapterIndicatorText = getString(
-            R.string.chapter_format,
-            currentChapterIndex + 1,
-            content.chapters.size,
-        )
-        chapterText = chapter.text
-
-        pendingOffset = if (restoreSavedOffset && currentChapterIndex == book.lastReadChapter) {
-            book.lastReadOffset
-        } else {
-            0
-        }
-    }
-
-    private fun persistProgress(offset: Int) {
-        if (!::book.isInitialized) return
-
-        val chapterLength = chapterText.length
-        if (chapterLength == 0) return
-
-        val boundedOffset = offset.coerceIn(0, chapterLength)
-
-        val updatedBook = book.copy(
-            lastReadChapter = currentChapterIndex,
-            lastReadOffset = boundedOffset,
-        )
-        book = updatedBook
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            storage.updateProgress(
-                bookId = updatedBook.id,
-                chapterIndex = updatedBook.lastReadChapter,
-                charOffset = updatedBook.lastReadOffset,
-            )
-        }
+        viewModel.saveInstanceState(outState)
     }
 
     companion object {
         const val EXTRA_BOOK_ID = "extra_book_id"
-        private const val KEY_CURRENT_CHAPTER = "key_current_chapter"
-        private const val KEY_PENDING_OFFSET = "key_pending_offset"
     }
 }

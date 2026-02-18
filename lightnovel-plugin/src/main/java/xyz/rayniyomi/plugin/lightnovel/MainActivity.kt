@@ -6,57 +6,40 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import xyz.rayniyomi.plugin.lightnovel.data.ImportTooLargeException
-import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
-import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.ui.MainScreen
+import xyz.rayniyomi.plugin.lightnovel.ui.MainViewModel
 
 class MainActivity : ComponentActivity() {
-    private lateinit var storage: NovelStorage
-
-    private var books: List<NovelBook> by mutableStateOf(emptyList())
-    private var statusMessage: String by mutableStateOf("")
+    private val viewModel: MainViewModel by viewModels()
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@registerForActivityResult
-
-        lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { storage.importEpub(uri) }
-            }
-
-            if (result.isFailure) {
-                val errorMessageRes = when (result.exceptionOrNull()) {
-                    is ImportTooLargeException -> R.string.import_too_large
-                    else -> R.string.import_failed
-                }
-                val message = getString(errorMessageRes)
-                statusMessage = message
-                Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
-            } else {
-                statusMessage = ""
-            }
-            refreshBooks()
-        }
+        viewModel.onImportResult(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        storage = NovelStorage(this)
-        statusMessage = savedInstanceState?.getString(KEY_STATUS_MESSAGE).orEmpty()
-        refreshBooks()
+        viewModel.restoreStatusMessage(savedInstanceState?.getString(KEY_STATUS_MESSAGE).orEmpty())
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.toastMessages.collect { message ->
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
 
         setContent {
+            val uiState by viewModel.uiState.collectAsState()
             MainScreen(
-                books = books,
-                statusMessage = statusMessage,
+                books = uiState.books,
+                statusMessage = uiState.statusMessage,
                 onImportClick = {
                     importLauncher.launch(arrayOf("application/epub+zip", "application/octet-stream"))
                 },
@@ -71,16 +54,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshBooks()
-    }
-
-    private fun refreshBooks() {
-        books = storage.listBooks()
+        viewModel.refreshBooks()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(KEY_STATUS_MESSAGE, statusMessage)
+        outState.putString(KEY_STATUS_MESSAGE, viewModel.uiState.value.statusMessage)
     }
 
     private companion object {
