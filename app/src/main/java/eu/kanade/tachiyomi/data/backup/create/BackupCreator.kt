@@ -50,9 +50,7 @@ class BackupCreator(
         prettyPrint = false
     }
     private val mangaRepository: MangaRepository = Injekt.get()
-    private val animeRepository: AnimeRepository = Injekt.get()
-    private val getAnimeFavorites: GetAnimeFavorites = Injekt.get()
-    private val getAnimeFavorites: GetAnimeFavorites = Injekt.get(),
+    private val animeRepository: AnimeRepository = Injekt.get(),
     private val getMangaFavorites: GetMangaFavorites = Injekt.get(),
     private val backupPreferences: BackupPreferences = Injekt.get(),
     private val mangaRepository: MangaRepository = Injekt.get(),
@@ -231,16 +229,20 @@ class BackupCreator(
             }
 
             val lightNovelBackupBytes = json.encodeToString(lightNovelBackup).encodeToByteArray()
-            val lightNovelBackupFile = parentBackupFile?.parent?.createChild(
+            val parentDir = parentBackupFile?.parent
+            if (parentDir == null) {
+                logcat(LogPriority.WARN, "Cannot create Light Novel backup: backup file has no parent directory")
+                return
+            }
+
+            val lightNovelBackupFile = parentDir.createChild(
                 "lightnovel_backup.tachibk",
                 lightNovelBackupBytes,
             )
 
-            lightNovelBackupFile?.let { file ->
-                logcat(LogPriority.INFO, "Light Novel metadata backup created: ${file.name} (${lightNovelBackupBytes.size} bytes)")
-            }
+            logcat(LogPriority.INFO, "Light Novel metadata backup created: ${lightNovelBackupFile.name} (${lightNovelBackupBytes.size} bytes)")
         } catch (e: Exception) {
-            logcat(LogPriority.WARN, "Failed to create Light Novel backup: ${e.message}")
+            logcat(LogPriority.WARN, "Failed to create Light Novel backup: ${e.message}", e)
         }
     }
 

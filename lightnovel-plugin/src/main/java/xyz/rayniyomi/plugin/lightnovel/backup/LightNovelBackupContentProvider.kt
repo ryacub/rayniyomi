@@ -2,13 +2,10 @@ package xyz.rayniyomi.plugin.lightnovel.backup
 
 import android.content.ContentProvider
 import android.content.ContentValues
-import android.content.Uri
 import android.database.Cursor
 import android.database.MatrixCursor
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import android.net.Uri
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
-import java.io.File
 
 class LightNovelBackupContentProvider : ContentProvider() {
 
@@ -22,13 +19,49 @@ class LightNovelBackupContentProvider : ContentProvider() {
         sortOrder: String?,
     ): Cursor? {
         return if (uri.pathSegments.size == 1 && uri.pathSegments[0] == PATH_LIBRARY) {
-            exportLibraryAsCursor()
+            exportLibraryAsCursor(projection)
         } else {
             null
         }
     }
 
-    override fun getType(uri: Uri): String? = null
+    private fun exportLibraryAsCursor(projection: Array<String>?): Cursor {
+        val storage = NovelStorage(context!!)
+        val books = storage.listBooks()
+
+        val columnsToUse = if (projection != null && projection.isNotEmpty()) {
+            projection.intersect(COLUMNS.toSet()).toTypedArray()
+        } else {
+            COLUMNS
+        }
+
+        val cursor = MatrixCursor(columnsToUse)
+
+        books.forEach { book ->
+            val row = columnsToUse.map { column ->
+                when (column) {
+                    COLUMN_ID -> book.id
+                    COLUMN_TITLE -> book.title
+                    COLUMN_EPUB_FILE_NAME -> book.epubFileName
+                    COLUMN_LAST_READ_CHAPTER -> book.lastReadChapter
+                    COLUMN_LAST_READ_OFFSET -> book.lastReadOffset
+                    COLUMN_UPDATED_AT -> book.updatedAt
+                    else -> null
+                }
+            }.toTypedArray()
+            cursor.addRow(row)
+        }
+
+        return cursor
+    }
+
+    override fun getType(uri: Uri): String? {
+        return if (uri.pathSegments.size == 1 && uri.pathSegments[0] == PATH_LIBRARY) {
+            "vnd.android.cursor.dir/vnd.xyz.rayniyomi.plugin.lightnovel.backup.library"
+        } else {
+            null
+        }
+    }
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
@@ -40,29 +73,6 @@ class LightNovelBackupContentProvider : ContentProvider() {
         selection: String?,
         selectionArgs: Array<String>?,
     ): Int = 0
-
-    private suspend fun exportLibraryAsCursor(): Cursor {
-        val storage = NovelStorage(context!!)
-        val library = withContext(Dispatchers.IO) {
-            storage.readLibrary()
-        }
-
-        val rows = library.books.map { book ->
-            arrayOf<Any>(
-                book.id,
-                book.title,
-                book.epubFileName,
-                book.lastReadChapter,
-                book.lastReadOffset,
-                book.updatedAt,
-            )
-        }
-
-        return MatrixCursor(
-            COLUMNS,
-            rows.toTypedArray(),
-        )
-    }
 
     companion object {
         const val AUTHORITY = "xyz.rayniyomi.plugin.lightnovel.backup"

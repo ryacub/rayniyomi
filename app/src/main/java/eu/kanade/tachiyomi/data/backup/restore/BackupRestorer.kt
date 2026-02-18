@@ -27,7 +27,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovelRestorer
@@ -311,7 +313,7 @@ class BackupRestorer(
 
         restoreProgress += 1
         notifier.showRestoreProgress(
-            context.stringResource(R.strings.source_settings),
+            context.stringResource(MR.strings.source_settings),
             restoreProgress,
             restoreAmount,
             isSync,
@@ -339,14 +341,15 @@ class BackupRestorer(
 
             restoreProgress += 1
             notifier.showRestoreProgress(
-                context.stringResource(R.strings.light_novel_library),
+                context.stringResource(MR.strings.light_novel_library),
                 restoreProgress,
                 restoreAmount,
                 isSync,
             )
         } catch (e: Exception) {
-            logcat(LogPriority.ERROR, "Failed to restore Light Novel metadata: ${e.message}")
-            errors.add(Date() to "Light Novel: ${e.message}")
+            val errorMessage = "Failed to restore Light Novel metadata: " + e.message
+            logcat(LogPriority.ERROR, errorMessage)
+            errors.add(Date() to errorMessage)
         }
     }
 
