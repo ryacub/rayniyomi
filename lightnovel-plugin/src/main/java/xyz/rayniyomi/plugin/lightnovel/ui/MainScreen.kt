@@ -16,9 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import xyz.rayniyomi.plugin.lightnovel.R
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 
@@ -36,12 +36,16 @@ internal fun MainScreen(
     onBookClick: (NovelBook) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacingSmall = dimensionResource(id = R.dimen.ln_spacing_small)
+    val spacingMedium = dimensionResource(id = R.dimen.ln_spacing_medium)
+    val spacingLarge = dimensionResource(id = R.dimen.ln_spacing_large)
+
     Surface {
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(spacingLarge),
+            verticalArrangement = Arrangement.spacedBy(spacingMedium),
         ) {
             Button(
                 onClick = onImportClick,
@@ -73,14 +77,14 @@ internal fun MainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .testTag(MainScreenTags.BOOK_LIST),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(spacingSmall),
                 ) {
                     items(books, key = { it.id }) { book ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onBookClick(book) }
-                                .padding(horizontal = 8.dp, vertical = 12.dp),
+                                .padding(horizontal = spacingSmall, vertical = spacingMedium),
                         ) {
                             Text(
                                 text = book.title,

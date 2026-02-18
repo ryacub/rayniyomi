@@ -18,9 +18,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -48,6 +48,9 @@ internal fun ReaderScreen(
     onPersistOffset: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacingSmall = dimensionResource(id = R.dimen.ln_spacing_small)
+    val spacingMedium = dimensionResource(id = R.dimen.ln_spacing_medium)
+
     val scrollState = rememberScrollState()
 
     LaunchedEffect(chapterText, restoreOffset) {
@@ -88,8 +91,8 @@ internal fun ReaderScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(spacingMedium),
+            verticalArrangement = Arrangement.spacedBy(spacingSmall),
         ) {
             Text(
                 text = title,
@@ -98,7 +101,7 @@ internal fun ReaderScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacingMedium),
             ) {
                 Button(
                     onClick = onPreviousClick,
@@ -113,7 +116,7 @@ internal fun ReaderScreen(
                 Text(
                     text = chapterIndicator,
                     modifier = Modifier
-                        .padding(vertical = 12.dp)
+                        .padding(vertical = spacingMedium)
                         .testTag(ReaderScreenTags.CHAPTER_INDICATOR),
                     style = MaterialTheme.typography.bodyMedium,
                 )
