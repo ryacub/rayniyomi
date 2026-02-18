@@ -13,7 +13,6 @@ import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Co
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
 import java.io.File
 
-@Suppress("ktlint:parameter-type")
 class LightNovelBackupCreator(
     private val context: Context,
 ) {
