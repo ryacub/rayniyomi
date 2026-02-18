@@ -5,8 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,13 +18,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -28,7 +35,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
 object SettingsLightNovelScreen : SearchableSettings {
-
     @ReadOnlyComposable
     @Composable
     override fun getTitleRes() = AYMR.strings.pref_category_light_novels
@@ -47,10 +53,27 @@ object SettingsLightNovelScreen : SearchableSettings {
         val enabled by enableLightNovelsPref.collectAsState()
         val channel by lightNovelPluginChannelPref.collectAsState()
 
-        var status by remember(enabled, channel) { mutableStateOf(pluginManager.getPluginStatus()) }
+        var status by remember {
+            mutableStateOf(
+                LightNovelPluginManager.PluginStatus(
+                    installed = false,
+                    signedAndTrusted = false,
+                    compatible = false,
+                    installedVersionCode = null,
+                ),
+            )
+        }
+        var installInProgress by remember { mutableStateOf(false) }
+        var installError: String? by remember { mutableStateOf(null) }
+        var pendingEnableAfterInstall: Boolean? by remember { mutableStateOf(null) }
+        var enableAfterInstallAwaitingPackageAdded by remember { mutableStateOf(false) }
 
         fun refreshStatus() {
             status = pluginManager.getPluginStatus()
+        }
+
+        LaunchedEffect(enabled, channel) {
+            refreshStatus()
         }
 
         DisposableEffect(context) {
@@ -59,6 +82,11 @@ object SettingsLightNovelScreen : SearchableSettings {
                     val packageName = intent?.data?.schemeSpecificPart ?: return
                     if (packageName == LightNovelPluginManager.PLUGIN_PACKAGE_NAME) {
                         refreshStatus()
+                        val wasAdded = intent.action == Intent.ACTION_PACKAGE_ADDED
+                        if (wasAdded && enableAfterInstallAwaitingPackageAdded && pluginManager.isPluginReady()) {
+                            enableAfterInstallAwaitingPackageAdded = false
+                            scope.launch { enableLightNovelsPref.set(true) }
+                        }
                     }
                 }
             }
@@ -78,7 +106,64 @@ object SettingsLightNovelScreen : SearchableSettings {
             }
         }
 
+        suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {
+            installInProgress = true
+            installError = null
+
+            try {
+                when (val result = pluginManager.ensurePluginReady(channel)) {
+                    is LightNovelPluginManager.InstallResult.AlreadyReady -> {
+                        if (enableFeatureAfterInstall) {
+                            enableLightNovelsPref.set(true)
+                        }
+                        context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
+                    }
+                    is LightNovelPluginManager.InstallResult.InstallLaunched -> {
+                        if (enableFeatureAfterInstall) {
+                            // System package installer is asynchronous; keep toggle off until package
+                            // add + readiness is confirmed via receiver.
+                            enableAfterInstallAwaitingPackageAdded = true
+                        }
+                        context.toast(AYMR.strings.light_novel_plugin_install_started)
+                    }
+                    is LightNovelPluginManager.InstallResult.Error -> {
+                        installError = result.message
+                        if (enableFeatureAfterInstall) {
+                            enableAfterInstallAwaitingPackageAdded = false
+                            enableLightNovelsPref.set(false)
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                installError = e.message ?: "Install failed"
+                if (enableFeatureAfterInstall) {
+                    enableAfterInstallAwaitingPackageAdded = false
+                    enableLightNovelsPref.set(false)
+                }
+            } finally {
+                refreshStatus()
+                installInProgress = false
+            }
+        }
+
+        if (pendingEnableAfterInstall != null) {
+            LightNovelInstallConfirmDialog(
+                title = stringResource(AYMR.strings.light_novel_plugin_install_confirm_title),
+                message = stringResource(AYMR.strings.light_novel_plugin_install_confirm_message),
+                onConfirm = {
+                    val enableAfterInstall = pendingEnableAfterInstall ?: return@LightNovelInstallConfirmDialog
+                    pendingEnableAfterInstall = null
+                    scope.launch { runInstallFlow(enableAfterInstall) }
+                },
+                onDismiss = { pendingEnableAfterInstall = null },
+            )
+        }
+
         val statusText = when {
+            installInProgress -> stringResource(AYMR.strings.light_novel_plugin_status_installing)
+            installError != null -> stringResource(AYMR.strings.light_novel_plugin_status_error, installError ?: "")
             !status.installed -> stringResource(AYMR.strings.light_novel_plugin_status_missing)
             !status.signedAndTrusted -> stringResource(AYMR.strings.light_novel_plugin_status_untrusted)
             !status.compatible -> stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
@@ -97,22 +182,18 @@ object SettingsLightNovelScreen : SearchableSettings {
                         title = stringResource(AYMR.strings.pref_enable_light_novels),
                         subtitle = stringResource(AYMR.strings.pref_enable_light_novels_summary),
                         onValueChanged = { newValue ->
+                            if (installInProgress) {
+                                return@SwitchPreference false
+                            }
+
+                            installError = null
+
                             if (newValue) {
-                                scope.launch {
-                                    val result = pluginManager.ensurePluginReady(channel)
-                                    when (result) {
-                                        is LightNovelPluginManager.InstallResult.AlreadyReady -> {
-                                            context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
-                                        }
-                                        is LightNovelPluginManager.InstallResult.InstallLaunched -> {
-                                            context.toast(AYMR.strings.light_novel_plugin_install_started)
-                                        }
-                                        is LightNovelPluginManager.InstallResult.Error -> {
-                                            enableLightNovelsPref.set(false)
-                                            context.toast(result.message)
-                                        }
-                                    }
+                                if (pluginManager.isPluginReady()) {
+                                    return@SwitchPreference true
                                 }
+                                pendingEnableAfterInstall = true
+                                return@SwitchPreference false
                             }
                             true
                         },
@@ -135,27 +216,15 @@ object SettingsLightNovelScreen : SearchableSettings {
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(AYMR.strings.pref_light_novel_plugin_install_update),
                         subtitle = stringResource(AYMR.strings.pref_light_novel_plugin_install_update_summary),
-                        enabled = enabled,
+                        enabled = enabled && !installInProgress,
                         onClick = {
-                            scope.launch {
-                                val result = pluginManager.ensurePluginReady(channel)
-                                when (result) {
-                                    is LightNovelPluginManager.InstallResult.AlreadyReady -> {
-                                        context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
-                                    }
-                                    is LightNovelPluginManager.InstallResult.InstallLaunched -> {
-                                        context.toast(AYMR.strings.light_novel_plugin_install_started)
-                                    }
-                                    is LightNovelPluginManager.InstallResult.Error -> {
-                                        context.toast(result.message)
-                                    }
-                                }
-                            }
+                            installError = null
+                            pendingEnableAfterInstall = false
                         },
                     ),
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(AYMR.strings.pref_light_novel_plugin_uninstall),
-                        enabled = status.installed,
+                        enabled = status.installed && !installInProgress,
                         onClick = {
                             pluginManager.uninstallPlugin()
                         },
@@ -164,4 +233,40 @@ object SettingsLightNovelScreen : SearchableSettings {
             ),
         )
     }
+}
+
+@Composable
+private fun LightNovelInstallConfirmDialog(
+    title: String,
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = { Text(text = message) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(text = stringResource(MR.strings.action_install))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+    )
+}
+
+@PreviewLightDark
+@Composable
+private fun LightNovelInstallConfirmDialogPreview() {
+    LightNovelInstallConfirmDialog(
+        title = "Install light novel plugin?",
+        message =
+        "This downloads the plugin manifest and APK from GitHub before launching Android package install.",
+        onConfirm = {},
+        onDismiss = {},
+    )
 }

@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.feature.novel
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
@@ -14,7 +15,6 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.lang.Hash
 import eu.kanade.tachiyomi.util.storage.getUriCompat
-import eu.kanade.tachiyomi.util.storage.saveTo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -142,9 +142,13 @@ class LightNovelPluginManager(
 
     fun uninstallPlugin() {
         cleanupOrphanedPluginApk()
-        val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$PLUGIN_PACKAGE_NAME"))
+        val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$PLUGIN_PACKAGE_NAME"))
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            logcat(LogPriority.ERROR, e) { "No activity found to uninstall light novel plugin" }
+        }
     }
 
     private fun getManifestUrl(channel: String): String {
@@ -175,7 +179,11 @@ class LightNovelPluginManager(
                 val response = network.client.newCall(GET(manifest.apkUrl)).awaitSuccess()
                 response.use {
                     val apkFile = File(context.cacheDir, PLUGIN_APK_FILE_NAME)
-                    it.body.source().saveTo(apkFile)
+                    it.body.byteStream().use { input ->
+                        apkFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
 
                     val sha256 = sha256File(apkFile)
                     if (!sha256.equals(manifest.apkSha256, ignoreCase = true)) {
