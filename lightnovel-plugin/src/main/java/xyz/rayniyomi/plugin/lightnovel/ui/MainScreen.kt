@@ -31,13 +31,14 @@ object MainScreenTags {
 @Composable
 internal fun MainScreen(
     books: List<NovelBook>,
-    statusMessage: String?,
+    statusMessage: String,
     onImportClick: () -> Unit,
     onBookClick: (NovelBook) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -51,7 +52,7 @@ internal fun MainScreen(
                 Text(text = stringResource(R.string.import_epub))
             }
 
-            statusMessage?.takeIf { it.isNotBlank() }?.let {
+            statusMessage.takeIf { it.isNotBlank() }?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodyMedium,
@@ -101,7 +102,7 @@ private fun MainScreenPreview() {
             NovelBook(id = "1", title = "Sample 1", epubFileName = "1.epub"),
             NovelBook(id = "2", title = "Sample 2", epubFileName = "2.epub"),
         ),
-        statusMessage = null,
+        statusMessage = "",
         onImportClick = {},
         onBookClick = {},
     )
