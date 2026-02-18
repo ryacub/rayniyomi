@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.data.backup.create.creators
 
 import android.content.Context
 import android.database.Cursor
-import android.util.Log
 import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupContract
 import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupPayload
 import eu.kanade.tachiyomi.data.backup.lightnovel.NovelBookPayload
@@ -10,6 +9,8 @@ import eu.kanade.tachiyomi.data.backup.lightnovel.NovelLibraryPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 class LightNovelBackupCreator(
     private val context: Context,
@@ -65,7 +66,7 @@ class LightNovelBackupCreator(
                     null,
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to query Light Novel plugin: ${e.message}", e)
+                logcat(LogPriority.WARN, e) { "Failed to query Light Novel plugin" }
                 null
             }
         }
