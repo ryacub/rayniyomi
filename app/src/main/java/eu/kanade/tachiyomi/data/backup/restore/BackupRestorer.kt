@@ -6,6 +6,7 @@ import android.os.Bundle
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
+import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupContract
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupCustomButtons
@@ -323,13 +324,15 @@ class BackupRestorer(
                 false
             } else {
                 withContext(Dispatchers.IO) {
-                    val extras = Bundle().apply { putByteArray(CALL_EXTRA_BACKUP_DATA, lightNovelBackupData) }
+                    val extras = Bundle().apply {
+                        putByteArray(LightNovelBackupContract.CALL_EXTRA_BACKUP_DATA, lightNovelBackupData)
+                    }
                     context.contentResolver.call(
-                        LIGHT_NOVEL_BACKUP_URI,
-                        CALL_METHOD_RESTORE_BACKUP,
+                        LightNovelBackupContract.BACKUP_URI,
+                        LightNovelBackupContract.CALL_METHOD_RESTORE_BACKUP,
                         null,
                         extras,
-                    )?.getBoolean(CALL_RESULT_SUCCESS, false) == true
+                    )?.getBoolean(LightNovelBackupContract.CALL_RESULT_SUCCESS, false) == true
                 }
             }
 
@@ -354,19 +357,16 @@ class BackupRestorer(
     }
 
     private fun isPluginInstalled(): Boolean {
-        return runCatching {
-            context.packageManager.getPackageInfo(LIGHT_NOVEL_PLUGIN_PACKAGE_NAME, 0)
-            true
-        }.getOrElse { false }
+        return LightNovelBackupContract.isPluginInstalled(context.packageManager)
     }
 
     private fun readLightNovelBackupData(uri: Uri): ByteArray? {
         val backupFile = UniFile.fromUri(context, uri) ?: return null
         val parent = backupFile.parentFile ?: return null
         val backupName = backupFile.name ?: return null
-        val sidecarName = backupName.removeSuffix(".tachibk") + LIGHT_NOVEL_SIDECAR_SUFFIX
+        val sidecarName = LightNovelBackupContract.sidecarNameFor(backupName)
         val sidecarFile = parent.findFile(sidecarName)
-            ?: parent.findFile(LEGACY_LIGHT_NOVEL_BACKUP_FILE_NAME)
+            ?: parent.findFile(LightNovelBackupContract.LEGACY_BACKUP_FILE_NAME)
             ?: return null
 
         return runCatching {
@@ -375,17 +375,6 @@ class BackupRestorer(
             logcat(LogPriority.WARN, it) { "Light Novel backup file not found or unreadable" }
             null
         }
-    }
-
-    private companion object {
-        const val LIGHT_NOVEL_PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
-        const val LIGHT_NOVEL_BACKUP_AUTHORITY = "xyz.rayniyomi.plugin.lightnovel.backup"
-        val LIGHT_NOVEL_BACKUP_URI: Uri = Uri.parse("content://$LIGHT_NOVEL_BACKUP_AUTHORITY/library")
-        const val LIGHT_NOVEL_SIDECAR_SUFFIX = ".lightnovel.tachibk"
-        const val LEGACY_LIGHT_NOVEL_BACKUP_FILE_NAME = "lightnovel_backup.tachibk"
-        const val CALL_METHOD_RESTORE_BACKUP = "restore_backup"
-        const val CALL_EXTRA_BACKUP_DATA = "backup_data"
-        const val CALL_RESULT_SUCCESS = "success"
     }
 
     private fun writeErrorLog(): File {

@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.data.backup.create.creators.MangaCategoriesBackupCrea
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaExtensionRepoBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaSourcesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.PreferenceBackupCreator
+import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupContract
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
 import eu.kanade.tachiyomi.data.backup.models.BackupAnimeSource
@@ -88,7 +89,9 @@ class BackupCreator(
                     .sortedByDescending { it.name }
                     .drop(MAX_AUTO_BACKUPS - 1)
                     .forEach {
-                        deleteLightNovelSidecar(it.parentFile, it.name.orEmpty())
+                        if (options.lightNovels) {
+                            deleteLightNovelSidecar(it.parentFile, it.name.orEmpty())
+                        }
                         it.delete()
                     }
                 // Create new file to place backup
@@ -149,8 +152,10 @@ class BackupCreator(
             // Make sure it's a valid backup file
             BackupFileValidator(context).validate(fileUri)
 
-            // Create separate light novel backup file
-            createLightNovelBackup(file, options)
+            if (options.lightNovels) {
+                // Create separate light novel backup file
+                createLightNovelBackup(file)
+            }
 
             if (isAutoBackup) {
                 backupPreferences.lastAutoBackupTimestamp().set(Instant.now().toEpochMilli())
@@ -230,9 +235,7 @@ class BackupCreator(
         return extensionsBackupCreator()
     }
 
-    private suspend fun createLightNovelBackup(parentBackupFile: UniFile?, options: BackupOptions) {
-        if (!options.lightNovels) return
-
+    private suspend fun createLightNovelBackup(parentBackupFile: UniFile?) {
         try {
             val lightNovelBackupBytes = lightNovelBackupCreator()
             if (lightNovelBackupBytes == null) {
@@ -246,7 +249,7 @@ class BackupCreator(
                 return
             }
 
-            val sidecarFileName = sidecarNameFor(parentBackupFile.name.orEmpty())
+            val sidecarFileName = LightNovelBackupContract.sidecarNameFor(parentBackupFile.name.orEmpty())
             deleteLightNovelSidecar(parentDir, parentBackupFile.name.orEmpty())
             val lightNovelBackupFile = parentDir.createFile(sidecarFileName)
                 ?: throw IllegalStateException("Unable to create Light Novel backup file")
@@ -266,7 +269,6 @@ class BackupCreator(
 
     companion object {
         private const val MAX_AUTO_BACKUPS: Int = 4
-        private const val LIGHT_NOVEL_SIDECAR_SUFFIX = ".lightnovel.tachibk"
         private val FILENAME_REGEX = """${BuildConfig.APPLICATION_ID}_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}.tachibk""".toRegex()
 
         fun getFilename(): String {
@@ -274,13 +276,9 @@ class BackupCreator(
             return "${BuildConfig.APPLICATION_ID}_$date.tachibk"
         }
 
-        private fun sidecarNameFor(backupFileName: String): String {
-            return backupFileName.removeSuffix(".tachibk") + LIGHT_NOVEL_SIDECAR_SUFFIX
-        }
-
         private fun deleteLightNovelSidecar(parentDir: UniFile?, backupFileName: String) {
             if (parentDir == null || backupFileName.isBlank()) return
-            parentDir.findFile(sidecarNameFor(backupFileName))?.delete()
+            parentDir.findFile(LightNovelBackupContract.sidecarNameFor(backupFileName))?.delete()
         }
     }
 }
