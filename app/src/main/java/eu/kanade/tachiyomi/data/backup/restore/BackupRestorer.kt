@@ -2,11 +2,9 @@ package eu.kanade.tachiyomi.data.backup.restore
 
 import android.content.Context
 import android.net.Uri
-import android.os.Bundle
-import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
-import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupContract
+import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupCustomButtons
@@ -26,11 +24,9 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -55,6 +51,7 @@ class BackupRestorer(
     private val animeRestorer: AnimeRestorer = AnimeRestorer(),
     private val mangaRestorer: MangaRestorer = MangaRestorer(),
     private val extensionsRestorer: ExtensionsRestorer = ExtensionsRestorer(context),
+    private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
 ) {
 
     private var restoreAmount = 0
@@ -147,7 +144,7 @@ class BackupRestorer(
             }
 
             if (options.lightNovels) {
-                val lightNovelBackupData = readLightNovelBackupData(uri)
+                val lightNovelBackupData = lightNovelBackupDataSource.readBackupData(uri)
                 restoreLightNovels(lightNovelBackupData)
             }
 
@@ -318,17 +315,7 @@ class BackupRestorer(
         try {
             val shouldAttemptRestore = lightNovelBackupData != null && isPluginInstalled()
             val success = if (shouldAttemptRestore) {
-                withContext(Dispatchers.IO) {
-                    val extras = Bundle().apply {
-                        putByteArray(LightNovelBackupContract.CALL_EXTRA_BACKUP_DATA, lightNovelBackupData)
-                    }
-                    context.contentResolver.call(
-                        LightNovelBackupContract.BACKUP_URI,
-                        LightNovelBackupContract.CALL_METHOD_RESTORE_BACKUP,
-                        null,
-                        extras,
-                    )?.getBoolean(LightNovelBackupContract.CALL_RESULT_SUCCESS, false) == true
-                }
+                lightNovelBackupDataSource.restoreBackup(lightNovelBackupData)
             } else {
                 false
             }
@@ -352,24 +339,7 @@ class BackupRestorer(
     }
 
     private fun isPluginInstalled(): Boolean {
-        return LightNovelBackupContract.isPluginInstalled(context.packageManager)
-    }
-
-    private fun readLightNovelBackupData(uri: Uri): ByteArray? {
-        val backupFile = UniFile.fromUri(context, uri) ?: return null
-        val parent = backupFile.parentFile ?: return null
-        val backupName = backupFile.name ?: return null
-        val sidecarName = LightNovelBackupContract.sidecarNameFor(backupName)
-        val sidecarFile = parent.findFile(sidecarName)
-            ?: parent.findFile(LightNovelBackupContract.LEGACY_BACKUP_FILE_NAME)
-            ?: return null
-
-        return runCatching {
-            sidecarFile.openInputStream().use { input -> input?.readBytes() }
-        }.getOrElse {
-            logcat(LogPriority.WARN, it) { "Light Novel backup file not found or unreadable" }
-            null
-        }
+        return lightNovelBackupDataSource.isPluginInstalled()
     }
 
     private fun writeErrorLog(): File {

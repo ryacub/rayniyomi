@@ -3,13 +3,13 @@ package eu.kanade.tachiyomi.data.backup.create.creators
 import android.content.Context
 import android.database.Cursor
 import android.util.Log
+import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupContract
+import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupPayload
+import eu.kanade.tachiyomi.data.backup.lightnovel.NovelBookPayload
+import eu.kanade.tachiyomi.data.backup.lightnovel.NovelLibraryPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-
-private const val LIGHT_NOVEL_BACKUP_VERSION = 1
 
 class LightNovelBackupCreator(
     private val context: Context,
@@ -24,8 +24,7 @@ class LightNovelBackupCreator(
 
     suspend operator fun invoke(): ByteArray? {
         return withContext(Dispatchers.IO) {
-            val pluginInstalled = isPluginInstalled()
-            if (!pluginInstalled) return@withContext null
+            if (!LightNovelBackupContract.isPluginInstalled(packageManager)) return@withContext null
 
             val libraryCursor = readPluginLibrary()
             libraryCursor?.use { cursor ->
@@ -55,18 +54,6 @@ class LightNovelBackupCreator(
         }
     }
 
-    private fun isPluginInstalled(): Boolean {
-        return try {
-            packageManager.getPackageInfo(
-                PLUGIN_PACKAGE_NAME,
-                0,
-            )
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
     private suspend fun readPluginLibrary(): Cursor? {
         return withContext(Dispatchers.IO) {
             try {
@@ -86,11 +73,11 @@ class LightNovelBackupCreator(
 
     companion object {
         private const val TAG = "LightNovelBackupCreator"
-        private const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
 
-        private const val AUTHORITY = "xyz.rayniyomi.plugin.lightnovel.backup"
         private const val PATH_LIBRARY = "library"
-        private val CONTENT_URI = android.net.Uri.parse("content://$AUTHORITY/$PATH_LIBRARY")
+        private val CONTENT_URI = android.net.Uri.parse(
+            "content://${LightNovelBackupContract.BACKUP_AUTHORITY}/$PATH_LIBRARY",
+        )
 
         private const val COLUMN_ID = "id"
         private const val COLUMN_TITLE = "title"
@@ -126,29 +113,3 @@ private fun Cursor.getLongOrZero(name: String): Long {
     val index = columnIndex(name)
     return if (index >= 0) getLong(index) else 0L
 }
-
-@Serializable
-private data class LightNovelBackupPayload(
-    val version: Int = LIGHT_NOVEL_BACKUP_VERSION,
-    val timestamp: Long = System.currentTimeMillis(),
-    val library: NovelLibraryPayload,
-)
-
-@Serializable
-private data class NovelLibraryPayload(
-    val books: List<NovelBookPayload>,
-)
-
-@Serializable
-private data class NovelBookPayload(
-    val id: String,
-    val title: String,
-    @SerialName("epub_file_name")
-    val epubFileName: String,
-    @SerialName("last_read_chapter")
-    val lastReadChapter: Int = 0,
-    @SerialName("last_read_offset")
-    val lastReadOffset: Int = 0,
-    @SerialName("updated_at")
-    val updatedAt: Long = System.currentTimeMillis(),
-)
