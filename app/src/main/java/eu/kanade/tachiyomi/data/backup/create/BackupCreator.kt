@@ -238,10 +238,7 @@ class BackupCreator(
     private suspend fun createLightNovelBackup(parentBackupFile: UniFile?) {
         try {
             val lightNovelBackupBytes = lightNovelBackupCreator()
-            if (lightNovelBackupBytes == null) {
-                logcat(LogPriority.INFO) { "Light Novel plugin not installed, skipping metadata backup" }
-                return
-            }
+            if (lightNovelBackupBytes == null) return
 
             val parentDir = parentBackupFile?.parentFile
             if (parentDir == null) {
@@ -255,12 +252,6 @@ class BackupCreator(
                 ?: throw IllegalStateException("Unable to create Light Novel backup file")
             lightNovelBackupFile.openOutputStream().use { output ->
                 output.write(lightNovelBackupBytes)
-            }
-
-            logcat(
-                LogPriority.INFO,
-            ) {
-                "Light Novel metadata backup created: ${lightNovelBackupFile.name} (${lightNovelBackupBytes.size} bytes)"
             }
         } catch (e: Exception) {
             logcat(LogPriority.WARN, e) { "Failed to create Light Novel backup: ${e.message}" }

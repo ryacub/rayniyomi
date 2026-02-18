@@ -5,7 +5,6 @@ import android.util.Log
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
-import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import java.io.File
 import java.io.FileOutputStream
 
@@ -18,8 +17,6 @@ class BackupLightNovelRestorer(
         prettyPrint = false
     }
 
-    private val storage = NovelStorage(context)
-
     fun restoreBackup(backupData: ByteArray): Boolean {
         val backup = try {
             val backupString = backupData.decodeToString()
@@ -28,8 +25,6 @@ class BackupLightNovelRestorer(
             Log.e(TAG, "Failed to decode backup: ${e.message}")
             return false
         }
-
-        Log.i(TAG, "Backup version: ${backup.version}, Library books: ${backup.library.books.size}")
 
         if (!isVersionCompatible(backup.version)) {
             Log.w(TAG, "Backup version ${backup.version} incompatible (expected ${BackupLightNovel.LATEST_VERSION})")
@@ -90,7 +85,6 @@ class BackupLightNovelRestorer(
                 throw IllegalStateException("Failed to rename temp file to library file")
             }
 
-            Log.i(TAG, "Library restored atomically: ${library.books.size} books")
             true
         }.getOrElse { e ->
             Log.e(TAG, "Failed to restore library atomically: ${e.message}", e)

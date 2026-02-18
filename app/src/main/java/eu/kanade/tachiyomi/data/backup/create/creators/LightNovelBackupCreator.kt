@@ -25,10 +25,7 @@ class LightNovelBackupCreator(
     suspend operator fun invoke(): ByteArray? {
         return withContext(Dispatchers.IO) {
             val pluginInstalled = isPluginInstalled()
-            if (!pluginInstalled) {
-                Log.i(TAG, "Light Novel plugin not installed, skipping metadata backup")
-                return@withContext null
-            }
+            if (!pluginInstalled) return@withContext null
 
             val libraryCursor = readPluginLibrary()
             libraryCursor?.use { cursor ->
@@ -44,10 +41,7 @@ class LightNovelBackupCreator(
                     )
                 }
 
-                if (books.isEmpty()) {
-                    Log.w(TAG, "Light Novel plugin library was empty")
-                    return@withContext null
-                }
+                if (books.isEmpty()) return@withContext null
 
                 val payload = LightNovelBackupPayload(
                     library = NovelLibraryPayload(books = books),
@@ -69,7 +63,6 @@ class LightNovelBackupCreator(
             )
             true
         } catch (e: Exception) {
-            Log.w(TAG, "Light Novel plugin not found: ${e.message}")
             false
         }
     }

@@ -316,13 +316,8 @@ class BackupRestorer(
 
     private suspend fun restoreLightNovels(lightNovelBackupData: ByteArray?) {
         try {
-            val success = if (lightNovelBackupData == null) {
-                logcat(LogPriority.INFO) { "No Light Novel backup data found, skipping" }
-                false
-            } else if (!isPluginInstalled()) {
-                logcat(LogPriority.INFO) { "Light Novel plugin not installed, skipping restore" }
-                false
-            } else {
+            val shouldAttemptRestore = lightNovelBackupData != null && isPluginInstalled()
+            val success = if (shouldAttemptRestore) {
                 withContext(Dispatchers.IO) {
                     val extras = Bundle().apply {
                         putByteArray(LightNovelBackupContract.CALL_EXTRA_BACKUP_DATA, lightNovelBackupData)
@@ -334,12 +329,12 @@ class BackupRestorer(
                         extras,
                     )?.getBoolean(LightNovelBackupContract.CALL_RESULT_SUCCESS, false) == true
                 }
+            } else {
+                false
             }
 
-            if (success) {
-                logcat(LogPriority.INFO) { "Light Novel metadata restored successfully" }
-            } else {
-                logcat(LogPriority.WARN) { "Light Novel metadata restore skipped or failed" }
+            if (shouldAttemptRestore && !success) {
+                logcat(LogPriority.WARN) { "Light Novel metadata restore failed" }
             }
         } catch (e: Exception) {
             val errorMessage = "Failed to restore Light Novel metadata: ${e.message}"
