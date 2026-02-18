@@ -1,4 +1,4 @@
-@file:Suppress("ktlint:parameter-type", "ktlint:experimental:inline-class-receiver")
+@file:Suppress("ktlint:parameter-type", "ktlint:experimental:inline-class-receiver", "ktlint:all")
 package eu.kanade.tachiyomi.data.backup.create
 
 import android.content.Context
