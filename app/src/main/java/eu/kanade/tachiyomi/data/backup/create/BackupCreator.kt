@@ -274,11 +274,11 @@ class BackupCreator(
             return "${BuildConfig.APPLICATION_ID}_$date.tachibk"
         }
 
-        fun sidecarNameFor(backupFileName: String): String {
+        private fun sidecarNameFor(backupFileName: String): String {
             return backupFileName.removeSuffix(".tachibk") + LIGHT_NOVEL_SIDECAR_SUFFIX
         }
 
-        fun deleteLightNovelSidecar(parentDir: UniFile?, backupFileName: String) {
+        private fun deleteLightNovelSidecar(parentDir: UniFile?, backupFileName: String) {
             if (parentDir == null || backupFileName.isBlank()) return
             parentDir.findFile(sidecarNameFor(backupFileName))?.delete()
         }
