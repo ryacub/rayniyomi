@@ -624,4 +624,14 @@
     <string name="light_novel_plugin_status_ready">Installed (version %1$d), trusted, and compatible</string>
     <string name="light_novel_plugin_status_ready_short">Plugin is already ready</string>
     <string name="light_novel_plugin_install_started">Plugin installer launched</string>
+    <string name="light_novel_plugin_error_install_disabled">Light Novel plugin install is disabled for this build.</string>
+    <string name="light_novel_plugin_error_manifest_fetch_failed">Failed to fetch plugin manifest.</string>
+    <string name="light_novel_plugin_error_manifest_package_mismatch">Plugin package name mismatch in manifest.</string>
+    <string name="light_novel_plugin_error_manifest_api_mismatch">Plugin API mismatch. Update app and plugin.</string>
+    <string name="light_novel_plugin_error_manifest_host_too_old">Plugin requires a newer app version.</string>
+    <string name="light_novel_plugin_error_manifest_host_too_new">Plugin release is outdated for this app version.</string>
+    <string name="light_novel_plugin_error_download_failed">Failed to download plugin package.</string>
+    <string name="light_novel_plugin_error_invalid_apk">Downloaded plugin APK is invalid.</string>
+    <string name="light_novel_plugin_error_archive_package_mismatch">Downloaded APK package does not match Light Novel plugin.</string>
+    <string name="light_novel_plugin_error_install_launch_failed">Failed to launch plugin installer.</string>
 </resources>

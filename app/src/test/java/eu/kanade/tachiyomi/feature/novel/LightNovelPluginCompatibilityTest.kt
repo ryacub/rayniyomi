@@ -69,4 +69,30 @@ class LightNovelPluginCompatibilityTest {
 
         assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
     }
+
+    @Test
+    fun `returns compatible when host equals minimum host version`() {
+        val result = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = 1,
+            minHostVersion = 100,
+            targetHostVersion = 200,
+            hostVersionCode = 100,
+            expectedPluginApiVersion = 1,
+        )
+
+        assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
+
+    @Test
+    fun `returns compatible when host equals target host version`() {
+        val result = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = 1,
+            minHostVersion = 100,
+            targetHostVersion = 200,
+            hostVersionCode = 200,
+            expectedPluginApiVersion = 1,
+        )
+
+        assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
 }

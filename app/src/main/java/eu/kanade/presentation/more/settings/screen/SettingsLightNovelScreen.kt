@@ -88,6 +88,29 @@ object SettingsLightNovelScreen : SearchableSettings {
             }
         }
 
+        fun installErrorMessage(code: LightNovelPluginManager.InstallErrorCode) = when (code) {
+            LightNovelPluginManager.InstallErrorCode.INSTALL_DISABLED ->
+                AYMR.strings.light_novel_plugin_error_install_disabled
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED ->
+                AYMR.strings.light_novel_plugin_error_manifest_fetch_failed
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH ->
+                AYMR.strings.light_novel_plugin_error_manifest_package_mismatch
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_API_MISMATCH ->
+                AYMR.strings.light_novel_plugin_error_manifest_api_mismatch
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_OLD ->
+                AYMR.strings.light_novel_plugin_error_manifest_host_too_old
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_NEW ->
+                AYMR.strings.light_novel_plugin_error_manifest_host_too_new
+            LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED ->
+                AYMR.strings.light_novel_plugin_error_download_failed
+            LightNovelPluginManager.InstallErrorCode.INVALID_PLUGIN_APK ->
+                AYMR.strings.light_novel_plugin_error_invalid_apk
+            LightNovelPluginManager.InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH ->
+                AYMR.strings.light_novel_plugin_error_archive_package_mismatch
+            LightNovelPluginManager.InstallErrorCode.INSTALL_LAUNCH_FAILED ->
+                AYMR.strings.light_novel_plugin_error_install_launch_failed
+        }
+
         return listOf(
             Preference.PreferenceGroup(
                 title = stringResource(AYMR.strings.pref_category_light_novels),
@@ -109,7 +132,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                                         }
                                         is LightNovelPluginManager.InstallResult.Error -> {
                                             enableLightNovelsPref.set(false)
-                                            context.toast(result.message)
+                                            context.toast(installErrorMessage(result.code))
                                         }
                                     }
                                 }
@@ -147,7 +170,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                                         context.toast(AYMR.strings.light_novel_plugin_install_started)
                                     }
                                     is LightNovelPluginManager.InstallResult.Error -> {
-                                        context.toast(result.message)
+                                        context.toast(installErrorMessage(result.code))
                                     }
                                 }
                             }

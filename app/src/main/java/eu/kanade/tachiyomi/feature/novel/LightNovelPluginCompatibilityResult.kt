@@ -7,6 +7,11 @@ internal enum class LightNovelPluginCompatibilityResult {
     HOST_TOO_NEW,
 }
 
+/**
+ * Evaluates plugin compatibility contract between host app and Light Novel plugin.
+ *
+ * `targetHostVersion = null` means the plugin has no upper host-version bound.
+ */
 internal fun evaluateLightNovelPluginCompatibility(
     pluginApiVersion: Int,
     minHostVersion: Long,
