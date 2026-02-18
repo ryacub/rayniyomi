@@ -15,7 +15,6 @@ import eu.kanade.tachiyomi.data.backup.create.creators.LightNovelBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.MangaBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.PreferenceBackupCreator
 import kotlinx.serialization.protobuf.ProtoBuf
-import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import okio.buffer
 import okio.gzip
