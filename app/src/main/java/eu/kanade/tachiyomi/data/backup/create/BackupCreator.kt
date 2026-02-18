@@ -218,6 +218,11 @@ class BackupCreator(
                 return
             }
 
+            val json = kotlinx.serialization.json.Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                prettyPrint = false
+            }
             val lightNovelBackupBytes = json.encodeToString(lightNovelBackup).encodeToByteArray()
             val parentDir = parentBackupFile?.parent
             if (parentDir == null) {
