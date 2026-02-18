@@ -8,12 +8,13 @@ import android.database.MatrixCursor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
+import java.io.File
 
 class LightNovelBackupContentProvider : ContentProvider() {
 
     override fun onCreate(): Boolean = true
 
-    fun query(
+    override fun query(
         uri: Uri,
         projection: Array<String>?,
         selection: String?,
@@ -27,13 +28,13 @@ class LightNovelBackupContentProvider : ContentProvider() {
         }
     }
 
-    fun getType(uri: Uri): String? = null
+    override fun getType(uri: Uri): String? = null
 
-    fun insert(uri: Uri, values: ContentValues?): Uri? = null
+    override fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
-    fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
 
-    fun update(
+    override fun update(
         uri: Uri,
         values: ContentValues?,
         selection: String?,
@@ -58,7 +59,7 @@ class LightNovelBackupContentProvider : ContentProvider() {
         }
 
         return MatrixCursor(
-            COLUMN_NAMES,
+            COLUMNS,
             rows.toTypedArray(),
         )
     }
@@ -69,7 +70,7 @@ class LightNovelBackupContentProvider : ContentProvider() {
 
         val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH_LIBRARY")
 
-        private val COLUMN_NAMES = arrayOf(
+        val COLUMNS = arrayOf(
             COLUMN_ID,
             COLUMN_TITLE,
             COLUMN_EPUB_FILE_NAME,

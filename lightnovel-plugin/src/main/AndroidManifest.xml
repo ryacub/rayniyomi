@@ -16,11 +16,17 @@
             android:name="rayniyomi.plugin.min_host_version"
             android:value="131" />
 
+        <permission
+            android:name="xyz.rayniyomi.permission.READ_LIGHT_NOVEL_BACKUP"
+            android:protectionLevel="signature" />
+
         <provider
             android:name=".backup.LightNovelBackupContentProvider"
             android:authorities="xyz.rayniyomi.plugin.lightnovel.backup"
             android:exported="true"
-            android:enabled="true" />
+            android:enabled="true"
+            android:readPermission="xyz.rayniyomi.permission.READ_LIGHT_NOVEL_BACKUP"
+            android:writePermission="xyz.rayniyomi.permission.WRITE_LIGHT_NOVEL_BACKUP" />
 
         <activity
             android:name=".ReaderActivity"

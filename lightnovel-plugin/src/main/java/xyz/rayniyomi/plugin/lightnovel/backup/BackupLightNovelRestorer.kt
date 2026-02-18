@@ -2,13 +2,20 @@ package xyz.rayniyomi.plugin.lightnovel.backup
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovel
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
+import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import java.io.File
 
+@Suppress("ktlint:expecting-comma-in-complex-expression")
 class BackupLightNovelRestorer(
     private val context: Context,
 ) {
@@ -69,21 +76,25 @@ class BackupLightNovelRestorer(
 
     private fun restoreLibraryAtomically(library: NovelLibrary): Boolean {
         val rootDir = File(context.filesDir, NovelStorage.ROOT_DIR_NAME)
-        val tempFile = File(rootDir, "library_restore_temp.json")
+        val timestamp = System.currentTimeMillis()
+        val tempFile = File(rootDir, "library_restore_temp_$timestamp.json")
         val libraryFile = File(rootDir, NovelStorage.LIBRARY_FILE_NAME)
 
         return runCatching {
+            rootDir.mkdirs()
             tempFile.writeText(json.encodeToString(library))
 
             json.decodeFromString<NovelLibrary>(tempFile.readText())
 
-            rootDir.mkdirs()
-            tempFile.copyTo(libraryFile, overwrite = true)
+            val success = tempFile.renameTo(libraryFile)
+            if (!success) {
+                throw IllegalStateException("Failed to rename temp file to library file")
+            }
 
-            tempFile.delete()
+            Log.i(TAG, "Library restored atomically: ${library.books.size} books")
             true
         }.getOrElse { e ->
-            Log.e(TAG, "Failed to restore library atomically: ${e.message}")
+            Log.e(TAG, "Failed to restore library atomically: ${e.message}", e)
             tempFile.delete()
             false
         }
