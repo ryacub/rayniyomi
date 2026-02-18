@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
             MainScreen(
                 books = uiState.books,
                 statusMessage = uiState.statusMessage,
+                isLoading = uiState.isLoading,
                 onImportClick = {
                     importLauncher.launch(arrayOf("application/epub+zip", "application/octet-stream"))
                 },

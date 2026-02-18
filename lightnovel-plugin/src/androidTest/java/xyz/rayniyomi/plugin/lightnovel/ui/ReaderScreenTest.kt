@@ -23,6 +23,7 @@ class ReaderScreenTest {
                 previousEnabled = false,
                 nextEnabled = true,
                 restoreOffset = 0,
+                isLoading = false,
                 onPreviousClick = {},
                 onNextClick = {},
                 onPersistOffset = {},
@@ -33,5 +34,25 @@ class ReaderScreenTest {
         composeRule.onNodeWithTag(ReaderScreenTags.CHAPTER_TEXT).assertIsDisplayed()
         composeRule.onNodeWithTag(ReaderScreenTags.PREVIOUS_BUTTON).assertIsNotEnabled()
         composeRule.onNodeWithTag(ReaderScreenTags.NEXT_BUTTON).assertIsEnabled()
+    }
+
+    @Test
+    fun loadingIndicatorIsVisibleWhenLoading() {
+        composeRule.setContent {
+            ReaderScreen(
+                title = "Book",
+                chapterIndicator = "Chapter 1 / 3",
+                chapterText = "",
+                previousEnabled = false,
+                nextEnabled = false,
+                restoreOffset = 0,
+                isLoading = true,
+                onPreviousClick = {},
+                onNextClick = {},
+                onPersistOffset = {},
+            )
+        }
+
+        composeRule.onNodeWithTag(ReaderScreenTags.LOADING).assertIsDisplayed()
     }
 }

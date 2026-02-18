@@ -18,6 +18,7 @@ class MainScreenTest {
             MainScreen(
                 books = emptyList(),
                 statusMessage = "",
+                isLoading = false,
                 onImportClick = {},
                 onBookClick = {},
             )
@@ -35,11 +36,27 @@ class MainScreenTest {
                     NovelBook(id = "1", title = "One", epubFileName = "1.epub"),
                 ),
                 statusMessage = "",
+                isLoading = false,
                 onImportClick = {},
                 onBookClick = {},
             )
         }
 
         composeRule.onNodeWithTag(MainScreenTags.BOOK_LIST).assertIsDisplayed()
+    }
+
+    @Test
+    fun loadingIndicatorIsVisibleWhenLoading() {
+        composeRule.setContent {
+            MainScreen(
+                books = emptyList(),
+                statusMessage = "",
+                isLoading = true,
+                onImportClick = {},
+                onBookClick = {},
+            )
+        }
+
+        composeRule.onNodeWithTag(MainScreenTags.LOADING).assertIsDisplayed()
     }
 }

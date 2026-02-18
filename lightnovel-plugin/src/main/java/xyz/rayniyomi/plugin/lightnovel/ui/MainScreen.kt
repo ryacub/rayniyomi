@@ -2,6 +2,7 @@ package xyz.rayniyomi.plugin.lightnovel.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
@@ -26,12 +29,14 @@ object MainScreenTags {
     const val IMPORT_BUTTON = "main_import_button"
     const val EMPTY_TEXT = "main_empty_text"
     const val BOOK_LIST = "main_book_list"
+    const val LOADING = "main_loading"
 }
 
 @Composable
 internal fun MainScreen(
     books: List<NovelBook>,
     statusMessage: String,
+    isLoading: Boolean,
     onImportClick: () -> Unit,
     onBookClick: (NovelBook) -> Unit,
     modifier: Modifier = Modifier,
@@ -49,6 +54,7 @@ internal fun MainScreen(
         ) {
             Button(
                 onClick = onImportClick,
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(MainScreenTags.IMPORT_BUTTON),
@@ -64,7 +70,16 @@ internal fun MainScreen(
                 )
             }
 
-            if (books.isEmpty()) {
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(MainScreenTags.LOADING),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (books.isEmpty()) {
                 Text(
                     text = stringResource(R.string.no_books),
                     modifier = Modifier
@@ -107,6 +122,7 @@ private fun MainScreenPreview() {
             NovelBook(id = "2", title = "Sample 2", epubFileName = "2.epub"),
         ),
         statusMessage = "",
+        isLoading = false,
         onImportClick = {},
         onBookClick = {},
     )
@@ -118,6 +134,7 @@ private fun MainScreenEmptyPreview() {
     MainScreen(
         books = emptyList(),
         statusMessage = "Failed to import EPUB",
+        isLoading = false,
         onImportClick = {},
         onBookClick = {},
     )

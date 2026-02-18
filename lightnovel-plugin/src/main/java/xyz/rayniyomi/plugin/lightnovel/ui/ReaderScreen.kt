@@ -1,6 +1,7 @@
 package xyz.rayniyomi.plugin.lightnovel.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -16,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
@@ -33,6 +36,7 @@ object ReaderScreenTags {
     const val NEXT_BUTTON = "reader_next_button"
     const val CHAPTER_INDICATOR = "reader_chapter_indicator"
     const val CHAPTER_TEXT = "reader_chapter_text"
+    const val LOADING = "reader_loading"
 }
 
 @Composable
@@ -43,6 +47,7 @@ internal fun ReaderScreen(
     previousEnabled: Boolean,
     nextEnabled: Boolean,
     restoreOffset: Int,
+    isLoading: Boolean,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
     onPersistOffset: (Int) -> Unit,
@@ -53,7 +58,8 @@ internal fun ReaderScreen(
 
     val scrollState = rememberScrollState()
 
-    LaunchedEffect(chapterText, restoreOffset) {
+    LaunchedEffect(chapterText, restoreOffset, isLoading) {
+        if (isLoading) return@LaunchedEffect
         scrollState.scrollTo(0)
         if (restoreOffset <= 0 || chapterText.isEmpty()) {
             return@LaunchedEffect
@@ -72,8 +78,8 @@ internal fun ReaderScreen(
         scrollState.scrollTo(targetScrollY)
     }
 
-    LaunchedEffect(chapterText) {
-        if (chapterText.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(chapterText, isLoading) {
+        if (chapterText.isEmpty() || isLoading) return@LaunchedEffect
 
         snapshotFlow { scrollState.value to scrollState.maxValue }
             .debounce(250)
@@ -105,7 +111,7 @@ internal fun ReaderScreen(
             ) {
                 Button(
                     onClick = onPreviousClick,
-                    enabled = previousEnabled,
+                    enabled = previousEnabled && !isLoading,
                     modifier = Modifier
                         .weight(1f)
                         .testTag(ReaderScreenTags.PREVIOUS_BUTTON),
@@ -123,7 +129,7 @@ internal fun ReaderScreen(
 
                 Button(
                     onClick = onNextClick,
-                    enabled = nextEnabled,
+                    enabled = nextEnabled && !isLoading,
                     modifier = Modifier
                         .weight(1f)
                         .testTag(ReaderScreenTags.NEXT_BUTTON),
@@ -132,14 +138,25 @@ internal fun ReaderScreen(
                 }
             }
 
-            Text(
-                text = chapterText,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .testTag(ReaderScreenTags.CHAPTER_TEXT),
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(ReaderScreenTags.LOADING),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Text(
+                    text = chapterText,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .testTag(ReaderScreenTags.CHAPTER_TEXT),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
         }
     }
 }
@@ -157,6 +174,7 @@ private fun ReaderScreenPreview() {
         previousEnabled = false,
         nextEnabled = true,
         restoreOffset = 0,
+        isLoading = false,
         onPreviousClick = {},
         onNextClick = {},
         onPersistOffset = {},

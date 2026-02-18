@@ -5,8 +5,11 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -23,17 +26,12 @@ internal data class ReaderUiState(
     val previousEnabled: Boolean = false,
     val nextEnabled: Boolean = false,
     val restoreOffset: Int = 0,
+    val isLoading: Boolean = true,
 )
 
 internal class ReaderViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
-    sealed interface InitResult {
-        data object Success : InitResult
-
-        data class Error(@StringRes val messageRes: Int) : InitResult
-    }
-
     private val storage = NovelStorage(application)
     private lateinit var book: NovelBook
     private lateinit var content: EpubContent
@@ -44,25 +42,24 @@ internal class ReaderViewModel(
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
-    fun initialize(bookId: String?, restoredChapter: Int?, restoredOffset: Int?): InitResult {
-        if (bookId == null) return InitResult.Error(R.string.reader_open_failed)
+    private val _fatalInitErrors = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    val fatalInitErrors: SharedFlow<Int> = _fatalInitErrors.asSharedFlow()
 
-        book = storage.getBook(bookId)
-            ?: return InitResult.Error(R.string.reader_open_failed)
-
-        val bookFile = storage.getBookFile(book)
-        content = runCatching { EpubTextExtractor.parse(bookFile) }
-            .getOrElse { return InitResult.Error(R.string.reader_parse_failed) }
-
-        if (content.chapters.isEmpty()) return InitResult.Error(R.string.reader_no_chapters)
-
-        currentChapterIndex = (restoredChapter ?: book.lastReadChapter).coerceIn(0, content.chapters.lastIndex)
-        pendingOffset = restoredOffset ?: if (currentChapterIndex == book.lastReadChapter) book.lastReadOffset else 0
-        updateChapterUi()
-        return InitResult.Success
+    fun initialize(bookId: String?, restoredChapter: Int?, restoredOffset: Int?) {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val error = loadReaderContent(bookId, restoredChapter, restoredOffset)
+            if (error != null) {
+                _fatalInitErrors.tryEmit(error)
+            } else {
+                updateChapterUi()
+            }
+            _uiState.update { it.copy(isLoading = false) }
+        }
     }
 
     fun onPreviousClick() {
+        if (!::content.isInitialized || uiState.value.isLoading) return
         if (currentChapterIndex <= 0) return
         persistProgress(pendingOffset)
         currentChapterIndex -= 1
@@ -71,6 +68,7 @@ internal class ReaderViewModel(
     }
 
     fun onNextClick() {
+        if (!::content.isInitialized || uiState.value.isLoading) return
         if (currentChapterIndex >= content.chapters.lastIndex) return
         persistProgress(pendingOffset)
         currentChapterIndex += 1
@@ -79,11 +77,13 @@ internal class ReaderViewModel(
     }
 
     fun onPersistOffset(offset: Int) {
+        if (!::content.isInitialized || uiState.value.isLoading) return
         pendingOffset = offset
         persistProgress(offset)
     }
 
     fun onPause() {
+        if (!::content.isInitialized) return
         persistProgress(pendingOffset)
     }
 
@@ -107,8 +107,31 @@ internal class ReaderViewModel(
                 previousEnabled = currentChapterIndex > 0,
                 nextEnabled = currentChapterIndex < content.chapters.lastIndex,
                 restoreOffset = pendingOffset,
+                isLoading = false,
             )
         }
+    }
+
+    @StringRes
+    private fun loadReaderContent(
+        bookId: String?,
+        restoredChapter: Int?,
+        restoredOffset: Int?,
+    ): Int? {
+        if (bookId == null) return R.string.reader_open_failed
+
+        book = storage.getBook(bookId)
+            ?: return R.string.reader_open_failed
+
+        val bookFile = storage.getBookFile(book)
+        content = runCatching { EpubTextExtractor.parse(bookFile) }
+            .getOrElse { return R.string.reader_parse_failed }
+
+        if (content.chapters.isEmpty()) return R.string.reader_no_chapters
+
+        currentChapterIndex = (restoredChapter ?: book.lastReadChapter).coerceIn(0, content.chapters.lastIndex)
+        pendingOffset = restoredOffset ?: if (currentChapterIndex == book.lastReadChapter) book.lastReadOffset else 0
+        return null
     }
 
     private fun persistProgress(offset: Int) {

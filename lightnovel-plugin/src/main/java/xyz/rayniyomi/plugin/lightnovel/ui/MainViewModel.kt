@@ -22,6 +22,7 @@ import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 internal data class MainUiState(
     val books: List<NovelBook> = emptyList(),
     val statusMessage: String = "",
+    val isLoading: Boolean = false,
 )
 
 internal class MainViewModel(
@@ -50,6 +51,7 @@ internal class MainViewModel(
     fun onImportResult(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
             val result = withContext(Dispatchers.IO) {
                 runCatching { storage.importEpub(uri) }
             }
@@ -65,6 +67,7 @@ internal class MainViewModel(
                 _uiState.update { it.copy(statusMessage = "") }
             }
             refreshBooks()
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 }
