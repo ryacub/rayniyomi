@@ -78,7 +78,7 @@ class BackupLightNovelTest {
             )
         )
         val serialized = json.encodeToString(backup)
-        
+
         runTest {
             // Write backup to context
             context.contentResolver.insert(
