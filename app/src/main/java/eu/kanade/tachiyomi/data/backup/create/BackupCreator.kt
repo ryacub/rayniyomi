@@ -21,11 +21,8 @@ import okio.gzip
 import okio.sink
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.backup.service.BackupPreferences
-import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
-import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.i18n.MR
@@ -234,7 +231,10 @@ class BackupCreator(
                 lightNovelBackupBytes,
             )
 
-            logcat(LogPriority.INFO, "Light Novel metadata backup created: ${lightNovelBackupFile.name} (${lightNovelBackupBytes.size} bytes)")
+            logcat(
+                LogPriority.INFO,
+                "Light Novel metadata backup created: ${lightNovelBackupFile.name} (${lightNovelBackupBytes.size} bytes)",
+            )
         } catch (e: Exception) {
             logcat(LogPriority.WARN, "Failed to create Light Novel backup: ${e.message}", e)
         }
