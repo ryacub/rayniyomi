@@ -10,7 +10,6 @@ import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.backup.BackupLightNovel
 import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.COLUMNS
 import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.CONTENT_URI
-import xyz.rayniyomi.plugin.lightnovel.backup.LightNovelBackupContentProvider.Companion.COLUMN_NAMES
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
 import java.io.File
 

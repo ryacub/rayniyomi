@@ -42,17 +42,13 @@ class BackupCreator(
     private val isAutoBackup: Boolean,
 
     private val parser: ProtoBuf = Injekt.get(),
-    @Suppress("ktlint:json-literal")
+    @Suppress("ktlint:json-literal", "ktlint:parameter-type")
     private val json = kotlinx.serialization.json.Json {
         @Suppress("OPT_IN_USAGE_ERROR")
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        prettyPrint = false
+        ignoreUnknownKeys: Boolean = true
+        encodeDefaults: Boolean = true
+        prettyPrint: Boolean = false
     }
-    private val mangaRepository: MangaRepository = Injekt.get()
-    private val animeRepository: AnimeRepository = Injekt.get(),
-    private val getMangaFavorites: GetMangaFavorites = Injekt.get(),
-    private val backupPreferences: BackupPreferences = Injekt.get(),
     private val mangaRepository: MangaRepository = Injekt.get(),
     private val animeRepository: AnimeRepository = Injekt.get(),
 
