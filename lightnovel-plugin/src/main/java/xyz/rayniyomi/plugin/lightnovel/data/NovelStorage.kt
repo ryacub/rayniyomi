@@ -37,6 +37,7 @@ class NovelStorage(private val context: Context) {
     fun importEpub(uri: Uri): NovelBook {
         val id = System.currentTimeMillis().toString()
         val targetFile = File(booksDir, "$id.epub")
+        validateImportSize(uri)
 
         context.contentResolver.openInputStream(uri).use { input ->
             requireNotNull(input) { "Unable to open EPUB input stream" }
@@ -79,6 +80,15 @@ class NovelStorage(private val context: Context) {
         writeLibrary(NovelLibrary(updated))
     }
 
+    private fun validateImportSize(uri: Uri) {
+        val length = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+            descriptor.length
+        } ?: -1L
+        if (length > MAX_IMPORT_SIZE_BYTES) {
+            throw ImportTooLargeException(length, MAX_IMPORT_SIZE_BYTES)
+        }
+    }
+
     private fun readLibrary(): NovelLibrary {
         if (!libraryFile.exists()) {
             return NovelLibrary()
@@ -96,5 +106,9 @@ class NovelStorage(private val context: Context) {
         const val ROOT_DIR_NAME = "light_novel_plugin"
         const val BOOKS_DIR_NAME = "books"
         const val LIBRARY_FILE_NAME = "library.json"
+        const val MAX_IMPORT_SIZE_BYTES = 100L * 1024L * 1024L
     }
 }
+
+class ImportTooLargeException(actualBytes: Long, limitBytes: Long) :
+    IllegalArgumentException("Import too large: actual=$actualBytes, limit=$limitBytes")

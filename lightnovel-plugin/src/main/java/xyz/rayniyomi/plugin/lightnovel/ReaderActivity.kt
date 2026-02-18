@@ -3,7 +3,11 @@ package xyz.rayniyomi.plugin.lightnovel
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityReaderBinding
@@ -30,12 +34,14 @@ class ReaderActivity : AppCompatActivity() {
 
         val bookId = intent.getStringExtra(EXTRA_BOOK_ID)
             ?: run {
+                Toast.makeText(this, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
 
         book = storage.getBook(bookId)
             ?: run {
+                Toast.makeText(this, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
@@ -43,11 +49,13 @@ class ReaderActivity : AppCompatActivity() {
         val bookFile = storage.getBookFile(book)
         content = runCatching { EpubTextExtractor.parse(bookFile) }
             .getOrElse {
+                Toast.makeText(this, getString(R.string.reader_parse_failed), Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
 
         if (content.chapters.isEmpty()) {
+            Toast.makeText(this, getString(R.string.reader_no_chapters), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -80,6 +88,11 @@ class ReaderActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         persistProgress()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        saveHandler.removeCallbacks(saveRunnable)
     }
 
     private fun renderChapter(restoreSavedOffset: Boolean) {
@@ -122,6 +135,10 @@ class ReaderActivity : AppCompatActivity() {
     private fun persistProgress() {
         saveHandler.removeCallbacks(saveRunnable)
 
+        if (!::book.isInitialized) {
+            return
+        }
+
         val chapterText = binding.chapterText.text?.toString().orEmpty()
         if (chapterText.isEmpty()) {
             return
@@ -132,16 +149,19 @@ class ReaderActivity : AppCompatActivity() {
         val ratio = currentScroll.toFloat() / maxScroll.toFloat()
         val charOffset = (ratio * chapterText.length).toInt().coerceIn(0, chapterText.length)
 
-        storage.updateProgress(
-            bookId = book.id,
-            chapterIndex = currentChapterIndex,
-            charOffset = charOffset,
-        )
-
-        book = book.copy(
+        val updatedBook = book.copy(
             lastReadChapter = currentChapterIndex,
             lastReadOffset = charOffset,
         )
+        book = updatedBook
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            storage.updateProgress(
+                bookId = updatedBook.id,
+                chapterIndex = updatedBook.lastReadChapter,
+                charOffset = updatedBook.lastReadOffset,
+            )
+        }
     }
 
     private fun maxScrollY(): Int {
