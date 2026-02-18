@@ -61,8 +61,13 @@ class ReaderActivity : ComponentActivity() {
             return
         }
 
-        currentChapterIndex = book.lastReadChapter.coerceIn(0, content.chapters.lastIndex)
-        renderChapter(restoreSavedOffset = true)
+        val restoredChapter = savedInstanceState?.getInt(KEY_CURRENT_CHAPTER)
+        currentChapterIndex = (restoredChapter ?: book.lastReadChapter).coerceIn(0, content.chapters.lastIndex)
+        val restoredOffset = savedInstanceState?.getInt(KEY_PENDING_OFFSET)
+        renderChapter(restoreSavedOffset = restoredOffset == null)
+        if (restoredOffset != null) {
+            pendingOffset = restoredOffset
+        }
 
         setContent {
             ReaderScreen(
@@ -97,6 +102,12 @@ class ReaderActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         persistProgress(pendingOffset)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_CURRENT_CHAPTER, currentChapterIndex)
+        outState.putInt(KEY_PENDING_OFFSET, pendingOffset)
     }
 
     private fun renderChapter(restoreSavedOffset: Boolean) {
@@ -140,5 +151,7 @@ class ReaderActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_BOOK_ID = "extra_book_id"
+        private const val KEY_CURRENT_CHAPTER = "key_current_chapter"
+        private const val KEY_PENDING_OFFSET = "key_pending_offset"
     }
 }

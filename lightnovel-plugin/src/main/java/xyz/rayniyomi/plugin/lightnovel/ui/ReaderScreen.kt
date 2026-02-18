@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import xyz.rayniyomi.plugin.lightnovel.R
 import xyz.rayniyomi.plugin.lightnovel.reader.ReaderProgressMapper
 
@@ -45,6 +46,7 @@ internal fun ReaderScreen(
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
     onPersistOffset: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
 
@@ -53,9 +55,12 @@ internal fun ReaderScreen(
         if (restoreOffset <= 0 || chapterText.isEmpty()) {
             return@LaunchedEffect
         }
-        val maxScroll = snapshotFlow { scrollState.maxValue }
-            .filter { it > 0 }
-            .first()
+        val maxScroll = withTimeoutOrNull(500) {
+            snapshotFlow { scrollState.maxValue }
+                .filter { it > 0 }
+                .first()
+        } ?: scrollState.maxValue
+        if (maxScroll <= 0) return@LaunchedEffect
         val targetScrollY = ReaderProgressMapper.offsetToScrollY(
             charOffset = restoreOffset,
             chapterLength = chapterText.length,
@@ -81,7 +86,7 @@ internal fun ReaderScreen(
 
     Surface {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

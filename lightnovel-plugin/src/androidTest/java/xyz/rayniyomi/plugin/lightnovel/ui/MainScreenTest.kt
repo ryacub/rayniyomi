@@ -17,7 +17,7 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 books = emptyList(),
-                statusMessage = null,
+                statusMessage = "",
                 onImportClick = {},
                 onBookClick = {},
             )
@@ -34,7 +34,7 @@ class MainScreenTest {
                 books = listOf(
                     NovelBook(id = "1", title = "One", epubFileName = "1.epub"),
                 ),
-                statusMessage = null,
+                statusMessage = "",
                 onImportClick = {},
                 onBookClick = {},
             )

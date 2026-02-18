@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var storage: NovelStorage
 
     private var books: List<NovelBook> by mutableStateOf(emptyList())
-    private var statusMessage: String? by mutableStateOf(null)
+    private var statusMessage: String by mutableStateOf("")
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                 statusMessage = message
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
             } else {
-                statusMessage = null
+                statusMessage = ""
             }
             refreshBooks()
         }
@@ -50,6 +50,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         storage = NovelStorage(this)
+        statusMessage = savedInstanceState?.getString(KEY_STATUS_MESSAGE).orEmpty()
+        refreshBooks()
 
         setContent {
             MainScreen(
@@ -74,5 +76,14 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshBooks() {
         books = storage.listBooks()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_STATUS_MESSAGE, statusMessage)
+    }
+
+    private companion object {
+        const val KEY_STATUS_MESSAGE = "key_status_message"
     }
 }
