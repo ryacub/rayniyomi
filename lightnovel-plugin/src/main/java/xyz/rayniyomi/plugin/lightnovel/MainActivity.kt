@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import xyz.rayniyomi.plugin.lightnovel.data.ImportTooLargeException
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityMainBinding
@@ -25,21 +26,18 @@ class MainActivity : AppCompatActivity() {
         if (uri == null) return@registerForActivityResult
 
         lifecycleScope.launch {
-            runCatching {
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-
             val result = withContext(Dispatchers.IO) {
                 runCatching { storage.importEpub(uri) }
             }
 
             if (result.isFailure) {
+                val errorMessageRes = when (result.exceptionOrNull()) {
+                    is ImportTooLargeException -> R.string.import_too_large
+                    else -> R.string.import_failed
+                }
                 Toast.makeText(
                     this@MainActivity,
-                    getString(R.string.import_failed),
+                    getString(errorMessageRes),
                     Toast.LENGTH_SHORT,
                 ).show()
             }
