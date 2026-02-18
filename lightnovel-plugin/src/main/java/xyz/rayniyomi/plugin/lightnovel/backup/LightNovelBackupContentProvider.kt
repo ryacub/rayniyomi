@@ -13,7 +13,7 @@ class LightNovelBackupContentProvider : ContentProvider() {
 
     override fun onCreate(): Boolean = true
 
-    override fun query(
+    fun query(
         uri: Uri,
         projection: Array<String>?,
         selection: String?,
@@ -27,13 +27,13 @@ class LightNovelBackupContentProvider : ContentProvider() {
         }
     }
 
-    override fun getType(uri: Uri): String? = null
+    fun getType(uri: Uri): String? = null
 
-    override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+    fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
-    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+    fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
 
-    override fun update(
+    fun update(
         uri: Uri,
         values: ContentValues?,
         selection: String?,

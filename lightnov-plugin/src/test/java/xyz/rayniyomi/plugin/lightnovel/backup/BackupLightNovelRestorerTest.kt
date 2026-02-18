@@ -64,7 +64,6 @@ class BackupLightNovelRestorerTest {
         }.encodeToString(oldVersionBackup).encodeToByteArray()
 
         runTest {
-            // Insert existing library via ContentProvider
             contentResolver.insert(
                 LightNovelBackupContentProvider.CONTENT_URI,
                 ContentValues().apply {
@@ -77,15 +76,12 @@ class BackupLightNovelRestorerTest {
                 },
             )
 
-            // Attempt to restore with version mismatch backup
             val result = withContext(Dispatchers.IO) {
                 restorer.restoreBackup(backupData)
             }
 
-            // Result should be true (graceful degradation, library unchanged)
             assertTrue(result)
 
-            // Query ContentProvider to verify library was not restored
             val cursor = contentResolver.query(
                 LightNovelBackupContentProvider.CONTENT_URI,
                 COLUMNS,
@@ -94,7 +90,6 @@ class BackupLightNovelRestorerTest {
                 null,
             )
             cursor.use {
-                // Should have the existing library (from setup) not the restore
                 assertEquals(1, it.count)
                 it.moveToFirst()
                 assertEquals("999", it.getString(0))
@@ -105,7 +100,6 @@ class BackupLightNovelRestorerTest {
     @Test
     fun `atomic restore prevents data loss on failure`() {
         runTest {
-            // Insert existing library via ContentProvider
             contentResolver.insert(
                 LightNovelBackupContentProvider.CONTENT_URI,
                 ContentValues().apply {
@@ -113,7 +107,7 @@ class BackupLightNovelRestorerTest {
                     put(COLUMNS[1], "Existing Novel 1")
                     put(COLUMNS[2], "1.epub")
                     put(COLUMNS[3], 5)
-                    put(C4], 500)
+                    put(COLUMNS[4], 500)
                     put(COLUMNS[5], System.currentTimeMillis())
                 },
             )
@@ -126,7 +120,6 @@ class BackupLightNovelRestorerTest {
 
             assertFalse(result)
 
-            // Query ContentProvider to verify existing library is still intact
             val cursor = contentResolver.query(
                 LightNovelBackupContentProvider.CONTENT_URI,
                 COLUMNS,
