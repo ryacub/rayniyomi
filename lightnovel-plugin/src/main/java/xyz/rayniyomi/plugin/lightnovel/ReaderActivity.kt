@@ -1,12 +1,12 @@
 package xyz.rayniyomi.plugin.lightnovel
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
@@ -22,8 +22,7 @@ class ReaderActivity : AppCompatActivity() {
 
     private var currentChapterIndex = 0
 
-    private val saveHandler = Handler(Looper.getMainLooper())
-    private val saveRunnable = Runnable { persistProgress() }
+    private var saveJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,7 +91,7 @@ class ReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        saveHandler.removeCallbacks(saveRunnable)
+        saveJob?.cancel()
     }
 
     private fun renderChapter(restoreSavedOffset: Boolean) {
@@ -128,12 +127,16 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun schedulePersist() {
-        saveHandler.removeCallbacks(saveRunnable)
-        saveHandler.postDelayed(saveRunnable, 250)
+        saveJob?.cancel()
+        saveJob = lifecycleScope.launch {
+            delay(250)
+            persistProgress()
+        }
     }
 
     private fun persistProgress() {
-        saveHandler.removeCallbacks(saveRunnable)
+        saveJob?.cancel()
+        saveJob = null
 
         if (!::book.isInitialized) {
             return
