@@ -27,7 +27,7 @@ class NovelStorage(private val context: Context) {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
-        prettyPrint = true
+        prettyPrint = false
     }
 
     private val rootDir = File(context.filesDir, ROOT_DIR_NAME).also { it.mkdirs() }
@@ -74,15 +74,17 @@ class NovelStorage(private val context: Context) {
      * **not** deleted — only the library index is cleared.
      *
      * This function is idempotent: calling it on already-clean storage is safe.
+     *
+     * @return `true` if the file was deleted successfully or did not exist; `false` if deletion failed.
      */
     @Synchronized
-    fun clearAndRecover() {
-        if (libraryFile.exists()) {
-            val deleted = libraryFile.delete()
-            if (!deleted) {
-                Log.e(TAG, "clearAndRecover: failed to delete library file at ${libraryFile.absolutePath}")
-            }
+    fun clearAndRecover(): Boolean {
+        if (!libraryFile.exists()) return true
+        val deleted = libraryFile.delete()
+        if (!deleted) {
+            Log.e(TAG, "clearAndRecover: failed to delete library file at ${libraryFile.absolutePath}")
         }
+        return deleted
     }
 
     // -------------------------------------------------------------------------
@@ -190,7 +192,9 @@ class NovelStorage(private val context: Context) {
             schemaVersion = NovelSchemaMigrations.LATEST_SCHEMA_VERSION,
             library = library,
         )
-        libraryFile.writeText(json.encodeToString(envelope))
+        val tmpFile = File(libraryFile.parent, "${libraryFile.name}.tmp")
+        tmpFile.writeText(json.encodeToString(envelope))
+        tmpFile.renameTo(libraryFile)
     }
 
     private fun validateImportSize(uri: Uri) {

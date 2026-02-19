@@ -59,8 +59,13 @@ class NovelStorageCorruptionTest {
 
     @Test
     fun `checkIntegrity returns Ok when library file contains valid JSON`() {
-        val integrityBefore = storage.checkIntegrity()
-        assertEquals(NovelStorageState.Ok, integrityBefore)
+        val libraryFile = File(File(tempDir!!, "light_novel_plugin"), "library.json")
+        libraryFile.parentFile?.mkdirs()
+        libraryFile.writeText("""{"schema_version":2,"library":{"books":[]}}""")
+
+        val state = storage.checkIntegrity()
+
+        assertEquals(NovelStorageState.Ok, state)
     }
 
     // --- Corruption detection ---
@@ -107,8 +112,9 @@ class NovelStorageCorruptionTest {
         rootDir.mkdirs()
         libraryFile.writeText("{ corrupted }")
 
-        storage.clearAndRecover()
+        val result = storage.clearAndRecover()
 
+        assertTrue(result, "clearAndRecover should return true on successful deletion")
         val stateAfter = storage.checkIntegrity()
         assertEquals(NovelStorageState.Ok, stateAfter)
     }

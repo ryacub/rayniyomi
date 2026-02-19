@@ -25,6 +25,12 @@ object NovelSchemaMigrations {
      * If the envelope is already at the latest version it is returned unchanged.
      */
     fun migrateToLatest(envelope: NovelLibraryEnvelope): NovelLibraryEnvelope {
+        if (envelope.schemaVersion > LATEST_SCHEMA_VERSION) {
+            error(
+                "Plugin data schema version ${envelope.schemaVersion} is newer than supported " +
+                    "version $LATEST_SCHEMA_VERSION. Downgrade detected.",
+            )
+        }
         var current = envelope
         while (current.schemaVersion < LATEST_SCHEMA_VERSION) {
             current = when (current.schemaVersion) {

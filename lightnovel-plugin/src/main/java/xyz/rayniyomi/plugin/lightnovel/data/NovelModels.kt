@@ -21,7 +21,7 @@ data class NovelBook(
     @SerialName("last_read_offset")
     val lastReadOffset: Int = 0,
     @SerialName("updated_at")
-    val updatedAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = 0L,
     /** Cumulative reading time in minutes. Added in schema v2; defaults to 0 for v1 data. */
     @SerialName("reading_time_minutes")
     val readingTimeMinutes: Long = 0L,
