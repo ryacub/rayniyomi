@@ -235,7 +235,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { TranslationEngineFactory(get()) }
         addSingletonFactory { TranslationStorageManager(get()) }
         addSingletonFactory { TranslationManager(app) }
-        addSingletonFactory { LightNovelPluginManager(app, get(), get()) }
+        addSingletonFactory { LightNovelPluginManager(app, get(), get(), get()) }
         addSingletonFactory<LightNovelPluginReadiness> { get<LightNovelPluginManager>() }
         addSingletonFactory { LightNovelFeatureGate(get<NovelFeaturePreferences>(), get()) }
 

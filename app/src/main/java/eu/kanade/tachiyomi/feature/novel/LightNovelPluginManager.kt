@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -34,6 +35,7 @@ class LightNovelPluginManager(
     private val context: Context,
     private val network: NetworkHelper,
     private val json: Json,
+    private val preferences: NovelFeaturePreferences,
 ) : LightNovelPluginReadiness {
     private val telemetry = PluginTelemetry()
     private val installMutex = Mutex()
@@ -64,10 +66,13 @@ class LightNovelPluginManager(
         MANIFEST_API_MISMATCH,
         MANIFEST_HOST_TOO_OLD,
         MANIFEST_HOST_TOO_NEW,
+        MANIFEST_PLUGIN_TOO_OLD,
+        MANIFEST_WRONG_CHANNEL,
         DOWNLOAD_FAILED,
         INVALID_PLUGIN_APK,
         ARCHIVE_PACKAGE_MISMATCH,
         INSTALL_LAUNCH_FAILED,
+        ROLLBACK_NOT_AVAILABLE,
     }
 
     override fun isPluginReady(): Boolean {
@@ -110,6 +115,30 @@ class LightNovelPluginManager(
             }
         }
         return installDeferred.await()
+    }
+
+    /**
+     * Stub: rollback infrastructure not yet implemented.
+     *
+     * TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
+     * endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
+     * For now, surface a clear "not available" error rather than silently doing the wrong thing.
+     */
+    suspend fun rollbackToLastGood(): InstallResult {
+        // TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
+        // endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
+        // For now, surface a clear "not available" error rather than silently doing the wrong thing.
+        return InstallResult.Error(InstallErrorCode.ROLLBACK_NOT_AVAILABLE)
+    }
+
+    /**
+     * Records [versionCode] as the last-known-good plugin version.
+     *
+     * Call this after a plugin has been verified and loaded successfully.
+     */
+    fun pinLastKnownGoodVersion(versionCode: Long) {
+        preferences.lastKnownGoodPluginVersionCode().set(versionCode)
+        logcat { "pinLastKnownGoodVersion: pinned $versionCode" }
     }
 
     private suspend fun ensurePluginReadyInternal(channel: String): InstallResult {
@@ -181,6 +210,23 @@ class LightNovelPluginManager(
                 channel = channel,
                 enabled = ::isPluginInstallEnabled,
             )
+
+            // R236-J: enforce version and channel policy from the manifest.
+            val hostChannel = preferences.releaseChannel().get()
+            val policyEvaluator = PluginUpdatePolicyEvaluator(
+                hostChannel = hostChannel,
+                minPluginVersionCode = manifest.minPluginVersionCode,
+            )
+            val pluginChannel = ReleaseChannel.fromString(manifest.releaseChannel)
+            val policyResult = policyEvaluator.evaluate(
+                pluginVersionCode = manifest.versionCode,
+                pluginChannel = pluginChannel,
+            )
+            if (!policyResult.isAllowed) {
+                return@withLock InstallResult.Error(
+                    policyResult.blockReason!!.toInstallErrorCode(),
+                )
+            }
 
             // --- INSTALL stage ---
             val apkFile = downloadPlugin(manifest).getOrElse {
@@ -359,7 +405,16 @@ class LightNovelPluginManager(
             LightNovelPluginCompatibilityResult.API_MISMATCH -> InstallErrorCode.MANIFEST_API_MISMATCH
             LightNovelPluginCompatibilityResult.HOST_TOO_OLD -> InstallErrorCode.MANIFEST_HOST_TOO_OLD
             LightNovelPluginCompatibilityResult.HOST_TOO_NEW -> InstallErrorCode.MANIFEST_HOST_TOO_NEW
-            else -> error("unreachable")
+            LightNovelPluginCompatibilityResult.COMPATIBLE -> error(
+                "unreachable: COMPATIBLE result should never reach toInstallErrorCode()",
+            )
+        }
+    }
+
+    private fun PolicyBlockReason.toInstallErrorCode(): InstallErrorCode {
+        return when (this) {
+            PolicyBlockReason.PLUGIN_TOO_OLD -> InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD
+            PolicyBlockReason.WRONG_CHANNEL -> InstallErrorCode.MANIFEST_WRONG_CHANNEL
         }
     }
 

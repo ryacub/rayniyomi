@@ -637,9 +637,12 @@
     <string name="light_novel_plugin_error_invalid_apk">Downloaded plugin APK is invalid.</string>
     <string name="light_novel_plugin_error_archive_package_mismatch">Downloaded APK package does not match Light Novel plugin.</string>
     <string name="light_novel_plugin_error_install_launch_failed">Failed to launch plugin installer.</string>
+    <string name="light_novel_plugin_error_manifest_plugin_too_old">Installed plugin version is below the minimum required version. Please update the plugin.</string>
+    <string name="light_novel_plugin_error_manifest_wrong_channel">Plugin release channel does not match your channel preference. Switch to Beta or wait for a Stable release.</string>
     <string name="light_novel_plugin_install_confirm_title">Install light novel plugin?</string>
     <string name="light_novel_plugin_install_confirm_message">This downloads the plugin manifest and APK from GitHub before launching Android package install.</string>
     <!-- Light novel plugin offline/network resilience (R236-M) -->
     <string name="light_novel_plugin_degraded_cache">Using cached plugin data (last updated %1$s ago)</string>
     <string name="light_novel_plugin_offline">Plugin unavailable offline</string>
+    <string name="light_novel_plugin_error_rollback_not_available">Plugin rollback is not available in this version.</string>
 </resources>
