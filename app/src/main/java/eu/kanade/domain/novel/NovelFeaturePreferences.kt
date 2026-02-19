@@ -1,6 +1,8 @@
 package eu.kanade.domain.novel
 
+import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
+import tachiyomi.core.common.preference.getEnum
 
 /**
  * Preference accessors for the optional light novel feature.
@@ -45,14 +47,8 @@ public class NovelFeaturePreferences(
      * Stored as the enum name string so it survives app upgrades that add new
      * channels. Unknown values are silently coerced to [ReleaseChannel.STABLE].
      */
-    public fun releaseChannel(): MappedPreference<ReleaseChannel> {
-        val raw = preferenceStore.getString(KEY_RELEASE_CHANNEL, ReleaseChannel.STABLE.name)
-        return MappedPreference(
-            rawPreference = raw,
-            toMapped = { ReleaseChannel.fromString(it) },
-            fromMapped = { it.name },
-        )
-    }
+    public fun releaseChannel(): Preference<ReleaseChannel> =
+        preferenceStore.getEnum(KEY_RELEASE_CHANNEL, ReleaseChannel.STABLE)
 
     /**
      * The version code of the last successfully validated plugin build.
@@ -61,10 +57,13 @@ public class NovelFeaturePreferences(
      * been pinned yet. The host writes this after every successful plugin load
      * and reads it to restore a known-good state during rollback.
      */
-    public fun lastKnownGoodPluginVersionCode(): NullableLongPreference {
-        val raw = preferenceStore.getString(KEY_LAST_KNOWN_GOOD_VERSION_CODE, "")
-        return NullableLongPreference(raw)
-    }
+    public fun lastKnownGoodPluginVersionCode(): Preference<Long?> =
+        preferenceStore.getObject(
+            key = KEY_LAST_KNOWN_GOOD_VERSION_CODE,
+            defaultValue = null,
+            serializer = { it?.toString() ?: "" },
+            deserializer = { it.toLongOrNull() },
+        )
 
     public companion object {
         public const val CHANNEL_STABLE: String = "stable"
