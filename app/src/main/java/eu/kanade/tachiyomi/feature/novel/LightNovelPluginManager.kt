@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -34,6 +35,7 @@ class LightNovelPluginManager(
     private val context: Context,
     private val network: NetworkHelper,
     private val json: Json,
+    private val preferences: NovelFeaturePreferences,
 ) : LightNovelPluginReadiness {
     private val telemetry = PluginTelemetry()
     private val installMutex = Mutex()
@@ -64,6 +66,8 @@ class LightNovelPluginManager(
         MANIFEST_API_MISMATCH,
         MANIFEST_HOST_TOO_OLD,
         MANIFEST_HOST_TOO_NEW,
+        MANIFEST_PLUGIN_TOO_OLD,
+        MANIFEST_WRONG_CHANNEL,
         DOWNLOAD_FAILED,
         INVALID_PLUGIN_APK,
         ARCHIVE_PACKAGE_MISMATCH,
@@ -110,6 +114,46 @@ class LightNovelPluginManager(
             }
         }
         return installDeferred.await()
+    }
+
+    /**
+     * Restores the plugin to the last-known-good version.
+     *
+     * The "last known good" version code is persisted in [NovelFeaturePreferences] after
+     * every successful plugin load. This function retrieves the pinned version and
+     * re-triggers the install flow for the stable channel so the host fetches a
+     * manifest compatible with that version.
+     *
+     * If no last-known-good version has been pinned yet, the function is a no-op and
+     * returns [InstallResult.Error] with [InstallErrorCode.INSTALL_DISABLED] to signal
+     * that there is nothing to roll back to.
+     *
+     * Added in R236-J.
+     */
+    suspend fun rollbackToLastGood(): InstallResult {
+        val pinnedVersion = preferences.lastKnownGoodPluginVersionCode().get()
+        if (pinnedVersion == null) {
+            logcat(LogPriority.WARN) { "rollbackToLastGood: no pinned version available" }
+            return InstallResult.Error(InstallErrorCode.INSTALL_DISABLED)
+        }
+
+        logcat { "rollbackToLastGood: restoring to pinned version $pinnedVersion" }
+
+        // Uninstall the current (bad) plugin so the install flow can proceed.
+        uninstallPlugin()
+
+        // Re-trigger install using the stable channel (rollbacks always target stable).
+        return ensurePluginReady(NovelFeaturePreferences.CHANNEL_STABLE)
+    }
+
+    /**
+     * Records [versionCode] as the last-known-good plugin version.
+     *
+     * Call this after a plugin has been verified and loaded successfully.
+     */
+    fun pinLastKnownGoodVersion(versionCode: Long) {
+        preferences.lastKnownGoodPluginVersionCode().set(versionCode)
+        logcat { "pinLastKnownGoodVersion: pinned $versionCode" }
     }
 
     private suspend fun ensurePluginReadyInternal(channel: String): InstallResult {
@@ -181,6 +225,23 @@ class LightNovelPluginManager(
                 channel = channel,
                 enabled = ::isPluginInstallEnabled,
             )
+
+            // R236-J: enforce version and channel policy from the manifest.
+            val hostChannel = preferences.releaseChannel().get()
+            val policyEvaluator = PluginUpdatePolicyEvaluator(
+                hostChannel = hostChannel,
+                minPluginVersionCode = manifest.minPluginVersionCode,
+            )
+            val pluginChannel = ReleaseChannel.fromString(manifest.releaseChannel)
+            val policyResult = policyEvaluator.evaluate(
+                pluginVersionCode = manifest.versionCode,
+                pluginChannel = pluginChannel,
+            )
+            if (!policyResult.isAllowed) {
+                return@withLock InstallResult.Error(
+                    policyResult.blockReason!!.toInstallErrorCode(),
+                )
+            }
 
             // --- INSTALL stage ---
             val apkFile = downloadPlugin(manifest).getOrElse {
@@ -360,6 +421,13 @@ class LightNovelPluginManager(
             LightNovelPluginCompatibilityResult.HOST_TOO_OLD -> InstallErrorCode.MANIFEST_HOST_TOO_OLD
             LightNovelPluginCompatibilityResult.HOST_TOO_NEW -> InstallErrorCode.MANIFEST_HOST_TOO_NEW
             else -> error("unreachable")
+        }
+    }
+
+    private fun PolicyBlockReason.toInstallErrorCode(): InstallErrorCode {
+        return when (this) {
+            PolicyBlockReason.PLUGIN_TOO_OLD -> InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD
+            PolicyBlockReason.WRONG_CHANNEL -> InstallErrorCode.MANIFEST_WRONG_CHANNEL
         }
     }
 
