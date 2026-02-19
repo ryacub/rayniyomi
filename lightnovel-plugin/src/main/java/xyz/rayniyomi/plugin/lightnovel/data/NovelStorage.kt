@@ -8,6 +8,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
 import java.io.File
+import java.io.IOException
+import java.util.UUID
 
 /**
  * Persistent storage for the user's light-novel library.
@@ -55,7 +57,13 @@ class NovelStorage(private val context: Context) {
             return NovelStorageState.Corrupted(reason = "Library file is empty")
         }
         return runCatching {
-            json.decodeFromString<NovelLibraryEnvelope>(text)
+            val envelope = json.decodeFromString<NovelLibraryEnvelope>(text)
+            if (envelope.schemaVersion > NovelSchemaMigrations.LATEST_SCHEMA_VERSION) {
+                val maxVersion = NovelSchemaMigrations.LATEST_SCHEMA_VERSION
+                return NovelStorageState.Corrupted(
+                    reason = "Schema version ${envelope.schemaVersion} exceeds max supported $maxVersion",
+                )
+            }
             NovelStorageState.Ok
         }.getOrElse { cause ->
             NovelStorageState.Corrupted(reason = cause.message ?: cause.javaClass.simpleName)
@@ -112,7 +120,7 @@ class NovelStorage(private val context: Context) {
 
     @Synchronized
     fun importEpub(uri: Uri): NovelBook {
-        val id = System.currentTimeMillis().toString()
+        val id = UUID.randomUUID().toString()
         val targetFile = File(booksDir, "$id.epub")
         validateImportSize(uri)
 
@@ -194,7 +202,11 @@ class NovelStorage(private val context: Context) {
         )
         val tmpFile = File(libraryFile.parent, "${libraryFile.name}.tmp")
         tmpFile.writeText(json.encodeToString(envelope))
-        tmpFile.renameTo(libraryFile)
+        val renamed = tmpFile.renameTo(libraryFile)
+        if (!renamed) {
+            tmpFile.delete()
+            throw IOException("Atomic rename failed: ${tmpFile.absolutePath} -> ${libraryFile.absolutePath}")
+        }
     }
 
     private fun validateImportSize(uri: Uri) {
