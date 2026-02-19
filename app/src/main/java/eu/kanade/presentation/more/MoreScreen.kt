@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.GetApp
 import androidx.compose.material.icons.outlined.Info
@@ -47,6 +48,8 @@ fun MoreScreen(
     onClickPlayerSettings: () -> Unit,
     onClickSettings: () -> Unit,
     onClickAbout: () -> Unit,
+    lightNovelAvailable: Boolean = false,
+    onClickLightNovels: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -84,6 +87,16 @@ fun MoreScreen(
                     icon = navStyle.moreIcon,
                     onPreferenceClick = onClickAlt,
                 )
+            }
+
+            if (lightNovelAvailable) {
+                item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = onClickLightNovels,
+                    )
+                }
             }
 
             item {
