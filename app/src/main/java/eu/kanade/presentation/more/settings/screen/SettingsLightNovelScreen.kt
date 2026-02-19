@@ -132,6 +132,8 @@ object SettingsLightNovelScreen : SearchableSettings {
                 AYMR.strings.light_novel_plugin_error_manifest_plugin_too_old
             LightNovelPluginManager.InstallErrorCode.MANIFEST_WRONG_CHANNEL ->
                 AYMR.strings.light_novel_plugin_error_manifest_wrong_channel
+            LightNovelPluginManager.InstallErrorCode.ROLLBACK_NOT_AVAILABLE ->
+                AYMR.strings.light_novel_plugin_error_rollback_not_available
         }
 
         suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {

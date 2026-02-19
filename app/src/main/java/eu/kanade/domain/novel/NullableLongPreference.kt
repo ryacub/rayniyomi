@@ -2,8 +2,10 @@ package eu.kanade.domain.novel
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import tachiyomi.core.common.preference.Preference
 
 /**
@@ -31,10 +33,6 @@ public class NullableLongPreference(
 
     override fun changes(): Flow<Long?> = rawPreference.changes().map { it.toLongOrNull() }
 
-    override fun stateIn(scope: CoroutineScope): StateFlow<Long?> {
-        error(
-            "stateIn is not supported on NullableLongPreference. " +
-                "Collect changes() in a viewModelScope instead.",
-        )
-    }
+    override fun stateIn(scope: CoroutineScope): StateFlow<Long?> =
+        changes().stateIn(scope, SharingStarted.Eagerly, get())
 }

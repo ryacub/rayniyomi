@@ -2,8 +2,10 @@ package eu.kanade.domain.novel
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import tachiyomi.core.common.preference.Preference
 
 /**
@@ -36,13 +38,6 @@ public class MappedPreference<Mapped>(
 
     override fun changes(): Flow<Mapped> = rawPreference.changes().map(toMapped)
 
-    override fun stateIn(scope: CoroutineScope): StateFlow<Mapped> {
-        // Delegate to the underlying raw StateFlow is not directly possible without
-        // a MutableStateFlow wrapper; return a mapped Flow-backed state instead by
-        // falling back to the base implementation via the shared extension.
-        error(
-            "stateIn is not supported on MappedPreference. " +
-                "Collect changes() in a viewModelScope instead.",
-        )
-    }
+    override fun stateIn(scope: CoroutineScope): StateFlow<Mapped> =
+        changes().stateIn(scope, SharingStarted.Eagerly, get())
 }

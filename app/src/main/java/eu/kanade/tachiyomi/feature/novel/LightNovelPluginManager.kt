@@ -72,6 +72,7 @@ class LightNovelPluginManager(
         INVALID_PLUGIN_APK,
         ARCHIVE_PACKAGE_MISMATCH,
         INSTALL_LAUNCH_FAILED,
+        ROLLBACK_NOT_AVAILABLE,
     }
 
     override fun isPluginReady(): Boolean {
@@ -117,33 +118,17 @@ class LightNovelPluginManager(
     }
 
     /**
-     * Restores the plugin to the last-known-good version.
+     * Stub: rollback infrastructure not yet implemented.
      *
-     * The "last known good" version code is persisted in [NovelFeaturePreferences] after
-     * every successful plugin load. This function retrieves the pinned version and
-     * re-triggers the install flow for the stable channel so the host fetches a
-     * manifest compatible with that version.
-     *
-     * If no last-known-good version has been pinned yet, the function is a no-op and
-     * returns [InstallResult.Error] with [InstallErrorCode.INSTALL_DISABLED] to signal
-     * that there is nothing to roll back to.
-     *
-     * Added in R236-J.
+     * TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
+     * endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
+     * For now, surface a clear "not available" error rather than silently doing the wrong thing.
      */
     suspend fun rollbackToLastGood(): InstallResult {
-        val pinnedVersion = preferences.lastKnownGoodPluginVersionCode().get()
-        if (pinnedVersion == null) {
-            logcat(LogPriority.WARN) { "rollbackToLastGood: no pinned version available" }
-            return InstallResult.Error(InstallErrorCode.INSTALL_DISABLED)
-        }
-
-        logcat { "rollbackToLastGood: restoring to pinned version $pinnedVersion" }
-
-        // Uninstall the current (bad) plugin so the install flow can proceed.
-        uninstallPlugin()
-
-        // Re-trigger install using the stable channel (rollbacks always target stable).
-        return ensurePluginReady(NovelFeaturePreferences.CHANNEL_STABLE)
+        // TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
+        // endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
+        // For now, surface a clear "not available" error rather than silently doing the wrong thing.
+        return InstallResult.Error(InstallErrorCode.ROLLBACK_NOT_AVAILABLE)
     }
 
     /**
@@ -420,7 +405,9 @@ class LightNovelPluginManager(
             LightNovelPluginCompatibilityResult.API_MISMATCH -> InstallErrorCode.MANIFEST_API_MISMATCH
             LightNovelPluginCompatibilityResult.HOST_TOO_OLD -> InstallErrorCode.MANIFEST_HOST_TOO_OLD
             LightNovelPluginCompatibilityResult.HOST_TOO_NEW -> InstallErrorCode.MANIFEST_HOST_TOO_NEW
-            else -> error("unreachable")
+            LightNovelPluginCompatibilityResult.COMPATIBLE -> error(
+                "unreachable: COMPATIBLE result should never reach toInstallErrorCode()",
+            )
         }
     }
 

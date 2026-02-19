@@ -73,7 +73,7 @@ public class NovelFeaturePreferences(
         /** 24 hours in milliseconds. */
         public const val DEFAULT_MANIFEST_TTL_MS: Long = 24L * 60L * 60L * 1_000L
 
-        internal const val KEY_RELEASE_CHANNEL = "novel_plugin_release_channel"
+        internal const val KEY_RELEASE_CHANNEL = "light_novel_plugin_channel"
         internal const val KEY_LAST_KNOWN_GOOD_VERSION_CODE = "novel_plugin_last_known_good_version"
     }
 }
