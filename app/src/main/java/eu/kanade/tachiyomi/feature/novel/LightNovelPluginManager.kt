@@ -34,6 +34,7 @@ class LightNovelPluginManager(
     private val context: Context,
     private val network: NetworkHelper,
     private val json: Json,
+    private val telemetry: PluginTelemetry = PluginTelemetry(),
 ) : LightNovelPluginReadiness {
     private val installMutex = Mutex()
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -119,13 +120,33 @@ class LightNovelPluginManager(
         return installMutex.withLock {
             if (isPluginReady()) return@withLock InstallResult.AlreadyReady
 
+            // --- FETCH stage ---
             val manifest = fetchManifest(channel).getOrElse {
+                telemetry.recordEvent(
+                    stage = PluginStage.FETCH,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.NETWORK_TIMEOUT.name,
+                        isFatal = false,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_FETCH_FAILED)
             }
             if (manifest.packageName != PLUGIN_PACKAGE_NAME) {
+                telemetry.recordEvent(
+                    stage = PluginStage.FETCH,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.CORRUPT_MANIFEST.name,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_PACKAGE_MISMATCH)
             }
 
+            // --- VERIFY stage ---
             val manifestCompatibility = evaluateLightNovelPluginCompatibility(
                 pluginApiVersion = manifest.pluginApiVersion,
                 minHostVersion = manifest.minHostVersion,
@@ -134,12 +155,43 @@ class LightNovelPluginManager(
                 expectedPluginApiVersion = EXPECTED_PLUGIN_API_VERSION,
             )
             if (manifestCompatibility != LightNovelPluginCompatibilityResult.COMPATIBLE) {
+                telemetry.recordEvent(
+                    stage = PluginStage.VERIFY,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.VERSION_INCOMPATIBLE.name,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(
                     manifestCompatibility.toInstallErrorCode(),
                 )
             }
+            telemetry.recordEvent(
+                stage = PluginStage.FETCH,
+                result = PluginResult.Success,
+                channel = channel,
+                enabled = ::isPluginInstallEnabled,
+            )
+            telemetry.recordEvent(
+                stage = PluginStage.VERIFY,
+                result = PluginResult.Success,
+                channel = channel,
+                enabled = ::isPluginInstallEnabled,
+            )
 
+            // --- INSTALL stage ---
             val apkFile = downloadPlugin(manifest).getOrElse {
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.NETWORK_TIMEOUT.name,
+                        isFatal = false,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.DOWNLOAD_FAILED)
             }
 
@@ -147,10 +199,30 @@ class LightNovelPluginManager(
                 apkFile.absolutePath,
                 ARCHIVE_PACKAGE_FLAGS,
             )
-                ?: return@withLock InstallResult.Error(InstallErrorCode.INVALID_PLUGIN_APK)
+                ?: run {
+                    telemetry.recordEvent(
+                        stage = PluginStage.INSTALL,
+                        result = PluginResult.Failure(
+                            reason = PluginFailureReason.CORRUPT_MANIFEST.name,
+                            isFatal = true,
+                        ),
+                        channel = channel,
+                        enabled = ::isPluginInstallEnabled,
+                    )
+                    return@withLock InstallResult.Error(InstallErrorCode.INVALID_PLUGIN_APK)
+                }
 
             if (archivePackage.packageName != PLUGIN_PACKAGE_NAME) {
                 apkFile.delete()
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.SIGNATURE_MISMATCH.name,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH)
             }
 
@@ -158,10 +230,25 @@ class LightNovelPluginManager(
                 launchInstall(apkFile)
                 // Best-effort cleanup. Package installer may already have opened the stream.
                 apkFile.delete()
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Success,
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 InstallResult.InstallLaunched
             } catch (e: Throwable) {
                 logcat(LogPriority.ERROR, e) { "Failed to launch plugin install" }
                 apkFile.delete()
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.UNKNOWN.name,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 InstallResult.Error(InstallErrorCode.INSTALL_LAUNCH_FAILED)
             }
         }
