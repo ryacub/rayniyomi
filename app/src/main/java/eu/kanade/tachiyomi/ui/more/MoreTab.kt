@@ -31,10 +31,13 @@ import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.stats.StatsTab
 import eu.kanade.tachiyomi.ui.storage.StorageTab
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -82,8 +85,8 @@ data object MoreTab : Tab {
             onClickPlayerSettings = { navigator.push(PlayerSettingsScreen(mainSettings = false)) },
             onClickSettings = { navigator.push(SettingsScreen()) },
             onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
-            lightNovelAvailable = screenModel.pluginLauncher.isAvailable(),
-            onClickLightNovels = { screenModel.pluginLauncher.launchLibrary() },
+            lightNovelAvailable = screenModel.lightNovelAvailable.collectAsState().value,
+            onClickLightNovels = { screenModel.launchLightNovels() },
         )
     }
 }
@@ -92,11 +95,19 @@ private class MoreScreenModel(
     private val downloadManager: MangaDownloadManager = Injekt.get(),
     private val animeDownloadManager: AnimeDownloadManager = Injekt.get(),
     preferences: BasePreferences = Injekt.get(),
-    val pluginLauncher: LightNovelPluginLauncher = Injekt.get(),
+    private val pluginLauncher: LightNovelPluginLauncher = Injekt.get(),
 ) : ScreenModel {
 
     var downloadedOnly by preferences.downloadedOnly().asState(screenModelScope)
     var incognitoMode by preferences.incognitoMode().asState(screenModelScope)
+
+    val lightNovelAvailable: StateFlow<Boolean> = flow {
+        emit(pluginLauncher.isAvailable())
+    }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), pluginLauncher.isAvailable())
+
+    fun launchLightNovels() {
+        pluginLauncher.launchLibrary()
+    }
 
     private var _downloadQueueState: MutableStateFlow<DownloadQueueState> = MutableStateFlow(
         DownloadQueueState.Stopped,

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.tooling.preview.Preview
 import eu.kanade.domain.ui.model.NavStyle
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
@@ -187,4 +188,52 @@ fun MoreScreen(
             }
         }
     }
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewWithLightNovels() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelAvailable = true,
+        onClickLightNovels = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewWithoutLightNovels() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelAvailable = false,
+        onClickLightNovels = {},
+    )
 }

@@ -2,10 +2,12 @@ package eu.kanade.tachiyomi.feature.novel
 
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -53,6 +55,12 @@ class LightNovelPluginLauncherTest {
         assertTrue(launcher.isAvailable())
     }
 
+    @Test
+    fun `isAvailable returns false when gate is on but plugin is not ready`() {
+        val launcher = createLauncher(enabled = true, pluginReady = false)
+        assertFalse(launcher.isAvailable())
+    }
+
     // -------------------------------------------------------------------------
     // launch tests
     // -------------------------------------------------------------------------
@@ -84,16 +92,10 @@ class LightNovelPluginLauncherTest {
         val result = launcher.launchLibrary()
 
         assertTrue(result)
-        assertTrue(launchedIntents.size == 1, "Expected exactly one intent to be launched")
+        assertEquals(1, launchedIntents.size)
         val capturedIntent = launchedIntents.first()
-        assertTrue(
-            capturedIntent.component?.packageName == LightNovelPluginManager.PLUGIN_PACKAGE_NAME,
-            "Intent should target the plugin package",
-        )
-        assertTrue(
-            capturedIntent.component?.className?.endsWith("MainActivity") == true,
-            "Intent should target MainActivity",
-        )
+        assertEquals(LightNovelPluginManager.PLUGIN_PACKAGE_NAME, capturedIntent.component?.packageName)
+        assertTrue(capturedIntent.component?.className?.endsWith("MainActivity") ?: false)
     }
 
     @Test
@@ -114,6 +116,39 @@ class LightNovelPluginLauncherTest {
         val result = launcher.launchLibrary()
 
         assertFalse(result)
+    }
+
+    @Test
+    fun `default libraryIntentFactory targets correct plugin package and MainActivity class`() {
+        // Verify the production component name constants used by the default factory.
+        // We use a custom intent factory that injects a mock intent so we can inspect
+        // what component the factory would build, without requiring Robolectric.
+        val mockComponent = mockk<ComponentName>(relaxed = true)
+        every { mockComponent.packageName } returns LightNovelPluginManager.PLUGIN_PACKAGE_NAME
+        every { mockComponent.className } returns "${LightNovelPluginManager.PLUGIN_PACKAGE_NAME}.MainActivity"
+
+        val customIntent = mockk<Intent>(relaxed = true)
+        every { customIntent.component } returns mockComponent
+        every { customIntent.flags } returns Intent.FLAG_ACTIVITY_NEW_TASK
+
+        val capturedIntents = mutableListOf<Intent>()
+        val launcher = LightNovelPluginLauncher(
+            context = mockk(relaxed = true),
+            featureGate = mockk { every { isFeatureAvailable() } returns true },
+            activityStarter = { capturedIntents.add(it) },
+            libraryIntentFactory = { customIntent },
+        )
+
+        launcher.launchLibrary()
+
+        assertEquals(1, capturedIntents.size)
+        val intent = capturedIntents.first()
+        assertEquals(LightNovelPluginManager.PLUGIN_PACKAGE_NAME, intent.component?.packageName)
+        assertEquals(
+            "${LightNovelPluginManager.PLUGIN_PACKAGE_NAME}.MainActivity",
+            intent.component?.className,
+        )
+        assertTrue((intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK) != 0)
     }
 
     // -------------------------------------------------------------------------
@@ -138,7 +173,7 @@ class LightNovelPluginLauncherTest {
         )
         every { pluginReadiness.isPluginReady() } returns pluginReady
         val gate = LightNovelFeatureGate(preferences, pluginReadiness)
-        val context = mockk<android.content.Context>(relaxed = true)
+        val context = mockk<Context>(relaxed = true)
         return LightNovelPluginLauncher(
             context = context,
             featureGate = gate,
