@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.GetApp
 import androidx.compose.material.icons.outlined.Info
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.tooling.preview.Preview
 import eu.kanade.domain.ui.model.NavStyle
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
@@ -47,6 +49,8 @@ fun MoreScreen(
     onClickPlayerSettings: () -> Unit,
     onClickSettings: () -> Unit,
     onClickAbout: () -> Unit,
+    lightNovelAvailable: Boolean = false,
+    onClickLightNovels: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -84,6 +88,16 @@ fun MoreScreen(
                     icon = navStyle.moreIcon,
                     onPreferenceClick = onClickAlt,
                 )
+            }
+
+            if (lightNovelAvailable) {
+                item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = onClickLightNovels,
+                    )
+                }
             }
 
             item {
@@ -174,4 +188,52 @@ fun MoreScreen(
             }
         }
     }
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewWithLightNovels() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelAvailable = true,
+        onClickLightNovels = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewWithoutLightNovels() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelAvailable = false,
+        onClickLightNovels = {},
+    )
 }

@@ -32,6 +32,7 @@ import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelFeatureGate
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginReadiness
 import eu.kanade.tachiyomi.network.JavaScriptEngine
@@ -238,6 +239,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { LightNovelPluginManager(app, get(), get(), get()) }
         addSingletonFactory<LightNovelPluginReadiness> { get<LightNovelPluginManager>() }
         addSingletonFactory { LightNovelFeatureGate(get<NovelFeaturePreferences>(), get()) }
+        addSingletonFactory { LightNovelPluginLauncher(app, get()) }
 
         addSingletonFactory { ExternalIntents() }
 

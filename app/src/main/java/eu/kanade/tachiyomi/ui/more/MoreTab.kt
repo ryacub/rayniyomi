@@ -23,6 +23,7 @@ import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.download.DownloadsTab
 import eu.kanade.tachiyomi.ui.setting.PlayerSettingsScreen
@@ -81,6 +82,8 @@ data object MoreTab : Tab {
             onClickPlayerSettings = { navigator.push(PlayerSettingsScreen(mainSettings = false)) },
             onClickSettings = { navigator.push(SettingsScreen()) },
             onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
+            lightNovelAvailable = screenModel.lightNovelAvailable.collectAsState().value,
+            onClickLightNovels = { screenModel.launchLightNovels() },
         )
     }
 }
@@ -89,10 +92,18 @@ private class MoreScreenModel(
     private val downloadManager: MangaDownloadManager = Injekt.get(),
     private val animeDownloadManager: AnimeDownloadManager = Injekt.get(),
     preferences: BasePreferences = Injekt.get(),
+    private val pluginLauncher: LightNovelPluginLauncher = Injekt.get(),
 ) : ScreenModel {
 
     var downloadedOnly by preferences.downloadedOnly().asState(screenModelScope)
     var incognitoMode by preferences.incognitoMode().asState(screenModelScope)
+
+    private val _lightNovelAvailable = MutableStateFlow(false)
+    val lightNovelAvailable: StateFlow<Boolean> = _lightNovelAvailable.asStateFlow()
+
+    fun launchLightNovels() {
+        pluginLauncher.launchLibrary()
+    }
 
     private var _downloadQueueState: MutableStateFlow<DownloadQueueState> = MutableStateFlow(
         DownloadQueueState.Stopped,
@@ -100,6 +111,9 @@ private class MoreScreenModel(
     val downloadQueueState: StateFlow<DownloadQueueState> = _downloadQueueState.asStateFlow()
 
     init {
+        screenModelScope.launchIO {
+            _lightNovelAvailable.value = pluginLauncher.isAvailable()
+        }
         // Handle running/paused status change and queue progress updating
         screenModelScope.launchIO {
             combine(
