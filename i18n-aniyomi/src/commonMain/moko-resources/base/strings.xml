@@ -639,4 +639,7 @@
     <string name="light_novel_plugin_error_install_launch_failed">Failed to launch plugin installer.</string>
     <string name="light_novel_plugin_install_confirm_title">Install light novel plugin?</string>
     <string name="light_novel_plugin_install_confirm_message">This downloads the plugin manifest and APK from GitHub before launching Android package install.</string>
+    <!-- Light novel plugin offline/network resilience (R236-M) -->
+    <string name="light_novel_plugin_degraded_cache">Using cached plugin data (last updated %1$s ago)</string>
+    <string name="light_novel_plugin_offline">Plugin unavailable offline</string>
 </resources>
