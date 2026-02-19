@@ -84,7 +84,7 @@ data object MoreTab : Tab {
             onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
             lightNovelUiState = screenModel.lightNovelUiState.collectAsState().value,
             onClickLightNovels = { screenModel.launchLightNovels() },
-            onClickInstallPlugin = { screenModel.launchInstallFlow() },
+            onClickInstallPlugin = { screenModel.launchInstallFlow(navigator) },
         )
     }
 }
@@ -106,9 +106,8 @@ private class MoreScreenModel(
         pluginLauncher.launchLibrary()
     }
 
-    fun launchInstallFlow() {
-        // Navigate to settings where the install flow lives
-        // The install flow lifecycle hooks (onDownloadStarted etc.) are called from SettingsLightNovelScreen
+    fun launchInstallFlow(navigator: Navigator) {
+        navigator.push(SettingsScreen())
     }
 
     private var _downloadQueueState: MutableStateFlow<DownloadQueueState> = MutableStateFlow(

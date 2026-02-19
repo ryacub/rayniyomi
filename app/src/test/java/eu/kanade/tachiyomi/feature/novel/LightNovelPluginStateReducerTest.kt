@@ -41,10 +41,10 @@ class LightNovelPluginStateReducerTest {
     }
 
     @Test
-    fun `install blocked returns Blocked with reason`() {
+    fun `install blocked returns Blocked with reason when plugin not installed`() {
         val result = resolvePluginUiState(
             featureEnabled = true,
-            pluginStatus = status(),
+            pluginStatus = status(installed = false),
             installPhase = InstallPhase.IDLE,
             installBlocked = true,
             blockReason = "Not available in release builds",
@@ -53,7 +53,8 @@ class LightNovelPluginStateReducerTest {
     }
 
     @Test
-    fun `blocked overrides active download phase`() {
+    fun `download phase takes priority over install blocked`() {
+        // Once a download is in flight the policy check is irrelevant; show progress.
         val result = resolvePluginUiState(
             featureEnabled = true,
             pluginStatus = status(),
@@ -61,7 +62,19 @@ class LightNovelPluginStateReducerTest {
             installBlocked = true,
             blockReason = "Reason",
         )
-        assertEquals(LightNovelPluginUiState.Blocked("Reason"), result)
+        assertEquals(LightNovelPluginUiState.Downloading, result)
+    }
+
+    @Test
+    fun `installed and ready returns Ready even when install is blocked`() {
+        val result = resolvePluginUiState(
+            featureEnabled = true,
+            pluginStatus = status(installed = true, signed = true, compatible = true),
+            installPhase = InstallPhase.IDLE,
+            installBlocked = true,
+            blockReason = "Blocked in release",
+        )
+        assertEquals(LightNovelPluginUiState.Ready, result)
     }
 
     @Test

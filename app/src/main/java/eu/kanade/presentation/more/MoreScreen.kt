@@ -128,9 +128,10 @@ fun MoreScreen(
                 }
                 is LightNovelPluginUiState.Incompatible -> item {
                     val subtitle = when (lightNovelUiState.reason) {
-                        IncompatibleReason.UNTRUSTED,
-                        IncompatibleReason.API_MISMATCH,
-                        -> stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
+                        IncompatibleReason.UNTRUSTED ->
+                            stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
+                        IncompatibleReason.API_MISMATCH ->
+                            stringResource(AYMR.strings.light_novel_plugin_status_api_mismatch)
                     }
                     TextPreferenceWidget(
                         title = stringResource(AYMR.strings.pref_category_light_novels),
@@ -286,6 +287,131 @@ private fun MoreScreenPreviewWithoutLightNovels() {
         onClickSettings = {},
         onClickAbout = {},
         lightNovelUiState = LightNovelPluginUiState.Disabled,
+        onClickLightNovels = {},
+        onClickInstallPlugin = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewMissingPlugin() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelUiState = LightNovelPluginUiState.Missing,
+        onClickLightNovels = {},
+        onClickInstallPlugin = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewDownloadingPlugin() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelUiState = LightNovelPluginUiState.Downloading,
+        onClickLightNovels = {},
+        onClickInstallPlugin = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewInstallingPlugin() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelUiState = LightNovelPluginUiState.Installing,
+        onClickLightNovels = {},
+        onClickInstallPlugin = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewIncompatiblePlugin() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelUiState = LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH),
+        onClickLightNovels = {},
+        onClickInstallPlugin = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewBlockedPlugin() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelUiState = LightNovelPluginUiState.Blocked(""),
         onClickLightNovels = {},
         onClickInstallPlugin = {},
     )

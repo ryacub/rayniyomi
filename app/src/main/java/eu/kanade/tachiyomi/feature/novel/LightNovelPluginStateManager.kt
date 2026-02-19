@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.system.logcat
 
 /**
@@ -28,27 +29,39 @@ class LightNovelPluginStateManager(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val installPhaseFlow = MutableStateFlow(InstallPhase.IDLE)
-    private val pluginStatusFlow = MutableStateFlow(pluginManager.getPluginStatus())
+
+    // Initialize with a safe default; the actual status is loaded asynchronously in init
+    // to avoid calling PackageManager on the construction thread.
+    private val pluginStatusFlow = MutableStateFlow(
+        LightNovelPluginManager.PluginStatus(
+            installed = false,
+            signedAndTrusted = false,
+            compatible = false,
+            installedVersionCode = null,
+        ),
+    )
 
     private val mutableUiState = MutableStateFlow<LightNovelPluginUiState>(LightNovelPluginUiState.Disabled)
     val uiState: StateFlow<LightNovelPluginUiState> = mutableUiState.asStateFlow()
 
     init {
+        // Load the real plugin status on the IO dispatcher to avoid blocking the caller thread.
+        scope.launch {
+            pluginStatusFlow.value = pluginManager.getPluginStatus()
+        }
+
         combine(
             preferences.enableLightNovels().changes(),
             pluginStatusFlow,
             installPhaseFlow,
         ) { enabled, status, phase ->
+            val isBlocked = !pluginManager.isPluginInstallEnabled()
             resolvePluginUiState(
                 featureEnabled = enabled,
                 pluginStatus = status,
                 installPhase = phase,
-                installBlocked = !pluginManager.isPluginInstallEnabled(),
-                blockReason = if (!pluginManager.isPluginInstallEnabled()) {
-                    "Plugin install not enabled in this build"
-                } else {
-                    null
-                },
+                installBlocked = isBlocked,
+                blockReason = null, // reason resolved at UI layer via string resource
             )
         }.onEach { newState ->
             logcat { "LightNovelPluginStateManager: state -> $newState" }
