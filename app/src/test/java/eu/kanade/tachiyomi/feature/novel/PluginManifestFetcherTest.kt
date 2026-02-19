@@ -58,11 +58,6 @@ class PluginManifestFetcherTest {
                     data = now,
                     defaultValue = 0L,
                 ),
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_ttl_ms",
-                    data = DEFAULT_TTL_MS,
-                    defaultValue = DEFAULT_TTL_MS,
-                ),
             ),
         )
         val freshPrefs = NovelFeaturePreferences(freshStore)
@@ -104,11 +99,6 @@ class PluginManifestFetcherTest {
                     key = "novel_manifest_cached_at",
                     data = staleTime,
                     defaultValue = 0L,
-                ),
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_ttl_ms",
-                    data = DEFAULT_TTL_MS,
-                    defaultValue = DEFAULT_TTL_MS,
                 ),
             ),
         )
@@ -176,11 +166,6 @@ class PluginManifestFetcherTest {
                     data = staleTime,
                     defaultValue = 0L,
                 ),
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_ttl_ms",
-                    data = DEFAULT_TTL_MS,
-                    defaultValue = DEFAULT_TTL_MS,
-                ),
             ),
         )
         val stalePrefs = NovelFeaturePreferences(staleStore)
@@ -226,59 +211,7 @@ class PluginManifestFetcherTest {
         callCount shouldBe 4
     }
 
-    // -----------------------------------------------------------------------------------
-    // isCacheStale helper
-    // -----------------------------------------------------------------------------------
-
-    @Test
-    fun `isCacheStale returns true when no cache exists`() {
-        val freshPrefs = NovelFeaturePreferences(InMemoryPreferenceStore())
-        freshPrefs.isCacheStale(clock = { System.currentTimeMillis() }) shouldBe true
-    }
-
-    @Test
-    fun `isCacheStale returns false when cache is within TTL`() {
-        val now = System.currentTimeMillis()
-        val freshStore = InMemoryPreferenceStore(
-            sequenceOf(
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_cached_at",
-                    data = now - 1_000L,
-                    defaultValue = 0L,
-                ),
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_ttl_ms",
-                    data = DEFAULT_TTL_MS,
-                    defaultValue = DEFAULT_TTL_MS,
-                ),
-            ),
-        )
-        val freshPrefs = NovelFeaturePreferences(freshStore)
-        freshPrefs.isCacheStale(clock = { now }) shouldBe false
-    }
-
-    @Test
-    fun `isCacheStale returns true when cache is past TTL`() {
-        val now = System.currentTimeMillis()
-        val staleStore = InMemoryPreferenceStore(
-            sequenceOf(
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_cached_at",
-                    data = now - DEFAULT_TTL_MS - 1L,
-                    defaultValue = 0L,
-                ),
-                InMemoryPreferenceStore.InMemoryPreference(
-                    key = "novel_manifest_ttl_ms",
-                    data = DEFAULT_TTL_MS,
-                    defaultValue = DEFAULT_TTL_MS,
-                ),
-            ),
-        )
-        val stalePrefs = NovelFeaturePreferences(staleStore)
-        stalePrefs.isCacheStale(clock = { now }) shouldBe true
-    }
-
     private companion object {
-        val DEFAULT_TTL_MS = NovelFeaturePreferences.DEFAULT_MANIFEST_TTL_MS
+        val DEFAULT_TTL_MS = PluginManifestFetcher.DEFAULT_TTL_MS
     }
 }

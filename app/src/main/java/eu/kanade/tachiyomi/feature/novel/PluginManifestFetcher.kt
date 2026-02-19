@@ -25,7 +25,7 @@ import tachiyomi.core.common.util.system.logcat
  *    b. All retries exhausted WITH a stale cache → return [PluginNetworkState.Degraded].
  *    c. All retries exhausted WITHOUT any cache → return [PluginNetworkState.Offline].
  *
- * @param preferences Preference store that holds the manifest cache and TTL.
+ * @param preferences Preference store that holds the manifest cache.
  * @param json Kotlinx serialisation instance for encoding/decoding the manifest.
  * @param httpFetch Suspend function that performs a single HTTP GET for the given URL and
  *   returns the raw response body on success or a [Throwable] on failure.
@@ -33,13 +33,15 @@ import tachiyomi.core.common.util.system.logcat
  *   [System.currentTimeMillis]; override in tests for deterministic behaviour.
  * @param retryDelays Ordered list of delay durations (in milliseconds) before each successive
  *   retry. Defaults to [DEFAULT_RETRY_DELAYS_MS]. Tests pass shorter delays to keep fast.
+ * @param ttlMs Cache time-to-live in milliseconds. Defaults to [DEFAULT_TTL_MS] (24 hours).
  */
-public class PluginManifestFetcher(
+internal class PluginManifestFetcher(
     private val preferences: NovelFeaturePreferences,
     private val json: Json,
     private val httpFetch: suspend (url: String) -> Result<String>,
     private val clock: () -> Long = System::currentTimeMillis,
     private val retryDelays: List<Long> = DEFAULT_RETRY_DELAYS_MS,
+    private val ttlMs: Long = DEFAULT_TTL_MS,
 ) {
     /**
      * Resolves the plugin manifest at [url] following the cache + retry strategy described in the
@@ -48,14 +50,15 @@ public class PluginManifestFetcher(
      * This is a suspend function and must be called from a coroutine with an appropriate
      * dispatcher (e.g. [kotlinx.coroutines.Dispatchers.IO]).
      */
-    public suspend fun fetchNetworkState(url: String): PluginNetworkState {
+    internal suspend fun fetchNetworkState(url: String): PluginNetworkState {
         val now = clock()
+        val cachedJson = preferences.cachedManifestJson().get()
+        val cachedAt = preferences.manifestCachedAt().get()
 
         // 1. Serve from cache if still fresh.
-        if (!preferences.isCacheStale(clock = { now })) {
-            val cached = preferences.cachedManifestJson().get()
-            if (cached.isNotEmpty()) {
-                val manifest = runCatching { json.decodeFromString<LightNovelPluginManifest>(cached) }
+        if (!isCacheStale(cachedAt = cachedAt, now = now)) {
+            if (cachedJson.isNotEmpty()) {
+                val manifest = runCatching { json.decodeFromString<LightNovelPluginManifest>(cachedJson) }
                     .getOrNull()
                 if (manifest != null) {
                     logcat { "PluginManifestFetcher: serving fresh cached manifest" }
@@ -69,9 +72,7 @@ public class PluginManifestFetcher(
         }
 
         // Capture stale cache details before attempting the network call.
-        val staleCachedJson = preferences.cachedManifestJson().get()
-        val staleCachedAt = preferences.manifestCachedAt().get()
-        val staleManifest = staleCachedJson
+        val staleManifest = cachedJson
             .takeIf { it.isNotEmpty() }
             ?.let { runCatching { json.decodeFromString<LightNovelPluginManifest>(it) }.getOrNull() }
 
@@ -115,7 +116,7 @@ public class PluginManifestFetcher(
 
         // All attempts failed.
         return if (staleManifest != null) {
-            val cacheAgeMs = now - staleCachedAt
+            val cacheAgeMs = now - cachedAt
             logcat(LogPriority.WARN) {
                 "PluginManifestFetcher: all retries exhausted, serving stale cache (${cacheAgeMs}ms old)"
             }
@@ -128,8 +129,16 @@ public class PluginManifestFetcher(
         }
     }
 
-    public companion object {
+    private fun isCacheStale(cachedAt: Long, now: Long): Boolean {
+        if (cachedAt == 0L) return true
+        return now - cachedAt >= ttlMs
+    }
+
+    internal companion object {
         /** Default exponential back-off delays: 1 s → 2 s → 4 s (3 retries total). */
-        public val DEFAULT_RETRY_DELAYS_MS: List<Long> = listOf(1_000L, 2_000L, 4_000L)
+        internal val DEFAULT_RETRY_DELAYS_MS: List<Long> = listOf(1_000L, 2_000L, 4_000L)
+
+        /** Default cache time-to-live: 24 hours in milliseconds. */
+        internal const val DEFAULT_TTL_MS: Long = 24L * 60L * 60L * 1_000L
     }
 }

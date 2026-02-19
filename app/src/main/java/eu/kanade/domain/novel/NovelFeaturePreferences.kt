@@ -8,7 +8,6 @@ import tachiyomi.core.common.preference.PreferenceStore
  * Cache fields added for R236-M (offline resilience):
  * - [cachedManifestJson]: raw JSON of the last successfully fetched manifest.
  * - [manifestCachedAt]: epoch-millis timestamp of the last successful fetch.
- * - [manifestTtlMs]: duration in milliseconds before the cache is considered stale (default 24 h).
  */
 public class NovelFeaturePreferences(
     private val preferenceStore: PreferenceStore,
@@ -35,35 +34,6 @@ public class NovelFeaturePreferences(
         "novel_manifest_cached_at",
         defaultValue = 0L,
     )
-
-    /**
-     * Time-to-live for the manifest cache in milliseconds.
-     *
-     * Defaults to [DEFAULT_MANIFEST_TTL_MS] (24 hours).  Exposed as a preference so tests
-     * and debug builds can override it without recompilation.
-     */
-    public fun manifestTtlMs() = preferenceStore.getLong(
-        "novel_manifest_ttl_ms",
-        defaultValue = DEFAULT_MANIFEST_TTL_MS,
-    )
-
-    /**
-     * Returns `true` when the manifest cache should be considered stale and a fresh network
-     * fetch is needed.
-     *
-     * A cache is stale when:
-     * - No cache has ever been written ([manifestCachedAt] == 0), or
-     * - The cache was written more than [manifestTtlMs] milliseconds before [clock]'s result.
-     *
-     * @param clock Supplier of the current wall-clock time in epoch millis.  Defaults to
-     *   [System.currentTimeMillis]; override in tests for deterministic results.
-     */
-    public fun isCacheStale(clock: () -> Long = System::currentTimeMillis): Boolean {
-        val cachedAt = manifestCachedAt().get()
-        if (cachedAt == 0L) return true
-        val ttl = manifestTtlMs().get()
-        return clock() - cachedAt >= ttl
-    }
 
     public companion object {
         public const val CHANNEL_STABLE: String = "stable"

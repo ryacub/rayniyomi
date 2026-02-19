@@ -10,10 +10,10 @@ package eu.kanade.tachiyomi.feature.novel
  * - [Offline]: No cache exists and every network attempt failed. The feature must be
  *   treated as unavailable and the user should be notified.
  */
-public sealed interface PluginNetworkState {
+internal sealed interface PluginNetworkState {
 
     /** A usable, fresh manifest is available. */
-    public data class Online(
+    data class Online(
         val manifest: LightNovelPluginManifest,
     ) : PluginNetworkState
 
@@ -23,11 +23,11 @@ public sealed interface PluginNetworkState {
      * @param manifest The stale manifest from the cache.
      * @param cacheAgeMs How many milliseconds old the cached entry is.
      */
-    public data class Degraded(
+    data class Degraded(
         val manifest: LightNovelPluginManifest,
         val cacheAgeMs: Long,
     ) : PluginNetworkState
 
     /** No manifest is available — neither from network nor from cache. */
-    public data object Offline : PluginNetworkState
+    data object Offline : PluginNetworkState
 }
