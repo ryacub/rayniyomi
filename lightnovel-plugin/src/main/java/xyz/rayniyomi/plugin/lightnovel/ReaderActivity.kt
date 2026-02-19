@@ -6,8 +6,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityReaderBinding
@@ -158,12 +160,14 @@ class ReaderActivity : AppCompatActivity() {
         )
         book = updatedBook
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            storage.updateProgress(
-                bookId = updatedBook.id,
-                chapterIndex = updatedBook.lastReadChapter,
-                charOffset = updatedBook.lastReadOffset,
-            )
+        lifecycleScope.launch {
+            withContext(NonCancellable + Dispatchers.IO) {
+                storage.updateProgress(
+                    bookId = updatedBook.id,
+                    chapterIndex = updatedBook.lastReadChapter,
+                    charOffset = updatedBook.lastReadOffset,
+                )
+            }
         }
     }
 

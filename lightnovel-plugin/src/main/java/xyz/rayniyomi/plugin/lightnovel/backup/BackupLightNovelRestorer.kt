@@ -3,8 +3,11 @@ package xyz.rayniyomi.plugin.lightnovel.backup
 import android.content.Context
 import android.util.Log
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
+import xyz.rayniyomi.plugin.lightnovel.data.NovelLibraryEnvelope
+import xyz.rayniyomi.plugin.lightnovel.data.NovelSchemaMigrations
 import java.io.File
 import java.io.FileOutputStream
 
@@ -51,7 +54,7 @@ class BackupLightNovelRestorer(
                     book.epubFileName.isNotBlank() &&
                     book.lastReadChapter >= 0 &&
                     book.lastReadOffset >= 0 &&
-                    book.updatedAt > 0
+                    book.updatedAt >= 0
             }
             if (!allValid) {
                 Log.e(TAG, "Library validation failed: invalid book data found")
@@ -74,11 +77,15 @@ class BackupLightNovelRestorer(
                 "Failed to create root directory: ${rootDir.absolutePath}"
             }
 
-            tempFile.writeText(json.encodeToString(library))
+            val envelope = NovelLibraryEnvelope(
+                schemaVersion = NovelSchemaMigrations.LATEST_SCHEMA_VERSION,
+                library = library,
+            )
+            tempFile.writeText(json.encodeToString(envelope))
 
             FileOutputStream(tempFile).use { it.fd.sync() }
 
-            json.decodeFromString<NovelLibrary>(tempFile.readText())
+            json.decodeFromString<NovelLibraryEnvelope>(tempFile.readText())
 
             val success = tempFile.renameTo(libraryFile)
             if (!success) {
