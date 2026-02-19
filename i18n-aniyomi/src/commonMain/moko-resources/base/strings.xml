@@ -645,4 +645,12 @@
     <string name="light_novel_plugin_degraded_cache">Using cached plugin data (last updated %1$s ago)</string>
     <string name="light_novel_plugin_offline">Plugin unavailable offline</string>
     <string name="light_novel_plugin_error_rollback_not_available">Plugin rollback is not available in this version.</string>
+
+    <!-- Light novel plugin UX state machine (R236-N) -->
+    <string name="light_novel_plugin_action_install">Tap to install light novel plugin</string>
+    <string name="light_novel_plugin_status_downloading">Downloading plugin...</string>
+    <string name="light_novel_plugin_status_waiting_for_install">Waiting for installation...</string>
+    <string name="light_novel_plugin_status_incompatible">Plugin needs reinstall</string>
+    <string name="light_novel_plugin_status_api_mismatch">Plugin needs update</string>
+    <string name="light_novel_plugin_status_blocked">Plugin not available</string>
 </resources>
