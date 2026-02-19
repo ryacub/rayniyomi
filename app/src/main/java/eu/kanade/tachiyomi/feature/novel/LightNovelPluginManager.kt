@@ -454,7 +454,7 @@ class LightNovelPluginManager(
             ?.delete()
     }
 
-    private fun isPluginInstallEnabled(): Boolean {
+    internal fun isPluginInstallEnabled(): Boolean {
         return BuildConfig.DEBUG || ENABLE_PLUGIN_INSTALL_FOR_RELEASE
     }
 

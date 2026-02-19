@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -47,6 +48,7 @@ object SettingsLightNovelScreen : SearchableSettings {
 
         val preferences = remember { Injekt.get<NovelFeaturePreferences>() }
         val pluginManager = remember { Injekt.get<LightNovelPluginManager>() }
+        val stateManager = remember { Injekt.get<LightNovelPluginStateManager>() }
 
         val enableLightNovelsPref = remember { preferences.enableLightNovels() }
         val lightNovelPluginChannelPref = remember { preferences.lightNovelPluginChannel() }
@@ -83,6 +85,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                     val packageName = intent?.data?.schemeSpecificPart ?: return
                     if (packageName == LightNovelPluginManager.PLUGIN_PACKAGE_NAME) {
                         refreshStatus()
+                        stateManager.refreshPluginStatus()
                         val wasAdded = intent.action == Intent.ACTION_PACKAGE_ADDED
                         if (wasAdded && enableAfterInstallAwaitingPackageAdded && pluginManager.isPluginReady()) {
                             enableAfterInstallAwaitingPackageAdded = false
@@ -139,6 +142,7 @@ object SettingsLightNovelScreen : SearchableSettings {
         suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {
             installInProgress = true
             installError = null
+            stateManager.onDownloadStarted()
 
             try {
                 when (val result = pluginManager.ensurePluginReady(channel)) {
@@ -149,6 +153,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                         context.toast(AYMR.strings.light_novel_plugin_status_ready_short)
                     }
                     is LightNovelPluginManager.InstallResult.InstallLaunched -> {
+                        stateManager.onInstallLaunched()
                         if (enableFeatureAfterInstall) {
                             // System package installer is asynchronous; keep toggle off until package
                             // add + readiness is confirmed via receiver.
@@ -175,6 +180,7 @@ object SettingsLightNovelScreen : SearchableSettings {
                 }
             } finally {
                 refreshStatus()
+                stateManager.onInstallIdle()
                 installInProgress = false
             }
         }

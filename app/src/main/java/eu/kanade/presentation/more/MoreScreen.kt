@@ -24,6 +24,8 @@ import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
+import eu.kanade.tachiyomi.feature.novel.IncompatibleReason
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import eu.kanade.tachiyomi.ui.more.DownloadQueueState
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -49,8 +51,9 @@ fun MoreScreen(
     onClickPlayerSettings: () -> Unit,
     onClickSettings: () -> Unit,
     onClickAbout: () -> Unit,
-    lightNovelAvailable: Boolean = false,
+    lightNovelUiState: LightNovelPluginUiState = LightNovelPluginUiState.Disabled,
     onClickLightNovels: () -> Unit = {},
+    onClickInstallPlugin: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -90,12 +93,60 @@ fun MoreScreen(
                 )
             }
 
-            if (lightNovelAvailable) {
-                item {
+            when (lightNovelUiState) {
+                LightNovelPluginUiState.Disabled -> Unit
+                LightNovelPluginUiState.Ready -> item {
                     TextPreferenceWidget(
                         title = stringResource(AYMR.strings.pref_category_light_novels),
                         icon = Icons.Outlined.Book,
                         onPreferenceClick = onClickLightNovels,
+                    )
+                }
+                LightNovelPluginUiState.Missing -> item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        subtitle = stringResource(AYMR.strings.light_novel_plugin_action_install),
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = onClickInstallPlugin,
+                    )
+                }
+                LightNovelPluginUiState.Downloading -> item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        subtitle = stringResource(AYMR.strings.light_novel_plugin_status_downloading),
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = {},
+                    )
+                }
+                LightNovelPluginUiState.Installing -> item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        subtitle = stringResource(AYMR.strings.light_novel_plugin_status_waiting_for_install),
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = {},
+                    )
+                }
+                is LightNovelPluginUiState.Incompatible -> item {
+                    val subtitle = when (lightNovelUiState.reason) {
+                        IncompatibleReason.UNTRUSTED,
+                        IncompatibleReason.API_MISMATCH,
+                        -> stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
+                    }
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        subtitle = subtitle,
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = onClickInstallPlugin,
+                    )
+                }
+                is LightNovelPluginUiState.Blocked -> item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        subtitle = lightNovelUiState.reason.ifEmpty {
+                            stringResource(AYMR.strings.light_novel_plugin_status_blocked)
+                        },
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = {},
                     )
                 }
             }
@@ -209,8 +260,9 @@ private fun MoreScreenPreviewWithLightNovels() {
         onClickPlayerSettings = {},
         onClickSettings = {},
         onClickAbout = {},
-        lightNovelAvailable = true,
+        lightNovelUiState = LightNovelPluginUiState.Ready,
         onClickLightNovels = {},
+        onClickInstallPlugin = {},
     )
 }
 
@@ -233,7 +285,8 @@ private fun MoreScreenPreviewWithoutLightNovels() {
         onClickPlayerSettings = {},
         onClickSettings = {},
         onClickAbout = {},
-        lightNovelAvailable = false,
+        lightNovelUiState = LightNovelPluginUiState.Disabled,
         onClickLightNovels = {},
+        onClickInstallPlugin = {},
     )
 }
