@@ -31,13 +31,10 @@ import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.stats.StatsTab
 import eu.kanade.tachiyomi.ui.storage.StorageTab
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.stateIn
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -101,9 +98,8 @@ private class MoreScreenModel(
     var downloadedOnly by preferences.downloadedOnly().asState(screenModelScope)
     var incognitoMode by preferences.incognitoMode().asState(screenModelScope)
 
-    val lightNovelAvailable: StateFlow<Boolean> = flow {
-        emit(pluginLauncher.isAvailable())
-    }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), pluginLauncher.isAvailable())
+    private val _lightNovelAvailable = MutableStateFlow(false)
+    val lightNovelAvailable: StateFlow<Boolean> = _lightNovelAvailable.asStateFlow()
 
     fun launchLightNovels() {
         pluginLauncher.launchLibrary()
@@ -115,6 +111,9 @@ private class MoreScreenModel(
     val downloadQueueState: StateFlow<DownloadQueueState> = _downloadQueueState.asStateFlow()
 
     init {
+        screenModelScope.launchIO {
+            _lightNovelAvailable.value = pluginLauncher.isAvailable()
+        }
         // Handle running/paused status change and queue progress updating
         screenModelScope.launchIO {
             combine(
