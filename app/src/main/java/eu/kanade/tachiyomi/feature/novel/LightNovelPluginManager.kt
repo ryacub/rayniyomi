@@ -34,8 +34,8 @@ class LightNovelPluginManager(
     private val context: Context,
     private val network: NetworkHelper,
     private val json: Json,
-    private val telemetry: PluginTelemetry = PluginTelemetry(),
 ) : LightNovelPluginReadiness {
+    private val telemetry = PluginTelemetry()
     private val installMutex = Mutex()
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val inFlightInstallMutex = Mutex()
@@ -125,7 +125,7 @@ class LightNovelPluginManager(
                 telemetry.recordEvent(
                     stage = PluginStage.FETCH,
                     result = PluginResult.Failure(
-                        reason = PluginFailureReason.NETWORK_TIMEOUT.name,
+                        reason = PluginFailureReason.NETWORK_TIMEOUT,
                         isFatal = false,
                     ),
                     channel = channel,
@@ -137,7 +137,7 @@ class LightNovelPluginManager(
                 telemetry.recordEvent(
                     stage = PluginStage.FETCH,
                     result = PluginResult.Failure(
-                        reason = PluginFailureReason.CORRUPT_MANIFEST.name,
+                        reason = PluginFailureReason.CORRUPT_MANIFEST,
                         isFatal = true,
                     ),
                     channel = channel,
@@ -145,6 +145,13 @@ class LightNovelPluginManager(
                 )
                 return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_PACKAGE_MISMATCH)
             }
+            // Manifest fetched successfully — record FETCH success before VERIFY.
+            telemetry.recordEvent(
+                stage = PluginStage.FETCH,
+                result = PluginResult.Success,
+                channel = channel,
+                enabled = ::isPluginInstallEnabled,
+            )
 
             // --- VERIFY stage ---
             val manifestCompatibility = evaluateLightNovelPluginCompatibility(
@@ -158,7 +165,7 @@ class LightNovelPluginManager(
                 telemetry.recordEvent(
                     stage = PluginStage.VERIFY,
                     result = PluginResult.Failure(
-                        reason = PluginFailureReason.VERSION_INCOMPATIBLE.name,
+                        reason = PluginFailureReason.VERSION_INCOMPATIBLE,
                         isFatal = true,
                     ),
                     channel = channel,
@@ -168,12 +175,6 @@ class LightNovelPluginManager(
                     manifestCompatibility.toInstallErrorCode(),
                 )
             }
-            telemetry.recordEvent(
-                stage = PluginStage.FETCH,
-                result = PluginResult.Success,
-                channel = channel,
-                enabled = ::isPluginInstallEnabled,
-            )
             telemetry.recordEvent(
                 stage = PluginStage.VERIFY,
                 result = PluginResult.Success,
@@ -186,7 +187,7 @@ class LightNovelPluginManager(
                 telemetry.recordEvent(
                     stage = PluginStage.INSTALL,
                     result = PluginResult.Failure(
-                        reason = PluginFailureReason.NETWORK_TIMEOUT.name,
+                        reason = PluginFailureReason.NETWORK_TIMEOUT,
                         isFatal = false,
                     ),
                     channel = channel,
@@ -203,7 +204,7 @@ class LightNovelPluginManager(
                     telemetry.recordEvent(
                         stage = PluginStage.INSTALL,
                         result = PluginResult.Failure(
-                            reason = PluginFailureReason.CORRUPT_MANIFEST.name,
+                            reason = PluginFailureReason.CORRUPT_APK,
                             isFatal = true,
                         ),
                         channel = channel,
@@ -217,7 +218,7 @@ class LightNovelPluginManager(
                 telemetry.recordEvent(
                     stage = PluginStage.INSTALL,
                     result = PluginResult.Failure(
-                        reason = PluginFailureReason.SIGNATURE_MISMATCH.name,
+                        reason = PluginFailureReason.SIGNATURE_MISMATCH,
                         isFatal = true,
                     ),
                     channel = channel,
@@ -243,7 +244,7 @@ class LightNovelPluginManager(
                 telemetry.recordEvent(
                     stage = PluginStage.INSTALL,
                     result = PluginResult.Failure(
-                        reason = PluginFailureReason.UNKNOWN.name,
+                        reason = PluginFailureReason.UNKNOWN,
                         isFatal = true,
                     ),
                     channel = channel,

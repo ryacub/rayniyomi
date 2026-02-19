@@ -40,7 +40,7 @@ class PluginTelemetryGateTest {
         telemetry.recordEvent(
             stage = PluginStage.INSTALL,
             result = PluginResult.Failure(
-                reason = PluginFailureReason.NETWORK_TIMEOUT.name,
+                reason = PluginFailureReason.NETWORK_TIMEOUT,
                 isFatal = false,
             ),
             channel = "beta",

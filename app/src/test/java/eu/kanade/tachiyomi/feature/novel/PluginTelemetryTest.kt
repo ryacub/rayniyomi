@@ -31,7 +31,7 @@ class PluginTelemetryTest {
         telemetry.recordEvent(
             stage = PluginStage.INSTALL,
             result = PluginResult.Failure(
-                reason = PluginFailureReason.CORRUPT_MANIFEST.name,
+                reason = PluginFailureReason.CORRUPT_APK,
                 isFatal = true,
             ),
             channel = null,
@@ -60,7 +60,7 @@ class PluginTelemetryTest {
             telemetry.recordEvent(
                 stage = PluginStage.VERIFY,
                 result = PluginResult.Failure(
-                    reason = PluginFailureReason.SIGNATURE_MISMATCH.name,
+                    reason = PluginFailureReason.SIGNATURE_MISMATCH,
                     isFatal = true,
                 ),
                 channel = null,
@@ -72,6 +72,18 @@ class PluginTelemetryTest {
         assertEquals(2, counters.failureCount)
     }
 
+    @Test
+    fun `StageCounters total is sum of success and failure`() {
+        telemetry.recordEvent(PluginStage.FETCH, PluginResult.Success, channel = null)
+        telemetry.recordEvent(
+            stage = PluginStage.FETCH,
+            result = PluginResult.Failure(reason = PluginFailureReason.UNKNOWN, isFatal = false),
+            channel = null,
+        )
+        val counters = telemetry.getCounters(PluginStage.FETCH)
+        assertEquals(2, counters.total)
+    }
+
     // --- Threshold alerting ---
 
     @Test
@@ -80,7 +92,7 @@ class PluginTelemetryTest {
             telemetry.recordEvent(
                 stage = PluginStage.FETCH,
                 result = PluginResult.Failure(
-                    reason = PluginFailureReason.NETWORK_TIMEOUT.name,
+                    reason = PluginFailureReason.NETWORK_TIMEOUT,
                     isFatal = false,
                 ),
                 channel = null,
@@ -91,13 +103,13 @@ class PluginTelemetryTest {
     }
 
     @Test
-    fun `getThresholdAlert returns alert when failure rate exceeds 50 percent with 5 or more samples`() {
+    fun `getThresholdAlert returns alert with correct content when failure rate exceeds 50 percent`() {
         // 4 failures, 1 success = 80% failure rate with 5 samples
         repeat(4) {
             telemetry.recordEvent(
                 stage = PluginStage.INSTALL,
                 result = PluginResult.Failure(
-                    reason = PluginFailureReason.UNKNOWN.name,
+                    reason = PluginFailureReason.UNKNOWN,
                     isFatal = false,
                 ),
                 channel = null,
@@ -108,6 +120,9 @@ class PluginTelemetryTest {
         val alert = telemetry.getThresholdAlert(PluginStage.INSTALL)
         assertNotNull(alert)
         assertEquals(PluginStage.INSTALL, alert!!.stage)
+        assertEquals(4, alert.failureCount)
+        assertEquals(5, alert.sampleCount)
+        assertEquals(0.8, alert.failureRate, 0.001)
     }
 
     @Test
@@ -120,7 +135,7 @@ class PluginTelemetryTest {
             telemetry.recordEvent(
                 stage = PluginStage.HANDSHAKE,
                 result = PluginResult.Failure(
-                    reason = PluginFailureReason.HANDSHAKE_REJECTED.name,
+                    reason = PluginFailureReason.HANDSHAKE_REJECTED,
                     isFatal = true,
                 ),
                 channel = null,
@@ -136,7 +151,7 @@ class PluginTelemetryTest {
             telemetry.recordEvent(
                 stage = PluginStage.VERIFY,
                 result = PluginResult.Failure(
-                    reason = PluginFailureReason.VERSION_INCOMPATIBLE.name,
+                    reason = PluginFailureReason.VERSION_INCOMPATIBLE,
                     isFatal = false,
                 ),
                 channel = null,
@@ -154,17 +169,39 @@ class PluginTelemetryTest {
         assertNull(telemetry.getThresholdAlert(PluginStage.FETCH))
     }
 
+    @Test
+    fun `getThresholdAlert is a pure query with no side effects on subsequent calls`() {
+        // Record 4 failures + 1 success to trigger threshold at INSTALL
+        repeat(4) {
+            telemetry.recordEvent(
+                stage = PluginStage.INSTALL,
+                result = PluginResult.Failure(reason = PluginFailureReason.UNKNOWN, isFatal = false),
+                channel = null,
+            )
+        }
+        telemetry.recordEvent(PluginStage.INSTALL, PluginResult.Success, channel = null)
+
+        // Calling twice must return same counters (no state mutation)
+        val first = telemetry.getThresholdAlert(PluginStage.INSTALL)
+        val second = telemetry.getThresholdAlert(PluginStage.INSTALL)
+        assertEquals(first, second)
+    }
+
     // --- PluginFailureReason taxonomy ---
 
     @Test
-    fun `PluginFailureReason includes all required taxonomy values`() {
-        val reasons = PluginFailureReason.entries.map { it.name }
-        assert(PluginFailureReason.NETWORK_TIMEOUT.name in reasons)
-        assert(PluginFailureReason.SIGNATURE_MISMATCH.name in reasons)
-        assert(PluginFailureReason.VERSION_INCOMPATIBLE.name in reasons)
-        assert(PluginFailureReason.CORRUPT_MANIFEST.name in reasons)
-        assert(PluginFailureReason.HANDSHAKE_REJECTED.name in reasons)
-        assert(PluginFailureReason.UNKNOWN.name in reasons)
+    fun `PluginFailureReason contains exactly the expected taxonomy values`() {
+        val expected = setOf(
+            "NETWORK_TIMEOUT",
+            "SIGNATURE_MISMATCH",
+            "VERSION_INCOMPATIBLE",
+            "CORRUPT_MANIFEST",
+            "CORRUPT_APK",
+            "HANDSHAKE_REJECTED",
+            "UNKNOWN",
+        )
+        val actual = PluginFailureReason.entries.map { it.name }.toSet()
+        assertEquals(expected, actual)
     }
 
     // --- Channel is captured in event ---

@@ -2,18 +2,19 @@ package eu.kanade.tachiyomi.feature.novel
 
 import logcat.LogPriority
 import logcat.logcat
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 // ---------------------------------------------------------------------------
-// Public API types
+// API types
 // ---------------------------------------------------------------------------
 
 /**
  * Stages of the plugin distribution and activation pipeline.
  * Each stage maps to a discrete operation in [LightNovelPluginManager].
  */
-public enum class PluginStage {
+internal enum class PluginStage {
     /** Remote manifest retrieval. */
     FETCH,
 
@@ -31,14 +32,14 @@ public enum class PluginStage {
  * Outcome of a plugin pipeline operation.
  *
  * Use [Success] for happy-path completions.
- * Use [Failure] with a [PluginFailureReason] name and [isFatal] flag
+ * Use [Failure] with a [PluginFailureReason] and [isFatal] flag
  * to distinguish recoverable from fatal errors.
  */
-public sealed class PluginResult {
-    public data object Success : PluginResult()
+internal sealed class PluginResult {
+    data object Success : PluginResult()
 
-    public data class Failure(
-        val reason: String,
+    data class Failure(
+        val reason: PluginFailureReason,
         val isFatal: Boolean,
     ) : PluginResult()
 }
@@ -47,7 +48,7 @@ public sealed class PluginResult {
  * Structured taxonomy of plugin failure root causes.
  * Used in [PluginResult.Failure.reason] to enable actionable triage.
  */
-public enum class PluginFailureReason {
+internal enum class PluginFailureReason {
     /** Remote endpoint unreachable or timed out. */
     NETWORK_TIMEOUT,
 
@@ -60,6 +61,9 @@ public enum class PluginFailureReason {
     /** Manifest JSON malformed or missing required fields. */
     CORRUPT_MANIFEST,
 
+    /** Downloaded APK binary is corrupt or could not be parsed. */
+    CORRUPT_APK,
+
     /** IPC binding or handshake protocol rejected by plugin. */
     HANDSHAKE_REJECTED,
 
@@ -68,16 +72,18 @@ public enum class PluginFailureReason {
 }
 
 /**
- * Threshold alert emitted by [PluginTelemetry.getThresholdAlert]
+ * Threshold alert returned by [PluginTelemetry.getThresholdAlert]
  * when a stage's failure rate exceeds the configured threshold.
  *
  * @property stage The pipeline stage that crossed the threshold.
  * @property failureRate Failure count divided by total sample count (0.0–1.0).
+ * @property failureCount Raw number of failures recorded for this stage.
  * @property sampleCount Total events recorded for this stage.
  */
-public data class ThresholdAlert(
+internal data class ThresholdAlert(
     val stage: PluginStage,
     val failureRate: Double,
+    val failureCount: Int,
     val sampleCount: Int,
 )
 
@@ -87,7 +93,7 @@ public data class ThresholdAlert(
  * @property successCount Number of successful events.
  * @property failureCount Number of failed events.
  */
-public data class StageCounters(
+internal data class StageCounters(
     val successCount: Int,
     val failureCount: Int,
 ) {
@@ -106,16 +112,19 @@ public data class StageCounters(
  * goal is to detect regression spikes within a session, not persistent
  * historical analytics (use a backend service for that).
  *
- * Thread-safe: atomic counter updates, ConcurrentHashMap for stage buckets.
+ * Thread-safe: atomic counter updates via AtomicInteger; counter snapshots
+ * are synchronized to avoid TOCTOU races between success and failure reads.
  *
  * ### Log format (logcat / structured output)
  * ```
  * PLUGIN_TELEMETRY stage=FETCH result=Success channel=stable
  * PLUGIN_TELEMETRY stage=INSTALL result=Failure reason=NETWORK_TIMEOUT fatal=false channel=null
- * PLUGIN_TELEMETRY_ALERT stage=INSTALL failureRate=0.80 samples=5
  * ```
+ *
+ * Threshold alerts are not logged here — callers should log [ThresholdAlert]
+ * at a cadence appropriate for their context.
  */
-public class PluginTelemetry {
+internal class PluginTelemetry {
 
     private companion object {
         /** Alert when more than this fraction of samples are failures. */
@@ -125,10 +134,10 @@ public class PluginTelemetry {
         private const val MIN_SAMPLE_COUNT = 5
 
         private const val LOG_TAG = "PLUGIN_TELEMETRY"
-        private const val ALERT_TAG = "PLUGIN_TELEMETRY_ALERT"
     }
 
     // ConcurrentHashMap + AtomicIntegers give lock-free per-cell updates.
+    // All stage keys are pre-populated so !! assertions on lookup are safe.
     private val successCounters = ConcurrentHashMap<PluginStage, AtomicInteger>().also { map ->
         PluginStage.entries.forEach { map[it] = AtomicInteger(0) }
     }
@@ -146,7 +155,7 @@ public class PluginTelemetry {
      *   silently discarded. Pass `{ isPluginInstallEnabled() }` from [LightNovelPluginManager]
      *   to suppress telemetry when the install path is disabled.
      */
-    public fun recordEvent(
+    fun recordEvent(
         stage: PluginStage,
         result: PluginResult,
         channel: String?,
@@ -165,18 +174,21 @@ public class PluginTelemetry {
                 failureCounters[stage]!!.incrementAndGet()
                 val priority = if (result.isFatal) LogPriority.ERROR else LogPriority.WARN
                 logcat(LOG_TAG, priority) {
-                    "stage=$stage result=Failure reason=${result.reason} fatal=${result.isFatal} channel=$channel"
+                    "stage=$stage result=Failure reason=${result.reason.name} fatal=${result.isFatal} channel=$channel"
                 }
             }
         }
     }
 
     /**
-     * Returns a [ThresholdAlert] if the failure rate for [stage] exceeds 50 %
-     * and at least [MIN_SAMPLE_COUNT] events have been recorded.
-     * Returns `null` if the sample size is too small or the failure rate is within bounds.
+     * Returns a [ThresholdAlert] if the failure rate for [stage] exceeds 50%
+     * and at least [MIN_SAMPLE_COUNT] events have been recorded; null otherwise.
+     *
+     * This is a pure query — it does not emit any log output. Callers that
+     * want to surface the alert (e.g. via logcat or UI) should do so after
+     * receiving a non-null result.
      */
-    public fun getThresholdAlert(stage: PluginStage): ThresholdAlert? {
+    fun getThresholdAlert(stage: PluginStage): ThresholdAlert? {
         val counters = getCounters(stage)
         val total = counters.total
         if (total < MIN_SAMPLE_COUNT) return null
@@ -184,25 +196,34 @@ public class PluginTelemetry {
         val failureRate = counters.failureCount.toDouble() / total
         if (failureRate <= FAILURE_RATE_THRESHOLD) return null
 
-        val alert = ThresholdAlert(
+        return ThresholdAlert(
             stage = stage,
             failureRate = failureRate,
+            failureCount = counters.failureCount,
             sampleCount = total,
         )
-        logcat(ALERT_TAG, LogPriority.ERROR) {
-            "stage=$stage failureRate=${"%.2f".format(failureRate)} samples=$total"
-        }
-        return alert
     }
 
     /**
-     * Returns an immutable snapshot of the current success/failure counters for [stage].
+     * Returns an immutable, atomically-consistent snapshot of the current
+     * success/failure counters for [stage]. Both counters are read under a
+     * synchronized block to prevent TOCTOU races.
+     *
      * Useful in tests and debug UI.
      */
-    public fun getCounters(stage: PluginStage): StageCounters {
-        return StageCounters(
-            successCount = successCounters[stage]!!.get(),
-            failureCount = failureCounters[stage]!!.get(),
-        )
+    fun getCounters(stage: PluginStage): StageCounters {
+        return synchronized(this) {
+            StageCounters(
+                successCount = successCounters[stage]!!.get(),
+                failureCount = failureCounters[stage]!!.get(),
+            )
+        }
     }
+
+    /**
+     * Formats [failureRate] as a locale-independent percentage string for
+     * structured log output.
+     */
+    internal fun formatRate(failureRate: Double): String =
+        String.format(Locale.ROOT, "%.2f", failureRate)
 }
