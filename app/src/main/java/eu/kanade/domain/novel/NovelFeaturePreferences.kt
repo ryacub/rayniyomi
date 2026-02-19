@@ -62,7 +62,7 @@ public class NovelFeaturePreferences(
         val cachedAt = manifestCachedAt().get()
         if (cachedAt == 0L) return true
         val ttl = manifestTtlMs().get()
-        return clock() - cachedAt > ttl
+        return clock() - cachedAt >= ttl
     }
 
     public companion object {

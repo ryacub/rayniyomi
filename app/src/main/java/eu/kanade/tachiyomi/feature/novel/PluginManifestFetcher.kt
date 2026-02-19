@@ -60,6 +60,10 @@ public class PluginManifestFetcher(
                 if (manifest != null) {
                     logcat { "PluginManifestFetcher: serving fresh cached manifest" }
                     return PluginNetworkState.Online(manifest)
+                } else {
+                    logcat(LogPriority.WARN) {
+                        "PluginManifestFetcher: fresh cache present but manifest failed to decode — falling through to network fetch"
+                    }
                 }
             }
         }
@@ -81,6 +85,7 @@ public class PluginManifestFetcher(
                 delay(delayMs)
             }
 
+            // Guard against httpFetch implementations that throw instead of returning Result.failure(...).
             val fetchResult = runCatching { httpFetch(url) }.getOrElse { Result.failure(it) }
             fetchResult
                 .onSuccess { body ->
@@ -93,6 +98,7 @@ public class PluginManifestFetcher(
                     }
 
                     // Persist to cache.
+                    // Capture post-fetch time; do not reuse 'now' snapshot from entry — retries may span several seconds.
                     val fetchedAt = clock()
                     preferences.cachedManifestJson().set(body)
                     preferences.manifestCachedAt().set(fetchedAt)

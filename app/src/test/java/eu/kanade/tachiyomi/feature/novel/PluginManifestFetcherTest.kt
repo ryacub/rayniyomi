@@ -115,8 +115,30 @@ class PluginManifestFetcherTest {
         val stalePrefs = NovelFeaturePreferences(staleStore)
         val updatedManifest = sampleManifest.copy(versionCode = 2L)
         val updatedJson = json.encodeToString(updatedManifest)
+        // Track the values written to the cache preferences during the fetch.
+        var writtenJson: String? = null
+        var writtenCachedAt: Long? = null
+        val spyStore = object : tachiyomi.core.common.preference.PreferenceStore by staleStore {
+            override fun getString(key: String, defaultValue: String) =
+                object : tachiyomi.core.common.preference.Preference<String>
+                by staleStore.getString(key, defaultValue) {
+                    override fun set(value: String) {
+                        if (key == "novel_manifest_cached_json") writtenJson = value
+                        staleStore.getString(key, defaultValue).set(value)
+                    }
+                }
+            override fun getLong(key: String, defaultValue: Long) =
+                object : tachiyomi.core.common.preference.Preference<Long>
+                by staleStore.getLong(key, defaultValue) {
+                    override fun set(value: Long) {
+                        if (key == "novel_manifest_cached_at") writtenCachedAt = value
+                        staleStore.getLong(key, defaultValue).set(value)
+                    }
+                }
+        }
+        val spyPrefs = NovelFeaturePreferences(spyStore)
         val fetcher = PluginManifestFetcher(
-            preferences = stalePrefs,
+            preferences = spyPrefs,
             json = json,
             httpFetch = { _ -> Result.success(updatedJson) },
             clock = { now },
@@ -127,6 +149,10 @@ class PluginManifestFetcherTest {
         // The fetcher must return the freshly-fetched manifest (not the stale one) as Online.
         state.shouldBeInstanceOf<PluginNetworkState.Online>()
         (state as PluginNetworkState.Online).manifest.versionCode shouldBe 2L
+        // The updated manifest JSON must have been persisted to the cache.
+        writtenJson shouldBe updatedJson
+        // The cache timestamp must have been written (non-zero).
+        writtenCachedAt shouldBe now
     }
 
     // -----------------------------------------------------------------------------------
