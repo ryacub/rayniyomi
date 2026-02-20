@@ -92,10 +92,14 @@ internal data class ThresholdAlert(
  *
  * @property successCount Number of successful events.
  * @property failureCount Number of failed events.
+ * @property p50LatencyMs 50th percentile latency in milliseconds, or null if no duration samples.
+ * @property p95LatencyMs 95th percentile latency in milliseconds, or null if no duration samples.
  */
 internal data class StageCounters(
     val successCount: Int,
     val failureCount: Int,
+    val p50LatencyMs: Long? = null,
+    val p95LatencyMs: Long? = null,
 ) {
     /** Total number of events (success + failure). */
     val total: Int get() = successCount + failureCount
@@ -133,6 +137,9 @@ internal class PluginTelemetry {
         /** Minimum samples required before alert evaluation. */
         private const val MIN_SAMPLE_COUNT = 5
 
+        /** Maximum duration samples per stage (R236-R). */
+        private const val MAX_DURATION_SAMPLES = 100
+
         private const val LOG_TAG = "PLUGIN_TELEMETRY"
     }
 
@@ -145,12 +152,16 @@ internal class PluginTelemetry {
         PluginStage.entries.forEach { map[it] = AtomicInteger(0) }
     }
 
+    // Ring buffers for duration tracking (R236-R)
+    private val durationBuffers = ConcurrentHashMap<PluginStage, DurationRingBuffer>()
+
     /**
      * Record a pipeline event and update in-memory counters.
      *
      * @param stage Which stage of the plugin pipeline this event belongs to.
      * @param result Outcome of the operation.
      * @param channel Distribution channel (e.g. `"stable"`, `"beta"`), or null if not applicable.
+     * @param durationMs Operation duration in milliseconds, or null if not measured (R236-R).
      * @param enabled Predicate evaluated at call-site; when it returns `false` the event is
      *   silently discarded. Pass `{ isPluginInstallEnabled() }` from [LightNovelPluginManager]
      *   to suppress telemetry when the install path is disabled.
@@ -159,22 +170,31 @@ internal class PluginTelemetry {
         stage: PluginStage,
         result: PluginResult,
         channel: String?,
+        durationMs: Long? = null,
         enabled: () -> Boolean = { true },
     ) {
         if (!enabled()) return
 
+        // Record duration if provided (R236-R)
+        if (durationMs != null) {
+            val buffer = durationBuffers.computeIfAbsent(stage) { DurationRingBuffer(MAX_DURATION_SAMPLES) }
+            buffer.add(durationMs)
+        }
+
         when (result) {
             is PluginResult.Success -> {
                 successCounters[stage]!!.incrementAndGet()
+                val durationStr = if (durationMs != null) " durationMs=$durationMs" else ""
                 logcat(LOG_TAG, LogPriority.INFO) {
-                    "stage=$stage result=Success channel=$channel"
+                    "stage=$stage result=Success channel=$channel$durationStr"
                 }
             }
             is PluginResult.Failure -> {
                 failureCounters[stage]!!.incrementAndGet()
                 val priority = if (result.isFatal) LogPriority.ERROR else LogPriority.WARN
+                val durationStr = if (durationMs != null) " durationMs=$durationMs" else ""
                 logcat(LOG_TAG, priority) {
-                    "stage=$stage result=Failure reason=${result.reason.name} fatal=${result.isFatal} channel=$channel"
+                    "stage=$stage result=Failure reason=${result.reason.name} fatal=${result.isFatal} channel=$channel$durationStr"
                 }
             }
         }
@@ -206,16 +226,27 @@ internal class PluginTelemetry {
 
     /**
      * Returns an immutable, atomically-consistent snapshot of the current
-     * success/failure counters for [stage]. Both counters are read under a
-     * synchronized block to prevent TOCTOU races.
+     * success/failure counters and latency stats for [stage]. Both counters
+     * and duration samples are read under a synchronized block to prevent TOCTOU races.
      *
      * Useful in tests and debug UI.
      */
     fun getCounters(stage: PluginStage): StageCounters {
         return synchronized(this) {
+            val buffer = durationBuffers[stage]
+            val samples = buffer?.getSamples() ?: emptyList()
+            val (p50, p95) = if (samples.isNotEmpty()) {
+                val sorted = samples.sorted()
+                Pair(percentile(sorted, 50), percentile(sorted, 95))
+            } else {
+                Pair(null, null)
+            }
+
             StageCounters(
                 successCount = successCounters[stage]!!.get(),
                 failureCount = failureCounters[stage]!!.get(),
+                p50LatencyMs = p50,
+                p95LatencyMs = p95,
             )
         }
     }
@@ -226,4 +257,42 @@ internal class PluginTelemetry {
      */
     internal fun formatRate(failureRate: Double): String =
         String.format(Locale.ROOT, "%.2f", failureRate)
+
+    /**
+     * Computes the percentile value from a sorted list of samples.
+     *
+     * Uses nearest-rank method (ceiling): p95 of 100 samples is index 95.
+     *
+     * @param sorted Sorted list of samples (ascending order).
+     * @param percentile Percentile to compute (0-100).
+     * @return The percentile value.
+     */
+    private fun percentile(sorted: List<Long>, percentile: Int): Long {
+        if (sorted.isEmpty()) return 0L
+        // Nearest-rank method: ceiling of (percentile/100 * n)
+        val rank = kotlin.math.ceil(percentile / 100.0 * sorted.size).toInt()
+        val index = (rank - 1).coerceIn(0, sorted.lastIndex)
+        return sorted[index]
+    }
+
+    /**
+     * Ring buffer for storing fixed-size duration sample history.
+     */
+    private class DurationRingBuffer(private val capacity: Int) {
+        private val samples = mutableListOf<Long>()
+        private var position = 0
+
+        @Synchronized
+        fun add(value: Long) {
+            if (samples.size < capacity) {
+                samples.add(value)
+            } else {
+                samples[position] = value
+                position = (position + 1) % capacity
+            }
+        }
+
+        @Synchronized
+        fun getSamples(): List<Long> = samples.toList()
+    }
 }
