@@ -24,14 +24,6 @@ internal enum class OperationCategory {
     EPUB_IMPORT,
 }
 
-/**
- * Performance statistics for a specific operation category.
- *
- * @property sampleCount Total number of samples recorded.
- * @property p50 50th percentile (median) latency in milliseconds.
- * @property p95 95th percentile latency in milliseconds.
- * @property p99 99th percentile latency in milliseconds.
- */
 internal data class PerformanceStats(
     val sampleCount: Int,
     val p50: Long,
@@ -39,13 +31,6 @@ internal data class PerformanceStats(
     val p99: Long,
 )
 
-/**
- * Budget violation alert.
- *
- * @property category The operation category that violated its budget.
- * @property budgetMs The configured budget threshold in milliseconds.
- * @property actualP95Ms The actual p95 latency observed in milliseconds.
- */
 internal data class BudgetViolation(
     val category: OperationCategory,
     val budgetMs: Long,
@@ -53,32 +38,8 @@ internal data class BudgetViolation(
 )
 
 /**
- * Lightweight, in-process performance tracker for plugin operations.
- *
- * Records operation durations in ring buffers (max 100 samples per category)
- * and computes p50/p95/p99 percentiles. Violations are logged at WARN level
- * when p95 exceeds configured budgets from [PluginPerformanceBudgets].
- *
- * Thread-safe: uses concurrent data structures for lock-free writes.
- *
- * ### Usage
- * ```
- * val tracker = PluginPerformanceTracker()
- * val startNanos = System.nanoTime()
- * // ... perform operation ...
- * val durationMs = (System.nanoTime() - startNanos) / 1_000_000
- * tracker.recordOperation(OperationCategory.STARTUP, durationMs)
- *
- * // Check for violations
- * tracker.checkViolations(OperationCategory.STARTUP)?.let { violation ->
- *     logcat(LogPriority.WARN) { "Budget violation: $violation" }
- * }
- * ```
- *
- * ### Log format
- * ```
- * PLUGIN_PERF_VIOLATION category=STARTUP budgetMs=150 actualP95Ms=200 sampleCount=100
- * ```
+ * Tracks plugin operation durations and detects budget violations.
+ * Records samples in ring buffers and logs WARN when p95 exceeds thresholds.
  */
 internal class PluginPerformanceTracker {
 
@@ -92,24 +53,11 @@ internal class PluginPerformanceTracker {
     // Ring buffers for each category
     private val buffers = ConcurrentHashMap<OperationCategory, PerformanceRingBuffer>()
 
-    /**
-     * Records an operation duration for the specified category.
-     *
-     * @param category The operation category.
-     * @param durationMs The operation duration in milliseconds.
-     */
     fun recordOperation(category: OperationCategory, durationMs: Long) {
         val buffer = buffers.computeIfAbsent(category) { PerformanceRingBuffer(MAX_SAMPLES) }
         buffer.add(durationMs)
     }
 
-    /**
-     * Returns performance statistics for the specified category, or null if
-     * no samples have been recorded yet.
-     *
-     * @param category The operation category.
-     * @return Performance statistics, or null if no samples.
-     */
     fun getStats(category: OperationCategory): PerformanceStats? {
         val buffer = buffers[category] ?: return null
         val samples = buffer.getSamples()
@@ -124,16 +72,6 @@ internal class PluginPerformanceTracker {
         )
     }
 
-    /**
-     * Checks if the p95 latency for the specified category exceeds its
-     * configured budget. Returns a [BudgetViolation] if violated, or null
-     * if within budget or no samples recorded.
-     *
-     * Violations are logged at WARN level.
-     *
-     * @param category The operation category to check.
-     * @return BudgetViolation if violated, null otherwise.
-     */
     fun checkViolations(category: OperationCategory): BudgetViolation? {
         val stats = getStats(category) ?: return null
         val budget = getBudget(category)

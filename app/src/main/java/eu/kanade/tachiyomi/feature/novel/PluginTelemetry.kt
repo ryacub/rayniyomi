@@ -71,15 +71,6 @@ internal enum class PluginFailureReason {
     UNKNOWN,
 }
 
-/**
- * Threshold alert returned by [PluginTelemetry.getThresholdAlert]
- * when a stage's failure rate exceeds the configured threshold.
- *
- * @property stage The pipeline stage that crossed the threshold.
- * @property failureRate Failure count divided by total sample count (0.0–1.0).
- * @property failureCount Raw number of failures recorded for this stage.
- * @property sampleCount Total events recorded for this stage.
- */
 internal data class ThresholdAlert(
     val stage: PluginStage,
     val failureRate: Double,
@@ -87,21 +78,12 @@ internal data class ThresholdAlert(
     val sampleCount: Int,
 )
 
-/**
- * Immutable snapshot of per-stage event counters.
- *
- * @property successCount Number of successful events.
- * @property failureCount Number of failed events.
- * @property p50LatencyMs 50th percentile latency in milliseconds, or null if no duration samples.
- * @property p95LatencyMs 95th percentile latency in milliseconds, or null if no duration samples.
- */
 internal data class StageCounters(
     val successCount: Int,
     val failureCount: Int,
     val p50LatencyMs: Long? = null,
     val p95LatencyMs: Long? = null,
 ) {
-    /** Total number of events (success + failure). */
     val total: Int get() = successCount + failureCount
 }
 
@@ -110,23 +92,8 @@ internal data class StageCounters(
 // ---------------------------------------------------------------------------
 
 /**
- * Lightweight, in-process telemetry recorder for plugin pipeline events.
- *
- * All counters are reset on process restart; this is intentional — the
- * goal is to detect regression spikes within a session, not persistent
- * historical analytics (use a backend service for that).
- *
- * Thread-safe: atomic counter updates via AtomicInteger; counter snapshots
- * are synchronized to avoid TOCTOU races between success and failure reads.
- *
- * ### Log format (logcat / structured output)
- * ```
- * PLUGIN_TELEMETRY stage=FETCH result=Success channel=stable
- * PLUGIN_TELEMETRY stage=INSTALL result=Failure reason=NETWORK_TIMEOUT fatal=false channel=null
- * ```
- *
- * Threshold alerts are not logged here — callers should log [ThresholdAlert]
- * at a cadence appropriate for their context.
+ * Records plugin pipeline events and tracks success/failure rates per stage.
+ * Counters reset on process restart to detect within-session regressions.
  */
 internal class PluginTelemetry {
 
