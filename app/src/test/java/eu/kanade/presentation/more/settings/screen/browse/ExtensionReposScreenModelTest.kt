@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -40,10 +41,11 @@ class ExtensionReposScreenModelTest {
 
     @Test
     fun `initial state is Loading`() = runTest {
-        val deps = createMockDependencies(flowOf(emptyList()))
+        // Keep the state deterministic by preventing any repo emission during init.
+        val deps = createMockDependencies(emptyFlow())
         val model = ExtensionReposScreenModel(deps)
 
-        // Model starts in Loading state before coroutine init runs
+        // Model starts in Loading state before any repository list is emitted.
         assertInstanceOf(RepoScreenState.Loading::class.java, model.state.value)
     }
 
