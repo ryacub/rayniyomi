@@ -42,30 +42,45 @@ versionCode = 2       // increment
 versionName = "0.2.0" // semver
 ```
 
-### 2. Commit and tag
+### 2. Create compliance attestation
+
+Create a release attestation from `docs/release/attestations/template.json` and save it as:
+
+`docs/release/attestations/<tag>.json` (example: `docs/release/attestations/plugin-v0.2.0.json`).
+
+`## Compliance Gate (R236-Q)` checklist:
+- [ ] Distribution policy acknowledged for this release.
+- [ ] Plugin dependency attribution reviewed.
+- [ ] Takedown/report contact path verified.
+- [ ] Content-handling constraints acknowledged.
+
+The release workflow blocks publishing if the attestation file is missing, malformed, tag-mismatched, or any required ack is false.
+
+### 3. Commit and tag
 
 ```bash
-git add lightnovel-plugin/build.gradle.kts
+git add lightnovel-plugin/build.gradle.kts docs/release/attestations/plugin-v0.2.0.json
 git commit -m "chore: bump plugin to v0.2.0"
 git tag plugin-v0.2.0
 git push ryacub main --tags
 ```
 
-### 3. Monitor the workflow
+### 4. Monitor the workflow
 
 The `Plugin Release` workflow will:
 
 1. **Build** - Compile the plugin APK, run spotless and unit tests
 2. **Sign** - Sign the APK using the configured keystore
 3. **Verify** - Compute SHA-256, verify signature with apksigner, check package name
-4. **Publish** - Generate manifest JSON, create a draft GitHub release with APK + manifest + checksums
+4. **Compliance** - Validate `docs/release/attestations/<tag>.json` with required acknowledgements
+5. **Publish** - Generate manifest JSON, create a draft GitHub release with APK + manifest + checksums
 
-### 4. Review and publish
+### 5. Review and publish
 
 The release is created as a **draft**. Review the release notes and artifacts, then
 click "Publish release" in the GitHub UI.
 
-### 5. Post-release verification
+### 6. Post-release verification
 
 ```bash
 scripts/verify-plugin-release.sh plugin-v0.2.0
