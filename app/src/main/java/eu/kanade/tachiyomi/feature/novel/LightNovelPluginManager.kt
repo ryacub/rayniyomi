@@ -476,7 +476,10 @@ class LightNovelPluginManager(
         private const val BETA_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
 
-        // TODO(R236-B): Replace with real SHA-256 certificate fingerprints before enabling in release.
+        // TODO(R236-P): Replace with real SHA-256 certificate fingerprints after the first signed
+        // plugin release. Run the plugin_release.yml workflow, then extract the signing cert
+        // fingerprint with:
+        //   apksigner verify --print-certs lightnovel-plugin-<tag>.apk | grep SHA-256
         // These placeholder values keep the gate fail-closed; plugin installs are blocked in release
         // builds by ENABLE_PLUGIN_INSTALL_FOR_RELEASE = false until real certs are pinned.
         private val TRUSTED_PLUGIN_CERT_SHA256 = setOf(
