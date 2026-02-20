@@ -321,6 +321,10 @@ class LightNovelPluginManager(
 
     private fun verifyPinnedSignature(packageInfo: PackageInfo): Boolean {
         val signatures = getSignatures(packageInfo)
+        if (signatures.any { it in TRUSTED_PLUGIN_CERT_DENYLIST }) {
+            logcat(LogPriority.WARN) { "Plugin signature is denylisted" }
+            return false
+        }
         return signatures.any { it in TRUSTED_PLUGIN_CERT_SHA256 }
     }
 
@@ -483,6 +487,8 @@ class LightNovelPluginManager(
             "7b7f000000000000000000000000000000000000000000000000000000000000",
             "8c8f000000000000000000000000000000000000000000000000000000000000",
         )
+
+        private val TRUSTED_PLUGIN_CERT_DENYLIST = setOf<String>()
 
         @Suppress("DEPRECATION")
         private val INSTALLED_PACKAGE_FLAGS = PackageManager.GET_META_DATA or
