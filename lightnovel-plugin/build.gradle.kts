@@ -14,6 +14,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Local development signing config (optional).
+    // CI uses r0adkll/sign-android-release action with PLUGIN_SIGNING_KEY secret.
+    // For local signed builds, set these environment variables:
+    //   PLUGIN_KEYSTORE_PATH=/path/to/keystore.jks
+    //   PLUGIN_STORE_PASSWORD=<keystore password>
+    //   PLUGIN_KEY_ALIAS=<key alias>
+    //   PLUGIN_KEY_PASSWORD=<key password>
     signingConfigs {
         create("release") {
             storeFile = file(System.getenv("PLUGIN_KEYSTORE_PATH") ?: "/dev/null")

@@ -100,19 +100,25 @@ fi
 
 echo "[5/5] Verifying APK signature..."
 if command -v apksigner > /dev/null 2>&1; then
-    if apksigner verify --verbose "$APK_FILE" 2>&1; then
+    VERIFY_OUTPUT=$(apksigner verify --verbose "$APK_FILE" 2>&1)
+    VERIFY_STATUS=$?
+    if [ $VERIFY_STATUS -eq 0 ]; then
         echo "  OK: APK signature valid"
     else
         echo "FAIL: APK signature verification failed"
+        echo "$VERIFY_OUTPUT"
         ERRORS=$((ERRORS + 1))
     fi
 elif [ -n "${ANDROID_HOME:-}" ]; then
     APKSIGNER="${ANDROID_HOME}/build-tools/35.0.1/apksigner"
     if [ -x "$APKSIGNER" ]; then
-        if $APKSIGNER verify --verbose "$APK_FILE" 2>&1; then
+        VERIFY_OUTPUT=$($APKSIGNER verify --verbose "$APK_FILE" 2>&1)
+        VERIFY_STATUS=$?
+        if [ $VERIFY_STATUS -eq 0 ]; then
             echo "  OK: APK signature valid"
         else
             echo "FAIL: APK signature verification failed"
+            echo "$VERIFY_OUTPUT"
             ERRORS=$((ERRORS + 1))
         fi
     else

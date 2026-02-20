@@ -200,32 +200,33 @@ jobs:
         run: |
           set -ex
           RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ env.VERSION_TAG }}"
-          cat > lightnovel-plugin-manifest.json <<'MANIFEST_EOF'
-          {
-            "package_name": "xyz.rayniyomi.plugin.lightnovel",
-            "version_code": VERSION_CODE_PLACEHOLDER,
-            "version_name": "VERSION_NAME_PLACEHOLDER",
-            "plugin_api_version": 1,
-            "min_host_version": 1,
-            "target_host_version": null,
-            "apk_url": "APK_URL_PLACEHOLDER",
-            "apk_sha256": "SHA256_PLACEHOLDER",
-            "min_plugin_version_code": 0,
-            "release_channel": "stable"
-          }
-          MANIFEST_EOF
 
-          # Substitute placeholders with actual values
-          sed -i "s|VERSION_CODE_PLACEHOLDER|${{ env.VERSION_CODE }}|" lightnovel-plugin-manifest.json
-          sed -i "s|VERSION_NAME_PLACEHOLDER|${{ env.VERSION_NAME }}|" lightnovel-plugin-manifest.json
-          sed -i "s|APK_URL_PLACEHOLDER|${RELEASE_URL}/lightnovel-plugin-${{ env.VERSION_TAG }}.apk|" lightnovel-plugin-manifest.json
-          sed -i "s|SHA256_PLACEHOLDER|${{ env.APK_SHA256 }}|" lightnovel-plugin-manifest.json
-
-          # Strip leading whitespace from heredoc indentation
-          sed -i 's/^          //' lightnovel-plugin-manifest.json
+          # Generate manifest using jq for safe JSON construction (prevents injection)
+          jq -n \
+            --arg package_name "xyz.rayniyomi.plugin.lightnovel" \
+            --argjson version_code "${{ env.VERSION_CODE }}" \
+            --arg version_name "${{ env.VERSION_NAME }}" \
+            --argjson plugin_api_version 1 \
+            --argjson min_host_version 1 \
+            --argjson min_plugin_version_code 0 \
+            --arg apk_url "${RELEASE_URL}/lightnovel-plugin-${{ env.VERSION_TAG }}.apk" \
+            --arg apk_sha256 "${{ env.APK_SHA256 }}" \
+            --arg release_channel "stable" \
+            '{
+              package_name: $package_name,
+              version_code: $version_code,
+              version_name: $version_name,
+              plugin_api_version: $plugin_api_version,
+              min_host_version: $min_host_version,
+              target_host_version: null,
+              apk_url: $apk_url,
+              apk_sha256: $apk_sha256,
+              min_plugin_version_code: $min_plugin_version_code,
+              release_channel: $release_channel
+            }' > lightnovel-plugin-manifest.json
 
           # Validate manifest is valid JSON
-          python3 -m json.tool lightnovel-plugin-manifest.json > /dev/null
+          jq . lightnovel-plugin-manifest.json > /dev/null
 
       - name: Generate checksum file
         run: |
