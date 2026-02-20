@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.feature.novel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -212,5 +213,89 @@ class PluginTelemetryTest {
 
         val counters = telemetry.getCounters(PluginStage.FETCH)
         assertEquals(1, counters.successCount)
+    }
+
+    // --- Duration tracking (R236-R) ---
+
+    @Test
+    fun `recordEvent with duration updates latency stats`() {
+        telemetry.recordEvent(
+            stage = PluginStage.FETCH,
+            result = PluginResult.Success,
+            channel = "stable",
+            durationMs = 100L,
+        )
+
+        val counters = telemetry.getCounters(PluginStage.FETCH)
+        assertEquals(1, counters.successCount)
+        assertEquals(100L, counters.p50LatencyMs)
+    }
+
+    @Test
+    fun `recordEvent without duration does not update latency stats`() {
+        telemetry.recordEvent(
+            stage = PluginStage.FETCH,
+            result = PluginResult.Success,
+            channel = "stable",
+        )
+
+        val counters = telemetry.getCounters(PluginStage.FETCH)
+        assertEquals(1, counters.successCount)
+        assertEquals(null, counters.p50LatencyMs)
+    }
+
+    @Test
+    fun `latency stats accumulate across multiple events with duration`() {
+        telemetry.recordEvent(PluginStage.INSTALL, PluginResult.Success, "stable", durationMs = 100L)
+        telemetry.recordEvent(PluginStage.INSTALL, PluginResult.Success, "stable", durationMs = 200L)
+        telemetry.recordEvent(PluginStage.INSTALL, PluginResult.Success, "stable", durationMs = 300L)
+
+        val counters = telemetry.getCounters(PluginStage.INSTALL)
+        assertEquals(3, counters.successCount)
+        assertEquals(200L, counters.p50LatencyMs)
+    }
+
+    @Test
+    fun `latency stats ignore events without duration`() {
+        telemetry.recordEvent(PluginStage.VERIFY, PluginResult.Success, "stable", durationMs = 100L)
+        telemetry.recordEvent(PluginStage.VERIFY, PluginResult.Success, "stable") // no duration
+        telemetry.recordEvent(PluginStage.VERIFY, PluginResult.Success, "stable", durationMs = 200L)
+        telemetry.recordEvent(PluginStage.VERIFY, PluginResult.Success, "stable", durationMs = 300L)
+
+        val counters = telemetry.getCounters(PluginStage.VERIFY)
+        assertEquals(4, counters.successCount)
+        // Latency stats should only include 100, 200, and 300 (3 samples)
+        assertEquals(200L, counters.p50LatencyMs) // median of [100, 200, 300]
+    }
+
+    @Test
+    fun `latency stats compute p95 correctly`() {
+        repeat(100) { i ->
+            telemetry.recordEvent(
+                stage = PluginStage.FETCH,
+                result = PluginResult.Success,
+                channel = "stable",
+                durationMs = i.toLong(),
+            )
+        }
+
+        val counters = telemetry.getCounters(PluginStage.FETCH)
+        assertEquals(100, counters.successCount)
+        // p95 should be around index 94-95
+        assertNotNull(counters.p95LatencyMs)
+        assertTrue(counters.p95LatencyMs!! >= 90L, "p95=${counters.p95LatencyMs} should be >= 90")
+        assertTrue(counters.p95LatencyMs!! <= 99L, "p95=${counters.p95LatencyMs} should be <= 99")
+    }
+
+    @Test
+    fun `latency stats are independent per stage`() {
+        telemetry.recordEvent(PluginStage.FETCH, PluginResult.Success, "stable", durationMs = 100L)
+        telemetry.recordEvent(PluginStage.INSTALL, PluginResult.Success, "stable", durationMs = 500L)
+
+        val fetchCounters = telemetry.getCounters(PluginStage.FETCH)
+        val installCounters = telemetry.getCounters(PluginStage.INSTALL)
+
+        assertEquals(100L, fetchCounters.p50LatencyMs)
+        assertEquals(500L, installCounters.p50LatencyMs)
     }
 }

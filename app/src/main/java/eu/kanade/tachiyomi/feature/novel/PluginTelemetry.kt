@@ -71,15 +71,6 @@ internal enum class PluginFailureReason {
     UNKNOWN,
 }
 
-/**
- * Threshold alert returned by [PluginTelemetry.getThresholdAlert]
- * when a stage's failure rate exceeds the configured threshold.
- *
- * @property stage The pipeline stage that crossed the threshold.
- * @property failureRate Failure count divided by total sample count (0.0–1.0).
- * @property failureCount Raw number of failures recorded for this stage.
- * @property sampleCount Total events recorded for this stage.
- */
 internal data class ThresholdAlert(
     val stage: PluginStage,
     val failureRate: Double,
@@ -87,17 +78,12 @@ internal data class ThresholdAlert(
     val sampleCount: Int,
 )
 
-/**
- * Immutable snapshot of per-stage event counters.
- *
- * @property successCount Number of successful events.
- * @property failureCount Number of failed events.
- */
 internal data class StageCounters(
     val successCount: Int,
     val failureCount: Int,
+    val p50LatencyMs: Long? = null,
+    val p95LatencyMs: Long? = null,
 ) {
-    /** Total number of events (success + failure). */
     val total: Int get() = successCount + failureCount
 }
 
@@ -106,23 +92,8 @@ internal data class StageCounters(
 // ---------------------------------------------------------------------------
 
 /**
- * Lightweight, in-process telemetry recorder for plugin pipeline events.
- *
- * All counters are reset on process restart; this is intentional — the
- * goal is to detect regression spikes within a session, not persistent
- * historical analytics (use a backend service for that).
- *
- * Thread-safe: atomic counter updates via AtomicInteger; counter snapshots
- * are synchronized to avoid TOCTOU races between success and failure reads.
- *
- * ### Log format (logcat / structured output)
- * ```
- * PLUGIN_TELEMETRY stage=FETCH result=Success channel=stable
- * PLUGIN_TELEMETRY stage=INSTALL result=Failure reason=NETWORK_TIMEOUT fatal=false channel=null
- * ```
- *
- * Threshold alerts are not logged here — callers should log [ThresholdAlert]
- * at a cadence appropriate for their context.
+ * Records plugin pipeline events and tracks success/failure rates per stage.
+ * Counters reset on process restart to detect within-session regressions.
  */
 internal class PluginTelemetry {
 
@@ -132,6 +103,9 @@ internal class PluginTelemetry {
 
         /** Minimum samples required before alert evaluation. */
         private const val MIN_SAMPLE_COUNT = 5
+
+        /** Maximum duration samples per stage (R236-R). */
+        private const val MAX_DURATION_SAMPLES = 100
 
         private const val LOG_TAG = "PLUGIN_TELEMETRY"
     }
@@ -145,12 +119,16 @@ internal class PluginTelemetry {
         PluginStage.entries.forEach { map[it] = AtomicInteger(0) }
     }
 
+    // Ring buffers for duration tracking (R236-R)
+    private val durationBuffers = ConcurrentHashMap<PluginStage, PerformanceRingBuffer>()
+
     /**
      * Record a pipeline event and update in-memory counters.
      *
      * @param stage Which stage of the plugin pipeline this event belongs to.
      * @param result Outcome of the operation.
      * @param channel Distribution channel (e.g. `"stable"`, `"beta"`), or null if not applicable.
+     * @param durationMs Operation duration in milliseconds, or null if not measured (R236-R).
      * @param enabled Predicate evaluated at call-site; when it returns `false` the event is
      *   silently discarded. Pass `{ isPluginInstallEnabled() }` from [LightNovelPluginManager]
      *   to suppress telemetry when the install path is disabled.
@@ -159,22 +137,31 @@ internal class PluginTelemetry {
         stage: PluginStage,
         result: PluginResult,
         channel: String?,
+        durationMs: Long? = null,
         enabled: () -> Boolean = { true },
     ) {
         if (!enabled()) return
 
+        // Record duration if provided (R236-R)
+        if (durationMs != null) {
+            val buffer = durationBuffers.computeIfAbsent(stage) { PerformanceRingBuffer(MAX_DURATION_SAMPLES) }
+            buffer.add(durationMs)
+        }
+
         when (result) {
             is PluginResult.Success -> {
                 successCounters[stage]!!.incrementAndGet()
+                val durationStr = if (durationMs != null) " durationMs=$durationMs" else ""
                 logcat(LOG_TAG, LogPriority.INFO) {
-                    "stage=$stage result=Success channel=$channel"
+                    "stage=$stage result=Success channel=$channel$durationStr"
                 }
             }
             is PluginResult.Failure -> {
                 failureCounters[stage]!!.incrementAndGet()
                 val priority = if (result.isFatal) LogPriority.ERROR else LogPriority.WARN
+                val durationStr = if (durationMs != null) " durationMs=$durationMs" else ""
                 logcat(LOG_TAG, priority) {
-                    "stage=$stage result=Failure reason=${result.reason.name} fatal=${result.isFatal} channel=$channel"
+                    "stage=$stage result=Failure reason=${result.reason.name} fatal=${result.isFatal} channel=$channel$durationStr"
                 }
             }
         }
@@ -206,16 +193,27 @@ internal class PluginTelemetry {
 
     /**
      * Returns an immutable, atomically-consistent snapshot of the current
-     * success/failure counters for [stage]. Both counters are read under a
-     * synchronized block to prevent TOCTOU races.
+     * success/failure counters and latency stats for [stage]. Both counters
+     * and duration samples are read under a synchronized block to prevent TOCTOU races.
      *
      * Useful in tests and debug UI.
      */
     fun getCounters(stage: PluginStage): StageCounters {
         return synchronized(this) {
+            val buffer = durationBuffers[stage]
+            val samples = buffer?.getSamples() ?: emptyList()
+            val (p50, p95) = if (samples.isNotEmpty()) {
+                val sorted = samples.sorted()
+                Pair(percentile(sorted, 50), percentile(sorted, 95))
+            } else {
+                Pair(null, null)
+            }
+
             StageCounters(
                 successCount = successCounters[stage]!!.get(),
                 failureCount = failureCounters[stage]!!.get(),
+                p50LatencyMs = p50,
+                p95LatencyMs = p95,
             )
         }
     }
