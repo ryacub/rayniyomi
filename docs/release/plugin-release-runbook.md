@@ -192,5 +192,19 @@ scripts/verify-plugin-compatibility.sh \
 - Unknown `release_channel` values are blocked during release gating.
 - `target_host_version <= 0` is treated as unset.
 - Exact API matching is required (`plugin_api_version == expected`).
+- Channel compatibility:
+  - stable host accepts stable plugin only.
+  - beta host accepts stable and beta plugins.
 
-See `docs/release/plugin-compatibility-policy.md` for full policy and rollout order.
+### API bump rollout order
+
+1. Release host support and update expected plugin API in host.
+2. Update plugin manifest/APK to the new API.
+3. Run compatibility matrix + script gates.
+4. Promote plugin release only after all checks pass.
+
+### Rollback
+
+1. Stop promotion by failing the compatibility gate.
+2. Revert manifest range/API changes or release a corrected plugin manifest.
+3. Re-run gates before re-publishing.

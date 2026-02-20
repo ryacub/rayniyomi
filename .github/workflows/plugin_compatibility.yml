@@ -9,7 +9,6 @@ on:
       - 'lightnovel-plugin/**'
       - '.github/workflows/plugin_release.yml'
       - 'scripts/verify-plugin-compatibility.sh'
-      - 'docs/release/plugin-compatibility-policy.md'
       - 'docs/release/plugin-release-runbook.md'
   workflow_dispatch:
 
