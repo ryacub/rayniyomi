@@ -84,10 +84,10 @@ fi
 
 ERRORS=()
 
-require_number() {
+require_integer() {
   local key="$1"
-  if ! jq -e ".${key} | type == \"number\"" "$MANIFEST" >/dev/null; then
-    ERRORS+=("$key must be a number")
+  if ! jq -e ".${key} | type == \"number\" and floor == ." "$MANIFEST" >/dev/null; then
+    ERRORS+=("$key must be an integer")
   fi
 }
 
@@ -99,16 +99,16 @@ require_string() {
 }
 
 require_string package_name
-require_number version_code
-require_number plugin_api_version
-require_number min_host_version
+require_integer version_code
+require_integer plugin_api_version
+require_integer min_host_version
 require_string apk_url
 require_string apk_sha256
-require_number min_plugin_version_code
+require_integer min_plugin_version_code
 require_string release_channel
 
-if ! jq -e '.target_host_version == null or (.target_host_version | type == "number")' "$MANIFEST" >/dev/null; then
-  ERRORS+=("target_host_version must be null or number")
+if ! jq -e '.target_host_version == null or (.target_host_version | type == "number" and floor == .)' "$MANIFEST" >/dev/null; then
+  ERRORS+=("target_host_version must be null or integer")
 fi
 
 PLUGIN_API_VERSION=$(jq -r '.plugin_api_version' "$MANIFEST")
@@ -117,6 +117,7 @@ MIN_HOST_VERSION=$(jq -r '.min_host_version' "$MANIFEST")
 TARGET_HOST_VERSION=$(jq -r '.target_host_version // empty' "$MANIFEST")
 PLUGIN_CHANNEL=$(jq -r '.release_channel' "$MANIFEST")
 MIN_PLUGIN_VERSION=$(jq -r '.min_plugin_version_code' "$MANIFEST")
+NORMALIZED_TARGET_HOST_VERSION="null"
 
 if [[ "$PACKAGE_NAME" != "$EXPECTED_PACKAGE" ]]; then
   ERRORS+=("package_name mismatch: expected $EXPECTED_PACKAGE got $PACKAGE_NAME")
@@ -132,8 +133,11 @@ fi
 
 if [[ -n "$TARGET_HOST_VERSION" && "$TARGET_HOST_VERSION" != "null" ]]; then
   # target_host_version <= 0 is treated as unset to mirror runtime semantics.
-  if (( TARGET_HOST_VERSION > 0 )) && (( HOST_VERSION > TARGET_HOST_VERSION )); then
-    ERRORS+=("host version too new: host=$HOST_VERSION target_host_version=$TARGET_HOST_VERSION")
+  if (( TARGET_HOST_VERSION > 0 )); then
+    NORMALIZED_TARGET_HOST_VERSION="$TARGET_HOST_VERSION"
+    if (( HOST_VERSION > TARGET_HOST_VERSION )); then
+      ERRORS+=("host version too new: host=$HOST_VERSION target_host_version=$TARGET_HOST_VERSION")
+    fi
   fi
 fi
 
@@ -150,6 +154,7 @@ if [[ "$HOST_CHANNEL" == "stable" && "$PLUGIN_CHANNEL" == "beta" ]]; then
 fi
 
 if (( ${#ERRORS[@]} > 0 )); then
+  ERRORS_JSON=$(printf '%s\n' "${ERRORS[@]}" | jq -R . | jq -s .)
   for error in "${ERRORS[@]}"; do
     echo "FAIL: $error" >&2
   done
@@ -162,9 +167,9 @@ if (( ${#ERRORS[@]} > 0 )); then
     --argjson pluginApi "$PLUGIN_API_VERSION" \
     --arg pluginChannel "$PLUGIN_CHANNEL" \
     --argjson minHostVersion "$MIN_HOST_VERSION" \
-    --argjson targetHostVersion "${TARGET_HOST_VERSION:-0}" \
+    --argjson targetHostVersion "$NORMALIZED_TARGET_HOST_VERSION" \
     --argjson minPluginVersion "$MIN_PLUGIN_VERSION" \
-    --argjson errors "$(printf '%s\n' "${ERRORS[@]}" | jq -R . | jq -s .)" \
+    --argjson errors "$ERRORS_JSON" \
     '{
       status: $status,
       manifest: $manifest,
@@ -190,7 +195,7 @@ jq -n \
   --argjson pluginApi "$PLUGIN_API_VERSION" \
   --arg pluginChannel "$PLUGIN_CHANNEL" \
   --argjson minHostVersion "$MIN_HOST_VERSION" \
-  --argjson targetHostVersion "${TARGET_HOST_VERSION:-0}" \
+  --argjson targetHostVersion "$NORMALIZED_TARGET_HOST_VERSION" \
   --argjson minPluginVersion "$MIN_PLUGIN_VERSION" \
   '{
     status: $status,

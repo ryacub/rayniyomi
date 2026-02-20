@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.feature.novel
 
-internal const val LIGHT_NOVEL_EXPECTED_PLUGIN_API_VERSION = 1
-
 internal enum class LightNovelPluginCompatibilityResult {
     COMPATIBLE,
     API_MISMATCH,
