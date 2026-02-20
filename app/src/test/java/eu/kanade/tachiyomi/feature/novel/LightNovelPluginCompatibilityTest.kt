@@ -71,6 +71,32 @@ class LightNovelPluginCompatibilityTest {
     }
 
     @Test
+    fun `treats target host version 0 as unbounded`() {
+        val result = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = 1,
+            minHostVersion = 100,
+            targetHostVersion = 0,
+            hostVersionCode = 999,
+            expectedPluginApiVersion = 1,
+        )
+
+        assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
+
+    @Test
+    fun `treats negative target host version as unbounded`() {
+        val result = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = 1,
+            minHostVersion = 100,
+            targetHostVersion = -1,
+            hostVersionCode = 999,
+            expectedPluginApiVersion = 1,
+        )
+
+        assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
+
+    @Test
     fun `returns compatible when host equals minimum host version`() {
         val result = evaluateLightNovelPluginCompatibility(
             pluginApiVersion = 1,

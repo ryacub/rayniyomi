@@ -186,9 +186,9 @@ class LightNovelPluginManager(
             val manifestCompatibility = evaluateLightNovelPluginCompatibility(
                 pluginApiVersion = manifest.pluginApiVersion,
                 minHostVersion = manifest.minHostVersion,
-                targetHostVersion = manifest.targetHostVersion,
+                targetHostVersion = normalizeTargetHostVersion(manifest.targetHostVersion),
                 hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
-                expectedPluginApiVersion = EXPECTED_PLUGIN_API_VERSION,
+                expectedPluginApiVersion = BuildConfig.LIGHT_NOVEL_PLUGIN_API_VERSION,
             )
             if (manifestCompatibility != LightNovelPluginCompatibilityResult.COMPATIBLE) {
                 telemetry.recordEvent(
@@ -392,13 +392,13 @@ class LightNovelPluginManager(
         val pluginApiVersion = metaData.getInt(META_PLUGIN_API_VERSION, -1)
         val minHostVersion = metaData.getLong(META_MIN_HOST_VERSION, Long.MAX_VALUE)
         val targetHostVersion = metaData.getLong(META_TARGET_HOST_VERSION, 0L)
-            .takeIf { it > 0L }
+            .let(::normalizeTargetHostVersion)
         val compatibility = evaluateLightNovelPluginCompatibility(
             pluginApiVersion = pluginApiVersion,
             minHostVersion = minHostVersion,
             targetHostVersion = targetHostVersion,
             hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
-            expectedPluginApiVersion = EXPECTED_PLUGIN_API_VERSION,
+            expectedPluginApiVersion = BuildConfig.LIGHT_NOVEL_PLUGIN_API_VERSION,
         )
 
         return compatibility == LightNovelPluginCompatibilityResult.COMPATIBLE
@@ -472,7 +472,6 @@ class LightNovelPluginManager(
         private const val META_MIN_HOST_VERSION = "rayniyomi.plugin.min_host_version"
         private const val META_TARGET_HOST_VERSION = "rayniyomi.plugin.target_host_version"
 
-        private const val EXPECTED_PLUGIN_API_VERSION = 1
         private const val ENABLE_PLUGIN_INSTALL_FOR_RELEASE = false
 
         private const val STABLE_MANIFEST_URL =

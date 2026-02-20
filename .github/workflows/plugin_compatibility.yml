@@ -1,0 +1,126 @@
+name: Plugin Compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'app/src/main/java/eu/kanade/tachiyomi/feature/novel/**'
+      - 'app/src/test/java/eu/kanade/tachiyomi/feature/novel/**'
+      - 'app/src/test/resources/novel/plugin_compatibility_matrix.json'
+      - 'lightnovel-plugin/**'
+      - '.github/workflows/plugin_release.yml'
+      - 'scripts/verify-plugin-compatibility.sh'
+      - 'docs/release/plugin-compatibility-policy.md'
+      - 'docs/release/plugin-release-runbook.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix-tests:
+    name: Compatibility Matrix Tests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Run compatibility tests
+        run: |
+          ./gradlew :app:testReleaseUnitTest --tests "*LightNovelPluginCompatibilityTest*"
+          ./gradlew :app:testReleaseUnitTest --tests "*LightNovelUpdatePolicyTest*"
+          ./gradlew :app:testReleaseUnitTest --tests "*PluginCompatibilityMatrixTest*"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plugin-compatibility-test-results-${{ github.sha }}
+          path: app/build/test-results
+
+  script-validation:
+    name: Compatibility Script Validation
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Build host compatibility snapshot
+        run: ./gradlew -q :app:printLightNovelCompatibilitySnapshot > compatibility_snapshot.json
+
+      - name: Create sample manifests
+        run: |
+          jq -n \
+            --arg package_name "xyz.rayniyomi.plugin.lightnovel" \
+            --argjson version_code 100 \
+            --argjson plugin_api_version 1 \
+            --argjson min_host_version 1 \
+            --arg apk_url "https://example.invalid/plugin.apk" \
+            --arg apk_sha256 "deadbeef" \
+            --argjson min_plugin_version_code 0 \
+            --arg release_channel "stable" \
+            '{
+              package_name: $package_name,
+              version_code: $version_code,
+              plugin_api_version: $plugin_api_version,
+              min_host_version: $min_host_version,
+              target_host_version: null,
+              apk_url: $apk_url,
+              apk_sha256: $apk_sha256,
+              min_plugin_version_code: $min_plugin_version_code,
+              release_channel: $release_channel
+            }' > manifest-pass.json
+
+          jq '.release_channel = "nightly"' manifest-pass.json > manifest-fail-unknown-channel.json
+
+      - name: Validate passing manifest
+        run: |
+          HOST_VERSION=$(jq -r '.hostVersionCode' compatibility_snapshot.json)
+          EXPECTED_API=$(jq -r '.expectedPluginApiVersion' compatibility_snapshot.json)
+          scripts/verify-plugin-compatibility.sh \
+            --manifest manifest-pass.json \
+            --host-version "$HOST_VERSION" \
+            --host-channel stable \
+            --expected-api "$EXPECTED_API" > compatibility-pass.json
+
+      - name: Validate failing manifest
+        run: |
+          HOST_VERSION=$(jq -r '.hostVersionCode' compatibility_snapshot.json)
+          EXPECTED_API=$(jq -r '.expectedPluginApiVersion' compatibility_snapshot.json)
+          if scripts/verify-plugin-compatibility.sh \
+            --manifest manifest-fail-unknown-channel.json \
+            --host-version "$HOST_VERSION" \
+            --host-channel stable \
+            --expected-api "$EXPECTED_API" > compatibility-fail.json; then
+            echo "Expected unknown channel manifest to fail compatibility verification"
+            exit 1
+          fi
+
+      - name: Upload compatibility artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plugin-compatibility-artifacts-${{ github.sha }}
+          path: |
+            compatibility_snapshot.json
+            manifest-pass.json
+            manifest-fail-unknown-channel.json
+            compatibility-pass.json
+            compatibility-fail.json

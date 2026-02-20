@@ -167,3 +167,30 @@ aapt2 dump packagename lightnovel-plugin-plugin-v0.2.0.apk
 
 **Note:** Key rotation means users must update their plugin. The old plugin will fail
 signature verification against the new pinned cert.
+
+## Compatibility Gate (R236-O)
+
+Before publishing a plugin release, compatibility must pass in addition to integrity checks.
+
+### Inputs
+
+- Generated plugin manifest (`lightnovel-plugin-manifest.json`)
+- Host compatibility snapshot (`./gradlew -q :app:printLightNovelCompatibilitySnapshot`)
+
+### Gate command
+
+```bash
+scripts/verify-plugin-compatibility.sh \
+  --manifest lightnovel-plugin-manifest.json \
+  --host-version <hostVersionCode> \
+  --host-channel stable \
+  --expected-api <expectedPluginApiVersion>
+```
+
+### Notes
+
+- Unknown `release_channel` values are blocked during release gating.
+- `target_host_version <= 0` is treated as unset.
+- Exact API matching is required (`plugin_api_version == expected`).
+
+See `docs/release/plugin-compatibility-policy.md` for full policy and rollout order.

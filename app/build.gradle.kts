@@ -15,19 +15,23 @@ plugins {
 
 shortcutHelper.setFilePath("./shortcuts.xml")
 
+val appVersionCode = 131
+val lightNovelExpectedPluginApiVersion = 1
+
 android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
         applicationId = "xyz.rayniyomi"
 
-        versionCode = 131
+        versionCode = appVersionCode
         versionName = "0.18.1.2"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
+        buildConfigField("int", "LIGHT_NOVEL_PLUGIN_API_VERSION", lightNovelExpectedPluginApiVersion.toString())
 
         // R37/R38: Firebase Analytics and ACRA crash reporting are explicitly disabled
         // to prevent fork data from polluting upstream services.
@@ -337,6 +341,22 @@ androidComponents {
         // Only excluding in standard flavor because this breaks
         // Layout Inspector's Compose tree
         it.packaging.resources.excludes.add("META-INF/*.version")
+    }
+}
+
+tasks.register("printLightNovelCompatibilitySnapshot") {
+    group = "verification"
+    description = "Prints compatibility snapshot consumed by plugin compatibility CI gates."
+    doLast {
+        println(
+            """
+            {
+              "hostVersionCode": $appVersionCode,
+              "expectedPluginApiVersion": $lightNovelExpectedPluginApiVersion,
+              "defaultHostChannel": "stable"
+            }
+            """.trimIndent(),
+        )
     }
 }
 
