@@ -26,18 +26,8 @@ class PluginPerformanceBudgetsTest {
     }
 
     @Test
-    fun `MEMORY_OVERHEAD budget is 15MB`() {
-        assertEquals(15L, PluginPerformanceBudgets.MEMORY_OVERHEAD_MB)
-    }
-
-    @Test
     fun `EPUB_IMPORT budget is 10000ms`() {
         assertEquals(10_000L, PluginPerformanceBudgets.EPUB_IMPORT_MS)
-    }
-
-    @Test
-    fun `BACKGROUND_WAKEUPS budget is 2 per hour`() {
-        assertEquals(2, PluginPerformanceBudgets.BACKGROUND_WAKEUPS_PER_HOUR)
     }
 
     @Test
@@ -46,8 +36,6 @@ class PluginPerformanceBudgetsTest {
         assert(PluginPerformanceBudgets.MANIFEST_FETCH_MS > 0)
         assert(PluginPerformanceBudgets.PLUGIN_INSTALL_MS > 0)
         assert(PluginPerformanceBudgets.FEATURE_GATE_CHECK_MS > 0)
-        assert(PluginPerformanceBudgets.MEMORY_OVERHEAD_MB > 0)
         assert(PluginPerformanceBudgets.EPUB_IMPORT_MS > 0)
-        assert(PluginPerformanceBudgets.BACKGROUND_WAKEUPS_PER_HOUR > 0)
     }
 }

@@ -75,27 +75,6 @@ The light novel plugin operates as a separate process and communicates with the 
 
 ---
 
-### Memory Overhead
-
-**Budget:** 15 MB
-
-**Scope:** Additional memory footprint when plugin is loaded.
-
-**Rationale:** Plugin process and IPC infrastructure should remain lightweight. A 15MB budget prevents memory pressure on low-end devices.
-
-**Measurement:** Measure PSS (Proportional Set Size) delta before and after plugin load.
-
-**What counts:**
-- Plugin process memory
-- IPC binder buffers
-- Shared memory regions
-
-**Measurement tools:**
-- `adb shell dumpsys meminfo <package>`
-- Android Profiler (Memory view)
-
----
-
 ### EPUB Import
 
 **Budget:** 10,000 ms (10 seconds)
@@ -107,31 +86,6 @@ The light novel plugin operates as a separate process and communicates with the 
 **Measurement:** Measure from content provider `openFile()` to successful metadata extraction.
 
 **Note:** Larger EPUB files (>10MB) may legitimately exceed this budget. Track p95 latency to identify outliers rather than individual violations.
-
----
-
-### Background Wakeups
-
-**Budget:** 2 per hour
-
-**Scope:** Maximum number of background wake events caused by the plugin.
-
-**Rationale:** Background wakeups prevent the device from entering deep sleep states, draining battery. A 2/hour budget limits idle power impact.
-
-**Measurement:** Monitor `AlarmManager` and `JobScheduler` events attributed to the plugin.
-
-**What counts:**
-- Scheduled background tasks
-- Push notification processing
-- Sync operations
-
-**What doesn't count:**
-- User-initiated operations (opening app, clicking notification)
-- Foreground service work
-
-**Measurement tools:**
-- `adb shell dumpsys batterystats --history`
-- Battery Historian
 
 ---
 
@@ -165,18 +119,6 @@ When a budget violation occurs, `PluginPerformanceTracker` logs at WARN level:
 
 ```
 PLUGIN_PERF_VIOLATION category=STARTUP budgetMs=150 actualP95Ms=200 sampleCount=100
-```
-
-### Monitoring in Production
-
-**Debug builds:** All performance tracking is enabled by default.
-
-**Release builds:** Performance tracking is gated behind `BuildConfig.DEBUG || ENABLE_PERF_TRACKING_IN_RELEASE`.
-
-To enable in release builds for beta testing:
-
-```kotlin
-private const val ENABLE_PERF_TRACKING_IN_RELEASE = true
 ```
 
 ---

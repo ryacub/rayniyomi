@@ -153,7 +153,7 @@ internal class PluginTelemetry {
     }
 
     // Ring buffers for duration tracking (R236-R)
-    private val durationBuffers = ConcurrentHashMap<PluginStage, DurationRingBuffer>()
+    private val durationBuffers = ConcurrentHashMap<PluginStage, PerformanceRingBuffer>()
 
     /**
      * Record a pipeline event and update in-memory counters.
@@ -177,7 +177,7 @@ internal class PluginTelemetry {
 
         // Record duration if provided (R236-R)
         if (durationMs != null) {
-            val buffer = durationBuffers.computeIfAbsent(stage) { DurationRingBuffer(MAX_DURATION_SAMPLES) }
+            val buffer = durationBuffers.computeIfAbsent(stage) { PerformanceRingBuffer(MAX_DURATION_SAMPLES) }
             buffer.add(durationMs)
         }
 
@@ -257,42 +257,4 @@ internal class PluginTelemetry {
      */
     internal fun formatRate(failureRate: Double): String =
         String.format(Locale.ROOT, "%.2f", failureRate)
-
-    /**
-     * Computes the percentile value from a sorted list of samples.
-     *
-     * Uses nearest-rank method (ceiling): p95 of 100 samples is index 95.
-     *
-     * @param sorted Sorted list of samples (ascending order).
-     * @param percentile Percentile to compute (0-100).
-     * @return The percentile value.
-     */
-    private fun percentile(sorted: List<Long>, percentile: Int): Long {
-        if (sorted.isEmpty()) return 0L
-        // Nearest-rank method: ceiling of (percentile/100 * n)
-        val rank = kotlin.math.ceil(percentile / 100.0 * sorted.size).toInt()
-        val index = (rank - 1).coerceIn(0, sorted.lastIndex)
-        return sorted[index]
-    }
-
-    /**
-     * Ring buffer for storing fixed-size duration sample history.
-     */
-    private class DurationRingBuffer(private val capacity: Int) {
-        private val samples = mutableListOf<Long>()
-        private var position = 0
-
-        @Synchronized
-        fun add(value: Long) {
-            if (samples.size < capacity) {
-                samples.add(value)
-            } else {
-                samples[position] = value
-                position = (position + 1) % capacity
-            }
-        }
-
-        @Synchronized
-        fun getSamples(): List<Long> = samples.toList()
-    }
 }

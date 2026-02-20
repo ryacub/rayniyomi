@@ -90,7 +90,7 @@ internal class PluginPerformanceTracker {
     }
 
     // Ring buffers for each category
-    private val buffers = ConcurrentHashMap<OperationCategory, RingBuffer>()
+    private val buffers = ConcurrentHashMap<OperationCategory, PerformanceRingBuffer>()
 
     /**
      * Records an operation duration for the specified category.
@@ -99,7 +99,7 @@ internal class PluginPerformanceTracker {
      * @param durationMs The operation duration in milliseconds.
      */
     fun recordOperation(category: OperationCategory, durationMs: Long) {
-        val buffer = buffers.computeIfAbsent(category) { RingBuffer(MAX_SAMPLES) }
+        val buffer = buffers.computeIfAbsent(category) { PerformanceRingBuffer(MAX_SAMPLES) }
         buffer.add(durationMs)
     }
 
@@ -162,43 +162,5 @@ internal class PluginPerformanceTracker {
             OperationCategory.FEATURE_GATE_CHECK -> PluginPerformanceBudgets.FEATURE_GATE_CHECK_MS
             OperationCategory.EPUB_IMPORT -> PluginPerformanceBudgets.EPUB_IMPORT_MS
         }
-    }
-
-    /**
-     * Computes the percentile value from a sorted list of samples.
-     *
-     * Uses nearest-rank method (ceiling): p95 of 100 samples is index 95.
-     *
-     * @param sorted Sorted list of samples (ascending order).
-     * @param percentile Percentile to compute (0-100).
-     * @return The percentile value.
-     */
-    private fun percentile(sorted: List<Long>, percentile: Int): Long {
-        if (sorted.isEmpty()) return 0L
-        // Nearest-rank method: ceiling of (percentile/100 * n)
-        val rank = kotlin.math.ceil(percentile / 100.0 * sorted.size).toInt()
-        val index = (rank - 1).coerceIn(0, sorted.lastIndex)
-        return sorted[index]
-    }
-
-    /**
-     * Ring buffer for storing fixed-size sample history.
-     */
-    private class RingBuffer(private val capacity: Int) {
-        private val samples = mutableListOf<Long>()
-        private var position = 0
-
-        @Synchronized
-        fun add(value: Long) {
-            if (samples.size < capacity) {
-                samples.add(value)
-            } else {
-                samples[position] = value
-                position = (position + 1) % capacity
-            }
-        }
-
-        @Synchronized
-        fun getSamples(): List<Long> = samples.toList()
     }
 }
