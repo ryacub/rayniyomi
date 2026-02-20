@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -34,7 +35,9 @@ class LightNovelPluginManager(
     private val context: Context,
     private val network: NetworkHelper,
     private val json: Json,
+    private val preferences: NovelFeaturePreferences,
 ) : LightNovelPluginReadiness {
+    private val telemetry = PluginTelemetry()
     private val installMutex = Mutex()
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val inFlightInstallMutex = Mutex()
@@ -63,10 +66,13 @@ class LightNovelPluginManager(
         MANIFEST_API_MISMATCH,
         MANIFEST_HOST_TOO_OLD,
         MANIFEST_HOST_TOO_NEW,
+        MANIFEST_PLUGIN_TOO_OLD,
+        MANIFEST_WRONG_CHANNEL,
         DOWNLOAD_FAILED,
         INVALID_PLUGIN_APK,
         ARCHIVE_PACKAGE_MISMATCH,
         INSTALL_LAUNCH_FAILED,
+        ROLLBACK_NOT_AVAILABLE,
     }
 
     override fun isPluginReady(): Boolean {
@@ -111,6 +117,30 @@ class LightNovelPluginManager(
         return installDeferred.await()
     }
 
+    /**
+     * Stub: rollback infrastructure not yet implemented.
+     *
+     * TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
+     * endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
+     * For now, surface a clear "not available" error rather than silently doing the wrong thing.
+     */
+    suspend fun rollbackToLastGood(): InstallResult {
+        // TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
+        // endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
+        // For now, surface a clear "not available" error rather than silently doing the wrong thing.
+        return InstallResult.Error(InstallErrorCode.ROLLBACK_NOT_AVAILABLE)
+    }
+
+    /**
+     * Records [versionCode] as the last-known-good plugin version.
+     *
+     * Call this after a plugin has been verified and loaded successfully.
+     */
+    fun pinLastKnownGoodVersion(versionCode: Long) {
+        preferences.lastKnownGoodPluginVersionCode().set(versionCode)
+        logcat { "pinLastKnownGoodVersion: pinned $versionCode" }
+    }
+
     private suspend fun ensurePluginReadyInternal(channel: String): InstallResult {
         if (!isPluginInstallEnabled()) {
             return InstallResult.Error(InstallErrorCode.INSTALL_DISABLED)
@@ -119,13 +149,40 @@ class LightNovelPluginManager(
         return installMutex.withLock {
             if (isPluginReady()) return@withLock InstallResult.AlreadyReady
 
+            // --- FETCH stage ---
             val manifest = fetchManifest(channel).getOrElse {
+                telemetry.recordEvent(
+                    stage = PluginStage.FETCH,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.NETWORK_TIMEOUT,
+                        isFatal = false,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_FETCH_FAILED)
             }
             if (manifest.packageName != PLUGIN_PACKAGE_NAME) {
+                telemetry.recordEvent(
+                    stage = PluginStage.FETCH,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.CORRUPT_MANIFEST,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.MANIFEST_PACKAGE_MISMATCH)
             }
+            // Manifest fetched successfully — record FETCH success before VERIFY.
+            telemetry.recordEvent(
+                stage = PluginStage.FETCH,
+                result = PluginResult.Success,
+                channel = channel,
+                enabled = ::isPluginInstallEnabled,
+            )
 
+            // --- VERIFY stage ---
             val manifestCompatibility = evaluateLightNovelPluginCompatibility(
                 pluginApiVersion = manifest.pluginApiVersion,
                 minHostVersion = manifest.minHostVersion,
@@ -134,12 +191,54 @@ class LightNovelPluginManager(
                 expectedPluginApiVersion = EXPECTED_PLUGIN_API_VERSION,
             )
             if (manifestCompatibility != LightNovelPluginCompatibilityResult.COMPATIBLE) {
+                telemetry.recordEvent(
+                    stage = PluginStage.VERIFY,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.VERSION_INCOMPATIBLE,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(
                     manifestCompatibility.toInstallErrorCode(),
                 )
             }
+            telemetry.recordEvent(
+                stage = PluginStage.VERIFY,
+                result = PluginResult.Success,
+                channel = channel,
+                enabled = ::isPluginInstallEnabled,
+            )
 
+            // R236-J: enforce version and channel policy from the manifest.
+            val hostChannel = preferences.releaseChannel().get()
+            val policyEvaluator = PluginUpdatePolicyEvaluator(
+                hostChannel = hostChannel,
+                minPluginVersionCode = manifest.minPluginVersionCode,
+            )
+            val pluginChannel = ReleaseChannel.fromString(manifest.releaseChannel)
+            val policyResult = policyEvaluator.evaluate(
+                pluginVersionCode = manifest.versionCode,
+                pluginChannel = pluginChannel,
+            )
+            if (!policyResult.isAllowed) {
+                return@withLock InstallResult.Error(
+                    policyResult.blockReason!!.toInstallErrorCode(),
+                )
+            }
+
+            // --- INSTALL stage ---
             val apkFile = downloadPlugin(manifest).getOrElse {
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.NETWORK_TIMEOUT,
+                        isFatal = false,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.DOWNLOAD_FAILED)
             }
 
@@ -147,10 +246,30 @@ class LightNovelPluginManager(
                 apkFile.absolutePath,
                 ARCHIVE_PACKAGE_FLAGS,
             )
-                ?: return@withLock InstallResult.Error(InstallErrorCode.INVALID_PLUGIN_APK)
+                ?: run {
+                    telemetry.recordEvent(
+                        stage = PluginStage.INSTALL,
+                        result = PluginResult.Failure(
+                            reason = PluginFailureReason.CORRUPT_APK,
+                            isFatal = true,
+                        ),
+                        channel = channel,
+                        enabled = ::isPluginInstallEnabled,
+                    )
+                    return@withLock InstallResult.Error(InstallErrorCode.INVALID_PLUGIN_APK)
+                }
 
             if (archivePackage.packageName != PLUGIN_PACKAGE_NAME) {
                 apkFile.delete()
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.SIGNATURE_MISMATCH,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 return@withLock InstallResult.Error(InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH)
             }
 
@@ -158,10 +277,25 @@ class LightNovelPluginManager(
                 launchInstall(apkFile)
                 // Best-effort cleanup. Package installer may already have opened the stream.
                 apkFile.delete()
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Success,
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 InstallResult.InstallLaunched
             } catch (e: Throwable) {
                 logcat(LogPriority.ERROR, e) { "Failed to launch plugin install" }
                 apkFile.delete()
+                telemetry.recordEvent(
+                    stage = PluginStage.INSTALL,
+                    result = PluginResult.Failure(
+                        reason = PluginFailureReason.UNKNOWN,
+                        isFatal = true,
+                    ),
+                    channel = channel,
+                    enabled = ::isPluginInstallEnabled,
+                )
                 InstallResult.Error(InstallErrorCode.INSTALL_LAUNCH_FAILED)
             }
         }
@@ -187,6 +321,10 @@ class LightNovelPluginManager(
 
     private fun verifyPinnedSignature(packageInfo: PackageInfo): Boolean {
         val signatures = getSignatures(packageInfo)
+        if (signatures.any { it in TRUSTED_PLUGIN_CERT_DENYLIST }) {
+            logcat(LogPriority.WARN) { "Plugin signature is denylisted" }
+            return false
+        }
         return signatures.any { it in TRUSTED_PLUGIN_CERT_SHA256 }
     }
 
@@ -271,7 +409,16 @@ class LightNovelPluginManager(
             LightNovelPluginCompatibilityResult.API_MISMATCH -> InstallErrorCode.MANIFEST_API_MISMATCH
             LightNovelPluginCompatibilityResult.HOST_TOO_OLD -> InstallErrorCode.MANIFEST_HOST_TOO_OLD
             LightNovelPluginCompatibilityResult.HOST_TOO_NEW -> InstallErrorCode.MANIFEST_HOST_TOO_NEW
-            else -> error("unreachable")
+            LightNovelPluginCompatibilityResult.COMPATIBLE -> error(
+                "unreachable: COMPATIBLE result should never reach toInstallErrorCode()",
+            )
+        }
+    }
+
+    private fun PolicyBlockReason.toInstallErrorCode(): InstallErrorCode {
+        return when (this) {
+            PolicyBlockReason.PLUGIN_TOO_OLD -> InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD
+            PolicyBlockReason.WRONG_CHANNEL -> InstallErrorCode.MANIFEST_WRONG_CHANNEL
         }
     }
 
@@ -311,7 +458,7 @@ class LightNovelPluginManager(
             ?.delete()
     }
 
-    private fun isPluginInstallEnabled(): Boolean {
+    internal fun isPluginInstallEnabled(): Boolean {
         return BuildConfig.DEBUG || ENABLE_PLUGIN_INSTALL_FOR_RELEASE
     }
 
@@ -333,13 +480,18 @@ class LightNovelPluginManager(
         private const val BETA_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
 
-        // TODO(R236-B): Replace with real SHA-256 certificate fingerprints before enabling in release.
+        // TODO(R236-P): Replace with real SHA-256 certificate fingerprints after the first signed
+        // plugin release. Run the plugin_release.yml workflow, then extract the signing cert
+        // fingerprint with:
+        //   apksigner verify --print-certs lightnovel-plugin-<tag>.apk | grep SHA-256
         // These placeholder values keep the gate fail-closed; plugin installs are blocked in release
         // builds by ENABLE_PLUGIN_INSTALL_FOR_RELEASE = false until real certs are pinned.
         private val TRUSTED_PLUGIN_CERT_SHA256 = setOf(
             "7b7f000000000000000000000000000000000000000000000000000000000000",
             "8c8f000000000000000000000000000000000000000000000000000000000000",
         )
+
+        private val TRUSTED_PLUGIN_CERT_DENYLIST = setOf<String>()
 
         @Suppress("DEPRECATION")
         private val INSTALLED_PACKAGE_FLAGS = PackageManager.GET_META_DATA or

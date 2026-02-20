@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
+import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupCustomButtons
@@ -26,7 +27,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import java.io.File
@@ -48,6 +51,7 @@ class BackupRestorer(
     private val animeRestorer: AnimeRestorer = AnimeRestorer(),
     private val mangaRestorer: MangaRestorer = MangaRestorer(),
     private val extensionsRestorer: ExtensionsRestorer = ExtensionsRestorer(context),
+    private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
 ) {
 
     private var restoreAmount = 0
@@ -83,7 +87,7 @@ class BackupRestorer(
 
         // Store source mapping for error messages
         val backupAnimeMaps = backup.backupAnimeSources
-        mangaSourceMapping = backupAnimeMaps.associate { it.sourceId to it.name }
+        animeSourceMapping = backupAnimeMaps.associate { it.sourceId to it.name }
         val backupMangaMaps = backup.backupSources
         mangaSourceMapping = backupMangaMaps.associate { it.sourceId to it.name }
 
@@ -106,6 +110,9 @@ class BackupRestorer(
             restoreAmount += 1
         }
         if (options.extensions) {
+            restoreAmount += 1
+        }
+        if (options.lightNovels) {
             restoreAmount += 1
         }
 
@@ -134,6 +141,11 @@ class BackupRestorer(
             }
             if (options.extensions) {
                 restoreExtensions(backup.backupExtensions)
+            }
+
+            if (options.lightNovels) {
+                val lightNovelBackupData = lightNovelBackupDataSource.readBackupData(uri)
+                restoreLightNovels(lightNovelBackupData)
             }
 
             // TODO: optionally trigger online library + tracker update
@@ -297,6 +309,37 @@ class BackupRestorer(
             restoreAmount,
             isSync,
         )
+    }
+
+    private suspend fun restoreLightNovels(lightNovelBackupData: ByteArray?) {
+        try {
+            val shouldAttemptRestore = lightNovelBackupData != null && isPluginInstalled()
+            val success = if (shouldAttemptRestore) {
+                lightNovelBackupDataSource.restoreBackup(lightNovelBackupData)
+            } else {
+                false
+            }
+
+            if (shouldAttemptRestore && !success) {
+                logcat(LogPriority.WARN) { "Light Novel metadata restore failed" }
+            }
+        } catch (e: Exception) {
+            val errorMessage = "Failed to restore Light Novel metadata: ${e.message}"
+            logcat(LogPriority.ERROR, e) { errorMessage }
+            errors.add(Date() to errorMessage)
+        } finally {
+            restoreProgress += 1
+            notifier.showRestoreProgress(
+                context.stringResource(AYMR.strings.light_novel_library),
+                restoreProgress,
+                restoreAmount,
+                isSync,
+            )
+        }
+    }
+
+    private fun isPluginInstalled(): Boolean {
+        return lightNovelBackupDataSource.isPluginInstalled()
     }
 
     private fun writeErrorLog(): File {

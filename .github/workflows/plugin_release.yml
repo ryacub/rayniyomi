@@ -1,0 +1,271 @@
+name: Plugin Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - plugin-v*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build plugin
+    runs-on: ubuntu-latest
+    if: github.repository == 'ryacub/rayniyomi'
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Check code format
+        run: ./gradlew :lightnovel-plugin:spotlessCheck
+
+      - name: Build plugin APK
+        run: ./gradlew :lightnovel-plugin:assembleRelease
+
+      - name: Run plugin unit tests
+        run: ./gradlew :lightnovel-plugin:testReleaseUnitTest
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plugin-unsigned-${{ github.sha }}
+          path: lightnovel-plugin/build/outputs/apk/release/*.apk
+
+  sign:
+    name: Sign plugin APK
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download unsigned APK
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plugin-unsigned-${{ github.sha }}
+          path: plugin-apk/
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
+        with:
+          releaseDirectory: plugin-apk
+          signingKeyBase64: ${{ secrets.PLUGIN_SIGNING_KEY }}
+          alias: ${{ secrets.PLUGIN_ALIAS }}
+          keyStorePassword: ${{ secrets.PLUGIN_KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.PLUGIN_KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: '35.0.1'
+
+      - name: Get tag name
+        run: |
+          set -ex
+          echo "VERSION_TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+
+      - name: Rename signed APK
+        run: |
+          set -ex
+          SIGNED_APK=$(find plugin-apk -name '*-signed.apk' | head -1)
+          if [ -z "$SIGNED_APK" ]; then
+            echo "ERROR: No signed APK found"
+            exit 1
+          fi
+          mv "$SIGNED_APK" "lightnovel-plugin-${{ env.VERSION_TAG }}.apk"
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plugin-signed-${{ github.sha }}
+          path: lightnovel-plugin-${{ env.VERSION_TAG }}.apk
+
+  verify:
+    name: Verify plugin integrity
+    runs-on: ubuntu-latest
+    needs: sign
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Get tag name
+        run: |
+          set -ex
+          echo "VERSION_TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+
+      - name: Download signed APK
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plugin-signed-${{ github.sha }}
+          path: .
+
+      - name: Compute SHA-256 checksum
+        run: |
+          set -ex
+          sha=$(sha256sum "lightnovel-plugin-${{ env.VERSION_TAG }}.apk" | awk '{ print $1 }')
+          echo "APK_SHA256=$sha" >> $GITHUB_ENV
+          echo "SHA-256: $sha"
+
+      - name: Verify APK signature
+        run: |
+          set -ex
+          APKSIGNER="${ANDROID_HOME}/build-tools/35.0.1/apksigner"
+          $APKSIGNER verify --verbose "lightnovel-plugin-${{ env.VERSION_TAG }}.apk"
+
+      - name: Verify package name
+        run: |
+          set -ex
+          AAPT2="${ANDROID_HOME}/build-tools/35.0.1/aapt2"
+          PACKAGE_NAME=$($AAPT2 dump packagename "lightnovel-plugin-${{ env.VERSION_TAG }}.apk")
+          if [ "$PACKAGE_NAME" != "xyz.rayniyomi.plugin.lightnovel" ]; then
+            echo "ERROR: Package name mismatch: expected xyz.rayniyomi.plugin.lightnovel, got $PACKAGE_NAME"
+            exit 1
+          fi
+          echo "Package name verified: $PACKAGE_NAME"
+
+      - name: Extract version info
+        run: |
+          set -ex
+          AAPT2="${ANDROID_HOME}/build-tools/35.0.1/aapt2"
+          BADGING=$($AAPT2 dump badging "lightnovel-plugin-${{ env.VERSION_TAG }}.apk")
+          VERSION_CODE=$(echo "$BADGING" | grep -oP "versionCode='\\K[0-9]+")
+          VERSION_NAME=$(echo "$BADGING" | grep -oP "versionName='\\K[^']+")
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "Version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: Upload verification results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plugin-verification-${{ github.sha }}
+          path: lightnovel-plugin-${{ env.VERSION_TAG }}.apk
+
+  publish:
+    name: Publish plugin release
+    runs-on: ubuntu-latest
+    needs: verify
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Get tag name
+        run: |
+          set -ex
+          echo "VERSION_TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+
+      - name: Download signed APK
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plugin-signed-${{ github.sha }}
+          path: .
+
+      - name: Compute checksums
+        run: |
+          set -ex
+          sha=$(sha256sum "lightnovel-plugin-${{ env.VERSION_TAG }}.apk" | awk '{ print $1 }')
+          echo "APK_SHA256=$sha" >> $GITHUB_ENV
+
+      - name: Extract version info
+        run: |
+          set -ex
+          AAPT2="${ANDROID_HOME}/build-tools/35.0.1/aapt2"
+          BADGING=$($AAPT2 dump badging "lightnovel-plugin-${{ env.VERSION_TAG }}.apk")
+          VERSION_CODE=$(echo "$BADGING" | grep -oP "versionCode='\\K[0-9]+")
+          VERSION_NAME=$(echo "$BADGING" | grep -oP "versionName='\\K[^']+")
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+
+      - name: Generate manifest
+        run: |
+          set -ex
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ env.VERSION_TAG }}"
+
+          # Generate manifest using jq for safe JSON construction (prevents injection)
+          jq -n \
+            --arg package_name "xyz.rayniyomi.plugin.lightnovel" \
+            --argjson version_code "${{ env.VERSION_CODE }}" \
+            --arg version_name "${{ env.VERSION_NAME }}" \
+            --argjson plugin_api_version 1 \
+            --argjson min_host_version 1 \
+            --argjson min_plugin_version_code 0 \
+            --arg apk_url "${RELEASE_URL}/lightnovel-plugin-${{ env.VERSION_TAG }}.apk" \
+            --arg apk_sha256 "${{ env.APK_SHA256 }}" \
+            --arg release_channel "stable" \
+            '{
+              package_name: $package_name,
+              version_code: $version_code,
+              version_name: $version_name,
+              plugin_api_version: $plugin_api_version,
+              min_host_version: $min_host_version,
+              target_host_version: null,
+              apk_url: $apk_url,
+              apk_sha256: $apk_sha256,
+              min_plugin_version_code: $min_plugin_version_code,
+              release_channel: $release_channel
+            }' > lightnovel-plugin-manifest.json
+
+          # Validate manifest is valid JSON
+          jq . lightnovel-plugin-manifest.json > /dev/null
+
+      - name: Generate checksum file
+        run: |
+          set -ex
+          sha256sum "lightnovel-plugin-${{ env.VERSION_TAG }}.apk" > SHA256SUMS.txt
+          sha256sum lightnovel-plugin-manifest.json >> SHA256SUMS.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          tag_name: ${{ env.VERSION_TAG }}
+          name: Light Novel Plugin ${{ env.VERSION_TAG }}
+          body: |
+            ### Light Novel Plugin Release
+
+            **Version:** ${{ env.VERSION_NAME }} (code ${{ env.VERSION_CODE }})
+            **Package:** `xyz.rayniyomi.plugin.lightnovel`
+
+            ---
+
+            ### Checksums
+
+            | File | SHA-256 |
+            | ---- | ------- |
+            | APK | `${{ env.APK_SHA256 }}` |
+
+            ---
+
+            ### Verification
+
+            ```bash
+            # Download and verify
+            scripts/verify-plugin-release.sh ${{ env.VERSION_TAG }}
+            ```
+          files: |
+            lightnovel-plugin-${{ env.VERSION_TAG }}.apk
+            lightnovel-plugin-manifest.json
+            SHA256SUMS.txt
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

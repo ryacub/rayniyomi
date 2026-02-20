@@ -18,6 +18,7 @@ data class BackupOptions(
     val sourceSettings: Boolean = true,
     val privateSettings: Boolean = false,
     val extensions: Boolean = false,
+    val lightNovels: Boolean = true,
 ) {
 
     fun asBooleanArray() = booleanArrayOf(
@@ -33,6 +34,7 @@ data class BackupOptions(
         sourceSettings,
         privateSettings,
         extensions,
+        lightNovels,
     )
 
     fun canCreate() = libraryEntries ||
@@ -40,7 +42,8 @@ data class BackupOptions(
         appSettings ||
         extensionRepoSettings ||
         customButton ||
-        sourceSettings
+        sourceSettings ||
+        lightNovels
 
     companion object {
         val libraryOptions = persistentListOf(
@@ -77,6 +80,11 @@ data class BackupOptions(
                 getter = BackupOptions::readEntries,
                 setter = { options, enabled -> options.copy(readEntries = enabled) },
                 enabled = { it.libraryEntries },
+            ),
+            Entry(
+                label = AYMR.strings.light_novel_library,
+                getter = BackupOptions::lightNovels,
+                setter = { options, enabled -> options.copy(lightNovels = enabled) },
             ),
         )
 
@@ -129,7 +137,8 @@ data class BackupOptions(
             customButton = array[8],
             sourceSettings = array[9],
             privateSettings = array[10],
-            extensions = array[11],
+            extensions = array.getOrElse(11) { false },
+            lightNovels = array.getOrElse(12) { true },
         )
     }
 

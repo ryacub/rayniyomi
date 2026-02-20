@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
@@ -23,6 +22,9 @@ import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.download.DownloadsTab
 import eu.kanade.tachiyomi.ui.setting.PlayerSettingsScreen
@@ -60,7 +62,6 @@ data object MoreTab : Tab {
 
     @Composable
     override fun Content() {
-        val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = rememberScreenModel { MoreScreenModel() }
         val downloadQueueState by screenModel.downloadQueueState.collectAsState()
@@ -81,6 +82,9 @@ data object MoreTab : Tab {
             onClickPlayerSettings = { navigator.push(PlayerSettingsScreen(mainSettings = false)) },
             onClickSettings = { navigator.push(SettingsScreen()) },
             onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
+            lightNovelUiState = screenModel.lightNovelUiState.collectAsState().value,
+            onClickLightNovels = { screenModel.launchLightNovels() },
+            onClickInstallPlugin = { screenModel.launchInstallFlow(navigator) },
         )
     }
 }
@@ -89,10 +93,22 @@ private class MoreScreenModel(
     private val downloadManager: MangaDownloadManager = Injekt.get(),
     private val animeDownloadManager: AnimeDownloadManager = Injekt.get(),
     preferences: BasePreferences = Injekt.get(),
+    private val pluginLauncher: LightNovelPluginLauncher = Injekt.get(),
+    private val stateManager: LightNovelPluginStateManager = Injekt.get(),
 ) : ScreenModel {
 
     var downloadedOnly by preferences.downloadedOnly().asState(screenModelScope)
     var incognitoMode by preferences.incognitoMode().asState(screenModelScope)
+
+    val lightNovelUiState: StateFlow<LightNovelPluginUiState> = stateManager.uiState
+
+    fun launchLightNovels() {
+        pluginLauncher.launchLibrary()
+    }
+
+    fun launchInstallFlow(navigator: Navigator) {
+        navigator.push(SettingsScreen())
+    }
 
     private var _downloadQueueState: MutableStateFlow<DownloadQueueState> = MutableStateFlow(
         DownloadQueueState.Stopped,

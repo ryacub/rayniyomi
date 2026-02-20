@@ -13,6 +13,7 @@ data class RestoreOptions(
     val customButtons: Boolean = true,
     val sourceSettings: Boolean = true,
     val extensions: Boolean = false,
+    val lightNovels: Boolean = true,
 ) {
 
     fun asBooleanArray() = booleanArrayOf(
@@ -23,6 +24,7 @@ data class RestoreOptions(
         customButtons,
         sourceSettings,
         extensions,
+        lightNovels,
     )
 
     fun canRestore() = libraryEntries ||
@@ -31,7 +33,8 @@ data class RestoreOptions(
         extensionRepoSettings ||
         customButtons ||
         sourceSettings ||
-        extensions
+        extensions ||
+        lightNovels
 
     companion object {
         val options = persistentListOf(
@@ -70,6 +73,11 @@ data class RestoreOptions(
                 getter = RestoreOptions::extensions,
                 setter = { options, enabled -> options.copy(extensions = enabled) },
             ),
+            Entry(
+                label = AYMR.strings.light_novel_library,
+                getter = RestoreOptions::lightNovels,
+                setter = { options, enabled -> options.copy(lightNovels = enabled) },
+            ),
         )
 
         fun fromBooleanArray(array: BooleanArray) = RestoreOptions(
@@ -79,7 +87,8 @@ data class RestoreOptions(
             extensionRepoSettings = array[3],
             customButtons = array[4],
             sourceSettings = array[5],
-            extensions = array[6],
+            extensions = array.getOrElse(6) { false },
+            lightNovels = array.getOrElse(7) { true },
         )
     }
 
