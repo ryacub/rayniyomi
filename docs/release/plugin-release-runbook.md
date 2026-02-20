@@ -44,9 +44,24 @@ versionName = "0.2.0" // semver
 
 ### 2. Create compliance attestation
 
-Create a release attestation from `docs/release/attestations/template.json` and save it as:
+Create a release attestation and save it as:
 
 `docs/release/attestations/<tag>.json` (example: `docs/release/attestations/plugin-v0.2.0.json`).
+
+Required JSON fields:
+
+```json
+{
+  "release_tag": "plugin-v0.2.0",
+  "reviewed_at_utc": "2026-02-20T00:00:00Z",
+  "reviewer": "release-manager",
+  "distribution_policy_ack": true,
+  "dependency_attribution_ack": true,
+  "takedown_path_verified": true,
+  "content_handling_ack": true,
+  "notes": ""
+}
+```
 
 `## Compliance Gate (R236-Q)` checklist:
 - [ ] Distribution policy acknowledged for this release.
