@@ -15,7 +15,6 @@ import eu.kanade.tachiyomi.ui.security.ChangePinDialog
 import eu.kanade.tachiyomi.ui.security.PinSetupDialog
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.authenticate
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.isAuthenticationSupported
-import java.util.Base64
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.core.common.i18n.stringResource
@@ -25,6 +24,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.Base64
 
 object SettingsSecurityScreen : SearchableSettings {
 
@@ -62,15 +62,29 @@ object SettingsSecurityScreen : SearchableSettings {
                 onDismiss = { showChangePinDialog = false },
                 onVerifyOldPin = { oldPin ->
                     val storedHash = securityPreferences.pinHash().get()
-                    val storedSalt = Base64.getDecoder().decode(securityPreferences.pinSalt().get())
+                    val storedSaltString = securityPreferences.pinSalt().get()
+                    if (storedHash.isEmpty() || storedSaltString.isEmpty()) {
+                        return@ChangePinDialog false
+                    }
+                    val storedSalt = try {
+                        Base64.getDecoder().decode(storedSaltString)
+                    } catch (e: IllegalArgumentException) {
+                        securityPreferences.pinHash().delete()
+                        securityPreferences.pinSalt().delete()
+                        securityPreferences.pinFailedAttempts().delete()
+                        securityPreferences.pinLockoutUntil().delete()
+                        return@ChangePinDialog false
+                    }
                     PinHasher.verify(oldPin, storedHash, storedSalt)
                 },
                 onPinChanged = { newPin ->
                     val salt = PinHasher.generateSalt()
                     val hash = PinHasher.hash(newPin, salt)
-                    securityPreferences.pinHash().set(hash)
-                    securityPreferences.pinSalt().set(Base64.getEncoder().encodeToString(salt))
-                    securityPreferences.pinFailedAttempts().set(0)
+                    runCatching {
+                        securityPreferences.pinHash().set(hash)
+                        securityPreferences.pinSalt().set(Base64.getEncoder().encodeToString(salt))
+                        securityPreferences.pinFailedAttempts().set(0)
+                    }
                     showChangePinDialog = false
                 },
             )
@@ -97,6 +111,12 @@ object SettingsSecurityScreen : SearchableSettings {
                         // Show PIN setup dialog when enabling
                         if (it) {
                             showPinSetupDialog = true
+                        } else {
+                            // Cleanup PIN data when disabling (GDPR + security)
+                            securityPreferences.pinHash().delete()
+                            securityPreferences.pinSalt().delete()
+                            securityPreferences.pinFailedAttempts().delete()
+                            securityPreferences.pinLockoutUntil().delete()
                         }
                         true
                     },
@@ -123,7 +143,8 @@ object SettingsSecurityScreen : SearchableSettings {
                     Preference.PreferenceItem.ListPreference(
                         preference = securityPreferences.primaryAuthMethod(),
                         entries = mapOf(
-                            SecurityPreferences.PrimaryAuthMethod.BIOMETRIC to stringResource(MR.strings.biometric_default),
+                            SecurityPreferences.PrimaryAuthMethod.BIOMETRIC to
+                                stringResource(MR.strings.biometric_default),
                             SecurityPreferences.PrimaryAuthMethod.PIN to stringResource(MR.strings.pin),
                         ).toImmutableMap(),
                         title = stringResource(MR.strings.primary_lock_method),

@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.security
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,18 +24,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tachiyomi.presentation.core.components.material.padding
 
@@ -110,12 +107,13 @@ fun PinEntryScreen(
         // Error message or lockout countdown
         when {
             isLockedOut -> {
+                val lockoutMsg = "Locked out for $lockoutSecondsRemaining seconds"
                 Text(
-                    text = "Locked out for $lockoutSecondsRemaining seconds",
+                    text = lockoutMsg,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics {
-                        contentDescription = "Locked out for $lockoutSecondsRemaining seconds"
+                        contentDescription = lockoutMsg
                     },
                 )
             }
@@ -290,4 +288,52 @@ private fun KeypadRow(
             }
         }
     }
+}
+
+@Preview
+@Composable
+private fun PinEntryScreenPreview() {
+    PinEntryScreen(
+        currentPin = "12",
+        isError = false,
+        errorMessage = null,
+        isLockedOut = false,
+        lockoutSecondsRemaining = 0,
+        hasBiometricFallback = true,
+        onPinChanged = {},
+        onSubmit = {},
+        onBiometricFallback = {},
+    )
+}
+
+@Preview
+@Composable
+private fun PinEntryScreenErrorPreview() {
+    PinEntryScreen(
+        currentPin = "1234",
+        isError = true,
+        errorMessage = "Incorrect PIN",
+        isLockedOut = false,
+        lockoutSecondsRemaining = 0,
+        hasBiometricFallback = true,
+        onPinChanged = {},
+        onSubmit = {},
+        onBiometricFallback = {},
+    )
+}
+
+@Preview
+@Composable
+private fun PinEntryScreenLockedOutPreview() {
+    PinEntryScreen(
+        currentPin = "",
+        isError = false,
+        errorMessage = null,
+        isLockedOut = true,
+        lockoutSecondsRemaining = 30,
+        hasBiometricFallback = false,
+        onPinChanged = {},
+        onSubmit = {},
+        onBiometricFallback = {},
+    )
 }
