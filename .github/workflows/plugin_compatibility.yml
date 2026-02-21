@@ -19,7 +19,6 @@ jobs:
   matrix-tests:
     name: Compatibility Matrix Tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
 
     steps:
       - name: Clone repo
@@ -45,12 +44,10 @@ jobs:
         with:
           name: plugin-compatibility-test-results-${{ github.sha }}
           path: app/build/test-results
-          retention-days: 7
 
   script-validation:
     name: Compatibility Script Validation
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
 
     steps:
       - name: Clone repo
@@ -126,4 +123,3 @@ jobs:
             manifest-fail-unknown-channel.json
             compatibility-pass.json
             compatibility-fail.json
-          retention-days: 7
