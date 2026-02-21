@@ -101,6 +101,13 @@ require_string() {
 require_string package_name
 require_integer version_code
 require_integer plugin_api_version
+
+# Validate version_code is non-negative
+VERSION_CODE=$(jq -r '.version_code' "$MANIFEST")
+if (( VERSION_CODE < 0 )); then
+  ERRORS+=("version_code must be non-negative")
+fi
+
 require_integer min_host_version
 require_string apk_url
 require_string apk_sha256

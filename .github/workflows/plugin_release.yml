@@ -97,6 +97,7 @@ jobs:
     name: Verify plugin integrity
     runs-on: ubuntu-latest
     needs: sign
+    timeout-minutes: 10
 
     steps:
       - name: Clone repo
@@ -218,6 +219,7 @@ jobs:
     name: Publish plugin release
     runs-on: ubuntu-latest
     needs: verify
+    timeout-minutes: 10
 
     steps:
       - name: Clone repo
