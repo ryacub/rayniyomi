@@ -33,7 +33,7 @@ interface SecureActivityDelegate {
 
         fun onApplicationStopped() {
             val preferences = Injekt.get<SecurityPreferences>()
-            if (!preferences.useAuthenticator().get()) return
+            if (!preferences.useAuthenticator().get() && !preferences.usePinLock().get()) return
 
             if (!AuthenticatorUtil.isAuthenticating) {
                 // Return if app is closed in locked state
@@ -50,7 +50,7 @@ interface SecureActivityDelegate {
          */
         fun onApplicationStart() {
             val preferences = Injekt.get<SecurityPreferences>()
-            if (!preferences.useAuthenticator().get()) return
+            if (!preferences.useAuthenticator().get() && !preferences.usePinLock().get()) return
 
             val lastClosedPref = preferences.lastAppClosed()
 
@@ -105,18 +105,25 @@ class SecureActivityDelegateImpl : SecureActivityDelegate, DefaultLifecycleObser
     }
 
     private fun setAppLock() {
-        if (!securityPreferences.useAuthenticator().get()) return
-        if (activity.isAuthenticationSupported()) {
-            if (!SecureActivityDelegate.requireUnlock) return
-            activity.startActivity(Intent(activity, UnlockActivity::class.java))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                activity.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
-            } else {
-                @Suppress("DEPRECATION")
-                activity.overridePendingTransition(0, 0)
-            }
-        } else {
+        val useBiometric = securityPreferences.useAuthenticator().get()
+        val usePin = securityPreferences.usePinLock().get()
+        if (!useBiometric && !usePin) return
+
+        if (!SecureActivityDelegate.requireUnlock) return
+
+        // If biometric is primary but not supported, disable it
+        if (useBiometric && !activity.isAuthenticationSupported()) {
             securityPreferences.useAuthenticator().set(false)
+            // If PIN is available, use it as fallback
+            if (!usePin) return
+        }
+
+        activity.startActivity(Intent(activity, UnlockActivity::class.java))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            activity.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            activity.overridePendingTransition(0, 0)
         }
     }
 }
