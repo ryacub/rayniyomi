@@ -27,9 +27,29 @@ class SecurityPreferences(
         0,
     )
 
+    fun usePinLock() = preferenceStore.getBoolean("use_pin_lock", false)
+
+    fun pinHash() = preferenceStore.getString("pin_hash", "")
+
+    fun pinSalt() = preferenceStore.getString("pin_salt", "")
+
+    fun primaryAuthMethod() = preferenceStore.getEnum(
+        "primary_auth_method",
+        PrimaryAuthMethod.BIOMETRIC,
+    )
+
+    fun pinFailedAttempts() = preferenceStore.getInt("pin_failed_attempts", 0)
+
+    fun pinLockoutUntil() = preferenceStore.getLong("pin_lockout_until", 0)
+
     enum class SecureScreenMode(val titleRes: StringResource) {
         ALWAYS(MR.strings.lock_always),
         INCOGNITO(MR.strings.pref_incognito_mode),
         NEVER(MR.strings.lock_never),
+    }
+
+    enum class PrimaryAuthMethod {
+        BIOMETRIC,
+        PIN,
     }
 }
