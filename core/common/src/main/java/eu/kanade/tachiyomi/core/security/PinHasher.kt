@@ -11,13 +11,6 @@ object PinHasher {
 
     private const val SALT_LENGTH = 32
 
-    /**
-     * Hash a PIN using SHA-256 with the provided salt.
-     *
-     * @param pin The PIN to hash
-     * @param salt The cryptographic salt (32 bytes)
-     * @return Base64-encoded hash string
-     */
     fun hash(pin: String, salt: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update(salt)
@@ -25,14 +18,6 @@ object PinHasher {
         return Base64.getEncoder().encodeToString(hashedBytes)
     }
 
-    /**
-     * Verify a PIN against a stored hash using constant-time comparison.
-     *
-     * @param pin The PIN to verify
-     * @param storedHash The stored hash (Base64-encoded)
-     * @param salt The salt used for hashing (32 bytes)
-     * @return true if PIN matches, false otherwise
-     */
     fun verify(pin: String, storedHash: String, salt: ByteArray): Boolean {
         val computedHash = hash(pin, salt)
         // Use constant-time comparison to prevent timing attacks
@@ -42,11 +27,6 @@ object PinHasher {
         )
     }
 
-    /**
-     * Generate a cryptographically secure random salt.
-     *
-     * @return 32-byte salt
-     */
     fun generateSalt(): ByteArray {
         val salt = ByteArray(SALT_LENGTH)
         SecureRandom().nextBytes(salt)

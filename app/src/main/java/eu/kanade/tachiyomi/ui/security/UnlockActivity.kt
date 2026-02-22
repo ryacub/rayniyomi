@@ -129,13 +129,9 @@ class UnlockActivity : BaseActivity() {
         val storedHash = remember { securityPreferences.pinHash().get() }
         val storedSaltString = remember { securityPreferences.pinSalt().get() }
 
-        // Coroutine scope for background PIN verification
         val coroutineScope = rememberCoroutineScope()
-
-        // Load error message format
         val errorFormatAttemptsRemaining = stringResource(MR.strings.incorrect_pin_attempts_remaining)
 
-        // Update lockout countdown every second
         LaunchedEffect(lockoutUntil) {
             while (LockoutPolicy.isLockedOut(lockoutUntil)) {
                 lockoutSecondsRemaining = LockoutPolicy.calculateRemainingSeconds(lockoutUntil)
@@ -166,7 +162,6 @@ class UnlockActivity : BaseActivity() {
                         return@PinEntryScreen
                     }
 
-                    // Handle corrupted or missing PIN data
                     if (storedHash.isEmpty() || storedSaltString.isEmpty()) {
                         logcat(LogPriority.ERROR) { "PIN data corrupted (empty hash or salt), disabling PIN lock" }
                         securityPreferences.usePinLock().set(false)
@@ -191,10 +186,8 @@ class UnlockActivity : BaseActivity() {
                     coroutineScope.launch(Dispatchers.IO) {
                         val isValid = PinHasher.verify(currentPin, storedHash, storedSalt)
 
-                        // Update UI on main thread
                         withContext(Dispatchers.Main) {
                             if (isValid) {
-                                // Correct PIN
                                 securityPreferences.pinFailedAttempts().set(0)
                                 securityPreferences.pinLockoutUntil().set(0)
                                 SecureActivityDelegate.unlock()

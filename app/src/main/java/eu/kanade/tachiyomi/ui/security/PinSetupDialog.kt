@@ -38,7 +38,6 @@ fun PinSetupDialog(
     var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // Load all strings in Composable scope
     val errorMinLength = stringResource(MR.strings.pin_must_be_4_digits)
     val errorMismatch = stringResource(MR.strings.pins_dont_match)
     val errorDigitsOnly = stringResource(MR.strings.pin_must_be_digits_only)
@@ -47,11 +46,9 @@ fun PinSetupDialog(
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
 
-    // Shared handler for both onSubmit and confirmButton onClick
     val handleSubmit = {
         when (step) {
             PinSetupStep.ENTER -> {
-                // Validate format first (defensive input validation)
                 val formatValidation = PinValidator.validateFormat(enteredPin)
                 when (formatValidation) {
                     is PinValidationResult.Valid -> {

@@ -41,7 +41,6 @@ fun ChangePinDialog(
     var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // Load all strings in Composable scope
     val titleChangePin = stringResource(MR.strings.change_pin)
     val titleEnterNew = stringResource(MR.strings.change_pin_enter_new_title)
     val titleConfirmNew = stringResource(MR.strings.change_pin_confirm_new_title)
@@ -57,7 +56,6 @@ fun ChangePinDialog(
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
 
-    // Shared handler for both onSubmit and confirmButton onClick
     val handleSubmit = {
         when (step) {
             ChangePinStep.VERIFY_OLD -> {
@@ -70,7 +68,6 @@ fun ChangePinDialog(
                 }
             }
             ChangePinStep.ENTER_NEW -> {
-                // Validate format first (defensive input validation)
                 val formatValidation = PinValidator.validateFormat(newPin)
                 when (formatValidation) {
                     is PinValidationResult.Valid -> {
