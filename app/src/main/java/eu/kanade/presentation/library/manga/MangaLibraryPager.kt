@@ -38,6 +38,7 @@ fun MangaLibraryPager(
     onGlobalSearchClicked: () -> Unit,
     getDisplayMode: (Int) -> PreferenceMutableState<LibraryDisplayMode>,
     getColumnsForOrientation: (Boolean) -> PreferenceMutableState<Int>,
+    libraryListSize: Int,
     getLibraryForPage: (Int) -> List<MangaLibraryItem>,
     onClickManga: (LibraryManga) -> Unit,
     onLongClickManga: (LibraryManga) -> Unit,
@@ -77,7 +78,7 @@ fun MangaLibraryPager(
                 LibraryDisplayMode.List -> {
                     MangaLibraryList(
                         items = library,
-                        entries = columns,
+                        entries = libraryListSize,
                         containerHeight = containerHeightPx,
                         contentPadding = contentPadding,
                         selection = selectedManga,

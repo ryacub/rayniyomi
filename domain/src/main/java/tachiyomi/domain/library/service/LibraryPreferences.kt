@@ -105,6 +105,10 @@ class LibraryPreferences(
     fun animeLandscapeColumns() = preferenceStore.getInt("pref_animelib_columns_landscape_key", 0)
     fun mangaLandscapeColumns() = preferenceStore.getInt("pref_library_columns_landscape_key", 0)
 
+    // List Display Size
+
+    fun libraryListSize() = preferenceStore.getInt("pref_library_list_size_key", 0)
+
     // Mixture Filter
 
     fun filterDownloadedAnime() =

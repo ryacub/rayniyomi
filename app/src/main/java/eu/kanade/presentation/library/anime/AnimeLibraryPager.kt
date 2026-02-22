@@ -38,6 +38,7 @@ fun AnimeLibraryPager(
     onGlobalSearchClicked: () -> Unit,
     getDisplayMode: (Int) -> PreferenceMutableState<LibraryDisplayMode>,
     getColumnsForOrientation: (Boolean) -> PreferenceMutableState<Int>,
+    libraryListSize: Int,
     getLibraryForPage: (Int) -> List<AnimeLibraryItem>,
     onClickAnime: (LibraryAnime) -> Unit,
     onLongClickAnime: (LibraryAnime) -> Unit,
@@ -77,7 +78,7 @@ fun AnimeLibraryPager(
                 LibraryDisplayMode.List -> {
                     AnimeLibraryList(
                         items = library,
-                        entries = columns,
+                        entries = libraryListSize,
                         containerHeight = containerHeightPx,
                         contentPadding = contentPadding,
                         selection = selectedAnime,

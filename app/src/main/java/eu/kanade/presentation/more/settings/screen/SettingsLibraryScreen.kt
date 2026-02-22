@@ -63,6 +63,7 @@ object SettingsLibraryScreen : SearchableSettings {
         val getAnimeCategories = remember { Injekt.get<GetAnimeCategories>() }
         val allAnimeCategories by getAnimeCategories.subscribe().collectAsState(initial = emptyList())
         val libraryPreferences = remember { Injekt.get<LibraryPreferences>() }
+        val libraryListSize by libraryPreferences.libraryListSize().collectAsState()
 
         return listOf(
             getCategoriesGroup(
@@ -71,6 +72,7 @@ object SettingsLibraryScreen : SearchableSettings {
                 allAnimeCategories,
                 libraryPreferences,
             ),
+            getDisplayGroup(libraryPreferences, libraryListSize),
             getGlobalUpdateGroup(allCategories, allAnimeCategories, libraryPreferences),
             getSeasonBehaviorGroup(libraryPreferences),
             getAnimeBehaviorGroup(libraryPreferences),
@@ -152,6 +154,32 @@ object SettingsLibraryScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = libraryPreferences.hideHiddenCategoriesSettings(),
                     title = stringResource(AYMR.strings.pref_category_hide_hidden),
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getDisplayGroup(
+        libraryPreferences: LibraryPreferences,
+        libraryListSize: Int,
+    ): Preference.PreferenceGroup {
+        return Preference.PreferenceGroup(
+            title = stringResource(MR.strings.action_display),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SliderPreference(
+                    value = libraryListSize,
+                    valueRange = 0..12,
+                    title = stringResource(AYMR.strings.pref_library_rows),
+                    subtitle = if (libraryListSize == 0) {
+                        stringResource(MR.strings.label_auto)
+                    } else {
+                        pluralStringResource(MR.plurals.num_categories, libraryListSize, libraryListSize)
+                    },
+                    onValueChanged = {
+                        libraryPreferences.libraryListSize().set(it)
+                        true
+                    },
                 ),
             ),
         )

@@ -45,6 +45,7 @@ fun AnimeLibraryContent(
     getNumberOfAnimeForCategory: (Category) -> Int?,
     getDisplayMode: (Int) -> PreferenceMutableState<LibraryDisplayMode>,
     getColumnsForOrientation: (Boolean) -> PreferenceMutableState<Int>,
+    libraryListSize: Int,
     getAnimeLibraryForPage: (Int) -> List<AnimeLibraryItem>,
 ) {
     Column(
@@ -105,6 +106,7 @@ fun AnimeLibraryContent(
                 onGlobalSearchClicked = onGlobalSearchClicked,
                 getDisplayMode = getDisplayMode,
                 getColumnsForOrientation = getColumnsForOrientation,
+                libraryListSize = libraryListSize,
                 getLibraryForPage = getAnimeLibraryForPage,
                 onClickAnime = onClickAnime,
                 onLongClickAnime = onToggleRangeSelection,
