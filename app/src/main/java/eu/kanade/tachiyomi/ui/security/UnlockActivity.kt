@@ -121,6 +121,10 @@ class UnlockActivity : BaseActivity() {
             securityPreferences,
         )
 
+        // Hoist preference reads to avoid recreating lambda on recomposition
+        val storedHash = remember { securityPreferences.pinHash().get() }
+        val storedSaltString = remember { securityPreferences.pinSalt().get() }
+
         // Load error message format
         val errorFormatAttemptsRemaining = stringResource(MR.strings.incorrect_pin_attempts_remaining)
 
@@ -154,9 +158,6 @@ class UnlockActivity : BaseActivity() {
                     if (LockoutPolicy.isLockedOut(lockoutUntil)) {
                         return@PinEntryScreen
                     }
-
-                    val storedHash = securityPreferences.pinHash().get()
-                    val storedSaltString = securityPreferences.pinSalt().get()
 
                     // Handle corrupted or missing PIN data
                     if (storedHash.isEmpty() || storedSaltString.isEmpty()) {
