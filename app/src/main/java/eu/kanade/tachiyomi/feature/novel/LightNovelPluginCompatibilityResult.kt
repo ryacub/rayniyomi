@@ -7,10 +7,13 @@ internal enum class LightNovelPluginCompatibilityResult {
     HOST_TOO_NEW,
 }
 
+internal fun normalizeTargetHostVersion(targetHostVersion: Long?): Long? =
+    targetHostVersion?.takeIf { it > 0L }
+
 /**
  * Evaluates plugin compatibility contract between host app and Light Novel plugin.
  *
- * `targetHostVersion = null` means the plugin has no upper host-version bound.
+ * `targetHostVersion = null` (or <= 0) means the plugin has no upper host-version bound.
  */
 internal fun evaluateLightNovelPluginCompatibility(
     pluginApiVersion: Int,
@@ -25,7 +28,8 @@ internal fun evaluateLightNovelPluginCompatibility(
     if (hostVersionCode < minHostVersion) {
         return LightNovelPluginCompatibilityResult.HOST_TOO_OLD
     }
-    if (targetHostVersion != null && hostVersionCode > targetHostVersion) {
+    val normalizedTargetHostVersion = normalizeTargetHostVersion(targetHostVersion)
+    if (normalizedTargetHostVersion != null && hostVersionCode > normalizedTargetHostVersion) {
         return LightNovelPluginCompatibilityResult.HOST_TOO_NEW
     }
     return LightNovelPluginCompatibilityResult.COMPATIBLE

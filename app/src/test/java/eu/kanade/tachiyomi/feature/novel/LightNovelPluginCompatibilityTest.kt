@@ -71,6 +71,32 @@ class LightNovelPluginCompatibilityTest {
     }
 
     @Test
+    fun `treats target host version 0 as unbounded`() {
+        val result = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = 1,
+            minHostVersion = 100,
+            targetHostVersion = 0,
+            hostVersionCode = 999,
+            expectedPluginApiVersion = 1,
+        )
+
+        assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
+
+    @Test
+    fun `treats negative target host version as unbounded`() {
+        val result = evaluateLightNovelPluginCompatibility(
+            pluginApiVersion = 1,
+            minHostVersion = 100,
+            targetHostVersion = -1,
+            hostVersionCode = 999,
+            expectedPluginApiVersion = 1,
+        )
+
+        assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
+
+    @Test
     fun `returns compatible when host equals minimum host version`() {
         val result = evaluateLightNovelPluginCompatibility(
             pluginApiVersion = 1,
@@ -94,5 +120,32 @@ class LightNovelPluginCompatibilityTest {
         )
 
         assertEquals(LightNovelPluginCompatibilityResult.COMPATIBLE, result)
+    }
+
+    // normalizeTargetHostVersion tests
+
+    @Test
+    fun `normalizeTargetHostVersion returns null for null input`() {
+        val result = normalizeTargetHostVersion(null)
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `normalizeTargetHostVersion returns null for zero`() {
+        val result = normalizeTargetHostVersion(0L)
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `normalizeTargetHostVersion returns null for negative values`() {
+        assertEquals(null, normalizeTargetHostVersion(-1L))
+        assertEquals(null, normalizeTargetHostVersion(-100L))
+    }
+
+    @Test
+    fun `normalizeTargetHostVersion returns value for positive numbers`() {
+        assertEquals(1L, normalizeTargetHostVersion(1L))
+        assertEquals(100L, normalizeTargetHostVersion(100L))
+        assertEquals(9999L, normalizeTargetHostVersion(9999L))
     }
 }
