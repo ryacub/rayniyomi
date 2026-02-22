@@ -78,7 +78,7 @@ fun AnimeLibraryPager(
                 LibraryDisplayMode.List -> {
                     AnimeLibraryList(
                         items = library,
-                        entries = libraryListSize,
+                        rows = libraryListSize,
                         containerHeight = containerHeightPx,
                         contentPadding = contentPadding,
                         selection = selectedAnime,

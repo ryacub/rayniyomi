@@ -78,7 +78,7 @@ fun MangaLibraryPager(
                 LibraryDisplayMode.List -> {
                     MangaLibraryList(
                         items = library,
-                        entries = libraryListSize,
+                        rows = libraryListSize,
                         containerHeight = containerHeightPx,
                         contentPadding = contentPadding,
                         selection = selectedManga,

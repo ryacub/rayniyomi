@@ -120,7 +120,7 @@ fun AnimeSeasonListItem(
                 } else {
                     null
                 },
-                entries = anime.seasonDisplayGridSize,
+                rows = anime.seasonDisplayGridSize,
                 containerHeight = containerHeight,
                 modifier = listItemModifier,
             )

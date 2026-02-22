@@ -339,7 +339,7 @@ fun EntryListItem(
     onClick: () -> Unit,
     badge: @Composable (RowScope.() -> Unit),
     onClickContinueViewing: (() -> Unit)? = null,
-    entries: Int = 0,
+    rows: Int = 0,
     containerHeight: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -347,11 +347,12 @@ fun EntryListItem(
         modifier = modifier
             .selectedBackground(isSelected)
             .height(
-                when (entries) {
+                when (rows) {
                     0 -> 76.dp
                     else -> {
                         val density = LocalDensity.current
-                        with(density) { (containerHeight / entries).toDp() } - (3 / entries).dp
+                        val calculatedHeight = with(density) { (containerHeight / rows).toDp() } - (3f / rows).dp
+                        maxOf(48.dp, calculatedHeight)
                     }
                 },
             )

@@ -22,7 +22,7 @@ import tachiyomi.presentation.core.util.plus
 @Composable
 internal fun AnimeLibraryList(
     items: List<AnimeLibraryItem>,
-    entries: Int,
+    rows: Int,
     containerHeight: Int,
     contentPadding: PaddingValues,
     selection: List<LibraryAnime>,
@@ -85,7 +85,7 @@ internal fun AnimeLibraryList(
                         null
                     }
                 },
-                entries = entries,
+                rows = rows,
                 containerHeight = containerHeight,
             )
         }
