@@ -278,6 +278,15 @@
     <string name="incorrect_pin">Incorrect PIN</string>
     <string name="enter_pin">Enter PIN</string>
     <string name="use_biometric">Use Biometric</string>
+    <string name="pin_lockout_message">Locked out for %d seconds</string>
+    <string name="incorrect_pin_attempts_remaining">Incorrect PIN. %d attempts remaining.</string>
+    <string name="pin_setup_enter_prompt">Enter a 4-6 digit PIN</string>
+    <string name="pin_setup_confirm_prompt">Re-enter your PIN to confirm</string>
+    <string name="change_pin_enter_new_title">Enter New PIN</string>
+    <string name="change_pin_confirm_new_title">Confirm New PIN</string>
+    <string name="change_pin_reenter_new_prompt">Re-enter your new PIN to confirm</string>
+    <string name="action_next">Next</string>
+    <string name="action_confirm">Confirm</string>
 
     <string name="pref_category_nsfw_content">NSFW (18+) sources</string>
     <string name="pref_show_nsfw_source">Show in sources and extensions lists</string>

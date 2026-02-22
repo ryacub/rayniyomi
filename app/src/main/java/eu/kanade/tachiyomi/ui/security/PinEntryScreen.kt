@@ -34,7 +34,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.icerock.moko.resources.compose.stringResource
 import kotlinx.coroutines.launch
+import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.padding
 
 /**
@@ -89,7 +91,7 @@ fun PinEntryScreen(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Enter PIN",
+            text = stringResource(MR.strings.enter_pin),
             style = MaterialTheme.typography.headlineMedium,
         )
 
@@ -107,7 +109,7 @@ fun PinEntryScreen(
         // Error message or lockout countdown
         when {
             isLockedOut -> {
-                val lockoutMsg = "Locked out for $lockoutSecondsRemaining seconds"
+                val lockoutMsg = stringResource(MR.strings.pin_lockout_message, lockoutSecondsRemaining)
                 Text(
                     text = lockoutMsg,
                     style = MaterialTheme.typography.bodyMedium,
@@ -155,13 +157,14 @@ fun PinEntryScreen(
 
         // Biometric fallback button
         if (hasBiometricFallback) {
+            val useBiometricText = stringResource(MR.strings.use_biometric)
             OutlinedButton(
                 onClick = onBiometricFallback,
                 modifier = Modifier.semantics {
-                    contentDescription = "Use Biometric instead"
+                    contentDescription = useBiometricText
                 },
             ) {
-                Text("Use Biometric")
+                Text(useBiometricText)
             }
         }
     }

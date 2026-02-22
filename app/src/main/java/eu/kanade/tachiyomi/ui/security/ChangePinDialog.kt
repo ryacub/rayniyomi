@@ -17,6 +17,8 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import dev.icerock.moko.resources.compose.stringResource
+import tachiyomi.i18n.MR
 
 /**
  * Dialog for changing an existing PIN.
@@ -37,14 +39,28 @@ fun ChangePinDialog(
     var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    // Load all strings in Composable scope
+    val titleChangePin = stringResource(MR.strings.change_pin)
+    val titleEnterNew = stringResource(MR.strings.change_pin_enter_new_title)
+    val titleConfirmNew = stringResource(MR.strings.change_pin_confirm_new_title)
+    val promptOld = stringResource(MR.strings.enter_current_pin)
+    val promptNew = stringResource(MR.strings.enter_new_pin)
+    val promptConfirmNew = stringResource(MR.strings.change_pin_reenter_new_prompt)
+    val errorIncorrect = stringResource(MR.strings.incorrect_pin)
+    val errorMinLength = stringResource(MR.strings.pin_must_be_4_digits)
+    val errorMismatch = stringResource(MR.strings.pins_dont_match)
+    val actionNext = stringResource(MR.strings.action_next)
+    val actionConfirm = stringResource(MR.strings.action_confirm)
+    val actionCancel = stringResource(MR.strings.action_cancel)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
                 text = when (step) {
-                    ChangePinStep.VERIFY_OLD -> "Change PIN"
-                    ChangePinStep.ENTER_NEW -> "Enter New PIN"
-                    ChangePinStep.CONFIRM_NEW -> "Confirm New PIN"
+                    ChangePinStep.VERIFY_OLD -> titleChangePin
+                    ChangePinStep.ENTER_NEW -> titleEnterNew
+                    ChangePinStep.CONFIRM_NEW -> titleConfirmNew
                 },
                 modifier = Modifier.semantics {
                     liveRegion = LiveRegionMode.Polite
@@ -55,9 +71,9 @@ fun ChangePinDialog(
             Column {
                 Text(
                     text = when (step) {
-                        ChangePinStep.VERIFY_OLD -> "Enter your current PIN"
-                        ChangePinStep.ENTER_NEW -> "Enter a new 4-6 digit PIN"
-                        ChangePinStep.CONFIRM_NEW -> "Re-enter your new PIN"
+                        ChangePinStep.VERIFY_OLD -> promptOld
+                        ChangePinStep.ENTER_NEW -> promptNew
+                        ChangePinStep.CONFIRM_NEW -> promptConfirmNew
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -89,13 +105,13 @@ fun ChangePinDialog(
                                     step = ChangePinStep.ENTER_NEW
                                     error = null
                                 } else {
-                                    error = "Incorrect PIN"
+                                    error = errorIncorrect
                                     oldPin = ""
                                 }
                             }
                             ChangePinStep.ENTER_NEW -> {
                                 if (newPin.length < 4) {
-                                    error = "PIN must be at least 4 digits"
+                                    error = errorMinLength
                                 } else {
                                     step = ChangePinStep.CONFIRM_NEW
                                     error = null
@@ -105,7 +121,7 @@ fun ChangePinDialog(
                                 if (confirmPin == newPin) {
                                     onPinChanged(newPin)
                                 } else {
-                                    error = "PINs don't match"
+                                    error = errorMismatch
                                     confirmPin = ""
                                 }
                             }
@@ -124,7 +140,7 @@ fun ChangePinDialog(
                                 step = ChangePinStep.ENTER_NEW
                                 error = null
                             } else {
-                                error = "Incorrect PIN"
+                                error = errorIncorrect
                                 oldPin = ""
                             }
                         }
@@ -133,14 +149,14 @@ fun ChangePinDialog(
                                 step = ChangePinStep.CONFIRM_NEW
                                 error = null
                             } else {
-                                error = "PIN must be at least 4 digits"
+                                error = errorMinLength
                             }
                         }
                         ChangePinStep.CONFIRM_NEW -> {
                             if (confirmPin == newPin) {
                                 onPinChanged(newPin)
                             } else {
-                                error = "PINs don't match"
+                                error = errorMismatch
                                 confirmPin = ""
                             }
                         }
@@ -149,16 +165,16 @@ fun ChangePinDialog(
             ) {
                 Text(
                     when (step) {
-                        ChangePinStep.VERIFY_OLD -> "Next"
-                        ChangePinStep.ENTER_NEW -> "Next"
-                        ChangePinStep.CONFIRM_NEW -> "Confirm"
+                        ChangePinStep.VERIFY_OLD -> actionNext
+                        ChangePinStep.ENTER_NEW -> actionNext
+                        ChangePinStep.CONFIRM_NEW -> actionConfirm
                     },
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(actionCancel)
             }
         },
     )

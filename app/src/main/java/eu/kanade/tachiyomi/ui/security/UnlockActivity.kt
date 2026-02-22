@@ -121,6 +121,9 @@ class UnlockActivity : BaseActivity() {
             securityPreferences,
         )
 
+        // Load error message format
+        val errorFormatAttemptsRemaining = stringResource(MR.strings.incorrect_pin_attempts_remaining)
+
         // Update lockout countdown every second
         LaunchedEffect(lockoutUntil) {
             while (LockoutPolicy.isLockedOut(lockoutUntil)) {
@@ -172,7 +175,7 @@ class UnlockActivity : BaseActivity() {
                         when (lockoutState) {
                             LockoutState.Allowed -> {
                                 isError = true
-                                errorMessage = "Incorrect PIN. ${3 - failedAttempts} attempts remaining."
+                                errorMessage = String.format(errorFormatAttemptsRemaining, 3 - failedAttempts)
                                 currentPin = ""
                             }
                             is LockoutState.LockedOut -> {

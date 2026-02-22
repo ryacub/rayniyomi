@@ -17,6 +17,8 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import dev.icerock.moko.resources.compose.stringResource
+import tachiyomi.i18n.MR
 
 /**
  * Dialog for setting up a new PIN.
@@ -34,13 +36,20 @@ fun PinSetupDialog(
     var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    // Load all strings in Composable scope
+    val errorMinLength = stringResource(MR.strings.pin_must_be_4_digits)
+    val errorMismatch = stringResource(MR.strings.pins_dont_match)
+    val actionNext = stringResource(MR.strings.action_next)
+    val actionConfirm = stringResource(MR.strings.action_confirm)
+    val actionCancel = stringResource(MR.strings.action_cancel)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
                 text = when (step) {
-                    PinSetupStep.ENTER -> "Create PIN"
-                    PinSetupStep.CONFIRM -> "Confirm PIN"
+                    PinSetupStep.ENTER -> stringResource(MR.strings.create_pin)
+                    PinSetupStep.CONFIRM -> stringResource(MR.strings.confirm_pin)
                 },
                 modifier = Modifier.semantics {
                     liveRegion = LiveRegionMode.Polite
@@ -51,8 +60,8 @@ fun PinSetupDialog(
             Column {
                 Text(
                     text = when (step) {
-                        PinSetupStep.ENTER -> "Enter a 4-6 digit PIN"
-                        PinSetupStep.CONFIRM -> "Re-enter your PIN to confirm"
+                        PinSetupStep.ENTER -> stringResource(MR.strings.pin_setup_enter_prompt)
+                        PinSetupStep.CONFIRM -> stringResource(MR.strings.pin_setup_confirm_prompt)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -79,7 +88,7 @@ fun PinSetupDialog(
                         when (step) {
                             PinSetupStep.ENTER -> {
                                 if (enteredPin.length < 4) {
-                                    error = "PIN must be at least 4 digits"
+                                    error = errorMinLength
                                 } else {
                                     step = PinSetupStep.CONFIRM
                                     error = null
@@ -89,7 +98,7 @@ fun PinSetupDialog(
                                 if (confirmPin == enteredPin) {
                                     onPinSet(enteredPin)
                                 } else {
-                                    error = "PINs don't match"
+                                    error = errorMismatch
                                     confirmPin = ""
                                 }
                             }
@@ -108,14 +117,14 @@ fun PinSetupDialog(
                                 step = PinSetupStep.CONFIRM
                                 error = null
                             } else {
-                                error = "PIN must be at least 4 digits"
+                                error = errorMinLength
                             }
                         }
                         PinSetupStep.CONFIRM -> {
                             if (confirmPin == enteredPin) {
                                 onPinSet(enteredPin)
                             } else {
-                                error = "PINs don't match"
+                                error = errorMismatch
                                 confirmPin = ""
                             }
                         }
@@ -124,15 +133,15 @@ fun PinSetupDialog(
             ) {
                 Text(
                     when (step) {
-                        PinSetupStep.ENTER -> "Next"
-                        PinSetupStep.CONFIRM -> "Confirm"
+                        PinSetupStep.ENTER -> actionNext
+                        PinSetupStep.CONFIRM -> actionConfirm
                     },
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(actionCancel)
             }
         },
     )
