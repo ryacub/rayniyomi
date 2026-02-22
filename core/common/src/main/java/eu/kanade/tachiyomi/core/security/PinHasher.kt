@@ -26,7 +26,7 @@ object PinHasher {
     }
 
     /**
-     * Verify a PIN against a stored hash.
+     * Verify a PIN against a stored hash using constant-time comparison.
      *
      * @param pin The PIN to verify
      * @param storedHash The stored hash (Base64-encoded)
@@ -35,7 +35,11 @@ object PinHasher {
      */
     fun verify(pin: String, storedHash: String, salt: ByteArray): Boolean {
         val computedHash = hash(pin, salt)
-        return computedHash == storedHash
+        // Use constant-time comparison to prevent timing attacks
+        return MessageDigest.isEqual(
+            computedHash.toByteArray(),
+            storedHash.toByteArray(),
+        )
     }
 
     /**
