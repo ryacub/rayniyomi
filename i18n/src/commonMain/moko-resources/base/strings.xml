@@ -264,6 +264,32 @@
     <string name="secure_screen_summary">Secure screen hides app contents when switching apps and block screenshots</string>
     <string name="firebase_summary">Sending crash logs and analytics will allow us to identify and fix issues, improve performance, and make future updates more relevant to your needs</string>
 
+    <string name="lock_with_pin">Lock with PIN</string>
+    <string name="change_pin">Change PIN</string>
+    <string name="primary_lock_method">Primary lock method</string>
+    <string name="biometric_default">Biometric (default)</string>
+    <string name="pin">PIN</string>
+    <string name="create_pin">Create PIN</string>
+    <string name="confirm_pin">Confirm PIN</string>
+    <string name="enter_current_pin">Enter your current PIN</string>
+    <string name="enter_new_pin">Enter a new 4-6 digit PIN</string>
+    <string name="pin_must_be_4_digits">PIN must be at least 4 digits</string>
+    <string name="pins_dont_match">PINs don\'t match</string>
+    <string name="incorrect_pin">Incorrect PIN</string>
+    <string name="enter_pin">Enter PIN</string>
+    <string name="use_biometric">Use Biometric</string>
+    <string name="pin_lockout_message">Locked out for %d seconds</string>
+    <string name="incorrect_pin_attempts_remaining">Incorrect PIN. %d attempts remaining.</string>
+    <string name="pin_setup_enter_prompt">Enter a 4-6 digit PIN</string>
+    <string name="pin_setup_confirm_prompt">Re-enter your PIN to confirm</string>
+    <string name="change_pin_enter_new_title">Enter New PIN</string>
+    <string name="change_pin_confirm_new_title">Confirm New PIN</string>
+    <string name="change_pin_reenter_new_prompt">Re-enter your new PIN to confirm</string>
+    <string name="action_next">Next</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="pin_must_be_digits_only">PIN must contain only digits</string>
+    <string name="pin_too_long">PIN cannot be longer than 6 digits</string>
+
     <string name="pref_category_nsfw_content">NSFW (18+) sources</string>
     <string name="pref_show_nsfw_source">Show in sources and extensions lists</string>
     <string name="parental_controls_info">This does not prevent unofficial or potentially incorrectly flagged extensions from surfacing NSFW (18+) content within the app.</string>
