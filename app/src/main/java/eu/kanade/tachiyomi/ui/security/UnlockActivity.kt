@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +27,10 @@ import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.startAuthentication
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -125,6 +129,9 @@ class UnlockActivity : BaseActivity() {
         val storedHash = remember { securityPreferences.pinHash().get() }
         val storedSaltString = remember { securityPreferences.pinSalt().get() }
 
+        // Coroutine scope for background PIN verification
+        val coroutineScope = rememberCoroutineScope()
+
         // Load error message format
         val errorFormatAttemptsRemaining = stringResource(MR.strings.incorrect_pin_attempts_remaining)
 
@@ -180,34 +187,45 @@ class UnlockActivity : BaseActivity() {
                         return@PinEntryScreen
                     }
 
-                    if (PinHasher.verify(currentPin, storedHash, storedSalt)) {
-                        // Correct PIN
-                        securityPreferences.pinFailedAttempts().set(0)
-                        securityPreferences.pinLockoutUntil().set(0)
-                        SecureActivityDelegate.unlock()
-                        finish()
-                    } else {
-                        // Incorrect PIN
-                        failedAttempts++
-                        securityPreferences.pinFailedAttempts().set(failedAttempts)
+                    // Verify PIN on background thread to avoid blocking UI
+                    coroutineScope.launch(Dispatchers.IO) {
+                        val isValid = PinHasher.verify(currentPin, storedHash, storedSalt)
 
-                        val lockoutState = LockoutPolicy.calculateLockout(failedAttempts)
-                        when (lockoutState) {
-                            LockoutState.Allowed -> {
-                                isError = true
-                                errorMessage = String.format(errorFormatAttemptsRemaining, 3 - failedAttempts)
-                                currentPin = ""
-                            }
-                            is LockoutState.LockedOut -> {
-                                val until = System.currentTimeMillis() + lockoutState.durationMillis
-                                lockoutUntil = until
-                                securityPreferences.pinLockoutUntil().set(until)
-                                isError = true
-                                errorMessage = null
-                                currentPin = ""
-                            }
-                            LockoutState.CloseApp -> {
-                                finishAffinity()
+                        // Update UI on main thread
+                        withContext(Dispatchers.Main) {
+                            if (isValid) {
+                                // Correct PIN
+                                securityPreferences.pinFailedAttempts().set(0)
+                                securityPreferences.pinLockoutUntil().set(0)
+                                SecureActivityDelegate.unlock()
+                                finish()
+                            } else {
+                                // Incorrect PIN
+                                failedAttempts++
+                                securityPreferences.pinFailedAttempts().set(failedAttempts)
+
+                                val lockoutState = LockoutPolicy.calculateLockout(failedAttempts)
+                                when (lockoutState) {
+                                    LockoutState.Allowed -> {
+                                        isError = true
+                                        errorMessage = String.format(
+                                            errorFormatAttemptsRemaining,
+                                            3 - failedAttempts,
+                                        )
+                                        currentPin = ""
+                                    }
+                                    is LockoutState.LockedOut -> {
+                                        val until = System.currentTimeMillis() + lockoutState.durationMillis
+                                        lockoutUntil = until
+                                        securityPreferences.pinLockoutUntil().set(until)
+                                        isError = true
+                                        errorMessage = null
+                                        currentPin = ""
+                                    }
+                                    LockoutState.CloseApp -> {
+                                        finishAffinity()
+                                    }
+                                }
                             }
                         }
                     }
