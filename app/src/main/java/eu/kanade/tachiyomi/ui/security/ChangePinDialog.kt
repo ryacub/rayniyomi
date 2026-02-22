@@ -55,6 +55,45 @@ fun ChangePinDialog(
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
 
+    // Shared handler for both onSubmit and confirmButton onClick
+    val handleSubmit = {
+        when (step) {
+            ChangePinStep.VERIFY_OLD -> {
+                if (onVerifyOldPin(oldPin)) {
+                    step = ChangePinStep.ENTER_NEW
+                    error = null
+                } else {
+                    error = errorIncorrect
+                    oldPin = ""
+                }
+            }
+            ChangePinStep.ENTER_NEW -> {
+                val validation = PinValidator.validateLength(newPin)
+                when (validation) {
+                    is PinValidationResult.Valid -> {
+                        step = ChangePinStep.CONFIRM_NEW
+                        error = null
+                    }
+                    is PinValidationResult.Invalid -> {
+                        error = errorMinLength
+                    }
+                }
+            }
+            ChangePinStep.CONFIRM_NEW -> {
+                val validation = PinValidator.validateMatch(newPin, confirmPin)
+                when (validation) {
+                    is PinValidationResult.Valid -> {
+                        onPinChanged(newPin)
+                    }
+                    is PinValidationResult.Invalid -> {
+                        error = errorMismatch
+                        confirmPin = ""
+                    }
+                }
+            }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -100,71 +139,13 @@ fun ChangePinDialog(
                             ChangePinStep.CONFIRM_NEW -> confirmPin = pin
                         }
                     },
-                    onSubmit = {
-                        when (step) {
-                            ChangePinStep.VERIFY_OLD -> {
-                                if (onVerifyOldPin(oldPin)) {
-                                    step = ChangePinStep.ENTER_NEW
-                                    error = null
-                                } else {
-                                    error = errorIncorrect
-                                    oldPin = ""
-                                }
-                            }
-                            ChangePinStep.ENTER_NEW -> {
-                                if (newPin.length < 4) {
-                                    error = errorMinLength
-                                } else {
-                                    step = ChangePinStep.CONFIRM_NEW
-                                    error = null
-                                }
-                            }
-                            ChangePinStep.CONFIRM_NEW -> {
-                                if (confirmPin == newPin) {
-                                    onPinChanged(newPin)
-                                } else {
-                                    error = errorMismatch
-                                    confirmPin = ""
-                                }
-                            }
-                        }
-                    },
+                    onSubmit = handleSubmit,
                     onBiometricFallback = {},
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    when (step) {
-                        ChangePinStep.VERIFY_OLD -> {
-                            if (onVerifyOldPin(oldPin)) {
-                                step = ChangePinStep.ENTER_NEW
-                                error = null
-                            } else {
-                                error = errorIncorrect
-                                oldPin = ""
-                            }
-                        }
-                        ChangePinStep.ENTER_NEW -> {
-                            if (newPin.length >= 4) {
-                                step = ChangePinStep.CONFIRM_NEW
-                                error = null
-                            } else {
-                                error = errorMinLength
-                            }
-                        }
-                        ChangePinStep.CONFIRM_NEW -> {
-                            if (confirmPin == newPin) {
-                                onPinChanged(newPin)
-                            } else {
-                                error = errorMismatch
-                                confirmPin = ""
-                            }
-                        }
-                    }
-                },
-            ) {
+            TextButton(onClick = handleSubmit) {
                 Text(
                     when (step) {
                         ChangePinStep.VERIFY_OLD -> actionNext

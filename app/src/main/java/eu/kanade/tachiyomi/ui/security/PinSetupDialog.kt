@@ -45,6 +45,36 @@ fun PinSetupDialog(
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
 
+    // Shared handler for both onSubmit and confirmButton onClick
+    val handleSubmit = {
+        when (step) {
+            PinSetupStep.ENTER -> {
+                val validation = PinValidator.validateLength(enteredPin)
+                when (validation) {
+                    is PinValidationResult.Valid -> {
+                        step = PinSetupStep.CONFIRM
+                        error = null
+                    }
+                    is PinValidationResult.Invalid -> {
+                        error = errorMinLength
+                    }
+                }
+            }
+            PinSetupStep.CONFIRM -> {
+                val validation = PinValidator.validateMatch(enteredPin, confirmPin)
+                when (validation) {
+                    is PinValidationResult.Valid -> {
+                        onPinSet(enteredPin)
+                    }
+                    is PinValidationResult.Invalid -> {
+                        error = errorMismatch
+                        confirmPin = ""
+                    }
+                }
+            }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -86,53 +116,13 @@ fun PinSetupDialog(
                             PinSetupStep.CONFIRM -> confirmPin = newPin
                         }
                     },
-                    onSubmit = {
-                        when (step) {
-                            PinSetupStep.ENTER -> {
-                                if (enteredPin.length < 4) {
-                                    error = errorMinLength
-                                } else {
-                                    step = PinSetupStep.CONFIRM
-                                    error = null
-                                }
-                            }
-                            PinSetupStep.CONFIRM -> {
-                                if (confirmPin == enteredPin) {
-                                    onPinSet(enteredPin)
-                                } else {
-                                    error = errorMismatch
-                                    confirmPin = ""
-                                }
-                            }
-                        }
-                    },
+                    onSubmit = handleSubmit,
                     onBiometricFallback = {},
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    when (step) {
-                        PinSetupStep.ENTER -> {
-                            if (enteredPin.length >= 4) {
-                                step = PinSetupStep.CONFIRM
-                                error = null
-                            } else {
-                                error = errorMinLength
-                            }
-                        }
-                        PinSetupStep.CONFIRM -> {
-                            if (confirmPin == enteredPin) {
-                                onPinSet(enteredPin)
-                            } else {
-                                error = errorMismatch
-                                confirmPin = ""
-                            }
-                        }
-                    }
-                },
-            ) {
+            TextButton(onClick = handleSubmit) {
                 Text(
                     when (step) {
                         PinSetupStep.ENTER -> actionNext
