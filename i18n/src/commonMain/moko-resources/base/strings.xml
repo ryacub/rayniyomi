@@ -287,6 +287,8 @@
     <string name="change_pin_reenter_new_prompt">Re-enter your new PIN to confirm</string>
     <string name="action_next">Next</string>
     <string name="action_confirm">Confirm</string>
+    <string name="pin_must_be_digits_only">PIN must contain only digits</string>
+    <string name="pin_too_long">PIN cannot be longer than 6 digits</string>
 
     <string name="pref_category_nsfw_content">NSFW (18+) sources</string>
     <string name="pref_show_nsfw_source">Show in sources and extensions lists</string>

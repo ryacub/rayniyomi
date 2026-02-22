@@ -16,19 +16,39 @@ sealed interface PinValidationResult {
 object PinValidator {
 
     private const val MIN_PIN_LENGTH = 4
+    private const val MAX_PIN_LENGTH = 6
 
     /**
-     * Validate that a PIN meets minimum length requirements.
+     * Validate that a PIN contains only digits (defensive input validation).
+     *
+     * @param pin The PIN to validate
+     * @return Valid if PIN contains only digits, Invalid with error key otherwise
+     */
+    fun validateFormat(pin: String): PinValidationResult {
+        return if (pin.all { it.isDigit() }) {
+            PinValidationResult.Valid
+        } else {
+            PinValidationResult.Invalid("pin_must_be_digits_only")
+        }
+    }
+
+    /**
+     * Validate that a PIN meets length requirements.
      *
      * @param pin The PIN to validate
      * @param minLength Minimum required length (default 4)
-     * @return Valid if PIN length >= minLength, Invalid with error key otherwise
+     * @param maxLength Maximum required length (default 6)
+     * @return Valid if PIN length is within bounds, Invalid with error key otherwise
      */
-    fun validateLength(pin: String, minLength: Int = MIN_PIN_LENGTH): PinValidationResult {
-        return if (pin.length >= minLength) {
-            PinValidationResult.Valid
-        } else {
-            PinValidationResult.Invalid("pin_must_be_4_digits")
+    fun validateLength(
+        pin: String,
+        minLength: Int = MIN_PIN_LENGTH,
+        maxLength: Int = MAX_PIN_LENGTH,
+    ): PinValidationResult {
+        return when {
+            pin.length < minLength -> PinValidationResult.Invalid("pin_must_be_4_digits")
+            pin.length > maxLength -> PinValidationResult.Invalid("pin_too_long")
+            else -> PinValidationResult.Valid
         }
     }
 

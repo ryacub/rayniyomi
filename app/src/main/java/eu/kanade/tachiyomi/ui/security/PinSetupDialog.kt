@@ -41,6 +41,8 @@ fun PinSetupDialog(
     // Load all strings in Composable scope
     val errorMinLength = stringResource(MR.strings.pin_must_be_4_digits)
     val errorMismatch = stringResource(MR.strings.pins_dont_match)
+    val errorDigitsOnly = stringResource(MR.strings.pin_must_be_digits_only)
+    val errorTooLong = stringResource(MR.strings.pin_too_long)
     val actionNext = stringResource(MR.strings.action_next)
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
@@ -49,14 +51,28 @@ fun PinSetupDialog(
     val handleSubmit = {
         when (step) {
             PinSetupStep.ENTER -> {
-                val validation = PinValidator.validateLength(enteredPin)
-                when (validation) {
+                // Validate format first (defensive input validation)
+                val formatValidation = PinValidator.validateFormat(enteredPin)
+                when (formatValidation) {
                     is PinValidationResult.Valid -> {
-                        step = PinSetupStep.CONFIRM
-                        error = null
+                        // Then validate length
+                        val lengthValidation = PinValidator.validateLength(enteredPin)
+                        when (lengthValidation) {
+                            is PinValidationResult.Valid -> {
+                                step = PinSetupStep.CONFIRM
+                                error = null
+                            }
+                            is PinValidationResult.Invalid -> {
+                                error = when (lengthValidation.errorMessageKey) {
+                                    "pin_must_be_4_digits" -> errorMinLength
+                                    "pin_too_long" -> errorTooLong
+                                    else -> errorMinLength
+                                }
+                            }
+                        }
                     }
                     is PinValidationResult.Invalid -> {
-                        error = errorMinLength
+                        error = errorDigitsOnly
                     }
                 }
             }

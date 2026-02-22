@@ -51,6 +51,8 @@ fun ChangePinDialog(
     val errorIncorrect = stringResource(MR.strings.incorrect_pin)
     val errorMinLength = stringResource(MR.strings.pin_must_be_4_digits)
     val errorMismatch = stringResource(MR.strings.pins_dont_match)
+    val errorDigitsOnly = stringResource(MR.strings.pin_must_be_digits_only)
+    val errorTooLong = stringResource(MR.strings.pin_too_long)
     val actionNext = stringResource(MR.strings.action_next)
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
@@ -68,14 +70,28 @@ fun ChangePinDialog(
                 }
             }
             ChangePinStep.ENTER_NEW -> {
-                val validation = PinValidator.validateLength(newPin)
-                when (validation) {
+                // Validate format first (defensive input validation)
+                val formatValidation = PinValidator.validateFormat(newPin)
+                when (formatValidation) {
                     is PinValidationResult.Valid -> {
-                        step = ChangePinStep.CONFIRM_NEW
-                        error = null
+                        // Then validate length
+                        val lengthValidation = PinValidator.validateLength(newPin)
+                        when (lengthValidation) {
+                            is PinValidationResult.Valid -> {
+                                step = ChangePinStep.CONFIRM_NEW
+                                error = null
+                            }
+                            is PinValidationResult.Invalid -> {
+                                error = when (lengthValidation.errorMessageKey) {
+                                    "pin_must_be_4_digits" -> errorMinLength
+                                    "pin_too_long" -> errorTooLong
+                                    else -> errorMinLength
+                                }
+                            }
+                        }
                     }
                     is PinValidationResult.Invalid -> {
-                        error = errorMinLength
+                        error = errorDigitsOnly
                     }
                 }
             }
