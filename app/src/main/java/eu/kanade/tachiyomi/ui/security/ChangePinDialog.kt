@@ -16,9 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.icerock.moko.resources.compose.stringResource
+import eu.kanade.presentation.theme.TachiyomiTheme
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.i18n.stringResource
 
 /**
  * Dialog for changing an existing PIN.
@@ -184,4 +186,16 @@ private enum class ChangePinStep {
     VERIFY_OLD,
     ENTER_NEW,
     CONFIRM_NEW,
+}
+
+@Preview
+@Composable
+private fun ChangePinDialogPreview() {
+    TachiyomiTheme {
+        ChangePinDialog(
+            onDismiss = {},
+            onVerifyOldPin = { false },
+            onPinChanged = {},
+        )
+    }
 }

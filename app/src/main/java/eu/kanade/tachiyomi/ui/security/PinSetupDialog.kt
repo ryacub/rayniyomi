@@ -16,9 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.icerock.moko.resources.compose.stringResource
+import eu.kanade.presentation.theme.TachiyomiTheme
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.i18n.stringResource
 
 /**
  * Dialog for setting up a new PIN.
@@ -150,4 +152,15 @@ fun PinSetupDialog(
 private enum class PinSetupStep {
     ENTER,
     CONFIRM,
+}
+
+@Preview
+@Composable
+private fun PinSetupDialogPreview() {
+    TachiyomiTheme {
+        PinSetupDialog(
+            onDismiss = {},
+            onPinSet = {},
+        )
+    }
 }
