@@ -156,9 +156,28 @@ class UnlockActivity : BaseActivity() {
                     }
 
                     val storedHash = securityPreferences.pinHash().get()
-                    val storedSalt = Base64.getDecoder().decode(
-                        securityPreferences.pinSalt().get(),
-                    )
+                    val storedSaltString = securityPreferences.pinSalt().get()
+
+                    // Handle corrupted or missing PIN data
+                    if (storedHash.isEmpty() || storedSaltString.isEmpty()) {
+                        logcat(LogPriority.ERROR) { "PIN data corrupted (empty hash or salt), disabling PIN lock" }
+                        securityPreferences.usePinLock().set(false)
+                        SecureActivityDelegate.unlock()
+                        finish()
+                        return@PinEntryScreen
+                    }
+
+                    val storedSalt = try {
+                        Base64.getDecoder().decode(storedSaltString)
+                    } catch (e: IllegalArgumentException) {
+                        logcat(LogPriority.ERROR, e) { "Failed to decode PIN salt, disabling PIN lock" }
+                        securityPreferences.usePinLock().set(false)
+                        securityPreferences.pinHash().delete()
+                        securityPreferences.pinSalt().delete()
+                        SecureActivityDelegate.unlock()
+                        finish()
+                        return@PinEntryScreen
+                    }
 
                     if (PinHasher.verify(currentPin, storedHash, storedSalt)) {
                         // Correct PIN

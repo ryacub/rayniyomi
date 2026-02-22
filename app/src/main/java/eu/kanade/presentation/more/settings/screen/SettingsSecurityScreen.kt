@@ -50,8 +50,29 @@ object SettingsSecurityScreen : SearchableSettings {
                 onPinSet = { pin ->
                     val salt = PinHasher.generateSalt()
                     val hash = PinHasher.hash(pin, salt)
-                    securityPreferences.pinHash().set(hash)
-                    securityPreferences.pinSalt().set(Base64.getEncoder().encodeToString(salt))
+
+                    // Use transaction-like pattern to ensure both are written
+                    val success = runCatching {
+                        securityPreferences.pinHash().set(hash)
+                        securityPreferences.pinSalt().set(Base64.getEncoder().encodeToString(salt))
+
+                        // Verify both were written successfully
+                        require(securityPreferences.pinHash().get().isNotEmpty()) {
+                            "Failed to write PIN hash"
+                        }
+                        require(securityPreferences.pinSalt().get().isNotEmpty()) {
+                            "Failed to write PIN salt"
+                        }
+                    }.isSuccess
+
+                    if (!success) {
+                        // Rollback - disable PIN lock and clear partial data
+                        securityPreferences.usePinLock().set(false)
+                        securityPreferences.pinHash().delete()
+                        securityPreferences.pinSalt().delete()
+                        // TODO: Show error message to user
+                    }
+
                     showPinSetupDialog = false
                 },
             )
