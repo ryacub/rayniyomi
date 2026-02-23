@@ -86,6 +86,9 @@ class AnimeDownloader(
     private val provider: AnimeDownloadProvider,
     private val cache: AnimeDownloadCache,
     private val sourceManager: AnimeSourceManager = Injekt.get(),
+    private val stateStore: DownloadStateStore = Injekt.get(),
+    private val strategySelector: DownloadStrategySelector = Injekt.get(),
+    private val multiThreadDownloader: MultiThreadDownloader = Injekt.get(),
 ) {
     /**
      * Queue where active downloads are kept.
@@ -138,29 +141,6 @@ class AnimeDownloader(
      * Preference for user's choice of external downloader
      */
     private val preferences: DownloadPreferences by injectLazy()
-
-    /**
-     * State store for resumable download progress.
-     */
-    private val stateStore by lazy { DownloadStateStore(context) }
-
-    /**
-     * Strategy selector for choosing download method.
-     */
-    private val strategySelector by lazy {
-        DownloadStrategySelector(networkHelper.client)
-    }
-
-    /**
-     * Multi-thread downloader for parallel chunk downloading.
-     */
-    private val multiThreadDownloader by lazy {
-        MultiThreadDownloader(
-            client = networkHelper.client,
-            stateStore = stateStore,
-            maxThreads = preferences.multiThreadConnections().get().coerceIn(1, 4),
-        )
-    }
 
     /**
      * Network helper for HTTP client access.
@@ -584,6 +564,7 @@ class AnimeDownloader(
     private suspend fun selectDownloadStrategy(download: AnimeDownload): DownloadStrategy {
         val video = download.video!!
         val videoUrl = video.videoUrl
+            ?: return DownloadStrategy.FFMPEG // Fallback if no URL available
 
         // Quick check: HLS/DASH always use FFmpeg
         val format = VideoSignatureValidator.detectVideoFormat(videoUrl)
@@ -626,13 +607,17 @@ class AnimeDownloader(
         val video = download.video!!
         val episodeId = download.episode.id ?: throw IllegalStateException("Episode ID is null")
 
+        // Null safety check for videoUrl
+        val videoUrl = video.videoUrl
+            ?: throw IllegalStateException("Video URL is null for episode $episodeId")
+
         // Detect format from URL to use correct extension
-        val format = VideoSignatureValidator.detectVideoFormat(video.videoUrl)
+        val format = VideoSignatureValidator.detectVideoFormat(videoUrl)
         val extension = format.extension
 
         val result = multiThreadDownloader.download(
             episodeId = episodeId,
-            videoUrl = video.videoUrl,
+            videoUrl = videoUrl,
             headers = video.headers?.let {
                 okhttp3.Headers.headersOf(*it.toList().flatMap { (k, v) -> listOf(k, v) }.toTypedArray())
             },

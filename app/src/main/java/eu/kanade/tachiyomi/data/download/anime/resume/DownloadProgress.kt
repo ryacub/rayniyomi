@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.data.download.anime.resume
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoNumber
 
 /**
  * Represents the progress of a resumable download.
@@ -15,21 +17,30 @@ import kotlinx.serialization.Serializable
  * @property createdAt Timestamp when the download was first started
  * @property updatedAt Timestamp of the last update
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class DownloadProgress(
-    val episodeId: Long,
-    val videoUrl: String,
-    val totalBytes: Long = -1,
-    val downloadedBytes: Long = 0,
-    val chunks: List<ChunkProgress> = emptyList(),
-    val status: Status = Status.IN_PROGRESS,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis(),
+    @ProtoNumber(1) val episodeId: Long,
+    @ProtoNumber(2) val videoUrl: String,
+    @ProtoNumber(3) val totalBytes: Long = -1,
+    @ProtoNumber(4) val downloadedBytes: Long = 0,
+    @ProtoNumber(5) val chunks: List<ChunkProgress> = emptyList(),
+    @ProtoNumber(6) val status: Status = Status.IN_PROGRESS,
+    @ProtoNumber(7) val createdAt: Long = System.currentTimeMillis(),
+    @ProtoNumber(8) val updatedAt: Long = System.currentTimeMillis(),
 ) {
+    @OptIn(ExperimentalSerializationApi::class)
     enum class Status {
+        @ProtoNumber(0)
         IN_PROGRESS,
+
+        @ProtoNumber(1)
         PAUSED,
+
+        @ProtoNumber(2)
         ERROR,
+
+        @ProtoNumber(3)
         COMPLETED,
     }
 
@@ -67,19 +78,28 @@ data class DownloadProgress(
  * @property status The current status of this chunk
  * @property tempFileName The name of the temporary file for this chunk
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ChunkProgress(
-    val index: Int,
-    val startByte: Long,
-    val endByte: Long,
-    val downloadedBytes: Long = 0,
-    val status: ChunkStatus = ChunkStatus.PENDING,
-    val tempFileName: String,
+    @ProtoNumber(1) val index: Int,
+    @ProtoNumber(2) val startByte: Long,
+    @ProtoNumber(3) val endByte: Long,
+    @ProtoNumber(4) val downloadedBytes: Long = 0,
+    @ProtoNumber(5) val status: ChunkStatus = ChunkStatus.PENDING,
+    @ProtoNumber(6) val tempFileName: String,
 ) {
+    @OptIn(ExperimentalSerializationApi::class)
     enum class ChunkStatus {
+        @ProtoNumber(0)
         PENDING,
+
+        @ProtoNumber(1)
         DOWNLOADING,
+
+        @ProtoNumber(2)
         COMPLETED,
+
+        @ProtoNumber(3)
         ERROR,
     }
 

@@ -37,7 +37,7 @@ import kotlin.coroutines.coroutineContext
 class MultiThreadDownloader(
     private val client: OkHttpClient,
     private val stateStore: DownloadStateStore,
-    private val maxThreads: Int = DEFAULT_THREAD_COUNT,
+    private val maxThreadsProvider: () -> Int = { DEFAULT_THREAD_COUNT },
 ) {
     private val rangeRequestHandler = RangeRequestHandler(client)
     private val chunkDownloader = ChunkDownloader(client, rangeRequestHandler)
@@ -122,6 +122,9 @@ class MultiThreadDownloader(
             is RangeRequestHandler.RangeSupportResult.Supported -> rangeSupport.totalSize
             else -> -1L
         }
+
+        // Get current thread count from provider (respects runtime preference changes)
+        val maxThreads = maxThreadsProvider()
 
         // Calculate chunks
         val chunks = if (totalBytes > 0) {
