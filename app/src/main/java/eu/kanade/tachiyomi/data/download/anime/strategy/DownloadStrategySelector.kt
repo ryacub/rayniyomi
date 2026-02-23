@@ -144,7 +144,6 @@ class DownloadStrategySelector(
             is RangeRequestHandler.RangeSupportResult.Error -> {
                 logcat(LogPriority.ERROR) {
                     "Error checking range support: ${rangeResult.exception.message}"
-                    "Error checking range support"
                 }
                 // Fall back to single thread on error
                 StrategyResult.Success(DownloadStrategy.SINGLE_THREAD)

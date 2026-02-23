@@ -71,6 +71,7 @@ class ChunkDownloader(
      * @param chunk The chunk range to download
      * @param headers Optional headers to include in requests
      * @param tempFile The temporary file to save the chunk to
+     * @param isFirstChunk Whether this is the first chunk (index 0), used for video signature validation
      * @param onProgress Callback for progress updates (bytes downloaded in this call)
      * @return [ChunkDownloadResult] indicating success or failure
      */
@@ -79,6 +80,7 @@ class ChunkDownloader(
         chunk: ChunkRange,
         headers: Headers?,
         tempFile: File,
+        isFirstChunk: Boolean,
         onProgress: (Long) -> Unit = {},
     ): ChunkDownloadResult {
         var lastError: Throwable? = null
@@ -91,7 +93,7 @@ class ChunkDownloader(
 
             return try {
                 withTimeoutOrNull(CHUNK_TIMEOUT_MS) {
-                    attemptDownload(videoUrl, chunk, headers, tempFile, onProgress)
+                    attemptDownload(videoUrl, chunk, headers, tempFile, isFirstChunk, onProgress)
                 } ?: ChunkDownloadResult.Error(
                     DownloadError.Timeout("Chunk download timed out after ${CHUNK_TIMEOUT_MS}ms"),
                 )
@@ -146,11 +148,12 @@ class ChunkDownloader(
         }
 
         return downloadChunk(
-            videoUrl,
-            remainingRange,
-            headers,
-            tempFile,
-            onProgress,
+            videoUrl = videoUrl,
+            chunk = remainingRange,
+            headers = headers,
+            tempFile = tempFile,
+            isFirstChunk = false, // Resuming, file already exists
+            onProgress = onProgress,
         )
     }
 
@@ -162,6 +165,7 @@ class ChunkDownloader(
         chunk: ChunkRange,
         headers: Headers?,
         tempFile: File,
+        isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
         return withContext(Dispatchers.IO) {
@@ -170,12 +174,12 @@ class ChunkDownloader(
             client.newCall(request).execute().use { response ->
                 when {
                     response.code == HttpURLConnection.HTTP_PARTIAL -> {
-                        handleSuccessResponse(response, tempFile, onProgress)
+                        handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
                     }
                     response.code == HttpURLConnection.HTTP_OK -> {
                         // Server ignored range request, got full file
                         logcat(LogPriority.WARN) { "Server ignored range request, received full file" }
-                        handleSuccessResponse(response, tempFile, onProgress)
+                        handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
                     }
                     response.code == HTTP_RANGE_NOT_SATISFIABLE -> {
                         // 416 Range Not Satisfiable
@@ -211,6 +215,7 @@ class ChunkDownloader(
     private fun handleSuccessResponse(
         response: Response,
         tempFile: File,
+        isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
         val body = response.body ?: return ChunkDownloadResult.Error(
@@ -241,8 +246,8 @@ class ChunkDownloader(
                 }
             }
 
-            // Validate downloaded content
-            if (!VideoSignatureValidator.validateVideoSignature(tempFile, tempFile.length() <= totalBytes + 1024)) {
+            // Validate downloaded content (only check signature for first chunk)
+            if (isFirstChunk && !VideoSignatureValidator.validateVideoSignature(tempFile, isFirstChunk)) {
                 return ChunkDownloadResult.Error(
                     DownloadError.InvalidContent("Downloaded content is not valid video"),
                 )

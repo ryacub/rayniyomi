@@ -283,6 +283,7 @@ class MultiThreadDownloader(
                 chunk = ChunkRange(chunk.startByte, chunk.endByte),
                 headers = headers,
                 tempFile = tempFile,
+                isFirstChunk = chunk.index == 0,
                 onProgress = onChunkProgress,
             )
 

@@ -84,6 +84,17 @@ class ChunkMerger {
                 // Sort chunks by index to ensure correct order
                 val sortedChunks = progress.chunks.sortedBy { it.index }
 
+                // Verify chunk indices are sequential (no gaps)
+                val expectedIndices = (0 until sortedChunks.size).toList()
+                val actualIndices = sortedChunks.map { it.index }
+                if (actualIndices != expectedIndices) {
+                    return@withContext MergeResult.Error(
+                        MergeError.IncompleteChunks(
+                            "Non-sequential chunks. Expected: $expectedIndices, Got: $actualIndices",
+                        ),
+                    )
+                }
+
                 // Verify all chunks are complete
                 val incompleteChunks = sortedChunks.filter { !it.isComplete }
                 if (incompleteChunks.isNotEmpty()) {
