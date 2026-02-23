@@ -77,6 +77,10 @@ class DownloadPreferences(
     fun animeDownloadJobCrashCount() = preferenceStore.getInt("anime_download_job_crash_count", 0)
     fun batteryOptimizationPromptShown() = preferenceStore.getBoolean("battery_optimization_prompt_shown", false)
 
+    // Multi-thread anime download preferences (R316)
+    fun multiThreadDownloads() = preferenceStore.getBoolean("multi_thread_downloads", true)
+    fun multiThreadConnections() = preferenceStore.getInt("multi_thread_connections", 2)
+
     companion object {
         private const val REMOVE_EXCLUDE_MANGA_CATEGORIES_PREF_KEY = "remove_exclude_categories"
         private const val REMOVE_EXCLUDE_ANIME_CATEGORIES_PREF_KEY = "remove_exclude_anime_categories"
