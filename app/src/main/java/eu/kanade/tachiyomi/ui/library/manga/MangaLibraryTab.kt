@@ -56,6 +56,7 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.library.manga.LibraryManga
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -63,7 +64,9 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.source.local.entries.manga.isLocal
+import uy.kohesive.injekt.injectLazy
 
 data object MangaLibraryTab : Tab {
 
@@ -123,6 +126,9 @@ data object MangaLibraryTab : Tab {
         } else {
             null
         }
+
+        val libraryPreferences: LibraryPreferences by injectLazy()
+        val libraryListSize by libraryPreferences.libraryListSize().collectAsState()
 
         val defaultTitle = stringResource(AYMR.strings.label_manga_library)
 
@@ -248,6 +254,7 @@ data object MangaLibraryTab : Tab {
                                 it,
                             )
                         },
+                        libraryListSize = libraryListSize,
                     ) { state.getLibraryItemsByPage(it) }
                 }
             }

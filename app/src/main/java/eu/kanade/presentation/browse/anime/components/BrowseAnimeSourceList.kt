@@ -89,7 +89,7 @@ private fun BrowseAnimeSourceListItem(
         },
         onLongClick = onLongClick,
         onClick = onClick,
-        entries = entries,
+        rows = entries,
         containerHeight = containerHeight,
     )
 }

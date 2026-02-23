@@ -45,6 +45,7 @@ fun MangaLibraryContent(
     getNumberOfMangaForCategory: (Category) -> Int?,
     getDisplayMode: (Int) -> PreferenceMutableState<LibraryDisplayMode>,
     getColumnsForOrientation: (Boolean) -> PreferenceMutableState<Int>,
+    libraryListSize: Int,
     getLibraryForPage: (Int) -> List<MangaLibraryItem>,
 ) {
     Column(
@@ -105,6 +106,7 @@ fun MangaLibraryContent(
                 onGlobalSearchClicked = onGlobalSearchClicked,
                 getDisplayMode = getDisplayMode,
                 getColumnsForOrientation = getColumnsForOrientation,
+                libraryListSize = libraryListSize,
                 getLibraryForPage = getLibraryForPage,
                 onClickManga = onClickManga,
                 onLongClickManga = onToggleRangeSelection,
