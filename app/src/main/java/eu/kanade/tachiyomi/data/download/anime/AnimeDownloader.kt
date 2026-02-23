@@ -18,9 +18,17 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.anime.multithread.DownloadResult
+import eu.kanade.tachiyomi.data.download.anime.multithread.MultiThreadDownloader
+import eu.kanade.tachiyomi.data.download.anime.multithread.VideoFormat
+import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidator
+import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
+import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
+import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
+import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.util.storage.DiskUtil
@@ -78,6 +86,9 @@ class AnimeDownloader(
     private val provider: AnimeDownloadProvider,
     private val cache: AnimeDownloadCache,
     private val sourceManager: AnimeSourceManager = Injekt.get(),
+    private val stateStore: DownloadStateStore = Injekt.get(),
+    private val strategySelector: DownloadStrategySelector = Injekt.get(),
+    private val multiThreadDownloader: MultiThreadDownloader = Injekt.get(),
 ) {
     /**
      * Queue where active downloads are kept.
@@ -130,6 +141,11 @@ class AnimeDownloader(
      * Preference for user's choice of external downloader
      */
     private val preferences: DownloadPreferences by injectLazy()
+
+    /**
+     * Network helper for HTTP client access.
+     */
+    private val networkHelper: NetworkHelper by injectLazy()
 
     /**
      * Whether the downloader is running.
@@ -508,7 +524,20 @@ class AnimeDownloader(
             tmpDir.findFile("$filename.tmp")?.delete()
             val videoFile = tmpDir.createFile("$filename.tmp")!!
             try {
-                ffmpegDownload(download, tmpDir, videoFile, filename)
+                // Select download strategy based on video format and preferences
+                val strategy = selectDownloadStrategy(download)
+
+                when (strategy) {
+                    DownloadStrategy.MULTI_THREAD -> {
+                        downloadWithMultiThread(download, tmpDir, videoFile, filename)
+                    }
+                    DownloadStrategy.SINGLE_THREAD,
+                    DownloadStrategy.FFMPEG,
+                    -> {
+                        // Fall back to FFmpeg for single-thread and streaming protocols
+                        ffmpegDownload(download, tmpDir, videoFile, filename)
+                    }
+                }
             } catch (e: Exception) {
                 videoFile.delete()
                 throw e
@@ -527,6 +556,92 @@ class AnimeDownloader(
             }
             .flowOn(Dispatchers.IO)
             .first()
+    }
+
+    /**
+     * Selects the appropriate download strategy for the video.
+     */
+    private suspend fun selectDownloadStrategy(download: AnimeDownload): DownloadStrategy {
+        val video = download.video!!
+        val videoUrl = video.videoUrl
+            ?: return DownloadStrategy.FFMPEG // Fallback if no URL available
+
+        // Quick check: HLS/DASH always use FFmpeg
+        val format = VideoSignatureValidator.detectVideoFormat(videoUrl)
+        if (format == VideoFormat.HLS || format == VideoFormat.DASH) {
+            return DownloadStrategy.FFMPEG
+        }
+
+        // Check if multi-thread is enabled in preferences
+        val multiThreadEnabled = preferences.multiThreadDownloads().get()
+        val maxConnections = preferences.multiThreadConnections().get().coerceIn(1, 4)
+
+        // Select strategy
+        val result = strategySelector.selectStrategy(
+            videoUrl = videoUrl,
+            headers = video.headers?.let {
+                okhttp3.Headers.headersOf(*it.toList().flatMap { (k, v) -> listOf(k, v) }.toTypedArray())
+            },
+            multiThreadEnabled = multiThreadEnabled,
+            maxConnections = maxConnections,
+        )
+
+        return when (result) {
+            is DownloadStrategySelector.StrategyResult.Success -> result.strategy
+            is DownloadStrategySelector.StrategyResult.Error -> {
+                logcat(LogPriority.WARN) { "Strategy selection failed: ${result.reason}, falling back to FFmpeg" }
+                DownloadStrategy.FFMPEG
+            }
+        }
+    }
+
+    /**
+     * Downloads using the multi-thread downloader.
+     */
+    private suspend fun downloadWithMultiThread(
+        download: AnimeDownload,
+        tmpDir: UniFile,
+        videoFile: UniFile,
+        filename: String,
+    ) {
+        val video = download.video!!
+        val episodeId = download.episode.id ?: throw IllegalStateException("Episode ID is null")
+
+        // Null safety check for videoUrl
+        val videoUrl = video.videoUrl
+            ?: throw IllegalStateException("Video URL is null for episode $episodeId")
+
+        // Detect format from URL to use correct extension
+        val format = VideoSignatureValidator.detectVideoFormat(videoUrl)
+        val extension = format.extension
+
+        val result = multiThreadDownloader.download(
+            episodeId = episodeId,
+            videoUrl = videoUrl,
+            headers = video.headers?.let {
+                okhttp3.Headers.headersOf(*it.toList().flatMap { (k, v) -> listOf(k, v) }.toTypedArray())
+            },
+            tmpDir = tmpDir,
+            outputFile = videoFile,
+        ) { progress ->
+            // Update download progress
+            download.progress = progress.progressPercent.coerceIn(0, 100)
+        }
+
+        when (result) {
+            is DownloadResult.Success -> {
+                // Rename to final filename with correct extension
+                tmpDir.findFile("$filename.tmp")?.apply {
+                    renameTo("$filename.$extension")
+                }
+            }
+            is DownloadResult.Error -> {
+                throw Exception("Multi-thread download failed: ${result.error.message}")
+            }
+            DownloadResult.Cancelled -> {
+                throw CancellationException("Download cancelled")
+            }
+        }
     }
 
     // ffmpeg is always on safe mode

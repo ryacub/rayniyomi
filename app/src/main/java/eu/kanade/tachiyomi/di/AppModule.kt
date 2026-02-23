@@ -21,6 +21,9 @@ import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadProvider
+import eu.kanade.tachiyomi.data.download.anime.multithread.MultiThreadDownloader
+import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
+import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
@@ -58,6 +61,7 @@ import tachiyomi.data.handlers.anime.AndroidAnimeDatabaseHandler
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.AndroidMangaDatabaseHandler
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.storage.service.StorageManager
@@ -214,6 +218,19 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { AnimeDownloadProvider(app) }
         addSingletonFactory { AnimeDownloadManager(app) }
         addSingletonFactory { AnimeDownloadCache(app) }
+
+        // Multi-threaded anime download components
+        addSingletonFactory { DownloadStateStore(app) }
+        addSingletonFactory { DownloadStrategySelector(get()) }
+        addSingletonFactory {
+            MultiThreadDownloader(
+                client = get(),
+                stateStore = get(),
+                maxThreadsProvider = {
+                    get<DownloadPreferences>().multiThreadConnections().get().coerceIn(1, 4)
+                },
+            )
+        }
 
         addSingletonFactory { TrackerManager(app) }
         addSingletonFactory { DelayedAnimeTrackingStore(app) }
