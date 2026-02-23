@@ -9,7 +9,6 @@ import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.resume.RangeRequestHandler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -21,6 +20,9 @@ import okhttp3.Headers
 import okhttp3.OkHttpClient
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.coroutineContext
 
 /**
  * Downloads video files using multiple concurrent connections.
@@ -48,8 +50,9 @@ class MultiThreadDownloader(
 
     /**
      * Active download jobs for cancellation.
+     * Using CopyOnWriteArrayList for thread-safe access from multiple coroutines.
      */
-    private val activeJobs = mutableListOf<Job>()
+    private val activeJobs = CopyOnWriteArrayList<Job>()
 
     /**
      * Downloads a video file using multiple threads.
@@ -124,8 +127,9 @@ class MultiThreadDownloader(
         val chunks = if (totalBytes > 0) {
             ChunkSizeCalculator.calculateChunks(totalBytes, maxThreads)
         } else {
-            // Unknown size, use single chunk
-            listOf(ChunkRange(0, Long.MAX_VALUE))
+            // Unknown size, use single chunk with open-ended range
+            // This tells the server to send from byte 0 to the end
+            listOf(ChunkRange(0, -1))
         }
 
         // Create progress
@@ -161,8 +165,9 @@ class MultiThreadDownloader(
         onProgress: (DownloadProgress) -> Unit,
         resume: Boolean,
     ): DownloadResult {
-        // Create supervisor scope for this download
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        // Create supervisor scope that is a child of the caller's scope
+        // This ensures proper cancellation propagation while allowing independent job management
+        val scope = CoroutineScope(coroutineContext + SupervisorJob())
         downloadScope = scope
 
         // Get temp directory as File
@@ -179,7 +184,7 @@ class MultiThreadDownloader(
         val outputFileObj = File(outputFilePath)
 
         // Track total downloaded bytes
-        var totalDownloaded = progress.downloadedBytes
+        val totalDownloaded = AtomicLong(progress.downloadedBytes)
 
         return try {
             // Create jobs for each incomplete chunk
@@ -193,9 +198,9 @@ class MultiThreadDownloader(
                             headers = headers,
                             tempDir = tempDirFile,
                             onChunkProgress = { bytes ->
-                                totalDownloaded += bytes
+                                val newTotal = totalDownloaded.addAndGet(bytes)
                                 val updatedProgress = progress.copy(
-                                    downloadedBytes = totalDownloaded,
+                                    downloadedBytes = newTotal,
                                 )
                                 onProgress(updatedProgress)
                             },
@@ -211,7 +216,12 @@ class MultiThreadDownloader(
             // Check if all chunks completed successfully
             val allComplete = progress.chunks.all { chunk ->
                 val chunkFile = File(tempDirFile, chunk.tempFileName)
-                chunkFile.exists() && chunkFile.length() == (chunk.endByte - chunk.startByte + 1)
+                if (chunk.endByte < 0) {
+                    // Open-ended range - just check that file exists and has some content
+                    chunkFile.exists() && chunkFile.length() > 0
+                } else {
+                    chunkFile.exists() && chunkFile.length() == (chunk.endByte - chunk.startByte + 1)
+                }
             }
 
             if (!allComplete) {
@@ -246,7 +256,7 @@ class MultiThreadDownloader(
             // Save progress for resume
             saveProgress(
                 progress.copy(
-                    downloadedBytes = totalDownloaded,
+                    downloadedBytes = totalDownloaded.get(),
                     status = DownloadProgress.Status.PAUSED,
                 ),
             )

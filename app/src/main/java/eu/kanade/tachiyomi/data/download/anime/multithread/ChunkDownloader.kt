@@ -84,6 +84,7 @@ class ChunkDownloader(
         onProgress: (Long) -> Unit = {},
     ): ChunkDownloadResult {
         var lastError: Throwable? = null
+        var lastResult: ChunkDownloadResult? = null
 
         for (attempt in 1..MAX_RETRIES) {
             // Check for cancellation
@@ -91,7 +92,7 @@ class ChunkDownloader(
                 return ChunkDownloadResult.Cancelled
             }
 
-            return try {
+            val result = try {
                 withTimeoutOrNull(CHUNK_TIMEOUT_MS) {
                     attemptDownload(videoUrl, chunk, headers, tempFile, isFirstChunk, onProgress)
                 } ?: ChunkDownloadResult.Error(
@@ -110,11 +111,41 @@ class ChunkDownloader(
                     delay(delayMs)
                 }
 
-                ChunkDownloadResult.Error(DownloadError.NetworkError(e))
+                lastResult = ChunkDownloadResult.Error(DownloadError.NetworkError(e))
+                continue
             }
+
+            // Check if the result is a success that we should return immediately
+            val checkResult: ChunkDownloadResult = when (result) {
+                is ChunkDownloadResult.Success -> result
+                is ChunkDownloadResult.Error -> {
+                    // Only retry on retryable errors
+                    val isRetryable = when (result.error) {
+                        is DownloadError.NetworkError -> true
+                        is DownloadError.Timeout -> true
+                        is DownloadError.ServerError -> true
+                        else -> false
+                    }
+
+                    if (isRetryable && attempt < MAX_RETRIES) {
+                        lastError = result.error as? Throwable ?: Exception(result.error.toString())
+                        lastResult = result
+                        val delayMs = calculateRetryDelay(attempt)
+                        delay(delayMs)
+                        // Continue to next attempt
+                        continue
+                    } else {
+                        // Non-retryable error or max retries exceeded
+                        result
+                    }
+                }
+                ChunkDownloadResult.Cancelled -> result
+            }
+            return checkResult
         }
 
-        return ChunkDownloadResult.Error(
+        // If we exit the loop without returning, return the last error
+        return lastResult ?: ChunkDownloadResult.Error(
             DownloadError.MaxRetriesExceeded(
                 lastError ?: Exception("Unknown error"),
             ),
@@ -141,6 +172,35 @@ class ChunkDownloader(
         // Calculate remaining range
         val resumeStart = progress.startByte + progress.downloadedBytes
         val remainingRange = ChunkRange(resumeStart, progress.endByte)
+
+        // Check if already complete (handle open-ended ranges with endByte = -1)
+        if (progress.endByte < 0) {
+            // Open-ended range - can't determine completion without knowing total size
+            // Assume incomplete if there's anything to resume
+            if (progress.downloadedBytes <= 0) {
+                return downloadChunk(
+                    videoUrl = videoUrl,
+                    chunk = remainingRange,
+                    headers = headers,
+                    tempFile = tempFile,
+                    isFirstChunk = false,
+                    onProgress = onProgress,
+                )
+            }
+            // For open-ended downloads, check if file exists and has content
+            return if (tempFile.exists() && tempFile.length() > 0) {
+                ChunkDownloadResult.Success(progress.downloadedBytes)
+            } else {
+                downloadChunk(
+                    videoUrl = videoUrl,
+                    chunk = remainingRange,
+                    headers = headers,
+                    tempFile = tempFile,
+                    isFirstChunk = false,
+                    onProgress = onProgress,
+                )
+            }
+        }
 
         if (remainingRange.startByte > remainingRange.endByte) {
             // Already complete
@@ -171,15 +231,22 @@ class ChunkDownloader(
         return withContext(Dispatchers.IO) {
             val request = rangeRequestHandler.createRangeRequest(videoUrl, chunk, headers)
 
-            client.newCall(request).execute().use { response ->
+            val result: ChunkDownloadResult = client.newCall(request).execute().use { response ->
                 when {
                     response.code == HttpURLConnection.HTTP_PARTIAL -> {
                         handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
                     }
                     response.code == HttpURLConnection.HTTP_OK -> {
-                        // Server ignored range request, got full file
-                        logcat(LogPriority.WARN) { "Server ignored range request, received full file" }
-                        handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
+                        // Server ignored range request, got full file instead of chunk
+                        // This is fatal for multi-threaded downloads - each chunk would get full file
+                        logcat(LogPriority.ERROR) {
+                            "Server ignored range request, received full file instead of chunk"
+                        }
+                        ChunkDownloadResult.Error(
+                            DownloadError.InvalidRange(
+                                "Server does not support range requests; multi-threaded download not possible",
+                            ),
+                        )
                     }
                     response.code == HTTP_RANGE_NOT_SATISFIABLE -> {
                         // 416 Range Not Satisfiable
@@ -206,6 +273,7 @@ class ChunkDownloader(
                     }
                 }
             }
+            result
         }
     }
 

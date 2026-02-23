@@ -143,9 +143,10 @@ class ChunkMerger {
 
                 // Validate merged file size
                 val expectedSize = progress.totalBytes
-                if (expectedSize > 0 && outputFile.length() != expectedSize) {
+                val actualSize = outputFile.length()
+                if (expectedSize > 0 && actualSize != expectedSize) {
                     logcat(LogPriority.ERROR) {
-                        "Merged file size mismatch: expected $expectedSize, got ${outputFile.length()}"
+                        "Merged file size mismatch: expected $expectedSize, got $actualSize"
                     }
 
                     // Clean up invalid output
@@ -153,7 +154,7 @@ class ChunkMerger {
 
                     return@withContext MergeResult.Error(
                         MergeError.SizeMismatch(
-                            "Expected $expectedSize bytes, got ${outputFile.length()}",
+                            "Expected $expectedSize bytes, got $actualSize",
                         ),
                     )
                 }
@@ -203,8 +204,13 @@ class ChunkMerger {
             }
 
             // Verify chunk file size
-            val expectedSize = chunk.endByte - chunk.startByte + 1
-            if (chunkFile.length() != expectedSize) {
+            val expectedSize = if (chunk.endByte < 0) {
+                // Open-ended - can't verify exact size
+                -1L
+            } else {
+                chunk.endByte - chunk.startByte + 1
+            }
+            if (expectedSize >= 0 && chunkFile.length() != expectedSize) {
                 logcat(LogPriority.WARN) {
                     "Chunk ${chunk.index} size mismatch: expected $expectedSize, got ${chunkFile.length()}"
                 }

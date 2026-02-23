@@ -626,6 +626,10 @@ class AnimeDownloader(
         val video = download.video!!
         val episodeId = download.episode.id ?: throw IllegalStateException("Episode ID is null")
 
+        // Detect format from URL to use correct extension
+        val format = VideoSignatureValidator.detectVideoFormat(video.videoUrl)
+        val extension = format.extension
+
         val result = multiThreadDownloader.download(
             episodeId = episodeId,
             videoUrl = video.videoUrl,
@@ -641,9 +645,9 @@ class AnimeDownloader(
 
         when (result) {
             is DownloadResult.Success -> {
-                // Rename to final filename
+                // Rename to final filename with correct extension
                 tmpDir.findFile("$filename.tmp")?.apply {
-                    renameTo("$filename.mkv")
+                    renameTo("$filename.$extension")
                 }
             }
             is DownloadResult.Error -> {

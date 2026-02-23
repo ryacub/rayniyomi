@@ -85,15 +85,17 @@ data class ChunkProgress(
 
     /**
      * The expected total size of this chunk.
+     * Returns -1 if endByte is -1 (open-ended range).
      */
     val totalBytes: Long
-        get() = endByte - startByte + 1
+        get() = if (endByte < 0) -1 else endByte - startByte + 1
 
     /**
      * Returns true if this chunk is fully downloaded.
+     * For open-ended ranges (endByte = -1), returns false since we can't determine completion.
      */
     val isComplete: Boolean
-        get() = downloadedBytes >= totalBytes
+        get() = if (endByte < 0) false else downloadedBytes >= totalBytes
 
     /**
      * Returns the progress of this chunk as a percentage (0-100).
@@ -108,6 +110,9 @@ data class ChunkProgress(
 
 /**
  * Represents a byte range for a download chunk.
+ *
+ * @param startByte The starting byte position (inclusive)
+ * @param endByte The ending byte position (inclusive), or -1 to indicate "to the end"
  */
 data class ChunkRange(
     val startByte: Long,
@@ -115,12 +120,17 @@ data class ChunkRange(
 ) {
     /**
      * The size of this range in bytes.
+     * Returns -1 if endByte is -1 (open-ended range).
      */
     val size: Long
-        get() = endByte - startByte + 1
+        get() = if (endByte < 0) -1 else endByte - startByte + 1
 
     /**
-     * Converts to an HTTP Range header value (e.g., "bytes=0-1023").
+     * Converts to an HTTP Range header value (e.g., "bytes=0-1023" or "bytes=0-" for open-ended).
      */
-    fun toRangeHeader(): String = "bytes=$startByte-$endByte"
+    fun toRangeHeader(): String = if (endByte < 0) {
+        "bytes=$startByte-"
+    } else {
+        "bytes=$startByte-$endByte"
+    }
 }

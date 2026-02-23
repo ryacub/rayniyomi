@@ -4,9 +4,6 @@ import eu.kanade.tachiyomi.data.download.anime.multithread.VideoFormat
 import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidator
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
 import eu.kanade.tachiyomi.data.download.anime.resume.RangeRequestHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import logcat.LogPriority
 import logcat.logcat
 import okhttp3.OkHttpClient
@@ -24,7 +21,6 @@ import okhttp3.OkHttpClient
 class DownloadStrategySelector(
     private val client: OkHttpClient,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Result of strategy selection.

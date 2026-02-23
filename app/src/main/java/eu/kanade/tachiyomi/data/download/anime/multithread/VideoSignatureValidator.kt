@@ -270,13 +270,13 @@ object VideoSignatureValidator {
 /**
  * Represents detected video formats.
  */
-enum class VideoFormat {
-    MP4,
-    MKV,
-    WEBM,
-    HLS,
-    DASH,
-    MPEG_TS,
-    AVI,
-    UNKNOWN,
+enum class VideoFormat(val extension: String) {
+    MP4("mp4"),
+    MKV("mkv"),
+    WEBM("webm"),
+    HLS("ts"),
+    DASH("mp4"),
+    MPEG_TS("ts"),
+    AVI("avi"),
+    UNKNOWN("mp4"),
 }
