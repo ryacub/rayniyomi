@@ -10,6 +10,54 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `Fixed` - for any bug fixes.
 - `Other` - for technical stuff.
 
+## [v1.0.0] - Rayniyomi (First Stable Release)
+
+### Added
+
+- PIN lock authentication with SHA-256 salted hashing, escalating timeouts, and secure storage
+- Light novel plugin system with complete reading support and dedicated plugin architecture
+- LLM-powered manga translation with vision LLM integration and reader toggle
+- Translation engines: Claude (Anthropic), OpenAI (GPT-4 Vision), OpenRouter (multi-model), Google (Gemini)
+- Automatic webtoon auto-scroll with play/pause, speed controls, and tap-to-pause
+- Improved categories with hierarchical organization and search
+- List display size slider for adjustable library list density
+- Resumable and multi-thread anime downloads with HTTP range resume and 1-4 concurrent connections
+- Download priority and "Download Next Unread" mode
+- Configurable page download concurrency
+- WorkManager auto-retry with battery optimization guidance
+- Plugin performance budgets and tracking
+- Plugin compatibility governance with version matrix
+- Plugin update policy with staged rollout controls
+- Plugin offline/network resilience with cached manifests
+- Plugin reliability telemetry and alerting
+- Plugin data lifecycle and migration hardening
+- Plugin security runbook with denylist support
+- Consent-first plugin install flow
+- Firebase Crashlytics integration for crash monitoring
+- StrictMode dev checks for main-thread I/O
+- Static guardrails against runBlocking on UI thread
+
+### Improved
+
+- AniSkip hardening — improved intro/outro auto-skip reliability with disk cache
+- Entry screen refactoring — shared anime/manga screen components
+- Jetpack Compose migration for plugin UI
+- Database index optimization for library queries
+- Cover image downsampling in grid views
+- 50MB OkHttp network cache (up from 5MB)
+- Library filtering moved to database layer
+- Compose recomposition stabilization
+- Deferred Firebase Crashlytics initialization
+- Full async/threading refactoring (removed all runBlocking from UI paths)
+
+### Other
+
+- Rebranded from Aniyomi to Rayniyomi (app name, launcher icon, all UI text)
+- Changed applicationId to xyz.rayniyomi
+- Disabled upstream update checker
+- Fork-owned Firebase configuration
+- Disabled ACRA crash reporting
+
 ## Unreleased
 
 ### Added
