@@ -18,6 +18,41 @@ Discover and watch anime, cartoons, series, and more – easier than ever on you
 
 Rayniyomi is a fork of [Aniyomi](https://github.com/aniyomiorg/aniyomi) (which is based on [Mihon](https://github.com/mihonapp/mihon)).
 
+## What Makes Rayniyomi Different?
+
+Rayniyomi extends Aniyomi with powerful new features focused on personalization, automation, and advanced reading/watching capabilities:
+
+### 🔐 Enhanced Security
+- **PIN Lock Authentication** — Secure your app with SHA-256 salted hashing, escalating timeouts, and secure storage
+
+### 📚 Light Novel Support
+- **Light Novel Plugin System** — Read light novels with a dedicated plugin architecture and full chapter support
+
+### 🌐 AI-Powered Translation
+- **LLM Manga Translation** — Translate manga chapters on-the-fly using vision AI models
+- **Multiple Translation Engines** — Support for Claude (Anthropic), OpenAI (GPT-4 Vision), OpenRouter, and Google Gemini
+- **Reader Toggle** — Switch between original and translated versions instantly
+
+### ⚡ Advanced Downloads
+- **Resumable & Multi-threaded Anime Downloads** — HTTP range resume with 1-4 concurrent connections
+- **Smart Download Priority** — "Download Next Unread" mode and configurable concurrency
+- **Battery Optimization** — WorkManager auto-retry with intelligent battery usage
+
+### 🎨 UI/UX Enhancements
+- **Automatic Webtoon Auto-scroll** — Hands-free reading with play/pause, speed controls, and tap-to-pause
+- **List Display Size Slider** — Adjust library list density to your preference
+- **Improved Categories** — Hierarchical organization with search functionality
+
+### 🔌 Robust Plugin System
+- **Performance Budgets** — Track and limit plugin resource usage
+- **Compatibility Governance** — Version matrix ensures host-plugin compatibility
+- **Offline/Network Resilience** — Cached manifest strategy for reliable operation
+- **Security Hardening** — Denylist support and consent-first install flow
+
+### 📊 Crash Monitoring
+- **Firebase Crashlytics Integration** — Production crash monitoring and debugging insights
+- **Performance Tracking** — Identify and fix issues faster with detailed telemetry
+
 ## Features
 
 <div align="left">
