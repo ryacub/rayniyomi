@@ -32,14 +32,25 @@ Fork of Aniyomi with anime/manga tracking, reading, and watching.
 - Cloud backups
 - Dark/light themes
 
+## Contributing
+
+[Code of conduct](./CODE_OF_CONDUCT.md) · [Contributing guide](./CONTRIBUTING.md)
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+### Related Repos
+
+- [aniyomi-website](https://github.com/aniyomiorg/aniyomi-website)
+- [aniyomi-mpv-lib](https://github.com/aniyomiorg/aniyomi-mpv-lib)
+
 ## Download
 
 Get it from [releases](https://github.com/ryacub/rayniyomi/releases).
 
 ## License
 
-Copyright © 2015 Javier Tomás
-Copyright © 2024 Mihon Open Source Project
-Copyright © 2024 Aniyomi Open Source Project
+Copyright © 2015 Javier Tomás  
+Copyright © 2024 Mihon Open Source Project  
+Copyright © 2024 Aniyomi Open Source Project  
 
 Licensed under the Apache License, Version 2.0 — see LICENSE file.
