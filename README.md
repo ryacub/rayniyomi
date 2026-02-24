@@ -36,10 +36,10 @@ Fork of Aniyomi with anime/manga tracking, reading, and watching.
 
 Get it from [releases](https://github.com/ryacub/rayniyomi/releases).
 
-## Disclaimer
-
-This app hosts zero content. We just give you tools to read/watch what you already have access to.
-
 ## License
 
-Apache 2.0 — see LICENSE file.
+Copyright © 2015 Javier Tomás
+Copyright © 2024 Mihon Open Source Project
+Copyright © 2024 Aniyomi Open Source Project
+
+Licensed under the Apache License, Version 2.0 — see LICENSE file.
