@@ -1,0 +1,14 @@
+# Gitleaks configuration for Rayniyomi
+# See: https://github.com/gitleaks/gitleaks
+
+title = "Rayniyomi gitleaks config"
+
+# Allow google-services.json - Firebase API keys are public by design
+# They are restricted by Firebase security rules, not by secrecy
+# See: https://firebase.google.com/docs/projects/api-keys
+
+[allowlist]
+description = "Allowlist for safe API keys"
+paths = [
+    '''app/google-services\.json'''
+]
