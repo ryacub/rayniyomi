@@ -28,4 +28,4 @@ logs/
 
 # Git worktrees
 .worktrees/
-app/google-services.json
+# app/google-services.json — Now tracked (fork-owned Firebase project)
