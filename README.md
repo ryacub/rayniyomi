@@ -38,11 +38,6 @@ Fork of Aniyomi with anime/manga tracking, reading, and watching.
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-### Related Repos
-
-- [aniyomi-website](https://github.com/aniyomiorg/aniyomi-website)
-- [aniyomi-mpv-lib](https://github.com/aniyomiorg/aniyomi-mpv-lib)
-
 ## Download
 
 Get it from [releases](https://github.com/ryacub/rayniyomi/releases).
