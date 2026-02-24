@@ -1,0 +1,96 @@
+name: Auto Version Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    name: Bump version
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          # Extract current versions
+          CURRENT_VERSION_CODE=$(grep 'val appVersionCode = ' app/build.gradle.kts | sed 's/.*= //')
+          CURRENT_VERSION_NAME=$(grep 'versionName = ' app/build.gradle.kts | sed 's/.*versionName = "\(.*\)"/\1/')
+
+          echo "Current versionCode: $CURRENT_VERSION_CODE"
+          echo "Current versionName: $CURRENT_VERSION_NAME"
+
+          # Increment versionCode
+          NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+
+          # Determine version bump type from PR title
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          # Parse current version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION_NAME"
+
+          # Determine bump type based on conventional commit prefix
+          if [[ "$PR_TITLE" =~ ^feat(\(.*\))?:|^feature: ]]; then
+            # Feature: bump minor (1.0.1 -> 1.1.0)
+            NEW_MINOR=$((MINOR + 1))
+            NEW_VERSION_NAME="${MAJOR}.${NEW_MINOR}.0"
+            BUMP_TYPE="minor (feature)"
+          elif [[ "$PR_TITLE" =~ ^(fix|perf|refactor|test|docs|style|chore|ci|build)(\(.*\))?:|^(bugfix|hotfix): ]]; then
+            # Fix/other: bump patch (1.0.1 -> 1.0.2)
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            BUMP_TYPE="patch"
+          elif [[ "$PR_TITLE" =~ BREAKING[[:space:]]CHANGE ]]; then
+            # Breaking change: bump major (1.0.1 -> 2.0.0)
+            NEW_MAJOR=$((MAJOR + 1))
+            NEW_VERSION_NAME="${NEW_MAJOR}.0.0"
+            BUMP_TYPE="major (breaking)"
+          else
+            # Default: bump patch
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            BUMP_TYPE="patch (default)"
+          fi
+
+          echo "Bump type: $BUMP_TYPE"
+          echo "New versionCode: $NEW_VERSION_CODE"
+          echo "New versionName: $NEW_VERSION_NAME"
+
+          # Update build.gradle.kts
+          sed -i "s/val appVersionCode = $CURRENT_VERSION_CODE/val appVersionCode = $NEW_VERSION_CODE/" app/build.gradle.kts
+          sed -i "s/versionName = \"$CURRENT_VERSION_NAME\"/versionName = \"$NEW_VERSION_NAME\"/" app/build.gradle.kts
+
+          # Export for commit message
+          echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "version_name=$NEW_VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "pr_title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        run: |
+          git add app/build.gradle.kts
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.version_name }} (build ${{ steps.bump.outputs.version_code }})
+
+          Version bump type: ${{ steps.bump.outputs.bump_type }}
+          Auto-generated after merging PR #${{ steps.bump.outputs.pr_number }}: ${{ steps.bump.outputs.pr_title }}
+
+          [skip ci]"
+          git push origin main
