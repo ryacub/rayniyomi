@@ -11,7 +11,9 @@ plugins {
     id("com.github.zellius.shortcut-helper")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
-    alias(libs.plugins.google.services)
+    // Only apply Google Services plugin for release builds (Firebase Analytics/Crashlytics)
+    // Debug builds don't need it and google-services.json only contains release package
+    alias(libs.plugins.google.services) apply false
 }
 
 shortcutHelper.setFilePath("./shortcuts.xml")
@@ -360,6 +362,12 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
             """.trimIndent(),
         )
     }
+}
+
+// Apply Google Services plugin conditionally for non-debug builds
+// This allows debug builds to work without xyz.rayniyomi.dev in Firebase
+if (gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 buildscript {
