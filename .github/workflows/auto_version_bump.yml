@@ -40,11 +40,36 @@ jobs:
           # Increment versionCode
           NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
 
-          # Increment patch version (1.0.1 -> 1.0.2)
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION_NAME"
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          # Determine version bump type from PR title
+          PR_TITLE="${{ github.event.pull_request.title }}"
 
+          # Parse current version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION_NAME"
+
+          # Determine bump type based on conventional commit prefix
+          if [[ "$PR_TITLE" =~ ^feat(\(.*\))?:|^feature: ]]; then
+            # Feature: bump minor (1.0.1 -> 1.1.0)
+            NEW_MINOR=$((MINOR + 1))
+            NEW_VERSION_NAME="${MAJOR}.${NEW_MINOR}.0"
+            BUMP_TYPE="minor (feature)"
+          elif [[ "$PR_TITLE" =~ ^(fix|perf|refactor|test|docs|style|chore|ci|build)(\(.*\))?:|^(bugfix|hotfix): ]]; then
+            # Fix/other: bump patch (1.0.1 -> 1.0.2)
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            BUMP_TYPE="patch"
+          elif [[ "$PR_TITLE" =~ BREAKING[[:space:]]CHANGE ]]; then
+            # Breaking change: bump major (1.0.1 -> 2.0.0)
+            NEW_MAJOR=$((MAJOR + 1))
+            NEW_VERSION_NAME="${NEW_MAJOR}.0.0"
+            BUMP_TYPE="major (breaking)"
+          else
+            # Default: bump patch
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            BUMP_TYPE="patch (default)"
+          fi
+
+          echo "Bump type: $BUMP_TYPE"
           echo "New versionCode: $NEW_VERSION_CODE"
           echo "New versionName: $NEW_VERSION_NAME"
 
@@ -55,6 +80,7 @@ jobs:
           # Export for commit message
           echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
           echo "version_name=$NEW_VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
           echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           echo "pr_title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
 
@@ -63,6 +89,7 @@ jobs:
           git add app/build.gradle.kts
           git commit -m "chore: bump version to ${{ steps.bump.outputs.version_name }} (build ${{ steps.bump.outputs.version_code }})
 
+          Version bump type: ${{ steps.bump.outputs.bump_type }}
           Auto-generated after merging PR #${{ steps.bump.outputs.pr_number }}: ${{ steps.bump.outputs.pr_title }}
 
           [skip ci]"
