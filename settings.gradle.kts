@@ -44,7 +44,7 @@ plugins {
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "Aniyomi"
+rootProject.name = "Rayniyomi"
 include(":app")
 include(":core-metadata")
 include(":core:archive")
