@@ -18,7 +18,7 @@ plugins {
 
 shortcutHelper.setFilePath("./shortcuts.xml")
 
-val appVersionCode = 134
+val appVersionCode = 135
 val lightNovelExpectedPluginApiVersion = 1
 
 android {
@@ -28,7 +28,7 @@ android {
         applicationId = "xyz.rayniyomi"
 
         versionCode = appVersionCode
-        versionName = "1.0.2"
+        versionName = "1.0.3"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
