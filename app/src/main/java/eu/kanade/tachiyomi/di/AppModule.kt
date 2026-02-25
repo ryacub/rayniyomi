@@ -203,6 +203,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { AnimeBackgroundCache(app) }
 
         addSingletonFactory { NetworkHelper(app, get()) }
+        addSingletonFactory { get<NetworkHelper>().client }
         addSingletonFactory { JavaScriptEngine(app) }
 
         addSingletonFactory<MangaSourceManager> { AndroidMangaSourceManager(app, get(), get()) }
