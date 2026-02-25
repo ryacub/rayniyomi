@@ -224,7 +224,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { DownloadStrategySelector(get()) }
         addSingletonFactory {
             MultiThreadDownloader(
-                client = get(),
+                client = get<NetworkHelper>().client,
                 stateStore = get(),
                 maxThreadsProvider = {
                     get<DownloadPreferences>().multiThreadConnections().get().coerceIn(1, 4)
