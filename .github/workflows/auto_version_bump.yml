@@ -43,31 +43,14 @@ jobs:
           # Determine version bump type from PR title
           PR_TITLE="${{ github.event.pull_request.title }}"
 
-          # Parse current version
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION_NAME"
+          # Parse current version — 4-part upstream-tracking scheme (e.g. 0.18.1.6)
+          # Upstream prefix (0.18.1) is preserved; only the fork build number is bumped.
+          UPSTREAM_PREFIX=$(echo "$CURRENT_VERSION_NAME" | sed 's/\.[^.]*$//')
+          FORK_BUILD=$(echo "$CURRENT_VERSION_NAME" | sed 's/.*\.//')
 
-          # Determine bump type based on conventional commit prefix
-          if [[ "$PR_TITLE" =~ ^feat(\(.*\))?:|^feature: ]]; then
-            # Feature: bump minor (1.0.1 -> 1.1.0)
-            NEW_MINOR=$((MINOR + 1))
-            NEW_VERSION_NAME="${MAJOR}.${NEW_MINOR}.0"
-            BUMP_TYPE="minor (feature)"
-          elif [[ "$PR_TITLE" =~ ^(fix|perf|refactor|test|docs|style|chore|ci|build)(\(.*\))?:|^(bugfix|hotfix): ]]; then
-            # Fix/other: bump patch (1.0.1 -> 1.0.2)
-            NEW_PATCH=$((PATCH + 1))
-            NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
-            BUMP_TYPE="patch"
-          elif [[ "$PR_TITLE" =~ BREAKING[[:space:]]CHANGE ]]; then
-            # Breaking change: bump major (1.0.1 -> 2.0.0)
-            NEW_MAJOR=$((MAJOR + 1))
-            NEW_VERSION_NAME="${NEW_MAJOR}.0.0"
-            BUMP_TYPE="major (breaking)"
-          else
-            # Default: bump patch
-            NEW_PATCH=$((PATCH + 1))
-            NEW_VERSION_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
-            BUMP_TYPE="patch (default)"
-          fi
+          NEW_FORK_BUILD=$((FORK_BUILD + 1))
+          NEW_VERSION_NAME="${UPSTREAM_PREFIX}.${NEW_FORK_BUILD}"
+          BUMP_TYPE="fork build"
 
           echo "Bump type: $BUMP_TYPE"
           echo "New versionCode: $NEW_VERSION_CODE"
