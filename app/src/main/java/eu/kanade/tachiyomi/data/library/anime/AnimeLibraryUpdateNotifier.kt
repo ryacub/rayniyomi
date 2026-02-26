@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
 import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -62,20 +62,13 @@ class AnimeLibraryUpdateNotifier(
     }
 
     /**
-     * Bitmap of the app for notifications.
-     */
-    private val notificationBitmap by lazy {
-        BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
-    }
-
-    /**
      * Cached progress notification to avoid creating a lot.
      */
     val progressNotificationBuilder by lazy {
         context.notificationBuilder(Notifications.CHANNEL_LIBRARY_PROGRESS) {
             setContentTitle(context.stringResource(MR.strings.app_name))
             setSmallIcon(R.drawable.ic_refresh_24dp)
-            setLargeIcon(notificationBitmap)
+            setLargeIcon(Icon.createWithResource(context, R.mipmap.ic_launcher))
             setOngoing(true)
             setOnlyAlertOnce(true)
             addAction(
@@ -218,7 +211,7 @@ class AnimeLibraryUpdateNotifier(
             }
 
             setSmallIcon(R.drawable.ic_ani)
-            setLargeIcon(notificationBitmap)
+            setLargeIcon(Icon.createWithResource(context, R.mipmap.ic_launcher))
 
             setGroup(Notifications.GROUP_NEW_EPISODES)
             setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)

@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi.data.download.anime
 
 import android.app.PendingIntent
 import android.content.Context
-import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
 import androidx.core.app.NotificationCompat
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
@@ -31,7 +31,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
 
     private val progressNotificationBuilder by lazy {
         context.notificationBuilder(Notifications.CHANNEL_DOWNLOADER_PROGRESS) {
-            setLargeIcon(BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher))
+            setLargeIcon(Icon.createWithResource(context, R.mipmap.ic_launcher))
             setAutoCancel(false)
             setOnlyAlertOnce(true)
         }
