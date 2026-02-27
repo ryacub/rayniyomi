@@ -79,6 +79,7 @@ import `is`.xyz.mpv.MPVLib
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
+import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -283,7 +284,10 @@ fun PlayerControls(
                 val currentPlayerUpdate by viewModel.playerUpdate.collectAsState()
                 val aspectRatio by playerPreferences.aspectState().collectAsState()
                 LaunchedEffect(currentPlayerUpdate, aspectRatio) {
-                    if (currentPlayerUpdate is PlayerUpdates.DoubleSpeed || currentPlayerUpdate is PlayerUpdates.None) {
+                    if (currentPlayerUpdate is PlayerUpdates.DoubleSpeed ||
+                        currentPlayerUpdate is PlayerUpdates.SpeedBoost ||
+                        currentPlayerUpdate is PlayerUpdates.None
+                    ) {
                         return@LaunchedEffect
                     }
                     delay(2000)
@@ -300,6 +304,9 @@ fun PlayerControls(
                 ) {
                     when (currentPlayerUpdate) {
                         // is PlayerUpdates.DoubleSpeed -> DoubleSpeedPlayerUpdate()
+                        is PlayerUpdates.SpeedBoost -> TextPlayerUpdate(
+                            stringResource(AYMR.strings.player_speed_boost_active),
+                        )
                         is PlayerUpdates.AspectRatio -> TextPlayerUpdate(stringResource(aspectRatio.titleRes))
                         is PlayerUpdates.ShowText -> TextPlayerUpdate(
                             (currentPlayerUpdate as PlayerUpdates.ShowText).value,

@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,7 +60,6 @@ import eu.kanade.presentation.theme.playerRippleConfiguration
 import eu.kanade.tachiyomi.ui.player.Panels
 import eu.kanade.tachiyomi.ui.player.PlayerUpdates
 import eu.kanade.tachiyomi.ui.player.PlayerViewModel
-import eu.kanade.tachiyomi.ui.player.Sheets
 import eu.kanade.tachiyomi.ui.player.controls.components.DoubleTapSeekTriangles
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
@@ -72,6 +72,8 @@ import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+
+private const val SPEED_BOOST_FACTOR = 2.0
 
 @Composable
 fun GestureHandler(
@@ -108,6 +110,16 @@ fun GestureHandler(
     val preciseSeeking by gesturePreferences.playerSmoothSeek().collectAsState()
     val showSeekbar by gesturePreferences.showSeekBar().collectAsState()
     var isLongPressing by remember { mutableStateOf(false) }
+    var speedBeforeBoost by remember { mutableStateOf(1.0f) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isLongPressing) {
+                MPVLib.setPropertyDouble("speed", speedBeforeBoost.toDouble())
+                viewModel.playerUpdate.update { PlayerUpdates.None }
+            }
+        }
+    }
     val currentVolume by viewModel.currentVolume.collectAsState()
     val currentMPVVolume by viewModel.currentMPVVolume.collectAsState()
     val currentBrightness by viewModel.currentBrightness.collectAsState()
@@ -119,7 +131,6 @@ fun GestureHandler(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeGestures)
             .pointerInput(Unit) {
-                val originalSpeed = viewModel.playbackSpeed.value
                 detectTapGestures(
                     onTap = {
                         if (controlsShown) viewModel.hideControls() else viewModel.showControls()
@@ -139,6 +150,8 @@ fun GestureHandler(
                         }
                     },
                     onPress = {
+                        val originalSpeed = viewModel.playbackSpeed.value
+                        speedBeforeBoost = originalSpeed
                         if (panelShown != Panels.None && !allowGesturesInPanels) {
                             viewModel.panelShown.update { Panels.None }
                         }
@@ -172,8 +185,8 @@ fun GestureHandler(
                         if (!isLongPressing) {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             isLongPressing = true
-                            viewModel.pause()
-                            viewModel.sheetShown.update { Sheets.Screenshot }
+                            MPVLib.setPropertyDouble("speed", SPEED_BOOST_FACTOR)
+                            viewModel.playerUpdate.update { PlayerUpdates.SpeedBoost(SPEED_BOOST_FACTOR.toFloat()) }
                         }
                     },
                 )

@@ -231,6 +231,7 @@
     <string name="player_chapter_type_mixedop">Mixed opening</string>
     <!-- Player - Bottom left -->
     <string name="player_speed" translatable="false">%.2fx</string>
+    <string name="player_speed_boost_active">2× Speed</string>
     <!-- Player - Bottom right -->
     <string name="video_fit_screen">Fit to screen</string>
     <string name="video_crop_screen">Cropped to screen</string>
