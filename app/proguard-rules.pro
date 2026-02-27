@@ -20,6 +20,9 @@
 -keep,allowoptimization class uy.kohesive.injekt.** { public protected *; }
 -keep,allowoptimization class is.xyz.mpv.** { public protected *; }
 -keep,allowoptimization class com.arthenica.** { public protected *; }
+-keep class com.google.android.gms.cast.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+-dontwarn com.google.android.gms.cast.**
 
 # From extensions-lib
 -keep,allowoptimization class eu.kanade.tachiyomi.network.interceptor.RateLimitInterceptorKt { public protected *; }

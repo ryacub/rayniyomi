@@ -106,6 +106,12 @@ android {
         getByName("benchmark").res.srcDirs("src/debug/res")
     }
 
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
+
     splits {
         abi {
             isEnable = true
@@ -320,6 +326,9 @@ dependencies {
     implementation(libs.leakcanary.plumber)
 
     testImplementation(kotlinx.coroutines.test)
+
+    // Cast SDK
+    implementation(libs.bundles.cast)
 
     // mpv-android
     implementation(aniyomilibs.aniyomi.mpv)
