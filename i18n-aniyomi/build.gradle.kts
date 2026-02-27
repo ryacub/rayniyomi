@@ -1,5 +1,5 @@
 import mihon.buildlogic.generatedBuildDir
-import mihon.buildlogic.tasks.getLocalesConfigTask
+import mihon.buildlogic.tasks.GenerateLocalesConfigTask
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 
 plugins {
@@ -51,7 +51,10 @@ multiplatformResources {
 }
 
 tasks {
-    val localesConfigTask = project.getLocalesConfigTask(generatedAndroidResourceDir)
+    val localesConfigTask = register<GenerateLocalesConfigTask>("generateLocalesConfig") {
+        mokoResourcesTree = fileTree("$projectDir/src/commonMain/moko-resources/")
+        outputResourceDir.set(generatedAndroidResourceDir)
+    }
     preBuild {
         dependsOn(localesConfigTask)
     }
