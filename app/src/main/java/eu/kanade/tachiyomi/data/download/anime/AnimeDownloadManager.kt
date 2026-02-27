@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.util.size
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -56,7 +57,11 @@ class AnimeDownloadManager(
      * Manager-owned coroutine scope for background operations.
      * Uses SupervisorJob to prevent child failures from cancelling other operations.
      */
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeDownloadManager scope" }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
 
     /**
      * Cancels the manager-owned coroutine scope, stopping all background operations.
@@ -298,11 +303,7 @@ class AnimeDownloadManager(
 
     fun cancelQueuedDownloads(downloads: List<AnimeDownload>) {
         scope.launch {
-            try {
-                removeFromDownloadQueue(downloads.map { it.episode })
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to cancel queued downloads" }
-            }
+            removeFromDownloadQueue(downloads.map { it.episode })
         }
     }
 
@@ -315,27 +316,17 @@ class AnimeDownloadManager(
      */
     fun deleteEpisodes(episodes: List<Episode>, anime: Anime, source: AnimeSource) {
         scope.launch {
-            try {
-                val filteredEpisodes = getEpisodesToDelete(episodes, anime)
-                if (filteredEpisodes.isEmpty()) {
-                    return@launch
-                }
+            val filteredEpisodes = getEpisodesToDelete(episodes, anime)
+            if (filteredEpisodes.isEmpty()) return@launch
 
-                removeFromDownloadQueue(filteredEpisodes)
-                val (animeDir, episodeDirs) = provider.findEpisodeDirs(
-                    filteredEpisodes,
-                    anime,
-                    source,
-                )
-                episodeDirs.forEach { it.delete() }
-                cache.removeEpisodes(filteredEpisodes, anime)
+            removeFromDownloadQueue(filteredEpisodes)
+            val (animeDir, episodeDirs) = provider.findEpisodeDirs(filteredEpisodes, anime, source)
+            episodeDirs.forEach { it.delete() }
+            cache.removeEpisodes(filteredEpisodes, anime)
 
-                // Delete anime directory if empty
-                if (animeDir?.listFiles()?.isEmpty() == true) {
-                    deleteAnime(anime, source, removeQueued = false)
-                }
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to delete episodes for anime: ${anime.title}" }
+            // Delete anime directory if empty
+            if (animeDir?.listFiles()?.isEmpty() == true) {
+                deleteAnime(anime, source, removeQueued = false)
             }
         }
     }
@@ -349,20 +340,14 @@ class AnimeDownloadManager(
      */
     fun deleteAnime(anime: Anime, source: AnimeSource, removeQueued: Boolean = true) {
         scope.launch {
-            try {
-                if (removeQueued) {
-                    downloader.removeFromQueue(anime)
-                }
-                provider.findAnimeDir(anime.title, source)?.delete()
-                cache.removeAnime(anime)
-                // Delete source directory if empty
-                val sourceDir = provider.findSourceDir(source)
-                if (sourceDir?.listFiles()?.isEmpty() == true) {
-                    sourceDir.delete()
-                    cache.removeSource(source)
-                }
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to delete anime: ${anime.title}" }
+            if (removeQueued) downloader.removeFromQueue(anime)
+            provider.findAnimeDir(anime.title, source)?.delete()
+            cache.removeAnime(anime)
+            // Delete source directory if empty
+            val sourceDir = provider.findSourceDir(source)
+            if (sourceDir?.listFiles()?.isEmpty() == true) {
+                sourceDir.delete()
+                cache.removeSource(source)
             }
         }
     }
