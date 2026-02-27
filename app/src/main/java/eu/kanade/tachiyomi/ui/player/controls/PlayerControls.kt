@@ -64,6 +64,9 @@ import eu.kanade.tachiyomi.ui.player.PlayerUpdates
 import eu.kanade.tachiyomi.ui.player.PlayerViewModel
 import eu.kanade.tachiyomi.ui.player.Sheets
 import eu.kanade.tachiyomi.ui.player.VideoAspect
+import eu.kanade.tachiyomi.ui.player.cast.CastManager
+import eu.kanade.tachiyomi.ui.player.cast.CastState
+import eu.kanade.tachiyomi.ui.player.cast.components.CastMiniController
 import eu.kanade.tachiyomi.ui.player.controls.components.BrightnessOverlay
 import eu.kanade.tachiyomi.ui.player.controls.components.BrightnessSlider
 import eu.kanade.tachiyomi.ui.player.controls.components.ControlsButton
@@ -117,6 +120,14 @@ fun PlayerControls(
     val currentChapter by viewModel.currentChapter.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val currentBrightness by viewModel.currentBrightness.collectAsState()
+
+    val castManager = remember { Injekt.get<CastManager>() }
+    val castState by castManager.castState.collectAsState()
+    val isCasting = (castState == CastState.CONNECTED)
+    val castProgress by viewModel.castProgress.collectAsState()
+    val currentVideo by viewModel.currentVideo.collectAsState()
+    val currentEpisode by viewModel.currentEpisode.collectAsState()
+    val currentAnime by viewModel.currentAnime.collectAsState()
 
     val playerTimeToDisappear by playerPreferences.playerTimeToDisappear().collectAsState()
     var isSeeking by remember { mutableStateOf(false) }
@@ -382,24 +393,42 @@ fun PlayerControls(
                         bottom.linkTo(parent.bottom, spacing.medium)
                     },
                 ) {
-                    val invertDuration by playerPreferences.invertDuration().collectAsState()
-                    val readAhead by viewModel.readAhead.collectAsState()
-                    val preciseSeeking by gesturePreferences.playerSmoothSeek().collectAsState()
-                    SeekbarWithTimers(
-                        position = position,
-                        duration = duration,
-                        readAheadValue = readAhead,
-                        onValueChange = {
-                            isSeeking = true
-                            viewModel.updatePlayBackPos(it)
-                            viewModel.seekTo(it.toInt(), preciseSeeking)
-                        },
-                        onValueChangeFinished = { isSeeking = false },
-                        timersInverted = Pair(false, invertDuration),
-                        durationTimerOnCLick = { playerPreferences.invertDuration().set(!invertDuration) },
-                        positionTimerOnClick = {},
-                        chapters = chapters.map { it.toSegment() }.toImmutableList(),
-                    )
+                    if (isCasting) {
+                        CastMiniController(
+                            episodeName = currentEpisode?.name ?: stringResource(AYMR.strings.cast_unknown_episode),
+                            animeName = currentAnime?.title ?: stringResource(AYMR.strings.cast_unknown_anime),
+                            isPlaying = !paused,
+                            positionMs = castProgress,
+                            durationMs = (duration * 1000).toLong(),
+                            onPlayPause = viewModel::pauseUnpause,
+                            onSeek = { newPositionMs ->
+                                viewModel.updateCastProgress(newPositionMs)
+                                castManager.seekTo(newPositionMs)
+                            },
+                            onDisconnect = {
+                                castManager.disconnect()
+                            },
+                        )
+                    } else {
+                        val invertDuration by playerPreferences.invertDuration().collectAsState()
+                        val readAhead by viewModel.readAhead.collectAsState()
+                        val preciseSeeking by gesturePreferences.playerSmoothSeek().collectAsState()
+                        SeekbarWithTimers(
+                            position = position,
+                            duration = duration,
+                            readAheadValue = readAhead,
+                            onValueChange = {
+                                isSeeking = true
+                                viewModel.updatePlayBackPos(it)
+                                viewModel.seekTo(it.toInt(), preciseSeeking)
+                            },
+                            onValueChangeFinished = { isSeeking = false },
+                            timersInverted = Pair(false, invertDuration),
+                            durationTimerOnCLick = { playerPreferences.invertDuration().set(!invertDuration) },
+                            positionTimerOnClick = {},
+                            chapters = chapters.map { it.toSegment() }.toImmutableList(),
+                        )
+                    }
                 }
                 val mediaTitle by viewModel.mediaTitle.collectAsState()
                 val animeTitle by viewModel.animeTitle.collectAsState()
@@ -462,6 +491,8 @@ fun PlayerControls(
                         onAudioLongClick = { viewModel.showPanel(Panels.AudioDelay) },
                         onQualityClick = { viewModel.showSheet(Sheets.QualityTracks) },
                         isEpisodeOnline = isEpisodeOnline,
+                        canCast = currentVideo?.let { viewModel.canCast(it) } ?: false,
+                        castState = castState,
                         onMoreClick = { viewModel.showSheet(Sheets.More) },
                         onMoreLongClick = { viewModel.showPanel(Panels.VideoFilters) },
                     )

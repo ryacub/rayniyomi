@@ -187,6 +187,22 @@
     <!-- Cast -->
     <string name="cast_error_load_failed">This source couldn\'t play on Chromecast — it may require authentication. Try watching locally.</string>
     <string name="cast_watch_locally">Watch Locally</string>
+    <string name="cast_button_idle">Cast to devices</string>
+    <string name="cast_button_connecting">Connecting to Cast device</string>
+    <string name="cast_button_connected">Casting to TV</string>
+    <string name="cast_subtitle_unsupported_format">This subtitle format is not supported on Chromecast</string>
+    <string name="cast_disconnect">Disconnect Cast</string>
+    <string name="cast_subtitles">Subtitles</string>
+    <string name="cast_subtitle_settings_title">Subtitle Settings</string>
+    <string name="cast_subtitle_font_size">Font Size</string>
+    <string name="cast_subtitle_foreground_color">Foreground Color</string>
+    <string name="cast_subtitle_background_color">Background Color</string>
+    <string name="cast_subtitle_edge_type">Edge Type</string>
+    <string name="cast_edge_none">None</string>
+    <string name="cast_edge_outline">Outline</string>
+    <string name="cast_edge_drop_shadow">Drop Shadow</string>
+    <string name="cast_unknown_episode">Unknown Episode</string>
+    <string name="cast_unknown_anime">Unknown Anime</string>
     <!-- /Cast -->
     <string name="pref_player_custom_button_content">Lua code</string>
     <string name="pref_player_custom_button_content_long">Lua code (on long press)</string>
