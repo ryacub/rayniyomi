@@ -82,7 +82,8 @@ class AnimeImageFetcher(
     }
 
     private fun uniFileLoader(urlString: String): FetchResult {
-        val uniFile = UniFile.fromUri(options.context, urlString.toUri())!!
+        val uniFile = UniFile.fromUri(options.context, urlString.toUri())
+            ?: throw IOException("Failed to resolve URI to UniFile: $urlString")
         val tempFile = uniFile.openInputStream().source().buffer()
         return SourceFetchResult(
             source = ImageSource(source = tempFile, fileSystem = FileSystem.SYSTEM),
