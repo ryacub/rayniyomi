@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.mediarouter.app.MediaRouteButton
@@ -65,4 +66,16 @@ object CastButtonFactory {
         // The MediaRouteButton is automatically configured by the Google Cast Framework
         // via the CastOptionsProvider in the AndroidManifest
     }
+}
+
+@Preview
+@Composable
+private fun CastButtonConnectedPreview() {
+    CastButton(enabled = true, castState = CastState.CONNECTED)
+}
+
+@Preview
+@Composable
+private fun CastButtonDisabledPreview() {
+    CastButton(enabled = false, castState = CastState.DISCONNECTED)
 }

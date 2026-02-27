@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -37,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.ui.player.model.VideoTrack
 import tachiyomi.i18n.aniyomi.AYMR
@@ -65,7 +67,7 @@ fun CastControlSheet(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = "Subtitles",
+            text = stringResource(AYMR.strings.cast_subtitles),
             style = MaterialTheme.typography.titleMedium,
         )
 
@@ -83,7 +85,7 @@ fun CastControlSheet(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Warning,
-                    contentDescription = null,
+                    contentDescription = stringResource(AYMR.strings.cast_subtitle_unsupported_format),
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.weight(0f),
                 )
@@ -118,6 +120,7 @@ private fun SubtitleTrackItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(4.dp))
             .clickable { onSelect() }
             .padding(12.dp),
@@ -126,7 +129,7 @@ private fun SubtitleTrackItem(
     ) {
         RadioButton(
             selected = isSelected,
-            onClick = onSelect,
+            onClick = null,
             modifier = Modifier.weight(0f),
         )
         Text(
@@ -135,4 +138,19 @@ private fun SubtitleTrackItem(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+@Preview
+@Composable
+private fun CastControlSheetPreview() {
+    CastControlSheet(
+        subtitleTracks = listOf(
+            VideoTrack(id = 0, name = "English.srt", language = "English"),
+            VideoTrack(id = 1, name = "Japanese.vtt", language = "Japanese"),
+            VideoTrack(id = 2, name = "Chinese.ass", language = "Chinese"),
+        ),
+        selectedSubtitleIndex = 0,
+        onSelectSubtitle = {},
+        onDismiss = {},
+    )
 }

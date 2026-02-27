@@ -57,7 +57,7 @@ fun TopRightPlayerControls(
 
     // cast
     canCast: Boolean,
-    castState: eu.kanade.tachiyomi.ui.player.cast.CastState,
+    castState: CastState,
 
     // more
     onMoreClick: () -> Unit,

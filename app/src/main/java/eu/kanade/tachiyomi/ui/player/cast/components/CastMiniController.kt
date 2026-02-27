@@ -39,8 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 
@@ -121,7 +123,13 @@ fun CastMiniController(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    contentDescription = if (isPlaying) {
+                        stringResource(
+                            MR.strings.action_pause,
+                        )
+                    } else {
+                        stringResource(AYMR.strings.action_play)
+                    },
                     tint = Color.White,
                 )
             }
@@ -140,8 +148,28 @@ fun CastMiniController(
 }
 
 internal fun formatCastTime(ms: Long): String {
-    val seconds = ms / 1000
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return "$minutes:${String.format("%02d", secs)}"
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val secs = totalSeconds % 60
+    return if (hours > 0) {
+        "$hours:${String.format("%02d", minutes)}:${String.format("%02d", secs)}"
+    } else {
+        "$minutes:${String.format("%02d", secs)}"
+    }
+}
+
+@Preview
+@Composable
+private fun CastMiniControllerPreview() {
+    CastMiniController(
+        episodeName = "Episode 1 - The Beginning",
+        animeName = "My Anime",
+        isPlaying = true,
+        positionMs = 65_000L,
+        durationMs = 1_440_000L,
+        onPlayPause = {},
+        onSeek = {},
+        onDisconnect = {},
+    )
 }

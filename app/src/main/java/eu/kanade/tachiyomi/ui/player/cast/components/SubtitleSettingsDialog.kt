@@ -38,7 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import tachiyomi.i18n.MR
+import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
 fun SubtitleSettingsDialog(
@@ -55,7 +59,7 @@ fun SubtitleSettingsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Subtitle Settings")
+            Text(stringResource(AYMR.strings.cast_subtitle_settings_title))
         },
         text = {
             Column(
@@ -63,7 +67,9 @@ fun SubtitleSettingsDialog(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Font Size: ${String.format("%.1f", fontSize)}x",
+                        text =
+                        stringResource(AYMR.strings.cast_subtitle_font_size) +
+                            ": ${String.format("%.1f", fontSize)}x",
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Slider(
@@ -76,7 +82,7 @@ fun SubtitleSettingsDialog(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Foreground Color",
+                        text = stringResource(AYMR.strings.cast_subtitle_foreground_color),
                         style = MaterialTheme.typography.labelMedium,
                     )
                     ColorPickerRow(
@@ -87,7 +93,7 @@ fun SubtitleSettingsDialog(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Background Color",
+                        text = stringResource(AYMR.strings.cast_subtitle_background_color),
                         style = MaterialTheme.typography.labelMedium,
                     )
                     ColorPickerRow(
@@ -98,14 +104,14 @@ fun SubtitleSettingsDialog(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Edge Type",
+                        text = stringResource(AYMR.strings.cast_subtitle_edge_type),
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
-                            0 to "None",
-                            1 to "Outline",
-                            2 to "Drop Shadow",
+                            0 to stringResource(AYMR.strings.cast_edge_none),
+                            1 to stringResource(AYMR.strings.cast_edge_outline),
+                            2 to stringResource(AYMR.strings.cast_edge_drop_shadow),
                         ).forEach { (type, label) ->
                             Row(
                                 modifier = Modifier
@@ -118,7 +124,7 @@ fun SubtitleSettingsDialog(
                             ) {
                                 RadioButton(
                                     selected = edgeType == type,
-                                    onClick = { onEdgeTypeChange(type) },
+                                    onClick = null,
                                 )
                                 Text(
                                     text = label,
@@ -132,7 +138,7 @@ fun SubtitleSettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK")
+                Text(stringResource(MR.strings.action_ok))
             }
         },
     )
@@ -158,7 +164,7 @@ private fun ColorPickerRow(
         colors.forEach { color ->
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(color)
                     .clickable { onColorSelected(color) },
@@ -175,4 +181,20 @@ private fun ColorPickerRow(
             }
         }
     }
+}
+
+@Preview
+@Composable
+private fun SubtitleSettingsDialogPreview() {
+    SubtitleSettingsDialog(
+        fontSize = 1.0f,
+        onFontSizeChange = {},
+        fgColor = Color.White,
+        onFgColorChange = {},
+        bgColor = Color.Black,
+        onBgColorChange = {},
+        edgeType = 0,
+        onEdgeTypeChange = {},
+        onDismiss = {},
+    )
 }
