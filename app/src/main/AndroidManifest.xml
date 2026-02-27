@@ -295,6 +295,17 @@
             android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
+        <!-- Cast SDK: options provider for Chromecast support -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="eu.kanade.tachiyomi.ui.player.cast.CastOptionsProvider" />
+
+        <!-- Cast expanded controller shown from notification -->
+        <activity
+            android:name=".ui.player.cast.ExpandedControlsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tachiyomi" />
+
         <meta-data
             android:name="android.webkit.WebView.EnableSafeBrowsing"
             android:value="false" />
