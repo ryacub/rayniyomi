@@ -50,6 +50,7 @@ import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.toHosterList
 import eu.kanade.tachiyomi.animesource.model.TimeStamp
+import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.data.database.models.anime.isRecognizedNumber
@@ -1727,7 +1728,7 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     // Cast -->
-    fun canCast(video: eu.kanade.tachiyomi.animesource.model.Video): Boolean =
+    fun canCast(video: Video): Boolean =
         !video.videoUrl.startsWith("content://") && !video.videoUrl.startsWith("file://")
 
     fun resumeFromCast(positionMs: Long) {

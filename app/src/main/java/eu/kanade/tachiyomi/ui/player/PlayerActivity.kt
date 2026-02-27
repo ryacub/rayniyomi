@@ -57,6 +57,7 @@ import androidx.media.AudioFocusRequestCompat
 import androidx.media.AudioManagerCompat
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
+import com.google.android.material.snackbar.Snackbar
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
@@ -68,6 +69,7 @@ import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.databinding.PlayerLayoutBinding
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
+import eu.kanade.tachiyomi.ui.player.cast.CastError
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.controls.PlayerControls
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
@@ -241,17 +243,17 @@ class PlayerActivity : BaseActivity() {
         lifecycleScope.launch {
             castManager.castError.collect { error ->
                 when (error) {
-                    is eu.kanade.tachiyomi.ui.player.cast.CastError.LoadFailed -> {
-                        com.google.android.material.snackbar.Snackbar.make(
+                    is CastError.LoadFailed -> {
+                        Snackbar.make(
                             binding.root,
                             stringResource(AYMR.strings.cast_error_load_failed),
-                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG,
+                            Snackbar.LENGTH_LONG,
                         ).setAction(stringResource(AYMR.strings.cast_watch_locally)) {
                             castManager.disconnect()
                             viewModel.resumeFromCast(0L)
                         }.show()
                     }
-                    is eu.kanade.tachiyomi.ui.player.cast.CastError.ConnectionLost -> {
+                    is CastError.ConnectionLost -> {
                         // session ended, MPV resumes automatically
                     }
                 }
@@ -364,11 +366,6 @@ class PlayerActivity : BaseActivity() {
             viewModel.pause()
         }
 
-        // Cast -->
-        castManager.getRemoteMediaClient()?.unregisterCallback(castClientCallback)
-        castManager.unregisterActivity()
-        // <-- Cast
-
         super.onPause()
     }
 
@@ -382,6 +379,11 @@ class PlayerActivity : BaseActivity() {
         if (isInPictureInPictureMode && powerManager.isInteractive) {
             viewModel.deletePendingEpisodes()
         }
+
+        // Cast -->
+        castManager.getRemoteMediaClient()?.unregisterCallback(castClientCallback)
+        castManager.unregisterActivity()
+        // <-- Cast
 
         super.onStop()
     }
@@ -796,7 +798,8 @@ class PlayerActivity : BaseActivity() {
             val status = client.mediaStatus ?: return
             viewModel.updateCastProgress(status.streamPosition)
             if (status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
-                status.idleReason == MediaStatus.IDLE_REASON_FINISHED
+                status.idleReason == MediaStatus.IDLE_REASON_FINISHED &&
+                viewModel.currentEpisode.value != null
             ) {
                 viewModel.onCastEpisodeFinished()
             }
@@ -947,13 +950,12 @@ class PlayerActivity : BaseActivity() {
 
         // Cast -->
         if (viewModel.isCasting.value && viewModel.canCast(video)) {
-            castManager.loadMedia(
-                video,
-                viewModel.currentEpisode.value!!.toDomainEpisode()!!,
-                viewModel.currentAnime.value!!,
-                position ?: 0L,
-            )
-            return
+            val episode = viewModel.currentEpisode.value?.toDomainEpisode()
+            val anime = viewModel.currentAnime.value
+            if (episode != null && anime != null) {
+                castManager.loadMedia(video, episode, anime, position ?: 0L)
+                return
+            }
         }
         // <-- Cast
 

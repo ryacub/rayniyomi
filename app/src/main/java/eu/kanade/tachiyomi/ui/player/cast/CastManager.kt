@@ -111,8 +111,8 @@ class CastManager(private val context: Context) {
 
         val mediaInfo = try {
             mediaBuilder.build(video, episode, anime)
-        } catch (e: IllegalStateException) {
-            _castError.tryEmit(CastError.LoadFailed(e.message ?: "Cannot cast local files"))
+        } catch (e: Exception) {
+            _castError.tryEmit(CastError.LoadFailed(e.message ?: "Cannot cast this media"))
             return
         }
 
