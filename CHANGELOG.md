@@ -16,6 +16,15 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - **Cast UI components** — mini-controller overlay with drag-to-seek progress bar, subtitle track picker with ASS/SSA format filtering, subtitle style settings (font size, color, edge type), and Cast button integrated into player controls
 
+### Improved
+
+- Enabled Gradle configuration cache for faster incremental builds by removing unmaintained shortcut-helper plugin
+- Documented all Gradle build settings with rationale comments
+
+### Fixed
+
+- Fixed clean-build failure caused by locales config task running at configuration time instead of execution time
+
 ## [v1.0.0] - Rayniyomi (First Stable Release)
 
 ### Added
