@@ -3,9 +3,7 @@ package eu.kanade.tachiyomi.ui.player.cast
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 
-/**
- * Bridges Cast SDK session lifecycle events to [CastManager].
- */
+/** Bridges Cast SDK session events to [CastManager]. */
 class CastSessionListener(
     private val castManager: CastManager,
 ) : SessionManagerListener<CastSession> {

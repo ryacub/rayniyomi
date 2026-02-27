@@ -10,18 +10,10 @@ import tachiyomi.domain.items.episode.model.Episode
 
 /**
  * Builds a Cast [MediaInfo] from a [Video], [Episode], and [Anime].
- *
- * Note: Cast SDK does not support custom HTTP headers. Streams requiring auth headers
- * (Referer, tokens, custom User-Agent) will fail on Chromecast without a local proxy.
- * Local proxy support is deferred to R338-D.
+ * Note: Cast SDK does not support custom HTTP headers; auth-required streams will fail without a proxy.
  */
 class CastMediaBuilder {
 
-    /**
-     * Build a [MediaInfo] object suitable for loading into [com.google.android.gms.cast.framework.media.RemoteMediaClient].
-     *
-     * @throws IllegalStateException if the video URL is a local file (content:// or file://)
-     */
     fun build(
         video: Video,
         episode: Episode,
@@ -52,10 +44,6 @@ class CastMediaBuilder {
             .build()
     }
 
-    /**
-     * Builds MediaTrack list from video subtitle/audio tracks.
-     * Only srt and vtt subtitle formats are supported by Chromecast; ass/ssa are skipped.
-     */
     private fun buildMediaTracks(video: Video): List<MediaTrack> {
         val subtitleTracks = video.subtitleTracks
             .filter { it.isCastCompatible() }
@@ -78,10 +66,7 @@ class CastMediaBuilder {
         return subtitleTracks + audioTracks
     }
 
-    /**
-     * Returns true if the track URL is in a subtitle format supported by Chromecast.
-     * ass/ssa are not supported — they use a vector rendering engine Chromecast lacks.
-     */
+    // ass/ssa use a vector rendering engine Chromecast doesn't support
     private fun Track.isCastCompatible(): Boolean {
         val lower = url.lowercase()
         return lower.endsWith(".srt") || lower.endsWith(".vtt")

@@ -27,14 +27,8 @@ sealed class CastError {
 }
 
 /**
- * Singleton manager for Google Cast session lifecycle.
- * Registered in [eu.kanade.tachiyomi.di.AppModule].
- *
- * Lifecycle methods must be called from [eu.kanade.tachiyomi.ui.player.PlayerActivity]:
- *  - [resetForNewActivity] in onCreate()
- *  - [registerActivity] in onStart()
- *  - [unregisterActivity] in onPause()
- *  - [cleanup] in onDestroy()
+ * Manages the Google Cast session lifecycle for [eu.kanade.tachiyomi.ui.player.PlayerActivity].
+ * Registered as a DI singleton in [eu.kanade.tachiyomi.di.AppModule].
  */
 class CastManager(private val context: Context) {
 
@@ -53,18 +47,13 @@ class CastManager(private val context: Context) {
 
     // ---- Lifecycle ----
 
-    /**
-     * Call in [PlayerActivity.onCreate] — clears stale session references from a previous Activity instance.
-     */
+    /** Call in [PlayerActivity.onCreate] to clear stale session references from a previous Activity instance. */
     fun resetForNewActivity() {
         castSession = null
         _castState.value = CastState.DISCONNECTED
     }
 
-    /**
-     * Call in [PlayerActivity.onStart] — begins listening for Cast session events.
-     * Idempotent: safe to call multiple times without calling [unregisterActivity] in between.
-     */
+    /** Call in [PlayerActivity.onStart] — idempotent listener registration. */
     fun registerActivity() {
         if (isActivityRegistered) return
         val sm = getSessionManager()
@@ -79,19 +68,14 @@ class CastManager(private val context: Context) {
         sm.currentCastSession?.let { onSessionConnected(it) }
     }
 
-    /**
-     * Call in [PlayerActivity.onPause] — stops listening but does NOT disconnect the Cast session.
-     * Maintains session continuity when app is backgrounded.
-     */
+    /** Call in [PlayerActivity.onPause] — stops listening but keeps the Cast session alive. */
     fun unregisterActivity() {
         sessionManager?.removeSessionManagerListener(sessionListener, CastSession::class.java)
         sessionManager = null
         isActivityRegistered = false
     }
 
-    /**
-     * Call in [PlayerActivity.onDestroy] — full cleanup.
-     */
+    /** Call in [PlayerActivity.onDestroy]. */
     fun cleanup() {
         unregisterActivity()
         castSession = null
@@ -116,10 +100,6 @@ class CastManager(private val context: Context) {
 
     // ---- Playback control ----
 
-    /**
-     * Load media on the connected Cast device.
-     * Must only be called when [castState] == [CastState.CONNECTED].
-     */
     fun loadMedia(
         video: Video,
         episode: Episode,
