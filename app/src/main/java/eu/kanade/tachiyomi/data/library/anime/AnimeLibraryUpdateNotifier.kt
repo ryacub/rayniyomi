@@ -229,14 +229,8 @@ class AnimeLibraryUpdateNotifier(
             launchUI {
                 context.notify(
                     updates.mapNotNull { (anime, episodes) ->
-                        try {
-                            NotificationManagerCompat.NotificationWithIdAndTag(
-                                anime.id.hashCode(),
-                                createNewEpisodesNotification(anime, episodes),
-                            )
-                        } catch (e: Throwable) {
-                            logcat(LogPriority.WARN, e) { "Failed to create notification for anime: ${anime.title}" }
-                            null
+                        createNewEpisodesNotification(anime, episodes)?.let {
+                            NotificationManagerCompat.NotificationWithIdAndTag(anime.id.hashCode(), it)
                         }
                     },
                 )
@@ -244,7 +238,16 @@ class AnimeLibraryUpdateNotifier(
         }
     }
 
-    private suspend fun createNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification {
+    private suspend fun createNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification? {
+        return try {
+            buildNewEpisodesNotification(anime, episodes)
+        } catch (e: Throwable) {
+            logcat(LogPriority.WARN, e) { "Failed to create notification for anime: ${anime.title}" }
+            null
+        }
+    }
+
+    private suspend fun buildNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification {
         val icon = getAnimeIcon(anime)
         return context.notificationBuilder(Notifications.CHANNEL_NEW_CHAPTERS_EPISODES) {
             setContentTitle(anime.title)
