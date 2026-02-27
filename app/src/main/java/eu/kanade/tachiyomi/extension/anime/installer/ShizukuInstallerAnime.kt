@@ -16,6 +16,7 @@ import rikka.shizuku.Shizuku
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStream
 
 class ShizukuInstallerAnime(private val service: Service) : InstallerAnime(service) {
@@ -49,7 +50,9 @@ class ShizukuInstallerAnime(private val service: Service) : InstallerAnime(servi
             var sessionId: String? = null
             try {
                 val size = service.getUriSize(entry.uri) ?: throw IllegalStateException()
-                service.contentResolver.openInputStream(entry.uri)!!.use {
+                val inputStream = service.contentResolver.openInputStream(entry.uri)
+                    ?: throw IOException("Could not open extension file: ${entry.uri}")
+                inputStream.use {
                     val userId = Process.myUserHandle().hashCode()
                     val createCommand = "pm install-create --user $userId -r -i ${service.packageName} -S $size"
                     val createResult = exec(createCommand)
