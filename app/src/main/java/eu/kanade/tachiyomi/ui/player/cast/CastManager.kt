@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
@@ -48,6 +49,7 @@ class CastManager(private val context: Context) {
 
     private var castSession: CastSession? = null
     private var sessionManager: SessionManager? = null
+    private var isActivityRegistered = false
 
     // ---- Lifecycle ----
 
@@ -61,11 +63,18 @@ class CastManager(private val context: Context) {
 
     /**
      * Call in [PlayerActivity.onStart] — begins listening for Cast session events.
+     * Idempotent: safe to call multiple times without calling [unregisterActivity] in between.
      */
     fun registerActivity() {
-        val sm = getSessionManager() ?: return
+        if (isActivityRegistered) return
+        val sm = getSessionManager()
+        if (sm == null) {
+            Log.w(TAG, "Cast Framework unavailable; Cast features disabled for this session")
+            return
+        }
         sessionManager = sm
         sm.addSessionManagerListener(sessionListener, CastSession::class.java)
+        isActivityRegistered = true
         // Restore state if a session is already active (e.g. after config change)
         sm.currentCastSession?.let { onSessionConnected(it) }
     }
@@ -77,6 +86,7 @@ class CastManager(private val context: Context) {
     fun unregisterActivity() {
         sessionManager?.removeSessionManagerListener(sessionListener, CastSession::class.java)
         sessionManager = null
+        isActivityRegistered = false
     }
 
     /**
@@ -162,7 +172,12 @@ class CastManager(private val context: Context) {
         return try {
             CastContext.getSharedInstance(context).sessionManager
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to get Cast SessionManager: ${e.message}")
             null
         }
+    }
+
+    companion object {
+        private const val TAG = "CastManager"
     }
 }
