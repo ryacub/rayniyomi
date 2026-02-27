@@ -45,7 +45,6 @@ fun CastButton(
     AndroidView(
         factory = { ctx ->
             MediaRouteButton(ctx).apply {
-                CastButtonFactory.setUpMediaRouteButton(ctx, this)
                 isEnabled = enabled
             }
         },
@@ -58,14 +57,6 @@ fun CastButton(
                 this.contentDescription = contentDesc
             },
     )
-}
-
-object CastButtonFactory {
-    fun setUpMediaRouteButton(context: android.content.Context, button: MediaRouteButton) {
-        // Setup media router button with Cast framework
-        // The MediaRouteButton is automatically configured by the Google Cast Framework
-        // via the CastOptionsProvider in the AndroidManifest
-    }
 }
 
 @Preview

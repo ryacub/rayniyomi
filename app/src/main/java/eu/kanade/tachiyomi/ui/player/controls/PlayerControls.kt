@@ -395,8 +395,8 @@ fun PlayerControls(
                 ) {
                     if (isCasting) {
                         CastMiniController(
-                            episodeName = currentEpisode?.name ?: "Unknown Episode",
-                            animeName = currentAnime?.title ?: "Unknown Anime",
+                            episodeName = currentEpisode?.name ?: stringResource(AYMR.strings.cast_unknown_episode),
+                            animeName = currentAnime?.title ?: stringResource(AYMR.strings.cast_unknown_anime),
                             isPlaying = !paused,
                             positionMs = castProgress,
                             durationMs = (duration * 1000).toLong(),

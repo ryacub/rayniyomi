@@ -17,6 +17,7 @@
 
 package eu.kanade.tachiyomi.ui.player.cast
 
+import eu.kanade.tachiyomi.ui.player.cast.components.formatCastTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -91,9 +92,15 @@ class CastControlsUiTest {
     @Test
     fun `CastMiniController seekbar stateDescription contains position and duration`() {
         val positionMs = 30000L
-        val durationMs = 120000L
         val formatted = formatCastTime(positionMs)
         assertEquals("0:30", formatted)
+    }
+
+    @Test
+    fun `formatCastTime formats hours correctly`() {
+        val positionMs = 3_661_000L // 1h 1m 1s
+        val formatted = formatCastTime(positionMs)
+        assertEquals("1:01:01", formatted)
     }
 
     @Test
@@ -119,12 +126,5 @@ class CastControlsUiTest {
         }
         assertEquals(2, castCompatible.size)
         assertTrue(castCompatible.all { it.url.endsWith(".srt") || it.url.endsWith(".vtt") })
-    }
-
-    private fun formatCastTime(ms: Long): String {
-        val seconds = ms / 1000
-        val minutes = seconds / 60
-        val secs = seconds % 60
-        return "$minutes:${String.format("%02d", secs)}"
     }
 }

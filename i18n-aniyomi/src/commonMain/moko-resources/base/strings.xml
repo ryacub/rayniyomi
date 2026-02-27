@@ -201,6 +201,8 @@
     <string name="cast_edge_none">None</string>
     <string name="cast_edge_outline">Outline</string>
     <string name="cast_edge_drop_shadow">Drop Shadow</string>
+    <string name="cast_unknown_episode">Unknown Episode</string>
+    <string name="cast_unknown_anime">Unknown Anime</string>
     <!-- /Cast -->
     <string name="pref_player_custom_button_content">Lua code</string>
     <string name="pref_player_custom_button_content_long">Lua code (on long press)</string>

@@ -34,6 +34,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,11 +86,18 @@ fun CastMiniController(
         val durationText = formatCastTime(durationMs)
         val sliderValue = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
 
+        var isDragging by remember { mutableStateOf(false) }
+        var dragFraction by remember { mutableStateOf(sliderValue) }
+
         Slider(
-            value = sliderValue,
-            onValueChange = { newValue ->
-                val newPosition = (newValue * durationMs).toLong()
-                onSeek(newPosition)
+            value = if (isDragging) dragFraction else sliderValue,
+            onValueChange = {
+                isDragging = true
+                dragFraction = it
+            },
+            onValueChangeFinished = {
+                onSeek((dragFraction * durationMs).toLong())
+                isDragging = false
             },
             modifier = Modifier
                 .fillMaxWidth()

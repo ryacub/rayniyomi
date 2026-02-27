@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import tachiyomi.i18n.MR
@@ -171,7 +172,7 @@ private fun ColorPickerRow(
                 contentAlignment = Alignment.Center,
             ) {
                 if (selectedColor == color) {
-                    val textColor = if (color == Color.White || color == Color.Yellow) Color.Black else Color.White
+                    val textColor = if (color.luminance() > 0.5f) Color.Black else Color.White
                     Text(
                         text = "✓",
                         color = textColor,
