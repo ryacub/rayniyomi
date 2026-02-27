@@ -100,11 +100,12 @@ fun CastControlSheet(
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            itemsIndexed(castCompatible) { index, track ->
+            itemsIndexed(castCompatible) { _, track ->
+                val originalIndex = subtitleTracks.indexOf(track)
                 SubtitleTrackItem(
                     track = track,
-                    isSelected = index == selectedSubtitleIndex,
-                    onSelect = { onSelectSubtitle(index) },
+                    isSelected = originalIndex == selectedSubtitleIndex,
+                    onSelect = { onSelectSubtitle(originalIndex) },
                 )
             }
         }

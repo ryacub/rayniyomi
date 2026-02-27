@@ -18,6 +18,7 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
 import eu.kanade.tachiyomi.ui.player.cast.components.formatCastTime
+import eu.kanade.tachiyomi.ui.player.model.VideoTrack
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -113,18 +114,17 @@ class CastControlsUiTest {
 
     @Test
     fun `CastControlSheet filters out ass-slash-ssa tracks`() {
-        data class VideoTrack(val url: String)
         val tracks = listOf(
-            VideoTrack("https://example.com/sub.srt"),
-            VideoTrack("https://example.com/sub.vtt"),
-            VideoTrack("https://example.com/sub.ass"),
-            VideoTrack("https://example.com/sub.ssa"),
+            VideoTrack(id = 0, name = "sub.srt", language = null),
+            VideoTrack(id = 1, name = "sub.vtt", language = null),
+            VideoTrack(id = 2, name = "sub.ass", language = null),
+            VideoTrack(id = 3, name = "sub.ssa", language = null),
         )
         val castCompatible = tracks.filter {
-            it.url.endsWith(".srt", ignoreCase = true) ||
-                it.url.endsWith(".vtt", ignoreCase = true)
+            it.name.endsWith(".srt", ignoreCase = true) ||
+                it.name.endsWith(".vtt", ignoreCase = true)
         }
         assertEquals(2, castCompatible.size)
-        assertTrue(castCompatible.all { it.url.endsWith(".srt") || it.url.endsWith(".vtt") })
+        assertTrue(castCompatible.all { it.name.endsWith(".srt") || it.name.endsWith(".vtt") })
     }
 }

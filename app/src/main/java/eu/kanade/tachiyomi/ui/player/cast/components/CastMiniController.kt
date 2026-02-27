@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -65,19 +64,19 @@ fun CastMiniController(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.8f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = animeName,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
         )
         Text(
             text = episodeName,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
         )
@@ -87,7 +86,7 @@ fun CastMiniController(
         val sliderValue = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
 
         var isDragging by remember { mutableStateOf(false) }
-        var dragFraction by remember { mutableStateOf(sliderValue) }
+        var dragFraction by remember(sliderValue) { mutableStateOf(sliderValue) }
 
         Slider(
             value = if (isDragging) dragFraction else sliderValue,
@@ -113,12 +112,12 @@ fun CastMiniController(
         ) {
             Text(
                 text = positionText,
-                color = Color.White.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )
             Text(
                 text = durationText,
-                color = Color.White.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )
         }
@@ -141,7 +140,7 @@ fun CastMiniController(
                     } else {
                         stringResource(AYMR.strings.action_play)
                     },
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
             IconButton(
@@ -151,7 +150,7 @@ fun CastMiniController(
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = stringResource(AYMR.strings.cast_disconnect),
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
