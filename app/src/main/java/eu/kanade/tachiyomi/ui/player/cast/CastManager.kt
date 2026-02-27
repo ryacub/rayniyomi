@@ -146,6 +146,8 @@ class CastManager(private val context: Context) {
 
     fun isCastSessionActive(): Boolean = castSession != null && _castState.value == CastState.CONNECTED
 
+    fun getRemoteMediaClient() = castSession?.remoteMediaClient
+
     // ---- Internal ----
 
     private fun getSessionManager(): SessionManager? {

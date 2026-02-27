@@ -184,6 +184,10 @@
     <string name="pref_player_custom_button_edit">Edit button</string>
     <string name="pref_player_custom_button_title">Title</string>
     <string name="pref_player_custom_button_error_exists">Button already exists!</string>
+    <!-- Cast -->
+    <string name="cast_error_load_failed">This source couldn\'t play on Chromecast — it may require authentication. Try watching locally.</string>
+    <string name="cast_watch_locally">Watch Locally</string>
+    <!-- /Cast -->
     <string name="pref_player_custom_button_content">Lua code</string>
     <string name="pref_player_custom_button_content_long">Lua code (on long press)</string>
     <string name="pref_player_custom_button_optional">(optional)</string>

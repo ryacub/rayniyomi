@@ -63,6 +63,8 @@ import eu.kanade.tachiyomi.data.saver.Location
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
+import eu.kanade.tachiyomi.ui.player.cast.CastManager
+import eu.kanade.tachiyomi.ui.player.cast.CastState
 import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterOrchestrator
@@ -92,9 +94,12 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
@@ -162,6 +167,7 @@ class PlayerViewModel @JvmOverloads constructor(
     uiPreferences: UiPreferences = Injekt.get(),
     private val aniSkipApi: AniSkipApi = AniSkipApi(),
     private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.applicationContext.cacheDir),
+    private val castManager: CastManager = Injekt.get(),
 ) : ViewModel() {
 
     private val episodeListManager = PlayerEpisodeListManager(
@@ -244,6 +250,15 @@ class PlayerViewModel @JvmOverloads constructor(
     val chapters = mediaOrchestrator.chapters
     val currentChapter = mediaOrchestrator.currentChapter
     val skipIntroText = mediaOrchestrator.skipIntroText
+
+    // Cast -->
+    val isCasting = castManager.castState
+        .map { it == CastState.CONNECTED }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _castProgress = MutableStateFlow(0L)
+    val castProgress = _castProgress.asStateFlow()
+    // <-- Cast
 
     private val _pos = MutableStateFlow(0f)
     val pos = _pos.asStateFlow()
@@ -1710,6 +1725,23 @@ class PlayerViewModel @JvmOverloads constructor(
     fun setPrimaryCustomButtonTitle(button: CustomButton) {
         _primaryButtonTitle.update { _ -> button.name }
     }
+
+    // Cast -->
+    fun canCast(video: eu.kanade.tachiyomi.animesource.model.Video): Boolean =
+        !video.videoUrl.startsWith("content://") && !video.videoUrl.startsWith("file://")
+
+    fun resumeFromCast(positionMs: Long) {
+        MPVLib.command(arrayOf("set", "time-pos", "${positionMs / 1000.0}"))
+    }
+
+    fun updateCastProgress(posMs: Long) {
+        _castProgress.value = posMs
+    }
+
+    fun onCastEpisodeFinished() {
+        changeEpisode(previous = false, autoPlay = true)
+    }
+    // <-- Cast
 
     sealed class Event {
         data class SetArtResult(val result: SetAsArt, val artType: ArtType) : Event()
