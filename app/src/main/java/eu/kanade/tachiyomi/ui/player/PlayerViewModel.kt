@@ -252,14 +252,12 @@ class PlayerViewModel @JvmOverloads constructor(
     val currentChapter = mediaOrchestrator.currentChapter
     val skipIntroText = mediaOrchestrator.skipIntroText
 
-    // Cast -->
     val isCasting = castManager.castState
         .map { it == CastState.CONNECTED }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _castProgress = MutableStateFlow(0L)
     val castProgress = _castProgress.asStateFlow()
-    // <-- Cast
 
     private val _pos = MutableStateFlow(0f)
     val pos = _pos.asStateFlow()
@@ -1727,7 +1725,6 @@ class PlayerViewModel @JvmOverloads constructor(
         _primaryButtonTitle.update { _ -> button.name }
     }
 
-    // Cast -->
     fun canCast(video: Video): Boolean =
         !video.videoUrl.startsWith("content://") && !video.videoUrl.startsWith("file://")
 
@@ -1742,7 +1739,6 @@ class PlayerViewModel @JvmOverloads constructor(
     fun onCastEpisodeFinished() {
         changeEpisode(previous = false, autoPlay = true)
     }
-    // <-- Cast
 
     sealed class Event {
         data class SetArtResult(val result: SetAsArt, val artType: ArtType) : Event()
