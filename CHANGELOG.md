@@ -25,7 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - Fixed clean-build failure caused by locales config task running at configuration time instead of execution time
 
-## [v1.0.0] - Rayniyomi (First Stable Release)
+## [v0.18.1.1] - Rayniyomi (First Stable Release)
 
 ### Added
 
