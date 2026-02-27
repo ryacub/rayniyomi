@@ -155,8 +155,12 @@ class AnimeDownloader(
 
     init {
         scope.launch {
-            val episodes = async { store.restore() }
-            addAllToQueue(episodes.await())
+            try {
+                val episodes = async { store.restore() }
+                addAllToQueue(episodes.await())
+            } catch (e: Throwable) {
+                logcat(LogPriority.ERROR, e) { "Failed to restore download queue" }
+            }
         }
     }
 

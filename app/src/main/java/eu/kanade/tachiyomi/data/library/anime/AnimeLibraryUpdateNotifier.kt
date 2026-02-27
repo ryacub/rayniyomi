@@ -29,8 +29,10 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchUI
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.library.anime.LibraryAnime
@@ -226,11 +228,16 @@ class AnimeLibraryUpdateNotifier(
         if (!securityPreferences.hideNotificationContent().get()) {
             launchUI {
                 context.notify(
-                    updates.map { (anime, episodes) ->
-                        NotificationManagerCompat.NotificationWithIdAndTag(
-                            anime.id.hashCode(),
-                            createNewEpisodesNotification(anime, episodes),
-                        )
+                    updates.mapNotNull { (anime, episodes) ->
+                        try {
+                            NotificationManagerCompat.NotificationWithIdAndTag(
+                                anime.id.hashCode(),
+                                createNewEpisodesNotification(anime, episodes),
+                            )
+                        } catch (e: Throwable) {
+                            logcat(LogPriority.WARN, e) { "Failed to create notification for anime: ${anime.title}" }
+                            null
+                        }
                     },
                 )
             }
