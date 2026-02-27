@@ -136,6 +136,7 @@ sealed class PlayerUpdates {
     data object AspectRatio : PlayerUpdates()
     data class ShowText(val value: String) : PlayerUpdates()
     data class ShowTextResource(val textResource: StringResource) : PlayerUpdates()
+    data class SpeedBoost(val speed: Float) : PlayerUpdates()
 }
 
 enum class VideoFilters(
