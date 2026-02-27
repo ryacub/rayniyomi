@@ -139,14 +139,13 @@ class BackupCreator(
                 throw IllegalStateException(context.stringResource(MR.strings.empty_backup_error))
             }
 
-            file.openOutputStream()
-                .also {
-                    // Force overwrite old file
-                    (it as? FileOutputStream)?.channel?.truncate(0)
-                }
-                .sink().gzip().buffer().use {
+            file.openOutputStream().use { outputStream ->
+                // Force overwrite old file
+                (outputStream as? FileOutputStream)?.channel?.truncate(0)
+                outputStream.sink().gzip().buffer().use {
                     it.write(byteArray)
                 }
+            }
             val fileUri = file.uri
 
             // Make sure it's a valid backup file
