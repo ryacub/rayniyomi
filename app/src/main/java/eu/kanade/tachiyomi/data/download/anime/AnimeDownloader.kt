@@ -467,7 +467,7 @@ class AnimeDownloader(
         tmpDir.findFile("$filename.tmp")?.delete()
 
         // Try to find the video file
-        val videoFile = tmpDir.listFiles()?.firstOrNull { it.name!!.startsWith("$filename.mkv") }
+        val videoFile = tmpDir.listFiles()?.firstOrNull { it.name?.startsWith("$filename.mkv") == true }
 
         try {
             // If the video is already downloaded, do nothing. Otherwise download from network
