@@ -133,17 +133,19 @@ class MangaExtensionManager(
      * Loads and registers the installed extensions.
      */
     private suspend fun initExtensions() {
-        val extensions = MangaExtensionLoader.loadMangaExtensions(context)
+        try {
+            val extensions = MangaExtensionLoader.loadMangaExtensions(context)
 
-        installedExtensionsMapFlow.value = extensions
-            .filterIsInstance<MangaLoadResult.Success>()
-            .associate { it.extension.pkgName to it.extension }
+            installedExtensionsMapFlow.value = extensions
+                .filterIsInstance<MangaLoadResult.Success>()
+                .associate { it.extension.pkgName to it.extension }
 
-        untrustedExtensionsMapFlow.value = extensions
-            .filterIsInstance<MangaLoadResult.Untrusted>()
-            .associate { it.extension.pkgName to it.extension }
-
-        _isInitialized.value = true
+            untrustedExtensionsMapFlow.value = extensions
+                .filterIsInstance<MangaLoadResult.Untrusted>()
+                .associate { it.extension.pkgName to it.extension }
+        } finally {
+            _isInitialized.value = true
+        }
     }
 
     /**
