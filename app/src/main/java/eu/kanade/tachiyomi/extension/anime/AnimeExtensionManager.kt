@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionInstaller
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -51,7 +52,11 @@ class AnimeExtensionManager(
     private val trustExtension: TrustAnimeExtension = Injekt.get(),
 ) {
 
-    val scope = CoroutineScope(SupervisorJob())
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeExtensionManager scope" }
+    }
+
+    val scope = CoroutineScope(SupervisorJob() + exceptionHandler)
 
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -79,12 +84,7 @@ class AnimeExtensionManager(
 
     init {
         scope.launch(Dispatchers.IO) {
-            try {
-                initAnimeExtensions()
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to initialize anime extensions" }
-                _isInitialized.value = true
-            }
+            initAnimeExtensions()
         }
         AnimeExtensionInstallReceiver(AnimeInstallationListener()).register(context)
     }

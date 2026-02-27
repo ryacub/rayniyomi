@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionInstaller
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,7 +49,11 @@ class MangaExtensionManager(
     private val trustExtension: TrustMangaExtension = Injekt.get(),
 ) {
 
-    val scope = CoroutineScope(SupervisorJob())
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in MangaExtensionManager scope" }
+    }
+
+    val scope = CoroutineScope(SupervisorJob() + exceptionHandler)
 
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -76,12 +81,7 @@ class MangaExtensionManager(
 
     init {
         scope.launch(Dispatchers.IO) {
-            try {
-                initExtensions()
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to initialize manga extensions" }
-                _isInitialized.value = true
-            }
+            initExtensions()
         }
         MangaExtensionInstallReceiver(InstallationListener()).register(context)
     }
