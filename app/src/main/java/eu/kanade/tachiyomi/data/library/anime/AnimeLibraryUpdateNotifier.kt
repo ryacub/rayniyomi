@@ -29,8 +29,10 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchUI
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.library.anime.LibraryAnime
@@ -226,18 +228,26 @@ class AnimeLibraryUpdateNotifier(
         if (!securityPreferences.hideNotificationContent().get()) {
             launchUI {
                 context.notify(
-                    updates.map { (anime, episodes) ->
-                        NotificationManagerCompat.NotificationWithIdAndTag(
-                            anime.id.hashCode(),
-                            createNewEpisodesNotification(anime, episodes),
-                        )
+                    updates.mapNotNull { (anime, episodes) ->
+                        createNewEpisodesNotification(anime, episodes)?.let {
+                            NotificationManagerCompat.NotificationWithIdAndTag(anime.id.hashCode(), it)
+                        }
                     },
                 )
             }
         }
     }
 
-    private suspend fun createNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification {
+    private suspend fun createNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification? {
+        return try {
+            buildNewEpisodesNotification(anime, episodes)
+        } catch (e: Throwable) {
+            logcat(LogPriority.WARN, e) { "Failed to create notification for anime: ${anime.title}" }
+            null
+        }
+    }
+
+    private suspend fun buildNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification {
         val icon = getAnimeIcon(anime)
         return context.notificationBuilder(Notifications.CHANNEL_NEW_CHAPTERS_EPISODES) {
             setContentTitle(anime.title)
