@@ -32,25 +32,35 @@ jobs:
         run: |
           # Extract current versions
           CURRENT_VERSION_CODE=$(grep 'val appVersionCode = ' app/build.gradle.kts | sed 's/.*= //')
-          CURRENT_VERSION_NAME=$(grep 'versionName = ' app/build.gradle.kts | sed 's/.*versionName = "\(.*\)"/\1/')
+          CURRENT_VERSION_NAME=$(grep 'versionName = "' app/build.gradle.kts | head -1 | sed 's/.*versionName = "\(.*\)"/\1/')
 
           echo "Current versionCode: $CURRENT_VERSION_CODE"
           echo "Current versionName: $CURRENT_VERSION_NAME"
 
-          # Increment versionCode
-          NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
-
-          # Determine version bump type from PR title
-          PR_TITLE="${{ github.event.pull_request.title }}"
-
-          # Parse current version — 4-part upstream-tracking scheme (e.g. 0.18.1.6)
-          # Upstream prefix (0.18.1) is preserved; only the fork build number is bumped.
+          # Parse version — scheme is {aniyomi_version}.{fork_build}  e.g. 0.18.1.19
+          # prefix "0.18.1" tracks upstream Aniyomi 0.18.1; fork_build counts rayniyomi patches.
+          # The prefix is never auto-bumped — update it manually when pulling a new Aniyomi release.
           UPSTREAM_PREFIX=$(echo "$CURRENT_VERSION_NAME" | sed 's/\.[^.]*$//')
           FORK_BUILD=$(echo "$CURRENT_VERSION_NAME" | sed 's/.*\.//')
+
+          # Validate: both components must be present and FORK_BUILD must be a non-negative integer.
+          if [ -z "$UPSTREAM_PREFIX" ] || ! [[ "$FORK_BUILD" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: Cannot parse versionName '$CURRENT_VERSION_NAME'."
+            echo "  Expected format: X.Y.Z.N  (e.g. 0.18.1.19)"
+            echo "  Got UPSTREAM_PREFIX='$UPSTREAM_PREFIX'  FORK_BUILD='$FORK_BUILD'"
+            echo "Fix versionName in app/build.gradle.kts before merging another PR."
+            exit 1
+          fi
+
+          # Increment versionCode
+          NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
 
           NEW_FORK_BUILD=$((FORK_BUILD + 1))
           NEW_VERSION_NAME="${UPSTREAM_PREFIX}.${NEW_FORK_BUILD}"
           BUMP_TYPE="fork build"
+
+          # Determine version bump type from PR title (informational only)
+          PR_TITLE="${{ github.event.pull_request.title }}"
 
           echo "Bump type: $BUMP_TYPE"
           echo "New versionCode: $NEW_VERSION_CODE"
