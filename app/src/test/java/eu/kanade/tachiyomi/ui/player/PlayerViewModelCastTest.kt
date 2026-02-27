@@ -5,19 +5,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * Tests for Cast-related functionality in PlayerViewModel.
- *
- * These are unit tests for the logic that will be implemented in PlayerViewModel.
- * They test casting logic without requiring the full Android framework or CastManager.
- */
 class PlayerViewModelCastTest {
-
-    // ---- isCasting Logic Tests ----
 
     @Test
     fun `isCasting maps CONNECTED state to true`() {
-        // Test that CastState.CONNECTED maps to isCasting=true
         val castState = "CONNECTED"
         val isCasting = (castState == "CONNECTED")
         assertTrue(isCasting, "Should map CONNECTED to true")
@@ -25,7 +16,6 @@ class PlayerViewModelCastTest {
 
     @Test
     fun `isCasting maps DISCONNECTED state to false`() {
-        // Test that CastState.DISCONNECTED maps to isCasting=false
         val castState = "DISCONNECTED"
         val isCasting = (castState == "CONNECTED")
         assertFalse(isCasting, "Should map DISCONNECTED to false")
@@ -33,13 +23,10 @@ class PlayerViewModelCastTest {
 
     @Test
     fun `isCasting defaults to false initially`() {
-        // Test that initial state is false
         val castState = "DISCONNECTED"
         val isCasting = (castState == "CONNECTED")
         assertFalse(isCasting, "Should default to false")
     }
-
-    // ---- canCast() Logic Tests ----
 
     @Test
     fun `canCast rejects content-slash-slash URLs`() {
@@ -69,8 +56,6 @@ class PlayerViewModelCastTest {
         assertTrue(canCast, "Should accept https:// URLs")
     }
 
-    // ---- updateCastProgress() Logic Test ----
-
     @Test
     fun `updateCastProgress stores the given position`() {
         var castProgress = 0L
@@ -79,16 +64,12 @@ class PlayerViewModelCastTest {
         assertEquals(5000L, castProgress, "Should store the provided position")
     }
 
-    // ---- resumeFromCast() Logic Test ----
-
     @Test
     fun `resumeFromCast converts milliseconds to seconds for MPV`() {
         val positionMs = 10000L
         val seekSeconds = positionMs / 1000.0
         assertEquals(10.0, seekSeconds, "Should convert ms to seconds")
     }
-
-    // ---- onCastEpisodeFinished() Logic Test ----
 
     @Test
     fun `onCastEpisodeFinished uses correct parameters for changeEpisode`() {
