@@ -10,6 +10,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `Fixed` - for any bug fixes.
 - `Other` - for technical stuff.
 
+## Unreleased
+
+### Added
+
+- **Cast UI components** — mini-controller overlay with drag-to-seek progress bar, subtitle track picker with ASS/SSA format filtering, subtitle style settings (font size, color, edge type), and Cast button integrated into player controls
+
 ## [v1.0.0] - Rayniyomi (First Stable Release)
 
 ### Added
