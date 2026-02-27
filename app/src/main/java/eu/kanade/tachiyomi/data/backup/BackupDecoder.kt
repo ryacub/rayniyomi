@@ -23,10 +23,9 @@ class BackupDecoder(
      * Decode a potentially-gzipped backup.
      */
     fun decode(uri: Uri): Backup {
-        return (
-            context.contentResolver.openInputStream(uri)
-                ?: throw IOException("Could not open backup file")
-            ).use { inputStream ->
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: throw IOException("Could not open backup file")
+        return inputStream.use { inputStream ->
             val source = inputStream.source().buffer()
 
             val peeked = source.peek().apply {
