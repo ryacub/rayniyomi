@@ -55,16 +55,22 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media.AudioAttributesCompat
 import androidx.media.AudioFocusRequestCompat
 import androidx.media.AudioManagerCompat
+import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
+import com.google.android.material.snackbar.Snackbar
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.data.database.models.anime.toDomainEpisode
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.databinding.PlayerLayoutBinding
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
+import eu.kanade.tachiyomi.ui.player.cast.CastError
+import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.controls.PlayerControls
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
@@ -107,6 +113,8 @@ class PlayerActivity : BaseActivity() {
     private val advancedPlayerPreferences: AdvancedPlayerPreferences = Injekt.get()
     private val networkPreferences: NetworkPreferences = Injekt.get()
     private val storageManager: StorageManager = Injekt.get()
+
+    private val castManager: CastManager by lazy { Injekt.get() }
 
     private val mpvInitializer by lazy {
         PlayerMpvInitializer(
@@ -218,6 +226,7 @@ class PlayerActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         registerSecureActivity(this)
+        castManager.resetForNewActivity()
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
@@ -225,6 +234,26 @@ class PlayerActivity : BaseActivity() {
         setupPlayerAudio()
         setupMediaSession()
         setupPlayerOrientation()
+
+        lifecycleScope.launch {
+            castManager.castError.collect { error ->
+                when (error) {
+                    is CastError.LoadFailed -> {
+                        Snackbar.make(
+                            binding.root,
+                            stringResource(AYMR.strings.cast_error_load_failed),
+                            Snackbar.LENGTH_LONG,
+                        ).setAction(stringResource(AYMR.strings.cast_watch_locally)) {
+                            castManager.disconnect()
+                            viewModel.resumeFromCast(0L)
+                        }.show()
+                    }
+                    is CastError.ConnectionLost -> {
+                        // session ended, MPV resumes automatically
+                    }
+                }
+            }
+        }
 
         previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
@@ -308,6 +337,8 @@ class PlayerActivity : BaseActivity() {
         MPVLib.removeObserver(playerObserver)
         player.destroy()
 
+        castManager.cleanup()
+
         super.onDestroy()
     }
 
@@ -341,6 +372,9 @@ class PlayerActivity : BaseActivity() {
             viewModel.deletePendingEpisodes()
         }
 
+        castManager.getRemoteMediaClient()?.unregisterCallback(castClientCallback)
+        castManager.unregisterActivity()
+
         super.onStop()
     }
 
@@ -367,6 +401,8 @@ class PlayerActivity : BaseActivity() {
 
     override fun onStart() {
         super.onStart()
+        castManager.registerActivity()
+        castManager.getRemoteMediaClient()?.registerCallback(castClientCallback)
         setPictureInPictureParams(createPipParams())
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.setFlags(
@@ -743,6 +779,20 @@ class PlayerActivity : BaseActivity() {
         return super.onKeyUp(keyCode, event)
     }
 
+    private val castClientCallback = object : RemoteMediaClient.Callback() {
+        override fun onStatusUpdated() {
+            val client = castManager.getRemoteMediaClient() ?: return
+            val status = client.mediaStatus ?: return
+            viewModel.updateCastProgress(status.streamPosition)
+            if (status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
+                status.idleReason == MediaStatus.IDLE_REASON_FINISHED &&
+                viewModel.currentEpisode.value != null
+            ) {
+                viewModel.onCastEpisodeFinished()
+            }
+        }
+    }
+
     private fun setupMediaSession() {
         val previousAction = gesturePreferences.mediaPreviousGesture().get()
         val playAction = gesturePreferences.mediaPlayPauseGesture().get()
@@ -752,6 +802,7 @@ class PlayerActivity : BaseActivity() {
             setCallback(
                 object : MediaSession.Callback() {
                     override fun onPlay() {
+                        if (viewModel.isCasting.value) return
                         when (playAction) {
                             SingleActionGesture.None -> {}
                             SingleActionGesture.Seek -> {}
@@ -769,6 +820,7 @@ class PlayerActivity : BaseActivity() {
                     }
 
                     override fun onPause() {
+                        if (viewModel.isCasting.value) return
                         when (playAction) {
                             SingleActionGesture.None -> {}
                             SingleActionGesture.Seek -> {}
@@ -786,6 +838,7 @@ class PlayerActivity : BaseActivity() {
                     }
 
                     override fun onSkipToPrevious() {
+                        if (viewModel.isCasting.value) return
                         when (previousAction) {
                             SingleActionGesture.None -> {}
                             SingleActionGesture.Seek -> {
@@ -803,6 +856,7 @@ class PlayerActivity : BaseActivity() {
                     }
 
                     override fun onSkipToNext() {
+                        if (viewModel.isCasting.value) return
                         when (nextAction) {
                             SingleActionGesture.None -> {}
                             SingleActionGesture.Seek -> {
@@ -871,6 +925,15 @@ class PlayerActivity : BaseActivity() {
     fun setVideo(video: Video?, position: Long? = null) {
         if (player.isExiting) return
         if (video == null) return
+
+        if (viewModel.isCasting.value && viewModel.canCast(video)) {
+            val episode = viewModel.currentEpisode.value?.toDomainEpisode()
+            val anime = viewModel.currentAnime.value
+            if (episode != null && anime != null) {
+                castManager.loadMedia(video, episode, anime, position ?: 0L)
+                return
+            }
+        }
 
         setHttpOptions(video)
 
