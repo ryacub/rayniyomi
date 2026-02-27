@@ -8,15 +8,12 @@ import mihon.buildlogic.getGitSha
 plugins {
     id("mihon.android.application")
     id("mihon.android.application.compose")
-    id("com.github.zellius.shortcut-helper")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
     // Only apply Google Services plugin for release builds (Firebase Analytics/Crashlytics)
     // Debug builds don't need it and google-services.json only contains release package
     alias(libs.plugins.google.services) apply false
 }
-
-shortcutHelper.setFilePath("./shortcuts.xml")
 
 val appVersionCode = 153
 val lightNovelExpectedPluginApiVersion = 1
