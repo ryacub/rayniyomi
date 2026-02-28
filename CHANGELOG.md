@@ -78,11 +78,34 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 - Added a description for the horizontal seek gesture setting ([@kenkoro](https://github.com/kenkoro)) ([#2224](https://github.com/aniyomiorg/aniyomi/pull/2224))
+- Add long-press speed boost gesture for playback control ([#366](https://github.com/ryacub/rayniyomi/pull/366))
+- Add Chromecast Cast SDK infrastructure, player integration, and cast UI components ([#367](https://github.com/ryacub/rayniyomi/pull/367), [#372](https://github.com/ryacub/rayniyomi/pull/372), [#374](https://github.com/ryacub/rayniyomi/pull/374))
 
 ### Fixed
 
 - Swapped keyEvent listeners for left and right keyboard arrow keys as they were swapped in the code causing the opposite of the desired behavior([@alphastark](https://github.com/alphastark)) ([#2219](https://github.com/aniyomiorg/aniyomi/pull/2219))
 - Fix some malformed translated strings that made the player quit when Aniskip was enabled ([@686udjie](https://github.com/686udjie)) ([#2217](https://github.com/aniyomiorg/aniyomi/pull/2217))
+- Apply Google Services plugin only for release builds ([#326](https://github.com/ryacub/rayniyomi/pull/326))
+- Resolve startup crashes by properly registering `OkHttpClient` in DI ([#341](https://github.com/ryacub/rayniyomi/pull/341), [#342](https://github.com/ryacub/rayniyomi/pull/342))
+- Fix app icon background rendering for launcher assets ([#345](https://github.com/ryacub/rayniyomi/pull/345))
+- Harden version bump automation to correctly preserve fork versioning scheme ([#346](https://github.com/ryacub/rayniyomi/pull/346), [#371](https://github.com/ryacub/rayniyomi/pull/371))
+- Reduce crash risk and resource issues in notifications/download/backup flows (bitmap leak removal, safer streams, and defensive coroutine/error handling) ([#354](https://github.com/ryacub/rayniyomi/pull/354), [#355](https://github.com/ryacub/rayniyomi/pull/355), [#356](https://github.com/ryacub/rayniyomi/pull/356), [#357](https://github.com/ryacub/rayniyomi/pull/357), [#363](https://github.com/ryacub/rayniyomi/pull/363), [#364](https://github.com/ryacub/rayniyomi/pull/364), [#365](https://github.com/ryacub/rayniyomi/pull/365))
+- Fix migration chain behavior so failed migrations do not silently pass ([#381](https://github.com/ryacub/rayniyomi/pull/381))
+- Guard error-log notification URI creation when error-log files cannot be written ([#383](https://github.com/ryacub/rayniyomi/pull/383))
+
+### Changed
+
+- Migrate Kotlin context receivers to context parameters for Kotlin 2.2 compatibility ([#382](https://github.com/ryacub/rayniyomi/pull/382))
+
+### Improved
+
+- Improve local and CI build performance with Gradle configuration cache, Kotlin daemon tuning, and CI caching/parallelism updates ([#327](https://github.com/ryacub/rayniyomi/pull/327), [#329](https://github.com/ryacub/rayniyomi/pull/329), [#375](https://github.com/ryacub/rayniyomi/pull/375))
+
+### Other
+
+- Prune README content to concise bullet points ([#324](https://github.com/ryacub/rayniyomi/pull/324))
+- Realign and document fork versioning workflow and housekeeping for automated bumps ([#331](https://github.com/ryacub/rayniyomi/pull/331), [#332](https://github.com/ryacub/rayniyomi/pull/332), [#334](https://github.com/ryacub/rayniyomi/pull/334), [#335](https://github.com/ryacub/rayniyomi/pull/335), [#343](https://github.com/ryacub/rayniyomi/pull/343))
+- Update Rayniyomi launcher icon branding assets ([#344](https://github.com/ryacub/rayniyomi/pull/344))
 
 ## [v0.18.1.2] - 2025-10-28
 ### Fixed
