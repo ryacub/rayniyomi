@@ -38,10 +38,10 @@ jobs:
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
         with:
-          cache-disabled: true
+          cache-read-only: false
 
       - name: Check code format
-        run: ./gradlew spotlessCheck --build-cache --refresh-dependencies
+        run: ./gradlew spotlessCheck --build-cache
 
   build:
     name: Build app
