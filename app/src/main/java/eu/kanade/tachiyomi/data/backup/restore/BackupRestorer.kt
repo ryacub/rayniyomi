@@ -76,8 +76,7 @@ class BackupRestorer(
         notifier.showRestoreComplete(
             time,
             errors.size,
-            logFile.parent,
-            logFile.name,
+            logFile,
             isSync,
         )
     }
@@ -342,7 +341,7 @@ class BackupRestorer(
         return lightNovelBackupDataSource.isPluginInstalled()
     }
 
-    private fun writeErrorLog(): File {
+    private fun writeErrorLog(): File? {
         try {
             if (errors.isNotEmpty()) {
                 val file = context.createFileInCacheDir("aniyomi_restore_error.txt")
@@ -356,8 +355,8 @@ class BackupRestorer(
                 return file
             }
         } catch (e: Exception) {
-            // Empty
+            logcat(LogPriority.WARN, e) { "Failed to create backup restore error log file" }
         }
-        return File("")
+        return null
     }
 }

@@ -31,6 +31,7 @@ import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import eu.kanade.tachiyomi.util.system.isConnectedToWifi
@@ -343,10 +344,17 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         if (failedUpdates.isNotEmpty()) {
             val errorFile = writeErrorFile(failedUpdates)
-            notifier.showUpdateErrorNotification(
-                failedUpdates.size,
-                errorFile.getUriCompat(context),
-            )
+            val shareableErrorFile = errorFile?.takeIf { hasShareableErrorLogFile(it) }
+            if (shareableErrorFile != null) {
+                notifier.showUpdateErrorNotification(
+                    failedUpdates.size,
+                    shareableErrorFile.getUriCompat(context),
+                )
+            } else {
+                logcat(LogPriority.WARN) {
+                    "Failed to write anime library update error file; skipping error log notification action"
+                }
+            }
         }
     }
 
@@ -411,7 +419,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     /**
      * Writes basic file of update errors to cache dir.
      */
-    private fun writeErrorFile(errors: List<Pair<Anime, String?>>): File {
+    private fun writeErrorFile(errors: List<Pair<Anime, String?>>): File? {
         try {
             if (errors.isNotEmpty()) {
                 val file = context.createFileInCacheDir("aniyomi_update_errors.txt")
@@ -436,8 +444,10 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                 }
                 return file
             }
-        } catch (_: Exception) {}
-        return File("")
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "Failed to create anime library update error file" }
+        }
+        return null
     }
 
     companion object {
