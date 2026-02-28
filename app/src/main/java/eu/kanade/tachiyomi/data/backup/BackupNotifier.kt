@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.notification.shouldAttachRestoreErrorLogAction
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notificationBuilder
@@ -137,8 +138,7 @@ class BackupNotifier(private val context: Context) {
     fun showRestoreComplete(
         time: Long,
         errorCount: Int,
-        path: String?,
-        file: String?,
+        errorLogFile: File?,
         sync: Boolean,
     ) {
         val contentTitle = if (sync) {
@@ -169,9 +169,11 @@ class BackupNotifier(private val context: Context) {
             )
 
             clearActions()
-            if (errorCount > 0 && !path.isNullOrEmpty() && !file.isNullOrEmpty()) {
-                val destFile = File(path, file)
-                val uri = destFile.getUriCompat(context)
+            val shareableErrorLogFile = errorLogFile?.takeIf {
+                shouldAttachRestoreErrorLogAction(errorCount, it)
+            }
+            if (shareableErrorLogFile != null) {
+                val uri = shareableErrorLogFile.getUriCompat(context)
 
                 val errorLogIntent = NotificationReceiver.openErrorLogPendingActivity(context, uri)
                 setContentIntent(errorLogIntent)
