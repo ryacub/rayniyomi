@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.notification
 
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -12,24 +13,31 @@ class ErrorLogGuardsTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `hasShareableErrorLogFile returns false for null file`() {
-        assertFalse(hasShareableErrorLogFile(null))
+    fun `asShareableErrorLogFile returns null for NoErrors`() {
+        assertNull(asShareableErrorLogFile(ErrorLogFileResult.NoErrors))
     }
 
     @Test
-    fun `hasShareableErrorLogFile returns false for missing file`() {
+    fun `asShareableErrorLogFile returns null for missing Created file`() {
         val missingFile = tempDir.resolve("missing.txt").toFile()
 
-        assertFalse(hasShareableErrorLogFile(missingFile))
+        assertNull(asShareableErrorLogFile(ErrorLogFileResult.Created(missingFile)))
     }
 
     @Test
-    fun `hasShareableErrorLogFile returns true for existing file`() {
+    fun `asShareableErrorLogFile returns file for existing Created file`() {
         val existingFile = tempDir.resolve("errors.txt").toFile().apply {
             writeText("error")
         }
 
-        assertTrue(hasShareableErrorLogFile(existingFile))
+        assertTrue(asShareableErrorLogFile(ErrorLogFileResult.Created(existingFile)) == existingFile)
+    }
+
+    @Test
+    fun `asShareableErrorLogFile returns null for Failed result`() {
+        val failure = RuntimeException("write failed")
+
+        assertNull(asShareableErrorLogFile(ErrorLogFileResult.Failed(failure)))
     }
 
     @Test
@@ -38,22 +46,27 @@ class ErrorLogGuardsTest {
             writeText("error")
         }
 
-        assertFalse(shouldAttachRestoreErrorLogAction(0, existingFile))
+        assertFalse(shouldAttachRestoreErrorLogAction(0, ErrorLogFileResult.Created(existingFile)))
     }
 
     @Test
-    fun `shouldAttachRestoreErrorLogAction returns false when file missing`() {
+    fun `shouldAttachRestoreErrorLogAction returns false when file missing on Created result`() {
         val missingFile = tempDir.resolve("missing.txt").toFile()
 
-        assertFalse(shouldAttachRestoreErrorLogAction(1, missingFile))
+        assertFalse(shouldAttachRestoreErrorLogAction(1, ErrorLogFileResult.Created(missingFile)))
     }
 
     @Test
-    fun `shouldAttachRestoreErrorLogAction returns true when errors exist and file exists`() {
+    fun `shouldAttachRestoreErrorLogAction returns false for Failed result`() {
+        assertFalse(shouldAttachRestoreErrorLogAction(1, ErrorLogFileResult.Failed(RuntimeException("boom"))))
+    }
+
+    @Test
+    fun `shouldAttachRestoreErrorLogAction returns true when errors exist and Created file exists`() {
         val existingFile = tempDir.resolve("errors.txt").toFile().apply {
             writeText("error")
         }
 
-        assertTrue(shouldAttachRestoreErrorLogAction(1, existingFile))
+        assertTrue(shouldAttachRestoreErrorLogAction(1, ErrorLogFileResult.Created(existingFile)))
     }
 }

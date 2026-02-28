@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
+import eu.kanade.tachiyomi.data.notification.ErrorLogFileResult
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -32,7 +33,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -341,22 +341,23 @@ class BackupRestorer(
         return lightNovelBackupDataSource.isPluginInstalled()
     }
 
-    private fun writeErrorLog(): File? {
-        try {
-            if (errors.isNotEmpty()) {
-                val file = context.createFileInCacheDir("aniyomi_restore_error.txt")
-                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-
-                file.bufferedWriter().use { out ->
-                    errors.forEach { (date, message) ->
-                        out.write("[${sdf.format(date)}] $message\n")
-                    }
-                }
-                return file
-            }
-        } catch (e: Exception) {
-            logcat(LogPriority.WARN, e) { "Failed to create backup restore error log file" }
+    private fun writeErrorLog(): ErrorLogFileResult {
+        if (errors.isEmpty()) {
+            return ErrorLogFileResult.NoErrors
         }
-        return null
+
+        try {
+            val file = context.createFileInCacheDir("aniyomi_restore_error.txt")
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+
+            file.bufferedWriter().use { out ->
+                errors.forEach { (date, message) ->
+                    out.write("[${sdf.format(date)}] $message\n")
+                }
+            }
+            return ErrorLogFileResult.Created(file)
+        } catch (e: Exception) {
+            return ErrorLogFileResult.Failed(e)
+        }
     }
 }

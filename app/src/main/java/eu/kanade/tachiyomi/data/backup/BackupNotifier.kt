@@ -6,18 +6,21 @@ import androidx.core.app.NotificationCompat
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
+import eu.kanade.tachiyomi.data.notification.ErrorLogFileResult
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.notification.asShareableErrorLogFile
 import eu.kanade.tachiyomi.data.notification.shouldAttachRestoreErrorLogAction
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.injectLazy
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 class BackupNotifier(private val context: Context) {
@@ -138,7 +141,7 @@ class BackupNotifier(private val context: Context) {
     fun showRestoreComplete(
         time: Long,
         errorCount: Int,
-        errorLogFile: File?,
+        errorLogFileResult: ErrorLogFileResult,
         sync: Boolean,
     ) {
         val contentTitle = if (sync) {
@@ -169,8 +172,8 @@ class BackupNotifier(private val context: Context) {
             )
 
             clearActions()
-            val shareableErrorLogFile = errorLogFile?.takeIf {
-                shouldAttachRestoreErrorLogAction(errorCount, it)
+            val shareableErrorLogFile = asShareableErrorLogFile(errorLogFileResult)?.takeIf {
+                shouldAttachRestoreErrorLogAction(errorCount, errorLogFileResult)
             }
             if (shareableErrorLogFile != null) {
                 val uri = shareableErrorLogFile.getUriCompat(context)
@@ -182,6 +185,10 @@ class BackupNotifier(private val context: Context) {
                     context.stringResource(MR.strings.action_show_errors),
                     errorLogIntent,
                 )
+            } else if (errorLogFileResult is ErrorLogFileResult.Failed) {
+                logcat(LogPriority.WARN, errorLogFileResult.cause) {
+                    "Failed to create backup restore error file; skipping error log action"
+                }
             }
 
             show(Notifications.ID_RESTORE_COMPLETE)

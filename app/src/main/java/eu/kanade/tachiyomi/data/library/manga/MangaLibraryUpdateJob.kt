@@ -26,8 +26,9 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
+import eu.kanade.tachiyomi.data.notification.ErrorLogFileResult
 import eu.kanade.tachiyomi.data.notification.Notifications
-import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
+import eu.kanade.tachiyomi.data.notification.asShareableErrorLogFile
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.util.storage.getUriCompat
@@ -65,7 +66,6 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.io.File
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.concurrent.CopyOnWriteArrayList
@@ -315,16 +315,22 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         }
 
         if (failedUpdates.isNotEmpty()) {
-            val errorFile = writeErrorFile(failedUpdates)
-            val shareableErrorFile = errorFile?.takeIf { hasShareableErrorLogFile(it) }
-            if (shareableErrorFile != null) {
-                notifier.showUpdateErrorNotification(
+            val errorFileResult = writeErrorFile(failedUpdates)
+            val shareableErrorFile = asShareableErrorLogFile(errorFileResult)
+            when {
+                shareableErrorFile != null -> notifier.showUpdateErrorNotification(
                     failedUpdates.size,
                     shareableErrorFile.getUriCompat(context),
                 )
-            } else {
-                logcat(LogPriority.WARN) {
-                    "Failed to write manga library update error file; skipping error log notification action"
+                errorFileResult is ErrorLogFileResult.Failed -> {
+                    logcat(LogPriority.WARN, errorFileResult.cause) {
+                        "Failed to write manga library update error file; skipping error log notification action"
+                    }
+                }
+                else -> {
+                    logcat(LogPriority.WARN) {
+                        "Manga library update error log file missing; skipping error log notification action"
+                    }
                 }
             }
         }
@@ -391,35 +397,36 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     /**
      * Writes basic file of update errors to cache dir.
      */
-    private fun writeErrorFile(errors: List<Pair<Manga, String?>>): File? {
+    private fun writeErrorFile(errors: List<Pair<Manga, String?>>): ErrorLogFileResult {
+        if (errors.isEmpty()) {
+            return ErrorLogFileResult.NoErrors
+        }
+
         try {
-            if (errors.isNotEmpty()) {
-                val file = context.createFileInCacheDir("aniyomi_update_errors.txt")
-                file.bufferedWriter().use { out ->
-                    out.write(
-                        context.stringResource(MR.strings.library_errors_help, ERROR_LOG_HELP_URL) + "\n\n",
-                    )
-                    // Error file format:
-                    // ! Error
-                    //   # Source
-                    //     - Manga
-                    errors.groupBy({ it.second }, { it.first }).forEach { (error, mangas) ->
-                        out.write("\n! ${error}\n")
-                        mangas.groupBy { it.source }.forEach { (srcId, mangas) ->
-                            val source = sourceManager.getOrStub(srcId)
-                            out.write("  # $source\n")
-                            mangas.forEach {
-                                out.write("    - ${it.title}\n")
-                            }
+            val file = context.createFileInCacheDir("aniyomi_update_errors.txt")
+            file.bufferedWriter().use { out ->
+                out.write(
+                    context.stringResource(MR.strings.library_errors_help, ERROR_LOG_HELP_URL) + "\n\n",
+                )
+                // Error file format:
+                // ! Error
+                //   # Source
+                //     - Manga
+                errors.groupBy({ it.second }, { it.first }).forEach { (error, mangas) ->
+                    out.write("\n! ${error}\n")
+                    mangas.groupBy { it.source }.forEach { (srcId, mangas) ->
+                        val source = sourceManager.getOrStub(srcId)
+                        out.write("  # $source\n")
+                        mangas.forEach {
+                            out.write("    - ${it.title}\n")
                         }
                     }
                 }
-                return file
             }
+            return ErrorLogFileResult.Created(file)
         } catch (e: Exception) {
-            logcat(LogPriority.WARN, e) { "Failed to create manga library update error file" }
+            return ErrorLogFileResult.Failed(e)
         }
-        return null
     }
 
     companion object {
