@@ -40,11 +40,8 @@ jobs:
         with:
           cache-disabled: true
 
-      - name: Clear ktlint cache
-        run: rm -rf ~/.gradle/caches/modules-2/files-2.1/com.pinterest.ktlint
-
       - name: Check code format
-        run: ./gradlew spotlessCheck --build-cache
+        run: ./gradlew spotlessCheck --build-cache --refresh-dependencies
 
   build:
     name: Build app
