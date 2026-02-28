@@ -138,6 +138,42 @@ class MigratorTest {
         verify(timeout = 1_000) { migrationCompletedListener() }
     }
 
+    @Test
+    fun failingMigrationReturnsFalseAndDoesNotComplete() = runBlocking {
+        val strategy = migrationStrategyFactory.create(1, 2)
+        assertInstanceOf(VersionRangeMigrationStrategy::class.java, strategy)
+
+        val execute = strategy(
+            listOf(
+                Migration.of(Migration.ALWAYS) { true },
+                Migration.of(2f) { false },
+            ),
+        )
+
+        val result = execute.await()
+
+        assertFalse(result)
+        verify(exactly = 0) { migrationCompletedListener() }
+    }
+
+    @Test
+    fun exceptionMigrationReturnsFalseAndDoesNotComplete() = runBlocking {
+        val strategy = migrationStrategyFactory.create(1, 2)
+        assertInstanceOf(VersionRangeMigrationStrategy::class.java, strategy)
+
+        val execute = strategy(
+            listOf(
+                Migration.of(Migration.ALWAYS) { true },
+                Migration.of(2f) { throw RuntimeException("boom") },
+            ),
+        )
+
+        val result = execute.await()
+
+        assertFalse(result)
+        verify(exactly = 0) { migrationCompletedListener() }
+    }
+
     companion object {
 
         val mainThreadSurrogate = newSingleThreadContext("UI thread")

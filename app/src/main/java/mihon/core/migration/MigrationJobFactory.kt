@@ -28,7 +28,7 @@ class MigrationJobFactory(
                     async(start = CoroutineStart.UNDISPATCHED) {
                         val prev = acc.await()
                         val migrationSuccess = executeMigrationSafely(migration)
-                        migrationSuccess || prev
+                        migrationSuccess && prev
                     }
                 } else {
                     logcat {
