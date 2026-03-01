@@ -450,10 +450,9 @@ class AnimeDownloader(
             download.displayStatus = AnimeDownload.DisplayStatus.PAUSED_LOW_STORAGE
             download.blockedReason = AnimeDownload.BlockedReason.STORAGE
             download.lastErrorCode = "LOW_STORAGE"
-            notifier.onError(
+            download.lastErrorReason = context.stringResource(AYMR.strings.download_insufficient_space)
+            notifier.onWarning(
                 context.stringResource(AYMR.strings.download_insufficient_space),
-                download.episode.name,
-                download.anime.title,
                 download.anime.id,
             )
             return
@@ -474,8 +473,13 @@ class AnimeDownloader(
                 download.video = bestVideo
             }
 
-            withIOContext {
+            val videoFetchResult = withIOContext {
                 getOrDownloadVideoFile(download, tmpDir)
+            }
+            when (videoFetchResult) {
+                VideoFetchResult.Success -> Unit
+                VideoFetchResult.PausedLowStorage -> return
+                VideoFetchResult.Failed -> return
             }
 
             if (!isDownloadSuccessful(download, tmpDir)) {
@@ -527,7 +531,7 @@ class AnimeDownloader(
     private suspend fun getOrDownloadVideoFile(
         download: AnimeDownload,
         tmpDir: UniFile,
-    ) {
+    ): VideoFetchResult {
         val video = download.video!!
 
         video.status = Video.State.LOAD_VIDEO
@@ -594,16 +598,18 @@ class AnimeDownloader(
             video.videoUrl = file.uri.path ?: ""
             download.progress = 100
             video.status = Video.State.READY
+            return VideoFetchResult.Success
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             if (e is LowStorageException) {
-                return
+                return VideoFetchResult.PausedLowStorage
             }
             video.status = Video.State.ERROR
             download.displayStatus = AnimeDownload.DisplayStatus.FAILED
             download.lastErrorCode = e::class.simpleName
             download.lastErrorReason = e.message
             notifier.onError(e.message, download.episode.name, download.anime.title, download.anime.id)
+            return VideoFetchResult.Failed
         } finally {
             progressJob?.cancel()
             stallMonitorJob?.cancel()
@@ -648,7 +654,10 @@ class AnimeDownloader(
             emit(videoFile)
         }
             // Retry 3 times, waiting 2, 4 and 8 seconds between attempts.
-            .retryWhen { _, attempt ->
+            .retryWhen { cause, attempt ->
+                if (cause is LowStorageException) {
+                    return@retryWhen false
+                }
                 if (attempt < 3) {
                     download.retryAttempt = attempt.toInt() + 1
                     download.displayStatus = AnimeDownload.DisplayStatus.RETRYING
@@ -842,7 +851,25 @@ class AnimeDownloader(
                         }
                         continuation.resume(it)
                     } else {
-                        continuation.resumeWithException(Exception("Error in ffmpeg!"))
+                        val output = it.output
+                        if (isLowStorageFailure(output)) {
+                            download.status = AnimeDownload.State.QUEUE
+                            download.displayStatus = AnimeDownload.DisplayStatus.PAUSED_LOW_STORAGE
+                            download.blockedReason = AnimeDownload.BlockedReason.STORAGE
+                            download.lastErrorCode = "LOW_STORAGE"
+                            download.lastErrorReason = output
+                            notifier.onWarning(
+                                context.stringResource(AYMR.strings.download_insufficient_space),
+                                animeId = download.anime.id,
+                            )
+                            continuation.resumeWithException(
+                                LowStorageException(output ?: "Insufficient storage"),
+                            )
+                        } else {
+                            continuation.resumeWithException(
+                                Exception("Error in ffmpeg! ${output.orEmpty()}"),
+                            )
+                        }
                     }
                 },
                 logCallback,
@@ -1140,3 +1167,17 @@ class AnimeDownloader(
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
 
 private class LowStorageException(message: String) : Exception(message)
+
+private fun isLowStorageFailure(message: String?): Boolean {
+    if (message.isNullOrBlank()) return false
+    return message.contains("No space left on device", ignoreCase = true) ||
+        message.contains("ENOSPC", ignoreCase = true) ||
+        message.contains("disk full", ignoreCase = true) ||
+        message.contains("insufficient storage", ignoreCase = true)
+}
+
+private sealed interface VideoFetchResult {
+    data object Success : VideoFetchResult
+    data object PausedLowStorage : VideoFetchResult
+    data object Failed : VideoFetchResult
+}
