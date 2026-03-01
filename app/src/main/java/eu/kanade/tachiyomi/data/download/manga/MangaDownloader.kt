@@ -10,6 +10,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.manga.model.MangaDownloadStatusTracker
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.source.UnmeteredSource
@@ -22,8 +23,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asFlow
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.core.archive.ZipWriter
 import nl.adaptivity.xmlutil.serialization.XML
@@ -114,12 +118,18 @@ class MangaDownloader(
             it.status == MangaDownload.State.DOWNLOADING ||
                 it.status == MangaDownload.State.QUEUE
         },
-        markQueued = { it.status = MangaDownload.State.QUEUE },
+        markQueued = {
+            it.status = MangaDownload.State.QUEUE
+            it.displayStatus = MangaDownload.DisplayStatus.WAITING_FOR_SLOT
+            it.blockedReason = MangaDownload.BlockedReason.SLOT
+        },
         markInactive = {
             if (it.status == MangaDownload.State.DOWNLOADING ||
                 it.status == MangaDownload.State.QUEUE
             ) {
                 it.status = MangaDownload.State.NOT_DOWNLOADED
+                it.displayStatus = MangaDownload.DisplayStatus.PREPARING
+                it.blockedReason = null
             }
         },
     )
@@ -168,11 +178,19 @@ class MangaDownloader(
         }
 
         val pending = queueState.value.filter { it.status != MangaDownload.State.DOWNLOADED }
-        pending.forEach { if (it.status != MangaDownload.State.QUEUE) it.status = MangaDownload.State.QUEUE }
+        pending.forEach {
+            if (it.status != MangaDownload.State.QUEUE) it.status = MangaDownload.State.QUEUE
+            it.displayStatus = MangaDownload.DisplayStatus.WAITING_FOR_SLOT
+            it.blockedReason = MangaDownload.BlockedReason.SLOT
+            it.retryAttempt = 0
+            it.lastErrorCode = null
+            it.lastErrorReason = null
+        }
 
         isPaused = false
 
         launchDownloaderJob()
+        notifier.onQueueStatusSummary(queueState.value)
 
         return pending.isNotEmpty()
     }
@@ -180,11 +198,34 @@ class MangaDownloader(
     /**
      * Stops the downloader.
      */
-    fun stop(reason: String? = null) {
+    fun stop(
+        reason: String? = null,
+        blockedStatus: MangaDownload.DisplayStatus? = null,
+    ) {
         cancelDownloaderJob()
         queueState.value
             .filter { it.status == MangaDownload.State.DOWNLOADING }
-            .forEach { it.status = MangaDownload.State.ERROR }
+            .forEach {
+                when (blockedStatus) {
+                    MangaDownload.DisplayStatus.WAITING_FOR_NETWORK -> {
+                        it.status = MangaDownload.State.QUEUE
+                        it.displayStatus = MangaDownload.DisplayStatus.WAITING_FOR_NETWORK
+                        it.blockedReason = MangaDownload.BlockedReason.NETWORK
+                    }
+                    MangaDownload.DisplayStatus.WAITING_FOR_WIFI -> {
+                        it.status = MangaDownload.State.QUEUE
+                        it.displayStatus = MangaDownload.DisplayStatus.WAITING_FOR_WIFI
+                        it.blockedReason = MangaDownload.BlockedReason.WIFI
+                    }
+                    else -> {
+                        it.status = MangaDownload.State.ERROR
+                        it.displayStatus = MangaDownload.DisplayStatus.FAILED
+                        it.blockedReason = null
+                    }
+                }
+            }
+
+        notifier.onQueueStatusSummary(queueState.value)
 
         if (reason != null) {
             notifier.onWarning(reason)
@@ -209,8 +250,13 @@ class MangaDownloader(
         cancelDownloaderJob()
         queueState.value
             .filter { it.status == MangaDownload.State.DOWNLOADING }
-            .forEach { it.status = MangaDownload.State.QUEUE }
+            .forEach {
+                it.status = MangaDownload.State.QUEUE
+                it.displayStatus = MangaDownload.DisplayStatus.PAUSED_BY_USER
+                it.blockedReason = null
+            }
         isPaused = true
+        notifier.onQueueStatusSummary(queueState.value)
     }
 
     /**
@@ -234,7 +280,11 @@ class MangaDownloader(
                 while (true) {
                     val activeDownloads = queue.asSequence()
                         .filter {
-                            it.status.value <= MangaDownload.State.DOWNLOADING.value
+                            it.status.value <= MangaDownload.State.DOWNLOADING.value &&
+                                it.displayStatus != MangaDownload.DisplayStatus.PAUSED_LOW_STORAGE &&
+                                it.displayStatus != MangaDownload.DisplayStatus.WAITING_FOR_NETWORK &&
+                                it.displayStatus != MangaDownload.DisplayStatus.WAITING_FOR_WIFI &&
+                                it.displayStatus != MangaDownload.DisplayStatus.PAUSED_BY_USER
                         } // Ignore completed downloads, leave them in the queue
                         .sortedWith(
                             compareByDescending<MangaDownload> { it.priority.value }
@@ -243,6 +293,21 @@ class MangaDownloader(
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
+
+                    val activeSet = activeDownloads.toSet()
+                    queue.filter { it.status == MangaDownload.State.QUEUE && it !in activeSet }
+                        .forEach { queued ->
+                            if (queued.displayStatus != MangaDownload.DisplayStatus.WAITING_FOR_NETWORK &&
+                                queued.displayStatus != MangaDownload.DisplayStatus.WAITING_FOR_WIFI &&
+                                queued.displayStatus != MangaDownload.DisplayStatus.PAUSED_BY_USER &&
+                                queued.displayStatus != MangaDownload.DisplayStatus.PAUSED_LOW_STORAGE
+                            ) {
+                                queued.displayStatus = MangaDownload.DisplayStatus.WAITING_FOR_SLOT
+                                queued.blockedReason = MangaDownload.BlockedReason.SLOT
+                            }
+                        }
+
+                    notifier.onQueueStatusSummary(queue)
                     emit(activeDownloads)
 
                     if (activeDownloads.isEmpty()) break
@@ -289,6 +354,10 @@ class MangaDownloader(
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
             logcat(LogPriority.ERROR, e)
+            download.status = MangaDownload.State.ERROR
+            download.displayStatus = MangaDownload.DisplayStatus.FAILED
+            download.lastErrorCode = e::class.simpleName
+            download.lastErrorReason = e.message
             notifier.onError(e.message)
             stop()
         }
@@ -335,6 +404,7 @@ class MangaDownloader(
 
         if (chaptersToQueue.isNotEmpty()) {
             addAllToQueue(chaptersToQueue)
+            notifier.onQueueStatusSummary(queueState.value)
 
             // Start downloader if needed
             if (autoStart && wasEmpty) {
@@ -365,15 +435,19 @@ class MangaDownloader(
      * @param download the chapter to be downloaded.
      */
     private suspend fun downloadChapter(download: MangaDownload) {
+        download.displayStatus = MangaDownload.DisplayStatus.PREPARING
+        download.blockedReason = MangaDownload.BlockedReason.PREPARING
         val mangaDir = provider.getMangaDir(download.manga.title, download.source)
 
         val availSpace = DiskUtil.getAvailableStorageSpace(mangaDir)
         if (availSpace != -1L && availSpace < MIN_DISK_SPACE) {
-            download.status = MangaDownload.State.ERROR
-            notifier.onError(
+            download.status = MangaDownload.State.QUEUE
+            download.displayStatus = MangaDownload.DisplayStatus.PAUSED_LOW_STORAGE
+            download.blockedReason = MangaDownload.BlockedReason.STORAGE
+            download.lastErrorCode = "LOW_STORAGE"
+            download.lastErrorReason = context.stringResource(AYMR.strings.download_insufficient_space)
+            notifier.onWarning(
                 context.stringResource(AYMR.strings.download_insufficient_space),
-                download.chapter.name,
-                download.manga.title,
                 download.manga.id,
             )
             return
@@ -416,37 +490,75 @@ class MangaDownloader(
                 ?.forEach { it.delete() }
 
             download.status = MangaDownload.State.DOWNLOADING
+            download.displayStatus = MangaDownload.DisplayStatus.CONNECTING
+            download.blockedReason = null
+            download.lastProgressAt = System.currentTimeMillis()
+            download.retryAttempt = 0
 
             // Start downloading images, consider we can have downloaded images already
             // Concurrency is configurable via preferences (default: 4, range: 1-6)
             val concurrency = downloadPreferences.pageDownloadConcurrency().get()
-            pageList.asFlow()
-                .flatMapMerge(concurrency = concurrency) { page ->
-                    flow {
-                        // Fetch image URL if necessary
-                        if (page.imageUrl.isNullOrEmpty()) {
-                            page.status = Page.State.LOAD_PAGE
-                            try {
-                                page.imageUrl = download.source.getImageUrl(page)
-                            } catch (e: Throwable) {
-                                page.status = Page.State.ERROR
+            var progressJob: Job? = null
+            var stallMonitorJob: Job? = null
+            try {
+                coroutineScope {
+                    progressJob = launch {
+                        download.progressFlow.collect {
+                            if (download.status != MangaDownload.State.DOWNLOADING) return@collect
+                            download.lastProgressAt = System.currentTimeMillis()
+                            download.retryAttempt = 0
+                            download.displayStatus = MangaDownload.DisplayStatus.DOWNLOADING
+                            notifier.onProgressChange(download)
+                        }
+                    }
+                    stallMonitorJob = launch {
+                        while (download.status == MangaDownload.State.DOWNLOADING) {
+                            delay(1_000)
+                            val now = System.currentTimeMillis()
+                            if (MangaDownloadStatusTracker.shouldMarkStalled(download, now)) {
+                                download.displayStatus = MangaDownload.DisplayStatus.STALLED
+                                notifier.onProgressChange(download)
                             }
                         }
+                    }
 
-                        withIOContext { getOrDownloadImage(page, download, tmpDir, dataSaver) }
-                        emit(page)
-                    }.flowOn(Dispatchers.IO)
+                    pageList.asFlow()
+                        .flatMapMerge(concurrency = concurrency) { page ->
+                            flow {
+                                // Fetch image URL if necessary
+                                if (page.imageUrl.isNullOrEmpty()) {
+                                    page.status = Page.State.LOAD_PAGE
+                                    try {
+                                        page.imageUrl = download.source.getImageUrl(page)
+                                    } catch (e: Throwable) {
+                                        page.status = Page.State.ERROR
+                                    }
+                                }
+
+                                withIOContext { getOrDownloadImage(page, download, tmpDir, dataSaver) }
+                                emit(page)
+                            }.flowOn(Dispatchers.IO)
+                        }
+                        .collect { }
                 }
-                .collect {
-                    // Do when page is downloaded.
-                    notifier.onProgressChange(download)
+            } finally {
+                withContext(NonCancellable) {
+                    stallMonitorJob?.cancel()
+                    stallMonitorJob?.join()
+                    progressJob?.cancel()
+                    progressJob?.join()
                 }
+            }
 
             // Do after download completes
             if (!isDownloadSuccessful(download, tmpDir)) {
                 download.status = MangaDownload.State.ERROR
+                download.displayStatus = MangaDownload.DisplayStatus.FAILED
+                download.lastErrorCode = "INCOMPLETE"
+                download.lastErrorReason = "Incomplete chapter output"
                 return
             }
+            download.displayStatus = MangaDownload.DisplayStatus.VERIFYING
 
             createComicInfoFile(
                 tmpDir,
@@ -466,11 +578,20 @@ class MangaDownloader(
             DiskUtil.createNoMediaFile(tmpDir, context)
 
             download.status = MangaDownload.State.DOWNLOADED
+            download.displayStatus = MangaDownload.DisplayStatus.COMPLETED
+            download.lastErrorCode = null
+            download.lastErrorReason = null
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
+            if (error is LowStorageException) {
+                return
+            }
             // If the page list threw, it will resume here
             logcat(LogPriority.ERROR, error)
             download.status = MangaDownload.State.ERROR
+            download.displayStatus = MangaDownload.DisplayStatus.FAILED
+            download.lastErrorCode = error::class.simpleName
+            download.lastErrorReason = error.message
             notifier.onError(error.message, download.chapter.name, download.manga.title, download.manga.id)
         }
     }
@@ -517,7 +638,7 @@ class MangaDownloader(
                     tmpDir,
                     filename,
                 )
-                else -> downloadImage(page, download.source, tmpDir, filename, dataSaver)
+                else -> downloadImage(page, download, download.source, tmpDir, filename, dataSaver)
             }
 
             // When the page is ready, set page path, progress (just in case) and status
@@ -527,9 +648,12 @@ class MangaDownloader(
             page.status = Page.State.READY
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
+            if (e is LowStorageException) throw e
             // Mark this page as error and allow to download the remaining
             page.progress = 0
             page.status = Page.State.ERROR
+            download.lastErrorCode = e::class.simpleName
+            download.lastErrorReason = e.message
             notifier.onError(e.message, download.chapter.name, download.manga.title, download.manga.id)
         }
     }
@@ -544,6 +668,7 @@ class MangaDownloader(
      */
     private suspend fun downloadImage(
         page: Page,
+        download: MangaDownload,
         source: HttpSource,
         tmpDir: UniFile,
         filename: String,
@@ -566,16 +691,35 @@ class MangaDownloader(
             } catch (e: Exception) {
                 response.close()
                 file.delete()
+                if (isLowStorageFailure(e.message)) {
+                    download.status = MangaDownload.State.QUEUE
+                    download.displayStatus = MangaDownload.DisplayStatus.PAUSED_LOW_STORAGE
+                    download.blockedReason = MangaDownload.BlockedReason.STORAGE
+                    download.lastErrorCode = "LOW_STORAGE"
+                    download.lastErrorReason = e.message
+                    notifier.onWarning(
+                        context.stringResource(AYMR.strings.download_insufficient_space),
+                        mangaId = download.manga.id,
+                    )
+                    throw LowStorageException(e.message ?: "Insufficient storage")
+                }
                 throw e
             }
             emit(file)
         }
             // Retry 3 times, waiting 2, 4 and 8 seconds between attempts.
-            .retryWhen { _, attempt ->
+            .retryWhen { cause, attempt ->
+                if (cause is LowStorageException) {
+                    return@retryWhen false
+                }
                 if (attempt < 3) {
+                    download.retryAttempt = attempt.toInt() + 1
+                    download.displayStatus = MangaDownload.DisplayStatus.RETRYING
                     delay((2L shl attempt.toInt()) * 1000)
                     true
                 } else {
+                    download.lastErrorCode = "RETRY_EXHAUSTED"
+                    download.lastErrorReason = "Network retries exhausted"
                     false
                 }
             }
@@ -771,3 +915,13 @@ class MangaDownloader(
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
+
+private class LowStorageException(message: String) : Exception(message)
+
+private fun isLowStorageFailure(message: String?): Boolean {
+    if (message.isNullOrBlank()) return false
+    return message.contains("No space left on device", ignoreCase = true) ||
+        message.contains("ENOSPC", ignoreCase = true) ||
+        message.contains("disk full", ignoreCase = true) ||
+        message.contains("insufficient storage", ignoreCase = true)
+}

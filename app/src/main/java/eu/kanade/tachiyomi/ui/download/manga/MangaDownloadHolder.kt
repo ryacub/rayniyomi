@@ -62,7 +62,7 @@ class MangaDownloadHolder(private val view: View, val adapter: MangaDownloadAdap
         if (pages == null) {
             binding.downloadProgress.progress = 0
             binding.downloadProgress.max = 1
-            binding.downloadProgressText.text = ""
+            binding.downloadProgressText.text = download.displayReasonText(view.context).orEmpty()
         } else {
             binding.downloadProgress.max = pages.size * 100
             notifyProgress()
@@ -86,7 +86,13 @@ class MangaDownloadHolder(private val view: View, val adapter: MangaDownloadAdap
      */
     fun notifyDownloadedPages() {
         val pages = download.pages ?: return
-        binding.downloadProgressText.text = "${download.downloadedImages}/${pages.size}"
+        val progressText = "${download.downloadedImages}/${pages.size}"
+        val reason = download.displayReasonText(view.context)
+        binding.downloadProgressText.text = if (reason.isNullOrBlank()) {
+            progressText
+        } else {
+            "$progressText · $reason"
+        }
     }
 
     override fun onItemReleased(position: Int) {
