@@ -117,7 +117,10 @@ class AnimeDownloadManager(
         }
         return downloader.start()
     }
-    fun downloaderStop(reason: String? = null) = downloader.stop(reason)
+    fun downloaderStop(
+        reason: String? = null,
+        blockedStatus: AnimeDownload.DisplayStatus? = null,
+    ) = downloader.stop(reason, blockedStatus)
 
     val isDownloaderRunning
         get() = AnimeDownloadJob.isRunningFlow(context)
@@ -467,7 +470,10 @@ class AnimeDownloadManager(
         .flatMapLatest { downloads ->
             downloads
                 .map { download ->
-                    download.statusFlow.drop(1).map { download }
+                    merge(
+                        download.statusFlow.drop(1).map { download },
+                        download.displayStatusFlow.drop(1).map { download },
+                    )
                 }
                 .merge()
         }

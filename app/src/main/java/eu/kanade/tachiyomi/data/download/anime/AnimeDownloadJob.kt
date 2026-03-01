@@ -14,6 +14,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.util.system.NetworkState
 import eu.kanade.tachiyomi.util.system.activeNetworkState
@@ -99,11 +100,15 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
             if (noWifi) {
                 downloadManager.downloaderStop(
                     applicationContext.getString(R.string.download_notifier_text_only_wifi),
+                    AnimeDownload.DisplayStatus.WAITING_FOR_WIFI,
                 )
             }
             !noWifi
         } else {
-            downloadManager.downloaderStop(applicationContext.getString(R.string.download_notifier_no_network))
+            downloadManager.downloaderStop(
+                applicationContext.getString(R.string.download_notifier_no_network),
+                AnimeDownload.DisplayStatus.WAITING_FOR_NETWORK,
+            )
             false
         }
     }

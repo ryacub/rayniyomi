@@ -994,6 +994,15 @@
     <string name="download_notifier_text_only_wifi">No Wi-Fi connection available</string>
     <string name="download_notifier_no_network">No network connection available</string>
     <string name="download_notifier_download_paused">Downloads paused</string>
+    <string name="download_status_waiting_slot">Waiting for available slot</string>
+    <string name="download_status_preparing">Preparing download</string>
+    <string name="download_status_connecting">Connecting</string>
+    <string name="download_status_stalled">Download stalled</string>
+    <string name="download_status_retrying_attempt">Retrying (attempt %1$d)</string>
+    <string name="download_status_low_storage">Not enough storage</string>
+    <string name="download_status_verifying">Verifying download</string>
+    <string name="download_status_completed">Download complete</string>
+    <string name="download_status_summary">%1$d downloading, %2$d waiting for slot, %3$d stalled</string>
     <string name="download_notifier_split_page_not_found">Page %d not found while splitting</string>
     <string name="download_notifier_split_page_path_not_found">Couldn\'t find file path of page %d</string>
     <string name="download_notifier_cache_renewal">Checking downloads</string>
