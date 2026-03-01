@@ -6,6 +6,9 @@ import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 
+/**
+ * Maps a status snapshot to concise user-facing reason text.
+ */
 fun DownloadStatusSnapshot.displayReasonText(context: Context): String? {
     return when (displayStatus) {
         DownloadDisplayStatus.WAITING_FOR_SLOT -> context.stringResource(MR.strings.download_status_waiting_slot)

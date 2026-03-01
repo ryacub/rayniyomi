@@ -44,12 +44,4 @@ class DownloadStatusTrackerTest {
         summary.waitingForSlot shouldBe 1
         summary.stalled shouldBe 1
     }
-
-    private data class TestStatusSnapshot(
-        override val isRunningTransfer: Boolean = false,
-        override val displayStatus: DownloadDisplayStatus = DownloadDisplayStatus.PREPARING,
-        override val lastProgressAt: Long = 0L,
-        override val retryAttempt: Int = 0,
-        override val lastErrorReason: String? = null,
-    ) : DownloadStatusSnapshot
 }

@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi.ui.download
 
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
-import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
+import eu.kanade.tachiyomi.data.download.model.TestStatusSnapshot
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -89,12 +89,4 @@ class DownloadStatusTextMapperTest {
             lastErrorReason = null,
         ).displayReasonText(context) shouldBe "unknown"
     }
-
-    private data class TestStatusSnapshot(
-        override val isRunningTransfer: Boolean = false,
-        override val displayStatus: DownloadDisplayStatus,
-        override val lastProgressAt: Long = 0L,
-        override val retryAttempt: Int = 0,
-        override val lastErrorReason: String? = null,
-    ) : DownloadStatusSnapshot
 }
