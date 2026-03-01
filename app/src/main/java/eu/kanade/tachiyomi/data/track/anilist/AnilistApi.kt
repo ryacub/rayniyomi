@@ -11,8 +11,10 @@ import eu.kanade.tachiyomi.data.track.anilist.dto.ALSearchResult
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALUserListEntryQueryResult
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
+import eu.kanade.tachiyomi.data.track.retryOnceOn429OrThrow
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.awaitSuccess
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.network.jsonMime
 import eu.kanade.tachiyomi.network.parseAs
@@ -23,7 +25,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import tachiyomi.core.common.util.lang.withIOContext
 import uy.kohesive.injekt.injectLazy
 import java.time.Instant
@@ -63,13 +67,12 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALAddEntryResult>()
                     .let {
                         track
@@ -108,8 +111,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                     put("private", track.private)
                 }
             }
-            authClient.newCall(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
-                .awaitSuccess()
+            executeSuccessfulAuthRequest(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
             track
         }
     }
@@ -130,8 +132,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                     put("listId", track.libraryId)
                 }
             }
-            authClient.newCall(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
-                .awaitSuccess()
+            executeSuccessfulAuthRequest(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
         }
     }
 
@@ -156,13 +157,12 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALAddEntryResult>()
                     .let {
                         track
@@ -201,8 +201,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                     put("private", track.private)
                 }
             }
-            authClient.newCall(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
-                .awaitSuccess()
+            executeSuccessfulAuthRequest(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
             track
         }
     }
@@ -223,8 +222,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                     put("listId", track.libraryId)
                 }
             }
-            authClient.newCall(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
-                .awaitSuccess()
+            executeSuccessfulAuthRequest(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))
         }
     }
 
@@ -276,13 +274,12 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALSearchResult>()
                     .data.page.media
                     .map { it.toALManga().toTrack() }
@@ -333,13 +330,12 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALSearchResult>()
                     .data.page.media
                     .map { it.toALAnime().toTrack() }
@@ -412,13 +408,12 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALUserListEntryQueryResult>()
                     .data.page.mediaList
                     .map { it.toALUserManga() }
@@ -488,13 +483,12 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALUserListEntryQueryResult>()
                     .data.page.mediaList
                     .map { it.toALUserAnime() }
@@ -533,18 +527,28 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 put("query", query)
             }
             with(json) {
-                authClient.newCall(
+                executeSuccessfulAuthRequest(
                     POST(
                         API_URL,
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
                     .parseAs<ALCurrentUserResult>()
                     .let {
                         val viewer = it.data.viewer
                         Pair(viewer.id, viewer.mediaListOptions.scoreFormat)
                     }
+            }
+        }
+    }
+
+    private suspend fun executeSuccessfulAuthRequest(request: Request): Response {
+        return retryOnceOn429OrThrow {
+            authClient.newCall(request).await()
+        }.also { response ->
+            if (!response.isSuccessful) {
+                response.close()
+                throw HttpException(response.code)
             }
         }
     }

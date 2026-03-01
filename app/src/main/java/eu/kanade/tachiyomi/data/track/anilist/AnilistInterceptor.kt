@@ -46,17 +46,7 @@ class AnilistInterceptor(val anilist: Anilist, private var token: String?) : Int
             .header("User-Agent", "Aniyomi v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
             .build()
 
-        val response = chain.proceed(authRequest)
-
-        // Handle rate limiting with single retry and server-specified backoff
-        if (response.code == 429) {
-            val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: RATE_LIMIT_DEFAULT_WAIT_SECONDS
-            response.close()
-            Thread.sleep(retryAfter.coerceAtMost(MAX_RETRY_WAIT_SECONDS) * 1000)
-            return chain.proceed(authRequest)
-        }
-
-        return response
+        return chain.proceed(authRequest)
     }
 
     /**
@@ -67,10 +57,5 @@ class AnilistInterceptor(val anilist: Anilist, private var token: String?) : Int
         token = oauth?.accessToken
         this.oauth = oauth
         anilist.saveOAuth(oauth)
-    }
-
-    companion object {
-        private const val RATE_LIMIT_DEFAULT_WAIT_SECONDS = 5L
-        private const val MAX_RETRY_WAIT_SECONDS = 60L
     }
 }

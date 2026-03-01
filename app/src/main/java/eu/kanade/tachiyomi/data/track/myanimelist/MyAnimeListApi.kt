@@ -16,9 +16,12 @@ import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALOAuth
 import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALSearchResult
 import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALUser
 import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALUserSearchResult
+import eu.kanade.tachiyomi.data.track.retryOnceOn429OrThrow
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.network.parseAs
@@ -31,6 +34,7 @@ import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import tachiyomi.core.common.util.lang.withIOContext
 import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
@@ -75,8 +79,7 @@ class MyAnimeListApi(
                 .get()
                 .build()
             with(json) {
-                authClient.newCall(request)
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(request)
                     .parseAs<MALUser>()
                     .name
             }
@@ -91,8 +94,7 @@ class MyAnimeListApi(
                 .appendQueryParameter("nsfw", "true")
                 .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(GET(url.toString()))
                     .parseAs<MALSearchResult>()
                     .data
                     .map { async { getMangaDetails(it.node.id) } }
@@ -111,8 +113,7 @@ class MyAnimeListApi(
                 .appendQueryParameter("nsfw", "true")
                 .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(GET(url.toString()))
                     .parseAs<MALSearchResult>()
                     .data
                     .map { async { getAnimeDetails(it.node.id) } }
@@ -131,8 +132,7 @@ class MyAnimeListApi(
                 )
                 .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(GET(url.toString()))
                     .parseAs<MALManga>()
                     .let {
                         MangaTrackSearch.create(trackId).apply {
@@ -162,8 +162,7 @@ class MyAnimeListApi(
                 )
                 .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(GET(url.toString()))
                     .parseAs<MALAnime>()
                     .let {
                         AnimeTrackSearch.create(trackId).apply {
@@ -202,8 +201,7 @@ class MyAnimeListApi(
                 .put(formBodyBuilder.build())
                 .build()
             with(json) {
-                authClient.newCall(request)
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(request)
                     .parseAs<MALListMangaItemStatus>()
                     .let { parseMangaItem(it, track) }
             }
@@ -229,8 +227,7 @@ class MyAnimeListApi(
                 .put(formBodyBuilder.build())
                 .build()
             with(json) {
-                authClient.newCall(request)
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(request)
                     .parseAs<MALListAnimeItemStatus>()
                     .let { parseAnimeItem(it, track) }
             }
@@ -239,17 +236,13 @@ class MyAnimeListApi(
 
     suspend fun deleteMangaItem(track: DomainMangaTrack) {
         withIOContext {
-            authClient
-                .newCall(DELETE(mangaUrl(track.remoteId).toString()))
-                .awaitSuccess()
+            executeSuccessfulAuthRequest(DELETE(mangaUrl(track.remoteId).toString()))
         }
     }
 
     suspend fun deleteAnimeItem(track: DomainAnimeTrack) {
         withIOContext {
-            authClient
-                .newCall(DELETE(animeUrl(track.remoteId).toString()))
-                .awaitSuccess()
+            executeSuccessfulAuthRequest(DELETE(animeUrl(track.remoteId).toString()))
         }
     }
 
@@ -260,8 +253,7 @@ class MyAnimeListApi(
                 .appendQueryParameter("fields", "num_chapters,my_list_status{start_date,finish_date}")
                 .build()
             with(json) {
-                authClient.newCall(GET(uri.toString()))
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(GET(uri.toString()))
                     .parseAs<MALListMangaItem>()
                     .let { item ->
                         track.total_chapters = item.numChapters
@@ -278,8 +270,7 @@ class MyAnimeListApi(
                 .appendQueryParameter("fields", "num_episodes,my_list_status{start_date,finish_date}")
                 .build()
             with(json) {
-                authClient.newCall(GET(uri.toString()))
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(GET(uri.toString()))
                     .parseAs<MALListAnimeItem>()
                     .let { item ->
                         track.total_episodes = item.numEpisodes
@@ -339,9 +330,19 @@ class MyAnimeListApi(
                 .get()
                 .build()
             with(json) {
-                authClient.newCall(request)
-                    .awaitSuccess()
+                executeSuccessfulAuthRequest(request)
                     .parseAs()
+            }
+        }
+    }
+
+    private suspend fun executeSuccessfulAuthRequest(request: Request): Response {
+        return retryOnceOn429OrThrow {
+            authClient.newCall(request).await()
+        }.also { response ->
+            if (!response.isSuccessful) {
+                response.close()
+                throw HttpException(response.code)
             }
         }
     }
