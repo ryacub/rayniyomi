@@ -41,7 +41,9 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +59,7 @@ import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -564,28 +567,30 @@ class AnimeDownloader(
 
                     // If videoFile is not existing then download it
                     if (preferences.useExternalDownloader().get() == download.changeDownloader) {
-                        progressJob = scope.launch {
-                            download.progressFlow
-                                .collect {
-                                    if (download.status != AnimeDownload.State.DOWNLOADING) return@collect
-                                    download.lastProgressAt = System.currentTimeMillis()
-                                    download.retryAttempt = 0
-                                    download.displayStatus = AnimeDownload.DisplayStatus.DOWNLOADING
-                                    notifier.onProgressChange(download)
-                                }
-                        }
-                        stallMonitorJob = scope.launch {
-                            while (download.status == AnimeDownload.State.DOWNLOADING) {
-                                delay(1_000)
-                                val now = System.currentTimeMillis()
-                                if (AnimeDownloadStatusTracker.shouldMarkStalled(download, now)) {
-                                    download.displayStatus = AnimeDownload.DisplayStatus.STALLED
-                                    notifier.onProgressChange(download)
+                        coroutineScope {
+                            progressJob = launch {
+                                download.progressFlow
+                                    .collect {
+                                        if (download.status != AnimeDownload.State.DOWNLOADING) return@collect
+                                        download.lastProgressAt = System.currentTimeMillis()
+                                        download.retryAttempt = 0
+                                        download.displayStatus = AnimeDownload.DisplayStatus.DOWNLOADING
+                                        notifier.onProgressChange(download)
+                                    }
+                            }
+                            stallMonitorJob = launch {
+                                while (download.status == AnimeDownload.State.DOWNLOADING) {
+                                    delay(1_000)
+                                    val now = System.currentTimeMillis()
+                                    if (AnimeDownloadStatusTracker.shouldMarkStalled(download, now)) {
+                                        download.displayStatus = AnimeDownload.DisplayStatus.STALLED
+                                        notifier.onProgressChange(download)
+                                    }
                                 }
                             }
-                        }
 
-                        downloadVideo(download, tmpDir, filename)
+                            downloadVideo(download, tmpDir, filename)
+                        }
                     } else {
                         val betterFileName = DiskUtil.buildValidFilename(
                             "${download.anime.title} - ${download.episode.name}",
@@ -611,8 +616,13 @@ class AnimeDownloader(
             notifier.onError(e.message, download.episode.name, download.anime.title, download.anime.id)
             return VideoFetchResult.Failed
         } finally {
-            progressJob?.cancel()
-            stallMonitorJob?.cancel()
+            withContext(NonCancellable) {
+                // Stop stall reporting before progress collection to avoid stale state updates.
+                stallMonitorJob?.cancel()
+                stallMonitorJob?.join()
+                progressJob?.cancel()
+                progressJob?.join()
+            }
         }
     }
 

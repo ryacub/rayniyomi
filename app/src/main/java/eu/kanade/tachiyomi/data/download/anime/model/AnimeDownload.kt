@@ -13,6 +13,7 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.concurrent.atomic.AtomicLong
 
 data class AnimeDownload(
     val source: AnimeHttpSource,
@@ -49,7 +50,12 @@ data class AnimeDownload(
     var blockedReason: BlockedReason? = null
 
     @Transient
-    var lastProgressAt: Long = 0L
+    private val lastProgressAtAtomic = AtomicLong(0L)
+    var lastProgressAt: Long
+        get() = lastProgressAtAtomic.get()
+        set(value) {
+            lastProgressAtAtomic.set(value)
+        }
 
     @Transient
     var retryAttempt: Int = 0
