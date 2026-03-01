@@ -17,6 +17,7 @@ import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.concurrent.atomic.AtomicLong
 
 data class MangaDownload(
     val source: HttpSource,
@@ -52,6 +53,37 @@ data class MangaDownload(
         }
 
     @Transient
+    private val _displayStatusFlow = MutableStateFlow(DisplayStatus.PREPARING)
+
+    @Transient
+    val displayStatusFlow = _displayStatusFlow.asStateFlow()
+    var displayStatus: DisplayStatus
+        get() = _displayStatusFlow.value
+        set(value) {
+            _displayStatusFlow.value = value
+        }
+
+    @Transient
+    var blockedReason: BlockedReason? = null
+
+    @Transient
+    private val lastProgressAtAtomic = AtomicLong(0L)
+    var lastProgressAt: Long
+        get() = lastProgressAtAtomic.get()
+        set(value) {
+            lastProgressAtAtomic.set(value)
+        }
+
+    @Transient
+    var retryAttempt: Int = 0
+
+    @Transient
+    var lastErrorCode: String? = null
+
+    @Transient
+    var lastErrorReason: String? = null
+
+    @Transient
     val progressFlow = pagesStateFlow
         .flatMapLatest { pages ->
             pages
@@ -74,6 +106,31 @@ data class MangaDownload(
         DOWNLOADING(2),
         DOWNLOADED(3),
         ERROR(4),
+    }
+
+    enum class DisplayStatus {
+        WAITING_FOR_SLOT,
+        WAITING_FOR_NETWORK,
+        WAITING_FOR_WIFI,
+        PREPARING,
+        CONNECTING,
+        DOWNLOADING,
+        STALLED,
+        RETRYING,
+        PAUSED_BY_USER,
+        PAUSED_LOW_STORAGE,
+        VERIFYING,
+        COMPLETED,
+        FAILED,
+    }
+
+    enum class BlockedReason {
+        SLOT,
+        NETWORK,
+        WIFI,
+        STORAGE,
+        PREPARING,
+        AUTH,
     }
 
     companion object {

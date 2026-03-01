@@ -105,7 +105,10 @@ class MangaDownloadManager(
         }
         return downloader.start()
     }
-    fun downloaderStop(reason: String? = null) = downloader.stop(reason)
+    fun downloaderStop(
+        reason: String? = null,
+        blockedStatus: MangaDownload.DisplayStatus? = null,
+    ) = downloader.stop(reason, blockedStatus)
 
     val isDownloaderRunning
         get() = MangaDownloadJob.isRunningFlow(context)
@@ -455,7 +458,10 @@ class MangaDownloadManager(
         .flatMapLatest { downloads ->
             downloads
                 .map { download ->
-                    download.statusFlow.drop(1).map { download }
+                    kotlinx.coroutines.flow.merge(
+                        download.statusFlow.drop(1).map { download },
+                        download.displayStatusFlow.drop(1).map { download },
+                    )
                 }
                 .merge()
         }

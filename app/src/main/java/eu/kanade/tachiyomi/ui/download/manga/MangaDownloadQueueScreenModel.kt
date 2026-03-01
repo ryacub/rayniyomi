@@ -187,6 +187,7 @@ class MangaDownloadQueueScreenModel(
             MangaDownload.State.DOWNLOADING -> {
                 launchProgressJob(download)
                 // Initial update of the downloaded pages
+                onUpdateProgress(download)
                 onUpdateDownloadedPages(download)
             }
             MangaDownload.State.DOWNLOADED -> {
@@ -194,9 +195,14 @@ class MangaDownloadQueueScreenModel(
                 onUpdateProgress(download)
                 onUpdateDownloadedPages(download)
             }
-            MangaDownload.State.ERROR -> cancelProgressJob(download)
+            MangaDownload.State.ERROR -> {
+                cancelProgressJob(download)
+                onUpdateProgress(download)
+                onUpdateDownloadedPages(download)
+            }
             else -> {
-                /* unused */
+                onUpdateProgress(download)
+                onUpdateDownloadedPages(download)
             }
         }
     }
@@ -235,6 +241,7 @@ class MangaDownloadQueueScreenModel(
      */
     private fun onUpdateProgress(download: MangaDownload) {
         getHolder(download)?.notifyProgress()
+        getHolder(download)?.notifyDownloadedPages()
     }
 
     /**
@@ -244,6 +251,7 @@ class MangaDownloadQueueScreenModel(
      */
     fun onUpdateDownloadedPages(download: MangaDownload) {
         getHolder(download)?.notifyDownloadedPages()
+        getHolder(download)?.notifyProgress()
     }
 
     /**
