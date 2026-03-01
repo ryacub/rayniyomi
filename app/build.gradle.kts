@@ -357,6 +357,9 @@ androidComponents {
 tasks.register("printLightNovelCompatibilitySnapshot") {
     group = "verification"
     description = "Prints compatibility snapshot consumed by plugin compatibility CI gates."
+    notCompatibleWithConfigurationCache(
+        "This ad-hoc script task is used only for CI snapshot output.",
+    )
     doLast {
         println(
             """
