@@ -194,9 +194,14 @@ class AnimeDownloadQueueScreenModel(
                 onUpdateProgress(download)
                 onUpdateDownloadedPages(download)
             }
-            AnimeDownload.State.ERROR -> cancelProgressJob(download)
+            AnimeDownload.State.ERROR -> {
+                cancelProgressJob(download)
+                onUpdateProgress(download)
+                onUpdateDownloadedPages(download)
+            }
             else -> {
-                /* unused */
+                onUpdateProgress(download)
+                onUpdateDownloadedPages(download)
             }
         }
     }

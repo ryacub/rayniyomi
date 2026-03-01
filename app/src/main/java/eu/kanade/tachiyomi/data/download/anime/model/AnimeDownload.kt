@@ -35,6 +35,32 @@ data class AnimeDownload(
         }
 
     @Transient
+    private val _displayStatusFlow = MutableStateFlow(DisplayStatus.PREPARING)
+
+    @Transient
+    val displayStatusFlow = _displayStatusFlow.asStateFlow()
+    var displayStatus: DisplayStatus
+        get() = _displayStatusFlow.value
+        set(value) {
+            _displayStatusFlow.value = value
+        }
+
+    @Transient
+    var blockedReason: BlockedReason? = null
+
+    @Transient
+    var lastProgressAt: Long = 0L
+
+    @Transient
+    var retryAttempt: Int = 0
+
+    @Transient
+    var lastErrorCode: String? = null
+
+    @Transient
+    var lastErrorReason: String? = null
+
+    @Transient
     private val progressStateFlow = MutableStateFlow(0)
 
     @Transient
@@ -67,6 +93,31 @@ data class AnimeDownload(
         DOWNLOADING(2),
         DOWNLOADED(3),
         ERROR(4),
+    }
+
+    enum class DisplayStatus {
+        WAITING_FOR_SLOT,
+        WAITING_FOR_NETWORK,
+        WAITING_FOR_WIFI,
+        PREPARING,
+        CONNECTING,
+        DOWNLOADING,
+        STALLED,
+        RETRYING,
+        PAUSED_BY_USER,
+        PAUSED_LOW_STORAGE,
+        VERIFYING,
+        COMPLETED,
+        FAILED,
+    }
+
+    enum class BlockedReason {
+        SLOT,
+        NETWORK,
+        WIFI,
+        STORAGE,
+        PREPARING,
+        AUTH,
     }
 
     companion object {

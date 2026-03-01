@@ -7,9 +7,11 @@ import androidx.core.app.NotificationCompat
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownloadStatusTracker
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.ui.download.anime.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notificationManager
@@ -98,6 +100,9 @@ internal class AnimeDownloadNotifier(private val context: Context) {
             } else {
                 context.stringResource(AYMR.strings.episode_downloading_progress, download.progress)
             }
+            val reasonText = download.displayReasonText(context)
+            val contentText = listOfNotNull(downloadingProgressText, reasonText)
+                .joinToString(" · ")
 
             if (preferences.hideNotificationContent().get()) {
                 setContentTitle(downloadingProgressText)
@@ -110,7 +115,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
                     "",
                 )
                 setContentTitle("$title - $episode".chop(30))
-                setContentText(downloadingProgressText)
+                setContentText(contentText)
             }
             if (download.progress == 0) {
                 setProgress(100, download.progress, true)
@@ -120,6 +125,20 @@ internal class AnimeDownloadNotifier(private val context: Context) {
             setOngoing(true)
 
             show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
+        }
+    }
+
+    fun onQueueStatusSummary(downloads: List<AnimeDownload>) {
+        val summary = AnimeDownloadStatusTracker.summarize(downloads)
+        val summaryText = context.stringResource(
+            MR.strings.download_status_summary,
+            summary.downloading,
+            summary.waitingForSlot,
+            summary.stalled,
+        )
+        progressNotificationBuilder.setSubText(summaryText)
+        if (isDownloading) {
+            progressNotificationBuilder.show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
         }
     }
 

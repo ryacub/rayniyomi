@@ -18,6 +18,8 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownloadStatusTracker
+import eu.kanade.tachiyomi.data.download.anime.multithread.DownloadError
 import eu.kanade.tachiyomi.data.download.anime.multithread.DownloadResult
 import eu.kanade.tachiyomi.data.download.anime.multithread.MultiThreadDownloader
 import eu.kanade.tachiyomi.data.download.anime.multithread.VideoFormat
@@ -112,12 +114,18 @@ class AnimeDownloader(
             it.status == AnimeDownload.State.DOWNLOADING ||
                 it.status == AnimeDownload.State.QUEUE
         },
-        markQueued = { it.status = AnimeDownload.State.QUEUE },
+        markQueued = {
+            it.status = AnimeDownload.State.QUEUE
+            it.displayStatus = AnimeDownload.DisplayStatus.WAITING_FOR_SLOT
+            it.blockedReason = AnimeDownload.BlockedReason.SLOT
+        },
         markInactive = {
             if (it.status == AnimeDownload.State.DOWNLOADING ||
                 it.status == AnimeDownload.State.QUEUE
             ) {
                 it.status = AnimeDownload.State.NOT_DOWNLOADED
+                it.displayStatus = AnimeDownload.DisplayStatus.PREPARING
+                it.blockedReason = null
             }
         },
     )
@@ -175,7 +183,14 @@ class AnimeDownloader(
         }
 
         val pending = queueState.value.filter { it.status != AnimeDownload.State.DOWNLOADED }
-        pending.forEach { if (it.status != AnimeDownload.State.QUEUE) it.status = AnimeDownload.State.QUEUE }
+        pending.forEach {
+            if (it.status != AnimeDownload.State.QUEUE) it.status = AnimeDownload.State.QUEUE
+            it.displayStatus = AnimeDownload.DisplayStatus.WAITING_FOR_SLOT
+            it.blockedReason = AnimeDownload.BlockedReason.SLOT
+            it.retryAttempt = 0
+            it.lastErrorCode = null
+            it.lastErrorReason = null
+        }
 
         launchDownloaderJob()
 
@@ -185,11 +200,34 @@ class AnimeDownloader(
     /**
      * Stops the downloader.
      */
-    fun stop(reason: String? = null) {
+    fun stop(
+        reason: String? = null,
+        blockedStatus: AnimeDownload.DisplayStatus? = null,
+    ) {
         cancelDownloaderJob()
         queueState.value
             .filter { it.status == AnimeDownload.State.DOWNLOADING }
-            .forEach { it.status = AnimeDownload.State.ERROR }
+            .forEach {
+                when (blockedStatus) {
+                    AnimeDownload.DisplayStatus.WAITING_FOR_NETWORK -> {
+                        it.status = AnimeDownload.State.QUEUE
+                        it.displayStatus = AnimeDownload.DisplayStatus.WAITING_FOR_NETWORK
+                        it.blockedReason = AnimeDownload.BlockedReason.NETWORK
+                    }
+                    AnimeDownload.DisplayStatus.WAITING_FOR_WIFI -> {
+                        it.status = AnimeDownload.State.QUEUE
+                        it.displayStatus = AnimeDownload.DisplayStatus.WAITING_FOR_WIFI
+                        it.blockedReason = AnimeDownload.BlockedReason.WIFI
+                    }
+                    else -> {
+                        it.status = AnimeDownload.State.ERROR
+                        it.displayStatus = AnimeDownload.DisplayStatus.FAILED
+                        it.blockedReason = null
+                    }
+                }
+            }
+
+        notifier.onQueueStatusSummary(queueState.value)
 
         if (reason != null) {
             notifier.onWarning(reason)
@@ -212,7 +250,12 @@ class AnimeDownloader(
         cancelDownloaderJob()
         queueState.value
             .filter { it.status == AnimeDownload.State.DOWNLOADING }
-            .forEach { it.status = AnimeDownload.State.QUEUE }
+            .forEach {
+                it.status = AnimeDownload.State.QUEUE
+                it.displayStatus = AnimeDownload.DisplayStatus.PAUSED_BY_USER
+                it.blockedReason = null
+            }
+        notifier.onQueueStatusSummary(queueState.value)
     }
 
     /**
@@ -245,6 +288,20 @@ class AnimeDownloader(
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
+
+                    val activeSet = activeDownloads.toSet()
+                    queue.filter { it.status == AnimeDownload.State.QUEUE && it !in activeSet }
+                        .forEach { queued ->
+                            if (queued.displayStatus != AnimeDownload.DisplayStatus.WAITING_FOR_NETWORK &&
+                                queued.displayStatus != AnimeDownload.DisplayStatus.WAITING_FOR_WIFI &&
+                                queued.displayStatus != AnimeDownload.DisplayStatus.PAUSED_BY_USER
+                            ) {
+                                queued.displayStatus = AnimeDownload.DisplayStatus.WAITING_FOR_SLOT
+                                queued.blockedReason = AnimeDownload.BlockedReason.SLOT
+                            }
+                        }
+
+                    notifier.onQueueStatusSummary(queue)
                     emit(activeDownloads)
 
                     if (activeDownloads.isEmpty()) break
@@ -383,11 +440,16 @@ class AnimeDownloader(
      * @param download the episode to be downloaded.
      */
     private suspend fun downloadEpisode(download: AnimeDownload) {
+        download.displayStatus = AnimeDownload.DisplayStatus.PREPARING
+        download.blockedReason = AnimeDownload.BlockedReason.PREPARING
         val animeDir = provider.getAnimeDir(download.anime.title, download.source)
 
         val availSpace = DiskUtil.getAvailableStorageSpace(animeDir)
         if (availSpace != -1L && availSpace < MIN_DISK_SPACE) {
-            download.status = AnimeDownload.State.ERROR
+            download.status = AnimeDownload.State.QUEUE
+            download.displayStatus = AnimeDownload.DisplayStatus.PAUSED_LOW_STORAGE
+            download.blockedReason = AnimeDownload.BlockedReason.STORAGE
+            download.lastErrorCode = "LOW_STORAGE"
             notifier.onError(
                 context.stringResource(AYMR.strings.download_insufficient_space),
                 download.episode.name,
@@ -418,8 +480,14 @@ class AnimeDownloader(
 
             if (!isDownloadSuccessful(download, tmpDir)) {
                 download.status = AnimeDownload.State.ERROR
+                download.displayStatus = AnimeDownload.DisplayStatus.FAILED
+                download.lastErrorCode = "INCOMPLETE"
+                download.lastErrorReason = "Incomplete download output"
                 return
             }
+
+            download.displayStatus = AnimeDownload.DisplayStatus.VERIFYING
+            download.blockedReason = null
 
             val filename = DiskUtil.buildValidFilename("${download.anime.title} - ${download.episode.name}")
             tmpDir.findFile("${filename}_tmp.mkv")?.delete()
@@ -430,11 +498,17 @@ class AnimeDownloader(
             DiskUtil.createNoMediaFile(tmpDir, context)
 
             download.status = AnimeDownload.State.DOWNLOADED
+            download.displayStatus = AnimeDownload.DisplayStatus.COMPLETED
+            download.lastErrorCode = null
+            download.lastErrorReason = null
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             // If the video threw, it will resume here
             logcat(LogPriority.ERROR, error)
             download.status = AnimeDownload.State.ERROR
+            download.displayStatus = AnimeDownload.DisplayStatus.FAILED
+            download.lastErrorCode = error::class.simpleName
+            download.lastErrorReason = error.message
             notifier.onError(
                 error.message,
                 download.episode.name,
@@ -459,6 +533,7 @@ class AnimeDownloader(
         video.status = Video.State.LOAD_VIDEO
 
         var progressJob: Job? = null
+        var stallMonitorJob: Job? = null
 
         // Get filename from download info
         val filename = DiskUtil.buildValidFilename(download.episode.name)
@@ -478,6 +553,10 @@ class AnimeDownloader(
 
                     download.status = AnimeDownload.State.DOWNLOADING
                     download.progress = 0
+                    download.displayStatus = AnimeDownload.DisplayStatus.CONNECTING
+                    download.blockedReason = null
+                    download.lastProgressAt = System.currentTimeMillis()
+                    download.retryAttempt = 0
 
                     // If videoFile is not existing then download it
                     if (preferences.useExternalDownloader().get() == download.changeDownloader) {
@@ -485,8 +564,21 @@ class AnimeDownloader(
                             download.progressFlow
                                 .collect {
                                     if (download.status != AnimeDownload.State.DOWNLOADING) return@collect
+                                    download.lastProgressAt = System.currentTimeMillis()
+                                    download.retryAttempt = 0
+                                    download.displayStatus = AnimeDownload.DisplayStatus.DOWNLOADING
                                     notifier.onProgressChange(download)
                                 }
+                        }
+                        stallMonitorJob = scope.launch {
+                            while (download.status == AnimeDownload.State.DOWNLOADING) {
+                                delay(1_000)
+                                val now = System.currentTimeMillis()
+                                if (AnimeDownloadStatusTracker.shouldMarkStalled(download, now)) {
+                                    download.displayStatus = AnimeDownload.DisplayStatus.STALLED
+                                    notifier.onProgressChange(download)
+                                }
+                            }
                         }
 
                         downloadVideo(download, tmpDir, filename)
@@ -504,10 +596,17 @@ class AnimeDownloader(
             video.status = Video.State.READY
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e is LowStorageException) {
+                return
+            }
             video.status = Video.State.ERROR
+            download.displayStatus = AnimeDownload.DisplayStatus.FAILED
+            download.lastErrorCode = e::class.simpleName
+            download.lastErrorReason = e.message
             notifier.onError(e.message, download.episode.name, download.anime.title, download.anime.id)
         } finally {
             progressJob?.cancel()
+            stallMonitorJob?.cancel()
         }
     }
 
@@ -551,9 +650,13 @@ class AnimeDownloader(
             // Retry 3 times, waiting 2, 4 and 8 seconds between attempts.
             .retryWhen { _, attempt ->
                 if (attempt < 3) {
+                    download.retryAttempt = attempt.toInt() + 1
+                    download.displayStatus = AnimeDownload.DisplayStatus.RETRYING
                     delay((2L shl attempt.toInt()) * 1000)
                     true
                 } else {
+                    download.lastErrorCode = "RETRY_EXHAUSTED"
+                    download.lastErrorReason = "Network retries exhausted"
                     false
                 }
             }
@@ -565,6 +668,8 @@ class AnimeDownloader(
      * Selects the appropriate download strategy for the video.
      */
     private suspend fun selectDownloadStrategy(download: AnimeDownload): DownloadStrategy {
+        download.displayStatus = AnimeDownload.DisplayStatus.PREPARING
+        download.blockedReason = AnimeDownload.BlockedReason.PREPARING
         val video = download.video!!
         val videoUrl = video.videoUrl
             ?: return DownloadStrategy.FFMPEG // Fallback if no URL available
@@ -629,6 +734,9 @@ class AnimeDownloader(
         ) { progress ->
             // Update download progress
             download.progress = progress.progressPercent.coerceIn(0, 100)
+            download.lastProgressAt = System.currentTimeMillis()
+            download.displayStatus = AnimeDownload.DisplayStatus.DOWNLOADING
+            download.retryAttempt = 0
         }
 
         when (result) {
@@ -639,6 +747,36 @@ class AnimeDownloader(
                 }
             }
             is DownloadResult.Error -> {
+                when (val error = result.error) {
+                    is DownloadError.InvalidRange -> {
+                        if (error.msg.contains("not satisfiable", ignoreCase = true)) {
+                            download.displayStatus = AnimeDownload.DisplayStatus.RETRYING
+                            download.lastErrorCode = "RANGE_NOT_SATISFIABLE"
+                            download.lastErrorReason = "Remote file changed, restarting download"
+                        } else {
+                            download.lastErrorCode = "RANGE_UNSUPPORTED"
+                            download.lastErrorReason = "Server does not support range requests, falling back"
+                        }
+                        ffmpegDownload(download, tmpDir, videoFile, filename)
+                        return
+                    }
+                    is DownloadError.DiskFull -> {
+                        download.status = AnimeDownload.State.QUEUE
+                        download.displayStatus = AnimeDownload.DisplayStatus.PAUSED_LOW_STORAGE
+                        download.blockedReason = AnimeDownload.BlockedReason.STORAGE
+                        download.lastErrorCode = "LOW_STORAGE"
+                        download.lastErrorReason = error.message
+                        notifier.onWarning(
+                            context.stringResource(AYMR.strings.download_insufficient_space),
+                            animeId = download.anime.id,
+                        )
+                        throw LowStorageException(error.message ?: "Insufficient storage")
+                    }
+                    else -> {
+                        download.lastErrorCode = error::class.simpleName
+                        download.lastErrorReason = error.message
+                    }
+                }
                 throw Exception("Multi-thread download failed: ${result.error.message}")
             }
             DownloadResult.Cancelled -> {
@@ -687,6 +825,8 @@ class AnimeDownloader(
 
             if (duration != 0L && outTime > 0) {
                 download.progress = (100 * outTime / duration).toInt()
+                download.lastProgressAt = System.currentTimeMillis()
+                download.displayStatus = AnimeDownload.DisplayStatus.DOWNLOADING
             }
         }
 
@@ -861,6 +1001,7 @@ class AnimeDownloader(
                         tmpDir.delete()
                         queueState.value.find { anime -> anime.video == video }?.let { download ->
                             download.status = AnimeDownload.State.DOWNLOADED
+                            download.displayStatus = AnimeDownload.DisplayStatus.COMPLETED
                             // Delete successful downloads from queue
                             if (download.status == AnimeDownload.State.DOWNLOADED) {
                                 // Remove downloaded episode from queue
@@ -997,3 +1138,5 @@ class AnimeDownloader(
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
+
+private class LowStorageException(message: String) : Exception(message)
