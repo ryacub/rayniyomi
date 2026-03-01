@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.PowerManager
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.size
@@ -107,7 +108,7 @@ class MangaDownloadManager(
     }
     fun downloaderStop(
         reason: String? = null,
-        blockedStatus: MangaDownload.DisplayStatus? = null,
+        blockedStatus: DownloadDisplayStatus? = null,
     ) = downloader.stop(reason, blockedStatus)
 
     val isDownloaderRunning

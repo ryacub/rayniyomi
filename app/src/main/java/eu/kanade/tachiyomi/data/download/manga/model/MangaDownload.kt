@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.data.download.manga.model
 
+import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
+import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +27,7 @@ data class MangaDownload(
     val manga: Manga,
     val chapter: Chapter,
     var priority: DownloadPriority = DownloadPriority.NORMAL,
-) {
+) : DownloadStatusSnapshot {
 
     @Transient
     private val pagesStateFlow = MutableStateFlow<List<Page>?>(null)
@@ -53,35 +56,38 @@ data class MangaDownload(
         }
 
     @Transient
-    private val _displayStatusFlow = MutableStateFlow(DisplayStatus.PREPARING)
+    private val _displayStatusFlow = MutableStateFlow(DownloadDisplayStatus.PREPARING)
 
     @Transient
     val displayStatusFlow = _displayStatusFlow.asStateFlow()
-    var displayStatus: DisplayStatus
+    override var displayStatus: DownloadDisplayStatus
         get() = _displayStatusFlow.value
         set(value) {
             _displayStatusFlow.value = value
         }
 
     @Transient
-    var blockedReason: BlockedReason? = null
+    var blockedReason: DownloadBlockedReason? = null
+
+    override val isRunningTransfer: Boolean
+        get() = status == State.DOWNLOADING
 
     @Transient
     private val lastProgressAtAtomic = AtomicLong(0L)
-    var lastProgressAt: Long
+    override var lastProgressAt: Long
         get() = lastProgressAtAtomic.get()
         set(value) {
             lastProgressAtAtomic.set(value)
         }
 
     @Transient
-    var retryAttempt: Int = 0
+    override var retryAttempt: Int = 0
 
     @Transient
     var lastErrorCode: String? = null
 
     @Transient
-    var lastErrorReason: String? = null
+    override var lastErrorReason: String? = null
 
     @Transient
     val progressFlow = pagesStateFlow
@@ -106,31 +112,6 @@ data class MangaDownload(
         DOWNLOADING(2),
         DOWNLOADED(3),
         ERROR(4),
-    }
-
-    enum class DisplayStatus {
-        WAITING_FOR_SLOT,
-        WAITING_FOR_NETWORK,
-        WAITING_FOR_WIFI,
-        PREPARING,
-        CONNECTING,
-        DOWNLOADING,
-        STALLED,
-        RETRYING,
-        PAUSED_BY_USER,
-        PAUSED_LOW_STORAGE,
-        VERIFYING,
-        COMPLETED,
-        FAILED,
-    }
-
-    enum class BlockedReason {
-        SLOT,
-        NETWORK,
-        WIFI,
-        STORAGE,
-        PREPARING,
-        AUTH,
     }
 
     companion object {

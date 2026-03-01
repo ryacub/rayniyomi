@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -119,7 +120,7 @@ class AnimeDownloadManager(
     }
     fun downloaderStop(
         reason: String? = null,
-        blockedStatus: AnimeDownload.DisplayStatus? = null,
+        blockedStatus: DownloadDisplayStatus? = null,
     ) = downloader.stop(reason, blockedStatus)
 
     val isDownloaderRunning

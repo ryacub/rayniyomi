@@ -7,11 +7,11 @@ import androidx.core.app.NotificationCompat
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
-import eu.kanade.tachiyomi.data.download.manga.model.MangaDownloadStatusTracker
+import eu.kanade.tachiyomi.data.download.model.DownloadStatusTracker
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
-import eu.kanade.tachiyomi.ui.download.manga.displayReasonText
+import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notificationBuilder
@@ -124,7 +124,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
     }
 
     fun onQueueStatusSummary(downloads: List<MangaDownload>) {
-        val summary = MangaDownloadStatusTracker.summarize(downloads)
+        val summary = DownloadStatusTracker.summarize(downloads)
         val summaryText = context.stringResource(
             MR.strings.download_status_summary,
             summary.downloading,
