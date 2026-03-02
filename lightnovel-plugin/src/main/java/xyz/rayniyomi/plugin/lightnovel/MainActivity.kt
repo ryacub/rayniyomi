@@ -6,18 +6,19 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import xyz.rayniyomi.plugin.lightnovel.data.ImportTooLargeException
+import xyz.rayniyomi.lightnovel.contract.LightNovelTransferDisplayStatus
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
-import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityMainBinding
+import xyz.rayniyomi.plugin.lightnovel.ui.displayReasonText
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private lateinit var storage: NovelStorage
+    private lateinit var viewModel: MainViewModel
     private lateinit var listAdapter: ArrayAdapter<String>
 
     private val books = mutableListOf<NovelBook>()
@@ -25,23 +26,14 @@ class MainActivity : AppCompatActivity() {
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
 
-        lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { storage.importEpub(uri) }
-            }
-
-            if (result.isFailure) {
-                val errorMessageRes = when (result.exceptionOrNull()) {
-                    is ImportTooLargeException -> R.string.import_too_large
-                    else -> R.string.import_failed
-                }
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(errorMessageRes),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-            refreshBooks()
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        if (!viewModel.importEpub(uri)) {
+            Toast.makeText(this, getString(R.string.import_already_running), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -50,14 +42,23 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        storage = NovelStorage(this)
+        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
         listAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, mutableListOf())
         binding.booksList.adapter = listAdapter
         binding.booksList.emptyView = binding.emptyText
 
         binding.importEpubButton.setOnClickListener {
+            if (viewModel.isImportRunning()) {
+                Toast.makeText(this, getString(R.string.import_already_running), Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             importLauncher.launch(arrayOf("application/epub+zip", "application/octet-stream"))
+        }
+        binding.retryImportButton.setOnClickListener {
+            if (!viewModel.retryLastImport()) {
+                Toast.makeText(this, getString(R.string.import_failed), Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.booksList.setOnItemClickListener { _, _, position, _ ->
@@ -66,19 +67,53 @@ class MainActivity : AppCompatActivity() {
                 .putExtra(ReaderActivity.EXTRA_BOOK_ID, book.id)
             startActivity(intent)
         }
+
+        observeState()
     }
 
     override fun onResume() {
         super.onResume()
-        refreshBooks()
+        viewModel.refreshBooks()
     }
 
-    private fun refreshBooks() {
-        books.clear()
-        books.addAll(storage.listBooks())
+    private fun observeState() {
+        lifecycleScope.launch {
+            viewModel.books.collectLatest {
+                books.clear()
+                books.addAll(it)
 
-        listAdapter.clear()
-        listAdapter.addAll(books.map { it.title })
-        listAdapter.notifyDataSetChanged()
+                listAdapter.clear()
+                listAdapter.addAll(books.map { book -> book.title })
+                listAdapter.notifyDataSetChanged()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.importStatus.collectLatest { status ->
+                val statusText = status.displayReasonText(this@MainActivity)
+                val inProgress = status.displayStatus in setOf(
+                    LightNovelTransferDisplayStatus.PREPARING,
+                    LightNovelTransferDisplayStatus.IMPORTING,
+                    LightNovelTransferDisplayStatus.STALLED,
+                    LightNovelTransferDisplayStatus.VERIFYING,
+                )
+                binding.importStatusText.isVisible = status.displayStatus != LightNovelTransferDisplayStatus.COMPLETED
+                binding.importStatusText.text = statusText
+                binding.importStatusText.contentDescription = statusText
+
+                binding.importProgressBar.isVisible = inProgress
+                if (status.progressPercent == null || status.displayStatus == LightNovelTransferDisplayStatus.STALLED) {
+                    binding.importProgressBar.isIndeterminate = true
+                } else {
+                    binding.importProgressBar.isIndeterminate = false
+                    binding.importProgressBar.progress = status.progressPercent
+                }
+                binding.importProgressBar.contentDescription = statusText
+                binding.importEpubButton.isEnabled = !viewModel.isImportRunning()
+                binding.retryImportButton.isVisible = status.displayStatus in setOf(
+                    LightNovelTransferDisplayStatus.FAILED,
+                    LightNovelTransferDisplayStatus.PAUSED_LOW_STORAGE,
+                )
+            }
+        }
     }
 }

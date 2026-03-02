@@ -46,11 +46,14 @@ android {
 }
 
 dependencies {
+    implementation(project(":lightnovel-contract"))
+
     implementation(androidx.appcompat)
     implementation(androidx.corektx)
     implementation(androidx.bundles.lifecycle)
 
     implementation(libs.jsoup)
+    implementation(libs.material)
     implementation(kotlinx.serialization.json)
     implementation(kotlinx.coroutines.android)
 

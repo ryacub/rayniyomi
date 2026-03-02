@@ -100,7 +100,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
             )
             val reasonText = download.displayReasonText(context)
             val contentText = listOfNotNull(downloadingProgressText, reasonText)
-                .joinToString(" · ")
+                .joinToString(", ")
 
             if (preferences.hideNotificationContent().get()) {
                 setContentTitle(downloadingProgressText)

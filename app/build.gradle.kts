@@ -200,6 +200,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":lightnovel-contract"))
+
     implementation(projects.i18n)
     implementation(projects.i18nAniyomi)
     implementation(projects.core.archive)
