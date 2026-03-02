@@ -324,7 +324,7 @@ class AnimeLibraryScreenModel(
     }
 
     private fun getAnimelibItemPreferencesFlow(): Flow<ItemPreferences> {
-        return combine(
+        return combine<Any, ItemPreferences>(
             libraryPreferences.downloadBadge().changes(),
             libraryPreferences.unreadBadge().changes(),
             libraryPreferences.localBadge().changes(),

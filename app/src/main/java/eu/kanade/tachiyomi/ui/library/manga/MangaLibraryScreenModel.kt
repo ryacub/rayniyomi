@@ -311,7 +311,7 @@ class MangaLibraryScreenModel(
     }
 
     private fun getLibraryItemPreferencesFlow(): Flow<ItemPreferences> {
-        return combine(
+        return combine<Any, ItemPreferences>(
             libraryPreferences.downloadBadge().changes(),
             libraryPreferences.unreadBadge().changes(),
             libraryPreferences.localBadge().changes(),
