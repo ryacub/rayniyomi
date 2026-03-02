@@ -8,7 +8,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 
 /**
@@ -119,34 +122,62 @@ class NovelStorage(private val context: Context) {
     // -------------------------------------------------------------------------
 
     @Synchronized
-    fun importEpub(uri: Uri): NovelBook {
+    fun importEpub(
+        uri: Uri,
+        onVerifying: () -> Unit = {},
+        onProgress: (bytesRead: Long, totalBytes: Long?) -> Unit = { _, _ -> },
+    ): NovelBook {
         val id = UUID.randomUUID().toString()
         val targetFile = File(booksDir, "$id.epub")
+        val tempFile = File(booksDir, "$id.tmp.epub")
         validateImportSize(uri)
-
-        context.contentResolver.openInputStream(uri).use { input ->
-            requireNotNull(input) { "Unable to open EPUB input stream" }
-            targetFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
+        val expectedLength = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+            descriptor.length.takeIf { it > 0L }
         }
 
-        val parsedTitle = runCatching { EpubTextExtractor.parse(targetFile).title }.getOrNull()
-        val title = parsedTitle?.takeIf { it.isNotBlank() } ?: targetFile.nameWithoutExtension
+        try {
+            context.contentResolver.openInputStream(uri).use { input ->
+                if (input == null) throw SourceUnavailableException("Unable to open EPUB source")
+                tempFile.outputStream().use { output ->
+                    copyWithProgress(
+                        input = input,
+                        output = output,
+                        expectedLength = expectedLength,
+                        onProgress = onProgress,
+                    )
+                }
+            }
+            onVerifying()
+            val parsedTitle = runCatching { EpubTextExtractor.parse(tempFile).title }
+                .getOrElse { throw InvalidEpubException("Unable to parse EPUB metadata", it) }
+            val title = parsedTitle.takeIf { it.isNotBlank() } ?: targetFile.nameWithoutExtension
 
-        val newBook = NovelBook(
-            id = id,
-            title = title,
-            epubFileName = targetFile.name,
-            lastReadChapter = 0,
-            lastReadOffset = 0,
-            updatedAt = System.currentTimeMillis(),
-        )
+            if (!tempFile.renameTo(targetFile)) {
+                throw IOException("Unable to finalize imported EPUB file")
+            }
 
-        val current = readLibrary().books.toMutableList()
-        current.add(newBook)
-        writeLibrary(NovelLibrary(current))
-        return newBook
+            val newBook = NovelBook(
+                id = id,
+                title = title,
+                epubFileName = targetFile.name,
+                lastReadChapter = 0,
+                lastReadOffset = 0,
+                updatedAt = System.currentTimeMillis(),
+            )
+
+            val current = readLibrary().books.toMutableList()
+            current.add(newBook)
+            writeLibrary(NovelLibrary(current))
+            return newBook
+        } catch (cause: Throwable) {
+            tempFile.delete()
+            if (!targetFile.exists()) {
+                // no-op
+            } else {
+                targetFile.delete()
+            }
+            throw mapImportException(cause)
+        }
     }
 
     @Synchronized
@@ -218,6 +249,45 @@ class NovelStorage(private val context: Context) {
         }
     }
 
+    private fun copyWithProgress(
+        input: InputStream,
+        output: OutputStream,
+        expectedLength: Long?,
+        onProgress: (bytesRead: Long, totalBytes: Long?) -> Unit,
+    ) {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var totalBytesRead = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) {
+                onProgress(totalBytesRead, expectedLength)
+                return
+            }
+            output.write(buffer, 0, read)
+            totalBytesRead += read
+            onProgress(totalBytesRead, expectedLength)
+        }
+    }
+
+    private fun mapImportException(cause: Throwable): Throwable {
+        if (cause is ImportTooLargeException) return cause
+        if (cause is InvalidEpubException) return cause
+        if (cause is SourceUnavailableException) return cause
+        if (cause is FileNotFoundException || cause is SecurityException) {
+            return SourceUnavailableException("Source unavailable or permission was revoked", cause)
+        }
+        if (cause is IOException && cause.isLowStorageError()) {
+            return LowStorageException("No space left while importing EPUB", cause)
+        }
+        return cause
+    }
+
+    private fun IOException.isLowStorageError(): Boolean {
+        val msg = message.orEmpty()
+        return msg.contains("ENOSPC", ignoreCase = true) ||
+            msg.contains("No space left", ignoreCase = true)
+    }
+
     private companion object {
         const val ROOT_DIR_NAME = "light_novel_plugin"
         const val BOOKS_DIR_NAME = "books"
@@ -229,3 +299,9 @@ class NovelStorage(private val context: Context) {
 
 class ImportTooLargeException(actualBytes: Long, limitBytes: Long) :
     IllegalArgumentException("Import too large: actual=$actualBytes, limit=$limitBytes")
+
+class SourceUnavailableException(message: String, cause: Throwable? = null) : IOException(message, cause)
+
+class InvalidEpubException(message: String, cause: Throwable? = null) : IOException(message, cause)
+
+class LowStorageException(message: String, cause: Throwable? = null) : IOException(message, cause)

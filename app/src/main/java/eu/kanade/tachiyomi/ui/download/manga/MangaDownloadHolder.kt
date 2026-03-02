@@ -92,8 +92,12 @@ class MangaDownloadHolder(private val view: View, val adapter: MangaDownloadAdap
         binding.downloadProgressText.text = if (reason.isNullOrBlank()) {
             progressText
         } else {
-            "$progressText · $reason"
+            "$progressText, $reason"
         }
+        val a11yText = "${download.manga.title} ${download.chapter.name} ${binding.downloadProgressText.text}"
+        binding.downloadProgressText.contentDescription = a11yText
+        binding.downloadProgress.contentDescription = a11yText
+        binding.downloadProgressText.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
     }
 
     override fun onItemReleased(position: Int) {
