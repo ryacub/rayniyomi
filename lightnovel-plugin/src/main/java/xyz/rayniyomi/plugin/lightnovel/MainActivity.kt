@@ -2,10 +2,12 @@ package xyz.rayniyomi.plugin.lightnovel
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -103,11 +105,22 @@ class MainActivity : AppCompatActivity() {
                 binding.importProgressBar.isVisible = inProgress
                 if (status.progressPercent == null || status.displayStatus == LightNovelTransferDisplayStatus.STALLED) {
                     binding.importProgressBar.isIndeterminate = true
+                    val unknownProgressText = getString(R.string.import_progress_unknown)
+                    binding.importProgressBar.contentDescription = unknownProgressText
+                    ViewCompat.setStateDescription(binding.importProgressBar, unknownProgressText)
                 } else {
                     binding.importProgressBar.isIndeterminate = false
                     binding.importProgressBar.progress = status.progressPercent
+                    val percentProgressText = getString(R.string.import_progress_percent, status.progressPercent)
+                    binding.importProgressBar.contentDescription = percentProgressText
+                    ViewCompat.setStateDescription(binding.importProgressBar, percentProgressText)
                 }
-                binding.importProgressBar.contentDescription = statusText
+                binding.importStatusText.accessibilityLiveRegion =
+                    if (status.displayStatus == LightNovelTransferDisplayStatus.IMPORTING) {
+                        View.ACCESSIBILITY_LIVE_REGION_NONE
+                    } else {
+                        View.ACCESSIBILITY_LIVE_REGION_POLITE
+                    }
                 binding.importEpubButton.isEnabled = !viewModel.isImportRunning()
                 binding.retryImportButton.isVisible = status.displayStatus in setOf(
                     LightNovelTransferDisplayStatus.FAILED,
