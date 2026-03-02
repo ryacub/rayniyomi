@@ -79,7 +79,7 @@ class LightNovelBackupContentProvider : ContentProvider() {
                     COLUMN_UPDATED_AT -> book.updatedAt
                     else -> null
                 }
-            }.toTypedArray()
+            }.toTypedArray<Any?>()
             cursor.addRow(row)
         }
 
