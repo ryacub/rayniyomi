@@ -26,6 +26,7 @@ import eu.kanade.core.util.ifAnimeSourcesLoaded
 import eu.kanade.domain.entries.anime.model.hasCustomBackground
 import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.domain.entries.anime.model.toSAnime
+import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.entries.EditCoverAction
@@ -54,6 +55,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.source.browse.BrowseAnimeSourceScreen
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackInfoDialogHomeScreen
+import eu.kanade.tachiyomi.ui.entries.common.EntryEnrichmentScreenModel
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.anime.AnimeLibraryTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -62,6 +64,7 @@ import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
@@ -98,8 +101,16 @@ class AnimeScreen(
         val lifecycleOwner = LocalLifecycleOwner.current
         val screenModel =
             rememberScreenModel { AnimeScreenModel(context, lifecycleOwner.lifecycle, animeId, fromSource) }
+        val enrichmentScreenModel = rememberScreenModel {
+            EntryEnrichmentScreenModel(
+                entryId = animeId,
+                title = "",
+                mediaType = EnrichmentMediaType.ANIME,
+            )
+        }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
+        val enrichmentState by enrichmentScreenModel.state.collectAsStateWithLifecycle()
 
         if (state is AnimeScreenModel.State.Loading) {
             LoadingScreen()
@@ -108,6 +119,16 @@ class AnimeScreen(
 
         val successState = state as AnimeScreenModel.State.Success
         val isAnimeHttpSource = remember { successState.source is AnimeHttpSource }
+
+        LaunchedEffect(successState.anime.title) {
+            enrichmentScreenModel.updateTitle(successState.anime.title)
+        }
+
+        LaunchedEffect(enrichmentScreenModel) {
+            enrichmentScreenModel.announcements.collectLatest {
+                screenModel.snackbarHostState.showSnackbar(it)
+            }
+        }
 
         LaunchedEffect(successState.anime, screenModel.source) {
             if (isAnimeHttpSource) {
@@ -214,6 +235,14 @@ class AnimeScreen(
                         openEpisode(context, ep, screenModel.alwaysUseExternalPlayer)
                     }
                 }
+            },
+            enrichmentState = enrichmentState.entry,
+            enrichmentLoading = enrichmentState.loading,
+            enrichmentRefreshing = enrichmentState.refreshing,
+            enrichmentErrorText = enrichmentState.errorText,
+            onRefreshEnrichment = { enrichmentScreenModel.refresh(manual = true) },
+            onOpenEnrichmentRecommendation = { title, url ->
+                navigator.push(WebViewScreen(url = url, initialTitle = title))
             },
         )
 

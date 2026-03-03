@@ -1,0 +1,30 @@
+CREATE TABLE tracker_enrichment_cache(
+    entry_id INTEGER NOT NULL PRIMARY KEY,
+    media_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    source_count INTEGER NOT NULL,
+    error_summary TEXT
+);
+
+CREATE TABLE tracker_enrichment_recommendation(
+    entry_id INTEGER NOT NULL,
+    media_type TEXT NOT NULL,
+    canonical_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    target_url TEXT,
+    tracker_source TEXT NOT NULL,
+    rank_score REAL NOT NULL,
+    in_library INTEGER AS Boolean NOT NULL DEFAULT 0,
+    confidence REAL NOT NULL,
+    source_count INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY(entry_id, canonical_key)
+);
+
+CREATE INDEX tracker_enrichment_cache_entry_updated_idx
+ON tracker_enrichment_cache(entry_id, media_type, updated_at);
+
+CREATE INDEX tracker_enrichment_recommendation_entry_key_idx
+ON tracker_enrichment_recommendation(entry_id, canonical_key);
