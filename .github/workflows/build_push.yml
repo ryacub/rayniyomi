@@ -14,6 +14,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SQLDELIGHT_AGP9_FIX_SHA: 82467acba2f846af7da49580b9784c397117594c
+
 jobs:
   build:
     name: Build app
@@ -31,6 +34,16 @@ jobs:
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Build SqlDelight AGP 9 fix
+        run: |
+          set -euxo pipefail
+
+          git clone --filter=blob:none https://github.com/cashapp/sqldelight.git /tmp/sqldelight
+          cd /tmp/sqldelight
+          git checkout --detach "$SQLDELIGHT_AGP9_FIX_SHA"
+
+          ./gradlew publishToMavenLocal -x test --no-daemon
 
       - name: Check code format
         run: ./gradlew spotlessCheck

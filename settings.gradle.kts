@@ -8,7 +8,11 @@ pluginManagement {
         }
     }
     repositories {
-        mavenLocal() // SqlDelight 2.3.0-SNAPSHOT (AGP 9 fix, PR #6139) — remove when SqlDelight >= 2.2.2 releases
+        mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
         gradlePluginPortal()
         google()
         mavenCentral()
@@ -33,7 +37,11 @@ dependencyResolutionManagement {
     }
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        mavenLocal() // SqlDelight 2.3.0-SNAPSHOT (AGP 9 fix, PR #6139) — remove when SqlDelight >= 2.2.2 releases
+        mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
         mavenCentral()
         google()
         maven(url = "https://www.jitpack.io")
