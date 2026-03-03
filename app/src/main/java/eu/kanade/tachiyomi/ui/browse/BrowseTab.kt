@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.Navigator
@@ -16,6 +17,8 @@ import cafe.adriel.voyager.navigator.tab.TabOptions
 import eu.kanade.presentation.components.TabbedScreen
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import eu.kanade.tachiyomi.ui.browse.anime.extension.AnimeExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.anime.extension.animeExtensionsTab
 import eu.kanade.tachiyomi.ui.browse.anime.migration.sources.migrateAnimeSourceTab
@@ -25,14 +28,17 @@ import eu.kanade.tachiyomi.ui.browse.manga.extension.MangaExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.extension.mangaExtensionsTab
 import eu.kanade.tachiyomi.ui.browse.manga.migration.sources.migrateMangaSourceTab
 import eu.kanade.tachiyomi.ui.browse.manga.source.mangaSourcesTab
+import eu.kanade.tachiyomi.ui.browse.novel.source.novelSourcesTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
-import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 data object BrowseTab : Tab {
 
@@ -73,15 +79,20 @@ data object BrowseTab : Tab {
 
         val animeExtensionsScreenModel = rememberScreenModel { AnimeExtensionsScreenModel() }
         val animeExtensionsState by animeExtensionsScreenModel.state.collectAsState()
+        val lightNovelPluginStateManager = remember { Injekt.get<LightNovelPluginStateManager>() }
+        val lightNovelUiState by lightNovelPluginStateManager.uiState.collectAsState()
 
-        val tabs = persistentListOf(
-            animeSourcesTab(),
-            mangaSourcesTab(),
-            animeExtensionsTab(animeExtensionsScreenModel),
-            mangaExtensionsTab(mangaExtensionsScreenModel),
-            migrateAnimeSourceTab(),
-            migrateMangaSourceTab(),
-        )
+        val tabs = buildList {
+            add(animeSourcesTab())
+            add(mangaSourcesTab())
+            add(animeExtensionsTab(animeExtensionsScreenModel))
+            add(mangaExtensionsTab(mangaExtensionsScreenModel))
+            add(migrateAnimeSourceTab())
+            add(migrateMangaSourceTab())
+            if (shouldShowNovelSourcesTab(lightNovelUiState)) {
+                add(novelSourcesTab())
+            }
+        }.toPersistentList()
 
         val state = rememberPagerState { tabs.size }
 
@@ -95,13 +106,27 @@ data object BrowseTab : Tab {
             onChangeAnimeSearchQuery = animeExtensionsScreenModel::search,
             scrollable = true,
         )
-        LaunchedEffect(Unit) {
+        LaunchedEffect(tabs.size) {
+            val maxIndex = tabs.lastIndex
+            if (maxIndex >= 0 && state.currentPage > maxIndex) {
+                state.scrollToPage(maxIndex)
+            }
+        }
+
+        LaunchedEffect(tabs.size) {
             switchToTabNumberChannel.receiveAsFlow()
-                .collectLatest { state.scrollToPage(it) }
+                .collectLatest { page ->
+                    val maxIndex = tabs.lastIndex.coerceAtLeast(0)
+                    state.scrollToPage(page.coerceIn(0, maxIndex))
+                }
         }
 
         LaunchedEffect(Unit) {
             (context as? MainActivity)?.ready = true
         }
     }
+}
+
+internal fun shouldShowNovelSourcesTab(uiState: LightNovelPluginUiState): Boolean {
+    return uiState is LightNovelPluginUiState.Ready
 }

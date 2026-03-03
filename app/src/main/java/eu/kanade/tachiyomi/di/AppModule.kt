@@ -260,7 +260,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory<LightNovelPluginReadiness> { get<LightNovelPluginManager>() }
         addSingletonFactory { LightNovelFeatureGate(get<NovelFeaturePreferences>(), get()) }
         addSingletonFactory { LightNovelPluginLauncher(app, get()) }
-        addSingletonFactory { LightNovelPluginStateManager(get(), get()) }
+        addSingletonFactory { LightNovelPluginStateManager(app, get(), get()) }
 
         addSingletonFactory { ExternalIntents() }
         addSingletonFactory { CastManager(app) }

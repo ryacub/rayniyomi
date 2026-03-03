@@ -1,5 +1,10 @@
 package eu.kanade.tachiyomi.feature.novel
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +28,7 @@ import tachiyomi.core.common.util.system.logcat
  * [refreshPluginStatus]) from the install flow to drive state transitions.
  */
 class LightNovelPluginStateManager(
+    private val appContext: Context,
     private val pluginManager: LightNovelPluginManager,
     private val preferences: NovelFeaturePreferences,
 ) {
@@ -49,6 +55,7 @@ class LightNovelPluginStateManager(
         scope.launch {
             pluginStatusFlow.value = pluginManager.getPluginStatus()
         }
+        registerPluginPackageReceiver()
 
         combine(
             preferences.enableLightNovels().changes(),
@@ -84,4 +91,31 @@ class LightNovelPluginStateManager(
     fun refreshPluginStatus() {
         pluginStatusFlow.value = pluginManager.getPluginStatus()
     }
+
+    private fun registerPluginPackageReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val packageName = intent?.data?.schemeSpecificPart
+                if (isLightNovelPluginPackageChange(intent?.action, packageName)) {
+                    refreshPluginStatus()
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(
+            appContext,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+    }
+}
+
+internal fun isLightNovelPluginPackageChange(action: String?, packageName: String?): Boolean {
+    val relevantAction = action == Intent.ACTION_PACKAGE_ADDED || action == Intent.ACTION_PACKAGE_REMOVED
+    return relevantAction && packageName == LightNovelPluginManager.PLUGIN_PACKAGE_NAME
 }
