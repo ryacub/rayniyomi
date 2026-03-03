@@ -24,6 +24,13 @@
 -keep class com.google.android.gms.common.** { *; }
 -dontwarn com.google.android.gms.cast.**
 
+# AndroidX Window optional vendor sidecar/extension APIs are absent on most devices.
+-dontwarn androidx.window.extensions.**
+-dontwarn androidx.window.sidecar.**
+
+# OkHttp Graal/native-image stubs are host-only and not used on Android runtime.
+-dontwarn okhttp3.internal.graal.**
+
 # From extensions-lib
 -keep,allowoptimization class eu.kanade.tachiyomi.network.interceptor.RateLimitInterceptorKt { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.network.interceptor.SpecificHostRateLimitInterceptorKt { public protected *; }
