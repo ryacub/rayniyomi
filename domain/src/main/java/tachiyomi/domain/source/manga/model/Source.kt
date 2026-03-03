@@ -11,6 +11,7 @@ data class Source(
     // SY -->
     val isExcludedFromDataSaver: Boolean = false,
     // SY <--
+    val healthStatus: SourceHealthStatus = SourceHealthStatus.UNKNOWN,
 ) {
 
     val visualName: String

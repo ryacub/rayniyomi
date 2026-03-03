@@ -53,6 +53,7 @@ fun Screen.mangaSourcesTab(): TabContent {
                 },
                 onClickPin = screenModel::togglePin,
                 onLongClickItem = screenModel::showSourceDialog,
+                onRefresh = screenModel::refreshHealthChecks,
             )
 
             state.dialog?.let { dialog ->
@@ -71,16 +72,28 @@ fun Screen.mangaSourcesTab(): TabContent {
                         screenModel.toggleExcludeFromMangaDataSaver(source)
                         screenModel.closeDialog()
                     }.takeIf { state.dataSaverEnabled },
+                    onClickRetryHealthCheck = {
+                        screenModel.retryHealthCheck(source)
+                        screenModel.closeDialog()
+                    },
                     onDismiss = screenModel::closeDialog,
                 )
             }
 
             val internalErrString = stringResource(MR.strings.internal_error)
+            val noNetworkString = stringResource(MR.strings.exception_offline)
             LaunchedEffect(Unit) {
                 screenModel.events.collectLatest { event ->
                     when (event) {
                         MangaSourcesScreenModel.Event.FailedFetchingSources -> {
                             launch { snackbarHostState.showSnackbar(internalErrString) }
+                        }
+                        MangaSourcesScreenModel.Event.NoNetwork -> {
+                            launch { snackbarHostState.showSnackbar(noNetworkString) }
+                        }
+                        is MangaSourcesScreenModel.Event.HealthCheckComplete -> {
+                            val msg = "${event.healthy} healthy, ${event.degraded} degraded, ${event.broken} broken"
+                            launch { snackbarHostState.showSnackbar(msg) }
                         }
                     }
                 }

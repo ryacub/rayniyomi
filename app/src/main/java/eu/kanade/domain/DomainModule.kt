@@ -82,6 +82,7 @@ import tachiyomi.data.source.anime.AnimeSourceRepositoryImpl
 import tachiyomi.data.source.anime.AnimeStubSourceRepositoryImpl
 import tachiyomi.data.source.manga.MangaSourceRepositoryImpl
 import tachiyomi.data.source.manga.MangaStubSourceRepositoryImpl
+import tachiyomi.data.source.manga.SourceHealthRepositoryImpl
 import tachiyomi.data.track.anime.AnimeTrackRepositoryImpl
 import tachiyomi.data.track.manga.MangaTrackRepositoryImpl
 import tachiyomi.data.updates.anime.AnimeUpdatesRepositoryImpl
@@ -178,10 +179,12 @@ import tachiyomi.domain.source.anime.interactor.GetAnimeSourcesWithNonLibraryAni
 import tachiyomi.domain.source.anime.interactor.GetRemoteAnime
 import tachiyomi.domain.source.anime.repository.AnimeSourceRepository
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
+import tachiyomi.domain.source.manga.interactor.CheckSourceHealth
 import tachiyomi.domain.source.manga.interactor.GetMangaSourcesWithNonLibraryManga
 import tachiyomi.domain.source.manga.interactor.GetRemoteManga
 import tachiyomi.domain.source.manga.repository.MangaSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
+import tachiyomi.domain.source.manga.repository.SourceHealthRepository
 import tachiyomi.domain.track.anime.interactor.DeleteAnimeTrack
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.interactor.GetTracksPerAnime
@@ -367,7 +370,9 @@ class DomainModule : InjektModule {
 
         addSingletonFactory<MangaSourceRepository> { MangaSourceRepositoryImpl(get(), get()) }
         addSingletonFactory<MangaStubSourceRepository> { MangaStubSourceRepositoryImpl(get()) }
-        addFactory { GetEnabledMangaSources(get(), get()) }
+        addSingletonFactory<SourceHealthRepository> { SourceHealthRepositoryImpl(get()) }
+        addFactory { GetEnabledMangaSources(get(), get(), get()) }
+        addFactory { CheckSourceHealth(get(), get()) }
         addFactory { GetLanguagesWithMangaSources(get(), get()) }
         addFactory { GetRemoteManga(get()) }
         addFactory { GetMangaSourcesWithFavoriteCount(get(), get()) }
