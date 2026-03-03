@@ -42,6 +42,7 @@ import android.util.Rational
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.ui.Modifier
@@ -235,6 +236,26 @@ class PlayerActivity : BaseActivity() {
         setupMediaSession()
         setupPlayerOrientation()
 
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (isPipSupportedAndEnabled && player.paused == false &&
+                        playerPreferences.pipOnExit().get() &&
+                        viewModel.sheetShown.value == Sheets.None &&
+                        viewModel.panelShown.value == Panels.None &&
+                        viewModel.dialogShown.value == Dialogs.None
+                    ) {
+                        enterPictureInPictureMode()
+                    } else {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                    }
+                }
+            },
+        )
+
         lifecycleScope.launch {
             castManager.castError.collect { error ->
                 when (error) {
@@ -383,20 +404,6 @@ class PlayerActivity : BaseActivity() {
             enterPictureInPictureMode()
         }
         super.onUserLeaveHint()
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
-            if (viewModel.sheetShown.value == Sheets.None &&
-                viewModel.panelShown.value == Panels.None &&
-                viewModel.dialogShown.value == Dialogs.None
-            ) {
-                enterPictureInPictureMode()
-            }
-        } else {
-            super.onBackPressed()
-        }
     }
 
     override fun onStart() {
