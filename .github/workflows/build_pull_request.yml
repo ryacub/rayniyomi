@@ -152,4 +152,4 @@ jobs:
           path: ~/.m2/repository/app/cash
 
       - name: Run unit tests
-        run: ./gradlew testReleaseUnitTest --build-cache
+        run: ./gradlew :app:testDebugUnitTest --build-cache
