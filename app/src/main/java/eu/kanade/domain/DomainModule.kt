@@ -22,6 +22,7 @@ import eu.kanade.domain.items.chapter.interactor.SetReadStatus
 import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
+import eu.kanade.domain.source.anime.AnimeSourceHealthChecker
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
 import eu.kanade.domain.source.anime.interactor.GetAnimeSourcesWithFavoriteCount
 import eu.kanade.domain.source.anime.interactor.GetEnabledAnimeSources
@@ -31,6 +32,7 @@ import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSourcePin
 import eu.kanade.domain.source.interactor.SetMigrateSorting
 import eu.kanade.domain.source.interactor.ToggleLanguage
+import eu.kanade.domain.source.manga.MangaSourceHealthChecker
 import eu.kanade.domain.source.manga.interactor.GetEnabledMangaSources
 import eu.kanade.domain.source.manga.interactor.GetLanguagesWithMangaSources
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
@@ -38,6 +40,7 @@ import eu.kanade.domain.source.manga.interactor.GetMangaSourcesWithFavoriteCount
 import eu.kanade.domain.source.manga.interactor.ToggleMangaIncognito
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSource
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSourcePin
+import eu.kanade.domain.source.novel.LightNovelPluginHealthChecker
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
@@ -184,6 +187,7 @@ import tachiyomi.domain.source.anime.interactor.GetAnimeSourcesWithNonLibraryAni
 import tachiyomi.domain.source.anime.interactor.GetRemoteAnime
 import tachiyomi.domain.source.anime.repository.AnimeSourceRepository
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
+import tachiyomi.domain.source.health.RunSourceHealthCheck
 import tachiyomi.domain.source.manga.interactor.CheckSourceHealth
 import tachiyomi.domain.source.manga.interactor.GetMangaSourcesWithNonLibraryManga
 import tachiyomi.domain.source.manga.interactor.GetRemoteManga
@@ -370,7 +374,7 @@ class DomainModule : InjektModule {
         addSingletonFactory<AnimeSourceRepository> { AnimeSourceRepositoryImpl(get(), get()) }
         addSingletonFactory<AnimeStubSourceRepository> { AnimeStubSourceRepositoryImpl(get()) }
         addFactory { GetEnabledAnimeSources(get(), get(), get()) }
-        addFactory { CheckAnimeSourceHealth(get(), get()) }
+        addFactory { CheckAnimeSourceHealth(get(), get<AnimeSourceHealthChecker>()) }
         addFactory { GetLanguagesWithAnimeSources(get(), get()) }
         addFactory { GetRemoteAnime(get()) }
         addFactory { GetAnimeSourcesWithFavoriteCount(get(), get()) }
@@ -381,8 +385,12 @@ class DomainModule : InjektModule {
         addSingletonFactory<MangaSourceRepository> { MangaSourceRepositoryImpl(get(), get()) }
         addSingletonFactory<MangaStubSourceRepository> { MangaStubSourceRepositoryImpl(get()) }
         addSingletonFactory<SourceHealthRepository> { SourceHealthRepositoryImpl(get()) }
+        addSingletonFactory { RunSourceHealthCheck(get()) }
+        addSingletonFactory { MangaSourceHealthChecker(get()) }
+        addSingletonFactory { AnimeSourceHealthChecker(get()) }
+        addSingletonFactory { LightNovelPluginHealthChecker(get()) }
         addFactory { GetEnabledMangaSources(get(), get(), get()) }
-        addFactory { CheckSourceHealth(get(), get()) }
+        addFactory { CheckSourceHealth(get(), get<MangaSourceHealthChecker>()) }
         addFactory { GetLanguagesWithMangaSources(get(), get()) }
         addFactory { GetRemoteManga(get()) }
         addFactory { GetMangaSourcesWithFavoriteCount(get(), get()) }

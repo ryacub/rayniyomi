@@ -48,6 +48,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Changed
 
 - Migrated Kotlin context receivers to context parameters for Kotlin 2.2+ compatibility
+- **Source health check refactor** — shared health check state machine extracted into a reusable abstraction used by manga, anime, and light novel sources
 
 ### Other
 
