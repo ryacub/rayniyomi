@@ -172,10 +172,23 @@ class GetEnabledAnimeSourcesHealthTest {
         every { preferences.showBrokenAnimeSources() } returns showBrokenPref
 
         val interactor = GetEnabledAnimeSources(repository, preferences, healthRepository)
+        val flow = interactor.subscribe()
 
         // Initially hidden
-        val firstResult = interactor.subscribe().first()
+        val firstResult = flow.first()
         firstResult shouldHaveSize 1
         firstResult.first().name shouldBe "Healthy Source"
+
+        // Toggle showBroken → true, broken source should now appear
+        showBrokenFlow.value = true
+        val secondResult = flow.first()
+        secondResult shouldHaveSize 2
+        secondResult.any { it.name == "Broken Source" } shouldBe true
+
+        // Toggle back → false, broken source hidden again
+        showBrokenFlow.value = false
+        val thirdResult = flow.first()
+        thirdResult shouldHaveSize 1
+        thirdResult.none { it.name == "Broken Source" } shouldBe true
     }
 }
