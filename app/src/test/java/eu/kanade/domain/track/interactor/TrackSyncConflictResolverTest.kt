@@ -34,15 +34,18 @@ class TrackSyncConflictResolverTest {
 
     @Test
     fun `resolveManga prepares remote push when local progress is higher`() {
-        val local = mangaTrack(lastChapterRead = 10.0, status = 1L)
+        val local = mangaTrack(lastChapterRead = 10.0, status = 1L, private = true)
         val remote = mangaTrack(lastChapterRead = 4.0, status = 2L, private = false)
 
         val result = resolver.resolveManga(local, remote, emptyList())
 
         assertEquals(10.0, result.mergedTrack.lastChapterRead)
         assertEquals(1L, result.mergedTrack.status)
+        assertEquals(false, result.mergedTrack.private)
         assertNotNull(result.pushRemoteTrack)
-        assertEquals(10.0, result.pushRemoteTrack!!.lastChapterRead)
+        val pushRemoteTrack = requireNotNull(result.pushRemoteTrack)
+        assertEquals(10.0, pushRemoteTrack.lastChapterRead)
+        assertEquals(false, pushRemoteTrack.private)
     }
 
     @Test
@@ -74,6 +77,41 @@ class TrackSyncConflictResolverTest {
         assertEquals(2, result.episodeUpdates.size)
     }
 
+    @Test
+    fun `resolveAnime chooses remote status when progress ties`() {
+        val local = animeTrack(lastEpisodeSeen = 5.0, status = 1)
+        val remote = animeTrack(lastEpisodeSeen = 5.0, status = 3)
+
+        val result = resolver.resolveAnime(local, remote, emptyList())
+
+        assertEquals(3, result.mergedTrack.status)
+        assertNull(result.pushRemoteTrack)
+    }
+
+    @Test
+    fun `resolveAnime prepares remote push when remote progress is zero and local has progress`() {
+        val local = animeTrack(lastEpisodeSeen = 2.0, private = false)
+        val remote = animeTrack(lastEpisodeSeen = 0.0, private = true)
+
+        val result = resolver.resolveAnime(local, remote, emptyList())
+
+        assertNotNull(result.pushRemoteTrack)
+        val pushRemoteTrack = requireNotNull(result.pushRemoteTrack)
+        assertEquals(2.0, pushRemoteTrack.lastEpisodeSeen)
+        assertEquals(true, result.mergedTrack.private)
+        assertEquals(true, pushRemoteTrack.private)
+    }
+
+    @Test
+    fun `resolveAnime does not prepare remote push when remote wins`() {
+        val local = animeTrack(lastEpisodeSeen = 1.0)
+        val remote = animeTrack(lastEpisodeSeen = 3.0)
+
+        val result = resolver.resolveAnime(local, remote, emptyList())
+
+        assertNull(result.pushRemoteTrack)
+    }
+
     private fun mangaTrack(
         lastChapterRead: Double,
         status: Long = 1L,
@@ -97,7 +135,11 @@ class TrackSyncConflictResolverTest {
         )
     }
 
-    private fun animeTrack(lastEpisodeSeen: Double): AnimeTrack {
+    private fun animeTrack(
+        lastEpisodeSeen: Double,
+        status: Long = 1,
+        private: Boolean = false,
+    ): AnimeTrack {
         return AnimeTrack(
             id = 1,
             animeId = 20,
@@ -107,12 +149,12 @@ class TrackSyncConflictResolverTest {
             title = "Test Anime",
             lastEpisodeSeen = lastEpisodeSeen,
             totalEpisodes = 24,
-            status = 1,
+            status = status,
             score = 5.0,
             remoteUrl = "https://example.com/anime",
             startDate = 0,
             finishDate = 0,
-            private = false,
+            private = private,
         )
     }
 

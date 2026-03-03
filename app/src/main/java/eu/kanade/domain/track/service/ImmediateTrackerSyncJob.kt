@@ -54,7 +54,7 @@ class ImmediateTrackerSyncJob(
                 .addTag(TAG)
                 .build()
 
-            context.workManager.enqueueUniqueWork(TAG, ExistingWorkPolicy.KEEP, request)
+            context.workManager.enqueueUniqueWork(TAG, ExistingWorkPolicy.REPLACE, request)
         }
     }
 }

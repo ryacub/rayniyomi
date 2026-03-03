@@ -62,7 +62,7 @@ class TrackSyncConflictResolver {
         )
 
         val pushRemoteTrack = if (localProgress > remoteProgress) {
-            mergedTrack.copy(private = remoteTrack.private)
+            mergedTrack
         } else {
             null
         }
@@ -114,7 +114,7 @@ class TrackSyncConflictResolver {
         )
 
         val pushRemoteTrack = if (localProgress > remoteProgress) {
-            mergedTrack.copy(private = remoteTrack.private)
+            mergedTrack
         } else {
             null
         }

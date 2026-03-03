@@ -39,6 +39,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.rememberScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
@@ -62,6 +66,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
@@ -98,14 +104,16 @@ object SettingsTrackingScreen : SearchableSettings {
         val trackerManager = remember { Injekt.get<TrackerManager>() }
         val mangaSourceManager = remember { Injekt.get<MangaSourceManager>() }
         val animeSourceManager = remember { Injekt.get<AnimeSourceManager>() }
-        val trackSyncCoordinator = remember { Injekt.get<TrackerSyncCoordinator>() }
-        val scope = rememberCoroutineScope()
+        val syncScreenModel = rememberScreenModel { SettingsTrackingSyncScreenModel() }
         val autoTrackStatePref = trackPreferences.autoUpdateTrackOnMarkRead()
         val trackerSyncEnabled = trackPreferences.trackerSyncEnabled()
+        val trackerSyncEnabledState by trackerSyncEnabled
+            .changes()
+            .collectAsStateWithLifecycle(initialValue = trackerSyncEnabled.get())
         val trackerSyncIntervalHours = trackPreferences.trackerSyncIntervalHours()
+        val syncState by syncScreenModel.state.collectAsStateWithLifecycle()
 
         var dialog by remember { mutableStateOf<Any?>(null) }
-        var isSyncingNow by remember { mutableStateOf(false) }
         dialog?.run {
             when (this) {
                 is LoginDialog -> {
@@ -121,31 +129,27 @@ object SettingsTrackingScreen : SearchableSettings {
                         onDismissRequest = { dialog = null },
                     )
                 }
-                SyncInProgressDialog -> {
-                    AlertDialog(
-                        onDismissRequest = {},
-                        title = {
-                            Text(text = stringResource(MR.strings.pref_tracker_sync_now))
-                        },
-                        text = {
-                            Text(text = stringResource(MR.strings.tracker_sync_in_progress))
-                        },
-                        confirmButton = {},
-                    )
-                }
-                is SyncResultDialog -> {
-                    AlertDialog(
-                        onDismissRequest = { dialog = null },
-                        title = { Text(text = stringResource(MR.strings.pref_tracker_sync_now)) },
-                        text = { Text(text = message) },
-                        confirmButton = {
-                            Button(onClick = { dialog = null }) {
-                                Text(text = stringResource(MR.strings.action_ok))
-                            }
-                        },
-                    )
-                }
             }
+        }
+        if (syncState.isSyncing) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(text = stringResource(MR.strings.pref_tracker_sync_now)) },
+                text = { Text(text = stringResource(MR.strings.tracker_sync_in_progress)) },
+                confirmButton = {},
+            )
+        }
+        syncState.result?.let { result ->
+            AlertDialog(
+                onDismissRequest = syncScreenModel::dismissResult,
+                title = { Text(text = stringResource(MR.strings.pref_tracker_sync_now)) },
+                text = { Text(text = buildSyncResultMessage(context, result)) },
+                confirmButton = {
+                    Button(onClick = syncScreenModel::dismissResult) {
+                        Text(text = stringResource(MR.strings.action_ok))
+                    }
+                },
+            )
         }
 
         val enhancedMangaTrackers = trackerManager.trackers
@@ -194,7 +198,7 @@ object SettingsTrackingScreen : SearchableSettings {
                 ),
                 title = stringResource(MR.strings.pref_tracker_sync_interval),
                 subtitle = stringResource(MR.strings.pref_tracker_sync_interval_summary),
-                enabled = trackerSyncEnabled.get(),
+                enabled = trackerSyncEnabledState,
                 onValueChanged = {
                     PeriodicTrackerSyncJob.setupTask(context)
                     true
@@ -204,23 +208,14 @@ object SettingsTrackingScreen : SearchableSettings {
                 preference = trackPreferences.trackerSyncOnForeground(),
                 title = stringResource(MR.strings.pref_tracker_sync_foreground),
                 subtitle = stringResource(MR.strings.pref_tracker_sync_foreground_summary),
-                enabled = trackerSyncEnabled.get(),
+                enabled = trackerSyncEnabledState,
             ),
             Preference.PreferenceItem.TextPreference(
                 title = stringResource(MR.strings.pref_tracker_sync_now),
                 subtitle = stringResource(MR.strings.pref_tracker_sync_now_summary),
-                enabled = !isSyncingNow,
+                enabled = !syncState.isSyncing,
                 onClick = {
-                    if (isSyncingNow) return@TextPreference
-                    scope.launchIO {
-                        isSyncingNow = true
-                        dialog = SyncInProgressDialog
-                        val result = trackSyncCoordinator.await(TrackerSyncTrigger.MANUAL)
-                        withUIContext {
-                            dialog = SyncResultDialog(buildSyncResultMessage(context, result))
-                        }
-                        isSyncingNow = false
-                    }
+                    syncScreenModel.runManualSync()
                 },
             ),
             Preference.PreferenceItem.SwitchPreference(
@@ -512,8 +507,28 @@ private data class LogoutDialog(
     val tracker: Tracker,
 )
 
-private data object SyncInProgressDialog
+private class SettingsTrackingSyncScreenModel(
+    private val coordinator: TrackerSyncCoordinator = Injekt.get(),
+) : ScreenModel {
 
-private data class SyncResultDialog(
-    val message: String,
-)
+    private val _state = MutableStateFlow(State())
+    val state = _state.asStateFlow()
+
+    fun runManualSync() {
+        if (_state.value.isSyncing) return
+        screenModelScope.launchIO {
+            _state.value = State(isSyncing = true)
+            val result = coordinator.await(TrackerSyncTrigger.MANUAL)
+            _state.value = State(isSyncing = false, result = result)
+        }
+    }
+
+    fun dismissResult() {
+        _state.value = _state.value.copy(result = null)
+    }
+
+    data class State(
+        val isSyncing: Boolean = false,
+        val result: TrackerSyncResult? = null,
+    )
+}

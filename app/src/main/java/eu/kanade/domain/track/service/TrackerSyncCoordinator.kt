@@ -2,6 +2,8 @@ package eu.kanade.domain.track.service
 
 import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
+import kotlinx.coroutines.async
+import kotlinx.coroutines.supervisorScope
 import tachiyomi.core.common.util.lang.withIOContext
 
 class TrackerSyncCoordinator(
@@ -20,8 +22,11 @@ class TrackerSyncCoordinator(
             )
         }
 
-        val mangaResult = refreshAllMangaTracks.await()
-        val animeResult = refreshAllAnimeTracks.await()
+        val (mangaResult, animeResult) = supervisorScope {
+            val manga = async { refreshAllMangaTracks.await() }
+            val anime = async { refreshAllAnimeTracks.await() }
+            manga.await() to anime.await()
+        }
 
         trackPreferences.trackerSyncLastRunMillis().set(System.currentTimeMillis())
 
