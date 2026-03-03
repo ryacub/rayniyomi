@@ -5,10 +5,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +23,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.anime.components.BaseAnimeSourceItem
 import eu.kanade.tachiyomi.ui.browse.anime.source.AnimeSourcesScreenModel
@@ -26,8 +32,11 @@ import eu.kanade.tachiyomi.ui.browse.anime.source.browse.BrowseAnimeSourceScreen
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import tachiyomi.domain.source.anime.model.AnimeSource
 import tachiyomi.domain.source.anime.model.Pin
+import tachiyomi.domain.source.manga.model.SourceHealthStatus
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
+import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.components.material.topSmallPaddingValues
@@ -45,6 +54,7 @@ fun AnimeSourcesScreen(
     onClickItem: (AnimeSource, Listing) -> Unit,
     onClickPin: (AnimeSource) -> Unit,
     onLongClickItem: (AnimeSource) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     when {
         state.isLoading -> LoadingScreen(Modifier.padding(contentPadding))
@@ -53,38 +63,45 @@ fun AnimeSourcesScreen(
             modifier = Modifier.padding(contentPadding),
         )
         else -> {
-            ScrollbarLazyColumn(
-                contentPadding = contentPadding + topSmallPaddingValues,
+            PullRefresh(
+                refreshing = state.isRefreshing,
+                onRefresh = onRefresh,
+                enabled = !state.isRefreshing,
+                indicatorPadding = contentPadding,
             ) {
-                items(
-                    items = state.items,
-                    contentType = {
-                        when (it) {
-                            is AnimeSourceUiModel.Header -> "header"
-                            is AnimeSourceUiModel.Item -> "item"
-                        }
-                    },
-                    key = {
-                        when (it) {
-                            is AnimeSourceUiModel.Header -> it.hashCode()
-                            is AnimeSourceUiModel.Item -> "source-${it.source.key()}"
-                        }
-                    },
-                ) { model ->
-                    when (model) {
-                        is AnimeSourceUiModel.Header -> {
-                            AnimeSourceHeader(
+                ScrollbarLazyColumn(
+                    contentPadding = contentPadding + topSmallPaddingValues,
+                ) {
+                    items(
+                        items = state.items,
+                        contentType = {
+                            when (it) {
+                                is AnimeSourceUiModel.Header -> "header"
+                                is AnimeSourceUiModel.Item -> "item"
+                            }
+                        },
+                        key = {
+                            when (it) {
+                                is AnimeSourceUiModel.Header -> it.hashCode()
+                                is AnimeSourceUiModel.Item -> "source-${it.source.key()}"
+                            }
+                        },
+                    ) { model ->
+                        when (model) {
+                            is AnimeSourceUiModel.Header -> {
+                                AnimeSourceHeader(
+                                    modifier = Modifier.animateItem(),
+                                    language = model.language,
+                                )
+                            }
+                            is AnimeSourceUiModel.Item -> AnimeSourceItem(
                                 modifier = Modifier.animateItem(),
-                                language = model.language,
+                                source = model.source,
+                                onClickItem = onClickItem,
+                                onLongClickItem = onLongClickItem,
+                                onClickPin = onClickPin,
                             )
                         }
-                        is AnimeSourceUiModel.Item -> AnimeSourceItem(
-                            modifier = Modifier.animateItem(),
-                            source = model.source,
-                            onClickItem = onClickItem,
-                            onLongClickItem = onLongClickItem,
-                            onClickPin = onClickPin,
-                        )
                     }
                 }
             }
@@ -133,12 +150,57 @@ private fun AnimeSourceItem(
                     )
                 }
             }
+            AnimeSourceHealthBadge(healthStatus = source.healthStatus)
             AnimeSourcePinButton(
                 isPinned = Pin.Pinned in source.pin,
                 onClick = { onClickPin(source) },
             )
         },
     )
+}
+
+@Composable
+private fun AnimeSourceHealthBadge(
+    healthStatus: SourceHealthStatus,
+) {
+    when (healthStatus) {
+        SourceHealthStatus.HEALTHY -> {
+            val desc = stringResource(AYMR.strings.source_health_healthy)
+            Icon(
+                imageVector = Icons.Outlined.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { contentDescription = desc },
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        SourceHealthStatus.DEGRADED -> {
+            val desc = stringResource(AYMR.strings.source_health_degraded)
+            Icon(
+                imageVector = Icons.Outlined.Warning,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { contentDescription = desc },
+                tint = MaterialTheme.colorScheme.tertiary,
+            )
+        }
+        SourceHealthStatus.BROKEN -> {
+            val desc = stringResource(AYMR.strings.source_health_broken)
+            Icon(
+                imageVector = Icons.Outlined.Error,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { contentDescription = desc },
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+        SourceHealthStatus.UNKNOWN -> {
+            // No badge for unknown status
+        }
+    }
 }
 
 @Composable
@@ -169,6 +231,7 @@ fun AnimeSourceOptionsDialog(
     source: AnimeSource,
     onClickPin: () -> Unit,
     onClickDisable: () -> Unit,
+    onClickRetryHealthCheck: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -190,6 +253,15 @@ fun AnimeSourceOptionsDialog(
                         text = stringResource(MR.strings.action_disable),
                         modifier = Modifier
                             .clickable(onClick = onClickDisable)
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                    )
+                }
+                if (onClickRetryHealthCheck != null) {
+                    Text(
+                        text = stringResource(AYMR.strings.source_health_retry),
+                        modifier = Modifier
+                            .clickable(onClick = onClickRetryHealthCheck)
                             .fillMaxWidth()
                             .padding(vertical = 16.dp),
                     )

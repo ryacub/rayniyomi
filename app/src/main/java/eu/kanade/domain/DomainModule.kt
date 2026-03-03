@@ -179,6 +179,7 @@ import tachiyomi.domain.items.season.interactor.SetAnimeDefaultSeasonFlags
 import tachiyomi.domain.items.season.interactor.ShouldUpdateDbSeason
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.service.ReleaseService
+import tachiyomi.domain.source.anime.interactor.CheckAnimeSourceHealth
 import tachiyomi.domain.source.anime.interactor.GetAnimeSourcesWithNonLibraryAnime
 import tachiyomi.domain.source.anime.interactor.GetRemoteAnime
 import tachiyomi.domain.source.anime.repository.AnimeSourceRepository
@@ -368,7 +369,8 @@ class DomainModule : InjektModule {
 
         addSingletonFactory<AnimeSourceRepository> { AnimeSourceRepositoryImpl(get(), get()) }
         addSingletonFactory<AnimeStubSourceRepository> { AnimeStubSourceRepositoryImpl(get()) }
-        addFactory { GetEnabledAnimeSources(get(), get()) }
+        addFactory { GetEnabledAnimeSources(get(), get(), get()) }
+        addFactory { CheckAnimeSourceHealth(get(), get()) }
         addFactory { GetLanguagesWithAnimeSources(get(), get()) }
         addFactory { GetRemoteAnime(get()) }
         addFactory { GetAnimeSourcesWithFavoriteCount(get(), get()) }

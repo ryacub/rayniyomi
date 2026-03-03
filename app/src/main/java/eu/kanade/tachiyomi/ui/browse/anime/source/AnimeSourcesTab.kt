@@ -53,6 +53,7 @@ fun Screen.animeSourcesTab(): TabContent {
                 },
                 onClickPin = screenModel::togglePin,
                 onLongClickItem = screenModel::showSourceDialog,
+                onRefresh = screenModel::refreshHealthChecks,
             )
 
             state.dialog?.let { dialog ->
@@ -67,16 +68,29 @@ fun Screen.animeSourcesTab(): TabContent {
                         screenModel.toggleSource(source)
                         screenModel.closeDialog()
                     },
+                    onClickRetryHealthCheck = {
+                        screenModel.retryHealthCheck(source)
+                        screenModel.closeDialog()
+                    },
                     onDismiss = screenModel::closeDialog,
                 )
             }
 
             val internalErrString = stringResource(MR.strings.internal_error)
+            val noNetworkString = stringResource(MR.strings.exception_offline)
+            val healthSummaryTemplate = stringResource(AYMR.strings.source_health_check_summary)
             LaunchedEffect(Unit) {
                 screenModel.events.collectLatest { event ->
                     when (event) {
                         AnimeSourcesScreenModel.Event.FailedFetchingSources -> {
                             launch { snackbarHostState.showSnackbar(internalErrString) }
+                        }
+                        AnimeSourcesScreenModel.Event.NoNetwork -> {
+                            launch { snackbarHostState.showSnackbar(noNetworkString) }
+                        }
+                        is AnimeSourcesScreenModel.Event.HealthCheckComplete -> {
+                            val msg = String.format(healthSummaryTemplate, event.healthy, event.degraded, event.broken)
+                            launch { snackbarHostState.showSnackbar(msg) }
                         }
                     }
                 }
