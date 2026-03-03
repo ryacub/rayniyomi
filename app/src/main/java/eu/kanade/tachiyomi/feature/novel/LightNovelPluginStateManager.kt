@@ -9,6 +9,7 @@ import eu.kanade.domain.novel.NovelFeaturePreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.system.logcat
+import java.io.Closeable
 
 /**
  * Singleton that owns and broadcasts [LightNovelPluginUiState].
@@ -31,8 +33,9 @@ class LightNovelPluginStateManager(
     private val appContext: Context,
     private val pluginManager: LightNovelPluginManager,
     private val preferences: NovelFeaturePreferences,
-) {
+) : Closeable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var pluginPackageReceiver: BroadcastReceiver? = null
 
     private val installPhaseFlow = MutableStateFlow(InstallPhase.IDLE)
 
@@ -93,10 +96,12 @@ class LightNovelPluginStateManager(
     }
 
     private fun registerPluginPackageReceiver() {
+        if (pluginPackageReceiver != null) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                val packageName = intent?.data?.schemeSpecificPart
-                if (isLightNovelPluginPackageChange(intent?.action, packageName)) {
+                intent ?: return
+                val packageName = intent.data?.schemeSpecificPart
+                if (isLightNovelPluginPackageChange(intent.action, packageName)) {
                     refreshPluginStatus()
                 }
             }
@@ -112,6 +117,15 @@ class LightNovelPluginStateManager(
             filter,
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        pluginPackageReceiver = receiver
+    }
+
+    override fun close() {
+        pluginPackageReceiver?.let { receiver ->
+            runCatching { appContext.unregisterReceiver(receiver) }
+            pluginPackageReceiver = null
+        }
+        scope.cancel()
     }
 }
 

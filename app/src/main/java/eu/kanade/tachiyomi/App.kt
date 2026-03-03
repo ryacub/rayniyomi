@@ -49,6 +49,7 @@ import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.di.AppModule
 import eu.kanade.tachiyomi.di.PreferenceModule
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
@@ -330,6 +331,13 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Failed to modify notification channels" }
         }
+    }
+
+    override fun onTerminate() {
+        runCatching {
+            Injekt.get<LightNovelPluginStateManager>().close()
+        }
+        super.onTerminate()
     }
 
     private inner class DisableIncognitoReceiver : BroadcastReceiver() {

@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.Navigator
@@ -79,7 +78,7 @@ data object BrowseTab : Tab {
 
         val animeExtensionsScreenModel = rememberScreenModel { AnimeExtensionsScreenModel() }
         val animeExtensionsState by animeExtensionsScreenModel.state.collectAsState()
-        val lightNovelPluginStateManager = remember { Injekt.get<LightNovelPluginStateManager>() }
+        val lightNovelPluginStateManager = Injekt.get<LightNovelPluginStateManager>()
         val lightNovelUiState by lightNovelPluginStateManager.uiState.collectAsState()
 
         val tabs = buildList {

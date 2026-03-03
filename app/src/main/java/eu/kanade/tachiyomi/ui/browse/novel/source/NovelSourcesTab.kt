@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,8 +34,8 @@ import uy.kohesive.injekt.api.get
 
 @Composable
 fun Screen.novelSourcesTab(): TabContent {
-    val pluginLauncher = remember { Injekt.get<LightNovelPluginLauncher>() }
-    val stateManager = remember { Injekt.get<LightNovelPluginStateManager>() }
+    val pluginLauncher = Injekt.get<LightNovelPluginLauncher>()
+    val stateManager = Injekt.get<LightNovelPluginStateManager>()
     val pluginUiState by stateManager.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val launchFailedMessage = stringResource(AYMR.strings.light_novel_browse_launch_failed)
@@ -49,7 +48,7 @@ fun Screen.novelSourcesTab(): TabContent {
                 pluginUiState = pluginUiState,
                 onLaunchLibrary = {
                     scope.launch {
-                        if (!pluginLauncher.launchLibrary()) {
+                        if (!launchLibrarySafely(pluginLauncher)) {
                             snackbarHostState.showSnackbar(launchFailedMessage)
                         }
                     }
@@ -108,5 +107,14 @@ private fun NovelSourcesContent(
                 )
             }
         }
+    }
+}
+
+internal fun launchLibrarySafely(pluginLauncher: LightNovelPluginLauncher): Boolean {
+    return runCatching {
+        pluginLauncher.launchLibrary()
+    }.getOrElse {
+        // Exception still maps to the same user-visible fallback snackbar.
+        false
     }
 }
