@@ -39,13 +39,17 @@ import eu.kanade.domain.source.manga.interactor.ToggleMangaIncognito
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSource
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSourcePin
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
+import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
 import eu.kanade.domain.track.anime.interactor.SyncEpisodeProgressWithTrack
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
+import eu.kanade.domain.track.interactor.TrackSyncConflictResolver
 import eu.kanade.domain.track.manga.interactor.AddMangaTracks
+import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
 import eu.kanade.domain.track.manga.interactor.RefreshMangaTracks
 import eu.kanade.domain.track.manga.interactor.SyncChapterProgressWithTrack
 import eu.kanade.domain.track.manga.interactor.TrackChapter
+import eu.kanade.domain.track.service.TrackerSyncCoordinator
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
 import mihon.data.repository.anime.AnimeExtensionRepoRepositoryImpl
 import mihon.data.repository.manga.MangaExtensionRepoRepositoryImpl
@@ -307,6 +311,10 @@ class DomainModule : InjektModule {
         addFactory { GetMangaTracks(get()) }
         addFactory { InsertMangaTrack(get()) }
         addFactory { SyncChapterProgressWithTrack(get(), get(), get()) }
+        addFactory { TrackSyncConflictResolver() }
+        addFactory { RefreshAllMangaTracks(get(), get(), get(), get(), get(), get(), get()) }
+        addFactory { RefreshAllAnimeTracks(get(), get(), get(), get(), get(), get(), get()) }
+        addFactory { TrackerSyncCoordinator(get(), get(), get()) }
 
         addSingletonFactory<EpisodeRepository> { EpisodeRepositoryImpl(get()) }
         addFactory { GetEpisode(get()) }
