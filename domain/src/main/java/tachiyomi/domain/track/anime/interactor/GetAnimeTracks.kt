@@ -1,6 +1,7 @@
 package tachiyomi.domain.track.anime.interactor
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.track.anime.model.AnimeTrack
@@ -22,6 +23,15 @@ class GetAnimeTracks(
     suspend fun await(animeId: Long): List<AnimeTrack> {
         return try {
             animetrackRepository.getTracksByAnimeId(animeId)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            emptyList()
+        }
+    }
+
+    suspend fun awaitAll(): List<AnimeTrack> {
+        return try {
+            animetrackRepository.getAnimeTracksAsFlow().first()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             emptyList()
