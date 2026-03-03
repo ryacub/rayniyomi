@@ -22,19 +22,17 @@ val Project.compose get() = the<LibrariesForCompose>()
 val Project.kotlinx get() = the<LibrariesForKotlinx>()
 val Project.libs get() = the<LibrariesForLibs>()
 
-internal fun Project.configureAndroid(commonExtension: CommonExtension<*, *, *, *, *, *>) {
+internal fun Project.configureAndroid(commonExtension: CommonExtension) {
     commonExtension.apply {
         compileSdk = AndroidConfig.COMPILE_SDK
         buildToolsVersion = AndroidConfig.BUILD_TOOLS
+        ndkVersion = AndroidConfig.NDK
 
-        defaultConfig {
+        defaultConfig.apply {
             minSdk = AndroidConfig.MIN_SDK
-            ndk {
-                version = AndroidConfig.NDK
-            }
         }
 
-        compileOptions {
+        compileOptions.apply {
             sourceCompatibility = AndroidConfig.JavaVersion
             targetCompatibility = AndroidConfig.JavaVersion
             isCoreLibraryDesugaringEnabled = true
@@ -62,11 +60,11 @@ internal fun Project.configureAndroid(commonExtension: CommonExtension<*, *, *, 
     }
 }
 
-internal fun Project.configureCompose(commonExtension: CommonExtension<*, *, *, *, *, *>) {
+internal fun Project.configureCompose(commonExtension: CommonExtension) {
     pluginManager.apply(kotlinx.plugins.compose.compiler.get().pluginId)
 
     commonExtension.apply {
-        buildFeatures {
+        buildFeatures.apply {
             compose = true
         }
 
@@ -97,6 +95,13 @@ internal fun Project.configureTest() {
         useJUnitPlatform()
         testLogging {
             events(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
+        }
+    }
+
+    // Gradle 9 requires junit-platform-launcher on the test runtime classpath
+    configurations.matching { it.name == "testRuntimeOnly" }.configureEach {
+        dependencies {
+            add(name, "org.junit.platform:junit-platform-launcher")
         }
     }
 }

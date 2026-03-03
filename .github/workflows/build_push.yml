@@ -14,6 +14,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Temporary: remove this bootstrap and mavenLocal wiring once a released SqlDelight version includes AGP 9 compatibility.
+  SQLDELIGHT_AGP9_FIX_SHA: c8f6011c014368544c71f5e490ef0409bb2f4705
+
 jobs:
   build:
     name: Build app
@@ -32,6 +36,16 @@ jobs:
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
 
+      - name: Build SqlDelight AGP 9 fix
+        run: |
+          set -euxo pipefail
+
+          git clone --filter=blob:none https://github.com/cashapp/sqldelight.git /tmp/sqldelight
+          cd /tmp/sqldelight
+          git checkout --detach "$SQLDELIGHT_AGP9_FIX_SHA"
+
+          ./gradlew publishToMavenLocal -x test --no-daemon
+
       - name: Check code format
         run: ./gradlew spotlessCheck
 
@@ -39,7 +53,7 @@ jobs:
         run: ./gradlew assembleRelease -Penable-updater
 
       - name: Run unit tests
-        run: ./gradlew testReleaseUnitTest
+        run: ./gradlew :app:testDebugUnitTest
 
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

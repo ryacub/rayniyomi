@@ -1,12 +1,16 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 
 plugins {
-    id("mihon.library")
-    kotlin("multiplatform")
+    id("mihon.library.kmp")
 }
 
 kotlin {
-    androidTarget()
+    androidLibrary {
+        namespace = "tachiyomi.source.local"
+        optimization {
+            consumerKeepRules.files("consumer-rules.pro")
+        }
+    }
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -27,6 +31,9 @@ kotlin {
                 implementation(projects.domain)
 
                 implementation(kotlinx.bundles.serialization)
+
+                // FFmpeg-kit
+                implementation(aniyomilibs.ffmpeg.kit)
             }
         }
     }
@@ -37,19 +44,5 @@ kotlin {
             "-Xexpect-actual-classes",
             "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
         )
-    }
-}
-
-android {
-    namespace = "tachiyomi.source.local"
-
-    defaultConfig {
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
-    }
-
-    dependencies {
-        // FFmpeg-kit
-        implementation(aniyomilibs.ffmpeg.kit)
     }
 }

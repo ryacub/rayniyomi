@@ -8,6 +8,12 @@ pluginManagement {
         }
     }
     repositories {
+        // Temporary: keep until a released SqlDelight version includes AGP 9 compatibility (cashapp/sqldelight#6139).
+        mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
         gradlePluginPortal()
         google()
         mavenCentral()
@@ -32,6 +38,12 @@ dependencyResolutionManagement {
     }
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // Temporary: keep until a released SqlDelight version includes AGP 9 compatibility (cashapp/sqldelight#6139).
+        mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
         mavenCentral()
         google()
         maven(url = "https://www.jitpack.io")
