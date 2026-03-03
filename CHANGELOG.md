@@ -15,15 +15,44 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 - **Cast UI components** — mini-controller overlay with drag-to-seek progress bar, subtitle track picker with ASS/SSA format filtering, subtitle style settings (font size, color, edge type), and Cast button integrated into player controls
+- **Long-press speed boost gesture** — hold during playback to temporarily increase speed, release to resume normal playback
+- **Download status transparency** — real-time anime download progress with stall detection and automatic recovery, manga download progress with low-storage detection and guided recovery
+- **Light novel transfer status tracking** — explicit status contract for light novel imports with accessibility-hardened progress announcements
 
 ### Improved
 
 - Enabled Gradle configuration cache for faster incremental builds by removing unmaintained shortcut-helper plugin
 - Documented all Gradle build settings with rationale comments
+- Unified download status tracking across anime and manga modules with shared status APIs
+- Throttled light novel import progress updates to reduce UI jank with improved accessibility announcements
+- Coroutine failures in extension managers caught and logged instead of silently crashing
 
 ### Fixed
 
 - Fixed clean-build failure caused by locales config task running at configuration time instead of execution time
+- App icon now renders with correct purple background instead of white
+- Notification icons use vector resources instead of decoded bitmaps to prevent memory leaks
+- Backup output streams properly closed and force-unwrap crashes eliminated in backup, download, and installer flows
+- Anime download manager coroutine scope properly cancelled on shutdown to prevent leaked jobs
+- Anime downloader restore failures now logged and notification errors isolated
+- Migration chain no longer silently passes when individual migrations fail
+- Error-log notification URI creation guarded against file write failures
+- Tracker HTTP 429 retry moved to non-blocking API layer instead of sleeping on the caller thread
+- Error-log file write failures now return explicit sealed result types instead of silently failing
+- Migrated PlayerActivity onBackPressed to OnBackPressedCallback for Android 16 compatibility
+- Version name restored to correct upstream-tracking scheme
+
+### Changed
+
+- Migrated Kotlin context receivers to context parameters for Kotlin 2.2+ compatibility
+
+### Other
+
+- Upgraded to AGP 9.0.1, Gradle 9.1, and compileSdk/targetSdk 36
+- Upgraded Kotlin to 2.3.10
+- Upgraded Gradle plugins to latest compatible versions
+- Bumped target SDK to 35
+- Updated version bump workflow for 4-part upstream-tracking scheme
 
 ## [v0.18.1.1] - Rayniyomi (First Stable Release)
 
