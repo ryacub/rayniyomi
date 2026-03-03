@@ -3,7 +3,8 @@ package eu.kanade.domain.track.enrichment
 import eu.kanade.domain.track.enrichment.model.AggregatedRecommendation
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
@@ -33,9 +34,13 @@ class EnrichmentCacheRepositoryImpl(
     override fun observeManga(entryId: Long): Flow<EnrichedEntry?> {
         return mangaHandler.subscribeToOneOrNull {
             tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _ -> payloadJson }
-        }.map { payload ->
-            payload?.let {
-                json.decodeFromString<EnrichedEntry>(it).withRecommendations(getMangaRecommendations(entryId))
+        }.flatMapLatest { payload ->
+            flow {
+                emit(
+                    payload?.let {
+                        json.decodeFromString<EnrichedEntry>(it).withRecommendations(getMangaRecommendations(entryId))
+                    },
+                )
             }
         }
     }
@@ -43,9 +48,13 @@ class EnrichmentCacheRepositoryImpl(
     override fun observeAnime(entryId: Long): Flow<EnrichedEntry?> {
         return animeHandler.subscribeToOneOrNull {
             tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _ -> payloadJson }
-        }.map { payload ->
-            payload?.let {
-                json.decodeFromString<EnrichedEntry>(it).withRecommendations(getAnimeRecommendations(entryId))
+        }.flatMapLatest { payload ->
+            flow {
+                emit(
+                    payload?.let {
+                        json.decodeFromString<EnrichedEntry>(it).withRecommendations(getAnimeRecommendations(entryId))
+                    },
+                )
             }
         }
     }
@@ -53,6 +62,7 @@ class EnrichmentCacheRepositoryImpl(
     override suspend fun upsertManga(entryId: Long, entry: EnrichedEntry) {
         val encoded = json.encodeToString(entry.copy(recommendations = emptyList()))
         mangaHandler.await(inTransaction = true) {
+            tracker_enrichment_cacheQueries.deleteRecommendationsByEntryId(entryId)
             tracker_enrichment_cacheQueries.upsert(
                 entryId = entryId,
                 mediaType = entry.mediaType.name,
@@ -62,7 +72,6 @@ class EnrichmentCacheRepositoryImpl(
                 sourceCount = entry.sourceCoverage.size.toLong(),
                 errorSummary = entry.failures.takeIf { it.isNotEmpty() }?.joinToString("; ") { it.trackerName },
             )
-            tracker_enrichment_cacheQueries.deleteRecommendationsByEntryId(entryId)
             entry.recommendations.forEach { rec ->
                 tracker_enrichment_cacheQueries.upsertRecommendation(
                     entryId = entryId,
@@ -84,6 +93,7 @@ class EnrichmentCacheRepositoryImpl(
     override suspend fun upsertAnime(entryId: Long, entry: EnrichedEntry) {
         val encoded = json.encodeToString(entry.copy(recommendations = emptyList()))
         animeHandler.await(inTransaction = true) {
+            tracker_enrichment_cacheQueries.deleteRecommendationsByEntryId(entryId)
             tracker_enrichment_cacheQueries.upsert(
                 entryId = entryId,
                 mediaType = entry.mediaType.name,
@@ -93,7 +103,6 @@ class EnrichmentCacheRepositoryImpl(
                 sourceCount = entry.sourceCoverage.size.toLong(),
                 errorSummary = entry.failures.takeIf { it.isNotEmpty() }?.joinToString("; ") { it.trackerName },
             )
-            tracker_enrichment_cacheQueries.deleteRecommendationsByEntryId(entryId)
             entry.recommendations.forEach { rec ->
                 tracker_enrichment_cacheQueries.upsertRecommendation(
                     entryId = entryId,

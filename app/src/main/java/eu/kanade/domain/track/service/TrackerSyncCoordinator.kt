@@ -3,6 +3,7 @@ package eu.kanade.domain.track.service
 import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.enrichment.BulkEnrichmentCoordinator
 import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -34,7 +35,10 @@ class TrackerSyncCoordinator(
 
         trackPreferences.trackerSyncLastRunMillis().set(System.currentTimeMillis())
         runCatching { bulkEnrichmentCoordinator.refreshAll(force = false) }
-            .onFailure { logcat(LogPriority.WARN, it) { "Bulk tracker enrichment refresh failed" } }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                logcat(LogPriority.WARN, error) { "Bulk tracker enrichment refresh failed" }
+            }
 
         TrackerSyncResult(
             trigger = trigger,

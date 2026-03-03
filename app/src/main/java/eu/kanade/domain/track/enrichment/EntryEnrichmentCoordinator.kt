@@ -63,11 +63,21 @@ class EntryEnrichmentCoordinator(
                             val search = tracker.mangaService.searchManga(title).take(4)
                             search.forEach { rec ->
                                 if (rec.remote_id == localTrack.remoteId) return@forEach
-                                val canonical = canonicalKey(tracker.id, rec.tracking_url, rec.remote_id)
+                                val recommendationTitle = rec.title.trim()
+                                val canonical = canonicalKey(tracker.id, rec.tracking_url, rec.remote_id).trim()
+                                val fallbackNormalized = recommendationAggregator.normalizeTitleKey(recommendationTitle)
+                                if (recommendationTitle.isBlank() || canonical.isBlank() ||
+                                    fallbackNormalized.isBlank()
+                                ) {
+                                    logcat(LogPriority.WARN) {
+                                        "Dropping invalid manga recommendation tracker=${tracker.name} remoteId=${rec.remote_id}"
+                                    }
+                                    return@forEach
+                                }
                                 candidates += RecommendationAggregator.RecommendationCandidate(
                                     canonicalKey = canonical,
-                                    fallbackKey = "fallback:${recommendationAggregator.normalizeTitleKey(rec.title)}",
-                                    title = rec.title,
+                                    fallbackKey = "fallback:$fallbackNormalized",
+                                    title = recommendationTitle,
                                     targetUrl = rec.tracking_url.takeIf { it.isNotBlank() },
                                     trackerSource = tracker.name,
                                 )
@@ -148,11 +158,21 @@ class EntryEnrichmentCoordinator(
                             val search = tracker.animeService.searchAnime(title).take(4)
                             search.forEach { rec ->
                                 if (rec.remote_id == localTrack.remoteId) return@forEach
-                                val canonical = canonicalKey(tracker.id, rec.tracking_url, rec.remote_id)
+                                val recommendationTitle = rec.title.trim()
+                                val canonical = canonicalKey(tracker.id, rec.tracking_url, rec.remote_id).trim()
+                                val fallbackNormalized = recommendationAggregator.normalizeTitleKey(recommendationTitle)
+                                if (recommendationTitle.isBlank() || canonical.isBlank() ||
+                                    fallbackNormalized.isBlank()
+                                ) {
+                                    logcat(LogPriority.WARN) {
+                                        "Dropping invalid anime recommendation tracker=${tracker.name} remoteId=${rec.remote_id}"
+                                    }
+                                    return@forEach
+                                }
                                 candidates += RecommendationAggregator.RecommendationCandidate(
                                     canonicalKey = canonical,
-                                    fallbackKey = "fallback:${recommendationAggregator.normalizeTitleKey(rec.title)}",
-                                    title = rec.title,
+                                    fallbackKey = "fallback:$fallbackNormalized",
+                                    title = recommendationTitle,
                                     targetUrl = rec.tracking_url.takeIf { it.isNotBlank() },
                                     trackerSource = tracker.name,
                                 )

@@ -5,6 +5,16 @@ import eu.kanade.domain.track.enrichment.model.RecommendationChoice
 
 class RecommendationAggregator {
 
+    companion object {
+        // Confidence scoring model:
+        // - direct URL/ID matches from trackers are strongest signals,
+        // - fallback title-key matches are weaker heuristic matches,
+        // - merged fallback collisions are lowered due to ambiguity.
+        private const val CONFIDENCE_URL_MATCH = 0.95
+        private const val CONFIDENCE_KEY_MATCH = 0.55
+        private const val CONFIDENCE_MERGED_FALLBACK = 0.45
+    }
+
     data class RecommendationCandidate(
         val canonicalKey: String,
         val fallbackKey: String,
@@ -36,7 +46,11 @@ class RecommendationAggregator {
                 targetUrl = first.targetUrl,
                 trackerSources = sources,
                 sourceCount = sources.size,
-                confidence = if (first.canonicalKey.startsWith("fallback:")) 0.55 else 0.95,
+                confidence = if (first.canonicalKey.startsWith("fallback:")) {
+                    CONFIDENCE_KEY_MATCH
+                } else {
+                    CONFIDENCE_URL_MATCH
+                },
                 inLibrary = inLibraryTitleMatcher(first.title),
                 rankScore = sources.size.toDouble(),
                 alternatives = alternatives,
@@ -68,7 +82,7 @@ class RecommendationAggregator {
                 resolved += first.copy(
                     trackerSources = allSources,
                     sourceCount = allSources.size,
-                    confidence = 0.45,
+                    confidence = CONFIDENCE_MERGED_FALLBACK,
                     rankScore = allSources.size - 0.25,
                     alternatives = alternatives,
                 )
