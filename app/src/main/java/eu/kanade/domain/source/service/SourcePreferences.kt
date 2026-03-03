@@ -96,6 +96,8 @@ class SourcePreferences(
 
     fun showBrokenMangaSources() = preferenceStore.getBoolean("show_broken_manga_sources", false)
 
+    fun showBrokenAnimeSources() = preferenceStore.getBoolean("show_broken_anime_sources", false)
+
     fun dataSaver() = preferenceStore.getEnum("data_saver", DataSaver.NONE)
 
     fun dataSaverIgnoreJpeg() = preferenceStore.getBoolean("ignore_jpeg", false)
