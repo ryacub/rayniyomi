@@ -681,4 +681,5 @@
     <string name="source_health_broken">Source status: Broken</string>
     <string name="source_health_retry">Retry health check</string>
     <string name="source_health_show_broken">Show broken sources</string>
+    <string name="source_health_check_summary">%1$d healthy, %2$d degraded, %3$d broken</string>
 </resources>

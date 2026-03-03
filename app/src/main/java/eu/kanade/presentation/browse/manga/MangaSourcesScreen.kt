@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -173,7 +172,7 @@ private fun SourceHealthBadge(
                 modifier = Modifier
                     .size(20.dp)
                     .semantics { contentDescription = desc },
-                tint = Color(0xFF4CAF50),
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
         SourceHealthStatus.DEGRADED -> {
@@ -184,7 +183,7 @@ private fun SourceHealthBadge(
                 modifier = Modifier
                     .size(20.dp)
                     .semantics { contentDescription = desc },
-                tint = Color(0xFFFFC107),
+                tint = MaterialTheme.colorScheme.tertiary,
             )
         }
         SourceHealthStatus.BROKEN -> {
@@ -195,7 +194,7 @@ private fun SourceHealthBadge(
                 modifier = Modifier
                     .size(20.dp)
                     .semantics { contentDescription = desc },
-                tint = Color(0xFFF44336),
+                tint = MaterialTheme.colorScheme.error,
             )
         }
         SourceHealthStatus.UNKNOWN -> {

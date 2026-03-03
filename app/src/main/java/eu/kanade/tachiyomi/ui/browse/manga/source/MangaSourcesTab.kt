@@ -82,6 +82,7 @@ fun Screen.mangaSourcesTab(): TabContent {
 
             val internalErrString = stringResource(MR.strings.internal_error)
             val noNetworkString = stringResource(MR.strings.exception_offline)
+            val healthSummaryTemplate = stringResource(AYMR.strings.source_health_check_summary)
             LaunchedEffect(Unit) {
                 screenModel.events.collectLatest { event ->
                     when (event) {
@@ -92,7 +93,7 @@ fun Screen.mangaSourcesTab(): TabContent {
                             launch { snackbarHostState.showSnackbar(noNetworkString) }
                         }
                         is MangaSourcesScreenModel.Event.HealthCheckComplete -> {
-                            val msg = "${event.healthy} healthy, ${event.degraded} degraded, ${event.broken} broken"
+                            val msg = String.format(healthSummaryTemplate, event.healthy, event.degraded, event.broken)
                             launch { snackbarHostState.showSnackbar(msg) }
                         }
                     }

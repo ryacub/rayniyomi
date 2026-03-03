@@ -179,7 +179,7 @@ class CheckSourceHealthTest {
     // --- Empty results page ---
 
     @Test
-    fun `check counts empty results page as failure`() = runTest {
+    fun `check treats empty results page as healthy`() = runTest {
         val catalogueSource: CatalogueSource = mockk()
         every { sourceManager.get(testSourceId) } returns catalogueSource
         coEvery { catalogueSource.getPopularManga(1) } returns MangasPage(emptyList(), false)
@@ -187,13 +187,13 @@ class CheckSourceHealthTest {
 
         val result = interactor.check(testSourceId)
 
-        result.status shouldBe SourceHealthStatus.DEGRADED
-        result.failureCount shouldBe 1
-        result.lastError shouldBe "Empty results page"
+        result.status shouldBe SourceHealthStatus.HEALTHY
+        result.failureCount shouldBe 0
+        result.lastError shouldBe null
     }
 
     @Test
-    fun `check empty results page escalates to BROKEN after threshold`() = runTest {
+    fun `check treats empty results page as healthy even with prior failures`() = runTest {
         val catalogueSource: CatalogueSource = mockk()
         every { sourceManager.get(testSourceId) } returns catalogueSource
         coEvery { catalogueSource.getPopularManga(1) } returns MangasPage(emptyList(), false)
@@ -202,13 +202,14 @@ class CheckSourceHealthTest {
             status = SourceHealthStatus.DEGRADED,
             lastCheckedAt = 0L,
             failureCount = 2,
-            lastError = "Empty results page",
+            lastError = "Previous error",
         )
 
         val result = interactor.check(testSourceId)
 
-        result.status shouldBe SourceHealthStatus.BROKEN
-        result.failureCount shouldBe 3
+        result.status shouldBe SourceHealthStatus.HEALTHY
+        result.failureCount shouldBe 0
+        result.lastError shouldBe null
     }
 
     // --- Repository interactions ---

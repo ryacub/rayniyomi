@@ -1,11 +1,13 @@
 package tachiyomi.domain.source.manga.interactor
 
 import eu.kanade.tachiyomi.source.CatalogueSource
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import tachiyomi.domain.source.manga.model.SourceHealth
 import tachiyomi.domain.source.manga.model.SourceHealthStatus
 import tachiyomi.domain.source.manga.repository.SourceHealthRepository
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import kotlin.coroutines.cancellation.CancellationException
 
 class CheckSourceHealth(
     private val sourceManager: MangaSourceManager,
@@ -39,25 +41,23 @@ class CheckSourceHealth(
         val now = System.currentTimeMillis()
 
         return try {
-            val mangasPage = withTimeout(HEALTH_CHECK_TIMEOUT_MS) {
+            withTimeout(HEALTH_CHECK_TIMEOUT_MS) {
                 catalogueSource.getPopularManga(1)
             }
-
-            if (mangasPage.mangas.isNotEmpty()) {
-                // Success — reset to HEALTHY
-                val health = SourceHealth(
-                    sourceId = sourceId,
-                    status = SourceHealthStatus.HEALTHY,
-                    lastCheckedAt = now,
-                    failureCount = 0,
-                    lastError = null,
-                )
-                healthRepository.upsert(health)
-                health
-            } else {
-                // Empty page counts as failure
-                onFailure(sourceId, existing, now, "Empty results page")
-            }
+            // Any successful response (even empty) means the source is reachable
+            val health = SourceHealth(
+                sourceId = sourceId,
+                status = SourceHealthStatus.HEALTHY,
+                lastCheckedAt = now,
+                failureCount = 0,
+                lastError = null,
+            )
+            healthRepository.upsert(health)
+            health
+        } catch (e: TimeoutCancellationException) {
+            onFailure(sourceId, existing, now, "Check timed out (10s)")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             onFailure(sourceId, existing, now, e.message ?: e::class.simpleName ?: "Unknown error")
         }

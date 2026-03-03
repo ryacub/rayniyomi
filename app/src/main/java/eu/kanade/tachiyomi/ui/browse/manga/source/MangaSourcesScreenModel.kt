@@ -39,6 +39,7 @@ import tachiyomi.source.local.entries.manga.LocalMangaSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.TreeMap
+import java.util.concurrent.atomic.AtomicInteger
 
 class MangaSourcesScreenModel(
     private val preferences: BasePreferences = Injekt.get(),
@@ -171,9 +172,9 @@ class MangaSourcesScreenModel(
                 .distinct()
 
             val semaphore = Semaphore(3)
-            var healthy = 0
-            var degraded = 0
-            var broken = 0
+            val healthy = AtomicInteger(0)
+            val degraded = AtomicInteger(0)
+            val broken = AtomicInteger(0)
 
             val jobs = sourceIds.map { sourceId ->
                 launch {
@@ -181,9 +182,9 @@ class MangaSourcesScreenModel(
                         try {
                             val result = checkSourceHealth.check(sourceId)
                             when (result.status) {
-                                SourceHealthStatus.HEALTHY -> healthy++
-                                SourceHealthStatus.DEGRADED -> degraded++
-                                SourceHealthStatus.BROKEN -> broken++
+                                SourceHealthStatus.HEALTHY -> healthy.incrementAndGet()
+                                SourceHealthStatus.DEGRADED -> degraded.incrementAndGet()
+                                SourceHealthStatus.BROKEN -> broken.incrementAndGet()
                                 SourceHealthStatus.UNKNOWN -> {}
                             }
                         } catch (e: Exception) {
@@ -195,7 +196,7 @@ class MangaSourcesScreenModel(
             jobs.forEach { it.join() }
 
             mutableState.update { it.copy(isRefreshing = false) }
-            _events.send(Event.HealthCheckComplete(healthy, degraded, broken))
+            _events.send(Event.HealthCheckComplete(healthy.get(), degraded.get(), broken.get()))
         }
     }
 
