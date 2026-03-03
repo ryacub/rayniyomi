@@ -41,6 +41,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Error-log file write failures now return explicit sealed result types instead of silently failing
 - Migrated PlayerActivity onBackPressed to OnBackPressedCallback for Android 16 compatibility
 - Version name restored to correct upstream-tracking scheme
+- Reduced release R8 missing-class warning noise for optional AndroidX Window vendor APIs and OkHttp Graal host-only stubs
 
 ### Changed
 
