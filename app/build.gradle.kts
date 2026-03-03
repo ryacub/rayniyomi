@@ -99,8 +99,8 @@ android {
     }
 
     sourceSets {
-        getByName("preview").res.srcDirs("src/debug/res")
-        getByName("benchmark").res.srcDirs("src/debug/res")
+        getByName("preview") { res.srcDir("src/debug/res") }
+        getByName("benchmark") { res.srcDir("src/debug/res") }
     }
 
     testOptions {
@@ -171,7 +171,6 @@ android {
 
         // Disable some unused things
         aidl = false
-        renderScript = false
         shaders = false
     }
 

@@ -1,13 +1,17 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 
 plugins {
-    id("mihon.library")
-    kotlin("multiplatform")
+    id("mihon.library.kmp")
     kotlin("plugin.serialization")
 }
 
 kotlin {
-    androidTarget()
+    androidLibrary {
+        namespace = "eu.kanade.tachiyomi.source"
+        optimization {
+            consumerKeepRules.files("consumer-proguard.pro")
+        }
+    }
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -35,13 +39,5 @@ kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
-    }
-}
-
-android {
-    namespace = "eu.kanade.tachiyomi.source"
-
-    defaultConfig {
-        consumerProguardFile("consumer-proguard.pro")
     }
 }
