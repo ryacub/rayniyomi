@@ -14,6 +14,11 @@ pluginManagement {
                 includeGroup("app.cash.sqldelight")
             }
         }
+        maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
         gradlePluginPortal()
         google()
         mavenCentral()
@@ -40,6 +45,11 @@ dependencyResolutionManagement {
     repositories {
         // Temporary: keep until a released SqlDelight version includes AGP 9 compatibility (cashapp/sqldelight#6139).
         mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
+        maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
             content {
                 includeGroup("app.cash.sqldelight")
             }
