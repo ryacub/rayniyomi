@@ -21,6 +21,7 @@ permissions:
   contents: read
 
 env:
+  # Temporary: remove this bootstrap and mavenLocal wiring once a released SqlDelight version includes AGP 9 compatibility.
   SQLDELIGHT_AGP9_FIX_SHA: 82467acba2f846af7da49580b9784c397117594c
 
 jobs:
