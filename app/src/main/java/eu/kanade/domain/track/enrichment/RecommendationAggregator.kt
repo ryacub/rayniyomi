@@ -91,6 +91,7 @@ class RecommendationAggregator {
                     trackerSources = allSources,
                     sourceCount = allSources.size,
                     confidence = (first.confidence * CONFIDENCE_PENALTY)
+                        .coerceAtMost(CONFIDENCE_KEY_MATCH)
                         .coerceAtLeast(CONFIDENCE_MERGED_FALLBACK),
                     rankScore = allSources.size - diversityPenalty,
                     alternatives = alternatives,
