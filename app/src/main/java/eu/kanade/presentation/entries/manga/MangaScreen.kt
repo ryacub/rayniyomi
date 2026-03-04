@@ -50,6 +50,7 @@ import androidx.compose.ui.util.fastMap
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
+import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.relativeDateTimeText
 import eu.kanade.presentation.entries.DownloadAction
 import eu.kanade.presentation.entries.EntryScreenItem
@@ -64,6 +65,7 @@ import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescriptio
 import eu.kanade.presentation.entries.manga.components.MangaActionRow
 import eu.kanade.presentation.entries.manga.components.MangaChapterListItem
 import eu.kanade.presentation.entries.manga.components.MangaInfoBox
+import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -84,8 +86,11 @@ import tachiyomi.presentation.core.components.material.ExtendedFloatingActionBut
 import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.source.local.entries.manga.isLocal
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.time.Instant
 
 @Composable
@@ -156,93 +161,104 @@ fun MangaScreen(
     val onSettingsClicked: (() -> Unit)? = {
         navigator.push(MangaSourcePreferencesScreen(state.source.id))
     }.takeIf { state.source is ConfigurableSource }
+    val uiPreferences = remember { Injekt.get<UiPreferences>() }
+    val dynamicCoverThemeEnabled by uiPreferences.dynamicEntryCoverTheming().collectAsState()
+    val coverThemeCacheKey = remember(state.manga) {
+        "manga;${state.manga.id};${state.manga.thumbnailUrl};${state.manga.coverLastModified}"
+    }
 
-    if (!isTabletUi) {
-        MangaScreenSmallImpl(
-            state = state,
-            snackbarHostState = snackbarHostState,
-            nextUpdate = nextUpdate,
-            chapterSwipeStartAction = chapterSwipeStartAction,
-            chapterSwipeEndAction = chapterSwipeEndAction,
-            navigateUp = navigateUp,
-            onChapterClicked = onChapterClicked,
-            onDownloadChapter = onDownloadChapter,
-            onAddToLibraryClicked = onAddToLibraryClicked,
-            onWebViewClicked = onWebViewClicked,
-            onWebViewLongClicked = onWebViewLongClicked,
-            onTrackingClicked = onTrackingClicked,
-            onTagSearch = onTagSearch,
-            onCopyTagToClipboard = onCopyTagToClipboard,
-            onFilterClicked = onFilterButtonClicked,
-            onRefresh = onRefresh,
-            onContinueReading = onContinueReading,
-            onSearch = onSearch,
-            onCoverClicked = onCoverClicked,
-            onShareClicked = onShareClicked,
-            onDownloadActionClicked = onDownloadActionClicked,
-            onEditCategoryClicked = onEditCategoryClicked,
-            onEditIntervalClicked = onEditFetchIntervalClicked,
-            onMigrateClicked = onMigrateClicked,
-            onMultiBookmarkClicked = onMultiBookmarkClicked,
-            onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
-            onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
-            onMultiDeleteClicked = onMultiDeleteClicked,
-            onChapterSwipe = onChapterSwipe,
-            onTranslationChapter = onTranslationChapter,
-            onChapterSelected = onChapterSelected,
-            onAllChapterSelected = onAllChapterSelected,
-            onInvertSelection = onInvertSelection,
-            onSettingsClicked = onSettingsClicked,
-            enrichmentState = enrichmentState,
-            enrichmentLoading = enrichmentLoading,
-            enrichmentRefreshing = enrichmentRefreshing,
-            enrichmentErrorText = enrichmentErrorText,
-            onRefreshEnrichment = onRefreshEnrichment,
-            onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
-        )
-    } else {
-        MangaScreenLargeImpl(
-            state = state,
-            snackbarHostState = snackbarHostState,
-            chapterSwipeStartAction = chapterSwipeStartAction,
-            chapterSwipeEndAction = chapterSwipeEndAction,
-            nextUpdate = nextUpdate,
-            navigateUp = navigateUp,
-            onChapterClicked = onChapterClicked,
-            onDownloadChapter = onDownloadChapter,
-            onAddToLibraryClicked = onAddToLibraryClicked,
-            onWebViewClicked = onWebViewClicked,
-            onWebViewLongClicked = onWebViewLongClicked,
-            onTrackingClicked = onTrackingClicked,
-            onTagSearch = onTagSearch,
-            onCopyTagToClipboard = onCopyTagToClipboard,
-            onFilterButtonClicked = onFilterButtonClicked,
-            onRefresh = onRefresh,
-            onContinueReading = onContinueReading,
-            onSearch = onSearch,
-            onCoverClicked = onCoverClicked,
-            onShareClicked = onShareClicked,
-            onDownloadActionClicked = onDownloadActionClicked,
-            onEditCategoryClicked = onEditCategoryClicked,
-            onEditIntervalClicked = onEditFetchIntervalClicked,
-            onMigrateClicked = onMigrateClicked,
-            onMultiBookmarkClicked = onMultiBookmarkClicked,
-            onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
-            onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
-            onMultiDeleteClicked = onMultiDeleteClicked,
-            onChapterSwipe = onChapterSwipe,
-            onTranslationChapter = onTranslationChapter,
-            onChapterSelected = onChapterSelected,
-            onAllChapterSelected = onAllChapterSelected,
-            onInvertSelection = onInvertSelection,
-            onSettingsClicked = onSettingsClicked,
-            enrichmentState = enrichmentState,
-            enrichmentLoading = enrichmentLoading,
-            enrichmentRefreshing = enrichmentRefreshing,
-            enrichmentErrorText = enrichmentErrorText,
-            onRefreshEnrichment = onRefreshEnrichment,
-            onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
-        )
+    EntryDynamicCoverTheme(
+        enabled = dynamicCoverThemeEnabled,
+        coverData = state.manga,
+        cacheKey = coverThemeCacheKey,
+    ) {
+        if (!isTabletUi) {
+            MangaScreenSmallImpl(
+                state = state,
+                snackbarHostState = snackbarHostState,
+                nextUpdate = nextUpdate,
+                chapterSwipeStartAction = chapterSwipeStartAction,
+                chapterSwipeEndAction = chapterSwipeEndAction,
+                navigateUp = navigateUp,
+                onChapterClicked = onChapterClicked,
+                onDownloadChapter = onDownloadChapter,
+                onAddToLibraryClicked = onAddToLibraryClicked,
+                onWebViewClicked = onWebViewClicked,
+                onWebViewLongClicked = onWebViewLongClicked,
+                onTrackingClicked = onTrackingClicked,
+                onTagSearch = onTagSearch,
+                onCopyTagToClipboard = onCopyTagToClipboard,
+                onFilterClicked = onFilterButtonClicked,
+                onRefresh = onRefresh,
+                onContinueReading = onContinueReading,
+                onSearch = onSearch,
+                onCoverClicked = onCoverClicked,
+                onShareClicked = onShareClicked,
+                onDownloadActionClicked = onDownloadActionClicked,
+                onEditCategoryClicked = onEditCategoryClicked,
+                onEditIntervalClicked = onEditFetchIntervalClicked,
+                onMigrateClicked = onMigrateClicked,
+                onMultiBookmarkClicked = onMultiBookmarkClicked,
+                onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
+                onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
+                onMultiDeleteClicked = onMultiDeleteClicked,
+                onChapterSwipe = onChapterSwipe,
+                onTranslationChapter = onTranslationChapter,
+                onChapterSelected = onChapterSelected,
+                onAllChapterSelected = onAllChapterSelected,
+                onInvertSelection = onInvertSelection,
+                onSettingsClicked = onSettingsClicked,
+                enrichmentState = enrichmentState,
+                enrichmentLoading = enrichmentLoading,
+                enrichmentRefreshing = enrichmentRefreshing,
+                enrichmentErrorText = enrichmentErrorText,
+                onRefreshEnrichment = onRefreshEnrichment,
+                onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
+            )
+        } else {
+            MangaScreenLargeImpl(
+                state = state,
+                snackbarHostState = snackbarHostState,
+                chapterSwipeStartAction = chapterSwipeStartAction,
+                chapterSwipeEndAction = chapterSwipeEndAction,
+                nextUpdate = nextUpdate,
+                navigateUp = navigateUp,
+                onChapterClicked = onChapterClicked,
+                onDownloadChapter = onDownloadChapter,
+                onAddToLibraryClicked = onAddToLibraryClicked,
+                onWebViewClicked = onWebViewClicked,
+                onWebViewLongClicked = onWebViewLongClicked,
+                onTrackingClicked = onTrackingClicked,
+                onTagSearch = onTagSearch,
+                onCopyTagToClipboard = onCopyTagToClipboard,
+                onFilterButtonClicked = onFilterButtonClicked,
+                onRefresh = onRefresh,
+                onContinueReading = onContinueReading,
+                onSearch = onSearch,
+                onCoverClicked = onCoverClicked,
+                onShareClicked = onShareClicked,
+                onDownloadActionClicked = onDownloadActionClicked,
+                onEditCategoryClicked = onEditCategoryClicked,
+                onEditIntervalClicked = onEditFetchIntervalClicked,
+                onMigrateClicked = onMigrateClicked,
+                onMultiBookmarkClicked = onMultiBookmarkClicked,
+                onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
+                onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
+                onMultiDeleteClicked = onMultiDeleteClicked,
+                onChapterSwipe = onChapterSwipe,
+                onTranslationChapter = onTranslationChapter,
+                onChapterSelected = onChapterSelected,
+                onAllChapterSelected = onAllChapterSelected,
+                onInvertSelection = onInvertSelection,
+                onSettingsClicked = onSettingsClicked,
+                enrichmentState = enrichmentState,
+                enrichmentLoading = enrichmentLoading,
+                enrichmentRefreshing = enrichmentRefreshing,
+                enrichmentErrorText = enrichmentErrorText,
+                onRefreshEnrichment = onRefreshEnrichment,
+                onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
+            )
+        }
     }
 }
 

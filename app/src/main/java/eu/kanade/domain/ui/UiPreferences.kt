@@ -29,6 +29,7 @@ class UiPreferences(
     )
 
     fun themeDarkAmoled() = preferenceStore.getBoolean("pref_theme_dark_amoled_key", false)
+    fun dynamicEntryCoverTheming() = preferenceStore.getBoolean("pref_dynamic_entry_cover_theming", false)
 
     fun relativeTime() = preferenceStore.getBoolean("relative_time_v2", true)
 

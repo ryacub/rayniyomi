@@ -94,6 +94,11 @@ object SettingsAppearanceScreen : SearchableSettings {
                         true
                     },
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = uiPreferences.dynamicEntryCoverTheming(),
+                    title = stringResource(MR.strings.pref_dynamic_entry_cover_theming),
+                    subtitle = stringResource(MR.strings.pref_dynamic_entry_cover_theming_summary),
+                ),
             ),
         )
     }
