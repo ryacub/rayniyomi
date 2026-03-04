@@ -35,7 +35,8 @@ CREATE TABLE animes(
     season_number REAL NOT NULL,
     season_source_order INTEGER NOT NULL,
     background_url TEXT,
-    background_last_modified INTEGER NOT NULL
+    background_last_modified INTEGER NOT NULL,
+    normalized_title TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX animelib_favorite_index ON animes(favorite) WHERE favorite = 1;
@@ -128,6 +129,13 @@ SELECT *
 FROM animes
 WHERE favorite = 1
 AND LOWER(title) = :title
+AND _id != :id;
+
+getDuplicateLibraryAnimeByNormalizedTitle:
+SELECT *
+FROM animes
+WHERE favorite = 1
+AND normalized_title = :normalizedTitle
 AND _id != :id;
 
 getUpcomingAnime:
