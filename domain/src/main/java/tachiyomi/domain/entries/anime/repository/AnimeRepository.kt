@@ -34,6 +34,12 @@ interface AnimeRepository {
 
     suspend fun getDuplicateLibraryAnime(id: Long, title: String): List<Anime>
 
+    suspend fun getDuplicateLibraryAnimeByNormalizedTitle(normalizedTitle: String, excludeId: Long): List<Anime>
+
+    suspend fun getDuplicateLibraryAnimeByTracker(syncId: Long, remoteId: Long, excludeId: Long): List<Anime>
+
+    suspend fun mergeEntries(keepId: Long, deleteId: Long)
+
     suspend fun getUpcomingAnime(statuses: Set<Long>): Flow<List<Anime>>
 
     suspend fun resetAnimeViewerFlags(): Boolean
