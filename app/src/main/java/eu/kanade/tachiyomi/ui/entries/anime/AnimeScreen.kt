@@ -284,7 +284,9 @@ class AnimeScreen(
                     onMigrate = {
                         screenModel.showMigrateDialog(dialog.duplicate)
                     },
+                    onMerge = { screenModel.mergeEntry(dialog.anime.id, dialog.duplicate.id) },
                     isManga = false,
+                    confidenceLabel = dialog.confidenceLabel,
                 )
             }
 
