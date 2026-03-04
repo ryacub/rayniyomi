@@ -23,6 +23,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Source health tracking** — manga sources now show health status badges (green check, yellow warning, red error) indicating whether they return titles successfully. Broken sources are hidden by default with a preference toggle to show them. Pull-to-refresh re-checks all sources with a summary snackbar
 - **Anime source health tracking** — anime sources now show health status badges indicating whether they return titles successfully. Broken sources are hidden by default with a preference toggle to show them. Pull-to-refresh re-checks all sources with a summary snackbar
 - **Discover feed (phase 1)** — added a new Discover screen under More that aggregates tracker-based recommendations across your library with ranked reasons (multi-tracker, recent activity, high-score seeds, and genre affinity)
+- **Tracker enrichment cache** — tracker metadata (ratings, genres, tags, related titles) aggregated across all logged-in services and cached locally per entry; manga and anime entry detail screens now surface a "More like this" recommendation row seeded by tracker data with a manual refresh action
+- **Bidirectional tracker sync** — reading and watch progress now syncs back to MAL, AniList, Kitsu, and other linked trackers automatically on a configurable schedule and on app foreground; manual "Sync now" entry in Tracking settings; remote deletions unlink local tracker entries while preserving local read/seen state
+- **Light novel sources browse tab** — dedicated Browse tab listing all installed light novel plugins with a call-to-action for first install; tab appears reactively when the plugin becomes available and collapses cleanly on uninstall
 
 ### Improved
 
@@ -44,6 +47,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Migration chain no longer silently passes when individual migrations fail
 - Error-log notification URI creation guarded against file write failures
 - Tracker HTTP 429 retry moved to non-blocking API layer instead of sleeping on the caller thread
+- Enrichment refresh now times out gracefully instead of hanging indefinitely; recommendation scoring constants documented and capped to preserve low-confidence bucket ordering
 - Error-log file write failures now return explicit sealed result types instead of silently failing
 - Migrated PlayerActivity onBackPressed to OnBackPressedCallback for Android 16 compatibility
 - Version name restored to correct upstream-tracking scheme
