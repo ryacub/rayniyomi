@@ -6,9 +6,12 @@ import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class TrackerSyncCoordinator(
     private val trackPreferences: TrackPreferences,
@@ -16,6 +19,9 @@ class TrackerSyncCoordinator(
     private val refreshAllAnimeTracks: RefreshAllAnimeTracks,
     private val bulkEnrichmentCoordinator: BulkEnrichmentCoordinator,
 ) {
+    companion object {
+        private val BULK_ENRICHMENT_REFRESH_TIMEOUT: Duration = 30.seconds
+    }
 
     suspend fun await(trigger: TrackerSyncTrigger): TrackerSyncResult = withIOContext {
         if (!trackPreferences.trackerSyncEnabled().get()) {
@@ -34,7 +40,18 @@ class TrackerSyncCoordinator(
         }
 
         trackPreferences.trackerSyncLastRunMillis().set(System.currentTimeMillis())
-        runCatching { bulkEnrichmentCoordinator.refreshAll(force = false) }
+        runCatching {
+            val completedInTime = withTimeoutOrNull(BULK_ENRICHMENT_REFRESH_TIMEOUT) {
+                bulkEnrichmentCoordinator.refreshAll(force = false)
+                true
+            } ?: false
+            if (!completedInTime) {
+                logcat(LogPriority.WARN) {
+                    "Bulk tracker enrichment refresh timed out after " +
+                        "${BULK_ENRICHMENT_REFRESH_TIMEOUT.inWholeSeconds}s"
+                }
+            }
+        }
             .onFailure { error ->
                 if (error is CancellationException) throw error
                 logcat(LogPriority.WARN, error) { "Bulk tracker enrichment refresh failed" }
