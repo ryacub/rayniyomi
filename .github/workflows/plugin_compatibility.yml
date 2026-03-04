@@ -74,9 +74,9 @@ jobs:
 
       - name: Run compatibility tests
         run: |
-          ./gradlew :app:testReleaseUnitTest --tests "*LightNovelPluginCompatibilityTest*"
-          ./gradlew :app:testReleaseUnitTest --tests "*LightNovelUpdatePolicyTest*"
-          ./gradlew :app:testReleaseUnitTest --tests "*PluginCompatibilityMatrixTest*"
+          ./gradlew :app:testDebugUnitTest --tests "*LightNovelPluginCompatibilityTest*"
+          ./gradlew :app:testDebugUnitTest --tests "*LightNovelUpdatePolicyTest*"
+          ./gradlew :app:testDebugUnitTest --tests "*PluginCompatibilityMatrixTest*"
 
       - name: Upload test results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
