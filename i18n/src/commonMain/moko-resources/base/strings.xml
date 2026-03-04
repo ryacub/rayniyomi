@@ -243,6 +243,8 @@
     <string name="theme_yotsuba">Yotsuba</string>
     <string name="theme_tidalwave">Tidal Wave</string>
     <string name="pref_dark_theme_pure_black">Pure black dark mode</string>
+    <string name="pref_dynamic_entry_cover_theming">Dynamic entry cover theming</string>
+    <string name="pref_dynamic_entry_cover_theming_summary">Use entry cover colors for accents on entry screens when contrast is safe</string>
     <string name="pref_relative_format">Relative timestamps</string>
     <!-- "Today" instead of "2023-12-31" -->
     <string name="pref_relative_format_summary">\"%1$s\" instead of \"%2$s\"</string>

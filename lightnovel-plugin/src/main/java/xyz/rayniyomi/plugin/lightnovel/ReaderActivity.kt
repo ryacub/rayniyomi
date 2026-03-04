@@ -15,6 +15,7 @@ import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityReaderBinding
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubContent
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
+import xyz.rayniyomi.plugin.lightnovel.theme.CoverAccentTheme
 
 class ReaderActivity : AppCompatActivity() {
     private lateinit var binding: ActivityReaderBinding
@@ -54,6 +55,19 @@ class ReaderActivity : AppCompatActivity() {
                 finish()
                 return
             }
+        lifecycleScope.launch {
+            val seedColor = withContext(Dispatchers.IO) {
+                EpubTextExtractor.extractCoverSeedColor(bookFile)
+            } ?: return@launch
+            val isDarkMode =
+                (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+            val tokens = CoverAccentTheme.tokensFor(seedColor, isDarkMode)
+            CoverAccentTheme.applyButton(binding.previousButton, tokens)
+            CoverAccentTheme.applyButton(binding.nextButton, tokens)
+            CoverAccentTheme.applySurface(binding.bookTitle, tokens)
+            binding.chapterIndicator.setTextColor(tokens.accent)
+        }
 
         if (content.chapters.isEmpty()) {
             Toast.makeText(this, getString(R.string.reader_no_chapters), Toast.LENGTH_SHORT).show()

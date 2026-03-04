@@ -11,19 +11,26 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import xyz.rayniyomi.lightnovel.contract.LightNovelTransferDisplayStatus
 import xyz.rayniyomi.plugin.lightnovel.data.NovelBook
+import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import xyz.rayniyomi.plugin.lightnovel.databinding.ActivityMainBinding
+import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
+import xyz.rayniyomi.plugin.lightnovel.theme.CoverAccentTheme
 import xyz.rayniyomi.plugin.lightnovel.ui.displayReasonText
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewModel: MainViewModel
+    private lateinit var storage: NovelStorage
     private lateinit var listAdapter: ArrayAdapter<String>
 
     private val books = mutableListOf<NovelBook>()
+    private val coverColorCache = mutableMapOf<String, Int?>()
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -44,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        storage = NovelStorage(this)
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
         listAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, mutableListOf())
@@ -87,6 +95,7 @@ class MainActivity : AppCompatActivity() {
                 listAdapter.clear()
                 listAdapter.addAll(books.map { book -> book.title })
                 listAdapter.notifyDataSetChanged()
+                applyDynamicTheme(books)
             }
         }
         lifecycleScope.launch {
@@ -128,5 +137,27 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
+    }
+
+    private suspend fun applyDynamicTheme(books: List<NovelBook>) {
+        val firstBook = books.firstOrNull() ?: return
+        val cacheKey = "${firstBook.id}:${firstBook.updatedAt}"
+        val seedColor = coverColorCache[cacheKey] ?: withContext(Dispatchers.IO) {
+            val bookFile = storage.getBookFile(firstBook)
+            if (!bookFile.exists()) {
+                null
+            } else {
+                EpubTextExtractor.extractCoverSeedColor(bookFile)
+            }
+        }.also { coverColorCache[cacheKey] = it }
+        val seed = seedColor ?: return
+        val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val tokens = CoverAccentTheme.tokensFor(seed, isDarkMode)
+
+        CoverAccentTheme.applyButton(binding.importEpubButton, tokens)
+        CoverAccentTheme.applyButton(binding.retryImportButton, tokens)
+        CoverAccentTheme.applyProgressBar(binding.importProgressBar, tokens)
+        CoverAccentTheme.applySurface(binding.importStatusText, tokens)
     }
 }

@@ -1,5 +1,6 @@
 package xyz.rayniyomi.plugin.lightnovel.epub
 
+import android.graphics.BitmapFactory
 import org.jsoup.Jsoup
 import org.jsoup.parser.Parser
 import java.io.File
@@ -47,6 +48,27 @@ object EpubTextExtractor {
         }
     }
 
+    fun extractCoverSeedColor(file: File): Int? {
+        ZipFile(file).use { zip ->
+            val packagePath = findPackagePath(zip)
+            val opfDoc = parseXml(zip, packagePath)
+            val coverPath = findCoverPath(opfDoc) ?: return null
+            val opfBasePath = packagePath.substringBeforeLast('/', "")
+            val resolvedPath = resolvePath(opfBasePath, coverPath)
+            val coverEntry = zip.getEntry(resolvedPath) ?: return null
+
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                inSampleSize = 4
+            }
+            val bitmap = coverEntry.getInputStream(zip).use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            } ?: return null
+
+            return averageColor(bitmap)
+        }
+    }
+
     private fun findPackagePath(zip: ZipFile): String {
         val container = zip.getEntry("META-INF/container.xml")
             ?: return "OEBPS/content.opf"
@@ -82,6 +104,32 @@ object EpubTextExtractor {
         return spine.mapNotNull { manifest[it] }
     }
 
+    private fun findCoverPath(opfDoc: org.jsoup.nodes.Document): String? {
+        val manifestItems = opfDoc.select("manifest > item")
+        val metadataCoverId = opfDoc.select("metadata > meta")
+            .firstOrNull { it.attr("name").equals("cover", ignoreCase = true) }
+            ?.attr("content")
+            ?.takeIf { it.isNotBlank() }
+
+        if (!metadataCoverId.isNullOrBlank()) {
+            manifestItems.firstOrNull { it.attr("id") == metadataCoverId }
+                ?.attr("href")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { return it }
+        }
+
+        manifestItems.firstOrNull { it.attr("properties").contains("cover-image") }
+            ?.attr("href")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
+        return manifestItems.firstOrNull {
+            val id = it.attr("id")
+            val href = it.attr("href")
+            id.contains("cover", ignoreCase = true) || href.contains("cover", ignoreCase = true)
+        }?.attr("href")?.takeIf { it.isNotBlank() }
+    }
+
     private fun resolvePath(basePath: String, href: String): String {
         if (href.startsWith('/')) {
             return href.removePrefix("/")
@@ -102,4 +150,38 @@ object EpubTextExtractor {
     }
 
     private fun java.util.zip.ZipEntry.getInputStream(zip: ZipFile) = zip.getInputStream(this)
+
+    private fun averageColor(bitmap: android.graphics.Bitmap): Int? {
+        val width = bitmap.width.coerceAtLeast(1)
+        val height = bitmap.height.coerceAtLeast(1)
+        val stepX = (width / 24).coerceAtLeast(1)
+        val stepY = (height / 24).coerceAtLeast(1)
+
+        var sumR = 0L
+        var sumG = 0L
+        var sumB = 0L
+        var count = 0L
+
+        var x = 0
+        while (x < width) {
+            var y = 0
+            while (y < height) {
+                val pixel = bitmap.getPixel(x, y)
+                if (android.graphics.Color.alpha(pixel) >= 128) {
+                    sumR += android.graphics.Color.red(pixel)
+                    sumG += android.graphics.Color.green(pixel)
+                    sumB += android.graphics.Color.blue(pixel)
+                    count++
+                }
+                y += stepY
+            }
+            x += stepX
+        }
+
+        if (count == 0L) return null
+        val r = (sumR / count).toInt().coerceIn(0, 255)
+        val g = (sumG / count).toInt().coerceIn(0, 255)
+        val b = (sumB / count).toInt().coerceIn(0, 255)
+        return android.graphics.Color.rgb(r, g, b)
+    }
 }
