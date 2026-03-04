@@ -47,6 +47,8 @@ import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
 import eu.kanade.domain.track.anime.interactor.SyncEpisodeProgressWithTrack
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
 import eu.kanade.domain.track.enrichment.BulkEnrichmentCoordinator
+import eu.kanade.domain.track.enrichment.DiscoverFeedCoordinator
+import eu.kanade.domain.track.enrichment.DiscoverRankingEngine
 import eu.kanade.domain.track.enrichment.EnrichmentCacheRepository
 import eu.kanade.domain.track.enrichment.EnrichmentCacheRepositoryImpl
 import eu.kanade.domain.track.enrichment.EntryEnrichmentCoordinator
@@ -333,11 +335,13 @@ class DomainModule : InjektModule {
         addFactory { TrackSyncConflictResolver() }
         addFactory { RefreshAllMangaTracks(get(), get(), get(), get(), get(), get(), get()) }
         addFactory { RefreshAllAnimeTracks(get(), get(), get(), get(), get(), get(), get()) }
-        addFactory { TrackerSyncCoordinator(get(), get(), get(), get()) }
+        addFactory { TrackerSyncCoordinator(get(), get(), get(), get(), get()) }
         addSingletonFactory<EnrichmentCacheRepository> { EnrichmentCacheRepositoryImpl(get(), get(), get()) }
         addFactory { RecommendationAggregator() }
+        addFactory { DiscoverRankingEngine() }
         addFactory { ComputeCompositeScore() }
         addFactory { EntryEnrichmentCoordinator(get(), get(), get(), get(), get(), get(), get(), get()) }
+        addFactory { DiscoverFeedCoordinator(get(), get(), get(), get(), get()) }
         addFactory { RefreshMangaEnrichment(get()) }
         addFactory { RefreshAnimeEnrichment(get()) }
         addFactory { BulkEnrichmentCoordinator(get(), get(), get(), get()) }
