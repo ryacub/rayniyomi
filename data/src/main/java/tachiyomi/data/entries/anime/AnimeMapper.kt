@@ -41,6 +41,8 @@ object AnimeMapper {
         seasonSourceOrder: Long,
         backgroundUrl: String?,
         backgroundLastModified: Long,
+        @Suppress("UNUSED_PARAMETER")
+        normalizedTitle: String,
     ): Anime = Anime(
         id = id,
         source = source,
@@ -106,6 +108,8 @@ object AnimeMapper {
         seasonSourceOrder: Long,
         backgroundUrl: String?,
         backgroundLastModified: Long,
+        @Suppress("UNUSED_PARAMETER")
+        normalizedTitle: String,
         totalCount: Long,
         seenCount: Double,
         latestUpload: Long,
@@ -147,6 +151,7 @@ object AnimeMapper {
             seasonSourceOrder,
             backgroundUrl,
             backgroundLastModified,
+            normalizedTitle,
         ),
         category = category,
         totalCount = totalCount,
@@ -190,6 +195,8 @@ object AnimeMapper {
         seasonSourceOrder: Long,
         backgroundUrl: String?,
         backgroundLastModified: Long,
+        @Suppress("UNUSED_PARAMETER")
+        normalizedTitle: String,
         totalCount: Long,
         seenCount: Double,
         latestUpload: Long,
@@ -230,6 +237,7 @@ object AnimeMapper {
             seasonSourceOrder,
             backgroundUrl,
             backgroundLastModified,
+            normalizedTitle,
         ),
         totalCount = totalCount,
         seenCount = seenCount.toLong(),

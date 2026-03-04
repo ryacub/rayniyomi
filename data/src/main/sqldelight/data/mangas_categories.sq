@@ -24,3 +24,9 @@ VALUES (:mangaId, :categoryId);
 deleteMangaCategoryByMangaId:
 DELETE FROM mangas_categories
 WHERE manga_id = :mangaId;
+
+transferCategories:
+INSERT OR IGNORE INTO mangas_categories(manga_id, category_id)
+SELECT :keepMangaId, category_id
+FROM mangas_categories
+WHERE manga_id = :deleteMangaId;

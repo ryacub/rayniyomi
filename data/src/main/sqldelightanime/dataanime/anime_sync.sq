@@ -60,3 +60,23 @@ SET
     finish_date = coalesce(:finishDate, finish_date),
     private = coalesce(:private, private)
 WHERE _id = :id;
+
+getAnimeIdByTrackerId:
+SELECT anime_id
+FROM anime_sync
+WHERE sync_id = :syncId AND remote_id = :remoteId
+LIMIT 1;
+
+updateProgressIfGreater:
+UPDATE anime_sync
+SET last_episode_seen = :lastEpisodeSeen
+WHERE anime_id = :animeId
+AND sync_id = :syncId
+AND :lastEpisodeSeen > last_episode_seen;
+
+transferUniqueTrackers:
+INSERT OR IGNORE INTO anime_sync(anime_id, sync_id, remote_id, library_id, title, last_episode_seen, total_episodes, status, score, remote_url, start_date, finish_date, private)
+SELECT :winnerAnimeId, sync_id, remote_id, library_id, title, last_episode_seen, total_episodes, status, score, remote_url, start_date, finish_date, private
+FROM anime_sync
+WHERE anime_id = :loserAnimeId
+AND sync_id NOT IN (SELECT sync_id FROM anime_sync WHERE anime_id = :winnerAnimeId);

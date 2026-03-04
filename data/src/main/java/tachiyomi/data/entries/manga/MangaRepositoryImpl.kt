@@ -98,6 +98,52 @@ class MangaRepositoryImpl(
         }
     }
 
+    override suspend fun getDuplicateLibraryMangaByNormalizedTitle(
+        normalizedTitle: String,
+        excludeId: Long,
+    ): List<Manga> {
+        return handler.awaitList {
+            mangasQueries.getDuplicateLibraryMangaByNormalizedTitle(normalizedTitle, excludeId, MangaMapper::mapManga)
+        }
+    }
+
+    override suspend fun getDuplicateLibraryMangaByTracker(syncId: Long, remoteId: Long, excludeId: Long): List<Manga> {
+        val mangaIds = handler.awaitList { manga_syncQueries.getMangaIdByTrackerId(syncId, remoteId) }
+        return mangaIds
+            .filter { it != excludeId }
+            .mapNotNull { mangaId ->
+                handler.awaitOneOrNull { mangasQueries.getMangaById(mangaId, MangaMapper::mapManga) }
+            }
+            .filter { it.favorite }
+    }
+
+    override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
+        handler.await(inTransaction = true) {
+            // 1. Sync read progress for chapters that exist on both entries (same URL)
+            chaptersQueries.syncAllDuplicateChapterProgress(keepMangaId = keepId, deleteMangaId = deleteId)
+
+            // 2. Reparent chapters that are unique to the loser
+            chaptersQueries.reparentChapters(keepMangaId = keepId, deleteMangaId = deleteId)
+
+            // 3. Update progress for shared trackers to max, transfer unique trackers
+            val loserTracks = manga_syncQueries.getTracksByMangaId(deleteId).executeAsList()
+            loserTracks.forEach { loserTrack ->
+                manga_syncQueries.updateProgressIfGreater(
+                    lastChapterRead = loserTrack.last_chapter_read,
+                    mangaId = keepId,
+                    syncId = loserTrack.sync_id,
+                )
+            }
+            manga_syncQueries.transferUniqueTrackers(winnerMangaId = keepId, loserMangaId = deleteId)
+
+            // 4. Transfer categories
+            mangas_categoriesQueries.transferCategories(keepMangaId = keepId, deleteMangaId = deleteId)
+
+            // 5. Delete loser (CASCADE removes remaining chapters/trackers/categories)
+            mangasQueries.delete(deleteId)
+        }
+    }
+
     override suspend fun getUpcomingManga(statuses: Set<Long>): Flow<List<Manga>> {
         val epochMillis = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
         return handler.subscribeToList {

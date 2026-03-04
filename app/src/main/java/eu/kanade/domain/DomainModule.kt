@@ -144,6 +144,7 @@ import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
+import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.interactor.ResetAnimeViewerFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
@@ -156,8 +157,10 @@ import tachiyomi.domain.entries.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
+import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.interactor.ResetMangaViewerFlags
+import tachiyomi.domain.entries.manga.interactor.ScanLibraryDuplicates
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.history.anime.interactor.GetAnimeHistory
@@ -254,7 +257,8 @@ class DomainModule : InjektModule {
         addFactory { DeleteMangaCategory(get(), get(), get()) }
 
         addSingletonFactory<AnimeRepository> { AnimeRepositoryImpl(get()) }
-        addFactory { GetDuplicateLibraryAnime(get()) }
+        addFactory { GetDuplicateLibraryAnime(get(), get()) }
+        addFactory { MergeLibraryAnime(get()) }
         addFactory { GetAnimeFavorites(get()) }
         addFactory { GetLibraryAnime(get()) }
         addFactory { GetAnimeWithEpisodesAndSeasons(get(), get()) }
@@ -277,7 +281,9 @@ class DomainModule : InjektModule {
         addFactory { SyncSeasonsWithSource(get(), get(), get(), get(), get()) }
 
         addSingletonFactory<MangaRepository> { MangaRepositoryImpl(get()) }
-        addFactory { GetDuplicateLibraryManga(get()) }
+        addFactory { GetDuplicateLibraryManga(get(), get()) }
+        addFactory { MergeLibraryManga(get()) }
+        addFactory { ScanLibraryDuplicates(get(), get()) }
         addFactory { GetMangaFavorites(get()) }
         addFactory { GetLibraryManga(get()) }
         addFactory { GetMangaWithChapters(get(), get()) }

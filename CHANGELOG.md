@@ -14,6 +14,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+- **Library de-duplication** — intelligent duplicate detection on add-to-library using tracker IDs (MAL/AniList) and normalized title matching; merge two library entries while preserving read progress, categories, history, and tracker data; bulk de-duplication scan available in Library settings
 - **Cast UI components** — mini-controller overlay with drag-to-seek progress bar, subtitle track picker with ASS/SSA format filtering, subtitle style settings (font size, color, edge type), and Cast button integrated into player controls
 - **Long-press speed boost gesture** — hold during playback to temporarily increase speed, release to resume normal playback
 - **Download status transparency** — real-time anime download progress with stall detection and automatic recovery, manga download progress with low-storage detection and guided recovery

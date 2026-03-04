@@ -1,0 +1,3 @@
+ALTER TABLE mangas ADD COLUMN normalized_title TEXT NOT NULL DEFAULT '';
+
+CREATE INDEX mangas_normalized_title_idx ON mangas(normalized_title);
