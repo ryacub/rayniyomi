@@ -101,7 +101,10 @@ class AnimeRepositoryImpl(
         }
     }
 
-    override suspend fun getDuplicateLibraryAnimeByNormalizedTitle(normalizedTitle: String, excludeId: Long): List<Anime> {
+    override suspend fun getDuplicateLibraryAnimeByNormalizedTitle(
+        normalizedTitle: String,
+        excludeId: Long,
+    ): List<Anime> {
         return handler.awaitList {
             animesQueries.getDuplicateLibraryAnimeByNormalizedTitle(normalizedTitle, excludeId, AnimeMapper::mapAnime)
         }

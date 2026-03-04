@@ -98,7 +98,10 @@ class MangaRepositoryImpl(
         }
     }
 
-    override suspend fun getDuplicateLibraryMangaByNormalizedTitle(normalizedTitle: String, excludeId: Long): List<Manga> {
+    override suspend fun getDuplicateLibraryMangaByNormalizedTitle(
+        normalizedTitle: String,
+        excludeId: Long,
+    ): List<Manga> {
         return handler.awaitList {
             mangasQueries.getDuplicateLibraryMangaByNormalizedTitle(normalizedTitle, excludeId, MangaMapper::mapManga)
         }
