@@ -5,6 +5,8 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.track.enrichment.EntryEnrichmentCoordinator
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -32,25 +34,23 @@ class EntryEnrichmentScreenModel(
     val announcements = _announcements.asSharedFlow()
 
     init {
-        screenModelScope.launchIO {
-            launch {
-                when (mediaType) {
-                    EnrichmentMediaType.MANGA -> coordinator.observeManga(entryId)
-                    EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
-                }.collectLatest { cached ->
-                    mutableState.update {
-                        it.copy(
-                            loading = false,
-                            entry = cached,
-                            errorText = cached?.failures?.takeIf { failures -> failures.isNotEmpty() }
-                                ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" },
-                        )
-                    }
+        screenModelScope.launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
+            when (mediaType) {
+                EnrichmentMediaType.MANGA -> coordinator.observeManga(entryId)
+                EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
+            }.collectLatest { cached ->
+                mutableState.update {
+                    it.copy(
+                        loading = false,
+                        entry = cached,
+                        errorText = cached?.failures?.takeIf { failures -> failures.isNotEmpty() }
+                            ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" },
+                    )
                 }
             }
-
-            refreshInternal(manual = false)
         }
+
+        screenModelScope.launchIO { refreshInternal(manual = false) }
     }
 
     fun updateTitle(title: String) {
@@ -64,13 +64,11 @@ class EntryEnrichmentScreenModel(
     }
 
     private suspend fun refreshInternal(manual: Boolean) {
-        var shouldStartRefresh = false
-        mutableState.update { current ->
-            if (current.refreshing) return@update current
-            shouldStartRefresh = true
-            current.copy(refreshing = true, errorText = null)
+        while (true) {
+            val current = state.value
+            if (current.refreshing) return
+            if (mutableState.compareAndSet(current, current.copy(refreshing = true, errorText = null))) break
         }
-        if (!shouldStartRefresh) return
 
         if (manual) {
             _announcements.tryEmit("Syncing recommendations")
