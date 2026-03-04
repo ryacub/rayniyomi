@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import tachiyomi.core.common.util.lang.launchIO
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -32,6 +33,7 @@ class EntryEnrichmentScreenModel(
 
     private val _announcements = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val announcements = _announcements.asSharedFlow()
+    private val refreshMutex = Mutex()
 
     init {
         screenModelScope.launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
@@ -64,49 +66,55 @@ class EntryEnrichmentScreenModel(
     }
 
     private suspend fun refreshInternal(manual: Boolean) {
-        while (true) {
-            val current = state.value
-            if (current.refreshing) return
-            if (mutableState.compareAndSet(current, current.copy(refreshing = true, errorText = null))) break
+        if (!refreshMutex.tryLock()) return
+        mutableState.update {
+            it.copy(refreshing = true, errorText = null)
         }
 
-        if (manual) {
-            _announcements.tryEmit("Syncing recommendations")
-        }
-
-        val result = runCatching {
-            when (mediaType) {
-                EnrichmentMediaType.MANGA -> coordinator.refreshManga(entryId, title, force = true)
-                EnrichmentMediaType.ANIME -> coordinator.refreshAnime(entryId, title, force = true)
-            }
-        }
-        result.onSuccess { entry ->
-            mutableState.update {
-                it.copy(
-                    loading = false,
-                    refreshing = false,
-                    entry = entry,
-                    errorText = entry.failures.takeIf { failures -> failures.isNotEmpty() }
-                        ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" },
-                )
-            }
+        try {
             if (manual) {
-                _announcements.tryEmit(
-                    "${entry.recommendations.size} updated, ${entry.failures.size} failed",
-                )
+                _announcements.tryEmit("Syncing recommendations")
             }
-        }.onFailure {
-            val message = it.message?.takeIf(String::isNotBlank) ?: "Unable to sync recommendations"
+
+            val result = runCatching {
+                when (mediaType) {
+                    EnrichmentMediaType.MANGA -> coordinator.refreshManga(entryId, title, force = true)
+                    EnrichmentMediaType.ANIME -> coordinator.refreshAnime(entryId, title, force = true)
+                }
+            }
+            result.onSuccess { entry ->
+                mutableState.update {
+                    it.copy(
+                        loading = false,
+                        entry = entry,
+                        errorText = entry.failures.takeIf { failures -> failures.isNotEmpty() }
+                            ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" },
+                    )
+                }
+                if (manual) {
+                    _announcements.tryEmit(
+                        "${entry.recommendations.size} updated, ${entry.failures.size} failed",
+                    )
+                }
+            }.onFailure {
+                val message = it.message?.takeIf(String::isNotBlank) ?: "Unable to sync recommendations"
+                mutableState.update { state ->
+                    state.copy(
+                        loading = false,
+                        errorText = message,
+                    )
+                }
+                if (manual) {
+                    _announcements.tryEmit(message)
+                }
+            }
+        } finally {
             mutableState.update { state ->
                 state.copy(
-                    loading = false,
                     refreshing = false,
-                    errorText = message,
                 )
             }
-            if (manual) {
-                _announcements.tryEmit(message)
-            }
+            refreshMutex.unlock()
         }
     }
 }
