@@ -116,3 +116,23 @@ WHERE _id = :episodeId;
 
 selectLastInsertedRowId:
 SELECT last_insert_rowid();
+
+syncAllDuplicateEpisodeProgress:
+UPDATE episodes
+SET
+    seen = MAX(seen, (
+        SELECT loser.seen FROM episodes loser
+        WHERE loser.anime_id = :deleteAnimeId AND loser.url = episodes.url
+    )),
+    last_second_seen = MAX(last_second_seen, (
+        SELECT loser.last_second_seen FROM episodes loser
+        WHERE loser.anime_id = :deleteAnimeId AND loser.url = episodes.url
+    ))
+WHERE anime_id = :keepAnimeId
+AND url IN (SELECT url FROM episodes WHERE anime_id = :deleteAnimeId);
+
+reparentEpisodes:
+UPDATE episodes
+SET anime_id = :keepAnimeId
+WHERE anime_id = :deleteAnimeId
+AND url NOT IN (SELECT url FROM episodes WHERE anime_id = :keepAnimeId);

@@ -24,3 +24,8 @@ VALUES (:animeId, :categoryId);
 deleteAnimeCategoryByAnimeId:
 DELETE FROM animes_categories
 WHERE anime_id = :animeId;
+transferCategories:
+INSERT OR IGNORE INTO animes_categories(anime_id, category_id)
+SELECT :keepAnimeId, category_id
+FROM animes_categories
+WHERE anime_id = :deleteAnimeId;
