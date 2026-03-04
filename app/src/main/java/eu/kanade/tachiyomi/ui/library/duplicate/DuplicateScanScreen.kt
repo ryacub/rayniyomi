@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,7 +28,9 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import logcat.LogPriority
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.ScanLibraryDuplicates
 import tachiyomi.domain.entries.manga.model.DuplicateCandidate
@@ -57,6 +61,7 @@ class DuplicateScanScreen : Screen() {
                     scrollBehavior = scrollBehavior,
                 )
             },
+            snackbarHost = { SnackbarHost(screenModel.snackbarHostState) },
         ) { contentPadding ->
             when (val s = state) {
                 is DuplicateScanScreenModel.State.Loading -> LoadingScreen(Modifier.padding(contentPadding))
@@ -158,6 +163,8 @@ class DuplicateScanScreenModel(
     private val mergeLibraryManga: MergeLibraryManga = Injekt.get(),
 ) : StateScreenModel<DuplicateScanScreenModel.State>(State.Loading) {
 
+    val snackbarHostState = SnackbarHostState()
+
     init {
         screenModelScope.launchIO {
             val duplicates = scanLibraryDuplicates.await()
@@ -167,14 +174,19 @@ class DuplicateScanScreenModel(
 
     fun merge(candidate: DuplicateCandidate) {
         screenModelScope.launchIO {
-            mergeLibraryManga.await(keepId = candidate.winner.id, deleteId = candidate.loser.id)
-            val current = state.value
-            if (current is State.Success) {
-                mutableState.value = State.Success(
-                    current.duplicates
-                        .filter { it.winner.id != candidate.loser.id && it.loser.id != candidate.loser.id }
-                        .toImmutableList(),
-                )
+            try {
+                mergeLibraryManga.await(keepId = candidate.winner.id, deleteId = candidate.loser.id)
+                val current = state.value
+                if (current is State.Success) {
+                    mutableState.value = State.Success(
+                        current.duplicates
+                            .filter { it.winner.id != candidate.loser.id && it.loser.id != candidate.loser.id }
+                            .toImmutableList(),
+                    )
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to merge library entries" }
+                snackbarHostState.showSnackbar("Failed to merge entries")
             }
         }
     }
