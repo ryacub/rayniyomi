@@ -1,8 +1,11 @@
 package eu.kanade.domain.track.enrichment
 
 import eu.kanade.domain.track.enrichment.model.AggregatedRecommendation
+import eu.kanade.domain.track.enrichment.model.DiscoverCacheSnapshot
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
+import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
@@ -121,6 +124,236 @@ class EnrichmentCacheRepositoryImpl(
         }
     }
 
+    override suspend fun getDiscoverRecommendations(limit: Long): List<DiscoverRecommendationRecord> {
+        val mangaRecommendations = mangaHandler.awaitList {
+            tracker_enrichment_cacheQueries.getAllRecommendations(limit) {
+                    entryId,
+                    mediaType,
+                    canonicalKey,
+                    title,
+                    targetUrl,
+                    trackerSource,
+                    rankScore,
+                    inLibrary,
+                    confidence,
+                    sourceCount,
+                    updatedAt,
+                ->
+                DiscoverRecommendationRecord(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    recommendation = AggregatedRecommendation(
+                        stableKey = canonicalKey,
+                        title = title,
+                        targetUrl = targetUrl,
+                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        sourceCount = sourceCount.toInt(),
+                        confidence = confidence,
+                        inLibrary = inLibrary,
+                        rankScore = rankScore,
+                    ),
+                    updatedAt = updatedAt,
+                )
+            }
+        }
+        val animeRecommendations = animeHandler.awaitList {
+            tracker_enrichment_cacheQueries.getAllRecommendations(limit) {
+                    entryId,
+                    mediaType,
+                    canonicalKey,
+                    title,
+                    targetUrl,
+                    trackerSource,
+                    rankScore,
+                    inLibrary,
+                    confidence,
+                    sourceCount,
+                    updatedAt,
+                ->
+                DiscoverRecommendationRecord(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    recommendation = AggregatedRecommendation(
+                        stableKey = canonicalKey,
+                        title = title,
+                        targetUrl = targetUrl,
+                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        sourceCount = sourceCount.toInt(),
+                        confidence = confidence,
+                        inLibrary = inLibrary,
+                        rankScore = rankScore,
+                    ),
+                    updatedAt = updatedAt,
+                )
+            }
+        }
+        return (mangaRecommendations + animeRecommendations)
+            .sortedByDescending { it.recommendation.rankScore }
+            .take(limit.toInt())
+    }
+
+    override suspend fun getDiscoverSnapshots(): List<DiscoverCacheSnapshot> {
+        val mangaSnapshots = mangaHandler.awaitList {
+            tracker_enrichment_cacheQueries.getAllCaches {
+                    entryId,
+                    mediaType,
+                    payloadJson,
+                    updatedAt,
+                    expiresAt,
+                    _,
+                    _,
+                ->
+                DiscoverCacheSnapshot(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    updatedAt = updatedAt,
+                    expiresAt = expiresAt,
+                    compositeScore = runCatching {
+                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
+                    }.getOrNull(),
+                )
+            }
+        }
+        val animeSnapshots = animeHandler.awaitList {
+            tracker_enrichment_cacheQueries.getAllCaches {
+                    entryId,
+                    mediaType,
+                    payloadJson,
+                    updatedAt,
+                    expiresAt,
+                    _,
+                    _,
+                ->
+                DiscoverCacheSnapshot(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    updatedAt = updatedAt,
+                    expiresAt = expiresAt,
+                    compositeScore = runCatching {
+                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
+                    }.getOrNull(),
+                )
+            }
+        }
+        return mangaSnapshots + animeSnapshots
+    }
+
+    override fun observeDiscoverRecommendations(limit: Long): Flow<List<DiscoverRecommendationRecord>> {
+        val mangaFlow = mangaHandler.subscribeToList {
+            tracker_enrichment_cacheQueries.getAllRecommendations(limit) {
+                    entryId,
+                    mediaType,
+                    canonicalKey,
+                    title,
+                    targetUrl,
+                    trackerSource,
+                    rankScore,
+                    inLibrary,
+                    confidence,
+                    sourceCount,
+                    updatedAt,
+                ->
+                DiscoverRecommendationRecord(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    recommendation = AggregatedRecommendation(
+                        stableKey = canonicalKey,
+                        title = title,
+                        targetUrl = targetUrl,
+                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        sourceCount = sourceCount.toInt(),
+                        confidence = confidence,
+                        inLibrary = inLibrary,
+                        rankScore = rankScore,
+                    ),
+                    updatedAt = updatedAt,
+                )
+            }
+        }
+        val animeFlow = animeHandler.subscribeToList {
+            tracker_enrichment_cacheQueries.getAllRecommendations(limit) {
+                    entryId,
+                    mediaType,
+                    canonicalKey,
+                    title,
+                    targetUrl,
+                    trackerSource,
+                    rankScore,
+                    inLibrary,
+                    confidence,
+                    sourceCount,
+                    updatedAt,
+                ->
+                DiscoverRecommendationRecord(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    recommendation = AggregatedRecommendation(
+                        stableKey = canonicalKey,
+                        title = title,
+                        targetUrl = targetUrl,
+                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        sourceCount = sourceCount.toInt(),
+                        confidence = confidence,
+                        inLibrary = inLibrary,
+                        rankScore = rankScore,
+                    ),
+                    updatedAt = updatedAt,
+                )
+            }
+        }
+        return combine(mangaFlow, animeFlow) { manga, anime ->
+            (manga + anime)
+                .sortedByDescending { it.recommendation.rankScore }
+                .take(limit.toInt())
+        }
+    }
+
+    override fun observeDiscoverSnapshots(): Flow<List<DiscoverCacheSnapshot>> {
+        val mangaFlow = mangaHandler.subscribeToList {
+            tracker_enrichment_cacheQueries.getAllCaches {
+                    entryId,
+                    mediaType,
+                    payloadJson,
+                    updatedAt,
+                    expiresAt,
+                    _,
+                    _,
+                ->
+                DiscoverCacheSnapshot(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    updatedAt = updatedAt,
+                    expiresAt = expiresAt,
+                    compositeScore = runCatching {
+                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
+                    }.getOrNull(),
+                )
+            }
+        }
+        val animeFlow = animeHandler.subscribeToList {
+            tracker_enrichment_cacheQueries.getAllCaches {
+                    entryId,
+                    mediaType,
+                    payloadJson,
+                    updatedAt,
+                    expiresAt,
+                    _,
+                    _,
+                ->
+                DiscoverCacheSnapshot(
+                    entryId = entryId,
+                    mediaType = mediaType.toEnrichmentMediaType(),
+                    updatedAt = updatedAt,
+                    expiresAt = expiresAt,
+                    compositeScore = runCatching {
+                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
+                    }.getOrNull(),
+                )
+            }
+        }
+        return combine(mangaFlow, animeFlow) { manga, anime -> manga + anime }
+    }
+
     private suspend fun getMangaRecommendations(entryId: Long): List<AggregatedRecommendation> {
         return mangaHandler.awaitList {
             tracker_enrichment_cacheQueries.getRecommendationsByEntryId(entryId) {
@@ -181,5 +414,9 @@ class EnrichmentCacheRepositoryImpl(
 
     private fun EnrichedEntry.withRecommendations(recommendations: List<AggregatedRecommendation>): EnrichedEntry {
         return copy(recommendations = recommendations)
+    }
+
+    private fun String.toEnrichmentMediaType(): EnrichmentMediaType {
+        return runCatching { EnrichmentMediaType.valueOf(this) }.getOrDefault(EnrichmentMediaType.MANGA)
     }
 }

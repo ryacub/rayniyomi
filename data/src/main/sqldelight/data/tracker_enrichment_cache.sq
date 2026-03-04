@@ -54,6 +54,17 @@ FROM tracker_enrichment_recommendation
 WHERE entry_id = :entryId
 ORDER BY rank_score DESC, updated_at DESC;
 
+getAllRecommendations:
+SELECT *
+FROM tracker_enrichment_recommendation
+ORDER BY rank_score DESC, updated_at DESC
+LIMIT :limit;
+
+getAllCaches:
+SELECT *
+FROM tracker_enrichment_cache
+ORDER BY updated_at DESC;
+
 upsertRecommendation:
 INSERT INTO tracker_enrichment_recommendation(
     entry_id,

@@ -65,7 +65,11 @@ object EpubTextExtractor {
                 BitmapFactory.decodeStream(stream, null, options)
             } ?: return null
 
-            return averageColor(bitmap)
+            return try {
+                averageColor(bitmap)
+            } finally {
+                bitmap.recycle()
+            }
         }
     }
 

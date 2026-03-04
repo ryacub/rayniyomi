@@ -2,6 +2,7 @@ package eu.kanade.domain.track.service
 
 import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.enrichment.BulkEnrichmentCoordinator
+import eu.kanade.domain.track.enrichment.DiscoverFeedCoordinator
 import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -15,6 +16,7 @@ class TrackerSyncCoordinator(
     private val refreshAllMangaTracks: RefreshAllMangaTracks,
     private val refreshAllAnimeTracks: RefreshAllAnimeTracks,
     private val bulkEnrichmentCoordinator: BulkEnrichmentCoordinator,
+    private val discoverFeedCoordinator: DiscoverFeedCoordinator,
 ) {
 
     suspend fun await(trigger: TrackerSyncTrigger): TrackerSyncResult = withIOContext {
@@ -38,6 +40,11 @@ class TrackerSyncCoordinator(
             .onFailure { error ->
                 if (error is CancellationException) throw error
                 logcat(LogPriority.WARN, error) { "Bulk tracker enrichment refresh failed" }
+            }
+        runCatching { discoverFeedCoordinator.refresh(limit = 40, force = false) }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                logcat(LogPriority.WARN, error) { "Discover feed refresh failed" }
             }
 
         TrackerSyncResult(

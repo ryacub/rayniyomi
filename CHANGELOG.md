@@ -22,6 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Light novel transfer status tracking** — explicit status contract for light novel imports with accessibility-hardened progress announcements
 - **Source health tracking** — manga sources now show health status badges (green check, yellow warning, red error) indicating whether they return titles successfully. Broken sources are hidden by default with a preference toggle to show them. Pull-to-refresh re-checks all sources with a summary snackbar
 - **Anime source health tracking** — anime sources now show health status badges indicating whether they return titles successfully. Broken sources are hidden by default with a preference toggle to show them. Pull-to-refresh re-checks all sources with a summary snackbar
+- **Discover feed (phase 1)** — added a new Discover screen under More that aggregates tracker-based recommendations across your library with ranked reasons (multi-tracker, recent activity, high-score seeds, and genre affinity)
 
 ### Improved
 
@@ -30,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Unified download status tracking across anime and manga modules with shared status APIs
 - Throttled light novel import progress updates to reduce UI jank with improved accessibility announcements
 - Coroutine failures in extension managers caught and logged instead of silently crashing
+- Improved recommendation accessibility in Discover and entry recommendation surfaces with clearer semantic labels, refresh announcements, and non-color-only status cues
 
 ### Fixed
 

@@ -28,6 +28,7 @@ fun EntryDynamicCoverTheme(
         cacheKey,
         isDark,
         enabled,
+        context,
     ) {
         value = CoverThemePaletteService.tokensFor(
             context = context,

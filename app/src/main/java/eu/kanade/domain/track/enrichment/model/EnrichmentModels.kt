@@ -51,3 +51,37 @@ data class EnrichedEntry(
     val updatedAt: Long,
     val expiresAt: Long,
 )
+
+enum class DiscoverReasonKind {
+    MULTI_TRACKER,
+    HIGH_SCORE_SEED,
+    RECENT_ACTIVITY,
+    GENRE_MATCH,
+    LOW_CONFIDENCE,
+}
+
+data class DiscoverReason(
+    val kind: DiscoverReasonKind,
+    val label: String,
+)
+
+data class DiscoverFeedItem(
+    val stableKey: String,
+    val title: String,
+    val mediaType: EnrichmentMediaType,
+    val targetUrl: String?,
+    val trackerSources: List<String>,
+    val sourceCount: Int,
+    val confidence: Double,
+    val score: Double,
+    val reason: DiscoverReason,
+    val alternatives: List<RecommendationChoice> = emptyList(),
+)
+
+data class DiscoverCacheSnapshot(
+    val entryId: Long,
+    val mediaType: EnrichmentMediaType,
+    val updatedAt: Long,
+    val expiresAt: Long,
+    val compositeScore: Double?,
+)
