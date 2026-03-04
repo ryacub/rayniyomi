@@ -18,6 +18,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Long-press speed boost gesture** — hold during playback to temporarily increase speed, release to resume normal playback
 - **Download status transparency** — real-time anime download progress with stall detection and automatic recovery, manga download progress with low-storage detection and guided recovery
 - **Light novel transfer status tracking** — explicit status contract for light novel imports with accessibility-hardened progress announcements
+- **Source health tracking** — manga sources now show health status badges (green check, yellow warning, red error) indicating whether they return titles successfully. Broken sources are hidden by default with a preference toggle to show them. Pull-to-refresh re-checks all sources with a summary snackbar
+- **Anime source health tracking** — anime sources now show health status badges indicating whether they return titles successfully. Broken sources are hidden by default with a preference toggle to show them. Pull-to-refresh re-checks all sources with a summary snackbar
 
 ### Improved
 
@@ -46,6 +48,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Changed
 
 - Migrated Kotlin context receivers to context parameters for Kotlin 2.2+ compatibility
+- **Source health check refactor** — shared health check state machine extracted into a reusable abstraction used by manga, anime, and light novel sources
 
 ### Other
 

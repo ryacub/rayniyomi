@@ -30,6 +30,10 @@ import dev.mihon.injekt.patchInjekt
 import eu.kanade.domain.DomainModule
 import eu.kanade.domain.SYDomainModule
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.domain.track.service.ImmediateTrackerSyncJob
+import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
+import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.domain.track.service.TrackerSyncTrigger
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.tachiyomi.crash.CrashActivity
@@ -196,6 +200,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             LogcatLogger.install(AndroidLogcatLogger(LogPriority.VERBOSE))
         }
 
+        PeriodicTrackerSyncJob.setupTask(this)
         initializeMigrator()
     }
 
@@ -260,6 +265,20 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun onStart(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStart()
+
+        val trackPreferences = Injekt.get<TrackPreferences>()
+        if (!trackPreferences.trackerSyncEnabled().get() || !trackPreferences.trackerSyncOnForeground().get()) {
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val lastRun = trackPreferences.trackerSyncLastRunMillis().get()
+        val minForegroundIntervalMillis = 5 * 60 * 1000L
+        if (now - lastRun < minForegroundIntervalMillis) {
+            return
+        }
+
+        ImmediateTrackerSyncJob.startNow(this, TrackerSyncTrigger.FOREGROUND)
     }
 
     override fun onStop(owner: LifecycleOwner) {

@@ -1,0 +1,32 @@
+CREATE TABLE source_health(
+    _source_id INTEGER NOT NULL PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'UNKNOWN',
+    last_checked_at INTEGER NOT NULL DEFAULT 0,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+
+findAll:
+SELECT *
+FROM source_health;
+
+findBySourceId:
+SELECT *
+FROM source_health
+WHERE _source_id = :sourceId;
+
+upsert:
+INSERT INTO source_health(_source_id, status, last_checked_at, failure_count, last_error)
+VALUES (:sourceId, :status, :lastCheckedAt, :failureCount, :lastError)
+ON CONFLICT(_source_id)
+DO UPDATE
+SET
+    status = :status,
+    last_checked_at = :lastCheckedAt,
+    failure_count = :failureCount,
+    last_error = :lastError
+WHERE _source_id = :sourceId;
+
+deleteBySourceId:
+DELETE FROM source_health
+WHERE _source_id = :sourceId;

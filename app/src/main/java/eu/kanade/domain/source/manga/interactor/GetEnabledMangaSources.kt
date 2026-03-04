@@ -7,12 +7,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import tachiyomi.domain.source.manga.model.Pin
 import tachiyomi.domain.source.manga.model.Pins
 import tachiyomi.domain.source.manga.model.Source
+import tachiyomi.domain.source.manga.model.SourceHealthStatus
 import tachiyomi.domain.source.manga.repository.MangaSourceRepository
+import tachiyomi.domain.source.manga.repository.SourceHealthRepository
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 
 class GetEnabledMangaSources(
     private val repository: MangaSourceRepository,
     private val preferences: SourcePreferences,
+    private val healthRepository: SourceHealthRepository,
 ) {
 
     fun subscribe(): Flow<List<Source>> {
@@ -27,11 +30,32 @@ class GetEnabledMangaSources(
                 // SY <--
             ) { a, b, c -> Triple(a, b, c) },
             repository.getMangaSources(),
-        ) { pinnedSourceIds, enabledLanguages, (disabledSources, lastUsedSource, excludedFromDataSaver), sources ->
+            combine(
+                healthRepository.getAll(),
+                preferences.showBrokenMangaSources().changes(),
+            ) { health, showBroken -> Pair(health, showBroken) },
+        ) {
+                pinnedSourceIds,
+                enabledLanguages,
+                (disabledSources, lastUsedSource, excludedFromDataSaver),
+                sources,
+                (healthMap, showBroken),
+            ->
             sources
                 .filter { it.lang in enabledLanguages || it.id == LocalMangaSource.ID }
                 .filterNot { it.id.toString() in disabledSources }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+                .map { source ->
+                    val health = healthMap[source.id]
+                    val healthStatus = when {
+                        source.id == LocalMangaSource.ID -> SourceHealthStatus.HEALTHY
+                        source.isStub -> SourceHealthStatus.UNKNOWN
+                        health != null -> health.status
+                        else -> SourceHealthStatus.UNKNOWN
+                    }
+                    source.copy(healthStatus = healthStatus)
+                }
+                .filterNot { !showBroken && it.healthStatus == SourceHealthStatus.BROKEN }
                 .flatMap {
                     val flag = if ("${it.id}" in pinnedSourceIds) Pins.pinned else Pins.unpinned
                     val source = it.copy(

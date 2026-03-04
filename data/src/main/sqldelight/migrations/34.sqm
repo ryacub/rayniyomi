@@ -1,0 +1,7 @@
+CREATE TABLE source_health(
+    _source_id INTEGER NOT NULL PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'UNKNOWN',
+    last_checked_at INTEGER NOT NULL DEFAULT 0,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);

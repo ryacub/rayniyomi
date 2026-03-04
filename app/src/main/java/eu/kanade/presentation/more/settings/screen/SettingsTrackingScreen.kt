@@ -39,9 +39,17 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.rememberScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
+import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
 import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.domain.track.service.TrackerSyncCoordinator
+import eu.kanade.domain.track.service.TrackerSyncResult
+import eu.kanade.domain.track.service.TrackerSyncTrigger
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
@@ -55,8 +63,11 @@ import eu.kanade.tachiyomi.data.track.simkl.SimklApi
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
@@ -93,7 +104,14 @@ object SettingsTrackingScreen : SearchableSettings {
         val trackerManager = remember { Injekt.get<TrackerManager>() }
         val mangaSourceManager = remember { Injekt.get<MangaSourceManager>() }
         val animeSourceManager = remember { Injekt.get<AnimeSourceManager>() }
+        val syncScreenModel = rememberScreenModel { SettingsTrackingSyncScreenModel() }
         val autoTrackStatePref = trackPreferences.autoUpdateTrackOnMarkRead()
+        val trackerSyncEnabled = trackPreferences.trackerSyncEnabled()
+        val trackerSyncEnabledState by trackerSyncEnabled
+            .changes()
+            .collectAsStateWithLifecycle(initialValue = trackerSyncEnabled.get())
+        val trackerSyncIntervalHours = trackPreferences.trackerSyncIntervalHours()
+        val syncState by syncScreenModel.state.collectAsStateWithLifecycle()
 
         var dialog by remember { mutableStateOf<Any?>(null) }
         dialog?.run {
@@ -112,6 +130,26 @@ object SettingsTrackingScreen : SearchableSettings {
                     )
                 }
             }
+        }
+        if (syncState.isSyncing) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(text = stringResource(MR.strings.pref_tracker_sync_now)) },
+                text = { Text(text = stringResource(MR.strings.tracker_sync_in_progress)) },
+                confirmButton = {},
+            )
+        }
+        syncState.result?.let { result ->
+            AlertDialog(
+                onDismissRequest = syncScreenModel::dismissResult,
+                title = { Text(text = stringResource(MR.strings.pref_tracker_sync_now)) },
+                text = { Text(text = buildSyncResultMessage(context, result)) },
+                confirmButton = {
+                    Button(onClick = syncScreenModel::dismissResult) {
+                        Text(text = stringResource(MR.strings.action_ok))
+                    }
+                },
+            )
         }
 
         val enhancedMangaTrackers = trackerManager.trackers
@@ -140,6 +178,45 @@ object SettingsTrackingScreen : SearchableSettings {
             Preference.PreferenceItem.SwitchPreference(
                 preference = trackPreferences.autoUpdateTrack(),
                 title = stringResource(AYMR.strings.pref_auto_update_manga_sync),
+            ),
+            Preference.PreferenceItem.SwitchPreference(
+                preference = trackerSyncEnabled,
+                title = stringResource(MR.strings.pref_tracker_sync_enabled),
+                subtitle = stringResource(MR.strings.pref_tracker_sync_enabled_summary),
+                onValueChanged = {
+                    PeriodicTrackerSyncJob.setupTask(context)
+                    true
+                },
+            ),
+            Preference.PreferenceItem.ListPreference(
+                preference = trackerSyncIntervalHours,
+                entries = persistentMapOf(
+                    1 to stringResource(MR.strings.tracker_sync_every_hour),
+                    2 to stringResource(MR.strings.tracker_sync_every_2_hours),
+                    6 to stringResource(MR.strings.tracker_sync_every_6_hours),
+                    12 to stringResource(MR.strings.tracker_sync_every_12_hours),
+                ),
+                title = stringResource(MR.strings.pref_tracker_sync_interval),
+                subtitle = stringResource(MR.strings.pref_tracker_sync_interval_summary),
+                enabled = trackerSyncEnabledState,
+                onValueChanged = {
+                    PeriodicTrackerSyncJob.setupTask(context)
+                    true
+                },
+            ),
+            Preference.PreferenceItem.SwitchPreference(
+                preference = trackPreferences.trackerSyncOnForeground(),
+                title = stringResource(MR.strings.pref_tracker_sync_foreground),
+                subtitle = stringResource(MR.strings.pref_tracker_sync_foreground_summary),
+                enabled = trackerSyncEnabledState,
+            ),
+            Preference.PreferenceItem.TextPreference(
+                title = stringResource(MR.strings.pref_tracker_sync_now),
+                subtitle = stringResource(MR.strings.pref_tracker_sync_now_summary),
+                enabled = !syncState.isSyncing,
+                onClick = {
+                    syncScreenModel.runManualSync()
+                },
             ),
             Preference.PreferenceItem.SwitchPreference(
                 preference = trackPreferences.trackOnAddingToLibrary(),
@@ -363,6 +440,21 @@ object SettingsTrackingScreen : SearchableSettings {
         }
     }
 
+    private fun buildSyncResultMessage(context: Context, result: TrackerSyncResult): String {
+        val summary = context.stringResource(
+            MR.strings.tracker_sync_complete_summary,
+            result.syncedItems,
+            result.unlinkedItems,
+            result.failedCount,
+        )
+        if (result.failedItems.isEmpty()) {
+            return summary
+        }
+
+        val failedTrackers = result.failedItems.map { it.tracker.name }.distinct().joinToString()
+        return summary + "\n" + context.stringResource(MR.strings.tracker_sync_failed_services, failedTrackers)
+    }
+
     @Composable
     private fun TrackingLogoutDialog(
         tracker: Tracker,
@@ -414,3 +506,29 @@ private data class LoginDialog(
 private data class LogoutDialog(
     val tracker: Tracker,
 )
+
+private class SettingsTrackingSyncScreenModel(
+    private val coordinator: TrackerSyncCoordinator = Injekt.get(),
+) : ScreenModel {
+
+    private val _state = MutableStateFlow(State())
+    val state = _state.asStateFlow()
+
+    fun runManualSync() {
+        if (_state.value.isSyncing) return
+        screenModelScope.launchIO {
+            _state.value = State(isSyncing = true)
+            val result = coordinator.await(TrackerSyncTrigger.MANUAL)
+            _state.value = State(isSyncing = false, result = result)
+        }
+    }
+
+    fun dismissResult() {
+        _state.value = _state.value.copy(result = null)
+    }
+
+    data class State(
+        val isSyncing: Boolean = false,
+        val result: TrackerSyncResult? = null,
+    )
+}

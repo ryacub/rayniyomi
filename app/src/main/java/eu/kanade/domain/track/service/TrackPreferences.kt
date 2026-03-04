@@ -45,6 +45,14 @@ class TrackPreferences(
         true,
     )
 
+    fun trackerSyncEnabled() = preferenceStore.getBoolean("pref_tracker_sync_enabled", true)
+
+    fun trackerSyncIntervalHours() = preferenceStore.getInt("pref_tracker_sync_interval_hours", 1)
+
+    fun trackerSyncOnForeground() = preferenceStore.getBoolean("pref_tracker_sync_on_foreground", true)
+
+    fun trackerSyncLastRunMillis() = preferenceStore.getLong("pref_tracker_sync_last_run", 0L)
+
     fun autoUpdateTrackOnMarkRead() = preferenceStore.getEnum(
         "pref_auto_update_manga_on_mark_read",
         AutoTrackState.ALWAYS,

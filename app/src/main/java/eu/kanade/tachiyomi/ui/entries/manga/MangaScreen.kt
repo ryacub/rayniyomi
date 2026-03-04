@@ -27,6 +27,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.domain.entries.manga.model.hasCustomCover
 import eu.kanade.domain.entries.manga.model.toSManga
+import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.entries.EditCoverAction
@@ -50,6 +51,7 @@ import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaSearchSc
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
+import eu.kanade.tachiyomi.ui.entries.common.EntryEnrichmentScreenModel
 import eu.kanade.tachiyomi.ui.entries.manga.track.MangaTrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
@@ -59,6 +61,7 @@ import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
@@ -92,8 +95,16 @@ class MangaScreen(
         val lifecycleOwner = LocalLifecycleOwner.current
         val screenModel =
             rememberScreenModel { MangaScreenModel(context, lifecycleOwner.lifecycle, mangaId, fromSource) }
+        val enrichmentScreenModel = rememberScreenModel {
+            EntryEnrichmentScreenModel(
+                entryId = mangaId,
+                title = "",
+                mediaType = EnrichmentMediaType.MANGA,
+            )
+        }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
+        val enrichmentState by enrichmentScreenModel.state.collectAsStateWithLifecycle()
 
         if (state is MangaScreenModel.State.Loading) {
             LoadingScreen()
@@ -102,6 +113,16 @@ class MangaScreen(
 
         val successState = state as MangaScreenModel.State.Success
         val isHttpSource = remember { successState.source is HttpSource }
+
+        LaunchedEffect(successState.manga.title) {
+            enrichmentScreenModel.updateTitle(successState.manga.title)
+        }
+
+        LaunchedEffect(enrichmentScreenModel) {
+            enrichmentScreenModel.announcements.collectLatest {
+                screenModel.snackbarHostState.showSnackbar(it)
+            }
+        }
 
         LaunchedEffect(successState.manga, screenModel.source) {
             if (isHttpSource) {
@@ -179,6 +200,14 @@ class MangaScreen(
             onChapterSelected = screenModel::toggleSelection,
             onAllChapterSelected = screenModel::toggleAllSelection,
             onInvertSelection = screenModel::invertSelection,
+            enrichmentState = enrichmentState.entry,
+            enrichmentLoading = enrichmentState.loading,
+            enrichmentRefreshing = enrichmentState.refreshing,
+            enrichmentErrorText = enrichmentState.errorText,
+            onRefreshEnrichment = { enrichmentScreenModel.refresh(manual = true) },
+            onOpenEnrichmentRecommendation = { title, url ->
+                navigator.push(WebViewScreen(url = url, initialTitle = title))
+            },
         )
 
         var showScanlatorsDialog by remember { mutableStateOf(false) }
