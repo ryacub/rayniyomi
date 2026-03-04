@@ -29,7 +29,12 @@ class GetDuplicateLibraryAnime(
                     anime.id,
                 ).forEach { duplicate ->
                     if (seen.add(duplicate.id)) {
-                        results += DuplicateCandidate(winner = anime, loser = duplicate, confidence = DuplicateConfidence.TRACKER)
+                        results +=
+                            DuplicateCandidate(
+                                winner = anime,
+                                loser = duplicate,
+                                confidence = DuplicateConfidence.TRACKER,
+                            )
                     }
                 }
             }
@@ -39,7 +44,8 @@ class GetDuplicateLibraryAnime(
         animeRepository.getDuplicateLibraryAnime(anime.id, anime.title.lowercase())
             .forEach { duplicate ->
                 if (seen.add(duplicate.id)) {
-                    results += DuplicateCandidate(winner = anime, loser = duplicate, confidence = DuplicateConfidence.HIGH)
+                    results +=
+                        DuplicateCandidate(winner = anime, loser = duplicate, confidence = DuplicateConfidence.HIGH)
                 }
             }
 
@@ -48,7 +54,8 @@ class GetDuplicateLibraryAnime(
         animeRepository.getDuplicateLibraryAnimeByNormalizedTitle(normalized, anime.id)
             .forEach { duplicate ->
                 if (seen.add(duplicate.id)) {
-                    results += DuplicateCandidate(winner = anime, loser = duplicate, confidence = DuplicateConfidence.MEDIUM)
+                    results +=
+                        DuplicateCandidate(winner = anime, loser = duplicate, confidence = DuplicateConfidence.MEDIUM)
                 }
             }
 

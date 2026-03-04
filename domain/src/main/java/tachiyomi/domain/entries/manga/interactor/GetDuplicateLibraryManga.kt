@@ -29,7 +29,12 @@ class GetDuplicateLibraryManga(
                     manga.id,
                 ).forEach { duplicate ->
                     if (seen.add(duplicate.id)) {
-                        results += DuplicateCandidate(winner = manga, loser = duplicate, confidence = DuplicateConfidence.TRACKER)
+                        results +=
+                            DuplicateCandidate(
+                                winner = manga,
+                                loser = duplicate,
+                                confidence = DuplicateConfidence.TRACKER,
+                            )
                     }
                 }
             }
@@ -39,7 +44,8 @@ class GetDuplicateLibraryManga(
         mangaRepository.getDuplicateLibraryManga(manga.id, manga.title.lowercase())
             .forEach { duplicate ->
                 if (seen.add(duplicate.id)) {
-                    results += DuplicateCandidate(winner = manga, loser = duplicate, confidence = DuplicateConfidence.HIGH)
+                    results +=
+                        DuplicateCandidate(winner = manga, loser = duplicate, confidence = DuplicateConfidence.HIGH)
                 }
             }
 
@@ -48,7 +54,8 @@ class GetDuplicateLibraryManga(
         mangaRepository.getDuplicateLibraryMangaByNormalizedTitle(normalized, manga.id)
             .forEach { duplicate ->
                 if (seen.add(duplicate.id)) {
-                    results += DuplicateCandidate(winner = manga, loser = duplicate, confidence = DuplicateConfidence.MEDIUM)
+                    results +=
+                        DuplicateCandidate(winner = manga, loser = duplicate, confidence = DuplicateConfidence.MEDIUM)
                 }
             }
 

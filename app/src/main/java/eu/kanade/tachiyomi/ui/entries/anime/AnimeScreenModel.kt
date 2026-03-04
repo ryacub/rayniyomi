@@ -83,9 +83,9 @@ import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
-import tachiyomi.domain.entries.anime.model.DuplicateConfidence
 import tachiyomi.domain.entries.anime.interactor.SetAnimeSeasonFlags
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.DuplicateConfidence
 import tachiyomi.domain.entries.anime.model.NoSeasonsException
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.entries.applyFilter
@@ -349,9 +349,13 @@ class AnimeScreenModel(
                     val candidate = getDuplicateLibraryAnime.awaitAll(anime).firstOrNull()
                     if (candidate != null) {
                         val confidenceLabel = when (candidate.confidence) {
-                            DuplicateConfidence.TRACKER -> context.stringResource(AYMR.strings.duplicate_confidence_tracker)
+                            DuplicateConfidence.TRACKER -> context.stringResource(
+                                AYMR.strings.duplicate_confidence_tracker,
+                            )
                             DuplicateConfidence.HIGH -> context.stringResource(AYMR.strings.duplicate_confidence_title)
-                            DuplicateConfidence.MEDIUM -> context.stringResource(AYMR.strings.duplicate_confidence_normalized)
+                            DuplicateConfidence.MEDIUM -> context.stringResource(
+                                AYMR.strings.duplicate_confidence_normalized,
+                            )
                         }
                         updateSuccessState {
                             it.copy(

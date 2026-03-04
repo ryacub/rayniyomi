@@ -16,7 +16,8 @@ class ScanLibraryDuplicates(
         for (manga in allManga) {
             val candidates = getDuplicateLibraryManga.awaitAll(manga)
             for (candidate in candidates) {
-                val key = minOf(candidate.winner.id, candidate.loser.id) to maxOf(candidate.winner.id, candidate.loser.id)
+                val key =
+                    minOf(candidate.winner.id, candidate.loser.id) to maxOf(candidate.winner.id, candidate.loser.id)
                 if (seen.add(key)) {
                     results += candidate
                 }

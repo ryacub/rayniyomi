@@ -76,8 +76,8 @@ import tachiyomi.domain.entries.applyFilter
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
-import tachiyomi.domain.entries.manga.model.DuplicateConfidence
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
+import tachiyomi.domain.entries.manga.model.DuplicateConfidence
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.items.chapter.interactor.SetMangaDefaultChapterFlags
@@ -340,9 +340,13 @@ class MangaScreenModel(
 
                     if (candidate != null) {
                         val confidenceLabel = when (candidate.confidence) {
-                            DuplicateConfidence.TRACKER -> context.stringResource(AYMR.strings.duplicate_confidence_tracker)
+                            DuplicateConfidence.TRACKER -> context.stringResource(
+                                AYMR.strings.duplicate_confidence_tracker,
+                            )
                             DuplicateConfidence.HIGH -> context.stringResource(AYMR.strings.duplicate_confidence_title)
-                            DuplicateConfidence.MEDIUM -> context.stringResource(AYMR.strings.duplicate_confidence_normalized)
+                            DuplicateConfidence.MEDIUM -> context.stringResource(
+                                AYMR.strings.duplicate_confidence_normalized,
+                            )
                         }
                         updateSuccessState {
                             it.copy(
