@@ -30,7 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var listAdapter: ArrayAdapter<String>
 
     private val books = mutableListOf<NovelBook>()
-    private val coverColorCache = mutableMapOf<String, Int?>()
+    private val coverColorCache = object : LinkedHashMap<String, Int?>(50, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int?>): Boolean {
+            return size > 50
+        }
+    }
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -142,14 +146,18 @@ class MainActivity : AppCompatActivity() {
     private suspend fun applyDynamicTheme(books: List<NovelBook>) {
         val firstBook = books.firstOrNull() ?: return
         val cacheKey = "${firstBook.id}:${firstBook.updatedAt}"
-        val seedColor = coverColorCache[cacheKey] ?: withContext(Dispatchers.IO) {
-            val bookFile = storage.getBookFile(firstBook)
-            if (!bookFile.exists()) {
-                null
-            } else {
-                EpubTextExtractor.extractCoverSeedColor(bookFile)
-            }
-        }.also { coverColorCache[cacheKey] = it }
+        val seedColor = if (coverColorCache.containsKey(cacheKey)) {
+            coverColorCache[cacheKey]
+        } else {
+            withContext(Dispatchers.IO) {
+                val bookFile = storage.getBookFile(firstBook)
+                if (!bookFile.exists()) {
+                    null
+                } else {
+                    EpubTextExtractor.extractCoverSeedColor(bookFile)
+                }
+            }.also { coverColorCache[cacheKey] = it }
+        }
         val seed = seedColor ?: return
         val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES

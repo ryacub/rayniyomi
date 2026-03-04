@@ -4,11 +4,17 @@ import android.content.Context
 import android.graphics.Bitmap
 import coil3.asDrawable
 import coil3.imageLoader
+import coil3.request.ErrorResult
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import coil3.size.Size
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 object CoverThemePaletteService {
     private val cacheMutex = Mutex()
@@ -45,12 +51,21 @@ object CoverThemePaletteService {
     }
 
     private suspend fun loadBitmap(context: Context, data: Any): Bitmap? {
-        val request = ImageRequest.Builder(context)
-            .data(data)
-            .size(Size(128, 128))
-            .build()
-        val image = context.imageLoader.execute(request).image?.asDrawable(context.resources)
-        return image?.getBitmapOrNull()
+        return withContext(Dispatchers.IO) {
+            val request = ImageRequest.Builder(context)
+                .data(data)
+                .size(Size(128, 128))
+                .build()
+            when (val result = context.imageLoader.execute(request)) {
+                is SuccessResult -> {
+                    result.image.asDrawable(context.resources).getBitmapOrNull()
+                }
+                is ErrorResult -> {
+                    logcat(LogPriority.WARN, result.throwable) { "Failed to decode cover for dynamic theme" }
+                    null
+                }
+            }
+        }
     }
 
     private fun extractDominantColor(bitmap: Bitmap): androidx.compose.ui.graphics.Color? {
