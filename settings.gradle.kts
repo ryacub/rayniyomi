@@ -8,8 +8,15 @@ pluginManagement {
         }
     }
     repositories {
-        // Temporary: keep until a released SqlDelight version includes AGP 9 compatibility (cashapp/sqldelight#6139).
+        // Temporary for SqlDelight 2.3.0-SNAPSHOT AGP 9 support.
+        // Remove this mavenLocal/snapshot wiring once stable SqlDelight ships AGP 9 support.
+        // Tracking: cashapp/sqldelight#6139.
         mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
+        maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
             content {
                 includeGroup("app.cash.sqldelight")
             }
@@ -38,8 +45,15 @@ dependencyResolutionManagement {
     }
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // Temporary: keep until a released SqlDelight version includes AGP 9 compatibility (cashapp/sqldelight#6139).
+        // Temporary for SqlDelight 2.3.0-SNAPSHOT AGP 9 support.
+        // Remove this mavenLocal/snapshot wiring once stable SqlDelight ships AGP 9 support.
+        // Tracking: cashapp/sqldelight#6139.
         mavenLocal {
+            content {
+                includeGroup("app.cash.sqldelight")
+            }
+        }
+        maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
             content {
                 includeGroup("app.cash.sqldelight")
             }
