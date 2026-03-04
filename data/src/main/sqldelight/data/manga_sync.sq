@@ -59,3 +59,23 @@ SET
     finish_date = coalesce(:finishDate, finish_date),
     private = coalesce(:private, private)
 WHERE _id = :id;
+
+getMangaIdByTrackerId:
+SELECT manga_id
+FROM manga_sync
+WHERE sync_id = :syncId AND remote_id = :remoteId
+LIMIT 1;
+
+updateProgressIfGreater:
+UPDATE manga_sync
+SET last_chapter_read = :lastChapterRead
+WHERE manga_id = :mangaId
+AND sync_id = :syncId
+AND :lastChapterRead > last_chapter_read;
+
+transferUniqueTrackers:
+INSERT OR IGNORE INTO manga_sync(manga_id, sync_id, remote_id, library_id, title, last_chapter_read, total_chapters, status, score, remote_url, start_date, finish_date, private)
+SELECT :winnerMangaId, sync_id, remote_id, library_id, title, last_chapter_read, total_chapters, status, score, remote_url, start_date, finish_date, private
+FROM manga_sync
+WHERE manga_id = :loserMangaId
+AND sync_id NOT IN (SELECT sync_id FROM manga_sync WHERE manga_id = :winnerMangaId);
