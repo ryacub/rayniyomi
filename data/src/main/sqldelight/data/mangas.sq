@@ -188,3 +188,7 @@ WHERE _id = :mangaId;
 
 selectLastInsertedRowId:
 SELECT last_insert_rowid();
+
+delete:
+DELETE FROM mangas
+WHERE _id = :id;

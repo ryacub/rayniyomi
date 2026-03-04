@@ -119,3 +119,23 @@ WHERE _id = :chapterId;
 
 selectLastInsertedRowId:
 SELECT last_insert_rowid();
+
+syncAllDuplicateChapterProgress:
+UPDATE chapters
+SET
+    read = MAX(read, (
+        SELECT loser.read FROM chapters loser
+        WHERE loser.manga_id = :deleteMangaId AND loser.url = chapters.url
+    )),
+    last_page_read = MAX(last_page_read, (
+        SELECT loser.last_page_read FROM chapters loser
+        WHERE loser.manga_id = :deleteMangaId AND loser.url = chapters.url
+    ))
+WHERE manga_id = :keepMangaId
+AND url IN (SELECT url FROM chapters WHERE manga_id = :deleteMangaId);
+
+reparentChapters:
+UPDATE chapters
+SET manga_id = :keepMangaId
+WHERE manga_id = :deleteMangaId
+AND url NOT IN (SELECT url FROM chapters WHERE manga_id = :keepMangaId);
