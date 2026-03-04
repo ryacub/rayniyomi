@@ -1,0 +1,101 @@
+import kotlin.Boolean;
+
+CREATE TABLE tracker_enrichment_cache(
+    entry_id INTEGER NOT NULL PRIMARY KEY,
+    media_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    source_count INTEGER NOT NULL,
+    error_summary TEXT
+);
+
+getByEntryId:
+SELECT *
+FROM tracker_enrichment_cache
+WHERE entry_id = :entryId;
+
+upsert:
+INSERT INTO tracker_enrichment_cache(entry_id, media_type, payload_json, updated_at, expires_at, source_count, error_summary)
+VALUES (:entryId, :mediaType, :payloadJson, :updatedAt, :expiresAt, :sourceCount, :errorSummary)
+ON CONFLICT(entry_id)
+DO UPDATE
+SET
+    media_type = :mediaType,
+    payload_json = :payloadJson,
+    updated_at = :updatedAt,
+    expires_at = :expiresAt,
+    source_count = :sourceCount,
+    error_summary = :errorSummary
+WHERE entry_id = :entryId;
+
+deleteByEntryId:
+DELETE FROM tracker_enrichment_cache
+WHERE entry_id = :entryId;
+
+CREATE TABLE tracker_enrichment_recommendation(
+    entry_id INTEGER NOT NULL,
+    media_type TEXT NOT NULL,
+    canonical_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    target_url TEXT,
+    tracker_source TEXT NOT NULL,
+    rank_score REAL NOT NULL,
+    in_library INTEGER AS Boolean NOT NULL DEFAULT 0,
+    confidence REAL NOT NULL,
+    source_count INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY(entry_id, canonical_key)
+);
+
+getRecommendationsByEntryId:
+SELECT *
+FROM tracker_enrichment_recommendation
+WHERE entry_id = :entryId
+ORDER BY rank_score DESC, updated_at DESC;
+
+upsertRecommendation:
+INSERT INTO tracker_enrichment_recommendation(
+    entry_id,
+    media_type,
+    canonical_key,
+    title,
+    target_url,
+    tracker_source,
+    rank_score,
+    in_library,
+    confidence,
+    source_count,
+    updated_at
+)
+VALUES (
+    :entryId,
+    :mediaType,
+    :canonicalKey,
+    :title,
+    :targetUrl,
+    :trackerSource,
+    :rankScore,
+    :inLibrary,
+    :confidence,
+    :sourceCount,
+    :updatedAt
+)
+ON CONFLICT(entry_id, canonical_key)
+DO UPDATE
+SET
+    media_type = :mediaType,
+    title = :title,
+    target_url = :targetUrl,
+    tracker_source = :trackerSource,
+    rank_score = :rankScore,
+    in_library = :inLibrary,
+    confidence = :confidence,
+    source_count = :sourceCount,
+    updated_at = :updatedAt
+WHERE entry_id = :entryId
+  AND canonical_key = :canonicalKey;
+
+deleteRecommendationsByEntryId:
+DELETE FROM tracker_enrichment_recommendation
+WHERE entry_id = :entryId;

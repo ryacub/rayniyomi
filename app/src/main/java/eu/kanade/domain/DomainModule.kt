@@ -43,6 +43,14 @@ import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
 import eu.kanade.domain.track.anime.interactor.SyncEpisodeProgressWithTrack
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
+import eu.kanade.domain.track.enrichment.BulkEnrichmentCoordinator
+import eu.kanade.domain.track.enrichment.EnrichmentCacheRepository
+import eu.kanade.domain.track.enrichment.EnrichmentCacheRepositoryImpl
+import eu.kanade.domain.track.enrichment.EntryEnrichmentCoordinator
+import eu.kanade.domain.track.enrichment.RecommendationAggregator
+import eu.kanade.domain.track.enrichment.interactor.ComputeCompositeScore
+import eu.kanade.domain.track.enrichment.interactor.RefreshAnimeEnrichment
+import eu.kanade.domain.track.enrichment.interactor.RefreshMangaEnrichment
 import eu.kanade.domain.track.interactor.TrackSyncConflictResolver
 import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
@@ -315,7 +323,14 @@ class DomainModule : InjektModule {
         addFactory { TrackSyncConflictResolver() }
         addFactory { RefreshAllMangaTracks(get(), get(), get(), get(), get(), get(), get()) }
         addFactory { RefreshAllAnimeTracks(get(), get(), get(), get(), get(), get(), get()) }
-        addFactory { TrackerSyncCoordinator(get(), get(), get()) }
+        addFactory { TrackerSyncCoordinator(get(), get(), get(), get()) }
+        addSingletonFactory<EnrichmentCacheRepository> { EnrichmentCacheRepositoryImpl(get(), get(), get()) }
+        addFactory { RecommendationAggregator() }
+        addFactory { ComputeCompositeScore() }
+        addFactory { EntryEnrichmentCoordinator(get(), get(), get(), get(), get(), get(), get(), get()) }
+        addFactory { RefreshMangaEnrichment(get()) }
+        addFactory { RefreshAnimeEnrichment(get()) }
+        addFactory { BulkEnrichmentCoordinator(get(), get(), get(), get()) }
 
         addSingletonFactory<EpisodeRepository> { EpisodeRepositoryImpl(get()) }
         addFactory { GetEpisode(get()) }
