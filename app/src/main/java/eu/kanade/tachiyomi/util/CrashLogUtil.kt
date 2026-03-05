@@ -17,19 +17,14 @@ import uy.kohesive.injekt.api.get
 import java.time.OffsetDateTime
 import java.time.ZoneId
 
-class CrashLogUtil(
-    private val context: Context,
-    private val mangaExtensionManager: MangaExtensionManager = Injekt.get(),
-    private val animeExtensionManager: AnimeExtensionManager = Injekt.get(),
-) {
+class CrashLogUtil(private val context: Context) {
 
     suspend fun dumpLogs(exception: Throwable? = null) = withNonCancellableContext {
         try {
             val file = context.createFileInCacheDir("aniyomi_crash_logs.txt")
 
             file.appendText(getDebugInfo() + "\n\n")
-            getMangaExtensionsInfo()?.let { file.appendText("$it\n\n") }
-            getAnimeExtensionsInfo()?.let { file.appendText("$it\n\n") }
+            getExtensionsInfo()?.let { file.appendText("$it\n\n") }
             exception?.let { file.appendText("$it\n\n") }
 
             Runtime.getRuntime().exec("logcat *:E -d -v year -v zone -f ${file.absolutePath}").waitFor()
@@ -64,10 +59,22 @@ class CrashLogUtil(
         //    FFmpeg version: ${Utils.VERSIONS.ffmpeg}
     }
 
-    private fun getMangaExtensionsInfo(): String? {
-        val availableExtensions = mangaExtensionManager.availableExtensionsFlow.value.associateBy { it.pkgName }
+    /**
+     * Best-effort: DI is unavailable in the :error_handler process,
+     * so we silently skip extension info when Injekt has not been initialised.
+     */
+    private fun getExtensionsInfo(): String? = runCatching {
+        val sections = listOfNotNull(
+            getMangaExtensionsInfo(Injekt.get()),
+            getAnimeExtensionsInfo(Injekt.get()),
+        )
+        sections.joinToString("\n\n").ifEmpty { null }
+    }.getOrNull()
 
-        val extensionInfoList = mangaExtensionManager.installedExtensionsFlow.value
+    private fun getMangaExtensionsInfo(manager: MangaExtensionManager): String? {
+        val availableExtensions = manager.availableExtensionsFlow.value.associateBy { it.pkgName }
+
+        val extensionInfoList = manager.installedExtensionsFlow.value
             .sortedBy { it.name }
             .mapNotNull {
                 val availableExtension = availableExtensions[it.pkgName]
@@ -90,10 +97,10 @@ class CrashLogUtil(
         }
     }
 
-    private fun getAnimeExtensionsInfo(): String? {
-        val availableExtensions = animeExtensionManager.availableExtensionsFlow.value.associateBy { it.pkgName }
+    private fun getAnimeExtensionsInfo(manager: AnimeExtensionManager): String? {
+        val availableExtensions = manager.availableExtensionsFlow.value.associateBy { it.pkgName }
 
-        val extensionInfoList = animeExtensionManager.installedExtensionsFlow.value
+        val extensionInfoList = manager.installedExtensionsFlow.value
             .sortedBy { it.name }
             .mapNotNull {
                 val availableExtension = availableExtensions[it.pkgName]
