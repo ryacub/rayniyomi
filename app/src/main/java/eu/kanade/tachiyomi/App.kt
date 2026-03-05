@@ -49,8 +49,6 @@ import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.di.AppModule
 import eu.kanade.tachiyomi.di.PreferenceModule
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
@@ -87,8 +85,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     private val basePreferences: BasePreferences by injectLazy()
     private val networkPreferences: NetworkPreferences by injectLazy()
-    private val lightNovelPluginManager: LightNovelPluginManager by injectLazy()
-    private val lightNovelPluginStateManager: LightNovelPluginStateManager by injectLazy()
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
 
@@ -287,11 +283,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun onStop(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStopped()
-    }
-
-    override fun onDestroy(owner: LifecycleOwner) {
-        lightNovelPluginStateManager.close()
-        lightNovelPluginManager.close()
     }
 
     override fun getPackageName(): String {

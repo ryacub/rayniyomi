@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +36,7 @@ class LightNovelPluginStateManager(
     private val appContext: Context,
     private val pluginManager: LightNovelPluginManager,
     private val preferences: NovelFeaturePreferences,
-) : Closeable {
+) : Closeable, DefaultLifecycleObserver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pluginPackageReceiver: BroadcastReceiver? = null
 
@@ -59,6 +62,8 @@ class LightNovelPluginStateManager(
             pluginStatusFlow.value = pluginManager.getPluginStatus()
         }
         registerPluginPackageReceiver()
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
         combine(
             preferences.enableLightNovels().changes(),
@@ -118,6 +123,10 @@ class LightNovelPluginStateManager(
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         pluginPackageReceiver = receiver
+    }
+
+    override fun onDestroy(owner: LifecycleOwner) {
+        close()
     }
 
     override fun close() {
