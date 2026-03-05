@@ -98,10 +98,12 @@ internal fun Project.configureTest() {
         }
     }
 
-    // Gradle 9 requires junit-platform-launcher on the test runtime classpath
+    // Gradle 9 requires junit-platform-launcher on the test runtime classpath.
+    // Capture libs before entering the configuration lambda (no Project receiver inside).
+    val junitPlatformLauncher = libs.junit.platform.launcher
     configurations.matching { it.name == "testRuntimeOnly" }.configureEach {
         dependencies {
-            add(name, "org.junit.platform:junit-platform-launcher")
+            add(name, junitPlatformLauncher)
         }
     }
 }
