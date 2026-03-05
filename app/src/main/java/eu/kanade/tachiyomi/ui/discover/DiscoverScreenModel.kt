@@ -7,6 +7,7 @@ import eu.kanade.domain.track.enrichment.DiscoverFeedCoordinator
 import eu.kanade.domain.track.enrichment.model.DiscoverFeedItem
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,9 +31,18 @@ class DiscoverScreenModel(
     val snackbarHostState = SnackbarHostState()
 
     init {
-        screenModelScope.launchIO {
+        screenModelScope.launch {
             launch {
                 coordinator.observe(limit = DISCOVER_LIMIT)
+                    .catch { error ->
+                        val message = error.message?.takeIf { it.isNotBlank() } ?: "Unknown error"
+                        mutableState.update {
+                            it.copy(
+                                loading = false,
+                                errorText = message,
+                            )
+                        }
+                    }
                     .collectLatest { items ->
                         mutableState.update {
                             it.copy(
@@ -52,7 +62,10 @@ class DiscoverScreenModel(
             mutableState.update { current ->
                 if (current.refreshing) return@update current
                 startRefresh = true
-                current.copy(refreshing = true, errorText = null)
+                current.copy(
+                    refreshing = true,
+                    errorText = if (manual) null else current.errorText,
+                )
             }
             if (!startRefresh) return@launchIO
 
@@ -64,11 +77,7 @@ class DiscoverScreenModel(
                 coordinator.refresh(limit = DISCOVER_LIMIT, force = manual)
             }.onSuccess { items ->
                 mutableState.update {
-                    it.copy(
-                        loading = false,
-                        refreshing = false,
-                        items = items,
-                    )
+                    it.copy(refreshing = false)
                 }
                 if (manual) {
                     _announcements.tryEmit("Discover updated: ${items.size} recommendations")
