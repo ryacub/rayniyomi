@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import tachiyomi.core.common.util.lang.launchIO
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -32,24 +33,26 @@ class EntryEnrichmentScreenModel(
     val announcements = _announcements.asSharedFlow()
 
     init {
-        screenModelScope.launchIO {
-            launch {
-                when (mediaType) {
-                    EnrichmentMediaType.MANGA -> coordinator.observeManga(entryId)
-                    EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
-                }.collectLatest { cached ->
-                    mutableState.update {
-                        it.copy(
-                            loading = false,
-                            entry = cached,
-                            errorText = cached?.failures?.takeIf { failures -> failures.isNotEmpty() }
-                                ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" },
-                        )
+        screenModelScope.launch {
+            supervisorScope {
+                launch {
+                    when (mediaType) {
+                        EnrichmentMediaType.MANGA -> coordinator.observeManga(entryId)
+                        EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
+                    }.collectLatest { cached ->
+                        mutableState.update {
+                            it.copy(
+                                loading = false,
+                                entry = cached,
+                                errorText = cached?.failures?.takeIf { failures -> failures.isNotEmpty() }
+                                    ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
+                                    ?: it.errorText,
+                            )
+                        }
                     }
                 }
+                launch { refreshInternal(manual = false) }
             }
-
-            refreshInternal(manual = false)
         }
     }
 

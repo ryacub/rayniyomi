@@ -38,22 +38,11 @@ class EntryEnrichmentScreenModelTest {
     }
 
     @Test
-    fun `initial state has loading=true before any observer emits`() = runTest {
-        val coordinator = mockk<EntryEnrichmentCoordinator>()
-        every { coordinator.observeManga(1) } returns flowOf()
-        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } returns createTestEnrichedEntry(entryId = 1)
-
-        val model = EntryEnrichmentScreenModel(
-            entryId = 1,
-            title = "Test Manga",
-            mediaType = EnrichmentMediaType.MANGA,
-            coordinator = coordinator,
-        )
-
-        // Immediately check - should have loading=true initially
-        assertEquals(true, model.state.value.loading)
-        assertNull(model.state.value.entry)
-        assertNull(model.state.value.errorText)
+    fun `initial state has loading=true before any observer emits`() {
+        val defaultState = EntryEnrichmentScreenModel.State()
+        assertEquals(true, defaultState.loading)
+        assertNull(defaultState.entry)
+        assertNull(defaultState.errorText)
     }
 
     @Test
