@@ -121,6 +121,7 @@ class LightNovelPluginStateManager(
     }
 
     override fun close() {
+        pluginManager.close()
         pluginPackageReceiver?.let { receiver ->
             runCatching { appContext.unregisterReceiver(receiver) }
             pluginPackageReceiver = null

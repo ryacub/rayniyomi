@@ -21,6 +21,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -28,6 +29,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
+import java.io.Closeable
 import java.io.File
 import java.security.MessageDigest
 
@@ -36,7 +38,7 @@ class LightNovelPluginManager(
     private val network: NetworkHelper,
     private val json: Json,
     private val preferences: NovelFeaturePreferences,
-) : LightNovelPluginReadiness {
+) : LightNovelPluginReadiness, Closeable {
     private val telemetry = PluginTelemetry()
     private val installMutex = Mutex()
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -44,6 +46,10 @@ class LightNovelPluginManager(
     private var inFlightInstall: Deferred<InstallResult>? = null
     init {
         cleanupOrphanedPluginApk()
+    }
+
+    override fun close() {
+        installScope.cancel()
     }
 
     data class PluginStatus(
@@ -453,9 +459,11 @@ class LightNovelPluginManager(
     }
 
     private fun cleanupOrphanedPluginApk() {
-        File(context.cacheDir, PLUGIN_APK_FILE_NAME)
-            .takeIf { it.exists() }
-            ?.delete()
+        runCatching {
+            File(context.cacheDir, PLUGIN_APK_FILE_NAME)
+                .takeIf { it.exists() }
+                ?.delete()
+        }
     }
 
     internal fun isPluginInstallEnabled(): Boolean {
