@@ -1,9 +1,8 @@
 // Shadowing cafe.adriel.voyager:voyager-core 1.0.1 to fix:
 //   IllegalStateException: State is 'DESTROYED' and cannot be moved to `STARTED`
-// Guards added:
-//   1. emitOnStopEvents() / emitOnStartEvents() — skip when already DESTROYED
-//   2. registerLifecycleListener() observer callbacks — same guard on all four
-//      (parent Activity lifecycle transitions can race with screen disposal)
+//   DESTROYED is terminal — any handleLifecycleEvent() call after it is illegal.
+//   All event dispatching goes through safeHandleLifecycleEvent() which no-ops
+//   when already DESTROYED.
 // Remove this file once Voyager upstream ships the fix.
 package cafe.adriel.voyager.androidx
 
@@ -90,31 +89,26 @@ public class AndroidScreenLifecycleOwner private constructor() :
         enableSavedStateHandles()
     }
 
+    /** No-ops when lifecycle is already DESTROYED (terminal state). */
+    private fun safeHandleLifecycleEvent(event: Lifecycle.Event) {
+        if (lifecycle.currentState != Lifecycle.State.DESTROYED) {
+            lifecycle.handleLifecycleEvent(event)
+        }
+    }
+
     private fun onCreate(savedState: Bundle?) {
         check(!isCreated) { "onCreate already called" }
         isCreated = true
         controller.performRestore(savedState)
-        initEvents.forEach {
-            lifecycle.handleLifecycleEvent(it)
-        }
+        initEvents.forEach(::safeHandleLifecycleEvent)
     }
 
     private fun emitOnStartEvents() {
-        // Guard: skip if already destroyed — lifecycle transitions from DESTROYED are illegal.
-        if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
-        startEvents.forEach {
-            lifecycle.handleLifecycleEvent(it)
-        }
+        startEvents.forEach(::safeHandleLifecycleEvent)
     }
 
     private fun emitOnStopEvents() {
-        // Fix for: IllegalStateException: State is 'DESTROYED' and cannot be moved to `STARTED`.
-        // ON_PAUSE targets STARTED internally; if lifecycle is already DESTROYED, the transition
-        // is illegal. Skip stop events entirely — DESTROYED already implies stopped.
-        if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
-        stopEvents.forEach {
-            lifecycle.handleLifecycleEvent(it)
-        }
+        stopEvents.forEach(::safeHandleLifecycleEvent)
     }
 
     @Composable
@@ -138,9 +132,7 @@ public class AndroidScreenLifecycleOwner private constructor() :
         val activity = context.getActivity()
         if (activity != null && activity.isChangingConfigurations) return
         viewModelStore.clear()
-        disposeEvents.forEach { event ->
-            lifecycle.handleLifecycleEvent(event)
-        }
+        disposeEvents.forEach(::safeHandleLifecycleEvent)
     }
 
     private fun performSave(outState: Bundle) {
@@ -165,24 +157,17 @@ public class AndroidScreenLifecycleOwner private constructor() :
         val lifecycleOwner = atomicParentLifecycleOwner.get()
         if (lifecycleOwner != null) {
             val observer = object : DefaultLifecycleObserver {
-                override fun onPause(owner: LifecycleOwner) {
-                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
-                    lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-                }
+                override fun onPause(owner: LifecycleOwner) =
+                    safeHandleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
 
-                override fun onResume(owner: LifecycleOwner) {
-                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
-                    lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-                }
+                override fun onResume(owner: LifecycleOwner) =
+                    safeHandleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
-                override fun onStart(owner: LifecycleOwner) {
-                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
-                    lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)
-                }
+                override fun onStart(owner: LifecycleOwner) =
+                    safeHandleLifecycleEvent(Lifecycle.Event.ON_START)
 
                 override fun onStop(owner: LifecycleOwner) {
-                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
-                    lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+                    safeHandleLifecycleEvent(Lifecycle.Event.ON_STOP)
                     performSave(outState)
                 }
             }
