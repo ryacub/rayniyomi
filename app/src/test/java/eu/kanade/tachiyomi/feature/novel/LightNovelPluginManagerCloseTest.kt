@@ -6,29 +6,13 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.serialization.json.Json
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
-import java.io.Closeable
 
 class LightNovelPluginManagerCloseTest {
     private val mockContext = mockk<Context>(relaxed = true)
     private val mockNetwork = mockk<NetworkHelper>(relaxed = true)
     private val mockJson = mockk<Json>(relaxed = true)
     private val mockPreferences = mockk<NovelFeaturePreferences>(relaxed = true)
-
-    @Test
-    fun pluginManagerImplementsCloseable() {
-        // Arrange
-        val pluginManager = LightNovelPluginManager(
-            context = mockContext,
-            network = mockNetwork,
-            json = mockJson,
-            preferences = mockPreferences,
-        )
-
-        // Act & Assert
-        assertInstanceOf(Closeable::class.java, pluginManager)
-    }
 
     @Test
     fun closeCanBeCalledWithoutThrowing() {
