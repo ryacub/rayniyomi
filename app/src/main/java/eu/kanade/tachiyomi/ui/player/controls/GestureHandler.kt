@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.player.components.LeftSideOvalShape
 import eu.kanade.presentation.player.components.RightSideOvalShape
-import kotlin.math.roundToInt
 import eu.kanade.presentation.theme.playerRippleConfiguration
 import eu.kanade.tachiyomi.ui.player.Panels
 import eu.kanade.tachiyomi.ui.player.PlayerUpdates
@@ -73,6 +72,7 @@ import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import kotlin.math.roundToInt
 
 private const val SPEED_BOOST_FACTOR = 2.0
 
@@ -281,12 +281,14 @@ fun GestureHandler(
                                 startingY = change.position.y
                             }
                             viewModel.changeVolumeTo(
-                                (calculateNewVerticalGestureValue(
-                                    originalVolumeNorm,
-                                    startingY,
-                                    change.position.y,
-                                    volumeGestureSens,
-                                ).coerceIn(0f, 1f) * viewModel.maxVolume).roundToInt(),
+                                (
+                                    calculateNewVerticalGestureValue(
+                                        originalVolumeNorm,
+                                        startingY,
+                                        change.position.y,
+                                        volumeGestureSens,
+                                    ).coerceIn(0f, 1f) * viewModel.maxVolume
+                                    ).roundToInt(),
                             )
                         }
                         viewModel.displayVolumeSlider()
