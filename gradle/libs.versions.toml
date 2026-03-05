@@ -10,7 +10,7 @@ richtext = "0.20.0"
 shizuku_version = "13.1.0"
 sqldelight = "2.3.0-SNAPSHOT"
 sqlite = "2.4.0"
-voyager = "1.0.1"
+voyager = "1.1.0-beta03"
 spotless = "8.2.1"
 ktlint-core = "1.7.1"
 
