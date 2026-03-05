@@ -1,6 +1,9 @@
 // Shadowing cafe.adriel.voyager:voyager-core 1.0.1 to fix:
 //   IllegalStateException: State is 'DESTROYED' and cannot be moved to `STARTED`
-//   emitOnStopEvents() must not emit lifecycle events when already DESTROYED.
+// Guards added:
+//   1. emitOnStopEvents() / emitOnStartEvents() — skip when already DESTROYED
+//   2. registerLifecycleListener() observer callbacks — same guard on all four
+//      (parent Activity lifecycle transitions can race with screen disposal)
 // Remove this file once Voyager upstream ships the fix.
 package cafe.adriel.voyager.androidx
 
@@ -163,18 +166,22 @@ public class AndroidScreenLifecycleOwner private constructor() :
         if (lifecycleOwner != null) {
             val observer = object : DefaultLifecycleObserver {
                 override fun onPause(owner: LifecycleOwner) {
+                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
                     lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
                 }
 
                 override fun onResume(owner: LifecycleOwner) {
+                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
                     lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
                 }
 
                 override fun onStart(owner: LifecycleOwner) {
+                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
                     lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)
                 }
 
                 override fun onStop(owner: LifecycleOwner) {
+                    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return
                     lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
                     performSave(outState)
                 }
