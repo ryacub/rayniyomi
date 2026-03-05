@@ -72,6 +72,7 @@ import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import kotlin.math.roundToInt
 
 private const val SPEED_BOOST_FACTOR = 2.0
 
@@ -229,11 +230,11 @@ fun GestureHandler(
                 if (!gestureVolumeBrightness || areControlsLocked) return@pointerInput
                 var startingY = 0f
                 var mpvVolumeStartingY = 0f
-                var originalVolume = currentVolume
+                var originalVolumeNorm = currentVolume.toFloat() / viewModel.maxVolume
                 var originalMPVVolume = currentMPVVolume
                 var originalBrightness = currentBrightness
                 val brightnessGestureSens = 0.001f
-                val volumeGestureSens = 0.001f * viewModel.maxVolume
+                val volumeGestureSens = 0.001f
                 val mpvVolumeGestureSens = 0.001f * volumeBoostingCap
                 val isIncreasingVolumeBoost: (Float) -> Boolean = {
                     volumeBoostingCap > 0 &&
@@ -252,7 +253,7 @@ fun GestureHandler(
                     onDragStart = {
                         startingY = 0f
                         mpvVolumeStartingY = 0f
-                        originalVolume = currentVolume
+                        originalVolumeNorm = currentVolume.toFloat() / viewModel.maxVolume
                         originalMPVVolume = currentMPVVolume
                         originalBrightness = currentBrightness
                     },
@@ -261,7 +262,7 @@ fun GestureHandler(
                         if (isIncreasingVolumeBoost(amount) || isDecreasingVolumeBoost(amount)) {
                             if (mpvVolumeStartingY == 0f) {
                                 startingY = 0f
-                                originalVolume = currentVolume
+                                originalVolumeNorm = currentVolume.toFloat() / viewModel.maxVolume
                                 mpvVolumeStartingY = change.position.y
                             }
                             viewModel.changeMPVVolumeTo(
@@ -280,12 +281,14 @@ fun GestureHandler(
                                 startingY = change.position.y
                             }
                             viewModel.changeVolumeTo(
-                                calculateNewVerticalGestureValue(
-                                    originalVolume,
-                                    startingY,
-                                    change.position.y,
-                                    volumeGestureSens,
-                                ),
+                                (
+                                    calculateNewVerticalGestureValue(
+                                        originalVolumeNorm,
+                                        startingY,
+                                        change.position.y,
+                                        volumeGestureSens,
+                                    ).coerceIn(0f, 1f) * viewModel.maxVolume
+                                    ).roundToInt(),
                             )
                         }
                         viewModel.displayVolumeSlider()
