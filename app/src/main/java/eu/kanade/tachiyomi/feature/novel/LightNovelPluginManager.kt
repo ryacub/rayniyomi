@@ -21,6 +21,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -44,6 +45,10 @@ class LightNovelPluginManager(
     private var inFlightInstall: Deferred<InstallResult>? = null
     init {
         cleanupOrphanedPluginApk()
+    }
+
+    fun close() {
+        installScope.cancel()
     }
 
     data class PluginStatus(
@@ -453,9 +458,11 @@ class LightNovelPluginManager(
     }
 
     private fun cleanupOrphanedPluginApk() {
-        File(context.cacheDir, PLUGIN_APK_FILE_NAME)
-            .takeIf { it.exists() }
-            ?.delete()
+        runCatching {
+            File(context.cacheDir, PLUGIN_APK_FILE_NAME)
+                .takeIf { it.exists() }
+                ?.delete()
+        }
     }
 
     internal fun isPluginInstallEnabled(): Boolean {

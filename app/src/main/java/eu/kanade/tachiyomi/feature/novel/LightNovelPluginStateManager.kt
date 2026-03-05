@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +21,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.system.logcat
-import java.io.Closeable
 
 /**
  * Singleton that owns and broadcasts [LightNovelPluginUiState].
@@ -33,7 +35,7 @@ class LightNovelPluginStateManager(
     private val appContext: Context,
     private val pluginManager: LightNovelPluginManager,
     private val preferences: NovelFeaturePreferences,
-) : Closeable {
+) : DefaultLifecycleObserver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pluginPackageReceiver: BroadcastReceiver? = null
 
@@ -59,6 +61,8 @@ class LightNovelPluginStateManager(
             pluginStatusFlow.value = pluginManager.getPluginStatus()
         }
         registerPluginPackageReceiver()
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
         combine(
             preferences.enableLightNovels().changes(),
@@ -120,7 +124,12 @@ class LightNovelPluginStateManager(
         pluginPackageReceiver = receiver
     }
 
-    override fun close() {
+    override fun onDestroy(owner: LifecycleOwner) {
+        close()
+    }
+
+    fun close() {
+        pluginManager.close()
         pluginPackageReceiver?.let { receiver ->
             runCatching { appContext.unregisterReceiver(receiver) }
             pluginPackageReceiver = null
