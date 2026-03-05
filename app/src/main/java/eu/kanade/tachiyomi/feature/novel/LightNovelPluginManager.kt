@@ -29,7 +29,6 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
-import java.io.Closeable
 import java.io.File
 import java.security.MessageDigest
 
@@ -38,7 +37,7 @@ class LightNovelPluginManager(
     private val network: NetworkHelper,
     private val json: Json,
     private val preferences: NovelFeaturePreferences,
-) : LightNovelPluginReadiness, Closeable {
+) : LightNovelPluginReadiness {
     private val telemetry = PluginTelemetry()
     private val installMutex = Mutex()
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -48,7 +47,7 @@ class LightNovelPluginManager(
         cleanupOrphanedPluginApk()
     }
 
-    override fun close() {
+    fun close() {
         installScope.cancel()
     }
 
