@@ -41,5 +41,4 @@ class LightNovelPluginManagerCloseTest {
         pluginManager.close()
         pluginManager.close() // Second call should also succeed
     }
-
 }
