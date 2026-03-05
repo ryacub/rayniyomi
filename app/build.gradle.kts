@@ -199,6 +199,37 @@ kotlin {
 }
 
 dependencies {
+    // R469: Enforce Foundation 1.7+ floor — AnchoredDraggableState snapAnimationSpec/decayAnimationSpec
+    // constructor requires 1.7+. Transitive deps (e.g. Voyager) may pull older versions via strictly
+    // constraints, causing NoSuchMethodError at runtime. `require` sets a minimum floor; conflict
+    // resolution can still select a higher version (e.g. 1.10.0 from the BOM).
+    constraints {
+        implementation("androidx.compose.foundation:foundation") {
+            version { require("1.7.0") }
+            because(
+                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
+            )
+        }
+        implementation("androidx.compose.foundation:foundation-android") {
+            version { require("1.7.0") }
+            because(
+                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
+            )
+        }
+        implementation("androidx.compose.foundation:foundation-layout") {
+            version { require("1.7.0") }
+            because(
+                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
+            )
+        }
+        implementation("androidx.compose.foundation:foundation-layout-android") {
+            version { require("1.7.0") }
+            because(
+                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
+            )
+        }
+    }
+
     implementation(project(":lightnovel-contract"))
 
     implementation(projects.i18n)
