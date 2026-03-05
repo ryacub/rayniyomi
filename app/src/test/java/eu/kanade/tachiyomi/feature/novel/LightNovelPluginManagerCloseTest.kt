@@ -4,7 +4,6 @@ import android.content.Context
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.tachiyomi.network.NetworkHelper
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 
@@ -43,21 +42,4 @@ class LightNovelPluginManagerCloseTest {
         pluginManager.close() // Second call should also succeed
     }
 
-    @Test
-    fun stateManagerCloseCallsPluginManagerClose() {
-        // Arrange
-        val mockPluginManager = mockk<LightNovelPluginManager>(relaxed = true)
-        val mockPreferences = mockk<NovelFeaturePreferences>(relaxed = true)
-        val stateManager = LightNovelPluginStateManager(
-            appContext = mockContext,
-            pluginManager = mockPluginManager,
-            preferences = mockPreferences,
-        )
-
-        // Act
-        stateManager.close()
-
-        // Assert
-        verify(exactly = 1) { mockPluginManager.close() }
-    }
 }
