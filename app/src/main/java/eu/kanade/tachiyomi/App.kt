@@ -92,8 +92,26 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     override fun onCreate() {
         super<Application>.onCreate()
 
+        // TLS 1.3 support for Android < 10 — must run in all processes
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            Security.insertProviderAt(Conscrypt.newProvider(), 1)
+        }
+
+        // Avoid WebView data dir conflicts between processes — must run in all processes
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val process = getProcessName()
+            if (packageName != process) WebView.setDataDirectorySuffix(process)
+        }
+
+        // Crash handler must be installed in all processes
+        GlobalExceptionHandler.initialize(applicationContext, CrashActivity::class.java)
+
+        // Secondary processes (e.g. :error_handler for crash UI) only need the above.
+        // WorkManager and all DI singletons are only initialized in the main process via
+        // InitializationProvider — calling them in secondary processes causes a crash.
+        if (!isMainProcess()) return
+
         // Defer Firebase Crashlytics initialization to background thread to reduce cold start time
-        // Crash handler is still registered via GlobalExceptionHandler below
         ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
             initializeCrashlytics()
         }
@@ -121,19 +139,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         patchInjekt()
-
-        GlobalExceptionHandler.initialize(applicationContext, CrashActivity::class.java)
-
-        // TLS 1.3 support for Android < 10
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            Security.insertProviderAt(Conscrypt.newProvider(), 1)
-        }
-
-        // Avoid potential crashes
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val process = getProcessName()
-            if (packageName != process) WebView.setDataDirectorySuffix(process)
-        }
 
         Injekt.importModule(PreferenceModule(this))
         Injekt.importModule(AppModule(this))
@@ -330,6 +335,17 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Failed to modify notification channels" }
         }
+    }
+
+    private fun isMainProcess(): Boolean {
+        val currentProcessName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getProcessName()
+        } else {
+            runCatching {
+                java.io.File("/proc/self/cmdline").readText().trim { it <= ' ' }
+            }.getOrDefault(packageName)
+        }
+        return packageName == currentProcessName
     }
 
     private inner class DisableIncognitoReceiver : BroadcastReceiver() {
