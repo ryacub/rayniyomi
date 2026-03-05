@@ -54,7 +54,8 @@ class EntryEnrichmentScreenModelTest {
         every { coordinator.observeManga(1) } returns flowOf(testEntry)
 
         // Refresh operation throws an exception
-        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } throws RuntimeException("Refresh failed due to network error")
+        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } throws
+            RuntimeException("Refresh failed due to network error")
 
         val model = EntryEnrichmentScreenModel(
             entryId = 1,
@@ -125,7 +126,8 @@ class EntryEnrichmentScreenModelTest {
 
         // Refresh throws with a specific error message
         val errorMessage = "Unable to sync recommendations"
-        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } throws RuntimeException(errorMessage)
+        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } throws
+            RuntimeException(errorMessage)
 
         val model = EntryEnrichmentScreenModel(
             entryId = 1,
