@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.system.logcat
-import java.io.Closeable
 
 /**
  * Singleton that owns and broadcasts [LightNovelPluginUiState].
@@ -36,7 +35,7 @@ class LightNovelPluginStateManager(
     private val appContext: Context,
     private val pluginManager: LightNovelPluginManager,
     private val preferences: NovelFeaturePreferences,
-) : Closeable, DefaultLifecycleObserver {
+) : DefaultLifecycleObserver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pluginPackageReceiver: BroadcastReceiver? = null
 
@@ -129,7 +128,7 @@ class LightNovelPluginStateManager(
         close()
     }
 
-    override fun close() {
+    fun close() {
         pluginManager.close()
         pluginPackageReceiver?.let { receiver ->
             runCatching { appContext.unregisterReceiver(receiver) }
