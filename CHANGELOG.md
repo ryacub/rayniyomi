@@ -35,6 +35,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Throttled light novel import progress updates to reduce UI jank with improved accessibility announcements
 - Coroutine failures in extension managers caught and logged instead of silently crashing
 - Improved recommendation accessibility in Discover and entry recommendation surfaces with clearer semantic labels, refresh announcements, and non-color-only status cues
+- **BulkEnrichmentCoordinator parallel execution** — manga and anime enrichment jobs now await together in a single `awaitAll()` call instead of two sequential `forEach { it.await() }` groups; the first chronological failure propagates immediately without waiting for the remaining group to finish
 
 ### Fixed
 
