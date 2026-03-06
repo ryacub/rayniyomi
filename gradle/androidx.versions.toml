@@ -23,6 +23,7 @@ lifecycle-runtimektx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", ve
 
 workmanager = "androidx.work:work-runtime:2.10.0"
 
+paging-common = { module = "androidx.paging:paging-common", version.ref = "paging_version" }
 paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging_version" }
 paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging_version" }
 

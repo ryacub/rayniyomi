@@ -180,30 +180,6 @@ android {
     }
 }
 
-// R470: Pin androidx.paging to 3.3.6 to prevent Compose version mismatch.
-// SQLDelight 2.3.0-SNAPSHOT transitively pulls paging-common:3.4.0-beta01, which triggers
-// the paging atomic group and forces paging-compose:3.4.0-beta01. That artifact's POM
-// explicitly declares ui-android:1.10.0 / runtime-android:1.10.0, causing the Compose
-// runtime classpath to jump from BOM 2025.03.00 (1.7.8) → 1.10.0 at the ABI level.
-// presentation-core is compiled against 1.7.8 and AnchoredDraggableState's constructor
-// signature changed between 1.7.x and 1.10.0 → NoSuchMethodError on fresh install.
-// 3.3.6 is safe: SQLDelight only uses stable PagingSource/PagingData APIs that are
-// compatible across 3.3.x/3.4.x. Remove once SQLDelight ships a stable release that
-// aligns its paging transitive to a Compose BOM we compile against.
-configurations.all {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "androidx.paging") {
-            useVersion("3.3.6")
-            because(
-                "Pin paging to 3.3.6 — SQLDelight 2.3.0-SNAPSHOT pulls 3.4.0-beta01, " +
-                    "which forces paging-compose:3.4.0-beta01 (atomic group). That POM declares " +
-                    "ui:1.10.0/runtime:1.10.0, causing a Compose compile-runtime mismatch with " +
-                    "BOM 2025.03.00 (1.7.8) → NoSuchMethodError on AnchoredDraggableState (R470).",
-            )
-        }
-    }
-}
-
 kotlin {
     compilerOptions {
         freeCompilerArgs.addAll(
@@ -223,37 +199,6 @@ kotlin {
 }
 
 dependencies {
-    // R469: Enforce Foundation 1.7+ floor — AnchoredDraggableState snapAnimationSpec/decayAnimationSpec
-    // constructor requires 1.7+. Transitive deps (e.g. Voyager) may pull older versions via strictly
-    // constraints, causing NoSuchMethodError at runtime. `require` sets a minimum floor; conflict
-    // resolution can still select a higher version (e.g. 1.10.0 from the BOM).
-    constraints {
-        implementation("androidx.compose.foundation:foundation") {
-            version { require("1.7.0") }
-            because(
-                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
-            )
-        }
-        implementation("androidx.compose.foundation:foundation-android") {
-            version { require("1.7.0") }
-            because(
-                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
-            )
-        }
-        implementation("androidx.compose.foundation:foundation-layout") {
-            version { require("1.7.0") }
-            because(
-                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
-            )
-        }
-        implementation("androidx.compose.foundation:foundation-layout-android") {
-            version { require("1.7.0") }
-            because(
-                "Foundation 1.7+ required for AnchoredDraggableState snapAnimationSpec/decayAnimationSpec API (R469)",
-            )
-        }
-    }
-
     implementation(project(":lightnovel-contract"))
 
     implementation(projects.i18n)
