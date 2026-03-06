@@ -3,6 +3,7 @@ package eu.kanade.domain.track.enrichment
 import eu.kanade.domain.track.enrichment.interactor.RefreshAnimeEnrichment
 import eu.kanade.domain.track.enrichment.interactor.RefreshMangaEnrichment
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
@@ -25,7 +26,6 @@ class BulkEnrichmentCoordinator(
             async { refreshAnimeEnrichment.await(anime.anime.id, anime.anime.title, force) }
         }
 
-        mangaJobs.forEach { it.await() }
-        animeJobs.forEach { it.await() }
+        (mangaJobs + animeJobs).awaitAll()
     }
 }
