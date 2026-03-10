@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.security
 
 import android.os.Bundle
+import android.view.Window
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Box
@@ -46,7 +47,7 @@ import java.util.Base64
  *
  * Extracted as an internal function so it can be directly unit-tested without Robolectric.
  */
-internal fun applyPreComposeSecurity(window: android.view.Window, securityPreferences: SecurityPreferences) {
+internal fun applyPreComposeSecurity(window: Window, securityPreferences: SecurityPreferences) {
     if (securityPreferences.usePinLock().get()) {
         window.setSecureScreen(true)
     }
