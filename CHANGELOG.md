@@ -40,6 +40,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Applied FLAG_SECURE in UnlockActivity.onCreate() synchronously before setContent{}, closing the brief window where the PIN entry screen was visible in the task switcher and accessible to screen capture tools
 - Volume gesture sensitivity normalized to device-independent float space matching brightness, ensuring consistent volume changes across devices with different audio step counts
 - Fixed clean-build failure caused by locales config task running at configuration time instead of execution time
 - App icon now renders with correct purple background instead of white
