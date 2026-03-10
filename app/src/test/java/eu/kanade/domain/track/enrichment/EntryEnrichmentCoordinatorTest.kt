@@ -9,7 +9,7 @@ import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -23,7 +23,7 @@ import tachiyomi.domain.track.manga.model.MangaTrack
 class EntryEnrichmentCoordinatorTest {
 
     @Test
-    fun `refreshManga returns empty recommendations when trackers are not logged in`() = runBlocking {
+    fun `refreshManga returns empty recommendations when trackers are not logged in`() = runTest {
         val trackerManager = mockk<TrackerManager>()
         val tracker = mockk<BaseTracker>(relaxed = true)
         every { tracker.isLoggedIn } returns false
@@ -72,7 +72,7 @@ class EntryEnrichmentCoordinatorTest {
     }
 
     @Test
-    fun `generic refreshEntry returns cached entry when cache is valid and force is false`() = runBlocking {
+    fun `generic refreshEntry returns cached entry when cache is valid and force is false`() = runTest {
         val now = System.currentTimeMillis()
         val futureExpiresAt = now + 1000 * 60 * 60 // 1 hour in future
         val cachedEntry = mockk<EnrichedEntry>()
@@ -100,7 +100,7 @@ class EntryEnrichmentCoordinatorTest {
     }
 
     @Test
-    fun `generic refreshEntry processes empty tracks list and returns no candidates`() = runBlocking {
+    fun `generic refreshEntry processes empty tracks list and returns no candidates`() = runTest {
         val trackerManager = mockk<TrackerManager>()
         val getMangaTracks = mockk<GetMangaTracks>()
         coEvery { getMangaTracks.await(10L) } returns emptyList()
@@ -130,7 +130,7 @@ class EntryEnrichmentCoordinatorTest {
     }
 
     @Test
-    fun `generic refreshEntry skips null tracker returned by trackerManager`() = runBlocking {
+    fun `generic refreshEntry skips null tracker returned by trackerManager`() = runTest {
         val trackerManager = mockk<TrackerManager>()
         every { trackerManager.get(any()) } returns null
 
@@ -179,7 +179,7 @@ class EntryEnrichmentCoordinatorTest {
     }
 
     @Test
-    fun `generic refreshEntry skips tracker when isLoggedIn is false`() = runBlocking {
+    fun `generic refreshEntry skips tracker when isLoggedIn is false`() = runTest {
         val trackerManager = mockk<TrackerManager>()
         val tracker = mockk<BaseTracker>(relaxed = true)
         every { tracker.isLoggedIn } returns false
@@ -230,7 +230,7 @@ class EntryEnrichmentCoordinatorTest {
     }
 
     @Test
-    fun `generic refreshEntry returns EnrichedEntry with correct mediaType MANGA`() = runBlocking {
+    fun `generic refreshEntry returns EnrichedEntry with correct mediaType MANGA`() = runTest {
         val trackerManager = mockk<TrackerManager>()
         val getMangaTracks = mockk<GetMangaTracks>()
         coEvery { getMangaTracks.await(10L) } returns emptyList()
@@ -259,7 +259,7 @@ class EntryEnrichmentCoordinatorTest {
     }
 
     @Test
-    fun `generic refreshEntry returns EnrichedEntry with correct mediaType ANIME`() = runBlocking {
+    fun `generic refreshEntry returns EnrichedEntry with correct mediaType ANIME`() = runTest {
         val trackerManager = mockk<TrackerManager>()
         val getAnimeTracks = mockk<GetAnimeTracks>()
         coEvery { getAnimeTracks.await(20L) } returns emptyList()
