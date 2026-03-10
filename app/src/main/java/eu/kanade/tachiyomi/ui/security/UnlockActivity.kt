@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.security
 
 import android.os.Bundle
-import android.view.Window
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Box
@@ -28,7 +27,6 @@ import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.startAuthentication
-import eu.kanade.tachiyomi.util.view.setSecureScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,18 +40,6 @@ import uy.kohesive.injekt.api.get
 import java.util.Base64
 
 /**
- * Applies FLAG_SECURE to [window] before Compose renders, preventing the unlock screen from
- * appearing in the task switcher or being captured by screenshot tools.
- *
- * Extracted as an internal function so it can be directly unit-tested without Robolectric.
- */
-internal fun applyPreComposeSecurity(window: Window, securityPreferences: SecurityPreferences) {
-    if (securityPreferences.usePinLock().get()) {
-        window.setSecureScreen(true)
-    }
-}
-
-/**
  * Blank activity with a BiometricPrompt or PIN entry screen.
  */
 class UnlockActivity : BaseActivity() {
@@ -62,10 +48,6 @@ class UnlockActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Apply FLAG_SECURE synchronously before any UI rendering
-        // to prevent the unlock screen from being visible in task switcher/screenshots
-        applyPreComposeSecurity(window, securityPreferences)
 
         val primaryMethod = AuthenticationOrchestrator.resolvePrimaryMethod(securityPreferences)
 
