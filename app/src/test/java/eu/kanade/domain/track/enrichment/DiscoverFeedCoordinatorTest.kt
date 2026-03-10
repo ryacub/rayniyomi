@@ -6,7 +6,7 @@ import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -16,7 +16,7 @@ import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 class DiscoverFeedCoordinatorTest {
 
     @Test
-    fun `refresh returns empty list when recommendations are unavailable`() = runBlocking {
+    fun `refresh returns empty list when recommendations are unavailable`() = runTest {
         val repository = FakeRepository(
             recommendations = emptyList(),
             snapshots = emptyList(),
@@ -35,7 +35,7 @@ class DiscoverFeedCoordinatorTest {
     }
 
     @Test
-    fun `refresh keeps media types separated for same stable key`() = runBlocking {
+    fun `refresh keeps media types separated for same stable key`() = runTest {
         val recommendation = AggregatedRecommendation(
             stableKey = "shared-key",
             title = "Common Title",
