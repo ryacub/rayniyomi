@@ -82,7 +82,7 @@ class EnrichmentCacheRepositoryImpl(
                     canonicalKey = rec.stableKey,
                     title = rec.title,
                     targetUrl = rec.targetUrl,
-                    trackerSource = rec.trackerSources.joinToString(", "),
+                    trackerSource = encodeTrackerSources(rec.trackerSources),
                     rankScore = rec.rankScore,
                     inLibrary = rec.inLibrary,
                     confidence = rec.confidence,
@@ -113,7 +113,7 @@ class EnrichmentCacheRepositoryImpl(
                     canonicalKey = rec.stableKey,
                     title = rec.title,
                     targetUrl = rec.targetUrl,
-                    trackerSource = rec.trackerSources.joinToString(", "),
+                    trackerSource = encodeTrackerSources(rec.trackerSources),
                     rankScore = rec.rankScore,
                     inLibrary = rec.inLibrary,
                     confidence = rec.confidence,
@@ -146,7 +146,7 @@ class EnrichmentCacheRepositoryImpl(
                         stableKey = canonicalKey,
                         title = title,
                         targetUrl = targetUrl,
-                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        trackerSources = decodeTrackerSources(trackerSource),
                         sourceCount = sourceCount.toInt(),
                         confidence = confidence,
                         inLibrary = inLibrary,
@@ -177,7 +177,7 @@ class EnrichmentCacheRepositoryImpl(
                         stableKey = canonicalKey,
                         title = title,
                         targetUrl = targetUrl,
-                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        trackerSources = decodeTrackerSources(trackerSource),
                         sourceCount = sourceCount.toInt(),
                         confidence = confidence,
                         inLibrary = inLibrary,
@@ -260,7 +260,7 @@ class EnrichmentCacheRepositoryImpl(
                         stableKey = canonicalKey,
                         title = title,
                         targetUrl = targetUrl,
-                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        trackerSources = decodeTrackerSources(trackerSource),
                         sourceCount = sourceCount.toInt(),
                         confidence = confidence,
                         inLibrary = inLibrary,
@@ -291,7 +291,7 @@ class EnrichmentCacheRepositoryImpl(
                         stableKey = canonicalKey,
                         title = title,
                         targetUrl = targetUrl,
-                        trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                        trackerSources = decodeTrackerSources(trackerSource),
                         sourceCount = sourceCount.toInt(),
                         confidence = confidence,
                         inLibrary = inLibrary,
@@ -373,7 +373,7 @@ class EnrichmentCacheRepositoryImpl(
                     stableKey = canonicalKey,
                     title = title,
                     targetUrl = targetUrl,
-                    trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                    trackerSources = decodeTrackerSources(trackerSource),
                     sourceCount = sourceCount.toInt(),
                     confidence = confidence,
                     inLibrary = inLibrary,
@@ -402,7 +402,7 @@ class EnrichmentCacheRepositoryImpl(
                     stableKey = canonicalKey,
                     title = title,
                     targetUrl = targetUrl,
-                    trackerSources = trackerSource.split(", ").filter { it.isNotBlank() },
+                    trackerSources = decodeTrackerSources(trackerSource),
                     sourceCount = sourceCount.toInt(),
                     confidence = confidence,
                     inLibrary = inLibrary,
@@ -418,5 +418,22 @@ class EnrichmentCacheRepositoryImpl(
 
     private fun String.toEnrichmentMediaType(): EnrichmentMediaType {
         return runCatching { EnrichmentMediaType.valueOf(this) }.getOrDefault(EnrichmentMediaType.MANGA)
+    }
+
+    internal fun encodeTrackerSources(sources: List<String>): String {
+        return json.encodeToString(sources)
+    }
+
+    internal fun decodeTrackerSources(encoded: String): List<String> {
+        if (encoded.isBlank()) return emptyList()
+        return if (encoded.trimStart().startsWith("[")) {
+            // New JSON format
+            runCatching { json.decodeFromString<List<String>>(encoded) }
+                .getOrElse { emptyList() }
+                .filter { it.isNotBlank() }
+        } else {
+            // Legacy comma-delimited format - migrate gracefully
+            encoded.split(", ").filter { it.isNotBlank() }
+        }
     }
 }
