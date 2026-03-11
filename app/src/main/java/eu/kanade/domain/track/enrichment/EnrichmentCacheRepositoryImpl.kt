@@ -419,4 +419,12 @@ class EnrichmentCacheRepositoryImpl(
     private fun String.toEnrichmentMediaType(): EnrichmentMediaType {
         return runCatching { EnrichmentMediaType.valueOf(this) }.getOrDefault(EnrichmentMediaType.MANGA)
     }
+
+    internal fun encodeTrackerSources(sources: List<String>): String {
+        return json.encodeToString(sources)
+    }
+
+    internal fun decodeTrackerSources(encoded: String): List<String> {
+        return json.decodeFromString<List<String>>(encoded).filter { it.isNotBlank() }
+    }
 }
