@@ -47,6 +47,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Notification icons use vector resources instead of decoded bitmaps to prevent memory leaks
 - Backup output streams properly closed and force-unwrap crashes eliminated in backup, download, and installer flows
 - Anime download manager coroutine scope properly cancelled on shutdown to prevent leaked jobs
+- Tracker source lists now stored as JSON instead of comma-delimited strings, preventing data corruption when tracker names contain ", "; legacy entries are migrated transparently on first read
 - Anime downloader restore failures now logged and notification errors isolated
 - Migration chain no longer silently passes when individual migrations fail
 - Error-log notification URI creation guarded against file write failures
