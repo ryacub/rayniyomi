@@ -66,6 +66,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Other
 
+- Upgraded OkHttp from 5.0.0-alpha.14 to 5.3.2 stable
 - Upgraded to AGP 9.0.1, Gradle 9.1, and compileSdk/targetSdk 36
 - Upgraded Kotlin to 2.3.10
 - Upgraded Gradle plugins to latest compatible versions
