@@ -15,7 +15,7 @@ plugins {
     alias(libs.plugins.google.services) apply false
 }
 
-val appVersionCode = 195
+val appVersionCode = 196
 val lightNovelExpectedPluginApiVersion = 1
 
 android {
@@ -25,7 +25,7 @@ android {
         applicationId = "xyz.rayniyomi"
 
         versionCode = appVersionCode
-        versionName = "0.18.1.64"
+        versionName = "0.18.1.65"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
