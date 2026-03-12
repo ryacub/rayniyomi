@@ -113,31 +113,43 @@ jobs:
           sha=`sha256sum rayniyomi-x86_64-${{ env.VERSION_TAG }}.apk | awk '{ print $1 }'`
           echo "APK_X86_64_SHA=$sha" >> $GITHUB_ENV
 
+      - name: Extract changelog for release
+        if: startsWith(github.ref, 'refs/tags/') && github.repository == 'ryacub/rayniyomi'
+        run: |
+          set -ex
+          version="${VERSION_TAG#v}"
+          # Extract the section for this version from CHANGELOG.md
+          awk "/^## \[${version}\]/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md > /tmp/changelog_section.md
+          # Append checksums table
+          cat >> /tmp/changelog_section.md << EOF
+
+          ---
+
+          ### Checksums
+
+          | Variant | SHA-256 |
+          | ------- | ------- |
+          | Universal | ${APK_UNIVERSAL_SHA}
+          | arm64-v8a | ${APK_ARM64_V8A_SHA}
+          | armeabi-v7a | ${APK_ARMEABI_V7A_SHA}
+          | x86 | ${APK_X86_SHA}
+          | x86_64 | ${APK_X86_64_SHA} |
+          EOF
+
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/') && github.repository == 'ryacub/rayniyomi'
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
           tag_name: ${{ env.VERSION_TAG }}
           name: Rayniyomi ${{ env.VERSION_TAG }}
-          body: |
-            ---
-
-            ### Checksums
-
-            | Variant | SHA-256 |
-            | ------- | ------- |
-            | Universal | ${{ env.APK_UNIVERSAL_SHA }}
-            | arm64-v8a | ${{ env.APK_ARM64_V8A_SHA }}
-            | armeabi-v7a | ${{ env.APK_ARMEABI_V7A_SHA }}
-            | x86 | ${{ env.APK_X86_SHA }}
-            | x86_64 | ${{ env.APK_X86_64_SHA }} |
+          body_path: /tmp/changelog_section.md
           files: |
             rayniyomi-${{ env.VERSION_TAG }}.apk
             rayniyomi-arm64-v8a-${{ env.VERSION_TAG }}.apk
             rayniyomi-armeabi-v7a-${{ env.VERSION_TAG }}.apk
             rayniyomi-x86-${{ env.VERSION_TAG }}.apk
             rayniyomi-x86_64-${{ env.VERSION_TAG }}.apk
-          draft: true
+          draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
