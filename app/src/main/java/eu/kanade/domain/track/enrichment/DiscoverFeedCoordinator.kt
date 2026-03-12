@@ -51,7 +51,8 @@ class DiscoverFeedCoordinator(
         val compositeScoreByEntry = snapshots.associateBy({ it.mediaType to it.entryId }, { it.compositeScore ?: 0.0 })
 
         // Single pass: build libraryGenresByEntry with pre-normalized genres + libraryGenres simultaneously
-        val libraryGenresByEntry = HashMap<Pair<EnrichmentMediaType, Long>, List<String>>(mangaLibrary.size + animeLibrary.size)
+        val libraryGenresByEntry =
+            HashMap<Pair<EnrichmentMediaType, Long>, List<String>>(mangaLibrary.size + animeLibrary.size)
         val libraryGenreFrequency = HashMap<String, Int>()
         mangaLibrary.forEach { item ->
             val normalized = item.manga.genre.orEmpty().mapNotNull { genre ->
