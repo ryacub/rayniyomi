@@ -38,7 +38,7 @@ jobs:
         run: ./gradlew :lightnovel-plugin:assembleRelease
 
       - name: Run plugin unit tests
-        run: ./gradlew :lightnovel-plugin:testReleaseUnitTest
+        run: ./gradlew :lightnovel-plugin:testDebugUnitTest
 
       - name: Upload unsigned APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
