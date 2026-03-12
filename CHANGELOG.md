@@ -12,6 +12,10 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
+### Improved
+
+- **Discover feed snapshot query** — replaced full payload_json fetch + per-row JSON deserialization with a slim SQL projection (composite_score now a first-class column); feed refresh no longer loads megabytes of JSON blobs for metadata-only operations
+
 ## [0.18.1.66] - 2026-03-11
 
 ### Added
