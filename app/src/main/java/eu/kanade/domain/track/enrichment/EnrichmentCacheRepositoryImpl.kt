@@ -20,7 +20,7 @@ class EnrichmentCacheRepositoryImpl(
 
     override suspend fun getManga(entryId: Long): EnrichedEntry? {
         val cached = mangaHandler.awaitOneOrNull {
-            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _ -> payloadJson }
+            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _, _ -> payloadJson }
         } ?: return null
 
         return json.decodeFromString<EnrichedEntry>(cached).withRecommendations(getMangaRecommendations(entryId))
@@ -28,7 +28,7 @@ class EnrichmentCacheRepositoryImpl(
 
     override suspend fun getAnime(entryId: Long): EnrichedEntry? {
         val cached = animeHandler.awaitOneOrNull {
-            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _ -> payloadJson }
+            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _, _ -> payloadJson }
         } ?: return null
 
         return json.decodeFromString<EnrichedEntry>(cached).withRecommendations(getAnimeRecommendations(entryId))
@@ -36,7 +36,7 @@ class EnrichmentCacheRepositoryImpl(
 
     override fun observeManga(entryId: Long): Flow<EnrichedEntry?> {
         return mangaHandler.subscribeToOneOrNull {
-            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _ -> payloadJson }
+            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _, _ -> payloadJson }
         }.flatMapLatest { payload ->
             flow {
                 emit(
@@ -50,7 +50,7 @@ class EnrichmentCacheRepositoryImpl(
 
     override fun observeAnime(entryId: Long): Flow<EnrichedEntry?> {
         return animeHandler.subscribeToOneOrNull {
-            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _ -> payloadJson }
+            tracker_enrichment_cacheQueries.getByEntryId(entryId) { _, _, payloadJson, _, _, _, _, _ -> payloadJson }
         }.flatMapLatest { payload ->
             flow {
                 emit(
@@ -74,6 +74,7 @@ class EnrichmentCacheRepositoryImpl(
                 expiresAt = entry.expiresAt,
                 sourceCount = entry.sourceCoverage.size.toLong(),
                 errorSummary = entry.failures.takeIf { it.isNotEmpty() }?.joinToString("; ") { it.trackerName },
+                compositeScore = entry.compositeScore,
             )
             entry.recommendations.forEach { rec ->
                 tracker_enrichment_cacheQueries.upsertRecommendation(
@@ -105,6 +106,7 @@ class EnrichmentCacheRepositoryImpl(
                 expiresAt = entry.expiresAt,
                 sourceCount = entry.sourceCoverage.size.toLong(),
                 errorSummary = entry.failures.takeIf { it.isNotEmpty() }?.joinToString("; ") { it.trackerName },
+                compositeScore = entry.compositeScore,
             )
             entry.recommendations.forEach { rec ->
                 tracker_enrichment_cacheQueries.upsertRecommendation(
@@ -194,44 +196,36 @@ class EnrichmentCacheRepositoryImpl(
 
     override suspend fun getDiscoverSnapshots(): List<DiscoverCacheSnapshot> {
         val mangaSnapshots = mangaHandler.awaitList {
-            tracker_enrichment_cacheQueries.getAllCaches {
+            tracker_enrichment_cacheQueries.getDiscoverSnapshotsMeta {
                     entryId,
                     mediaType,
-                    payloadJson,
                     updatedAt,
                     expiresAt,
-                    _,
-                    _,
+                    compositeScore,
                 ->
                 DiscoverCacheSnapshot(
                     entryId = entryId,
                     mediaType = mediaType.toEnrichmentMediaType(),
                     updatedAt = updatedAt,
                     expiresAt = expiresAt,
-                    compositeScore = runCatching {
-                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
-                    }.getOrNull(),
+                    compositeScore = compositeScore,
                 )
             }
         }
         val animeSnapshots = animeHandler.awaitList {
-            tracker_enrichment_cacheQueries.getAllCaches {
+            tracker_enrichment_cacheQueries.getDiscoverSnapshotsMeta {
                     entryId,
                     mediaType,
-                    payloadJson,
                     updatedAt,
                     expiresAt,
-                    _,
-                    _,
+                    compositeScore,
                 ->
                 DiscoverCacheSnapshot(
                     entryId = entryId,
                     mediaType = mediaType.toEnrichmentMediaType(),
                     updatedAt = updatedAt,
                     expiresAt = expiresAt,
-                    compositeScore = runCatching {
-                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
-                    }.getOrNull(),
+                    compositeScore = compositeScore,
                 )
             }
         }
@@ -310,44 +304,36 @@ class EnrichmentCacheRepositoryImpl(
 
     override fun observeDiscoverSnapshots(): Flow<List<DiscoverCacheSnapshot>> {
         val mangaFlow = mangaHandler.subscribeToList {
-            tracker_enrichment_cacheQueries.getAllCaches {
+            tracker_enrichment_cacheQueries.getDiscoverSnapshotsMeta {
                     entryId,
                     mediaType,
-                    payloadJson,
                     updatedAt,
                     expiresAt,
-                    _,
-                    _,
+                    compositeScore,
                 ->
                 DiscoverCacheSnapshot(
                     entryId = entryId,
                     mediaType = mediaType.toEnrichmentMediaType(),
                     updatedAt = updatedAt,
                     expiresAt = expiresAt,
-                    compositeScore = runCatching {
-                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
-                    }.getOrNull(),
+                    compositeScore = compositeScore,
                 )
             }
         }
         val animeFlow = animeHandler.subscribeToList {
-            tracker_enrichment_cacheQueries.getAllCaches {
+            tracker_enrichment_cacheQueries.getDiscoverSnapshotsMeta {
                     entryId,
                     mediaType,
-                    payloadJson,
                     updatedAt,
                     expiresAt,
-                    _,
-                    _,
+                    compositeScore,
                 ->
                 DiscoverCacheSnapshot(
                     entryId = entryId,
                     mediaType = mediaType.toEnrichmentMediaType(),
                     updatedAt = updatedAt,
                     expiresAt = expiresAt,
-                    compositeScore = runCatching {
-                        json.decodeFromString<EnrichedEntry>(payloadJson).compositeScore
-                    }.getOrNull(),
+                    compositeScore = compositeScore,
                 )
             }
         }

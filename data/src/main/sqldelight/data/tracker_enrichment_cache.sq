@@ -7,7 +7,8 @@ CREATE TABLE tracker_enrichment_cache(
     updated_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     source_count INTEGER NOT NULL,
-    error_summary TEXT
+    error_summary TEXT,
+    composite_score REAL
 );
 
 getByEntryId:
@@ -16,8 +17,8 @@ FROM tracker_enrichment_cache
 WHERE entry_id = :entryId;
 
 upsert:
-INSERT INTO tracker_enrichment_cache(entry_id, media_type, payload_json, updated_at, expires_at, source_count, error_summary)
-VALUES (:entryId, :mediaType, :payloadJson, :updatedAt, :expiresAt, :sourceCount, :errorSummary)
+INSERT INTO tracker_enrichment_cache(entry_id, media_type, payload_json, updated_at, expires_at, source_count, error_summary, composite_score)
+VALUES (:entryId, :mediaType, :payloadJson, :updatedAt, :expiresAt, :sourceCount, :errorSummary, :compositeScore)
 ON CONFLICT(entry_id)
 DO UPDATE
 SET
@@ -26,7 +27,8 @@ SET
     updated_at = :updatedAt,
     expires_at = :expiresAt,
     source_count = :sourceCount,
-    error_summary = :errorSummary
+    error_summary = :errorSummary,
+    composite_score = :compositeScore
 WHERE entry_id = :entryId;
 
 deleteByEntryId:
@@ -62,6 +64,11 @@ LIMIT :limit;
 
 getAllCaches:
 SELECT *
+FROM tracker_enrichment_cache
+ORDER BY updated_at DESC;
+
+getDiscoverSnapshotsMeta:
+SELECT entry_id, media_type, updated_at, expires_at, composite_score
 FROM tracker_enrichment_cache
 ORDER BY updated_at DESC;
 
