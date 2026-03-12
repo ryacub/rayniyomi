@@ -12,6 +12,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
+## [0.18.1.66] - 2026-03-11
+
 ### Added
 
 - **Library de-duplication** — intelligent duplicate detection on add-to-library using tracker IDs (MAL/AniList) and normalized title matching; merge two library entries while preserving read progress, categories, history, and tracker data; bulk de-duplication scan available in Library settings
