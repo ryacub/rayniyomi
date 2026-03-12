@@ -241,6 +241,7 @@ dependencies {
     implementation(androidx.annotation)
     implementation(androidx.appcompat)
     implementation(androidx.biometricktx)
+    implementation(androidx.security.crypto)
     implementation(androidx.constraintlayout)
     implementation(aniyomilibs.compose.constraintlayout)
     implementation(androidx.corektx)
