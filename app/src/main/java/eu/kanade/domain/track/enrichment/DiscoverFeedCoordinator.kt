@@ -48,44 +48,61 @@ class DiscoverFeedCoordinator(
 
         val now = System.currentTimeMillis()
         val recentThreshold = now - RECENT_WINDOW_MS
-        val seedCompositeScore = snapshots.associateBy({ it.mediaType to it.entryId }, { it.compositeScore ?: 0.0 })
+        val compositeScoreByEntry = snapshots.associateBy({ it.mediaType to it.entryId }, { it.compositeScore ?: 0.0 })
 
-        val seedGenreMap = buildMap {
-            mangaLibrary.forEach { item ->
-                put(EnrichmentMediaType.MANGA to item.manga.id, item.manga.genre.orEmpty())
+        // Single pass: build libraryGenresByEntry with pre-normalized genres + libraryGenres simultaneously
+        val libraryGenresByEntry =
+            HashMap<Pair<EnrichmentMediaType, Long>, List<String>>(mangaLibrary.size + animeLibrary.size)
+        val libraryGenreFrequency = HashMap<String, Int>()
+        mangaLibrary.forEach { item ->
+            val normalized = item.manga.genre.orEmpty().mapNotNull { genre ->
+                normalizeGenre(genre).takeIf { it.isNotBlank() }
             }
-            animeLibrary.forEach { item ->
-                put(EnrichmentMediaType.ANIME to item.anime.id, item.anime.genre.orEmpty())
-            }
+            libraryGenresByEntry[EnrichmentMediaType.MANGA to item.manga.id] = normalized
+            normalized.forEach { genre -> libraryGenreFrequency[genre] = (libraryGenreFrequency[genre] ?: 0) + 1 }
         }
-        val topGenres = (
-            mangaLibrary.flatMap { it.manga.genre.orEmpty() } +
-                animeLibrary.flatMap { it.anime.genre.orEmpty() }
-            )
-            .groupingBy { normalizeGenre(it) }
-            .eachCount()
-            .filterKeys { it.isNotBlank() }
-            .keys
+        animeLibrary.forEach { item ->
+            val normalized = item.anime.genre.orEmpty().mapNotNull { genre ->
+                normalizeGenre(genre).takeIf { it.isNotBlank() }
+            }
+            libraryGenresByEntry[EnrichmentMediaType.ANIME to item.anime.id] = normalized
+            normalized.forEach { genre -> libraryGenreFrequency[genre] = (libraryGenreFrequency[genre] ?: 0) + 1 }
+        }
+        val libraryGenres: Set<String> = libraryGenreFrequency.keys
 
         val recentSeeds = snapshots
             .filter { it.updatedAt >= recentThreshold }
             .map { it.mediaType to it.entryId }
             .toSet()
 
-        val deduped = recommendations
+        val rankingInputs = recommendations
+            .asSequence()
             .filterNot { it.recommendation.inLibrary }
-            .groupBy { "${it.mediaType}:${it.recommendation.stableKey}" }
+            .groupBy { it.mediaType to it.recommendation.stableKey }
             .map { (_, grouped) ->
                 val first = grouped.first()
-                val trackers = grouped.flatMap { it.recommendation.trackerSources }.toSet()
+                val trackers = mutableSetOf<String>().also { trackerSet ->
+                    grouped.forEach { trackerSet.addAll(it.recommendation.trackerSources) }
+                }
                 val sourceCount = trackers.size.coerceAtLeast(first.recommendation.sourceCount)
                 val baseScore = grouped.maxOfOrNull { it.recommendation.rankScore } ?: 0.0
-                val seedKeys = grouped.map { it.mediaType to it.entryId }.toSet()
-                val compositeScore = seedKeys.mapNotNull { seedCompositeScore[it] }.ifEmpty { listOf(0.0) }.average()
-                val fromRecentSeed = seedKeys.any { recentSeeds.contains(it) }
-                val mergedGenres = seedKeys.flatMap { seedGenreMap[it].orEmpty() }.map(::normalizeGenre).toSet()
-                val genreOverlap = mergedGenres.intersect(topGenres).size
-                val primaryGenre = mergedGenres.firstOrNull { topGenres.contains(it) }
+                val sourceSeedKeys = HashSet<Pair<EnrichmentMediaType, Long>>(grouped.size * 2)
+                grouped.forEach { sourceSeedKeys.add(it.mediaType to it.entryId) }
+                var compositeScoreSum = 0.0
+                var compositeScoreCount = 0
+                sourceSeedKeys.forEach { seedKey ->
+                    compositeScoreByEntry[seedKey]?.let { score ->
+                        compositeScoreSum += score
+                        compositeScoreCount++
+                    }
+                }
+                val compositeScore = if (compositeScoreCount > 0) compositeScoreSum / compositeScoreCount else 0.0
+                val fromRecentSeed = sourceSeedKeys.any { recentSeeds.contains(it) }
+                // libraryGenresByEntry stores pre-normalized genres — no re-normalization needed
+                val mergedGenres = HashSet<String>()
+                sourceSeedKeys.forEach { seedKey -> libraryGenresByEntry[seedKey]?.forEach { mergedGenres.add(it) } }
+                val genreOverlap = mergedGenres.count { libraryGenres.contains(it) }
+                val primaryGenre = mergedGenres.firstOrNull { libraryGenres.contains(it) }
 
                 DiscoverRankingEngine.RankingInput(
                     stableKey = first.recommendation.stableKey,
@@ -107,7 +124,7 @@ class DiscoverFeedCoordinator(
                 )
             }
 
-        return rankingEngine.rank(deduped, limit)
+        return rankingEngine.rank(rankingInputs, limit)
     }
 
     private fun normalizeGenre(value: String): String {
