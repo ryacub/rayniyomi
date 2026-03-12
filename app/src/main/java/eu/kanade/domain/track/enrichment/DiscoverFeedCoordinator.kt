@@ -75,11 +75,12 @@ class DiscoverFeedCoordinator(
             .toSet()
 
         val deduped = recommendations
+            .asSequence()
             .filterNot { it.recommendation.inLibrary }
             .groupBy { it.mediaType to it.recommendation.stableKey }
             .map { (_, grouped) ->
                 val first = grouped.first()
-                val trackers = grouped.flatMap { it.recommendation.trackerSources }.toSet()
+                val trackers = mutableSetOf<String>().also { s -> grouped.forEach { s.addAll(it.recommendation.trackerSources) } }
                 val sourceCount = trackers.size.coerceAtLeast(first.recommendation.sourceCount)
                 val baseScore = grouped.maxOfOrNull { it.recommendation.rankScore } ?: 0.0
                 val seedKeys = grouped.map { it.mediaType to it.entryId }.toSet()
