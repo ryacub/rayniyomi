@@ -50,22 +50,24 @@ class DiscoverFeedCoordinator(
         val recentThreshold = now - RECENT_WINDOW_MS
         val seedCompositeScore = snapshots.associateBy({ it.mediaType to it.entryId }, { it.compositeScore ?: 0.0 })
 
-        val seedGenreMap = buildMap {
-            mangaLibrary.forEach { item ->
-                put(EnrichmentMediaType.MANGA to item.manga.id, item.manga.genre.orEmpty())
+        // Single pass: build seedGenreMap with pre-normalized genres + topGenres simultaneously
+        val seedGenreMap = HashMap<Pair<EnrichmentMediaType, Long>, List<String>>(mangaLibrary.size + animeLibrary.size)
+        val genreFreq = HashMap<String, Int>()
+        mangaLibrary.forEach { item ->
+            val normalized = item.manga.genre.orEmpty().mapNotNull { g ->
+                normalizeGenre(g).takeIf { it.isNotBlank() }
             }
-            animeLibrary.forEach { item ->
-                put(EnrichmentMediaType.ANIME to item.anime.id, item.anime.genre.orEmpty())
-            }
+            seedGenreMap[EnrichmentMediaType.MANGA to item.manga.id] = normalized
+            normalized.forEach { g -> genreFreq[g] = (genreFreq[g] ?: 0) + 1 }
         }
-        val topGenres = (
-            mangaLibrary.flatMap { it.manga.genre.orEmpty() } +
-                animeLibrary.flatMap { it.anime.genre.orEmpty() }
-            )
-            .groupingBy { normalizeGenre(it) }
-            .eachCount()
-            .filterKeys { it.isNotBlank() }
-            .keys
+        animeLibrary.forEach { item ->
+            val normalized = item.anime.genre.orEmpty().mapNotNull { g ->
+                normalizeGenre(g).takeIf { it.isNotBlank() }
+            }
+            seedGenreMap[EnrichmentMediaType.ANIME to item.anime.id] = normalized
+            normalized.forEach { g -> genreFreq[g] = (genreFreq[g] ?: 0) + 1 }
+        }
+        val topGenres: Set<String> = genreFreq.keys
 
         val recentSeeds = snapshots
             .filter { it.updatedAt >= recentThreshold }
@@ -74,7 +76,7 @@ class DiscoverFeedCoordinator(
 
         val deduped = recommendations
             .filterNot { it.recommendation.inLibrary }
-            .groupBy { "${it.mediaType}:${it.recommendation.stableKey}" }
+            .groupBy { it.mediaType to it.recommendation.stableKey }
             .map { (_, grouped) ->
                 val first = grouped.first()
                 val trackers = grouped.flatMap { it.recommendation.trackerSources }.toSet()
@@ -83,8 +85,9 @@ class DiscoverFeedCoordinator(
                 val seedKeys = grouped.map { it.mediaType to it.entryId }.toSet()
                 val compositeScore = seedKeys.mapNotNull { seedCompositeScore[it] }.ifEmpty { listOf(0.0) }.average()
                 val fromRecentSeed = seedKeys.any { recentSeeds.contains(it) }
-                val mergedGenres = seedKeys.flatMap { seedGenreMap[it].orEmpty() }.map(::normalizeGenre).toSet()
-                val genreOverlap = mergedGenres.intersect(topGenres).size
+                // seedGenreMap stores pre-normalized genres — no re-normalization needed
+                val mergedGenres = seedKeys.flatMap { seedGenreMap[it].orEmpty() }.toSet()
+                val genreOverlap = mergedGenres.count { topGenres.contains(it) }
                 val primaryGenre = mergedGenres.firstOrNull { topGenres.contains(it) }
 
                 DiscoverRankingEngine.RankingInput(
