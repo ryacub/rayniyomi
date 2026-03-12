@@ -60,6 +60,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Migrated PlayerActivity onBackPressed to OnBackPressedCallback for Android 16 compatibility
 - Version name restored to correct upstream-tracking scheme
 - Reduced release R8 missing-class warning noise for optional AndroidX Window vendor APIs and OkHttp Graal host-only stubs
+- Upgraded Voyager to 1.1.0-beta03 to fix `IllegalStateException: State is 'DESTROYED'` crash from `AndroidScreenLifecycleOwner` firing after terminal lifecycle state
+- Enrichment screen observer no longer gets permanently stuck after a refresh failure; supervisor scope now isolates the observer and refresh coroutines independently
+- CrashActivity no longer crashes on launch in the `:error_handler` process due to uninitialized DI
+- Discover screen no longer gets stuck in a permanent loading state when the recommendation flow throws an upstream exception
+- WorkManager init no longer crashes the `:error_handler` process; periodic sync setup is now guarded to the main process only
+- LightNovelPluginManager coroutine scope now cancelled on close, preventing a resource leak
+- Removed unused `sqldelight-android-paging` dependency that was downgrading Compose Foundation at runtime and causing `NoSuchMethodError` on `AnchoredDraggableState`
+- Enforced Compose Foundation 1.7+ floor as a dependency resolution constraint; fixed `junit-platform-launcher` missing-version build failure on modules without JUnit transitive deps
 
 ### Changed
 
