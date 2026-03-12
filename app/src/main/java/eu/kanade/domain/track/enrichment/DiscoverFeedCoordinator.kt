@@ -80,13 +80,21 @@ class DiscoverFeedCoordinator(
             .groupBy { it.mediaType to it.recommendation.stableKey }
             .map { (_, grouped) ->
                 val first = grouped.first()
-                val trackers = mutableSetOf<String>().also { s -> grouped.forEach { s.addAll(it.recommendation.trackerSources) } }
+                val trackers = mutableSetOf<String>().also { s ->
+                    grouped.forEach { s.addAll(it.recommendation.trackerSources) }
+                }
                 val sourceCount = trackers.size.coerceAtLeast(first.recommendation.sourceCount)
                 val baseScore = grouped.maxOfOrNull { it.recommendation.rankScore } ?: 0.0
                 val seedKeys = HashSet<Pair<EnrichmentMediaType, Long>>(grouped.size * 2)
                 grouped.forEach { seedKeys.add(it.mediaType to it.entryId) }
-                var compSum = 0.0; var compCount = 0
-                seedKeys.forEach { k -> seedCompositeScore[k]?.let { v -> compSum += v; compCount++ } }
+                var compSum = 0.0
+                var compCount = 0
+                seedKeys.forEach { k ->
+                    seedCompositeScore[k]?.let { v ->
+                        compSum += v
+                        compCount++
+                    }
+                }
                 val compositeScore = if (compCount > 0) compSum / compCount else 0.0
                 val fromRecentSeed = seedKeys.any { recentSeeds.contains(it) }
                 // seedGenreMap stores pre-normalized genres — no re-normalization needed

@@ -134,7 +134,13 @@ class FeedBench {
                                 stableKey = "manga-rec-$key",
                                 title = "Manga Rec $key",
                                 targetUrl = "https://example.com/manga/$key",
-                                trackerSources = if (idx % 3 == 0) listOf("AniList", "MyAnimeList") else listOf("AniList"),
+                                trackerSources = if (idx % 3 ==
+                                    0
+                                ) {
+                                    listOf("AniList", "MyAnimeList")
+                                } else {
+                                    listOf("AniList")
+                                },
                                 sourceCount = if (idx % 3 == 0) 2 else 1,
                                 confidence = 0.5 + (idx % 5) * 0.1,
                                 inLibrary = idx % 5 == 0, // 20% filtered by buildFeed
