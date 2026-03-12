@@ -30,6 +30,13 @@ jobs:
     runs-on: 'ubuntu-24.04'
 
     steps:
+      - name: Restore SqlDelight local Maven cache
+        id: sqldelight-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.3
+        with:
+          path: ~/.m2/repository/app/cash
+          key: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
+
       - name: Set up JDK
         uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
@@ -37,6 +44,7 @@ jobs:
           distribution: temurin
 
       - name: Build SqlDelight AGP 9 fix
+        if: steps.sqldelight-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
 
@@ -68,8 +76,6 @@ jobs:
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
-        with:
-          cache-disabled: true
 
       - name: Download SqlDelight local Maven artifacts
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -78,7 +84,7 @@ jobs:
           path: ~/.m2/repository/app/cash
 
       - name: Check code format
-        run: ./gradlew spotlessCheck --no-build-cache --no-configuration-cache --refresh-dependencies -Dorg.gradle.workers.max=1
+        run: ./gradlew spotlessCheck
 
   build:
     name: Build app
