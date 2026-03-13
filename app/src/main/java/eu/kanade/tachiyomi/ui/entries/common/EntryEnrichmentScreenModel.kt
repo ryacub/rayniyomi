@@ -7,6 +7,7 @@ import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,17 +40,29 @@ class EntryEnrichmentScreenModel(
                     when (mediaType) {
                         EnrichmentMediaType.MANGA -> coordinator.observeManga(entryId)
                         EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
-                    }.collectLatest { cached ->
-                        mutableState.update {
-                            it.copy(
-                                loading = false,
-                                entry = cached,
-                                errorText = cached?.failures?.takeIf { failures -> failures.isNotEmpty() }
-                                    ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
-                                    ?: it.errorText,
-                            )
-                        }
                     }
+                        .catch { error ->
+                            val message = error.message?.takeIf(String::isNotBlank)
+                                ?: "Unable to load recommendations"
+                            mutableState.update {
+                                it.copy(
+                                    loading = false,
+                                    errorText = message,
+                                )
+                            }
+                        }
+                        .collectLatest { cached ->
+                            val failureMessage = cached?.failures
+                                ?.takeIf { failures -> failures.isNotEmpty() }
+                                ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
+                            mutableState.update {
+                                it.copy(
+                                    loading = false,
+                                    entry = cached,
+                                    errorText = failureMessage ?: it.errorText,
+                                )
+                            }
+                        }
                 }
                 launch { refreshInternal(manual = false) }
             }
