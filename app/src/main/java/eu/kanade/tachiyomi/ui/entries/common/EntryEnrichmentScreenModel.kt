@@ -52,13 +52,14 @@ class EntryEnrichmentScreenModel(
                             }
                         }
                         .collectLatest { cached ->
+                        val failureMessage = cached?.failures
+                            ?.takeIf { failures -> failures.isNotEmpty() }
+                            ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
                         mutableState.update {
                             it.copy(
                                 loading = false,
                                 entry = cached,
-                                errorText = cached?.failures?.takeIf { failures -> failures.isNotEmpty() }
-                                    ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
-                                    ?: it.errorText,
+                                errorText = failureMessage ?: it.errorText,
                             )
                         }
                         }
