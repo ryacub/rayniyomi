@@ -9,6 +9,7 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.network.NetworkPreferences
+import eu.kanade.tachiyomi.security.SecurePreferenceStore
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import eu.kanade.tachiyomi.ui.player.settings.DecoderPreferences
@@ -44,7 +45,7 @@ class PreferenceModule(val app: Application) : InjektModule {
             SourcePreferences(get())
         }
         addSingletonFactory {
-            SecurityPreferences(get())
+            SecurityPreferences(SecurePreferenceStore(get()))
         }
         addSingletonFactory {
             LibraryPreferences(get())
@@ -71,7 +72,7 @@ class PreferenceModule(val app: Application) : InjektModule {
             AdvancedPlayerPreferences(get())
         }
         addSingletonFactory {
-            TrackPreferences(get())
+            TrackPreferences(SecurePreferenceStore(get()))
         }
         addSingletonFactory {
             DownloadPreferences(get())

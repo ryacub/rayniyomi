@@ -18,6 +18,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.PreferenceManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
@@ -51,6 +52,9 @@ import eu.kanade.tachiyomi.di.AppModule
 import eu.kanade.tachiyomi.di.PreferenceModule
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
+import eu.kanade.tachiyomi.security.PinHashMigration
+import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
+import eu.kanade.tachiyomi.security.TrackerTokenMigration
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.GLUtil
@@ -137,6 +141,11 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 logcat(LogPriority.ERROR, e) { "Failed to configure StrictMode" }
             }
         }
+
+        RayniyomiSecurePrefs.init(this)
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        PinHashMigration.migrate(defaultPrefs)
+        TrackerTokenMigration.migrate(defaultPrefs)
 
         patchInjekt()
 
