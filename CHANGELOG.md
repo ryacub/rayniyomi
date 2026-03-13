@@ -12,6 +12,10 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
+### Security
+
+- **Encrypted credential storage** — PIN hash, PIN salt, and tracker API tokens (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl) are now stored using Android Keystore AES-256-GCM encryption instead of plaintext SharedPreferences; existing credentials are automatically migrated on first launch
+
 ## [0.18.1.66] - 2026-03-11
 
 ### Added
