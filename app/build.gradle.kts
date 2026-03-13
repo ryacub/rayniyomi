@@ -19,6 +19,15 @@ plugins {
 val appVersionCode = 205
 val lightNovelExpectedPluginApiVersion = 1
 
+// Apply Google Services and Crashlytics plugins conditionally for non-debug builds
+// This allows debug builds to work without xyz.rayniyomi.dev in Firebase
+// R495: Must be before android block so Crashlytics can register onVariants callbacks
+// early enough in AGP's configuration pipeline to embed the build UUID
+if (gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
 android {
     namespace = "eu.kanade.tachiyomi"
 
@@ -373,13 +382,6 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
             """.trimIndent(),
         )
     }
-}
-
-// Apply Google Services and Crashlytics plugins conditionally for non-debug builds
-// This allows debug builds to work without xyz.rayniyomi.dev in Firebase
-if (gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 buildscript {
