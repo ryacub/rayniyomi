@@ -42,7 +42,8 @@ class EntryEnrichmentScreenModel(
                         EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
                     }
                         .catch { error ->
-                            val message = error.message?.takeIf(String::isNotBlank) ?: "Unable to load recommendations"
+                            val message = error.message?.takeIf(String::isNotBlank)
+                                ?: "Unable to load recommendations"
                             mutableState.update {
                                 it.copy(
                                     loading = false,
