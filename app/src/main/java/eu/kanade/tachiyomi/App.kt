@@ -28,6 +28,8 @@ import coil3.util.DebugLogger
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dev.mihon.injekt.patchInjekt
 import eu.kanade.domain.DomainModule
+import androidx.preference.PreferenceManager
+import eu.kanade.tachiyomi.security.PinHashMigration
 import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
 import eu.kanade.domain.SYDomainModule
 import eu.kanade.domain.base.BasePreferences
@@ -140,6 +142,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         RayniyomiSecurePrefs.init(this)
+        PinHashMigration.migrate(PreferenceManager.getDefaultSharedPreferences(this))
 
         patchInjekt()
 
