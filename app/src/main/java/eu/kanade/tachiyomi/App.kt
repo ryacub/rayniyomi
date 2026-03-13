@@ -31,6 +31,7 @@ import eu.kanade.domain.DomainModule
 import androidx.preference.PreferenceManager
 import eu.kanade.tachiyomi.security.PinHashMigration
 import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
+import eu.kanade.tachiyomi.security.TrackerTokenMigration
 import eu.kanade.domain.SYDomainModule
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.track.service.ImmediateTrackerSyncJob
@@ -142,7 +143,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         RayniyomiSecurePrefs.init(this)
-        PinHashMigration.migrate(PreferenceManager.getDefaultSharedPreferences(this))
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        PinHashMigration.migrate(defaultPrefs)
+        TrackerTokenMigration.migrate(defaultPrefs)
 
         patchInjekt()
 

@@ -72,7 +72,7 @@ class PreferenceModule(val app: Application) : InjektModule {
             AdvancedPlayerPreferences(get())
         }
         addSingletonFactory {
-            TrackPreferences(get())
+            TrackPreferences(SecurePreferenceStore(get()))
         }
         addSingletonFactory {
             DownloadPreferences(get())
