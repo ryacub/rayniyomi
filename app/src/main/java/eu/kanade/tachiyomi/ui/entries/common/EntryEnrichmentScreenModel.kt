@@ -52,16 +52,16 @@ class EntryEnrichmentScreenModel(
                             }
                         }
                         .collectLatest { cached ->
-                        val failureMessage = cached?.failures
-                            ?.takeIf { failures -> failures.isNotEmpty() }
-                            ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
-                        mutableState.update {
-                            it.copy(
-                                loading = false,
-                                entry = cached,
-                                errorText = failureMessage ?: it.errorText,
-                            )
-                        }
+                            val failureMessage = cached?.failures
+                                ?.takeIf { failures -> failures.isNotEmpty() }
+                                ?.joinToString(", ") { failure -> "${failure.trackerName}: ${failure.userMessage}" }
+                            mutableState.update {
+                                it.copy(
+                                    loading = false,
+                                    entry = cached,
+                                    errorText = failureMessage ?: it.errorText,
+                                )
+                            }
                         }
                 }
                 launch { refreshInternal(manual = false) }
