@@ -10,20 +10,22 @@ plugins {
     id("mihon.android.application.compose")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
-    // Only apply Google Services plugin for release builds (Firebase Analytics/Crashlytics)
-    // Debug builds don't need it and google-services.json only contains release package
+    // Google Services: conditional - only release (google-services.json has release package only)
+    // Crashlytics: applied unconditionally so the build ID is always embedded in release APKs
     alias(libs.plugins.google.services) apply false
-    alias(libs.plugins.firebase.crashlytics) apply false
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 val appVersionCode = 206
 val lightNovelExpectedPluginApiVersion = 1
 
-// Apply Google Services and Crashlytics plugins before AGP variant configuration.
-// Applying them at the end of the script is too late for Crashlytics to embed its build ID.
+// Apply Google Services plugin before AGP variant configuration and only for non-debug builds.
+// google-services.json contains only the release package (xyz.rayniyomi); applying it for
+// debug would fail because xyz.rayniyomi.dev is not registered.
+// The Crashlytics plugin is applied unconditionally in the plugins block above so the build ID
+// is reliably embedded in every release APK regardless of Gradle invocation order or cache.
 if (gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }) {
     apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 android {
@@ -315,7 +317,10 @@ dependencies {
     // Logging
     implementation(libs.logcat)
 
-    // Firebase Analytics and Crashlytics for monitoring
+    // Firebase Analytics and Crashlytics
+    // google-services plugin is applied conditionally (release only) so the xml resources
+    // only exist in release builds; Crashlytics plugin is unconditional so the build ID is
+    // always embedded. Debug builds compile fine but Firebase won't initialize (no google_app_id).
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
