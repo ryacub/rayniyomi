@@ -28,6 +28,7 @@ import coil3.util.DebugLogger
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dev.mihon.injekt.patchInjekt
 import eu.kanade.domain.DomainModule
+import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
 import eu.kanade.domain.SYDomainModule
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.track.service.ImmediateTrackerSyncJob
@@ -137,6 +138,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 logcat(LogPriority.ERROR, e) { "Failed to configure StrictMode" }
             }
         }
+
+        RayniyomiSecurePrefs.init(this)
 
         patchInjekt()
 
