@@ -9,6 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -146,6 +147,48 @@ class EntryEnrichmentScreenModelTest {
         assertFalse(model.state.value.loading)
     }
 
+    @Test
+    fun `manga observer failure updates error state and clears loading`() = runTest {
+        val coordinator = mockk<EntryEnrichmentCoordinator>()
+
+        every { coordinator.observeManga(1) } returns throwingFlow(RuntimeException("Observer failed"))
+        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } returns
+            createTestEnrichedEntry(entryId = 1)
+
+        val model = EntryEnrichmentScreenModel(
+            entryId = 1,
+            title = "Test Manga",
+            mediaType = EnrichmentMediaType.MANGA,
+            coordinator = coordinator,
+        )
+
+        advanceUntilIdle()
+
+        assertFalse(model.state.value.loading)
+        assertEquals("Observer failed", model.state.value.errorText)
+    }
+
+    @Test
+    fun `anime observer failure with blank message uses fallback`() = runTest {
+        val coordinator = mockk<EntryEnrichmentCoordinator>()
+
+        every { coordinator.observeAnime(2) } returns throwingFlow(RuntimeException("   "))
+        coEvery { coordinator.refreshAnime(animeId = 2, title = "Test Anime", force = true) } returns
+            createTestEnrichedEntry(entryId = 2, mediaType = EnrichmentMediaType.ANIME)
+
+        val model = EntryEnrichmentScreenModel(
+            entryId = 2,
+            title = "Test Anime",
+            mediaType = EnrichmentMediaType.ANIME,
+            coordinator = coordinator,
+        )
+
+        advanceUntilIdle()
+
+        assertFalse(model.state.value.loading)
+        assertEquals("Unable to load recommendations", model.state.value.errorText)
+    }
+
     private fun createTestEnrichedEntry(
         entryId: Long,
         mediaType: EnrichmentMediaType = EnrichmentMediaType.MANGA,
@@ -175,5 +218,9 @@ class EntryEnrichmentScreenModelTest {
             updatedAt = System.currentTimeMillis(),
             expiresAt = System.currentTimeMillis() + 24 * 60 * 60 * 1000,
         )
+    }
+
+    private fun <T> throwingFlow(error: Throwable) = flow<T> {
+        throw error
     }
 }
