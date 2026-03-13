@@ -12,6 +12,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
+## [0.18.1.75] - 2026-03-13
+
+### Fixed
+
+- Resolved startup crash on release builds: Crashlytics build ID was not being embedded because the Gradle plugin was applied conditionally via a task-name check that is unreliable under Gradle configuration cache. Plugin is now applied unconditionally; Firebase dependencies are scoped to release builds only so debug builds remain unaffected.
+
 ## [0.18.1.74] - 2026-03-13
 
 ### Fixed
