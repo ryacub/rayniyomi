@@ -16,7 +16,7 @@ plugins {
     alias(libs.plugins.firebase.crashlytics) apply false
 }
 
-val appVersionCode = 204
+val appVersionCode = 205
 val lightNovelExpectedPluginApiVersion = 1
 
 android {
@@ -26,7 +26,7 @@ android {
         applicationId = "xyz.rayniyomi"
 
         versionCode = appVersionCode
-        versionName = "0.18.1.73"
+        versionName = "0.18.1.74"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
