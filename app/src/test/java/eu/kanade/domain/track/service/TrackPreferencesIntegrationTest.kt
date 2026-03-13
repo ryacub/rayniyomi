@@ -72,12 +72,10 @@ class TrackPreferencesIntegrationTest {
     }
 
     @Test
-    fun `trackToken set with empty string clears from secure store`() {
-        RayniyomiSecurePrefs.setTrackerToken(1L, "existingToken")
-
+    fun `trackToken set with empty string stores empty string in secure store`() {
         trackPreferences.trackToken(tracker1).set("")
 
-        RayniyomiSecurePrefs.getTrackerToken(1L) shouldBe null
+        RayniyomiSecurePrefs.getTrackerToken(1L) shouldBe ""
     }
 
     @Test

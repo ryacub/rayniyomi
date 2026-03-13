@@ -9,6 +9,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 /**
  * Android Keystore-backed secure storage using AES-256-GCM encryption.
@@ -60,9 +62,10 @@ internal class KeystoreSecureStorage(
             val ciphertext = Base64.decode(stored.substring(colonIndex + 1), Base64.NO_WRAP)
 
             val cipher = Cipher.getInstance(CIPHER_TRANSFORMATION)
-            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(GCM_TAG_LENGTH, iv))
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(GCM_TAG_LENGTH, iv.copyOf()))
             String(cipher.doFinal(ciphertext))
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "Failed to decrypt secure pref key: $key" }
             null
         }
     }

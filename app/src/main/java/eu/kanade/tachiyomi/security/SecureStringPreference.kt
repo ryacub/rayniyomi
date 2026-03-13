@@ -32,7 +32,7 @@ class SecureStringPreference(
     override fun get(): String = getter() ?: ""
 
     override fun set(value: String) {
-        setter(value.ifEmpty { null })
+        setter(value)
         changeSignal.tryEmit(Unit)
     }
 

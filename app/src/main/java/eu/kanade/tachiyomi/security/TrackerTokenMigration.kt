@@ -26,7 +26,7 @@ object TrackerTokenMigration {
             val token = value as? String ?: continue
 
             // Only write to secure store if not already migrated
-            if (!token.isEmpty() && RayniyomiSecurePrefs.getTrackerToken(trackerId) == null) {
+            if (RayniyomiSecurePrefs.getTrackerToken(trackerId) == null) {
                 RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
             }
 

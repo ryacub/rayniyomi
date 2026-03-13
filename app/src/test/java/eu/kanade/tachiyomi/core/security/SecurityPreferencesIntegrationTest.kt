@@ -66,12 +66,10 @@ class SecurityPreferencesIntegrationTest {
     }
 
     @Test
-    fun `pinHash set with empty string clears from secure store`() {
-        RayniyomiSecurePrefs.pinHash = "existingHash"
-
+    fun `pinHash set with empty string stores empty string in secure store`() {
         securityPreferences.pinHash().set("")
 
-        RayniyomiSecurePrefs.pinHash shouldBe null
+        RayniyomiSecurePrefs.pinHash shouldBe ""
     }
 
     @Test
