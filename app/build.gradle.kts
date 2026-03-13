@@ -13,6 +13,7 @@ plugins {
     // Only apply Google Services plugin for release builds (Firebase Analytics/Crashlytics)
     // Debug builds don't need it and google-services.json only contains release package
     alias(libs.plugins.google.services) apply false
+    alias(libs.plugins.firebase.crashlytics) apply false
 }
 
 val appVersionCode = 203
@@ -374,10 +375,11 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
     }
 }
 
-// Apply Google Services plugin conditionally for non-debug builds
+// Apply Google Services and Crashlytics plugins conditionally for non-debug builds
 // This allows debug builds to work without xyz.rayniyomi.dev in Firebase
 if (gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 buildscript {

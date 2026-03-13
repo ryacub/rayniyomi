@@ -2,6 +2,7 @@
 aboutlib_version = "11.6.3"
 cast = "22.0.0"
 google_services = "4.4.4"
+firebase_crashlytics_gradle = "3.0.6"
 leakcanary = "2.14"
 mediarouter = "1.7.0"
 moko = "0.26.0"
@@ -105,6 +106,7 @@ ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlin
 [plugins]
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin", version.ref = "aboutlib_version" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google_services" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase_crashlytics_gradle" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 moko = { id = "dev.icerock.mobile.multiplatform-resources", version.ref = "moko" }
 
