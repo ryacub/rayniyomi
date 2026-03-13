@@ -4,13 +4,13 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import logcat.LogPriority
-import tachiyomi.core.common.util.system.logcat
 
 /**
  * Android Keystore-backed secure storage using AES-256-GCM encryption.
