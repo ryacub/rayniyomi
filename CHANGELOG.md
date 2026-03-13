@@ -12,6 +12,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
+## [0.18.1.74] - 2026-03-13
+
+### Fixed
+
+- Resolved startup crash on release builds caused by missing Crashlytics Gradle plugin
+
+## [0.18.1.73] - 2026-03-13
+
 ### Security
 
 - **Encrypted credential storage** — PIN hash, PIN salt, and tracker API tokens (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl) are now stored using Android Keystore AES-256-GCM encryption instead of plaintext SharedPreferences; existing credentials are automatically migrated on first launch
