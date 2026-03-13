@@ -1,34 +1,26 @@
 package eu.kanade.tachiyomi.security
 
-import android.content.SharedPreferences
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.spyk
-import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class RayniyomiSecurePrefsTest {
 
-    private lateinit var fakePrefs: FakeSharedPreferences
+    private lateinit var storage: InMemorySecureStorage
 
     @BeforeEach
     fun setup() {
-        fakePrefs = FakeSharedPreferences()
-        RayniyomiSecurePrefs.initForTesting(fakePrefs)
+        storage = InMemorySecureStorage()
+        RayniyomiSecurePrefs.initForTesting(storage)
     }
 
-    // PIN hash tests (happy path and edge cases)
+    // PIN hash tests
 
     @Test
     fun `stores and retrieves PIN hash successfully`() {
-        val pinHash = "hashedPinValue123"
-
-        RayniyomiSecurePrefs.pinHash = pinHash
-
-        RayniyomiSecurePrefs.pinHash shouldBe pinHash
+        RayniyomiSecurePrefs.pinHash = "hashedPinValue123"
+        RayniyomiSecurePrefs.pinHash shouldBe "hashedPinValue123"
     }
 
     @Test
@@ -38,356 +30,193 @@ class RayniyomiSecurePrefsTest {
 
     @Test
     fun `stores and retrieves empty string PIN hash`() {
-        val emptyHash = ""
-
-        RayniyomiSecurePrefs.pinHash = emptyHash
-
-        RayniyomiSecurePrefs.pinHash shouldBe emptyHash
+        RayniyomiSecurePrefs.pinHash = ""
+        RayniyomiSecurePrefs.pinHash shouldBe ""
     }
 
     @Test
     fun `clears PIN hash when set to null`() {
-        val initialHash = "initialHash"
-        RayniyomiSecurePrefs.pinHash = initialHash
-
+        RayniyomiSecurePrefs.pinHash = "initialHash"
         RayniyomiSecurePrefs.pinHash = null
-
         RayniyomiSecurePrefs.pinHash.shouldBeNull()
     }
 
     @Test
     fun `overwrites existing PIN hash`() {
-        val firstHash = "firstHash"
-        val secondHash = "secondHash"
-        RayniyomiSecurePrefs.pinHash = firstHash
-
-        RayniyomiSecurePrefs.pinHash = secondHash
-
-        RayniyomiSecurePrefs.pinHash shouldBe secondHash
+        RayniyomiSecurePrefs.pinHash = "firstHash"
+        RayniyomiSecurePrefs.pinHash = "secondHash"
+        RayniyomiSecurePrefs.pinHash shouldBe "secondHash"
     }
 
     @Test
     fun `handles long PIN hash values`() {
         val longHash = "a".repeat(1000)
-
         RayniyomiSecurePrefs.pinHash = longHash
-
         RayniyomiSecurePrefs.pinHash shouldBe longHash
     }
 
     @Test
     fun `handles PIN hash with special characters`() {
         val specialHash = "!@#$%^&*()_+-=[]{}|;:',.<>?/`~"
-
         RayniyomiSecurePrefs.pinHash = specialHash
-
         RayniyomiSecurePrefs.pinHash shouldBe specialHash
     }
 
-    // Tracker token tests (happy path and edge cases)
+    // PIN salt tests
+
+    @Test
+    fun `stores and retrieves PIN salt successfully`() {
+        RayniyomiSecurePrefs.pinSalt = "saltValue123"
+        RayniyomiSecurePrefs.pinSalt shouldBe "saltValue123"
+    }
+
+    @Test
+    fun `returns null PIN salt when not set`() {
+        RayniyomiSecurePrefs.pinSalt.shouldBeNull()
+    }
+
+    @Test
+    fun `clears PIN salt when set to null`() {
+        RayniyomiSecurePrefs.pinSalt = "someSalt"
+        RayniyomiSecurePrefs.pinSalt = null
+        RayniyomiSecurePrefs.pinSalt.shouldBeNull()
+    }
+
+    // Tracker token tests
 
     @Test
     fun `stores and retrieves tracker token for specific trackerId`() {
-        val trackerId = 1L
-        val token = "tracker_token_abc123"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe token
+        RayniyomiSecurePrefs.setTrackerToken(1L, "tracker_token_abc123")
+        RayniyomiSecurePrefs.getTrackerToken(1L) shouldBe "tracker_token_abc123"
     }
 
     @Test
     fun `returns null tracker token when not set`() {
-        val trackerId = 42L
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId).shouldBeNull()
+        RayniyomiSecurePrefs.getTrackerToken(42L).shouldBeNull()
     }
 
     @Test
     fun `stores and retrieves empty string tracker token`() {
-        val trackerId = 5L
-        val emptyToken = ""
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, emptyToken)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe emptyToken
+        RayniyomiSecurePrefs.setTrackerToken(5L, "")
+        RayniyomiSecurePrefs.getTrackerToken(5L) shouldBe ""
     }
 
     @Test
     fun `clears tracker token when set to null`() {
-        val trackerId = 10L
-        val token = "tokenValue"
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, null)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId).shouldBeNull()
+        RayniyomiSecurePrefs.setTrackerToken(10L, "tokenValue")
+        RayniyomiSecurePrefs.setTrackerToken(10L, null)
+        RayniyomiSecurePrefs.getTrackerToken(10L).shouldBeNull()
     }
 
     @Test
     fun `stores multiple tracker tokens for different trackerIds without collision`() {
-        val trackerId1 = 1L
-        val trackerId2 = 2L
-        val trackerId3 = 100L
-        val token1 = "token_for_tracker_1"
-        val token2 = "token_for_tracker_2"
-        val token3 = "token_for_tracker_3"
+        RayniyomiSecurePrefs.setTrackerToken(1L, "token_for_tracker_1")
+        RayniyomiSecurePrefs.setTrackerToken(2L, "token_for_tracker_2")
+        RayniyomiSecurePrefs.setTrackerToken(100L, "token_for_tracker_3")
 
-        RayniyomiSecurePrefs.setTrackerToken(trackerId1, token1)
-        RayniyomiSecurePrefs.setTrackerToken(trackerId2, token2)
-        RayniyomiSecurePrefs.setTrackerToken(trackerId3, token3)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId1) shouldBe token1
-        RayniyomiSecurePrefs.getTrackerToken(trackerId2) shouldBe token2
-        RayniyomiSecurePrefs.getTrackerToken(trackerId3) shouldBe token3
+        RayniyomiSecurePrefs.getTrackerToken(1L) shouldBe "token_for_tracker_1"
+        RayniyomiSecurePrefs.getTrackerToken(2L) shouldBe "token_for_tracker_2"
+        RayniyomiSecurePrefs.getTrackerToken(100L) shouldBe "token_for_tracker_3"
     }
 
     @Test
     fun `overwrites existing tracker token for same trackerId`() {
-        val trackerId = 7L
-        val firstToken = "firstToken"
-        val secondToken = "secondToken"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, firstToken)
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, secondToken)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe secondToken
+        RayniyomiSecurePrefs.setTrackerToken(7L, "firstToken")
+        RayniyomiSecurePrefs.setTrackerToken(7L, "secondToken")
+        RayniyomiSecurePrefs.getTrackerToken(7L) shouldBe "secondToken"
     }
 
     @Test
     fun `handles tracker token with long values`() {
-        val trackerId = 15L
         val longToken = "x".repeat(2000)
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, longToken)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe longToken
+        RayniyomiSecurePrefs.setTrackerToken(15L, longToken)
+        RayniyomiSecurePrefs.getTrackerToken(15L) shouldBe longToken
     }
 
     @Test
     fun `handles tracker token with special characters`() {
-        val trackerId = 20L
         val specialToken = "!@#$%^&*()_+-=[]{}|;:',.<>?/`~\n\t"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, specialToken)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe specialToken
+        RayniyomiSecurePrefs.setTrackerToken(20L, specialToken)
+        RayniyomiSecurePrefs.getTrackerToken(20L) shouldBe specialToken
     }
 
     @Test
     fun `handles tracker token for trackerId with zero value`() {
-        val trackerId = 0L
-        val token = "token_for_zero"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe token
+        RayniyomiSecurePrefs.setTrackerToken(0L, "token_for_zero")
+        RayniyomiSecurePrefs.getTrackerToken(0L) shouldBe "token_for_zero"
     }
 
     @Test
     fun `handles tracker token for trackerId with negative value`() {
-        val trackerId = -1L
-        val token = "token_for_negative"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe token
+        RayniyomiSecurePrefs.setTrackerToken(-1L, "token_for_negative")
+        RayniyomiSecurePrefs.getTrackerToken(-1L) shouldBe "token_for_negative"
     }
 
     @Test
     fun `handles tracker token for trackerId with max long value`() {
-        val trackerId = Long.MAX_VALUE
-        val token = "token_for_max"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe token
+        RayniyomiSecurePrefs.setTrackerToken(Long.MAX_VALUE, "token_for_max")
+        RayniyomiSecurePrefs.getTrackerToken(Long.MAX_VALUE) shouldBe "token_for_max"
     }
 
-    // PIN hash and tracker tokens together (mixed operations)
+    // Mixed operations
 
     @Test
     fun `PIN hash and tracker tokens are stored independently`() {
-        val pinHash = "pinHashValue"
-        val trackerId = 1L
-        val token = "trackerToken123"
+        RayniyomiSecurePrefs.pinHash = "pinHashValue"
+        RayniyomiSecurePrefs.setTrackerToken(1L, "trackerToken123")
 
-        RayniyomiSecurePrefs.pinHash = pinHash
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        RayniyomiSecurePrefs.pinHash shouldBe pinHash
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe token
+        RayniyomiSecurePrefs.pinHash shouldBe "pinHashValue"
+        RayniyomiSecurePrefs.getTrackerToken(1L) shouldBe "trackerToken123"
     }
 
     @Test
     fun `clearing PIN hash does not affect tracker tokens`() {
-        val pinHash = "pinHashValue"
-        val trackerId = 5L
-        val token = "trackerToken"
-
-        RayniyomiSecurePrefs.pinHash = pinHash
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
+        RayniyomiSecurePrefs.pinHash = "pinHashValue"
+        RayniyomiSecurePrefs.setTrackerToken(5L, "trackerToken")
 
         RayniyomiSecurePrefs.pinHash = null
 
         RayniyomiSecurePrefs.pinHash.shouldBeNull()
-        RayniyomiSecurePrefs.getTrackerToken(trackerId) shouldBe token
+        RayniyomiSecurePrefs.getTrackerToken(5L) shouldBe "trackerToken"
     }
 
     @Test
     fun `clearing tracker token does not affect PIN hash`() {
-        val pinHash = "pinHashValue"
-        val trackerId = 3L
-        val token = "trackerToken"
+        RayniyomiSecurePrefs.pinHash = "pinHashValue"
+        RayniyomiSecurePrefs.setTrackerToken(3L, "trackerToken")
 
-        RayniyomiSecurePrefs.pinHash = pinHash
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
+        RayniyomiSecurePrefs.setTrackerToken(3L, null)
 
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, null)
-
-        RayniyomiSecurePrefs.pinHash shouldBe pinHash
-        RayniyomiSecurePrefs.getTrackerToken(trackerId).shouldBeNull()
+        RayniyomiSecurePrefs.pinHash shouldBe "pinHashValue"
+        RayniyomiSecurePrefs.getTrackerToken(3L).shouldBeNull()
     }
 
-    // Storage isolation tests (ensures key names don't collide)
+    // Storage isolation (key name verification)
 
     @Test
-    fun `PIN hash uses unique key in storage`() {
-        val pinHash = "pinValue"
+    fun `PIN hash uses correct key in storage`() {
+        RayniyomiSecurePrefs.pinHash = "pinValue"
+        storage.getString("pin_hash") shouldBe "pinValue"
+    }
 
-        RayniyomiSecurePrefs.pinHash = pinHash
-
-        // Verify the key used in the underlying prefs is correct
-        fakePrefs.getString("pin_hash", null) shouldBe pinHash
+    @Test
+    fun `PIN salt uses correct key in storage`() {
+        RayniyomiSecurePrefs.pinSalt = "saltValue"
+        storage.getString("pin_salt") shouldBe "saltValue"
     }
 
     @Test
     fun `tracker tokens use prefixed keys in storage`() {
-        val trackerId = 99L
-        val token = "tokenValue"
-
-        RayniyomiSecurePrefs.setTrackerToken(trackerId, token)
-
-        // Verify the key used in the underlying prefs matches pattern
-        fakePrefs.getString("track_token_99", null) shouldBe token
+        RayniyomiSecurePrefs.setTrackerToken(99L, "tokenValue")
+        storage.getString("track_token_99") shouldBe "tokenValue"
     }
 
     @Test
     fun `tracker token keys are unique per trackerId`() {
-        val trackerId1 = 1L
-        val trackerId2 = 2L
-        val token1 = "token1"
-        val token2 = "token2"
+        RayniyomiSecurePrefs.setTrackerToken(1L, "token1")
+        RayniyomiSecurePrefs.setTrackerToken(2L, "token2")
 
-        RayniyomiSecurePrefs.setTrackerToken(trackerId1, token1)
-        RayniyomiSecurePrefs.setTrackerToken(trackerId2, token2)
-
-        fakePrefs.getString("track_token_1", null) shouldBe token1
-        fakePrefs.getString("track_token_2", null) shouldBe token2
-    }
-
-    /**
-     * Simple in-memory implementation of SharedPreferences for testing.
-     * No encryption needed for unit tests; real encryption is tested via integration tests on Android.
-     */
-    private class FakeSharedPreferences : SharedPreferences {
-        private val data = mutableMapOf<String, Any?>()
-
-        override fun getAll(): Map<String, *> = data.toMap()
-
-        override fun getString(key: String, defValue: String?): String? {
-            return (data[key] as? String) ?: defValue
-        }
-
-        override fun getStringSet(key: String, defValues: MutableSet<String>?): MutableSet<String>? {
-            return (data[key] as? MutableSet<String>) ?: defValues
-        }
-
-        override fun getInt(key: String, defValue: Int): Int {
-            return (data[key] as? Int) ?: defValue
-        }
-
-        override fun getLong(key: String, defValue: Long): Long {
-            return (data[key] as? Long) ?: defValue
-        }
-
-        override fun getFloat(key: String, defValue: Float): Float {
-            return (data[key] as? Float) ?: defValue
-        }
-
-        override fun getBoolean(key: String, defValue: Boolean): Boolean {
-            return (data[key] as? Boolean) ?: defValue
-        }
-
-        override fun contains(key: String): Boolean = key in data
-
-        override fun edit(): SharedPreferences.Editor = FakeEditor()
-
-        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {}
-
-        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {}
-
-        inner class FakeEditor : SharedPreferences.Editor {
-            private val pendingChanges = mutableMapOf<String, Any?>()
-            private val keysToRemove = mutableSetOf<String>()
-
-            override fun putString(key: String, value: String?): SharedPreferences.Editor {
-                pendingChanges[key] = value
-                keysToRemove.remove(key)
-                return this
-            }
-
-            override fun putStringSet(key: String, values: MutableSet<String>?): SharedPreferences.Editor {
-                pendingChanges[key] = values
-                keysToRemove.remove(key)
-                return this
-            }
-
-            override fun putInt(key: String, value: Int): SharedPreferences.Editor {
-                pendingChanges[key] = value
-                keysToRemove.remove(key)
-                return this
-            }
-
-            override fun putLong(key: String, value: Long): SharedPreferences.Editor {
-                pendingChanges[key] = value
-                keysToRemove.remove(key)
-                return this
-            }
-
-            override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
-                pendingChanges[key] = value
-                keysToRemove.remove(key)
-                return this
-            }
-
-            override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
-                pendingChanges[key] = value
-                keysToRemove.remove(key)
-                return this
-            }
-
-            override fun remove(key: String): SharedPreferences.Editor {
-                pendingChanges.remove(key)
-                keysToRemove.add(key)
-                return this
-            }
-
-            override fun clear(): SharedPreferences.Editor {
-                pendingChanges.clear()
-                keysToRemove.addAll(data.keys)
-                return this
-            }
-
-            override fun commit(): Boolean {
-                keysToRemove.forEach { data.remove(it) }
-                data.putAll(pendingChanges)
-                return true
-            }
-
-            override fun apply() {
-                commit()
-            }
-        }
+        storage.getString("track_token_1") shouldBe "token1"
+        storage.getString("track_token_2") shouldBe "token2"
     }
 }
