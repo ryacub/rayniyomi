@@ -109,6 +109,12 @@ android {
     }
 
     sourceSets {
+        // AGP 9 + Crashlytics plugin can generate release mapping-file resources without wiring
+        // them into mergeResources; include the release-generated folder explicitly so release
+        // APKs always contain the Crashlytics build ID metadata required at runtime.
+        getByName("release") {
+            res.srcDir("build/generated/res/injectCrashlyticsMappingFileIdRelease")
+        }
         getByName("preview") { res.srcDir("src/debug/res") }
         getByName("benchmark") { res.srcDir("src/debug/res") }
     }
@@ -187,6 +193,15 @@ android {
     lint {
         abortOnError = false
         checkReleaseBuilds = false
+    }
+}
+
+tasks.configureEach {
+    if (
+        name.contains("Release") &&
+        (name.contains("Resource") || name.contains("Navigation"))
+    ) {
+        dependsOn("injectCrashlyticsMappingFileIdRelease")
     }
 }
 
