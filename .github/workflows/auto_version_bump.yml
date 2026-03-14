@@ -83,7 +83,5 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.bump.outputs.version_name }} (build ${{ steps.bump.outputs.version_code }})
 
           Version bump type: ${{ steps.bump.outputs.bump_type }}
-          Auto-generated after merging PR #${{ steps.bump.outputs.pr_number }}: ${{ steps.bump.outputs.pr_title }}
-
-          [skip ci]"
+          Auto-generated after merging PR #${{ steps.bump.outputs.pr_number }}: ${{ steps.bump.outputs.pr_title }}"
           git push origin main

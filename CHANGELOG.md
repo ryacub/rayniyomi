@@ -12,6 +12,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
+- **CI**: replace `[skip ci]` auto-bump strategy with actor-based job condition to unblock tag-triggered release builds
+
 ## [0.18.1.75] - 2026-03-13
 
 ### Fixed
