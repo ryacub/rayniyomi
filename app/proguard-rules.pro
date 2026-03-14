@@ -99,6 +99,13 @@
 
 # XmlUtil
 -keep public enum nl.adaptivity.xmlutil.EventType { *; }
+##---------------Begin: proguard configuration for WorkManager / Room  ----------
+# WorkManager's generated RoomDatabase subclass (WorkDatabase_Impl) is instantiated via
+# reflection (getDeclaredConstructor). R8 strips the no-arg constructor without this rule,
+# causing a NoSuchMethodException crash at startup during AppInitializer.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+##---------------End: proguard configuration for WorkManager / Room  ----------
+
 ##---------------Begin: proguard configuration for Firebase Crashlytics  ----------
 # Keep Firebase Crashlytics classes and methods
 -keep class com.google.firebase.crashlytics.** { *; }
