@@ -32,7 +32,7 @@ class PlayerSettingsCustomButtonScreenModel(
     private val toggleFavoriteCustomButton: ToggleFavoriteCustomButton = Injekt.get(),
 ) : StateScreenModel<CustomButtonScreenState>(CustomButtonScreenState.Loading) {
 
-    private val _events: Channel<CustomButtonEvent> = Channel()
+    private val _events: Channel<CustomButtonEvent> = Channel(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {

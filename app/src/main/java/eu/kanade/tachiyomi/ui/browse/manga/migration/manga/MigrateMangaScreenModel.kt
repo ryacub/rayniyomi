@@ -29,7 +29,7 @@ class MigrateMangaScreenModel(
     private val getFavorites: GetMangaFavorites = Injekt.get(),
 ) : StateScreenModel<MigrateMangaScreenModel.State>(State()) {
 
-    private val _events: Channel<MigrationMangaEvent> = Channel()
+    private val _events: Channel<MigrationMangaEvent> = Channel(Channel.BUFFERED)
     val events: Flow<MigrationMangaEvent> = _events.receiveAsFlow()
 
     init {
