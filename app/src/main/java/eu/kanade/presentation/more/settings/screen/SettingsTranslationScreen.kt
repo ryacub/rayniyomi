@@ -4,13 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -24,8 +25,8 @@ object SettingsTranslationScreen : SearchableSettings {
     override fun getPreferences(): List<Preference> {
         val translationPreferences = remember { Injekt.get<TranslationPreferences>() }
 
-        val provider by translationPreferences.translationProvider().collectAsState()
-        val apiKey by translationPreferences.translationApiKey().collectAsState()
+        val provider by translationPreferences.translationProvider().collectAsStateWithLifecycle()
+        val apiKey by translationPreferences.translationApiKey().collectAsStateWithLifecycle()
 
         return listOf(
             Preference.PreferenceItem.ListPreference(

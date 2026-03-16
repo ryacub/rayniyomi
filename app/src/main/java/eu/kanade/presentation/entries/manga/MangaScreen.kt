@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
@@ -86,7 +87,7 @@ import tachiyomi.presentation.core.components.material.ExtendedFloatingActionBut
 import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.source.local.entries.manga.isLocal
 import uy.kohesive.injekt.Injekt
@@ -162,7 +163,7 @@ fun MangaScreen(
         navigator.push(MangaSourcePreferencesScreen(state.source.id))
     }.takeIf { state.source is ConfigurableSource }
     val uiPreferences = remember { Injekt.get<UiPreferences>() }
-    val dynamicCoverThemeEnabled by uiPreferences.dynamicEntryCoverTheming().collectAsState()
+    val dynamicCoverThemeEnabled by uiPreferences.dynamicEntryCoverTheming().collectAsStateWithLifecycle()
     val coverThemeCacheKey = remember(state.manga) {
         "manga;${state.manga.id};${state.manga.thumbnailUrl};${state.manga.coverLastModified}"
     }

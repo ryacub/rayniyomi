@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.ui.UiPreferences
@@ -27,7 +28,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.LocalDate
@@ -55,13 +56,13 @@ object SettingsAppearanceScreen : SearchableSettings {
         val context = LocalContext.current
 
         val themeModePref = uiPreferences.themeMode()
-        val themeMode by themeModePref.collectAsState()
+        val themeMode by themeModePref.collectAsStateWithLifecycle()
 
         val appThemePref = uiPreferences.appTheme()
-        val appTheme by appThemePref.collectAsState()
+        val appTheme by appThemePref.collectAsStateWithLifecycle()
 
         val amoledPref = uiPreferences.themeDarkAmoled()
-        val amoled by amoledPref.collectAsState()
+        val amoled by amoledPref.collectAsStateWithLifecycle()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_theme),
@@ -112,7 +113,7 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         val now = remember { LocalDate.now() }
 
-        val dateFormat by uiPreferences.dateFormat().collectAsState()
+        val dateFormat by uiPreferences.dateFormat().collectAsStateWithLifecycle()
         val formattedNow = remember(dateFormat) {
             UiPreferences.dateFormat(dateFormat).format(now)
         }

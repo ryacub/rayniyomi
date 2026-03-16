@@ -4,9 +4,9 @@ import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
@@ -65,7 +65,7 @@ data object MoreTab : Tab {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = rememberScreenModel { MoreScreenModel() }
-        val downloadQueueState by screenModel.downloadQueueState.collectAsState()
+        val downloadQueueState by screenModel.downloadQueueState.collectAsStateWithLifecycle()
         val navStyle = currentNavigationStyle()
         MoreScreen(
             downloadQueueStateProvider = { downloadQueueState },
@@ -84,7 +84,7 @@ data object MoreTab : Tab {
             onClickPlayerSettings = { navigator.push(PlayerSettingsScreen(mainSettings = false)) },
             onClickSettings = { navigator.push(SettingsScreen()) },
             onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
-            lightNovelUiState = screenModel.lightNovelUiState.collectAsState().value,
+            lightNovelUiState = screenModel.lightNovelUiState.collectAsStateWithLifecycle().value,
             onClickLightNovels = { screenModel.launchLightNovels() },
             onClickInstallPlugin = { screenModel.launchInstallFlow(navigator) },
         )

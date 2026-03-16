@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
@@ -28,7 +29,7 @@ import kotlinx.collections.immutable.toPersistentMap
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.text.NumberFormat
@@ -148,7 +149,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
         val hideTime = playerPreferences.playerTimeToDisappear()
 
         val panelOpacityPref = playerPreferences.panelOpacity()
-        val panelOpacity by panelOpacityPref.collectAsState()
+        val panelOpacity by panelOpacityPref.collectAsStateWithLifecycle()
         val numberFormat = remember { NumberFormat.getPercentInstance() }
 
         return Preference.PreferenceGroup(
@@ -199,7 +200,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
     @Composable
     private fun getIntroSkipGroup(playerPreferences: PlayerPreferences): Preference.PreferenceGroup {
         val enableSkipIntro = playerPreferences.enableSkipIntro()
-        val isIntroSkipEnabled by enableSkipIntro.collectAsState()
+        val isIntroSkipEnabled by enableSkipIntro.collectAsStateWithLifecycle()
 
         val enableAutoSkipOpening = playerPreferences.autoSkipOpening()
         val enableAutoSkipEnding = playerPreferences.autoSkipEnding()
@@ -209,7 +210,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
         // AniSkip
         val enableAniSkip = playerPreferences.aniSkipEnabled()
         val disableAniSkipChapters = playerPreferences.disableAniSkipOnChapters()
-        val isAniSkipEnabled by enableAniSkip.collectAsState()
+        val isAniSkipEnabled by enableAniSkip.collectAsStateWithLifecycle()
 
         return Preference.PreferenceGroup(
             title = stringResource(AYMR.strings.pref_category_intro_skip),
@@ -271,7 +272,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
         val pipOnExit = playerPreferences.pipOnExit()
         val pipReplaceWithPrevious = playerPreferences.pipReplaceWithPrevious()
 
-        val isPipEnabled by enablePip.collectAsState()
+        val isPipEnabled by enablePip.collectAsStateWithLifecycle()
 
         return Preference.PreferenceGroup(
             title = stringResource(AYMR.strings.pref_category_pip),

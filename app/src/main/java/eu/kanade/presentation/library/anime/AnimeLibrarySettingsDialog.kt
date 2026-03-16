@@ -12,11 +12,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.tachiyomi.ui.library.anime.AnimeLibrarySettingsScreenModel
@@ -37,7 +37,7 @@ import tachiyomi.presentation.core.components.SliderItem
 import tachiyomi.presentation.core.components.SortItem
 import tachiyomi.presentation.core.components.TriStateItem
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 
 @Composable
 fun AnimeLibrarySettingsDialog(
@@ -78,8 +78,8 @@ fun AnimeLibrarySettingsDialog(
 private fun ColumnScope.FilterPage(
     screenModel: AnimeLibrarySettingsScreenModel,
 ) {
-    val filterDownloaded by screenModel.libraryPreferences.filterDownloadedAnime().collectAsState()
-    val downloadedOnly by screenModel.preferences.downloadedOnly().collectAsState()
+    val filterDownloaded by screenModel.libraryPreferences.filterDownloadedAnime().collectAsStateWithLifecycle()
+    val downloadedOnly by screenModel.preferences.downloadedOnly().collectAsStateWithLifecycle()
 
     TriStateItem(
         label = stringResource(MR.strings.label_downloaded),
@@ -91,38 +91,38 @@ private fun ColumnScope.FilterPage(
         enabled = !downloadedOnly,
         onClick = { screenModel.toggleFilter(LibraryPreferences::filterDownloadedAnime) },
     )
-    val filterUnseen by screenModel.libraryPreferences.filterUnseen().collectAsState()
+    val filterUnseen by screenModel.libraryPreferences.filterUnseen().collectAsStateWithLifecycle()
     TriStateItem(
         label = stringResource(AYMR.strings.action_filter_unseen),
         state = filterUnseen,
         onClick = { screenModel.toggleFilter(LibraryPreferences::filterUnseen) },
     )
-    val filterStarted by screenModel.libraryPreferences.filterStartedAnime().collectAsState()
+    val filterStarted by screenModel.libraryPreferences.filterStartedAnime().collectAsStateWithLifecycle()
     TriStateItem(
         label = stringResource(MR.strings.label_started),
         state = filterStarted,
         onClick = { screenModel.toggleFilter(LibraryPreferences::filterStartedAnime) },
     )
-    val filterBookmarked by screenModel.libraryPreferences.filterBookmarkedAnime().collectAsState()
+    val filterBookmarked by screenModel.libraryPreferences.filterBookmarkedAnime().collectAsStateWithLifecycle()
     TriStateItem(
         label = stringResource(MR.strings.action_filter_bookmarked),
         state = filterBookmarked,
         onClick = { screenModel.toggleFilter(LibraryPreferences::filterBookmarkedAnime) },
     )
-    val filterCompleted by screenModel.libraryPreferences.filterCompletedAnime().collectAsState()
+    val filterCompleted by screenModel.libraryPreferences.filterCompletedAnime().collectAsStateWithLifecycle()
     TriStateItem(
         label = stringResource(MR.strings.completed),
         state = filterCompleted,
         onClick = { screenModel.toggleFilter(LibraryPreferences::filterCompletedAnime) },
     )
-    val filterIntervalCustom by screenModel.libraryPreferences.filterIntervalCustom().collectAsState()
+    val filterIntervalCustom by screenModel.libraryPreferences.filterIntervalCustom().collectAsStateWithLifecycle()
     TriStateItem(
         label = stringResource(MR.strings.action_filter_interval_custom),
         state = filterIntervalCustom,
         onClick = { screenModel.toggleFilter(LibraryPreferences::filterIntervalCustom) },
     )
 
-    val trackers by screenModel.trackersFlow.collectAsState()
+    val trackers by screenModel.trackersFlow.collectAsStateWithLifecycle()
     when (trackers.size) {
         0 -> {
             // No trackers
@@ -131,7 +131,7 @@ private fun ColumnScope.FilterPage(
             val service = trackers[0]
             val filterTracker by screenModel.libraryPreferences.filterTrackedAnime(
                 service.id.toInt(),
-            ).collectAsState()
+            ).collectAsStateWithLifecycle()
             TriStateItem(
                 label = stringResource(MR.strings.action_filter_tracked),
                 state = filterTracker,
@@ -143,7 +143,7 @@ private fun ColumnScope.FilterPage(
             trackers.map { service ->
                 val filterTracker by screenModel.libraryPreferences.filterTrackedAnime(
                     service.id.toInt(),
-                ).collectAsState()
+                ).collectAsStateWithLifecycle()
                 TriStateItem(
                     label = service.name,
                     state = filterTracker,
@@ -159,7 +159,7 @@ private fun ColumnScope.SortPage(
     category: Category?,
     screenModel: AnimeLibrarySettingsScreenModel,
 ) {
-    val trackers by screenModel.trackersFlow.collectAsState()
+    val trackers by screenModel.trackersFlow.collectAsStateWithLifecycle()
     val sortingMode = category.sort.type
     val sortDescending = !category.sort.isAscending
 
@@ -230,7 +230,7 @@ private val displayModes = listOf(
 private fun ColumnScope.DisplayPage(
     screenModel: AnimeLibrarySettingsScreenModel,
 ) {
-    val displayMode by screenModel.libraryPreferences.displayMode().collectAsState()
+    val displayMode by screenModel.libraryPreferences.displayMode().collectAsStateWithLifecycle()
     SettingsChipRow(MR.strings.action_display_mode) {
         displayModes.map { (titleRes, mode) ->
             FilterChip(
@@ -250,7 +250,7 @@ private fun ColumnScope.DisplayPage(
         }
     }
 
-    val columns by columnPreference.collectAsState()
+    val columns by columnPreference.collectAsStateWithLifecycle()
     if (displayMode == LibraryDisplayMode.List) {
         SliderItem(
             value = columns,

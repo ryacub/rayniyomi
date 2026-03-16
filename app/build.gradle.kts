@@ -346,6 +346,7 @@ dependencies {
 
     // Tests
     testImplementation(libs.bundles.test)
+    testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
 
     // For detecting memory leaks; see https://square.github.io/leakcanary/
     // debugImplementation(libs.leakcanary.android)

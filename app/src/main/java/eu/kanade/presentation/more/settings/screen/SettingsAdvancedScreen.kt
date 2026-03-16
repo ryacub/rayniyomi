@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.base.BasePreferences
@@ -78,7 +79,7 @@ import tachiyomi.domain.entries.manga.interactor.ResetMangaViewerFlags
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
@@ -224,7 +225,7 @@ object SettingsAdvancedScreen : SearchableSettings {
         val networkHelper = remember { Injekt.get<NetworkHelper>() }
 
         val userAgentPref = networkPreferences.defaultUserAgent()
-        val userAgent by userAgentPref.collectAsState()
+        val userAgent by userAgentPref.collectAsStateWithLifecycle()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.label_network),
@@ -480,7 +481,7 @@ object SettingsAdvancedScreen : SearchableSettings {
     @Composable
     private fun getDataSaverGroup(): Preference.PreferenceGroup {
         val sourcePreferences = remember { Injekt.get<SourcePreferences>() }
-        val dataSaver by sourcePreferences.dataSaver().collectAsState()
+        val dataSaver by sourcePreferences.dataSaver().collectAsStateWithLifecycle()
         return Preference.PreferenceGroup(
             title = stringResource(AYMR.strings.data_saver),
             preferenceItems = persistentListOf(
@@ -533,7 +534,8 @@ object SettingsAdvancedScreen : SearchableSettings {
                     enabled = dataSaver != DataSaver.NONE,
                 ),
                 kotlin.run {
-                    val dataSaverImageFormatJpeg by sourcePreferences.dataSaverImageFormatJpeg().collectAsState()
+                    val dataSaverImageFormatJpeg by sourcePreferences.dataSaverImageFormatJpeg()
+                        .collectAsStateWithLifecycle()
                     Preference.PreferenceItem.SwitchPreference(
                         preference = sourcePreferences.dataSaverImageFormatJpeg(),
                         title = stringResource(AYMR.strings.data_saver_image_format),

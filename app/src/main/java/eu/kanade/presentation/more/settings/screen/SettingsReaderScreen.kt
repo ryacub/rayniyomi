@@ -6,6 +6,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
@@ -18,7 +19,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.text.NumberFormat
@@ -77,7 +78,7 @@ object SettingsReaderScreen : SearchableSettings {
     @Composable
     private fun getDisplayGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
         val fullscreenPref = readerPreferences.fullscreen()
-        val fullscreen by fullscreenPref.collectAsState()
+        val fullscreen by fullscreenPref.collectAsStateWithLifecycle()
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_display),
             preferenceItems = persistentListOf(
@@ -123,13 +124,13 @@ object SettingsReaderScreen : SearchableSettings {
 
     @Composable
     private fun getEInkGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
-        val flashPageState by readerPreferences.flashOnPageChange().collectAsState()
+        val flashPageState by readerPreferences.flashOnPageChange().collectAsStateWithLifecycle()
 
         val flashMillisPref = readerPreferences.flashDurationMillis()
-        val flashMillis by flashMillisPref.collectAsState()
+        val flashMillis by flashMillisPref.collectAsStateWithLifecycle()
 
         val flashIntervalPref = readerPreferences.flashPageInterval()
-        val flashInterval by flashIntervalPref.collectAsState()
+        val flashInterval by flashIntervalPref.collectAsStateWithLifecycle()
 
         val flashColorPref = readerPreferences.flashColor()
 
@@ -214,10 +215,10 @@ object SettingsReaderScreen : SearchableSettings {
         val dualPageSplitPref = readerPreferences.dualPageSplitPaged()
         val rotateToFitPref = readerPreferences.dualPageRotateToFit()
 
-        val navMode by navModePref.collectAsState()
-        val imageScaleType by imageScaleTypePref.collectAsState()
-        val dualPageSplit by dualPageSplitPref.collectAsState()
-        val rotateToFit by rotateToFitPref.collectAsState()
+        val navMode by navModePref.collectAsStateWithLifecycle()
+        val imageScaleType by imageScaleTypePref.collectAsStateWithLifecycle()
+        val dualPageSplit by dualPageSplitPref.collectAsStateWithLifecycle()
+        val rotateToFit by rotateToFitPref.collectAsStateWithLifecycle()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pager_viewer),
@@ -314,11 +315,11 @@ object SettingsReaderScreen : SearchableSettings {
         val webtoonSidePaddingPref = readerPreferences.webtoonSidePadding()
         val webtoonAutoScrollSpeedPref = readerPreferences.webtoonAutoScrollSpeedTenths()
 
-        val navMode by navModePref.collectAsState()
-        val dualPageSplit by dualPageSplitPref.collectAsState()
-        val rotateToFit by rotateToFitPref.collectAsState()
-        val webtoonSidePadding by webtoonSidePaddingPref.collectAsState()
-        val webtoonAutoScrollSpeed by webtoonAutoScrollSpeedPref.collectAsState()
+        val navMode by navModePref.collectAsStateWithLifecycle()
+        val dualPageSplit by dualPageSplitPref.collectAsStateWithLifecycle()
+        val rotateToFit by rotateToFitPref.collectAsStateWithLifecycle()
+        val webtoonSidePadding by webtoonSidePaddingPref.collectAsStateWithLifecycle()
+        val webtoonAutoScrollSpeed by webtoonAutoScrollSpeedPref.collectAsStateWithLifecycle()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webtoon_viewer),
@@ -421,7 +422,7 @@ object SettingsReaderScreen : SearchableSettings {
     @Composable
     private fun getNavigationGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
         val readWithVolumeKeysPref = readerPreferences.readWithVolumeKeys()
-        val readWithVolumeKeys by readWithVolumeKeysPref.collectAsState()
+        val readWithVolumeKeys by readWithVolumeKeysPref.collectAsStateWithLifecycle()
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_reader_navigation),
             preferenceItems = persistentListOf(

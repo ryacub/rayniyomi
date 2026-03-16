@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.base.BasePreferences
@@ -13,7 +14,7 @@ import eu.kanade.presentation.more.settings.screen.SettingsDataScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -24,7 +25,7 @@ class OnboardingScreen : Screen() {
         val navigator = LocalNavigator.currentOrThrow
 
         val basePreferences = remember { Injekt.get<BasePreferences>() }
-        val shownOnboardingFlow by basePreferences.shownOnboardingFlow().collectAsState()
+        val shownOnboardingFlow by basePreferences.shownOnboardingFlow().collectAsStateWithLifecycle()
 
         val finishOnboarding: () -> Unit = {
             basePreferences.shownOnboardingFlow().set(true)
