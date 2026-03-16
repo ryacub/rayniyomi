@@ -6,7 +6,7 @@
   "parallel_mode": false,
   "project_type": "android",
   "start_commit": "8640f9307b4d44c5dce1c4bfac5baa504315bbe7",
-  "iteration": 3,
+  "iteration": 4,
   "max_iterations": 20,
   "cost": {
     "total_input_tokens": 0,
@@ -14,7 +14,8 @@
     "iterations": [
       { "iter": 1, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:00:00Z" },
       { "iter": 2, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:01:00Z" },
-      { "iter": 3, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:02:00Z" }
+      { "iter": 3, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:02:00Z" },
+      { "iter": 4, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:03:00Z" }
     ]
   },
   "features": [
@@ -32,13 +33,13 @@
     },
     {
       "name": "Implement MangaDownloadQueueScreen pure Compose",
-      "status": "in_progress",
+      "status": "done",
       "tests": null,
-      "commit": null
+      "commit": "68acf0c6f00d506f2d143c86a63666ab078ec8e9"
     },
     {
       "name": "Remove FlexibleAdapter dependency",
-      "status": "pending",
+      "status": "in_progress",
       "tests": null,
       "commit": null
     }
@@ -50,11 +51,11 @@
     "output": ""
   },
   "learnings": [
-    "ISEXPANDED_BUG: FIXED in Feature 2 — _collapsedSources tracks collapsed source IDs (empty=all expanded). Apply same pattern to MangaDownloadQueueScreenModel.",
-    "MISSING_DISTINCTUNTILCHANGED: FIXED in Feature 2 for anime. Apply same fix to MangaDownloadQueueScreenModel.",
-    "DEAD_CODE_FOR_FEATURE4: Both ScreenModels still have adapter, controllerBinding, progressJobs, listener object, getHolder(), onUpdateProgress(), onUpdateDownloadedPages(), onStatusChange(), cancelProgressJob(). These reference old FlexibleAdapter types and MUST be removed in Feature 4.",
-    "COMPOSE_MENU_METHODS: Feature 2 added moveToTop/Bottom/Series and cancelDownload/Series to AnimeDownloadQueueScreenModel. Feature 3 must add identical methods to MangaDownloadQueueScreenModel using MangaDownloadUiItem/MangaDownload.",
-    "REUSE_COMPOSABLES: Plan says extract shared DownloadQueueItem/DownloadQueueHeader composables. Feature 3 should reuse the Anime composable structure — either extract to shared file or mirror exactly."
+    "DEAD_CODE_FOR_FEATURE4: Both ScreenModels still have adapter, controllerBinding, progressJobs, listener object, getHolder(), onUpdateProgress(), onUpdateDownloadedPages(), onStatusChange(), cancelProgressJob(). These ALL reference old FlexibleAdapter types. Remove them all.",
+    "FEATURE4_FILES_TO_DELETE: anime/AnimeDownloadAdapter.kt, anime/AnimeDownloadHeaderItem.kt, anime/AnimeDownloadHeaderHolder.kt, anime/AnimeDownloadItem.kt, anime/AnimeDownloadHolder.kt, manga/MangaDownloadAdapter.kt, manga/MangaDownloadHeaderItem.kt, manga/MangaDownloadHeaderHolder.kt, manga/MangaDownloadItem.kt, manga/MangaDownloadHolder.kt",
+    "FEATURE4_BUILD_FILES: Remove 'implementation(libs.flexible.adapter.core)' from app/build.gradle.kts and 'flexible-adapter-core = ...' from gradle/libs.versions.toml",
+    "FEATURE4_CHECK_IMPORTS: After deleting files, grep both ScreenModels for any remaining import of eu.davidea.flexibleadapter or AnimeDownloadAdapter/AnimeDownloadItem/AnimeDownloadHeaderItem etc. All such imports must be removed.",
+    "FEATURE4_VIEWBINDING: app/build.gradle.kts has viewBinding = true. After removing all View-based code, check if viewBinding can be disabled. Only disable if NO other files use generated ViewBinding classes."
   ],
   "review": null,
   "blocker": null
