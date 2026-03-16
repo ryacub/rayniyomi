@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Migrate rayniyomi-specific screen state collection to `collectAsStateWithLifecycle()` — stops background Flow collection when UI is STOPPED
 - Preserve Crashlytics build ID in release artifacts via release resource pipeline and shrinker keep rule
 - Keep RoomDatabase subclass constructors in release builds to prevent WorkManager startup crash from R8 stripping the no-arg constructor
+- MPV subtitle font sync now runs deterministically in initializer IO flow with idempotent copy/cleanup behavior and failure-safe per-file handling
 
 ### Changed
 

@@ -121,7 +121,6 @@ class PlayerActivity : BaseActivity() {
         PlayerMpvInitializer(
             context = applicationContext,
             storageManager = storageManager,
-            scope = lifecycleScope,
         )
     }
 

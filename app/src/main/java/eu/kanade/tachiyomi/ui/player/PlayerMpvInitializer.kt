@@ -21,7 +21,6 @@ import android.content.Context
 import android.content.res.AssetManager
 import com.hippo.unifile.UniFile
 import `is`.xyz.mpv.MPVLib
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
@@ -39,7 +38,6 @@ import java.io.OutputStream
 internal class PlayerMpvInitializer(
     private val context: Context,
     private val storageManager: StorageManager,
-    @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
 ) {
     companion object {
         const val MPV_DIR = "mpv"
