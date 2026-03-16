@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.offset
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import aniyomi.domain.anime.SeasonAnime
 import aniyomi.domain.anime.SeasonDisplayMode
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -104,7 +105,7 @@ import tachiyomi.presentation.core.components.material.ExtendedFloatingActionBut
 import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.source.local.entries.anime.isLocal
 import uy.kohesive.injekt.Injekt
@@ -186,7 +187,7 @@ fun AnimeScreen(
         navigator.push(AnimeSourcePreferencesScreen(state.source.id))
     }.takeIf { state.source is ConfigurableAnimeSource }
     val uiPreferences = remember { Injekt.get<UiPreferences>() }
-    val dynamicCoverThemeEnabled by uiPreferences.dynamicEntryCoverTheming().collectAsState()
+    val dynamicCoverThemeEnabled by uiPreferences.dynamicEntryCoverTheming().collectAsStateWithLifecycle()
     val coverThemeCacheKey = remember(state.anime) {
         "anime;${state.anime.id};${state.anime.thumbnailUrl};${state.anime.coverLastModified}"
     }

@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
@@ -32,7 +33,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -53,8 +54,8 @@ object SettingsLightNovelScreen : SearchableSettings {
         val enableLightNovelsPref = remember { preferences.enableLightNovels() }
         val lightNovelPluginChannelPref = remember { preferences.lightNovelPluginChannel() }
 
-        val enabled by enableLightNovelsPref.collectAsState()
-        val channel by lightNovelPluginChannelPref.collectAsState()
+        val enabled by enableLightNovelsPref.collectAsStateWithLifecycle()
+        val channel by lightNovelPluginChannelPref.collectAsStateWithLifecycle()
 
         var status by remember {
             mutableStateOf(

@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.hippo.unifile.UniFile
@@ -79,7 +80,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.TextButton
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -155,7 +156,7 @@ object SettingsDataScreen : SearchableSettings {
         storageDirPref: tachiyomi.core.common.preference.Preference<String>,
     ): String {
         val context = LocalContext.current
-        val storageDir by storageDirPref.collectAsState()
+        val storageDir by storageDirPref.collectAsStateWithLifecycle()
 
         if (!storageDirPref.isSet()) {
             return stringResource(MR.strings.no_location_set)
@@ -192,7 +193,7 @@ object SettingsDataScreen : SearchableSettings {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
 
-        val lastAutoBackup by backupPreferences.lastAutoBackupTimestamp().collectAsState()
+        val lastAutoBackup by backupPreferences.lastAutoBackupTimestamp().collectAsStateWithLifecycle()
 
         val chooseBackup = rememberLauncherForActivityResult(
             object : ActivityResultContracts.GetContent() {

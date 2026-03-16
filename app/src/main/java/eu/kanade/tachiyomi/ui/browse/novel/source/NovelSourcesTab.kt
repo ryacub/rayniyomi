@@ -14,13 +14,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.screen.Screen
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
@@ -36,7 +36,7 @@ import uy.kohesive.injekt.api.get
 fun Screen.novelSourcesTab(): TabContent {
     val pluginLauncher = Injekt.get<LightNovelPluginLauncher>()
     val stateManager = Injekt.get<LightNovelPluginStateManager>()
-    val pluginUiState by stateManager.uiState.collectAsState()
+    val pluginUiState by stateManager.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val launchFailedMessage = stringResource(AYMR.strings.light_novel_browse_launch_failed)
 

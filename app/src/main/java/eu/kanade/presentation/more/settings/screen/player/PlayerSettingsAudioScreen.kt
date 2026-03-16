@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
 import eu.kanade.tachiyomi.ui.player.settings.AudioChannels
@@ -11,7 +12,7 @@ import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
@@ -31,7 +32,7 @@ object PlayerSettingsAudioScreen : SearchableSettings {
         val pitchCorrection = audioPreferences.enablePitchCorrection()
         val audioChannels = audioPreferences.audioChannels()
         val boostCapPref = audioPreferences.volumeBoostCap()
-        val boostCap by boostCapPref.collectAsState()
+        val boostCap by boostCapPref.collectAsStateWithLifecycle()
 
         return listOf(
             Preference.PreferenceItem.EditTextInfoPreference(

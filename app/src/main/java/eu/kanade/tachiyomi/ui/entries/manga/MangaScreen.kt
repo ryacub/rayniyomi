@@ -7,7 +7,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -295,7 +294,7 @@ class MangaScreen(
             }
             MangaScreenModel.Dialog.FullCover -> {
                 val sm = rememberScreenModel { MangaCoverScreenModel(successState.manga.id) }
-                val manga by sm.state.collectAsState()
+                val manga by sm.state.collectAsStateWithLifecycle()
                 if (manga != null) {
                     val getContent = rememberLauncherForActivityResult(
                         ActivityResultContracts.GetContent(),

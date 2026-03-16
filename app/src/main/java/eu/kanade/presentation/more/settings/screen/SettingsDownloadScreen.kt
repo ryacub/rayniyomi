@@ -11,7 +11,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.category.visualName
 import eu.kanade.presentation.more.settings.Preference
@@ -42,7 +42,7 @@ import tachiyomi.presentation.core.components.OutlinedNumericChooser
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -55,12 +55,12 @@ object SettingsDownloadScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val getMangaCategories = remember { Injekt.get<GetMangaCategories>() }
-        val allMangaCategories by getMangaCategories.subscribe().collectAsState(initial = emptyList())
+        val allMangaCategories by getMangaCategories.subscribe().collectAsStateWithLifecycle(initialValue = emptyList())
         val getAnimeCategories = remember { Injekt.get<GetAnimeCategories>() }
-        val allAnimeCategories by getAnimeCategories.subscribe().collectAsState(initial = emptyList())
+        val allAnimeCategories by getAnimeCategories.subscribe().collectAsStateWithLifecycle(initialValue = emptyList())
         val downloadPreferences = remember { Injekt.get<DownloadPreferences>() }
         val basePreferences = remember { Injekt.get<BasePreferences>() }
-        val speedLimit by downloadPreferences.downloadSpeedLimit().collectAsState()
+        val speedLimit by downloadPreferences.downloadSpeedLimit().collectAsStateWithLifecycle()
         var currentSpeedLimit by remember { mutableIntStateOf(speedLimit) }
         var showDownloadLimitDialog by rememberSaveable { mutableStateOf(false) }
         if (showDownloadLimitDialog) {
@@ -222,10 +222,10 @@ object SettingsDownloadScreen : SearchableSettings {
         val downloadNewEpisodeCategoriesPref = downloadPreferences.downloadNewEpisodeCategories()
         val downloadNewEpisodeCategoriesExcludePref = downloadPreferences.downloadNewEpisodeCategoriesExclude()
 
-        val downloadNewEpisodes by downloadNewEpisodesPref.collectAsState()
+        val downloadNewEpisodes by downloadNewEpisodesPref.collectAsStateWithLifecycle()
 
-        val includedAnime by downloadNewEpisodeCategoriesPref.collectAsState()
-        val excludedAnime by downloadNewEpisodeCategoriesExcludePref.collectAsState()
+        val includedAnime by downloadNewEpisodeCategoriesPref.collectAsStateWithLifecycle()
+        val excludedAnime by downloadNewEpisodeCategoriesExcludePref.collectAsStateWithLifecycle()
         var showAnimeDialog by rememberSaveable { mutableStateOf(false) }
         if (showAnimeDialog) {
             TriStateListDialog(
@@ -253,10 +253,10 @@ object SettingsDownloadScreen : SearchableSettings {
         val downloadNewChapterCategoriesPref = downloadPreferences.downloadNewChapterCategories()
         val downloadNewChapterCategoriesExcludePref = downloadPreferences.downloadNewChapterCategoriesExclude()
 
-        val downloadNewChapters by downloadNewChaptersPref.collectAsState()
+        val downloadNewChapters by downloadNewChaptersPref.collectAsStateWithLifecycle()
 
-        val included by downloadNewChapterCategoriesPref.collectAsState()
-        val excluded by downloadNewChapterCategoriesExcludePref.collectAsState()
+        val included by downloadNewChapterCategoriesPref.collectAsStateWithLifecycle()
+        val excluded by downloadNewChapterCategoriesExcludePref.collectAsStateWithLifecycle()
         var showDialog by rememberSaveable { mutableStateOf(false) }
         if (showDialog) {
             TriStateListDialog(

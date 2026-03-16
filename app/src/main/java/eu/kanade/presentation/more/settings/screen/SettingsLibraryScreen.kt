@@ -2,7 +2,6 @@ package eu.kanade.presentation.more.settings.screen
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.util.fastMap
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -47,7 +47,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -60,11 +60,11 @@ object SettingsLibraryScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val getCategories = remember { Injekt.get<GetMangaCategories>() }
-        val allCategories by getCategories.subscribe().collectAsState(initial = emptyList())
+        val allCategories by getCategories.subscribe().collectAsStateWithLifecycle(initialValue = emptyList())
         val getAnimeCategories = remember { Injekt.get<GetAnimeCategories>() }
-        val allAnimeCategories by getAnimeCategories.subscribe().collectAsState(initial = emptyList())
+        val allAnimeCategories by getAnimeCategories.subscribe().collectAsStateWithLifecycle(initialValue = emptyList())
         val libraryPreferences = remember { Injekt.get<LibraryPreferences>() }
-        val libraryListSize by libraryPreferences.libraryListSize().collectAsState()
+        val libraryListSize by libraryPreferences.libraryListSize().collectAsStateWithLifecycle()
 
         return listOf(
             getCategoriesGroup(
@@ -198,14 +198,14 @@ object SettingsLibraryScreen : SearchableSettings {
         val animeById = allAnimeCategories.associateBy { it.id }
 
         val autoUpdateIntervalPref = libraryPreferences.autoUpdateInterval()
-        val autoUpdateInterval by autoUpdateIntervalPref.collectAsState()
+        val autoUpdateInterval by autoUpdateIntervalPref.collectAsStateWithLifecycle()
 
         val animeAutoUpdateCategoriesPref = libraryPreferences.animeUpdateCategories()
         val animeAutoUpdateCategoriesExcludePref =
             libraryPreferences.animeUpdateCategoriesExclude()
 
-        val includedAnime by animeAutoUpdateCategoriesPref.collectAsState()
-        val excludedAnime by animeAutoUpdateCategoriesExcludePref.collectAsState()
+        val includedAnime by animeAutoUpdateCategoriesPref.collectAsStateWithLifecycle()
+        val excludedAnime by animeAutoUpdateCategoriesExcludePref.collectAsStateWithLifecycle()
         var showAnimeCategoriesDialog by rememberSaveable { mutableStateOf(false) }
         if (showAnimeCategoriesDialog) {
             TriStateListDialog(
@@ -231,8 +231,8 @@ object SettingsLibraryScreen : SearchableSettings {
         val autoUpdateCategoriesExcludePref =
             libraryPreferences.mangaUpdateCategoriesExclude()
 
-        val includedManga by autoUpdateCategoriesPref.collectAsState()
-        val excludedManga by autoUpdateCategoriesExcludePref.collectAsState()
+        val includedManga by autoUpdateCategoriesPref.collectAsStateWithLifecycle()
+        val excludedManga by autoUpdateCategoriesExcludePref.collectAsStateWithLifecycle()
         var showMangaCategoriesDialog by rememberSaveable { mutableStateOf(false) }
         if (showMangaCategoriesDialog) {
             TriStateListDialog(

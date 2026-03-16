@@ -2,11 +2,11 @@ package eu.kanade.presentation.more.settings.screen
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.source.service.SourcePreferences
@@ -40,8 +40,8 @@ object SettingsBrowseScreen : SearchableSettings {
         val getMangaExtensionRepoCount = remember { Injekt.get<GetMangaExtensionRepoCount>() }
         val getAnimeExtensionRepoCount = remember { Injekt.get<GetAnimeExtensionRepoCount>() }
 
-        val mangaReposCount by getMangaExtensionRepoCount.subscribe().collectAsState(0)
-        val animeReposCount by getAnimeExtensionRepoCount.subscribe().collectAsState(0)
+        val mangaReposCount by getMangaExtensionRepoCount.subscribe().collectAsStateWithLifecycle(0)
+        val animeReposCount by getAnimeExtensionRepoCount.subscribe().collectAsStateWithLifecycle(0)
 
         return listOf(
             Preference.PreferenceGroup(

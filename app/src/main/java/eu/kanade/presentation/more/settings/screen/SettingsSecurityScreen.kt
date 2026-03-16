@@ -9,7 +9,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.core.security.PinHasher
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
@@ -23,6 +22,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Base64
@@ -41,7 +41,7 @@ object SettingsSecurityScreen : SearchableSettings {
 
         val useAuthPref = securityPreferences.useAuthenticator()
         val usePinLockPref = securityPreferences.usePinLock()
-        val useAuth by useAuthPref.changes().collectAsStateWithLifecycle(initialValue = useAuthPref.get())
+        val useAuth by useAuthPref.collectAsStateWithLifecycle()
 
         var showPinSetupDialog by rememberSaveable { mutableStateOf(false) }
         var showChangePinDialog by rememberSaveable { mutableStateOf(false) }
@@ -146,9 +146,7 @@ object SettingsSecurityScreen : SearchableSettings {
                 ),
             )
 
-            val usePinLock by usePinLockPref
-                .changes()
-                .collectAsStateWithLifecycle(initialValue = usePinLockPref.get())
+            val usePinLock by usePinLockPref.collectAsStateWithLifecycle()
 
             if (usePinLock) {
                 add(
@@ -161,9 +159,7 @@ object SettingsSecurityScreen : SearchableSettings {
                 )
             }
 
-            val useBiometric by useAuthPref
-                .changes()
-                .collectAsStateWithLifecycle(initialValue = useAuthPref.get())
+            val useBiometric by useAuthPref.collectAsStateWithLifecycle()
 
             if (useBiometric && usePinLock) {
                 add(
