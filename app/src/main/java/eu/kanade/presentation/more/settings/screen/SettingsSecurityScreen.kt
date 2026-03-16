@@ -49,7 +49,10 @@ object SettingsSecurityScreen : SearchableSettings {
 
         if (showPinSetupDialog) {
             PinSetupDialog(
-                onDismiss = { showPinSetupDialog = false; pinSetupSaveError = null },
+                onDismiss = {
+                    showPinSetupDialog = false
+                    pinSetupSaveError = null
+                },
                 saveErrorMessage = pinSetupSaveError,
                 onPinSet = { pin ->
                     pinSetupSaveError = null
