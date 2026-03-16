@@ -7,6 +7,7 @@ import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -187,6 +188,26 @@ class EntryEnrichmentScreenModelTest {
 
         assertFalse(model.state.value.loading)
         assertEquals("Unable to load recommendations", model.state.value.errorText)
+    }
+
+    @Test
+    fun `observer cancellation is not surfaced as user error`() = runTest {
+        val coordinator = mockk<EntryEnrichmentCoordinator>()
+
+        every { coordinator.observeManga(1) } returns throwingFlow(CancellationException("cancelled"))
+        coEvery { coordinator.refreshManga(mangaId = 1, title = "Test Manga", force = true) } returns
+            createTestEnrichedEntry(entryId = 1)
+
+        val model = EntryEnrichmentScreenModel(
+            entryId = 1,
+            title = "Test Manga",
+            mediaType = EnrichmentMediaType.MANGA,
+            coordinator = coordinator,
+        )
+
+        advanceUntilIdle()
+
+        assertNull(model.state.value.errorText)
     }
 
     private fun createTestEnrichedEntry(
