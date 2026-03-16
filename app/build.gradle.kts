@@ -276,6 +276,7 @@ dependencies {
     implementation(aniyomilibs.mediasession)
 
     implementation(androidx.bundles.lifecycle)
+    implementation(androidx.lifecycle.runtimecompose)
 
     // Job scheduling
     implementation(androidx.workmanager)
