@@ -5,6 +5,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
@@ -41,8 +42,8 @@ object SettingsSecurityScreen : SearchableSettings {
         val useAuthPref = securityPreferences.useAuthenticator()
         val useAuth by useAuthPref.collectAsState()
 
-        var showPinSetupDialog by remember { mutableStateOf(false) }
-        var showChangePinDialog by remember { mutableStateOf(false) }
+        var showPinSetupDialog by rememberSaveable { mutableStateOf(false) }
+        var showChangePinDialog by rememberSaveable { mutableStateOf(false) }
 
         if (showPinSetupDialog) {
             PinSetupDialog(

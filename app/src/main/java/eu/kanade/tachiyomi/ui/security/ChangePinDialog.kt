@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -35,11 +36,11 @@ fun ChangePinDialog(
     onVerifyOldPin: (String) -> Boolean,
     onPinChanged: (String) -> Unit,
 ) {
-    var step by remember { mutableStateOf(ChangePinStep.VERIFY_OLD) }
+    var step by rememberSaveable { mutableStateOf(ChangePinStep.VERIFY_OLD) }
     var oldPin by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
 
     val titleChangePin = stringResource(MR.strings.change_pin)
     val titleEnterNew = stringResource(MR.strings.change_pin_enter_new_title)
