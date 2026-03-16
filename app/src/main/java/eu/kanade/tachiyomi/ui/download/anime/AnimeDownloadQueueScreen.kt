@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,7 +37,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.DropdownMenu
-import kotlinx.coroutines.CoroutineScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tachiyomi.i18n.MR
@@ -47,7 +47,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 @Composable
 fun AnimeDownloadQueueScreen(
     contentPadding: PaddingValues,
-    scope: CoroutineScope,
     screenModel: AnimeDownloadQueueScreenModel,
     downloadList: List<AnimeDownloadUiHeaderItem>,
     nestedScrollConnection: NestedScrollConnection,
@@ -105,11 +104,13 @@ fun AnimeDownloadQueueScreen(
                     AnimatedVisibility(visible = header.isExpanded) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             header.downloads.forEach { item ->
-                                AnimeDownloadQueueItem(
-                                    item = item,
-                                    screenModel = screenModel,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                                key(item.download.episode.url) {
+                                    AnimeDownloadQueueItem(
+                                        item = item,
+                                        screenModel = screenModel,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                             }
                         }
                     }

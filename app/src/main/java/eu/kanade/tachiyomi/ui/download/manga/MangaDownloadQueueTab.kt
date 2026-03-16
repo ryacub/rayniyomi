@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -19,7 +18,6 @@ fun Screen.mangaDownloadTab(
     nestedScrollConnection: NestedScrollConnection,
 ): TabContent {
     val navigator = LocalNavigator.currentOrThrow
-    val scope = rememberCoroutineScope()
     val screenModel = rememberScreenModel { MangaDownloadQueueScreenModel() }
     val downloadList by screenModel.state.collectAsStateWithLifecycle()
     val downloadCount by remember {
@@ -32,7 +30,6 @@ fun Screen.mangaDownloadTab(
         content = { contentPadding, _ ->
             DownloadQueueScreen(
                 contentPadding = contentPadding,
-                scope = scope,
                 screenModel = screenModel,
                 downloadList = downloadList,
                 nestedScrollConnection = nestedScrollConnection,
