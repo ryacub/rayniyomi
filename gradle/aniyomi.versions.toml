@@ -3,7 +3,7 @@ aniyomi-mpv-lib = "1.18.n"
 arthenica-smartexceptions = "0.2.1"
 constraint-layout = "1.1.0"
 ffmpeg-kit = "1.18"
-media = "1.7.0"
+media = "1.7.1"
 seeker = "1.2.2"
 truetypeparser = "2.1.4"
 
