@@ -25,7 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.custombuttons.model.CustomButton
 import tachiyomi.domain.storage.service.StorageManager
@@ -40,7 +39,7 @@ import java.io.OutputStream
 internal class PlayerMpvInitializer(
     private val context: Context,
     private val storageManager: StorageManager,
-    private val scope: CoroutineScope,
+    @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
 ) {
     companion object {
         const val MPV_DIR = "mpv"
@@ -75,7 +74,7 @@ internal class PlayerMpvInitializer(
 
         copyUserFiles(mpvDir, mpvUserFilesEnabled)
         copyAssets(mpvDir)
-        copyFontsDirectory(mpvDir)
+        syncFontsDirectory(mpvDir)
 
         return@withContext mpvDir.filePath!!
     }
@@ -147,20 +146,73 @@ internal class PlayerMpvInitializer(
         }
     }
 
-    private fun copyFontsDirectory(mpvDir: UniFile) {
-        scope.launchIO {
-            val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)!!
+    /**
+     * Syncs user subtitle fonts into app-private MPV storage.
+     *
+     * We intentionally keep an app-private copy rather than pointing MPV directly at the
+     * SAF-backed source directory, because MPV/libass expects a stable filesystem path.
+     */
+    private fun syncFontsDirectory(mpvDir: UniFile) {
+        val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)!!
+        val sourceFontsDir = storageManager.getFontsDirectory()
+        val sourceFiles = sourceFontsDir?.listFiles()
+        val destinationFiles = fontsDirectory.listFiles().orEmpty()
 
-            storageManager.getFontsDirectory()?.listFiles()?.forEach { font ->
-                val outFile = fontsDirectory.createFile(font.name)
-                outFile?.let {
-                    font.openInputStream().copyTo(it.openOutputStream())
-                }
-            }
+        val syncPlan = computeFontSyncPlan(
+            sourceFiles = sourceFiles?.mapNotNull { file ->
+                file.name?.let { name -> FontFileDescriptor(name, file.length()) }
+            },
+            destinationFiles = destinationFiles.mapNotNull { file ->
+                file.name?.let { name -> FontFileDescriptor(name, file.length()) }
+            },
+        )
 
-            MPVLib.setPropertyString("sub-fonts-dir", fontsDirectory.filePath!!)
-            MPVLib.setPropertyString("osd-fonts-dir", fontsDirectory.filePath!!)
+        if (!syncPlan.sourceAvailable) {
+            logcat(LogPriority.WARN) { "Font source directory unavailable; keeping existing MPV fonts directory" }
         }
+
+        val destinationByName = destinationFiles.mapNotNull { file ->
+            file.name?.let { name -> name to file }
+        }.toMap()
+        syncPlan.staleFilesToDelete.forEach { staleName ->
+            val removed = destinationByName[staleName]?.delete() == true
+            if (removed) {
+                logcat(LogPriority.VERBOSE) { "Removed stale MPV font: $staleName" }
+            } else {
+                logcat(LogPriority.WARN) { "Failed to remove stale MPV font: $staleName" }
+            }
+        }
+
+        val sourceByName = sourceFiles.orEmpty().mapNotNull { file ->
+            file.name?.let { name -> name to file }
+        }.toMap()
+        syncPlan.filesToCopy.forEach { fontName ->
+            val sourceFile = sourceByName[fontName] ?: return@forEach
+            destinationByName[fontName]?.delete()
+            val outFile = fontsDirectory.createFile(fontName)
+            if (outFile == null) {
+                logcat(LogPriority.ERROR) { "Failed to create MPV font file: $fontName" }
+                return@forEach
+            }
+            try {
+                sourceFile.openInputStream().use { input ->
+                    outFile.openOutputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                logcat(LogPriority.VERBOSE) { "Copied MPV font: $fontName" }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to copy MPV font: $fontName" }
+            }
+        }
+
+        syncPlan.unchangedFiles.forEach { fontName ->
+            logcat(LogPriority.VERBOSE) { "Skipped unchanged MPV font: $fontName" }
+        }
+
+        MPVLib.setPropertyString("sub-fonts-dir", fontsDirectory.filePath!!)
+        MPVLib.setPropertyString("osd-fonts-dir", fontsDirectory.filePath!!)
+        logcat(LogPriority.VERBOSE) { "Applied MPV font directories: ${fontsDirectory.filePath}" }
     }
 
     /**
@@ -211,4 +263,63 @@ internal class PlayerMpvInitializer(
             MPVLib.command(arrayOf("load-script", it.filePath))
         }
     }
+}
+
+internal data class FontFileDescriptor(
+    val name: String,
+    val length: Long,
+)
+
+internal data class FontSyncPlan(
+    val sourceAvailable: Boolean,
+    val filesToCopy: Set<String>,
+    val unchangedFiles: Set<String>,
+    val staleFilesToDelete: Set<String>,
+)
+
+internal fun computeFontSyncPlan(
+    sourceFiles: List<FontFileDescriptor>?,
+    destinationFiles: List<FontFileDescriptor>,
+): FontSyncPlan {
+    val destinationFonts = destinationFiles.filter { it.name.hasSupportedFontExtension() }
+    if (sourceFiles == null) {
+        return FontSyncPlan(
+            sourceAvailable = false,
+            filesToCopy = emptySet(),
+            unchangedFiles = emptySet(),
+            staleFilesToDelete = emptySet(),
+        )
+    }
+
+    val sourceFonts = sourceFiles.filter { it.name.hasSupportedFontExtension() }
+    val sourceByName = sourceFonts.associateBy { it.name }
+    val destinationByName = destinationFonts.associateBy { it.name }
+
+    val toCopy = sourceFonts.mapNotNullTo(mutableSetOf()) { source ->
+        val destination = destinationByName[source.name]
+        if (destination != null && destination.length == source.length) {
+            null
+        } else {
+            source.name
+        }
+    }
+    val unchanged = sourceFonts.mapNotNullTo(mutableSetOf()) { source ->
+        val destination = destinationByName[source.name]
+        if (destination != null && destination.length == source.length) source.name else null
+    }
+    val stale = destinationFonts
+        .map { it.name }
+        .filterNot { sourceByName.containsKey(it) }
+        .toSet()
+
+    return FontSyncPlan(
+        sourceAvailable = true,
+        filesToCopy = toCopy,
+        unchangedFiles = unchanged,
+        staleFilesToDelete = stale,
+    )
+}
+
+private fun String.hasSupportedFontExtension(): Boolean {
+    return lowercase().endsWith(".ttf") || lowercase().endsWith(".otf") || lowercase().endsWith(".ttc")
 }
