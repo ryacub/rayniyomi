@@ -155,13 +155,13 @@ internal class PlayerMpvInitializer(
     private fun syncFontsDirectory(mpvDir: UniFile) {
         val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)!!
         val sourceFontsDir = storageManager.getFontsDirectory()
-        val sourceFiles = sourceFontsDir?.listFiles().orEmpty()
+        val sourceFiles = sourceFontsDir?.listFiles()
         val destinationFiles = fontsDirectory.listFiles().orEmpty()
 
         val syncPlan = computeFontSyncPlan(
-            sourceFiles = sourceFiles.mapNotNull { file ->
+            sourceFiles = sourceFiles?.mapNotNull { file ->
                 file.name?.let { name -> FontFileDescriptor(name, file.length()) }
-            }.takeIf { sourceFontsDir != null },
+            },
             destinationFiles = destinationFiles.mapNotNull { file ->
                 file.name?.let { name -> FontFileDescriptor(name, file.length()) }
             },
@@ -183,7 +183,7 @@ internal class PlayerMpvInitializer(
             }
         }
 
-        val sourceByName = sourceFiles.mapNotNull { file ->
+        val sourceByName = sourceFiles.orEmpty().mapNotNull { file ->
             file.name?.let { name -> name to file }
         }.toMap()
         syncPlan.filesToCopy.forEach { fontName ->
