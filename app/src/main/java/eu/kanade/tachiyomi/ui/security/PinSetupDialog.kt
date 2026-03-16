@@ -10,7 +10,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -33,10 +33,10 @@ fun PinSetupDialog(
     onDismiss: () -> Unit,
     onPinSet: (String) -> Unit,
 ) {
-    var step by remember { mutableStateOf(PinSetupStep.ENTER) }
-    var enteredPin by remember { mutableStateOf("") }
-    var confirmPin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
+    var step by rememberSaveable { mutableStateOf(PinSetupStep.ENTER) }
+    var enteredPin by rememberSaveable { mutableStateOf("") }
+    var confirmPin by rememberSaveable { mutableStateOf("") }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
 
     val errorMinLength = stringResource(MR.strings.pin_must_be_4_digits)
     val errorMismatch = stringResource(MR.strings.pins_dont_match)

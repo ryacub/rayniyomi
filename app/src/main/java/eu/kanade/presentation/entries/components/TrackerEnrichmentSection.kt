@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
@@ -35,7 +36,14 @@ fun TrackerEnrichmentSection(
     onRefresh: () -> Unit,
     onOpenRecommendation: (title: String, url: String) -> Unit,
 ) {
-    var chooserOptions by remember { mutableStateOf<List<RecommendationChoice>>(emptyList()) }
+    var chooserSourceKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val chooserOptions = remember(state, chooserSourceKey) {
+        val sourceKey = chooserSourceKey ?: return@remember emptyList()
+        state?.recommendations
+            ?.firstOrNull { it.stableKey == sourceKey }
+            ?.alternatives
+            .orEmpty()
+    }
 
     Card(
         modifier = Modifier
@@ -104,7 +112,7 @@ fun TrackerEnrichmentSection(
                                                 onOpenRecommendation(recommendation.title, recommendation.targetUrl)
                                             }
                                             recommendation.alternatives.isNotEmpty() -> {
-                                                chooserOptions = recommendation.alternatives
+                                                chooserSourceKey = recommendation.stableKey
                                             }
                                             else -> {
                                                 recommendation.targetUrl?.let {
@@ -127,9 +135,9 @@ fun TrackerEnrichmentSection(
 
     if (chooserOptions.isNotEmpty()) {
         AlertDialog(
-            onDismissRequest = { chooserOptions = emptyList() },
+            onDismissRequest = { chooserSourceKey = null },
             confirmButton = {
-                TextButton(onClick = { chooserOptions = emptyList() }) {
+                TextButton(onClick = { chooserSourceKey = null }) {
                     Text("Close")
                 }
             },
@@ -140,7 +148,7 @@ fun TrackerEnrichmentSection(
                         Text(
                             text = "${option.title} (${option.trackerSource})",
                             modifier = Modifier.clickable {
-                                chooserOptions = emptyList()
+                                chooserSourceKey = null
                                 option.targetUrl?.let { onOpenRecommendation(option.title, it) }
                             },
                         )
