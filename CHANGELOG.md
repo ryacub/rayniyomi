@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 - **CI**: replace `[skip ci]` auto-bump strategy with actor-based job condition to unblock tag-triggered release builds
+- **Other**: remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager` — method was a no-op placeholder with deferred TODO comments and no callers
 
 ## [0.18.1.75] - 2026-03-13
 
