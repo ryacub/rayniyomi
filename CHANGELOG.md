@@ -16,6 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
 - **PIN error feedback** — shows an error message when saving a new PIN fails (e.g., storage write error), instead of silently closing the dialog
+- **Download queue** — migrated anime and manga download queue screens from RecyclerView/FlexibleAdapter to Jetpack Compose; supports drag-to-reorder sources, per-item progress display, and move-to-top/bottom actions; removes flexibleadapter dependency
 
 ### Fixed
 
