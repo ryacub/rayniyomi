@@ -19,7 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +30,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import eu.kanade.domain.track.enrichment.model.DiscoverFeedItem
 import eu.kanade.domain.track.enrichment.model.RecommendationChoice
@@ -50,7 +50,7 @@ class DiscoverScreen : Screen() {
     override fun Content() {
         val context = LocalContext.current
         val screenModel = rememberScreenModel { DiscoverScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val state by screenModel.state.collectAsStateWithLifecycle()
         val backPress = LocalBackPress.current
         var chooserOptions by remember { mutableStateOf<List<RecommendationChoice>>(emptyList()) }
 

@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.core.security.PinHasher
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
@@ -22,7 +23,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Base64
@@ -40,7 +40,8 @@ object SettingsSecurityScreen : SearchableSettings {
         val authSupported = remember { context.isAuthenticationSupported() }
 
         val useAuthPref = securityPreferences.useAuthenticator()
-        val useAuth by useAuthPref.collectAsState()
+        val usePinLockPref = securityPreferences.usePinLock()
+        val useAuth by useAuthPref.changes().collectAsStateWithLifecycle(initialValue = useAuthPref.get())
 
         var showPinSetupDialog by rememberSaveable { mutableStateOf(false) }
         var showChangePinDialog by rememberSaveable { mutableStateOf(false) }
@@ -68,7 +69,7 @@ object SettingsSecurityScreen : SearchableSettings {
 
                     if (!success) {
                         // Rollback - disable PIN lock and clear partial data
-                        securityPreferences.usePinLock().set(false)
+                        usePinLockPref.set(false)
                         securityPreferences.pinHash().delete()
                         securityPreferences.pinSalt().delete()
                         // TODO: Show error message to user
@@ -127,7 +128,7 @@ object SettingsSecurityScreen : SearchableSettings {
             )
             add(
                 Preference.PreferenceItem.SwitchPreference(
-                    preference = securityPreferences.usePinLock(),
+                    preference = usePinLockPref,
                     title = stringResource(MR.strings.lock_with_pin),
                     onValueChanged = {
                         // Show PIN setup dialog when enabling
@@ -145,7 +146,9 @@ object SettingsSecurityScreen : SearchableSettings {
                 ),
             )
 
-            val usePinLock by securityPreferences.usePinLock().collectAsState()
+            val usePinLock by usePinLockPref
+                .changes()
+                .collectAsStateWithLifecycle(initialValue = usePinLockPref.get())
 
             if (usePinLock) {
                 add(
@@ -158,7 +161,9 @@ object SettingsSecurityScreen : SearchableSettings {
                 )
             }
 
-            val useBiometric by useAuthPref.collectAsState()
+            val useBiometric by useAuthPref
+                .changes()
+                .collectAsStateWithLifecycle(initialValue = useAuthPref.get())
 
             if (useBiometric && usePinLock) {
                 add(
