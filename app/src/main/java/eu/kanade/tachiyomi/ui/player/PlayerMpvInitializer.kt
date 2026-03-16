@@ -148,8 +148,6 @@ internal class PlayerMpvInitializer(
     }
 
     private fun copyFontsDirectory(mpvDir: UniFile) {
-        // TODO: I think this is a bad hack.
-        //  We need to find a way to let MPV directly access our fonts directory.
         scope.launchIO {
             val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)!!
 
