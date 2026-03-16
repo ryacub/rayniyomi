@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tachiyomi.i18n.MR
@@ -123,7 +124,7 @@ fun DownloadQueueScreen(
 }
 
 @Composable
-private fun MangaDownloadQueueHeader(
+private fun ReorderableCollectionItemScope.MangaDownloadQueueHeader(
     header: MangaDownloadUiHeaderItem,
     isDragging: Boolean,
     onDragStart: () -> Unit,
@@ -137,18 +138,16 @@ private fun MangaDownloadQueueHeader(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(
-            onClick = {
-                onDragStart()
-                onDragEnd()
-            },
-            modifier = Modifier.minimumInteractiveComponentSize(),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.DragIndicator,
-                contentDescription = stringResource(MR.strings.action_sort),
-            )
-        }
+        Icon(
+            imageVector = Icons.Outlined.DragIndicator,
+            contentDescription = stringResource(MR.strings.action_sort),
+            modifier = Modifier
+                .minimumInteractiveComponentSize()
+                .draggableHandle(
+                    onDragStarted = { onDragStart() },
+                    onDragStopped = onDragEnd,
+                ),
+        )
 
         Text(
             text = "${header.source.name} (${header.downloads.size})",

@@ -38,7 +38,7 @@ class MangaDownloadQueueScreenModel(
                                 downloads = sourceDownloads.map { download ->
                                     MangaDownloadUiItem(
                                         download = download,
-                                        progress = download.totalProgress / 100f,
+                                        progress = download.progress / 100f,
                                     )
                                 },
                                 isExpanded = !collapsedIds.contains(source.id),
