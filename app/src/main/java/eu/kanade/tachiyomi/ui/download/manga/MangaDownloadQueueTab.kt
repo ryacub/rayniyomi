@@ -23,7 +23,7 @@ fun Screen.mangaDownloadTab(
     val screenModel = rememberScreenModel { MangaDownloadQueueScreenModel() }
     val downloadList by screenModel.state.collectAsStateWithLifecycle()
     val downloadCount by remember {
-        derivedStateOf { downloadList.sumOf { it.subItems.size } }
+        derivedStateOf { downloadList.sumOf { it.downloads.size } }
     }
 
     return TabContent(

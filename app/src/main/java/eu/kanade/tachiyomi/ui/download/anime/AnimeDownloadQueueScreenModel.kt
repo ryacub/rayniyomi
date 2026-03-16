@@ -4,6 +4,7 @@ import android.view.MenuItem
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.databinding.DownloadListBinding
@@ -22,7 +23,7 @@ class AnimeDownloadQueueScreenModel(
     private val downloadManager: AnimeDownloadManager = Injekt.get(),
 ) : ScreenModel {
 
-    private val _state = MutableStateFlow(emptyList<AnimeDownloadHeaderItem>())
+    private val _state = MutableStateFlow(emptyList<AnimeDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
 
     lateinit var controllerBinding: DownloadListBinding
@@ -109,20 +110,48 @@ class AnimeDownloadQueueScreenModel(
         }
     }
 
+    private val _expandedSources = MutableStateFlow(emptySet<Long>())
+
     init {
         screenModelScope.launch {
             downloadManager.queueState
                 .map { downloads ->
+                    val expandedIds = _expandedSources.value
                     downloads
                         .groupBy { it.source }
-                        .map { entry ->
-                            AnimeDownloadHeaderItem(entry.key.id, entry.key.name, entry.value.size).apply {
-                                addSubItems(0, entry.value.map { AnimeDownloadItem(it, this) })
-                            }
+                        .map { (source, sourceDownloads) ->
+                            AnimeDownloadUiHeaderItem(
+                                source = source,
+                                downloads = sourceDownloads.map { download ->
+                                    AnimeDownloadUiItem(
+                                        download = download,
+                                        progress = download.progress / 100f,
+                                    )
+                                },
+                                isExpanded = expandedIds.contains(source.id),
+                            )
                         }
                 }
                 .collect { newList -> _state.update { newList } }
         }
+    }
+
+    fun toggleExpanded(source: AnimeHttpSource) {
+        _expandedSources.update { current ->
+            if (current.contains(source.id)) {
+                current - source.id
+            } else {
+                current + source.id
+            }
+        }
+    }
+
+    fun collapseAll() {
+        _expandedSources.update { emptySet() }
+    }
+
+    fun expandHeader(source: AnimeHttpSource) {
+        _expandedSources.update { it + source.id }
     }
 
     override fun onDispose() {
@@ -160,19 +189,16 @@ class AnimeDownloadQueueScreenModel(
     }
 
     fun <R : Comparable<R>> reorderQueue(
-        selector: (AnimeDownloadItem) -> R,
+        selector: (AnimeDownloadUiItem) -> R,
         reverse: Boolean = false,
     ) {
-        val adapter = adapter ?: return
+        val currentState = _state.value
         val newAnimeDownloads = mutableListOf<AnimeDownload>()
-        adapter.headerItems.forEach { headerItem ->
-            headerItem as AnimeDownloadHeaderItem
-            headerItem.subItems = headerItem.subItems.sortedBy(selector).toMutableList().apply {
-                if (reverse) {
-                    reverse()
-                }
+        currentState.forEach { headerItem ->
+            val sortedItems = headerItem.downloads.sortedBy(selector).let {
+                if (reverse) it.reversed() else it
             }
-            newAnimeDownloads.addAll(headerItem.subItems.map { it.download })
+            newAnimeDownloads.addAll(sortedItems.map { it.download })
         }
         reorder(newAnimeDownloads)
     }

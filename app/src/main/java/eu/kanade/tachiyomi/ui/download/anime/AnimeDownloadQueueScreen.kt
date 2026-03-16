@@ -30,7 +30,7 @@ fun AnimeDownloadQueueScreen(
     contentPadding: PaddingValues,
     scope: CoroutineScope,
     screenModel: AnimeDownloadQueueScreenModel,
-    downloadList: List<AnimeDownloadHeaderItem>,
+    downloadList: List<AnimeDownloadUiHeaderItem>,
     nestedScrollConnection: NestedScrollConnection,
 ) {
     Scaffold {
@@ -85,7 +85,8 @@ fun AnimeDownloadQueueScreen(
                             bottom = bottom,
                         )
 
-                    screenModel.adapter?.updateDataSet(downloadList)
+                    // TODO: Feature 2 - Convert to pure Compose UI
+                    // screenModel.adapter?.updateDataSet(downloadList)
                 },
             )
         }
