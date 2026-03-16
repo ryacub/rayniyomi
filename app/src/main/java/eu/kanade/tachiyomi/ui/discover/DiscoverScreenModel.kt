@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.track.enrichment.DiscoverFeedCoordinator
 import eu.kanade.domain.track.enrichment.model.DiscoverFeedItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
@@ -35,6 +36,7 @@ class DiscoverScreenModel(
             launch {
                 coordinator.observe(limit = DISCOVER_LIMIT)
                     .catch { error ->
+                        if (error is CancellationException) throw error
                         val message = error.message?.takeIf { it.isNotBlank() } ?: "Unknown error"
                         mutableState.update {
                             it.copy(
@@ -83,6 +85,7 @@ class DiscoverScreenModel(
                     _announcements.tryEmit("Discover updated: ${items.size} recommendations")
                 }
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 val message = error.message?.takeIf { it.isNotBlank() } ?: "Unable to refresh Discover"
                 mutableState.update {
                     it.copy(

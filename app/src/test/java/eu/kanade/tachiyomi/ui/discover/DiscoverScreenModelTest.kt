@@ -9,6 +9,7 @@ import eu.kanade.domain.track.enrichment.model.RecommendationChoice
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -148,6 +149,18 @@ class DiscoverScreenModelTest {
         // Error state should be properly set
         assertFalse(model.state.value.loading)
         assertEquals("Connection failed", model.state.value.errorText)
+    }
+
+    @Test
+    fun `cancellation exception in observe is not surfaced as user error`() = runTest {
+        val coordinator = mockk<DiscoverFeedCoordinator>()
+
+        every { coordinator.observe(limit = 40) } returns throwingFlow(CancellationException("cancelled"))
+        coEvery { coordinator.refresh(limit = 40, force = false) } returns emptyList()
+
+        val model = DiscoverScreenModel(coordinator)
+
+        assertEquals(null, model.state.value.errorText)
     }
 
     private fun createTestDiscoverFeedItem(

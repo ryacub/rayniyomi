@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.track.enrichment.EntryEnrichmentCoordinator
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import eu.kanade.domain.track.enrichment.model.EnrichmentMediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
@@ -42,6 +43,7 @@ class EntryEnrichmentScreenModel(
                         EnrichmentMediaType.ANIME -> coordinator.observeAnime(entryId)
                     }
                         .catch { error ->
+                            if (error is CancellationException) throw error
                             val message = error.message?.takeIf(String::isNotBlank)
                                 ?: "Unable to load recommendations"
                             mutableState.update {
@@ -114,6 +116,7 @@ class EntryEnrichmentScreenModel(
                 )
             }
         }.onFailure {
+            if (it is CancellationException) throw it
             val message = it.message?.takeIf(String::isNotBlank) ?: "Unable to sync recommendations"
             mutableState.update { state ->
                 state.copy(
