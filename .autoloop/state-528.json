@@ -1,0 +1,61 @@
+{
+  "task_id": "528",
+  "task": "Migrate download queue screens from FlexibleAdapter/RecyclerView to Jetpack Compose, then remove the flexibleadapter dependency",
+  "status": "implementing",
+  "plan_approved": true,
+  "parallel_mode": false,
+  "project_type": "android",
+  "start_commit": "8640f9307b4d44c5dce1c4bfac5baa504315bbe7",
+  "iteration": 3,
+  "max_iterations": 20,
+  "cost": {
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "iterations": [
+      { "iter": 1, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:00:00Z" },
+      { "iter": 2, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:01:00Z" },
+      { "iter": 3, "model": "claude-sonnet-4-6", "timestamp": "2026-03-16T00:02:00Z" }
+    ]
+  },
+  "features": [
+    {
+      "name": "Refactor screen models to emit Compose-compatible state",
+      "status": "done",
+      "tests": null,
+      "commit": "9cd0894dc43055c249d45dc9984454ddbb269fb3"
+    },
+    {
+      "name": "Implement AnimeDownloadQueueScreen pure Compose",
+      "status": "done",
+      "tests": null,
+      "commit": "4b3e37dee52bd44a7b6ea12e8735621306654046"
+    },
+    {
+      "name": "Implement MangaDownloadQueueScreen pure Compose",
+      "status": "in_progress",
+      "tests": null,
+      "commit": null
+    },
+    {
+      "name": "Remove FlexibleAdapter dependency",
+      "status": "pending",
+      "tests": null,
+      "commit": null
+    }
+  ],
+  "test_results": {
+    "passing": 0,
+    "failing": 0,
+    "last_run": null,
+    "output": ""
+  },
+  "learnings": [
+    "ISEXPANDED_BUG: FIXED in Feature 2 — _collapsedSources tracks collapsed source IDs (empty=all expanded). Apply same pattern to MangaDownloadQueueScreenModel.",
+    "MISSING_DISTINCTUNTILCHANGED: FIXED in Feature 2 for anime. Apply same fix to MangaDownloadQueueScreenModel.",
+    "DEAD_CODE_FOR_FEATURE4: Both ScreenModels still have adapter, controllerBinding, progressJobs, listener object, getHolder(), onUpdateProgress(), onUpdateDownloadedPages(), onStatusChange(), cancelProgressJob(). These reference old FlexibleAdapter types and MUST be removed in Feature 4.",
+    "COMPOSE_MENU_METHODS: Feature 2 added moveToTop/Bottom/Series and cancelDownload/Series to AnimeDownloadQueueScreenModel. Feature 3 must add identical methods to MangaDownloadQueueScreenModel using MangaDownloadUiItem/MangaDownload.",
+    "REUSE_COMPOSABLES: Plan says extract shared DownloadQueueItem/DownloadQueueHeader composables. Feature 3 should reuse the Anime composable structure — either extract to shared file or mirror exactly."
+  ],
+  "review": null,
+  "blocker": null
+}

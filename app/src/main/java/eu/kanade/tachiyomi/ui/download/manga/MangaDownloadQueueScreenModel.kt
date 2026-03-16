@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -110,13 +111,13 @@ class MangaDownloadQueueScreenModel(
         }
     }
 
-    private val _expandedSources = MutableStateFlow(emptySet<Long>())
+    private val _collapsedSources = MutableStateFlow(emptySet<Long>())
 
     init {
         screenModelScope.launch {
             downloadManager.queueState
                 .map { downloads ->
-                    val expandedIds = _expandedSources.value
+                    val collapsedIds = _collapsedSources.value
                     downloads
                         .groupBy { it.source }
                         .map { (source, sourceDownloads) ->
@@ -128,16 +129,17 @@ class MangaDownloadQueueScreenModel(
                                         progress = download.totalProgress / 100f,
                                     )
                                 },
-                                isExpanded = expandedIds.contains(source.id),
+                                isExpanded = !collapsedIds.contains(source.id),
                             )
                         }
                 }
+                .distinctUntilChanged()
                 .collect { newList -> _state.update { newList } }
         }
     }
 
     fun toggleExpanded(source: HttpSource) {
-        _expandedSources.update { current ->
+        _collapsedSources.update { current ->
             if (current.contains(source.id)) {
                 current - source.id
             } else {
@@ -147,11 +149,67 @@ class MangaDownloadQueueScreenModel(
     }
 
     fun collapseAll() {
-        _expandedSources.update { emptySet() }
+        val currentSources = _state.value
+        _collapsedSources.update { currentSources.map { it.source.id }.toSet() }
     }
 
     fun expandHeader(source: HttpSource) {
-        _expandedSources.update { it + source.id }
+        _collapsedSources.update { it - source.id }
+    }
+
+    fun moveToTop(item: MangaDownloadUiItem) {
+        val currentState = _state.value
+        val newDownloads = mutableListOf<MangaDownload>()
+        currentState.forEach { header ->
+            val mutable = header.downloads.toMutableList()
+            val idx = mutable.indexOfFirst { it.download == item.download }
+            if (idx > 0) {
+                mutable.removeAt(idx)
+                mutable.add(0, item)
+            }
+            newDownloads.addAll(mutable.map { it.download })
+        }
+        reorder(newDownloads)
+    }
+
+    fun moveToBottom(item: MangaDownloadUiItem) {
+        val currentState = _state.value
+        val newDownloads = mutableListOf<MangaDownload>()
+        currentState.forEach { header ->
+            val mutable = header.downloads.toMutableList()
+            val idx = mutable.indexOfFirst { it.download == item.download }
+            if (idx >= 0 && idx < mutable.size - 1) {
+                mutable.removeAt(idx)
+                mutable.add(mutable.size, item)
+            }
+            newDownloads.addAll(mutable.map { it.download })
+        }
+        reorder(newDownloads)
+    }
+
+    fun moveToTopSeries(mangaId: Long) {
+        val all = _state.value.flatMap { it.downloads }
+        val (series, others) = all.partition { it.download.manga.id == mangaId }
+        reorder((series + others).map { it.download })
+    }
+
+    fun moveToBottomSeries(mangaId: Long) {
+        val all = _state.value.flatMap { it.downloads }
+        val (series, others) = all.partition { it.download.manga.id == mangaId }
+        reorder((others + series).map { it.download })
+    }
+
+    fun cancelDownload(item: MangaDownloadUiItem) {
+        cancel(listOf(item.download))
+    }
+
+    fun cancelSeries(mangaId: Long) {
+        val series = _state.value.flatMap { it.downloads }
+            .filter { it.download.manga.id == mangaId }
+            .map { it.download }
+        if (series.isNotEmpty()) {
+            cancel(series)
+        }
     }
 
     override fun onDispose() {
