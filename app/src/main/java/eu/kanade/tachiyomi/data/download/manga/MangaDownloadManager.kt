@@ -498,8 +498,6 @@ class MangaDownloadManager(
 
         if (newCount >= 3) {
             logcat(LogPriority.ERROR) { "Manga download job crashed $newCount times consecutively" }
-            // TODO: Show notification to user about repeated crashes
-            // This would require access to NotificationManager which should be injected
         }
     }
 
@@ -516,8 +514,6 @@ class MangaDownloadManager(
                 "Battery optimization is enabled - bulk downloads may be interrupted. " +
                     "Consider exempting app from battery optimization."
             }
-            // TODO: Show dialog prompting user to disable battery optimization
-            // This would require access to UI layer (Activity/Fragment context)
         }
 
         // Mark as shown so we don't prompt again

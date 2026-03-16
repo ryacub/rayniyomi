@@ -45,11 +45,17 @@ object SettingsSecurityScreen : SearchableSettings {
 
         var showPinSetupDialog by rememberSaveable { mutableStateOf(false) }
         var showChangePinDialog by rememberSaveable { mutableStateOf(false) }
+        var pinSetupSaveError by rememberSaveable { mutableStateOf<String?>(null) }
 
         if (showPinSetupDialog) {
             PinSetupDialog(
-                onDismiss = { showPinSetupDialog = false },
+                onDismiss = {
+                    showPinSetupDialog = false
+                    pinSetupSaveError = null
+                },
+                saveErrorMessage = pinSetupSaveError,
                 onPinSet = { pin ->
+                    pinSetupSaveError = null
                     val salt = PinHasher.generateSalt()
                     val hash = PinHasher.hash(pin, salt)
 
@@ -72,10 +78,10 @@ object SettingsSecurityScreen : SearchableSettings {
                         usePinLockPref.set(false)
                         securityPreferences.pinHash().delete()
                         securityPreferences.pinSalt().delete()
-                        // TODO: Show error message to user
+                        pinSetupSaveError = context.stringResource(MR.strings.pin_save_failed)
+                    } else {
+                        showPinSetupDialog = false
                     }
-
-                    showPinSetupDialog = false
                 },
             )
         }

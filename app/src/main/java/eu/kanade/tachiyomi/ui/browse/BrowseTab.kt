@@ -53,7 +53,6 @@ data object BrowseTab : Tab {
             )
         }
 
-    // TODO: Find a way to let it open Global Anime/Manga Search depending on what Tab(e.g. Anime/Manga Source Tab) is open
     override suspend fun onReselect(navigator: Navigator) {
         navigator.push(GlobalAnimeSearchScreen())
     }

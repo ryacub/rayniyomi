@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
+- **PIN error feedback** — shows an error message when saving a new PIN fails (e.g., storage write error), instead of silently closing the dialog
 
 ### Fixed
 
@@ -42,7 +43,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Firebase BOM → 34.10.0; migrate analytics and crashlytics from deprecated `-ktx` modules to base modules
 - Test/tooling upgrade: JUnit Jupiter → 6.0.3, Kotest → 6.1.7, MockK → 1.14.9, unifile snapshot update
 - Align Firebase config comments in `build.gradle.kts` with actual runtime configuration
-- Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager` — method was a no-op placeholder with deferred TODO comments and no callers
+- Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager`; converted 4 deferred TODO comments to tracked GitHub issues (#536–#539)
 
 ## [0.18.1.75] - 2026-03-13
 
