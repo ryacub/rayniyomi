@@ -10,6 +10,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -36,9 +37,9 @@ fun ChangePinDialog(
     onPinChanged: (String) -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(ChangePinStep.VERIFY_OLD) }
-    var oldPin by rememberSaveable { mutableStateOf("") }
-    var newPin by rememberSaveable { mutableStateOf("") }
-    var confirmPin by rememberSaveable { mutableStateOf("") }
+    var oldPin by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
 
     val titleChangePin = stringResource(MR.strings.change_pin)
