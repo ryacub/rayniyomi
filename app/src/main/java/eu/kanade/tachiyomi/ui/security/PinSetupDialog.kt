@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,11 +29,13 @@ import tachiyomi.presentation.core.i18n.stringResource
  *
  * @param onDismiss Callback when dialog is dismissed
  * @param onPinSet Callback when PIN is successfully set (returns PIN string)
+ * @param saveErrorMessage External error message to display (e.g. storage write failure)
  */
 @Composable
 fun PinSetupDialog(
     onDismiss: () -> Unit,
     onPinSet: (String) -> Unit,
+    saveErrorMessage: String? = null,
 ) {
     var step by rememberSaveable { mutableStateOf(PinSetupStep.ENTER) }
     var enteredPin by remember { mutableStateOf("") }
@@ -43,6 +46,10 @@ fun PinSetupDialog(
     val errorMismatch = stringResource(MR.strings.pins_dont_match)
     val errorDigitsOnly = stringResource(MR.strings.pin_must_be_digits_only)
     val errorTooLong = stringResource(MR.strings.pin_too_long)
+
+    LaunchedEffect(saveErrorMessage) {
+        if (saveErrorMessage != null) error = saveErrorMessage
+    }
     val actionNext = stringResource(MR.strings.action_next)
     val actionConfirm = stringResource(MR.strings.action_confirm)
     val actionCancel = stringResource(MR.strings.action_cancel)
