@@ -60,11 +60,11 @@ import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.components.NestedMenuItem
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.download.anime.AnimeDownloadHeaderItem
 import eu.kanade.tachiyomi.ui.download.anime.AnimeDownloadQueueScreenModel
+import eu.kanade.tachiyomi.ui.download.anime.AnimeDownloadUiHeaderItem
 import eu.kanade.tachiyomi.ui.download.anime.animeDownloadTab
-import eu.kanade.tachiyomi.ui.download.manga.MangaDownloadHeaderItem
 import eu.kanade.tachiyomi.ui.download.manga.MangaDownloadQueueScreenModel
+import eu.kanade.tachiyomi.ui.download.manga.MangaDownloadUiHeaderItem
 import eu.kanade.tachiyomi.ui.download.manga.mangaDownloadTab
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
@@ -98,10 +98,10 @@ data object DownloadsTab : Tab {
         val animeDownloadList by animeScreenModel.state.collectAsStateWithLifecycle()
         val mangaDownloadList by mangaScreenModel.state.collectAsStateWithLifecycle()
         val animeDownloadCount by remember {
-            derivedStateOf { animeDownloadList.sumOf { it.subItems.size } }
+            derivedStateOf { animeDownloadList.sumOf { it.downloads.size } }
         }
         val mangaDownloadCount by remember {
-            derivedStateOf { mangaDownloadList.sumOf { it.subItems.size } }
+            derivedStateOf { mangaDownloadList.sumOf { it.downloads.size } }
         }
 
         val state = rememberPagerState { 2 }
@@ -294,7 +294,7 @@ data object DownloadsTab : Tab {
     @Composable
     private fun AnimeActions(
         animeScreenModel: AnimeDownloadQueueScreenModel,
-        animeDownloadList: List<AnimeDownloadHeaderItem>,
+        animeDownloadList: List<AnimeDownloadUiHeaderItem>,
     ) {
         if (animeDownloadList.isNotEmpty()) {
             var sortExpanded by remember { mutableStateOf(false) }
@@ -378,7 +378,7 @@ data object DownloadsTab : Tab {
     @Composable
     private fun MangaActions(
         mangaScreenModel: MangaDownloadQueueScreenModel,
-        mangaDownloadList: List<MangaDownloadHeaderItem>,
+        mangaDownloadList: List<MangaDownloadUiHeaderItem>,
     ) {
         if (mangaDownloadList.isNotEmpty()) {
             var sortExpanded by remember { mutableStateOf(false) }
