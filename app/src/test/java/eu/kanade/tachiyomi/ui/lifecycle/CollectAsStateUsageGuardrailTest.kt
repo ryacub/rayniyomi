@@ -87,19 +87,6 @@ class CollectAsStateUsageGuardrailTest {
         )
     }
 
-    @Test
-    fun `non-screen helper raw collectAsState usage is out of scope for this ticket`() {
-        val helperPath = projectRoot.resolve(
-            "app/src/main/java/eu/kanade/presentation/more/settings/PreferenceItem.kt",
-        )
-        assertTrue(Files.isRegularFile(helperPath), "Expected helper file to exist.")
-        assertTrue(!isScopedTargetFile(helperPath), "Helper file should remain outside R451 scope.")
-        assertTrue(
-            RAW_COLLECT_AS_STATE.containsMatchIn(readNormalizedCode(helperPath)),
-            "Expected raw collectAsState() to remain in out-of-scope helper file for R451.",
-        )
-    }
-
     private fun assertFileContains(relativePath: String, regex: Regex) {
         val content = projectRoot.resolve(relativePath).toFile().readText()
         assertTrue(
@@ -127,6 +114,9 @@ class CollectAsStateUsageGuardrailTest {
     }
 
     private fun isScopedTargetFile(path: Path): Boolean {
+        if (EXPLICIT_SCOPED_TARGETS.contains(relativePath(path))) {
+            return true
+        }
         val fileName = path.fileName.toString()
         return SCOPED_SUFFIXES.any(fileName::endsWith)
     }
@@ -227,6 +217,7 @@ class CollectAsStateUsageGuardrailTest {
             "app/src/main/java/eu/kanade/tachiyomi/ui/download/DownloadsTab.kt",
             "app/src/main/java/eu/kanade/tachiyomi/ui/download/anime/AnimeDownloadQueueTab.kt",
             "app/src/main/java/eu/kanade/tachiyomi/ui/download/manga/MangaDownloadQueueTab.kt",
+            "app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt",
             "app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreen.kt",
             "app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/track/AnimeTrackInfoDialog.kt",
             "app/src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreen.kt",
@@ -248,6 +239,9 @@ class CollectAsStateUsageGuardrailTest {
             "app/src/main/java/eu/kanade/tachiyomi/ui/updates/manga/MangaUpdatesTab.kt",
             "app/src/main/java/mihon/feature/upcoming/anime/UpcomingAnimeScreen.kt",
             "app/src/main/java/mihon/feature/upcoming/manga/UpcomingMangaScreen.kt",
+        )
+        val EXPLICIT_SCOPED_TARGETS = setOf(
+            "app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt",
         )
     }
 }
