@@ -43,11 +43,11 @@ android {
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
         buildConfigField("int", "LIGHT_NOVEL_PLUGIN_API_VERSION", lightNovelExpectedPluginApiVersion.toString())
 
-        // R37/R38: Firebase Analytics and ACRA crash reporting are explicitly disabled
-        // to prevent fork data from polluting upstream services.
-        // This fork does not use Firebase or ACRA telemetry.
+        // R37/R38: This fork uses its own Firebase project for Analytics and Crashlytics
+        // (see firebase_config.xml), while ACRA crash reporting remains disabled.
+        // This keeps fork telemetry isolated from upstream services.
         // See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
-        // See: app/src/main/res/values/firebase_analytics_disabled.xml
+        // See: app/src/main/res/values/firebase_config.xml
         // See: app/src/main/res/values/acra_disabled.xml
         //
         // If you want to enable ACRA for your own fork, uncomment and configure:
