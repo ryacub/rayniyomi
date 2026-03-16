@@ -25,7 +25,6 @@ import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion.getStringRes
-import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +40,54 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /**
+ * Abstraction over MPVLib to allow mocking in unit tests.
+ * Removes direct dependency on JNI class from class declaration.
+ */
+internal interface MPVLibProxy {
+    fun setPropertyString(property: String, value: String)
+    fun getPropertyString(property: String): String?
+    fun command(args: Array<String>)
+}
+
+/**
+ * Real implementation using MPVLib JNI class.
+ * Uses lazy loading to defer JNI initialization until actual method calls.
+ */
+internal class RealMPVLibProxy : MPVLibProxy {
+    private val mpvLib by lazy {
+        Class.forName("is.xyz.mpv.MPVLib")
+    }
+
+    override fun setPropertyString(property: String, value: String) {
+        try {
+            val method = mpvLib.getMethod("setPropertyString", String::class.java, String::class.java)
+            method.invoke(null, property, value)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to call MPVLib.setPropertyString" }
+        }
+    }
+
+    override fun getPropertyString(property: String): String? {
+        return try {
+            val method = mpvLib.getMethod("getPropertyString", String::class.java)
+            method.invoke(null, property) as? String
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to call MPVLib.getPropertyString" }
+            null
+        }
+    }
+
+    override fun command(args: Array<String>) {
+        try {
+            val method = mpvLib.getMethod("command", Array<String>::class.java)
+            method.invoke(null, args)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to call MPVLib.command" }
+        }
+    }
+}
+
+/**
  * Handles the fileLoaded() event pipeline for MPV.
  * Manages video metadata setup, tracks, chapters, and AniSkip integration.
  * Extracted from PlayerActivity to eliminate runBlocking and improve separation.
@@ -49,6 +96,7 @@ internal class PlayerFileLoadedHandler(
     private val context: Context,
     private val playerPreferences: PlayerPreferences,
     private val scope: CoroutineScope,
+    private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy(),
 ) {
     private val _isLoadingTracks = MutableStateFlow(true)
     val isLoadingTracks: StateFlow<Boolean> = _isLoadingTracks.asStateFlow()
@@ -174,9 +222,8 @@ internal class PlayerFileLoadedHandler(
         }
 
         try {
-            val metadata = Json.decodeFromString<Map<String, String>>(
-                MPVLib.getPropertyString("metadata"),
-            )
+            val metadataJson = mpvLibProxy.getPropertyString("metadata") ?: return
+            val metadata = Json.decodeFromString<Map<String, String>>(metadataJson)
 
             val opts = metadata[Video.MPV_ARGS_TAG]
                 ?.split(";")
@@ -184,7 +231,7 @@ internal class PlayerFileLoadedHandler(
                 ?: return
 
             opts.forEach { (option, value) ->
-                MPVLib.setPropertyString(option, value)
+                mpvLibProxy.setPropertyString(option, value)
             }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Failed to read video metadata" }
@@ -197,7 +244,7 @@ internal class PlayerFileLoadedHandler(
         episodeNumber ?: return
 
         // Write to mpv table
-        MPVLib.setPropertyString("user-data/current-anime/episode-title", episodeName)
+        mpvLibProxy.setPropertyString("user-data/current-anime/episode-title", episodeName)
 
         val epNumber = episodeNumber.let { number ->
             if (ceil(number) == floor(number)) number.toInt() else number
@@ -210,7 +257,7 @@ internal class PlayerFileLoadedHandler(
             episodeName,
         )
 
-        MPVLib.setPropertyString("force-media-title", title)
+        mpvLibProxy.setPropertyString("force-media-title", title)
     }
 
     private suspend fun setupTracks(video: Video?) = withContext(Dispatchers.IO) {
@@ -227,10 +274,10 @@ internal class PlayerFileLoadedHandler(
         }
 
         audioTracks?.forEach { audio ->
-            MPVLib.command(arrayOf("audio-add", audio.url, "auto", audio.lang))
+            mpvLibProxy.command(arrayOf("audio-add", audio.url, "auto", audio.lang))
         }
         subtitleTracks?.forEach { sub ->
-            MPVLib.command(arrayOf("sub-add", sub.url, "auto", sub.lang))
+            mpvLibProxy.command(arrayOf("sub-add", sub.url, "auto", sub.lang))
         }
 
         _isLoadingTracks.update { false }
