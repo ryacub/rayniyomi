@@ -87,6 +87,19 @@ class CollectAsStateUsageGuardrailTest {
         )
     }
 
+    @Test
+    fun `non-screen helper raw collectAsState usage is out of scope for this ticket`() {
+        val helperPath = projectRoot.resolve(
+            "app/src/main/java/eu/kanade/presentation/more/settings/PreferenceItem.kt",
+        )
+        assertTrue(Files.isRegularFile(helperPath), "Expected helper file to exist.")
+        assertTrue(!isScopedTargetFile(helperPath), "Helper file should remain outside R451 scope.")
+        assertTrue(
+            RAW_COLLECT_AS_STATE.containsMatchIn(readNormalizedCode(helperPath)),
+            "Expected raw collectAsState() to remain in out-of-scope helper file for R451.",
+        )
+    }
+
     private fun assertFileContains(relativePath: String, regex: Regex) {
         val content = projectRoot.resolve(relativePath).toFile().readText()
         assertTrue(
