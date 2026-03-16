@@ -337,9 +337,9 @@ dependencies {
     // google-services plugin is applied conditionally (release only) so the xml resources
     // only exist in release builds; Crashlytics plugin is unconditional so the build ID is
     // always embedded. Debug builds compile fine but Firebase won't initialize (no google_app_id).
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    implementation("com.google.firebase:firebase-analytics-ktx")
-    implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
 
     // Shizuku
     implementation(libs.bundles.shizuku)
