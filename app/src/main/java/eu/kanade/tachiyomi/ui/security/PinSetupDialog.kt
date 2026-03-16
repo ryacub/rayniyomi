@@ -35,7 +35,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 fun PinSetupDialog(
     onDismiss: () -> Unit,
     onPinSet: (String) -> Unit,
-    saveErrorMessage: String? = null,
+    saveErrorMessage: String?,
 ) {
     var step by rememberSaveable { mutableStateOf(PinSetupStep.ENTER) }
     var enteredPin by remember { mutableStateOf("") }
@@ -172,6 +172,7 @@ private fun PinSetupDialogPreview() {
         PinSetupDialog(
             onDismiss = {},
             onPinSet = {},
+            saveErrorMessage = null,
         )
     }
 }
