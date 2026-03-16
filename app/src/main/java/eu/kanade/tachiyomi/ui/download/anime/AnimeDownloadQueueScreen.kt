@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.DropdownMenu
+import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tachiyomi.i18n.MR
@@ -311,7 +312,7 @@ private fun computeReorderedDownloads(
     items: List<AnimeDownloadUiHeaderItem>,
     fromIndex: Int,
     toIndex: Int,
-): List<eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload> {
+): List<AnimeDownload> {
     val flatList = mutableListOf<Pair<AnimeDownloadUiItem?, Boolean>>()
     items.forEach { header ->
         flatList.add(Pair(null, true))
