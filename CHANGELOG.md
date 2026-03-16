@@ -12,7 +12,37 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## Unreleased
 
-- **CI**: replace `[skip ci]` auto-bump strategy with actor-based job condition to unblock tag-triggered release builds
+### Added
+
+- **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
+
+### Fixed
+
+- Coroutine cancellation no longer surfaces as a user-visible error in Discover and entry enrichment screens
+- One-off UI events in Migrate and PlayerSettingsCustomButton screens no longer drop on delivery when the UI collector is temporarily inactive during lifecycle transitions; channels switched to buffered
+- Migrate rayniyomi-specific screen state collection to `collectAsStateWithLifecycle()` — stops background Flow collection when UI is STOPPED
+- Preserve Crashlytics build ID in release artifacts via release resource pipeline and shrinker keep rule
+- Keep RoomDatabase subclass constructors in release builds to prevent WorkManager startup crash from R8 stripping the no-arg constructor
+
+### Changed
+
+- All scoped Compose screen-level state collection migrated from `collectAsState()` to `collectAsStateWithLifecycle()` across `app/` screens and tabs; lifecycle-aware `Preference<T>.collectAsStateWithLifecycle()` bridge added in `presentation-core`
+- Remove redundant `collectAsState()` calls in `AnimeUpdatesTab` and `MangaUpdatesTab` actions bars — reuse already-collected `state` instead of re-subscribing to the same flow
+
+### CI
+
+- Add `workflow_dispatch` trigger to build workflow for manual release runs when automatic tag-triggered CI is blocked by workflow-file security restrictions
+- Replace `[skip ci]` auto-bump strategy with actor-based job condition to unblock tag-triggered release builds
+
+### Other
+
+- Compose stack upgrade: BOM → 2026.03.00, `activity-compose` → 1.13.0
+- AndroidX step-up: `core-ktx` → 1.18.0, Lifecycle → 2.10.0, Paging → 3.4.2, WorkManager → 2.11.1, media/mediarouter bumps
+- Core runtime dependency upgrade: jsoup → 1.22.1, Coil → 3.4.0, Material → 1.13.0, OkIO → 3.17.0
+- Firebase BOM → 34.10.0; migrate analytics and crashlytics from deprecated `-ktx` modules to base modules
+- Test/tooling upgrade: JUnit Jupiter → 6.0.3, Kotest → 6.1.7, MockK → 1.14.9, unifile snapshot update
+- Align Firebase config comments in `build.gradle.kts` with actual runtime configuration
+- Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager` — method was a no-op placeholder with deferred TODO comments and no callers
 
 ## [0.18.1.75] - 2026-03-13
 

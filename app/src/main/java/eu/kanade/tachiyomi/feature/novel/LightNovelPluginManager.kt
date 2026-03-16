@@ -77,7 +77,6 @@ class LightNovelPluginManager(
         INVALID_PLUGIN_APK,
         ARCHIVE_PACKAGE_MISMATCH,
         INSTALL_LAUNCH_FAILED,
-        ROLLBACK_NOT_AVAILABLE,
     }
 
     override fun isPluginReady(): Boolean {
@@ -120,20 +119,6 @@ class LightNovelPluginManager(
             }
         }
         return installDeferred.await()
-    }
-
-    /**
-     * Stub: rollback infrastructure not yet implemented.
-     *
-     * TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
-     * endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
-     * For now, surface a clear "not available" error rather than silently doing the wrong thing.
-     */
-    suspend fun rollbackToLastGood(): InstallResult {
-        // TODO(R236-J-followup): Rollback infrastructure requires a version-pinned manifest
-        // endpoint or local APK cache, neither of which exists yet. Tracking in follow-up issue.
-        // For now, surface a clear "not available" error rather than silently doing the wrong thing.
-        return InstallResult.Error(InstallErrorCode.ROLLBACK_NOT_AVAILABLE)
     }
 
     /**
