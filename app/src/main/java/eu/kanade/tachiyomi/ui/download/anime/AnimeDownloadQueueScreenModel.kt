@@ -23,13 +23,13 @@ class AnimeDownloadQueueScreenModel(
     private val _state = MutableStateFlow(emptyList<AnimeDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
 
-    private val _collapsedSources = MutableStateFlow(emptySet<Long>())
+    private val collapsedSources = MutableStateFlow(emptySet<Long>())
 
     init {
         screenModelScope.launch {
             downloadManager.queueState
                 .map { downloads ->
-                    val collapsedIds = _collapsedSources.value
+                    val collapsedIds = collapsedSources.value
                     downloads
                         .groupBy { it.source }
                         .map { (source, sourceDownloads) ->
@@ -51,7 +51,7 @@ class AnimeDownloadQueueScreenModel(
     }
 
     fun toggleExpanded(source: AnimeHttpSource) {
-        _collapsedSources.update { current ->
+        collapsedSources.update { current ->
             if (current.contains(source.id)) {
                 current - source.id
             } else {
@@ -62,11 +62,11 @@ class AnimeDownloadQueueScreenModel(
 
     fun collapseAll() {
         val currentSources = _state.value
-        _collapsedSources.update { currentSources.map { it.source.id }.toSet() }
+        collapsedSources.update { currentSources.map { it.source.id }.toSet() }
     }
 
     fun expandHeader(source: AnimeHttpSource) {
-        _collapsedSources.update { it - source.id }
+        collapsedSources.update { it - source.id }
     }
 
     fun moveToTop(item: AnimeDownloadUiItem) {
@@ -166,5 +166,4 @@ class AnimeDownloadQueueScreenModel(
         }
         reorder(newAnimeDownloads)
     }
-
 }

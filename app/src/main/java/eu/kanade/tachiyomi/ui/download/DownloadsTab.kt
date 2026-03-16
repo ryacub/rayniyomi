@@ -60,11 +60,11 @@ import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.components.NestedMenuItem
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.download.anime.AnimeDownloadUiHeaderItem
 import eu.kanade.tachiyomi.ui.download.anime.AnimeDownloadQueueScreenModel
+import eu.kanade.tachiyomi.ui.download.anime.AnimeDownloadUiHeaderItem
 import eu.kanade.tachiyomi.ui.download.anime.animeDownloadTab
-import eu.kanade.tachiyomi.ui.download.manga.MangaDownloadUiHeaderItem
 import eu.kanade.tachiyomi.ui.download.manga.MangaDownloadQueueScreenModel
+import eu.kanade.tachiyomi.ui.download.manga.MangaDownloadUiHeaderItem
 import eu.kanade.tachiyomi.ui.download.manga.mangaDownloadTab
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch

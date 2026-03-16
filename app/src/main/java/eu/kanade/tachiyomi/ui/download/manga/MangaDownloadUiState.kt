@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.download.manga
 
 import androidx.compose.runtime.Stable
-import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.source.online.HttpSource
 
 @Stable
 data class MangaDownloadUiHeaderItem(

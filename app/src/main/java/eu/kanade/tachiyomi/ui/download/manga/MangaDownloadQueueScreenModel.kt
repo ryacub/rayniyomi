@@ -2,9 +2,9 @@ package eu.kanade.tachiyomi.ui.download.manga
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,13 +23,13 @@ class MangaDownloadQueueScreenModel(
     private val _state = MutableStateFlow(emptyList<MangaDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
 
-    private val _collapsedSources = MutableStateFlow(emptySet<Long>())
+    private val collapsedSources = MutableStateFlow(emptySet<Long>())
 
     init {
         screenModelScope.launch {
             downloadManager.queueState
                 .map { downloads ->
-                    val collapsedIds = _collapsedSources.value
+                    val collapsedIds = collapsedSources.value
                     downloads
                         .groupBy { it.source }
                         .map { (source, sourceDownloads) ->
@@ -51,7 +51,7 @@ class MangaDownloadQueueScreenModel(
     }
 
     fun toggleExpanded(source: HttpSource) {
-        _collapsedSources.update { current ->
+        collapsedSources.update { current ->
             if (current.contains(source.id)) {
                 current - source.id
             } else {
@@ -62,11 +62,11 @@ class MangaDownloadQueueScreenModel(
 
     fun collapseAll() {
         val currentSources = _state.value
-        _collapsedSources.update { currentSources.map { it.source.id }.toSet() }
+        collapsedSources.update { currentSources.map { it.source.id }.toSet() }
     }
 
     fun expandHeader(source: HttpSource) {
-        _collapsedSources.update { it - source.id }
+        collapsedSources.update { it - source.id }
     }
 
     fun moveToTop(item: MangaDownloadUiItem) {
@@ -166,5 +166,4 @@ class MangaDownloadQueueScreenModel(
         }
         reorder(newDownloads)
     }
-
 }
