@@ -1,0 +1,45 @@
+{
+  "task_id": "529",
+  "task": "Audit and close stale rayniyomi-authored TODO/FIXME comments — implement, convert to proper issues, or delete if obsolete. Known locations: BrowseTab.kt:56 (Global Search TODO), LightNovelPluginManager.kt TODO(R236-J-followup) (blocked on #527 which is now merged).",
+  "status": "implementing",
+  "plan_approved": true,
+  "parallel_mode": false,
+  "project_type": "android",
+  "start_commit": "8640f9307b4d44c5dce1c4bfac5baa504315bbe7",
+  "iteration": 0,
+  "max_iterations": 20,
+  "cost": {
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "iterations": []
+  },
+  "features": [
+    {
+      "name": "Remove rollbackToLastGood stub",
+      "status": "in_progress",
+      "tests": null,
+      "commit": null
+    },
+    {
+      "name": "Add PIN setup error feedback",
+      "status": "pending",
+      "tests": null,
+      "commit": null
+    },
+    {
+      "name": "Strip deferred TODO comments",
+      "status": "pending",
+      "tests": null,
+      "commit": null
+    }
+  ],
+  "test_results": {
+    "passing": 0,
+    "failing": 0,
+    "last_run": null,
+    "output": ""
+  },
+  "learnings": [],
+  "review": null,
+  "blocker": null
+}
