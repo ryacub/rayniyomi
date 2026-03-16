@@ -29,7 +29,7 @@ class MigrateAnimeScreenModel(
     private val getFavorites: GetAnimeFavorites = Injekt.get(),
 ) : StateScreenModel<MigrateAnimeScreenModel.State>(State()) {
 
-    private val _events: Channel<MigrationAnimeEvent> = Channel()
+    private val _events: Channel<MigrationAnimeEvent> = Channel(Channel.BUFFERED)
     val events: Flow<MigrationAnimeEvent> = _events.receiveAsFlow()
 
     init {

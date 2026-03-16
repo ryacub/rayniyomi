@@ -7,13 +7,17 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import mihon.domain.extensionrepo.model.ExtensionRepo
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -56,6 +60,24 @@ class ExtensionReposScreenModelTest {
 
         // Verify subscribeAll is called during init
         coVerify { deps.subscribeAll() }
+    }
+
+    @Test
+    fun `invalid url event is delivered even when collector attaches late`() = runTest {
+        val deps = createMockDependencies(emptyFlow())
+        coEvery { deps.createRepo("not-a-url") } returns ExtensionReposScreenModel.CreateResult.InvalidUrl
+        val model = ExtensionReposScreenModel(deps)
+
+        model.createRepo("not-a-url")
+
+        val event = withContext(Dispatchers.Default.limitedParallelism(1)) {
+            withTimeout(5_000) {
+                model.events.first()
+            }
+        }
+
+        assertEquals(RepoEvent.InvalidUrl, event)
+        coVerify { deps.createRepo("not-a-url") }
     }
 
     private fun createMockDependencies(
