@@ -140,11 +140,11 @@ private fun AnimeDownloadQueueHeader(
                 onDragStart()
                 onDragEnd()
             },
-            modifier = Modifier.padding(0.dp),
+            modifier = Modifier.minimumInteractiveComponentSize(),
         ) {
             Icon(
                 imageVector = Icons.Outlined.DragIndicator,
-                contentDescription = null,
+                contentDescription = stringResource(MR.strings.action_sort),
             )
         }
 
@@ -158,7 +158,7 @@ private fun AnimeDownloadQueueHeader(
 
         IconButton(
             onClick = onToggleExpanded,
-            modifier = Modifier.padding(0.dp),
+            modifier = Modifier.minimumInteractiveComponentSize(),
         ) {
             Icon(
                 imageVector = if (header.isExpanded) {
@@ -166,7 +166,11 @@ private fun AnimeDownloadQueueHeader(
                 } else {
                     Icons.Default.ExpandMore
                 },
-                contentDescription = null,
+                contentDescription = if (header.isExpanded) {
+                    stringResource(MR.strings.action_collapse)
+                } else {
+                    stringResource(MR.strings.action_expand)
+                },
             )
         }
     }
@@ -200,7 +204,7 @@ private fun AnimeDownloadQueueItem(
             Box {
                 IconButton(
                     onClick = { menuExpanded = true },
-                    modifier = Modifier.padding(0.dp),
+                    modifier = Modifier.minimumInteractiveComponentSize(),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,

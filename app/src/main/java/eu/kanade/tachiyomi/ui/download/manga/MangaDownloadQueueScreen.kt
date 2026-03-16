@@ -141,11 +141,11 @@ private fun MangaDownloadQueueHeader(
                 onDragStart()
                 onDragEnd()
             },
-            modifier = Modifier.padding(0.dp),
+            modifier = Modifier.minimumInteractiveComponentSize(),
         ) {
             Icon(
                 imageVector = Icons.Outlined.DragIndicator,
-                contentDescription = null,
+                contentDescription = stringResource(MR.strings.action_sort),
             )
         }
 
@@ -159,7 +159,7 @@ private fun MangaDownloadQueueHeader(
 
         IconButton(
             onClick = onToggleExpanded,
-            modifier = Modifier.padding(0.dp),
+            modifier = Modifier.minimumInteractiveComponentSize(),
         ) {
             Icon(
                 imageVector = if (header.isExpanded) {
@@ -167,7 +167,11 @@ private fun MangaDownloadQueueHeader(
                 } else {
                     Icons.Default.ExpandMore
                 },
-                contentDescription = null,
+                contentDescription = if (header.isExpanded) {
+                    stringResource(MR.strings.action_collapse)
+                } else {
+                    stringResource(MR.strings.action_expand)
+                },
             )
         }
     }
@@ -201,7 +205,7 @@ private fun MangaDownloadQueueItem(
             Box {
                 IconButton(
                     onClick = { menuExpanded = true },
-                    modifier = Modifier.padding(0.dp),
+                    modifier = Modifier.minimumInteractiveComponentSize(),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
