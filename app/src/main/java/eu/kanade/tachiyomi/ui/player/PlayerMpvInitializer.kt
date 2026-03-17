@@ -20,6 +20,7 @@ package eu.kanade.tachiyomi.ui.player
 import android.content.Context
 import android.content.res.AssetManager
 import com.hippo.unifile.UniFile
+import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,7 +40,6 @@ internal class PlayerMpvInitializer(
     private val context: Context,
     private val storageManager: StorageManager,
     @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
-    private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy(),
 ) {
     companion object {
         const val MPV_DIR = "mpv"
@@ -210,8 +210,8 @@ internal class PlayerMpvInitializer(
             logcat(LogPriority.VERBOSE) { "Skipped unchanged MPV font: $fontName" }
         }
 
-        mpvLibProxy.setPropertyString("sub-fonts-dir", fontsDirectory.filePath!!)
-        mpvLibProxy.setPropertyString("osd-fonts-dir", fontsDirectory.filePath!!)
+        MPVLib.setPropertyString("sub-fonts-dir", fontsDirectory.filePath!!)
+        MPVLib.setPropertyString("osd-fonts-dir", fontsDirectory.filePath!!)
         logcat(LogPriority.VERBOSE) { "Applied MPV font directories: ${fontsDirectory.filePath}" }
     }
 
@@ -260,7 +260,7 @@ internal class PlayerMpvInitializer(
         }
 
         file?.let {
-            mpvLibProxy.command(arrayOf("load-script", it.filePath!!))
+            MPVLib.command(arrayOf("load-script", it.filePath))
         }
     }
 }
