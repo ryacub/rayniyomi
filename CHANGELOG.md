@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Preserve Crashlytics build ID in release artifacts via release resource pipeline and shrinker keep rule
 - Keep RoomDatabase subclass constructors in release builds to prevent WorkManager startup crash from R8 stripping the no-arg constructor
 - MPV subtitle font sync now runs deterministically in initializer IO flow with idempotent copy/cleanup behavior and failure-safe per-file handling
+- Guard source ID generation against invalid extension metadata to prevent `AnimeHttpSource.getId()`/`HttpSource.getId()` null-crash paths
 
 ### Changed
 
