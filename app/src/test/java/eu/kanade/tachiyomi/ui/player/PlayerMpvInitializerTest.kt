@@ -115,16 +115,20 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.filePath } returns "/data/files/mpv"
 
         // Mock asset reading for aniyomi.lua - use answers to create fresh streams each time
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- mock lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- mock lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("mock ttf".toByteArray()) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("mock cert".toByteArray()) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- mock lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("mock ttf".toByteArray()) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("mock cert".toByteArray()) }
 
         val result = initializer.initialize(
             mpvConf = "profile=default",
@@ -152,7 +156,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.filePath } returns expectedPath
 
         val mockAssets = mockk<AssetManager>(relaxed = true)
@@ -196,7 +201,8 @@ class PlayerMpvInitializerTest {
         }
         every { mockUserScript.name } returns "myscript.lua"
         every { mockUserScript.openInputStream() } returns ByteArrayInputStream("-- user script".toByteArray())
-        every { mockScriptsDir.createFile("myscript.lua") } returns createMockUniFile("/data/files/mpv/scripts/myscript.lua")
+        every { mockScriptsDir.createFile("myscript.lua") } returns
+            createMockUniFile("/data/files/mpv/scripts/myscript.lua")
 
         every { storageManager.getScriptOptsDirectory() } returns null
         every { storageManager.getShadersDirectory() } returns null
@@ -204,9 +210,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua bridge".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua bridge".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua bridge".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
 
         val result = initializer.initialize("", "", mpvUserFilesEnabled = true)
         assertEquals("/data/files/mpv", result)
@@ -245,9 +254,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua bridge".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua bridge".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua bridge".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
 
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
         assertEquals("/data/files/mpv", result)
@@ -289,9 +301,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua bridge".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua bridge".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua bridge".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
 
         initializer.initialize("", "", mpvUserFilesEnabled = true)
         verify { mockScriptsDir.createFile("aniyomi.lua") }
@@ -314,7 +329,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.createFile("subfont.ttf") } returns mockSubfontFile
         every { mockMpvDir.createFile("cacert.pem") } returns mockCacertFile
         every { mockMpvDir.filePath } returns "/data/files/mpv"
@@ -322,9 +338,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("subfont data".toByteArray()) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("cert data".toByteArray()) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("subfont data".toByteArray()) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("cert data".toByteArray()) }
 
         every { storageManager.getScriptsDirectory() } returns null
         every { storageManager.getScriptOptsDirectory() } returns null
@@ -349,7 +368,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.createFile("subfont.ttf") } returns mockSubfontFile
         every { mockMpvDir.createFile("cacert.pem") } returns mockCacertFile
         every { mockMpvDir.filePath } returns "/data/files/mpv"
@@ -358,13 +378,16 @@ class PlayerMpvInitializerTest {
         every { context.assets } returns mockAssets
         // Return InputStreams with matching sizes
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } returns object : ByteArrayInputStream("subfont data".toByteArray()) {
-            override fun available(): Int = 11
-        }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } returns object : ByteArrayInputStream("cert data".toByteArray()) {
-            override fun available(): Int = 9
-        }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } returns
+            object : ByteArrayInputStream("subfont data".toByteArray()) {
+                override fun available(): Int = 11
+            }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } returns
+            object : ByteArrayInputStream("cert data".toByteArray()) {
+                override fun available(): Int = 9
+            }
 
         every { storageManager.getScriptsDirectory() } returns null
         every { storageManager.getScriptOptsDirectory() } returns null
@@ -387,7 +410,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.createFile("subfont.ttf") } returns createMockUniFile("/data/files/mpv/subfont.ttf")
         every { mockMpvDir.createFile("cacert.pem") } returns createMockUniFile("/data/files/mpv/cacert.pem")
         every { mockMpvDir.filePath } returns "/data/files/mpv"
@@ -395,9 +419,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } throws java.io.IOException("Asset not found")
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } throws java.io.IOException("Asset not found")
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } throws
+            java.io.IOException("Asset not found")
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } throws
+            java.io.IOException("Asset not found")
 
         every { storageManager.getScriptsDirectory() } returns null
         every { storageManager.getScriptOptsDirectory() } returns null
@@ -424,7 +451,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns mockFontsDir
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.filePath } returns "/data/files/mpv"
         every { mockFontsDir.filePath } returns "/data/files/mpv/fonts"
         every { mockFontsDir.listFiles() } returns emptyArray()
@@ -437,9 +465,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
 
         initializer.initialize("", "", mpvUserFilesEnabled = false)
 
@@ -464,7 +495,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns mockFontsDir
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.filePath } returns "/data/files/mpv"
         every { mockFontsDir.filePath } returns "/data/files/mpv/fonts"
         every { mockFontsDir.listFiles() } returns arrayOf(mockStaleFont)
@@ -480,9 +512,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
 
         initializer.initialize("", "", mpvUserFilesEnabled = false)
         // Verify that the stale font deletion logic was executed
@@ -504,7 +539,8 @@ class PlayerMpvInitializerTest {
         every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
         every { mockMpvDir.createFile("input.conf") } returns mockInputFile
         every { mockMpvDir.createDirectory("fonts") } returns mockFontsDir
-        every { mockMpvDir.createDirectory("scripts") } returns createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
         every { mockMpvDir.filePath } returns "/data/files/mpv"
         every { mockFontsDir.filePath } returns "/data/files/mpv/fonts"
         every { mockFontsDir.listFiles() } returns emptyArray()
@@ -517,9 +553,12 @@ class PlayerMpvInitializerTest {
         val mockAssets = mockk<AssetManager>(relaxed = true)
         every { context.assets } returns mockAssets
         every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream("-- lua".toByteArray()) }
-        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
-        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
 
         // Should not throw or fail, just skip stale deletion
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)

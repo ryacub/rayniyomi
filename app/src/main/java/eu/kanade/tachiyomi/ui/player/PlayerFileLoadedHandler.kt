@@ -46,7 +46,7 @@ import kotlin.math.floor
 internal interface MPVLibProxy {
     fun setPropertyString(property: String, value: String)
     fun getPropertyString(property: String): String?
-    fun command(args: Array<String>)
+    fun command(args: Array<out String>)
 }
 
 /**
@@ -77,7 +77,7 @@ internal class RealMPVLibProxy : MPVLibProxy {
         }
     }
 
-    override fun command(args: Array<String>) {
+    override fun command(args: Array<out String>) {
         try {
             val method = mpvLib.getMethod("command", Array<String>::class.java)
             method.invoke(null, args)
