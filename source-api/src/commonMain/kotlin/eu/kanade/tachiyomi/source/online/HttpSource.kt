@@ -54,7 +54,11 @@ abstract class HttpSource : CatalogueSource {
      *
      * Note: the generated ID sets the sign bit to `0`.
      */
-    override val id by lazy { generateId(name, lang, versionId) }
+    override val id by lazy {
+        val safeName = runCatching { name }.getOrNull().orEmpty().ifBlank { javaClass.name }
+        val safeLang = runCatching { lang }.getOrNull().orEmpty()
+        generateId(safeName, safeLang, versionId)
+    }
 
     /**
      * Headers used for requests.
