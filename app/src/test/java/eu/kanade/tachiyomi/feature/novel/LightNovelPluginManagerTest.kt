@@ -116,6 +116,7 @@ class LightNovelPluginManagerTest {
         versionCode: Long = 2L,
         pluginApiVersion: Int = 1,
         minHostVersion: Long = 100L,
+        targetHostVersion: Long = 0L,
         apkUrl: String = "https://example.com/plugin.apk",
         apkSha256: String = "abc123",
     ): String = """
@@ -124,6 +125,7 @@ class LightNovelPluginManagerTest {
             "version_code": $versionCode,
             "plugin_api_version": $pluginApiVersion,
             "min_host_version": $minHostVersion,
+            "target_host_version": $targetHostVersion,
             "apk_url": "$apkUrl",
             "apk_sha256": "$apkSha256"
         }
@@ -429,6 +431,53 @@ class LightNovelPluginManagerTest {
         runBlocking { spyManager.ensurePluginReady(channel = "beta") }
 
         requestSlot.captured.url.toString() shouldBe BETA_MANIFEST_URL
+    }
+
+    // ===== Manifest Compatibility Verification Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_API_MISMATCH) when plugin API version is wrong`() {
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(pluginApiVersion = 2),
+        )
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_API_MISMATCH,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_HOST_TOO_OLD) when host version is below minimum`() {
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(minHostVersion = 999L),
+        )
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_OLD,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_HOST_TOO_NEW) when host version exceeds target`() {
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(targetHostVersion = 100L),
+        )
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_NEW,
+        )
     }
 
     companion object {
