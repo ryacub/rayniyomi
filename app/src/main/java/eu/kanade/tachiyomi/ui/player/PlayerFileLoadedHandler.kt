@@ -25,7 +25,6 @@ import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion.getStringRes
-import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,23 +38,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import kotlin.math.ceil
 import kotlin.math.floor
-
-/**
- * Abstraction over MPVLib to allow mocking in unit tests.
- * Removes direct dependency on JNI class from class declaration.
- */
-internal interface MPVLibProxy {
-    fun setPropertyString(property: String, value: String)
-    fun getPropertyString(property: String): String?
-    fun command(args: Array<out String>)
-}
-
-/** Real implementation delegating directly to the MPVLib JNI class. */
-internal class RealMPVLibProxy : MPVLibProxy {
-    override fun setPropertyString(property: String, value: String) = MPVLib.setPropertyString(property, value)
-    override fun getPropertyString(property: String): String? = MPVLib.getPropertyString(property)
-    override fun command(args: Array<out String>) = MPVLib.command(args)
-}
 
 /**
  * Handles the fileLoaded() event pipeline for MPV.
