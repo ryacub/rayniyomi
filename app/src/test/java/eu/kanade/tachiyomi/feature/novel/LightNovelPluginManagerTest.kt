@@ -10,7 +10,9 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.spyk
 import io.mockk.unmockkObject
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -47,6 +49,7 @@ class LightNovelPluginManagerTest {
     @AfterEach
     fun tearDown() {
         unmockkObject(Hash)
+        manager.close()
     }
 
     private fun createPackageInfoMock(
@@ -223,6 +226,37 @@ class LightNovelPluginManagerTest {
         val status = manager.getPluginStatus()
 
         status.compatible shouldBe true
+    }
+
+    // ===== Install Disabled Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns Error(INSTALL_DISABLED) when installation disabled`() {
+        // BuildConfig.DEBUG is true in debug unit tests, so we use spyk to force
+        // isPluginInstallEnabled() = false, simulating a release build with flag off.
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns false
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.INSTALL_DISABLED,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(INSTALL_DISABLED) error code validation`() {
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns false
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        when (result) {
+            is LightNovelPluginManager.InstallResult.Error -> {
+                result.code shouldBe LightNovelPluginManager.InstallErrorCode.INSTALL_DISABLED
+            }
+            else -> throw AssertionError("Expected Error result, got $result")
+        }
     }
 
     companion object {
