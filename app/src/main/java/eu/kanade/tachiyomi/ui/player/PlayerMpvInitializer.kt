@@ -20,6 +20,7 @@ package eu.kanade.tachiyomi.ui.player
 import android.content.Context
 import android.content.res.AssetManager
 import com.hippo.unifile.UniFile
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
@@ -37,7 +38,8 @@ import java.io.OutputStream
 internal class PlayerMpvInitializer(
     private val context: Context,
     private val storageManager: StorageManager,
-    private val mpvLibProxy: MPVLibProxy,
+    @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
+    private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy(),
 ) {
     companion object {
         const val MPV_DIR = "mpv"
@@ -257,8 +259,8 @@ internal class PlayerMpvInitializer(
             it.write(customButtonsContent)
         }
 
-        file?.filePath?.let { path ->
-            mpvLibProxy.command(arrayOf("load-script", path))
+        file?.let {
+            mpvLibProxy.command(arrayOf("load-script", it.filePath!!))
         }
     }
 }
