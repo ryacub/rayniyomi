@@ -27,6 +27,12 @@ import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -41,9 +47,6 @@ import okhttp3.ResponseBody
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.IOException
 
 class LightNovelPluginManagerTest {
 
@@ -672,13 +675,146 @@ class LightNovelPluginManagerTest {
         )
     }
 
+    // ===== In-Flight Install Deduplication Tests =====
+
+    @Test
+    fun `ensurePluginReady() deduplicates concurrent in-flight installs`() {
+        val manifestCallCount = AtomicInteger(0)
+        val firstCallAtNetworkLatch = CountDownLatch(1)
+        val manifestFetchGate = CountDownLatch(1)
+
+        every { network.client.newCall(any()) } answers {
+            val call = mockk<Call>(relaxed = true)
+            every { call.enqueue(any()) } answers {
+                manifestCallCount.incrementAndGet()
+                firstCallAtNetworkLatch.countDown()
+                manifestFetchGate.await(5, TimeUnit.SECONDS)
+                firstArg<Callback>().onFailure(call, IOException("Dedup gate released"))
+            }
+            call
+        }
+
+        var result1: LightNovelPluginManager.InstallResult? = null
+        var result2: LightNovelPluginManager.InstallResult? = null
+
+        val thread1 = Thread { result1 = runBlocking { manager.ensurePluginReady("stable") } }
+        thread1.start()
+        firstCallAtNetworkLatch.await(5, TimeUnit.SECONDS)
+
+        val thread2 = Thread { result2 = runBlocking { manager.ensurePluginReady("stable") } }
+        thread2.start()
+        Thread.sleep(200) // Let Thread2 reach the mutex and see the active deferred
+
+        manifestFetchGate.countDown()
+        thread1.join(5000)
+        thread2.join(5000)
+
+        manifestCallCount.get() shouldBe 1
+        result1 shouldBe result2
+    }
+
+    @Test
+    fun `ensurePluginReady() completed install deferred is not reused on next call`() {
+        var networkCallCount = 0
+        every { network.client.newCall(any()) } answers {
+            networkCallCount++
+            createNetworkCallThatFails()
+        }
+
+        runBlocking { manager.ensurePluginReady("stable") }
+        runBlocking { manager.ensurePluginReady("stable") }
+
+        networkCallCount shouldBe 2
+    }
+
+    // ===== Error State Recovery Tests =====
+
+    @Test
+    fun `ensurePluginReady() retries from scratch after previous error`() {
+        every { network.client.newCall(any()) } returns createNetworkCallThatFails()
+        val result1 = runBlocking { manager.ensurePluginReady("stable") }
+        result1 shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED,
+        )
+
+        // Swap mock: different result proves a fresh network call was made, not a cached error
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(packageName = "xyz.wrong.package"),
+        )
+        val result2 = runBlocking { manager.ensurePluginReady("stable") }
+        result2 shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() cleans up APK file when download checksum does not match`() {
+        val tmpDir = File(System.getProperty("java.io.tmpdir"))
+        every { context.cacheDir } returns tmpDir
+        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
+        every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
+            createNetworkCallThatSucceeds(validManifestJson(apkSha256 = "deadbeef"))
+        every { network.client.newCall(match { it.url.toString().endsWith(".apk") }) } returns
+            createApkDownloadCallThatSucceeds()
+
+        runBlocking { manager.ensurePluginReady("stable") }
+
+        File(tmpDir, "lightnovel-plugin.apk").exists() shouldBe false
+    }
+
+    // ===== Orphaned APK Cleanup Tests =====
+
+    @Test
+    fun `LightNovelPluginManager constructor removes existing orphaned APK file`() {
+        val tmpDir = File(System.getProperty("java.io.tmpdir"))
+        every { context.cacheDir } returns tmpDir
+
+        val apkFile = File(tmpDir, "lightnovel-plugin.apk")
+        apkFile.writeBytes(byteArrayOf(1, 2, 3))
+        apkFile.exists() shouldBe true
+
+        val freshManager = LightNovelPluginManager(
+            context = context,
+            network = network,
+            json = Json { ignoreUnknownKeys = true },
+            preferences = preferences,
+        )
+        freshManager.close()
+
+        apkFile.exists() shouldBe false
+    }
+
+    @Test
+    fun `uninstallPlugin() removes existing orphaned APK file`() {
+        val tmpDir = File(System.getProperty("java.io.tmpdir"))
+        every { context.cacheDir } returns tmpDir
+
+        val apkFile = File(tmpDir, "lightnovel-plugin.apk")
+        apkFile.writeBytes(byteArrayOf(1, 2, 3))
+        apkFile.exists() shouldBe true
+
+        manager.uninstallPlugin()
+
+        apkFile.exists() shouldBe false
+    }
+
+    @Test
+    fun `uninstallPlugin() does not throw when APK file does not exist`() {
+        val tmpDir = File(System.getProperty("java.io.tmpdir"))
+        every { context.cacheDir } returns tmpDir
+
+        File(tmpDir, "lightnovel-plugin.apk").delete()
+
+        // Should not throw
+        manager.uninstallPlugin()
+    }
+
     companion object {
         private const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
         private const val STABLE_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
         private const val BETA_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
-
         // SHA-256 of an empty byte array / empty file
         private const val SHA256_EMPTY_BYTES =
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
