@@ -12,6 +12,7 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.spyk
 import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -21,6 +22,7 @@ class LightNovelPluginManagerTest {
 
     private lateinit var context: Context
     private lateinit var packageManager: PackageManager
+    private lateinit var network: eu.kanade.tachiyomi.network.NetworkHelper
     private lateinit var manager: LightNovelPluginManager
 
     @BeforeEach
@@ -34,7 +36,7 @@ class LightNovelPluginManagerTest {
         every { Hash.sha256(any<ByteArray>()) } returns
             "7b7f000000000000000000000000000000000000000000000000000000000000"
 
-        val network = mockk<eu.kanade.tachiyomi.network.NetworkHelper>(relaxed = true)
+        network = mockk<eu.kanade.tachiyomi.network.NetworkHelper>(relaxed = true)
         val json = mockk<kotlinx.serialization.json.Json>(relaxed = true)
         val preferences = mockk<eu.kanade.domain.novel.NovelFeaturePreferences>(relaxed = true)
 
@@ -257,6 +259,67 @@ class LightNovelPluginManagerTest {
             }
             else -> throw AssertionError("Expected Error result, got $result")
         }
+    }
+
+    // ===== Already Ready Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns AlreadyReady when plugin is installed signed and compatible`() {
+        val packageInfo = createPackageInfoMock(
+            installed = true,
+            hasValidSignature = true,
+            apiVersion = 1,
+            minHostVersion = 100L,
+            targetHostVersion = 1000L,
+        )!!
+        every { packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, any<Int>()) } returns packageInfo
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
+    }
+
+    @Test
+    fun `ensurePluginReady() does not make network calls when plugin already ready`() {
+        val packageInfo = createPackageInfoMock(
+            installed = true,
+            hasValidSignature = true,
+            apiVersion = 1,
+            minHostVersion = 100L,
+            targetHostVersion = 1000L,
+        )!!
+        every { packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, any<Int>()) } returns packageInfo
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        verify(exactly = 0) { network.client }
+    }
+
+    @Test
+    fun `ensurePluginReady() returns AlreadyReady regardless of channel when plugin is ready`() {
+        val packageInfo = createPackageInfoMock(
+            installed = true,
+            hasValidSignature = true,
+            apiVersion = 1,
+            minHostVersion = 100L,
+            targetHostVersion = 1000L,
+        )!!
+        every { packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, any<Int>()) } returns packageInfo
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val stableResult = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+        val betaResult = runBlocking { spyManager.ensurePluginReady(channel = "beta") }
+
+        stableResult shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
+        betaResult shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
     }
 
     companion object {
