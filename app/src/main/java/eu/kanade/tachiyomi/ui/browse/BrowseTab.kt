@@ -7,6 +7,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -26,6 +27,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearch
 import eu.kanade.tachiyomi.ui.browse.manga.extension.MangaExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.extension.mangaExtensionsTab
 import eu.kanade.tachiyomi.ui.browse.manga.migration.sources.migrateMangaSourceTab
+import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.browse.manga.source.mangaSourcesTab
 import eu.kanade.tachiyomi.ui.browse.novel.source.novelSourcesTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -41,6 +43,9 @@ import uy.kohesive.injekt.api.get
 
 data object BrowseTab : Tab {
 
+    @Volatile
+    private var lastKnownSearchTarget = BrowseSearchTarget.UNKNOWN
+
     override val options: TabOptions
         @Composable
         get() {
@@ -54,7 +59,11 @@ data object BrowseTab : Tab {
         }
 
     override suspend fun onReselect(navigator: Navigator) {
-        navigator.push(GlobalAnimeSearchScreen())
+        when (resolveBrowseReselectTarget(lastKnownSearchTarget)) {
+            BrowseSearchTarget.ANIME -> navigator.push(GlobalAnimeSearchScreen())
+            BrowseSearchTarget.MANGA -> navigator.push(GlobalMangaSearchScreen())
+            BrowseSearchTarget.UNKNOWN -> navigator.push(GlobalAnimeSearchScreen())
+        }
     }
 
     private val switchToTabNumberChannel = Channel<Int>(1, BufferOverflow.DROP_OLDEST)
@@ -119,6 +128,13 @@ data object BrowseTab : Tab {
                 }
         }
 
+        LaunchedEffect(state) {
+            snapshotFlow { state.currentPage }
+                .collectLatest { page ->
+                    lastKnownSearchTarget = updateBrowseSearchTarget(lastKnownSearchTarget, page)
+                }
+        }
+
         LaunchedEffect(Unit) {
             (context as? MainActivity)?.ready = true
         }
@@ -127,4 +143,42 @@ data object BrowseTab : Tab {
 
 internal fun shouldShowNovelSourcesTab(uiState: LightNovelPluginUiState): Boolean {
     return uiState is LightNovelPluginUiState.Ready
+}
+
+internal enum class BrowseSearchTarget {
+    ANIME,
+    MANGA,
+    UNKNOWN,
+}
+
+private const val ANIME_SOURCES_PAGE = 0
+private const val MANGA_SOURCES_PAGE = 1
+private const val ANIME_EXTENSIONS_PAGE = 2
+private const val MANGA_EXTENSIONS_PAGE = 3
+private const val ANIME_MIGRATION_PAGE = 4
+private const val MANGA_MIGRATION_PAGE = 5
+
+internal fun browseSearchTargetForPage(page: Int): BrowseSearchTarget {
+    return when (page) {
+        ANIME_SOURCES_PAGE, ANIME_EXTENSIONS_PAGE, ANIME_MIGRATION_PAGE -> BrowseSearchTarget.ANIME
+        MANGA_SOURCES_PAGE, MANGA_EXTENSIONS_PAGE, MANGA_MIGRATION_PAGE -> BrowseSearchTarget.MANGA
+        else -> BrowseSearchTarget.UNKNOWN
+    }
+}
+
+internal fun updateBrowseSearchTarget(
+    lastKnownSearchTarget: BrowseSearchTarget,
+    page: Int,
+): BrowseSearchTarget {
+    return when (val pageTarget = browseSearchTargetForPage(page)) {
+        BrowseSearchTarget.UNKNOWN -> lastKnownSearchTarget
+        else -> pageTarget
+    }
+}
+
+internal fun resolveBrowseReselectTarget(lastKnownSearchTarget: BrowseSearchTarget): BrowseSearchTarget {
+    return when (lastKnownSearchTarget) {
+        BrowseSearchTarget.UNKNOWN -> BrowseSearchTarget.ANIME
+        else -> lastKnownSearchTarget
+    }
 }
