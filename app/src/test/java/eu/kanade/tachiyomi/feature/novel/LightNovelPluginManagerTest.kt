@@ -1,12 +1,16 @@
 package eu.kanade.tachiyomi.feature.novel
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.content.pm.SigningInfo
+import android.net.Uri
 import android.os.Bundle
+import androidx.core.content.FileProvider
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -14,13 +18,23 @@ import eu.kanade.tachiyomi.util.lang.Hash
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
+import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
+import io.mockk.unmockkStatic
 import io.mockk.verify
+import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
 import okhttp3.Call
 import okhttp3.Callback
@@ -41,6 +55,12 @@ class LightNovelPluginManagerTest {
 
     @BeforeEach
     fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        mockkConstructor(Intent::class)
+        val stubIntent = mockk<Intent>(relaxed = true)
+        every { anyConstructed<Intent>().setDataAndType(any(), any()) } returns stubIntent
+        every { anyConstructed<Intent>().setFlags(any()) } returns stubIntent
+        mockkStatic(FileProvider::class)
         context = mockk<Context>(relaxed = true)
         packageManager = mockk<PackageManager>(relaxed = true)
         every { context.packageManager } returns packageManager
@@ -65,6 +85,9 @@ class LightNovelPluginManagerTest {
     @AfterEach
     fun tearDown() {
         unmockkObject(Hash)
+        unmockkStatic(FileProvider::class)
+        unmockkConstructor(Intent::class)
+        Dispatchers.resetMain()
         manager.close()
     }
 
@@ -156,6 +179,31 @@ class LightNovelPluginManagerTest {
             firstArg<Callback>().onResponse(mockCall, mockResponse)
         }
         return mockCall
+    }
+
+    // APK download: mocks byteStream() with an empty InputStream so real file I/O writes 0 bytes.
+    // SHA256 of the resulting empty file = SHA256_EMPTY_BYTES.
+    private fun createApkDownloadCallThatSucceeds(): Call {
+        val mockResponseBody = mockk<ResponseBody>(relaxed = true)
+        every { mockResponseBody.byteStream() } returns ByteArrayInputStream(byteArrayOf())
+        val mockResponse = mockk<Response>(relaxed = true)
+        every { mockResponse.body } returns mockResponseBody
+        every { mockResponse.isSuccessful } returns true
+        val mockCall = mockk<Call>(relaxed = true)
+        every { mockCall.enqueue(any()) } answers {
+            firstArg<Callback>().onResponse(mockCall, mockResponse)
+        }
+        return mockCall
+    }
+
+    // Sets up the full pipeline through POLICY and download so tests can focus on later stages.
+    private fun stubForInstallStage() {
+        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
+        every { context.cacheDir } returns File(System.getProperty("java.io.tmpdir"))
+        every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
+            createNetworkCallThatSucceeds(validManifestJson(apkSha256 = SHA256_EMPTY_BYTES))
+        every { network.client.newCall(match { it.url.toString().endsWith(".apk") }) } returns
+            createApkDownloadCallThatSucceeds()
     }
 
     // ===== Plugin Status Queries Tests =====
@@ -520,11 +568,118 @@ class LightNovelPluginManagerTest {
         )
     }
 
+    // ===== Plugin Download Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns Error(DOWNLOAD_FAILED) when APK download fails`() {
+        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
+        every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
+            createNetworkCallThatSucceeds(validManifestJson())
+        every { network.client.newCall(match { it.url.toString().endsWith(".apk") }) } returns
+            createNetworkCallThatFails()
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(DOWNLOAD_FAILED) when APK checksum does not match`() {
+        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
+        every { context.cacheDir } returns File(System.getProperty("java.io.tmpdir"))
+        every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
+            createNetworkCallThatSucceeds(validManifestJson(apkSha256 = "deadbeef"))
+        every { network.client.newCall(match { it.url.toString().endsWith(".apk") }) } returns
+            createApkDownloadCallThatSucceeds()
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        )
+    }
+
+    // ===== Archive Package Validation Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns Error(INVALID_PLUGIN_APK) when package archive is invalid`() {
+        stubForInstallStage()
+        every { packageManager.getPackageArchiveInfo(any(), any<Int>()) } returns null
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.INVALID_PLUGIN_APK,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(ARCHIVE_PACKAGE_MISMATCH) when archive has wrong package name`() {
+        stubForInstallStage()
+        val wrongArchive = mockk<PackageInfo>(relaxed = true)
+        wrongArchive.packageName = "xyz.wrong.package"
+        every { packageManager.getPackageArchiveInfo(any(), any<Int>()) } returns wrongArchive
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH,
+        )
+    }
+
+    // ===== Install Launch Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns InstallLaunched when APK installs successfully`() {
+        stubForInstallStage()
+        val validArchive = mockk<PackageInfo>(relaxed = true)
+        validArchive.packageName = PLUGIN_PACKAGE_NAME
+        every { packageManager.getPackageArchiveInfo(any(), any<Int>()) } returns validArchive
+        every { FileProvider.getUriForFile(any(), any(), any()) } returns mockk<Uri>()
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.InstallLaunched
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(INSTALL_LAUNCH_FAILED) when startActivity throws`() {
+        stubForInstallStage()
+        val validArchive = mockk<PackageInfo>(relaxed = true)
+        validArchive.packageName = PLUGIN_PACKAGE_NAME
+        every { packageManager.getPackageArchiveInfo(any(), any<Int>()) } returns validArchive
+        every { FileProvider.getUriForFile(any(), any(), any()) } returns mockk<Uri>()
+        every { context.startActivity(any()) } throws ActivityNotFoundException("No activity found")
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.INSTALL_LAUNCH_FAILED,
+        )
+    }
+
     companion object {
         private const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
         private const val STABLE_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
         private const val BETA_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
+        // SHA-256 of an empty byte array / empty file
+        private const val SHA256_EMPTY_BYTES =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
 }
