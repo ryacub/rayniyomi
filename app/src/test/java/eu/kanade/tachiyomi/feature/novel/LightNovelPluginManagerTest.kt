@@ -8,6 +8,7 @@ import android.content.pm.Signature
 import android.content.pm.SigningInfo
 import android.os.Bundle
 import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.util.lang.Hash
 import io.kotest.matchers.shouldBe
@@ -35,6 +36,7 @@ class LightNovelPluginManagerTest {
     private lateinit var context: Context
     private lateinit var packageManager: PackageManager
     private lateinit var network: NetworkHelper
+    private lateinit var preferences: NovelFeaturePreferences
     private lateinit var manager: LightNovelPluginManager
 
     @BeforeEach
@@ -50,7 +52,7 @@ class LightNovelPluginManagerTest {
 
         network = mockk<NetworkHelper>(relaxed = true)
         val json = Json { ignoreUnknownKeys = true }
-        val preferences = mockk<NovelFeaturePreferences>(relaxed = true)
+        preferences = mockk<NovelFeaturePreferences>(relaxed = true)
 
         manager = LightNovelPluginManager(
             context = context,
@@ -117,6 +119,8 @@ class LightNovelPluginManagerTest {
         pluginApiVersion: Int = 1,
         minHostVersion: Long = 100L,
         targetHostVersion: Long = 0L,
+        minPluginVersionCode: Long = 0L,
+        releaseChannel: String = "stable",
         apkUrl: String = "https://example.com/plugin.apk",
         apkSha256: String = "abc123",
     ): String = """
@@ -126,6 +130,8 @@ class LightNovelPluginManagerTest {
             "plugin_api_version": $pluginApiVersion,
             "min_host_version": $minHostVersion,
             "target_host_version": $targetHostVersion,
+            "min_plugin_version_code": $minPluginVersionCode,
+            "release_channel": "$releaseChannel",
             "apk_url": "$apkUrl",
             "apk_sha256": "$apkSha256"
         }
@@ -477,6 +483,40 @@ class LightNovelPluginManagerTest {
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_NEW,
+        )
+    }
+
+    // ===== Plugin Update Policy Evaluation Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_PLUGIN_TOO_OLD) when plugin version is below minimum`() {
+        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(versionCode = 1L, minPluginVersionCode = 5L),
+        )
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_WRONG_CHANNEL) when stable host rejects beta plugin`() {
+        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(releaseChannel = "beta"),
+        )
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_WRONG_CHANNEL,
         )
     }
 
