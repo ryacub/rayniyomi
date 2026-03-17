@@ -73,7 +73,7 @@ class LightNovelPluginManagerTest {
         // Mock Hash.sha256 so signature bytes can be arbitrary test values
         mockkObject(Hash)
         every { Hash.sha256(any<ByteArray>()) } returns
-            "7b7f000000000000000000000000000000000000000000000000000000000000"
+            "f3565300f2957a3e1f2aab2870d25dc1d222a996a350ffa840484623e85f2098"
 
         network = mockk<NetworkHelper>(relaxed = true)
         val json = Json { ignoreUnknownKeys = true }

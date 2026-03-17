@@ -472,8 +472,7 @@ class LightNovelPluginManager(
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
 
         private val TRUSTED_PLUGIN_CERT_SHA256 = setOf(
-            "7b7f000000000000000000000000000000000000000000000000000000000000",
-            "8c8f000000000000000000000000000000000000000000000000000000000000",
+            "f3565300f2957a3e1f2aab2870d25dc1d222a996a350ffa840484623e85f2098",
         )
 
         private val TRUSTED_PLUGIN_CERT_DENYLIST = setOf<String>()
