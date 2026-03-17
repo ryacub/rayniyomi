@@ -25,6 +25,7 @@ import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion.getStringRes
+import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,42 +50,11 @@ internal interface MPVLibProxy {
     fun command(args: Array<out String>)
 }
 
-/**
- * Real implementation using MPVLib JNI class.
- * Uses lazy loading to defer JNI initialization until actual method calls.
- */
+/** Real implementation delegating directly to the MPVLib JNI class. */
 internal class RealMPVLibProxy : MPVLibProxy {
-    private val mpvLib by lazy {
-        Class.forName("is.xyz.mpv.MPVLib")
-    }
-
-    override fun setPropertyString(property: String, value: String) {
-        try {
-            val method = mpvLib.getMethod("setPropertyString", String::class.java, String::class.java)
-            method.invoke(null, property, value)
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Failed to call MPVLib.setPropertyString" }
-        }
-    }
-
-    override fun getPropertyString(property: String): String? {
-        return try {
-            val method = mpvLib.getMethod("getPropertyString", String::class.java)
-            method.invoke(null, property) as? String
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Failed to call MPVLib.getPropertyString" }
-            null
-        }
-    }
-
-    override fun command(args: Array<out String>) {
-        try {
-            val method = mpvLib.getMethod("command", Array<String>::class.java)
-            method.invoke(null, args)
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Failed to call MPVLib.command" }
-        }
-    }
+    override fun setPropertyString(property: String, value: String) = MPVLib.setPropertyString(property, value)
+    override fun getPropertyString(property: String): String? = MPVLib.getPropertyString(property)
+    override fun command(args: Array<out String>) = MPVLib.command(args)
 }
 
 /**
