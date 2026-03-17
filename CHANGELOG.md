@@ -39,6 +39,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Other
 
+- Unit tests for `PlayerFileLoadedHandler` (29 tests) and `PlayerMpvInitializer` (16 tests); adds `MPVLibProxy` abstraction to both classes to enable JNI-safe unit testing
 - Compose stack upgrade: BOM → 2026.03.00, `activity-compose` → 1.13.0
 - AndroidX step-up: `core-ktx` → 1.18.0, Lifecycle → 2.10.0, Paging → 3.4.2, WorkManager → 2.11.1, media/mediarouter bumps
 - Core runtime dependency upgrade: jsoup → 1.22.1, Coil → 3.4.0, Material → 1.13.0, OkIO → 3.17.0
