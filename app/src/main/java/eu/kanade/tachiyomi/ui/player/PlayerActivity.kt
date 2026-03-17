@@ -117,10 +117,13 @@ class PlayerActivity : BaseActivity() {
 
     private val castManager: CastManager by lazy { Injekt.get() }
 
+    private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy()
+
     private val mpvInitializer by lazy {
         PlayerMpvInitializer(
             context = applicationContext,
             storageManager = storageManager,
+            mpvLibProxy = mpvLibProxy,
         )
     }
 
@@ -129,6 +132,7 @@ class PlayerActivity : BaseActivity() {
             context = this,
             playerPreferences = playerPreferences,
             scope = lifecycleScope,
+            mpvLibProxy = mpvLibProxy,
         )
     }
 

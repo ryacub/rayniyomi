@@ -37,7 +37,7 @@ import java.io.OutputStream
 internal class PlayerMpvInitializer(
     private val context: Context,
     private val storageManager: StorageManager,
-    private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy(),
+    private val mpvLibProxy: MPVLibProxy,
 ) {
     companion object {
         const val MPV_DIR = "mpv"

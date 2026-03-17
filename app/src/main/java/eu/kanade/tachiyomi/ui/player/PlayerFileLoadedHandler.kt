@@ -96,7 +96,7 @@ internal class PlayerFileLoadedHandler(
     private val context: Context,
     private val playerPreferences: PlayerPreferences,
     private val scope: CoroutineScope,
-    private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy(),
+    private val mpvLibProxy: MPVLibProxy,
 ) {
     private val _isLoadingTracks = MutableStateFlow(true)
     val isLoadingTracks: StateFlow<Boolean> = _isLoadingTracks.asStateFlow()
