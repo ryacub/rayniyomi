@@ -14,7 +14,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
-- **LightNovelPluginManager unit tests** — 30 tests covering install flow, manifest validation, update policy, APK download/checksum verification, install launch, in-flight deduplication, error recovery, and orphaned APK cleanup
+- **LightNovelPluginManager unit tests** — 37 tests covering install flow, manifest validation, update policy, APK download/checksum verification, install launch, in-flight mutex deduplication, error recovery, and orphaned APK cleanup
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
 - **PIN error feedback** — shows an error message when saving a new PIN fails (e.g., storage write error), instead of silently closing the dialog
 - **Download queue** — migrated anime and manga download queue screens from RecyclerView/FlexibleAdapter to Jetpack Compose; supports drag-to-reorder sources, per-item progress display, and move-to-top/bottom actions; removes flexibleadapter dependency
