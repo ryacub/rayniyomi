@@ -1,19 +1,31 @@
 package eu.kanade.tachiyomi.feature.novel
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.content.pm.SigningInfo
+import android.os.Bundle
+import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.util.lang.Hash
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import io.mockk.verify
+import java.io.IOException
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -22,7 +34,7 @@ class LightNovelPluginManagerTest {
 
     private lateinit var context: Context
     private lateinit var packageManager: PackageManager
-    private lateinit var network: eu.kanade.tachiyomi.network.NetworkHelper
+    private lateinit var network: NetworkHelper
     private lateinit var manager: LightNovelPluginManager
 
     @BeforeEach
@@ -36,9 +48,9 @@ class LightNovelPluginManagerTest {
         every { Hash.sha256(any<ByteArray>()) } returns
             "7b7f000000000000000000000000000000000000000000000000000000000000"
 
-        network = mockk<eu.kanade.tachiyomi.network.NetworkHelper>(relaxed = true)
-        val json = mockk<kotlinx.serialization.json.Json>(relaxed = true)
-        val preferences = mockk<eu.kanade.domain.novel.NovelFeaturePreferences>(relaxed = true)
+        network = mockk<NetworkHelper>(relaxed = true)
+        val json = Json { ignoreUnknownKeys = true }
+        val preferences = mockk<NovelFeaturePreferences>(relaxed = true)
 
         manager = LightNovelPluginManager(
             context = context,
@@ -70,8 +82,8 @@ class LightNovelPluginManagerTest {
         packageInfo.packageName = "xyz.rayniyomi.plugin.lightnovel"
         packageInfo.versionCode = versionCode
 
-        val appInfo = mockk<android.content.pm.ApplicationInfo>(relaxed = true)
-        val metaData = mockk<android.os.Bundle>(relaxed = true)
+        val appInfo = mockk<ApplicationInfo>(relaxed = true)
+        val metaData = mockk<Bundle>(relaxed = true)
 
         every { metaData.getInt("rayniyomi.plugin.api_version", -1) } returns apiVersion
         every { metaData.getLong("rayniyomi.plugin.min_host_version", Long.MAX_VALUE) } returns minHostVersion
@@ -97,6 +109,45 @@ class LightNovelPluginManagerTest {
         }
 
         return packageInfo
+    }
+
+    private fun validManifestJson(
+        packageName: String = PLUGIN_PACKAGE_NAME,
+        versionCode: Long = 2L,
+        pluginApiVersion: Int = 1,
+        minHostVersion: Long = 100L,
+        apkUrl: String = "https://example.com/plugin.apk",
+        apkSha256: String = "abc123",
+    ): String = """
+        {
+            "package_name": "$packageName",
+            "version_code": $versionCode,
+            "plugin_api_version": $pluginApiVersion,
+            "min_host_version": $minHostVersion,
+            "apk_url": "$apkUrl",
+            "apk_sha256": "$apkSha256"
+        }
+    """.trimIndent()
+
+    private fun createNetworkCallThatFails(): Call {
+        val mockCall = mockk<Call>(relaxed = true)
+        every { mockCall.enqueue(any()) } answers {
+            firstArg<Callback>().onFailure(mockCall, IOException("Network error"))
+        }
+        return mockCall
+    }
+
+    private fun createNetworkCallThatSucceeds(responseBody: String): Call {
+        val mockResponseBody = mockk<ResponseBody>(relaxed = true)
+        every { mockResponseBody.string() } returns responseBody
+        val mockResponse = mockk<Response>(relaxed = true)
+        every { mockResponse.body } returns mockResponseBody
+        every { mockResponse.isSuccessful } returns true
+        val mockCall = mockk<Call>(relaxed = true)
+        every { mockCall.enqueue(any()) } answers {
+            firstArg<Callback>().onResponse(mockCall, mockResponse)
+        }
+        return mockCall
     }
 
     // ===== Plugin Status Queries Tests =====
@@ -322,7 +373,69 @@ class LightNovelPluginManagerTest {
         betaResult shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
     }
 
+    // ===== Manifest Fetch Flow Tests =====
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_FETCH_FAILED) when network request fails`() {
+        every { network.client.newCall(any()) } returns createNetworkCallThatFails()
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() returns Error(MANIFEST_PACKAGE_MISMATCH) when manifest has wrong package name`() {
+        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
+            validManifestJson(packageName = "xyz.wrong.package"),
+        )
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        val result = runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        result shouldBe LightNovelPluginManager.InstallResult.Error(
+            LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH,
+        )
+    }
+
+    @Test
+    fun `ensurePluginReady() fetches manifest from stable URL when channel is stable`() {
+        val requestSlot = slot<Request>()
+        every { network.client.newCall(capture(requestSlot)) } returns createNetworkCallThatFails()
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        runBlocking { spyManager.ensurePluginReady(channel = "stable") }
+
+        requestSlot.captured.url.toString() shouldBe STABLE_MANIFEST_URL
+    }
+
+    @Test
+    fun `ensurePluginReady() fetches manifest from beta URL when channel is beta`() {
+        val requestSlot = slot<Request>()
+        every { network.client.newCall(capture(requestSlot)) } returns createNetworkCallThatFails()
+
+        val spyManager = spyk(manager)
+        every { spyManager.isPluginInstallEnabled() } returns true
+
+        runBlocking { spyManager.ensurePluginReady(channel = "beta") }
+
+        requestSlot.captured.url.toString() shouldBe BETA_MANIFEST_URL
+    }
+
     companion object {
         private const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
+        private const val STABLE_MANIFEST_URL =
+            "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
+        private const val BETA_MANIFEST_URL =
+            "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
     }
 }
