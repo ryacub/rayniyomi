@@ -27,9 +27,6 @@ import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -44,6 +41,9 @@ import okhttp3.ResponseBody
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.IOException
 
 class LightNovelPluginManagerTest {
 
@@ -678,6 +678,7 @@ class LightNovelPluginManagerTest {
             "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
         private const val BETA_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
+
         // SHA-256 of an empty byte array / empty file
         private const val SHA256_EMPTY_BYTES =
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
