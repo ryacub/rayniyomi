@@ -224,6 +224,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
     fun onCrashThresholdExceeded() {
         with(errorNotificationBuilder) {
             setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
+            setContentText(context.stringResource(MR.strings.download_notifier_crash_threshold_exceeded))
             setSmallIcon(R.drawable.ic_warning_white_24dp)
             setAutoCancel(true)
             clearActions()
