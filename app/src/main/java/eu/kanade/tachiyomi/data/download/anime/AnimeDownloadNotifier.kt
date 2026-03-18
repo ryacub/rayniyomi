@@ -219,6 +219,22 @@ internal class AnimeDownloadNotifier(private val context: Context) {
     }
 
     /**
+     * Called when the download job crash threshold is exceeded.
+     */
+    fun onCrashThresholdExceeded() {
+        with(errorNotificationBuilder) {
+            setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
+            setSmallIcon(R.drawable.ic_warning_white_24dp)
+            setAutoCancel(true)
+            clearActions()
+            setContentIntent(NotificationHandler.openAnimeDownloadManagerPendingActivity(context))
+            setProgress(0, 0, false)
+
+            show(Notifications.ID_DOWNLOAD_EPISODE_CRASH_THRESHOLD)
+        }
+    }
+
+    /**
      * Called when the downloader receives an error. It's shown as a separate notification to avoid
      * being overwritten.
      *

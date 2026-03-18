@@ -42,6 +42,8 @@ object Notifications {
     const val CHANNEL_DOWNLOADER_ERROR = "downloader_error_channel"
     const val ID_DOWNLOAD_CHAPTER_ERROR = -202
     const val ID_DOWNLOAD_EPISODE_ERROR = -204
+    const val ID_DOWNLOAD_CHAPTER_CRASH_THRESHOLD = -205
+    const val ID_DOWNLOAD_EPISODE_CRASH_THRESHOLD = -206
 
     /**
      * Notification channel and ids used by the library updater.
