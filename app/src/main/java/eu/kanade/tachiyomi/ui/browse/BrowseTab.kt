@@ -7,6 +7,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -26,6 +27,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearch
 import eu.kanade.tachiyomi.ui.browse.manga.extension.MangaExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.extension.mangaExtensionsTab
 import eu.kanade.tachiyomi.ui.browse.manga.migration.sources.migrateMangaSourceTab
+import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.browse.manga.source.mangaSourcesTab
 import eu.kanade.tachiyomi.ui.browse.novel.source.novelSourcesTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -41,6 +43,8 @@ import uy.kohesive.injekt.api.get
 
 data object BrowseTab : Tab {
 
+    private val reselectTargetResolver = BrowseReselectTargetResolver()
+
     override val options: TabOptions
         @Composable
         get() {
@@ -54,7 +58,11 @@ data object BrowseTab : Tab {
         }
 
     override suspend fun onReselect(navigator: Navigator) {
-        navigator.push(GlobalAnimeSearchScreen())
+        when (reselectTargetResolver.resolvedTarget()) {
+            BrowseSearchTarget.ANIME -> navigator.push(GlobalAnimeSearchScreen())
+            BrowseSearchTarget.MANGA -> navigator.push(GlobalMangaSearchScreen())
+            BrowseSearchTarget.UNKNOWN -> navigator.push(GlobalAnimeSearchScreen())
+        }
     }
 
     private val switchToTabNumberChannel = Channel<Int>(1, BufferOverflow.DROP_OLDEST)
@@ -116,6 +124,13 @@ data object BrowseTab : Tab {
                 .collectLatest { page ->
                     val maxIndex = tabs.lastIndex.coerceAtLeast(0)
                     state.scrollToPage(page.coerceIn(0, maxIndex))
+                }
+        }
+
+        LaunchedEffect(state) {
+            snapshotFlow { state.currentPage }
+                .collectLatest { page ->
+                    reselectTargetResolver.updateForPage(page)
                 }
         }
 
