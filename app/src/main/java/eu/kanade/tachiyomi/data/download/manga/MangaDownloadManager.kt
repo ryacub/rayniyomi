@@ -44,7 +44,7 @@ import uy.kohesive.injekt.api.get
  * and retrieved through dependency injection. You can use this class to queue new chapters or query
  * downloaded chapters.
  */
-class MangaDownloadManager(
+class MangaDownloadManager internal constructor(
     private val context: Context,
     private val storageManager: StorageManager = Injekt.get(),
     private val provider: MangaDownloadProvider = Injekt.get(),
@@ -52,6 +52,9 @@ class MangaDownloadManager(
     private val getCategories: GetMangaCategories = Injekt.get(),
     private val sourceManager: MangaSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val downloader: MangaDownloader = MangaDownloader(context, provider, cache),
+    private val pendingDeleter: MangaDownloadPendingDeleter = MangaDownloadPendingDeleter(context),
+    private val notifier: MangaDownloadNotifier = MangaDownloadNotifier(context),
 ) {
 
     /**
@@ -65,11 +68,6 @@ class MangaDownloadManager(
      * Prevents race conditions when multiple coroutines modify the queue concurrently.
      */
     private val queueMutex = Mutex()
-
-    /**
-     * Downloader whose only task is to download chapters.
-     */
-    private val downloader = MangaDownloader(context, provider, cache)
 
     private val queueMutations = DownloadQueueMutations(
         queueState = downloader.queueState,
@@ -89,11 +87,6 @@ class MangaDownloadManager(
 
     val isRunning: Boolean
         get() = downloader.isRunning
-
-    /**
-     * Queue to delay the deletion of a list of chapters until triggered.
-     */
-    private val pendingDeleter = MangaDownloadPendingDeleter(context)
 
     val queueState
         get() = downloader.queueState
@@ -498,6 +491,7 @@ class MangaDownloadManager(
 
         if (newCount >= 3) {
             logcat(LogPriority.ERROR) { "Manga download job crashed $newCount times consecutively" }
+            notifier.onCrashThresholdExceeded()
         }
     }
 

@@ -222,6 +222,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
      * @param chapter string containing chapter title.
      * @param mangaId the id of the entry that the error occurred on
      */
+
     /**
      * Called when the download job crash threshold is exceeded.
      */
