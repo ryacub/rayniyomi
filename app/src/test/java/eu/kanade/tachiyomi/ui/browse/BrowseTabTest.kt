@@ -67,4 +67,21 @@ class BrowseTabTest {
     fun `unknown reselect target defaults to anime`() {
         assertEquals(BrowseSearchTarget.ANIME, resolveBrowseReselectTarget(BrowseSearchTarget.UNKNOWN))
     }
+
+    @Test
+    fun `resolver defaults to anime when unknown`() {
+        val resolver = BrowseReselectTargetResolver()
+
+        assertEquals(BrowseSearchTarget.ANIME, resolver.resolvedTarget())
+    }
+
+    @Test
+    fun `resolver preserves last non novel target`() {
+        val resolver = BrowseReselectTargetResolver()
+
+        resolver.updateForPage(1)
+        resolver.updateForPage(6)
+
+        assertEquals(BrowseSearchTarget.MANGA, resolver.resolvedTarget())
+    }
 }

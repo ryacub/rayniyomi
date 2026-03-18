@@ -43,8 +43,7 @@ import uy.kohesive.injekt.api.get
 
 data object BrowseTab : Tab {
 
-    @Volatile
-    private var lastKnownSearchTarget = BrowseSearchTarget.UNKNOWN
+    private val reselectTargetResolver = BrowseReselectTargetResolver()
 
     override val options: TabOptions
         @Composable
@@ -59,7 +58,7 @@ data object BrowseTab : Tab {
         }
 
     override suspend fun onReselect(navigator: Navigator) {
-        when (resolveBrowseReselectTarget(lastKnownSearchTarget)) {
+        when (reselectTargetResolver.resolvedTarget()) {
             BrowseSearchTarget.ANIME -> navigator.push(GlobalAnimeSearchScreen())
             BrowseSearchTarget.MANGA -> navigator.push(GlobalMangaSearchScreen())
             BrowseSearchTarget.UNKNOWN -> navigator.push(GlobalAnimeSearchScreen())
@@ -131,7 +130,7 @@ data object BrowseTab : Tab {
         LaunchedEffect(state) {
             snapshotFlow { state.currentPage }
                 .collectLatest { page ->
-                    lastKnownSearchTarget = updateBrowseSearchTarget(lastKnownSearchTarget, page)
+                    reselectTargetResolver.updateForPage(page)
                 }
         }
 
@@ -149,6 +148,18 @@ internal enum class BrowseSearchTarget {
     ANIME,
     MANGA,
     UNKNOWN,
+}
+
+internal class BrowseReselectTargetResolver(
+    private var lastKnownSearchTarget: BrowseSearchTarget = BrowseSearchTarget.UNKNOWN,
+) {
+    fun updateForPage(page: Int) {
+        lastKnownSearchTarget = updateBrowseSearchTarget(lastKnownSearchTarget, page)
+    }
+
+    fun resolvedTarget(): BrowseSearchTarget {
+        return resolveBrowseReselectTarget(lastKnownSearchTarget)
+    }
 }
 
 private const val ANIME_SOURCES_PAGE = 0
