@@ -222,6 +222,22 @@ internal class MangaDownloadNotifier(private val context: Context) {
      * @param chapter string containing chapter title.
      * @param mangaId the id of the entry that the error occurred on
      */
+    /**
+     * Called when the download job crash threshold is exceeded.
+     */
+    fun onCrashThresholdExceeded() {
+        with(errorNotificationBuilder) {
+            setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
+            setSmallIcon(R.drawable.ic_warning_white_24dp)
+            setAutoCancel(true)
+            clearActions()
+            setContentIntent(NotificationHandler.openDownloadManagerPendingActivity(context))
+            setProgress(0, 0, false)
+
+            show(Notifications.ID_DOWNLOAD_CHAPTER_CRASH_THRESHOLD)
+        }
+    }
+
     fun onError(error: String? = null, chapter: String? = null, mangaTitle: String? = null, mangaId: Long? = null) {
         // Create notification
         with(errorNotificationBuilder) {
