@@ -40,6 +40,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.concurrent.atomic.AtomicReference
 
 data object BrowseTab : Tab {
 
@@ -151,14 +152,18 @@ internal enum class BrowseSearchTarget {
 }
 
 internal class BrowseReselectTargetResolver(
-    private var lastKnownSearchTarget: BrowseSearchTarget = BrowseSearchTarget.UNKNOWN,
+    initialSearchTarget: BrowseSearchTarget = BrowseSearchTarget.UNKNOWN,
 ) {
+    private val lastKnownSearchTarget = AtomicReference(initialSearchTarget)
+
     fun updateForPage(page: Int) {
-        lastKnownSearchTarget = updateBrowseSearchTarget(lastKnownSearchTarget, page)
+        lastKnownSearchTarget.updateAndGet { current ->
+            updateBrowseSearchTarget(current, page)
+        }
     }
 
     fun resolvedTarget(): BrowseSearchTarget {
-        return resolveBrowseReselectTarget(lastKnownSearchTarget)
+        return resolveBrowseReselectTarget(lastKnownSearchTarget.get())
     }
 }
 
