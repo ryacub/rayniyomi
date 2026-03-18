@@ -44,7 +44,7 @@ import uy.kohesive.injekt.api.get
  * and retrieved through dependency injection. You can use this class to queue new episodes or query
  * downloaded episodes.
  */
-class AnimeDownloadManager(
+class AnimeDownloadManager internal constructor(
     private val context: Context,
     private val storageManager: StorageManager = Injekt.get(),
     private val provider: AnimeDownloadProvider = Injekt.get(),
@@ -52,6 +52,9 @@ class AnimeDownloadManager(
     private val getCategories: GetAnimeCategories = Injekt.get(),
     private val sourceManager: AnimeSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val downloader: AnimeDownloader = AnimeDownloader(context, provider, cache, sourceManager),
+    private val pendingDeleter: AnimeDownloadPendingDeleter = AnimeDownloadPendingDeleter(context),
+    private val notifier: AnimeDownloadNotifier = AnimeDownloadNotifier(context),
 ) {
 
     /**
@@ -78,11 +81,6 @@ class AnimeDownloadManager(
      */
     private val queueMutex = Mutex()
 
-    /**
-     * Downloader whose only task is to download episodes.
-     */
-    private val downloader = AnimeDownloader(context, provider, cache, sourceManager)
-
     private val queueMutations = DownloadQueueMutations(
         queueState = downloader.queueState,
         itemId = { it.episode.id },
@@ -101,11 +99,6 @@ class AnimeDownloadManager(
 
     val isRunning: Boolean
         get() = downloader.isRunning
-
-    /**
-     * Queue to delay the deletion of a list of episodes until triggered.
-     */
-    private val pendingDeleter = AnimeDownloadPendingDeleter(context)
 
     val queueState
         get() = downloader.queueState
@@ -511,6 +504,7 @@ class AnimeDownloadManager(
 
         if (newCount >= 3) {
             logcat(LogPriority.ERROR) { "Anime download job crashed $newCount times consecutively" }
+            notifier.onCrashThresholdExceeded()
         }
     }
 
