@@ -1,3 +1,6 @@
+# Autoloop scratch files
+.autoloop/
+
 # Build files
 .gradle
 .kotlin
