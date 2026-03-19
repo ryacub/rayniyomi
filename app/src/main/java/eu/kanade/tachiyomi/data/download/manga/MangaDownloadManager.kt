@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import android.os.PowerManager
+import androidx.annotation.VisibleForTesting
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
@@ -54,6 +55,12 @@ class MangaDownloadManager(
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
 ) {
 
+    private val downloader: MangaDownloader by lazy { MangaDownloader(context, provider, cache) }
+    private val pendingDeleter: MangaDownloadPendingDeleter by lazy { MangaDownloadPendingDeleter(context) }
+
+    @VisibleForTesting
+    internal var notifier: MangaDownloadNotifier = MangaDownloadNotifier(context)
+
     /**
      * Manager-owned coroutine scope for background operations.
      * Uses SupervisorJob to prevent child failures from cancelling other operations.
@@ -66,34 +73,26 @@ class MangaDownloadManager(
      */
     private val queueMutex = Mutex()
 
-    /**
-     * Downloader whose only task is to download chapters.
-     */
-    private val downloader = MangaDownloader(context, provider, cache)
-
-    private val queueMutations = DownloadQueueMutations(
-        queueState = downloader.queueState,
-        itemId = { it.chapter.id },
-        createFromId = { id -> MangaDownload.fromChapterId(id) },
-        moveToFront = downloader::moveToFront,
-        updateQueue = downloader::updateQueue,
-        addToStart = downloader::addToStartOfQueue,
-        removeFromQueue = downloader::removeFromQueue,
-        isRunning = { downloader.isRunning },
-        pauseDownloader = downloader::pause,
-        startDownloader = downloader::start,
-        stopDownloader = { downloader.stop() },
-        startDownloads = ::startDownloads,
-        queueMutex = queueMutex,
-    )
+    private val queueMutations by lazy {
+        DownloadQueueMutations(
+            queueState = downloader.queueState,
+            itemId = { it.chapter.id },
+            createFromId = { id -> MangaDownload.fromChapterId(id) },
+            moveToFront = downloader::moveToFront,
+            updateQueue = downloader::updateQueue,
+            addToStart = downloader::addToStartOfQueue,
+            removeFromQueue = downloader::removeFromQueue,
+            isRunning = { downloader.isRunning },
+            pauseDownloader = downloader::pause,
+            startDownloader = downloader::start,
+            stopDownloader = { downloader.stop() },
+            startDownloads = ::startDownloads,
+            queueMutex = queueMutex,
+        )
+    }
 
     val isRunning: Boolean
         get() = downloader.isRunning
-
-    /**
-     * Queue to delay the deletion of a list of chapters until triggered.
-     */
-    private val pendingDeleter = MangaDownloadPendingDeleter(context)
 
     val queueState
         get() = downloader.queueState
@@ -498,6 +497,7 @@ class MangaDownloadManager(
 
         if (newCount >= 3) {
             logcat(LogPriority.ERROR) { "Manga download job crashed $newCount times consecutively" }
+            notifier.onCrashThresholdExceeded()
         }
     }
 

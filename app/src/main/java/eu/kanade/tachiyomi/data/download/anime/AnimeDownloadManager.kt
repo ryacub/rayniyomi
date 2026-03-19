@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.anime
 
 import android.content.Context
 import android.os.PowerManager
+import androidx.annotation.VisibleForTesting
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
@@ -54,6 +55,12 @@ class AnimeDownloadManager(
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
 ) {
 
+    private val downloader: AnimeDownloader by lazy { AnimeDownloader(context, provider, cache, sourceManager) }
+    private val pendingDeleter: AnimeDownloadPendingDeleter by lazy { AnimeDownloadPendingDeleter(context) }
+
+    @VisibleForTesting
+    internal var notifier: AnimeDownloadNotifier = AnimeDownloadNotifier(context)
+
     /**
      * Manager-owned coroutine scope for background operations.
      * Uses SupervisorJob to prevent child failures from cancelling other operations.
@@ -78,34 +85,26 @@ class AnimeDownloadManager(
      */
     private val queueMutex = Mutex()
 
-    /**
-     * Downloader whose only task is to download episodes.
-     */
-    private val downloader = AnimeDownloader(context, provider, cache, sourceManager)
-
-    private val queueMutations = DownloadQueueMutations(
-        queueState = downloader.queueState,
-        itemId = { it.episode.id },
-        createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
-        moveToFront = downloader::moveToFront,
-        updateQueue = downloader::updateQueue,
-        addToStart = downloader::addToStartOfQueue,
-        removeFromQueue = downloader::removeFromQueue,
-        isRunning = { downloader.isRunning },
-        pauseDownloader = downloader::pause,
-        startDownloader = downloader::start,
-        stopDownloader = { downloader.stop() },
-        startDownloads = ::startDownloads,
-        queueMutex = queueMutex,
-    )
+    private val queueMutations by lazy {
+        DownloadQueueMutations(
+            queueState = downloader.queueState,
+            itemId = { it.episode.id },
+            createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
+            moveToFront = downloader::moveToFront,
+            updateQueue = downloader::updateQueue,
+            addToStart = downloader::addToStartOfQueue,
+            removeFromQueue = downloader::removeFromQueue,
+            isRunning = { downloader.isRunning },
+            pauseDownloader = downloader::pause,
+            startDownloader = downloader::start,
+            stopDownloader = { downloader.stop() },
+            startDownloads = ::startDownloads,
+            queueMutex = queueMutex,
+        )
+    }
 
     val isRunning: Boolean
         get() = downloader.isRunning
-
-    /**
-     * Queue to delay the deletion of a list of episodes until triggered.
-     */
-    private val pendingDeleter = AnimeDownloadPendingDeleter(context)
 
     val queueState
         get() = downloader.queueState
@@ -511,6 +510,7 @@ class AnimeDownloadManager(
 
         if (newCount >= 3) {
             logcat(LogPriority.ERROR) { "Anime download job crashed $newCount times consecutively" }
+            notifier.onCrashThresholdExceeded()
         }
     }
 
