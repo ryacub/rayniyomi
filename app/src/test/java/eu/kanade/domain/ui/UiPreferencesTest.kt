@@ -1,5 +1,8 @@
 package eu.kanade.domain.ui
 
+import eu.kanade.domain.ui.model.AppTheme
+import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
+import eu.kanade.presentation.more.settings.widget.resolvePickerResultSeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +29,58 @@ class UiPreferencesTest {
         preferences.customThemeAccentSeed().set(0xFF4285F4.toInt())
 
         assertEquals(0xFF4285F4.toInt(), preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `custom accent updates do not change dynamic entry cover theming preference`() {
+        val preferences = UiPreferences(MutablePreferenceStore())
+
+        preferences.dynamicEntryCoverTheming().set(true)
+        preferences.customThemeAccentSeed().set(0xFF1E88E5.toInt())
+
+        assertEquals(true, preferences.dynamicEntryCoverTheming().get())
+    }
+
+    @Test
+    fun `custom accent flow supports swatch cancel apply reset and reopen`() {
+        val store = MutablePreferenceStore()
+        val preferences = UiPreferences(store)
+        val appTheme = preferences.appTheme()
+        val customAccent = preferences.customThemeAccentSeed()
+
+        appTheme.set(AppTheme.CUSTOM)
+        val swatchSelection = normalizeAccentSeed(0x004285F4)
+        customAccent.set(swatchSelection)
+        assertEquals(0xFF4285F4.toInt(), customAccent.get())
+
+        val cancelledSelection = resolvePickerResultSeed(
+            confirmSelection = false,
+            currentSeed = customAccent.get(),
+            draftSeed = 0x00000000,
+        )
+        assertEquals(0xFF4285F4.toInt(), cancelledSelection)
+        assertEquals(0xFF4285F4.toInt(), customAccent.get())
+
+        val appliedSelection = resolvePickerResultSeed(
+            confirmSelection = true,
+            currentSeed = customAccent.get(),
+            draftSeed = 0x00010203,
+        )
+        customAccent.set(appliedSelection)
+        assertEquals(0xFF010203.toInt(), customAccent.get())
+
+        appTheme.set(AppTheme.DEFAULT)
+        appTheme.set(AppTheme.CUSTOM)
+        assertEquals(0xFF010203.toInt(), customAccent.get())
+
+        customAccent.set(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
+        assertEquals(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET, customAccent.get())
+
+        val reopenedPreferences = UiPreferences(store)
+        assertEquals(
+            UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET,
+            reopenedPreferences.customThemeAccentSeed().get(),
+        )
     }
 
     private class MutablePreferenceStore(initialValues: Map<String, Any?> = emptyMap()) : PreferenceStore {
