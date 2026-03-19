@@ -11,8 +11,8 @@ import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.size
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -67,7 +67,9 @@ class MangaDownloadManager(
     private val scopeForTesting: CoroutineScope? = null,
 ) {
 
-    private val downloader: MangaDownloader by lazy { downloaderForTesting ?: MangaDownloader(context, provider, cache) }
+    private val downloader: MangaDownloader by lazy {
+        downloaderForTesting ?: MangaDownloader(context, provider, cache)
+    }
     private val pendingDeleter: MangaDownloadPendingDeleter by lazy { MangaDownloadPendingDeleter(context) }
 
     @VisibleForTesting

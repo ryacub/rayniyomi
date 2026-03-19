@@ -14,6 +14,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+- **Custom accent color theme** — Material 3 app-wide theming from a user-selected accent seed; generates light/dark color schemes with Android 14 contrast-awareness and readability guardrails (contrast clamp + fallback)
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
 - **LightNovelPluginManager unit tests** — 37 tests covering install flow, manifest validation, update policy, APK download/checksum verification, install launch, in-flight mutex deduplication, error recovery, and orphaned APK cleanup
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
@@ -23,6 +24,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Browse tab reselect now opens anime or manga global search based on the current Browse context instead of always defaulting to anime search
 - Coroutine cancellation no longer surfaces as a user-visible error in Discover and entry enrichment screens
 - One-off UI events in Migrate and PlayerSettingsCustomButton screens no longer drop on delivery when the UI collector is temporarily inactive during lifecycle transitions; channels switched to buffered
 - Migrate rayniyomi-specific screen state collection to `collectAsStateWithLifecycle()` — stops background Flow collection when UI is STOPPED
@@ -50,6 +52,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Firebase BOM → 34.10.0; migrate analytics and crashlytics from deprecated `-ktx` modules to base modules
 - Test/tooling upgrade: JUnit Jupiter → 6.0.3, Kotest → 6.1.7, MockK → 1.14.9, unifile snapshot update
 - Align Firebase config comments in `build.gradle.kts` with actual runtime configuration
+- Custom theme mode foundation: added `ThemeMode.CUSTOM` and `AppTheme.CUSTOM` enum values wired with safe fallback to system behavior; no UI exposure yet
+- Pin real SHA-256 certificate fingerprint (`f3565300…`) for LightNovel plugin trust verification; removes placeholder fingerprints
+- Remove unused `CoroutineScope` parameter from `PlayerMpvInitializer` constructor
 - Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager`; converted 4 deferred TODO comments to tracked GitHub issues (#536–#539)
 
 ## [0.18.1.75] - 2026-03-13

@@ -65,7 +65,10 @@ class AnimeDownloadManager(
     private val scopeForTesting: CoroutineScope? = null,
 ) {
 
-    private val downloader: AnimeDownloader by lazy { downloaderForTesting ?: AnimeDownloader(context, provider, cache, sourceManager) }
+    private val downloader: AnimeDownloader by lazy {
+        downloaderForTesting
+            ?: AnimeDownloader(context, provider, cache, sourceManager)
+    }
     private val pendingDeleter: AnimeDownloadPendingDeleter by lazy { AnimeDownloadPendingDeleter(context) }
 
     @VisibleForTesting
