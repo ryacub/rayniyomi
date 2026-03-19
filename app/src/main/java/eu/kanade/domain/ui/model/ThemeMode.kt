@@ -6,14 +6,15 @@ enum class ThemeMode {
     LIGHT,
     DARK,
     SYSTEM,
+    CUSTOM,
 }
 
 fun setAppCompatDelegateThemeMode(themeMode: ThemeMode) {
-    AppCompatDelegate.setDefaultNightMode(
-        when (themeMode) {
-            ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
-            ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
-            ThemeMode.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        },
-    )
+    AppCompatDelegate.setDefaultNightMode(themeMode.toAppCompatDelegateMode())
+}
+
+fun ThemeMode.toAppCompatDelegateMode(): Int = when (this) {
+    ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+    ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+    ThemeMode.SYSTEM, ThemeMode.CUSTOM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
 }
