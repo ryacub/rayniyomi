@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,14 +61,18 @@ import uy.kohesive.injekt.api.fullType
 internal fun AppThemePreferenceWidget(
     value: AppTheme,
     amoled: Boolean,
+    customAccentSeed: Int,
     onItemClick: (AppTheme) -> Unit,
+    onCustomAccentSeedChange: (Int) -> Unit,
 ) {
     BasePreferenceWidget(
         subcomponent = {
             AppThemesList(
                 currentTheme = value,
                 amoled = amoled,
+                customAccentSeed = customAccentSeed,
                 onItemClick = onItemClick,
+                onCustomAccentSeedChange = onCustomAccentSeedChange,
             )
         },
     )
@@ -77,7 +82,9 @@ internal fun AppThemePreferenceWidget(
 private fun AppThemesList(
     currentTheme: AppTheme,
     amoled: Boolean,
+    customAccentSeed: Int,
     onItemClick: (AppTheme) -> Unit,
+    onCustomAccentSeedChange: (Int) -> Unit,
 ) {
     val context = LocalContext.current
     val appThemes = remember {
@@ -122,6 +129,97 @@ private fun AppThemesList(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
+    }
+
+    if (currentTheme == AppTheme.CUSTOM) {
+        Text(
+            text = stringResource(MR.strings.pref_custom_theme_accent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PrefsHorizontalPadding, vertical = 8.dp),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            text = stringResource(MR.strings.pref_custom_theme_accent_summary),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PrefsHorizontalPadding)
+                .secondaryItemAlpha(),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = PrefsHorizontalPadding, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+        ) {
+            items(
+                items = customThemeAccentSeeds,
+                key = { it },
+            ) { seed ->
+                CustomThemeAccentSwatch(
+                    seed = seed,
+                    selected = seed == customAccentSeed,
+                    onClick = {
+                        if (seed != customAccentSeed) {
+                            onCustomAccentSeedChange(seed)
+                            (context as? Activity)?.let { ActivityCompat.recreate(it) }
+                        }
+                    },
+                )
+            }
+        }
+        TextButton(
+            onClick = {
+                if (customAccentSeed != UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
+                    onCustomAccentSeedChange(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
+                    (context as? Activity)?.let { ActivityCompat.recreate(it) }
+                }
+            },
+            modifier = Modifier
+                .padding(start = PrefsHorizontalPadding),
+        ) {
+            Text(text = stringResource(MR.strings.action_reset))
+        }
+    }
+}
+
+internal val customThemeAccentSeeds = listOf(
+    0xFF4285F4.toInt(),
+    0xFFEF6C00.toInt(),
+    0xFF2E7D32.toInt(),
+    0xFF8E24AA.toInt(),
+    0xFFD81B60.toInt(),
+    0xFF00695C.toInt(),
+    0xFFF9A825.toInt(),
+    0xFF455A64.toInt(),
+)
+
+@Composable
+private fun CustomThemeAccentSwatch(
+    seed: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(color = androidx.compose.ui.graphics.Color(seed))
+            .border(
+                width = if (selected) 3.dp else 1.dp,
+                color = if (selected) MaterialTheme.colorScheme.onSurface else DividerDefaults.color,
+                shape = CircleShape,
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = stringResource(MR.strings.selected),
+                tint = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
@@ -271,7 +369,9 @@ private fun AppThemesListPreview() {
             AppThemesList(
                 currentTheme = appTheme,
                 amoled = false,
+                customAccentSeed = UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET,
                 onItemClick = { appTheme = it },
+                onCustomAccentSeedChange = { },
             )
         }
     }

@@ -1,6 +1,7 @@
 package eu.kanade.domain.ui
 
 import eu.kanade.domain.ui.model.AppTheme
+import eu.kanade.domain.ui.model.ThemeMode
 import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
 import eu.kanade.presentation.more.settings.widget.resolvePickerResultSeed
 import kotlinx.coroutines.CoroutineScope
@@ -83,6 +84,29 @@ class UiPreferencesTest {
         )
     }
 
+    @Test
+    fun `custom theme accent seed reset uses unset sentinel`() {
+        val preferences = UiPreferences(MutablePreferenceStore())
+
+        preferences.customThemeAccentSeed().set(0xFF4285F4.toInt())
+        preferences.customThemeAccentSeed().set(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
+
+        assertEquals(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET, preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `theme mode falls back to default when stored enum value is invalid`() {
+        val preferences = UiPreferences(
+            MutablePreferenceStore(
+                initialValues = mapOf(
+                    "pref_theme_mode_key" to "NOT_A_REAL_THEME_MODE",
+                ),
+            ),
+        )
+
+        assertEquals(ThemeMode.SYSTEM, preferences.themeMode().get())
+    }
+
     private class MutablePreferenceStore(initialValues: Map<String, Any?> = emptyMap()) : PreferenceStore {
         private val data = initialValues.toMutableMap()
 
@@ -115,7 +139,12 @@ class UiPreferencesTest {
             defaultValue: T,
             serializer: (T) -> String,
             deserializer: (String) -> T,
-        ): Preference<T> = MutablePreference(key, defaultValue)
+        ): Preference<T> = SerializedObjectPreference(
+            key = key,
+            defaultValue = defaultValue,
+            serializer = serializer,
+            deserializer = deserializer,
+        )
 
         override fun getAll(): Map<String, *> = data
 
@@ -134,6 +163,40 @@ class UiPreferencesTest {
 
             override fun set(value: T) {
                 data[key] = value
+                state.value = value
+            }
+
+            override fun isSet(): Boolean = data.containsKey(key)
+
+            override fun delete() {
+                data.remove(key)
+                state.value = defaultValue
+            }
+
+            override fun defaultValue(): T = defaultValue
+
+            override fun changes(): Flow<T> = state.asStateFlow()
+
+            override fun stateIn(scope: CoroutineScope): StateFlow<T> = state.asStateFlow()
+        }
+
+        private inner class SerializedObjectPreference<T>(
+            private val key: String,
+            private val defaultValue: T,
+            private val serializer: (T) -> String,
+            private val deserializer: (String) -> T,
+        ) : Preference<T> {
+            private val state = MutableStateFlow(get())
+
+            override fun key(): String = key
+
+            override fun get(): T {
+                val raw = data[key] as? String ?: return defaultValue
+                return deserializer(raw)
+            }
+
+            override fun set(value: T) {
+                data[key] = serializer(value)
                 state.value = value
             }
 

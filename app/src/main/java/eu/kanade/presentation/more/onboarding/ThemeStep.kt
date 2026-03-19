@@ -24,6 +24,8 @@ internal class ThemeStep : OnboardingStep {
 
         val appThemePref = uiPreferences.appTheme()
         val appTheme by appThemePref.collectAsState()
+        val customAccentSeedPref = uiPreferences.customThemeAccentSeed()
+        val customAccentSeed by customAccentSeedPref.collectAsState()
 
         val amoledPref = uiPreferences.themeDarkAmoled()
         val amoled by amoledPref.collectAsState()
@@ -40,7 +42,9 @@ internal class ThemeStep : OnboardingStep {
             AppThemePreferenceWidget(
                 value = appTheme,
                 amoled = amoled,
+                customAccentSeed = customAccentSeed,
                 onItemClick = { appThemePref.set(it) },
+                onCustomAccentSeedChange = { customAccentSeedPref.set(it) },
             )
         }
     }

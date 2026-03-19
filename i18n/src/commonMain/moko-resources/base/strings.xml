@@ -234,6 +234,8 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_custom">Custom</string>
     <string name="theme_monet">Dynamic</string>
+    <string name="pref_custom_theme_accent">Custom accent color</string>
+    <string name="pref_custom_theme_accent_summary">Choose an accent for the custom app theme</string>
     <string name="theme_greenapple">Green Apple</string>
     <string name="theme_lavender">Lavender</string>
     <string name="theme_midnightdusk">Midnight Dusk</string>
