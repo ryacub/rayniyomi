@@ -17,6 +17,14 @@ class UiPreferences(
     private val preferenceStore: PreferenceStore,
 ) {
 
+    companion object {
+        const val CUSTOM_THEME_ACCENT_SEED_UNSET = Int.MIN_VALUE
+        fun dateFormat(format: String): DateTimeFormatter = when (format) {
+            "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+            else -> DateTimeFormatter.ofPattern(format, Locale.getDefault())
+        }
+    }
+
     fun themeMode() = preferenceStore.getEnum("pref_theme_mode_key", ThemeMode.SYSTEM)
 
     fun appTheme() = preferenceStore.getEnum(
@@ -30,6 +38,10 @@ class UiPreferences(
 
     fun themeDarkAmoled() = preferenceStore.getBoolean("pref_theme_dark_amoled_key", false)
     fun dynamicEntryCoverTheming() = preferenceStore.getBoolean("pref_dynamic_entry_cover_theming", false)
+    fun customThemeAccentSeed() = preferenceStore.getInt(
+        "pref_custom_theme_accent_seed",
+        CUSTOM_THEME_ACCENT_SEED_UNSET,
+    )
 
     fun relativeTime() = preferenceStore.getBoolean("relative_time_v2", true)
 
@@ -40,11 +52,4 @@ class UiPreferences(
     fun startScreen() = preferenceStore.getEnum("start_screen", StartScreen.ANIME)
 
     fun navStyle() = preferenceStore.getEnum("bottom_rail_nav_style", NavStyle.MOVE_HISTORY_TO_MORE)
-
-    companion object {
-        fun dateFormat(format: String): DateTimeFormatter = when (format) {
-            "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
-            else -> DateTimeFormatter.ofPattern(format, Locale.getDefault())
-        }
-    }
 }
