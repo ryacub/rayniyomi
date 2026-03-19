@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.anime
 
 import android.content.Context
 import android.os.PowerManager
+import androidx.annotation.VisibleForTesting
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
@@ -44,7 +45,7 @@ import uy.kohesive.injekt.api.get
  * and retrieved through dependency injection. You can use this class to queue new episodes or query
  * downloaded episodes.
  */
-class AnimeDownloadManager internal constructor(
+class AnimeDownloadManager(
     private val context: Context,
     private val storageManager: StorageManager = Injekt.get(),
     private val provider: AnimeDownloadProvider = Injekt.get(),
@@ -52,10 +53,13 @@ class AnimeDownloadManager internal constructor(
     private val getCategories: GetAnimeCategories = Injekt.get(),
     private val sourceManager: AnimeSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val downloader: AnimeDownloader = AnimeDownloader(context, provider, cache, sourceManager),
-    private val pendingDeleter: AnimeDownloadPendingDeleter = AnimeDownloadPendingDeleter(context),
-    private val notifier: AnimeDownloadNotifier = AnimeDownloadNotifier(context),
 ) {
+
+    private val downloader: AnimeDownloader by lazy { AnimeDownloader(context, provider, cache, sourceManager) }
+    private val pendingDeleter: AnimeDownloadPendingDeleter by lazy { AnimeDownloadPendingDeleter(context) }
+
+    @VisibleForTesting
+    internal var notifier: AnimeDownloadNotifier = AnimeDownloadNotifier(context)
 
     /**
      * Manager-owned coroutine scope for background operations.
@@ -81,21 +85,23 @@ class AnimeDownloadManager internal constructor(
      */
     private val queueMutex = Mutex()
 
-    private val queueMutations = DownloadQueueMutations(
-        queueState = downloader.queueState,
-        itemId = { it.episode.id },
-        createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
-        moveToFront = downloader::moveToFront,
-        updateQueue = downloader::updateQueue,
-        addToStart = downloader::addToStartOfQueue,
-        removeFromQueue = downloader::removeFromQueue,
-        isRunning = { downloader.isRunning },
-        pauseDownloader = downloader::pause,
-        startDownloader = downloader::start,
-        stopDownloader = { downloader.stop() },
-        startDownloads = ::startDownloads,
-        queueMutex = queueMutex,
-    )
+    private val queueMutations by lazy {
+        DownloadQueueMutations(
+            queueState = downloader.queueState,
+            itemId = { it.episode.id },
+            createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
+            moveToFront = downloader::moveToFront,
+            updateQueue = downloader::updateQueue,
+            addToStart = downloader::addToStartOfQueue,
+            removeFromQueue = downloader::removeFromQueue,
+            isRunning = { downloader.isRunning },
+            pauseDownloader = downloader::pause,
+            startDownloader = downloader::start,
+            stopDownloader = { downloader.stop() },
+            startDownloads = ::startDownloads,
+            queueMutex = queueMutex,
+        )
+    }
 
     val isRunning: Boolean
         get() = downloader.isRunning

@@ -39,10 +39,8 @@ class MangaDownloadManagerTest {
             getCategories = mockk(relaxed = true),
             sourceManager = mockk(relaxed = true),
             downloadPreferences = downloadPreferences,
-            downloader = mockk(relaxed = true),
-            pendingDeleter = mockk(relaxed = true),
-            notifier = mockNotifier,
         )
+        manager.notifier = mockNotifier
     }
 
     @Test

@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import android.os.PowerManager
+import androidx.annotation.VisibleForTesting
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
@@ -44,7 +45,7 @@ import uy.kohesive.injekt.api.get
  * and retrieved through dependency injection. You can use this class to queue new chapters or query
  * downloaded chapters.
  */
-class MangaDownloadManager internal constructor(
+class MangaDownloadManager(
     private val context: Context,
     private val storageManager: StorageManager = Injekt.get(),
     private val provider: MangaDownloadProvider = Injekt.get(),
@@ -52,10 +53,13 @@ class MangaDownloadManager internal constructor(
     private val getCategories: GetMangaCategories = Injekt.get(),
     private val sourceManager: MangaSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val downloader: MangaDownloader = MangaDownloader(context, provider, cache),
-    private val pendingDeleter: MangaDownloadPendingDeleter = MangaDownloadPendingDeleter(context),
-    private val notifier: MangaDownloadNotifier = MangaDownloadNotifier(context),
 ) {
+
+    private val downloader: MangaDownloader by lazy { MangaDownloader(context, provider, cache) }
+    private val pendingDeleter: MangaDownloadPendingDeleter by lazy { MangaDownloadPendingDeleter(context) }
+
+    @VisibleForTesting
+    internal var notifier: MangaDownloadNotifier = MangaDownloadNotifier(context)
 
     /**
      * Manager-owned coroutine scope for background operations.
@@ -69,21 +73,23 @@ class MangaDownloadManager internal constructor(
      */
     private val queueMutex = Mutex()
 
-    private val queueMutations = DownloadQueueMutations(
-        queueState = downloader.queueState,
-        itemId = { it.chapter.id },
-        createFromId = { id -> MangaDownload.fromChapterId(id) },
-        moveToFront = downloader::moveToFront,
-        updateQueue = downloader::updateQueue,
-        addToStart = downloader::addToStartOfQueue,
-        removeFromQueue = downloader::removeFromQueue,
-        isRunning = { downloader.isRunning },
-        pauseDownloader = downloader::pause,
-        startDownloader = downloader::start,
-        stopDownloader = { downloader.stop() },
-        startDownloads = ::startDownloads,
-        queueMutex = queueMutex,
-    )
+    private val queueMutations by lazy {
+        DownloadQueueMutations(
+            queueState = downloader.queueState,
+            itemId = { it.chapter.id },
+            createFromId = { id -> MangaDownload.fromChapterId(id) },
+            moveToFront = downloader::moveToFront,
+            updateQueue = downloader::updateQueue,
+            addToStart = downloader::addToStartOfQueue,
+            removeFromQueue = downloader::removeFromQueue,
+            isRunning = { downloader.isRunning },
+            pauseDownloader = downloader::pause,
+            startDownloader = downloader::start,
+            stopDownloader = { downloader.stop() },
+            startDownloads = ::startDownloads,
+            queueMutex = queueMutex,
+        )
+    }
 
     val isRunning: Boolean
         get() = downloader.isRunning
