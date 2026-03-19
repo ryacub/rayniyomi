@@ -14,6 +14,7 @@ import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.presentation.theme.colorscheme.BaseColorScheme
 import eu.kanade.presentation.theme.colorscheme.CloudflareColorScheme
 import eu.kanade.presentation.theme.colorscheme.CottoncandyColorScheme
+import eu.kanade.presentation.theme.colorscheme.CustomAccentColorScheme
 import eu.kanade.presentation.theme.colorscheme.DoomColorScheme
 import eu.kanade.presentation.theme.colorscheme.GreenAppleColorScheme
 import eu.kanade.presentation.theme.colorscheme.LavenderColorScheme
@@ -73,16 +74,35 @@ private fun getThemeColorScheme(
     appTheme: AppTheme,
     isAmoled: Boolean,
 ): ColorScheme {
+    val context = LocalContext.current
     val uiPreferences = Injekt.get<UiPreferences>()
-    val colorScheme = if (appTheme == AppTheme.MONET) {
-        MonetColorScheme(LocalContext.current)
-    } else {
-        colorSchemes.getOrDefault(appTheme, TachiyomiColorScheme)
-    }
+    val colorScheme = resolveBaseColorScheme(
+        appTheme = appTheme,
+        customAccentSeed = uiPreferences.customThemeAccentSeed().get(),
+        context = context,
+    )
     return colorScheme.getColorScheme(
         isSystemInDarkTheme(),
         isAmoled,
     )
+}
+
+internal fun resolveBaseColorScheme(
+    appTheme: AppTheme,
+    customAccentSeed: Int,
+    context: android.content.Context,
+): BaseColorScheme {
+    return when (appTheme) {
+        AppTheme.MONET -> MonetColorScheme(context)
+        AppTheme.CUSTOM -> {
+            if (customAccentSeed == UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
+                TachiyomiColorScheme
+            } else {
+                CustomAccentColorScheme(context = context, seed = customAccentSeed)
+            }
+        }
+        else -> colorSchemes.getOrDefault(appTheme, TachiyomiColorScheme)
+    }
 }
 
 private const val RIPPLE_DRAGGED_ALPHA = .1f
@@ -103,7 +123,6 @@ val playerRippleConfiguration
 
 private val colorSchemes: Map<AppTheme, BaseColorScheme> = mapOf(
     AppTheme.DEFAULT to TachiyomiColorScheme,
-    AppTheme.CUSTOM to TachiyomiColorScheme,
     AppTheme.CLOUDFLARE to CloudflareColorScheme,
     AppTheme.COTTONCANDY to CottoncandyColorScheme,
     AppTheme.DOOM to DoomColorScheme,
