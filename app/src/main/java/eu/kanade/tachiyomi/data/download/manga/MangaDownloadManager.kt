@@ -3,6 +3,8 @@ package eu.kanade.tachiyomi.data.download.manga
 import android.content.Context
 import android.os.PowerManager
 import androidx.annotation.VisibleForTesting
+import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationChecker
+import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationPromptRequest
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
@@ -10,9 +12,13 @@ import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emitAll
@@ -53,9 +59,15 @@ class MangaDownloadManager(
     private val getCategories: GetMangaCategories = Injekt.get(),
     private val sourceManager: MangaSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val batteryOptimizationChecker: BatteryOptimizationChecker = BatteryOptimizationChecker(
+        context,
+        context.getSystemService(Context.POWER_SERVICE) as? PowerManager,
+    ),
+    private val downloaderForTesting: MangaDownloader? = null,
+    private val scopeForTesting: CoroutineScope? = null,
 ) {
 
-    private val downloader: MangaDownloader by lazy { MangaDownloader(context, provider, cache) }
+    private val downloader: MangaDownloader by lazy { downloaderForTesting ?: MangaDownloader(context, provider, cache) }
     private val pendingDeleter: MangaDownloadPendingDeleter by lazy { MangaDownloadPendingDeleter(context) }
 
     @VisibleForTesting
@@ -65,7 +77,32 @@ class MangaDownloadManager(
      * Manager-owned coroutine scope for background operations.
      * Uses SupervisorJob to prevent child failures from cancelling other operations.
      */
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in MangaDownloadManager scope" }
+    }
+
+    private val scope = scopeForTesting ?: CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
+
+    /**
+     * SharedFlow that emits battery optimization prompt requests when 10+ items
+     * are queued and battery optimization is enabled.
+     */
+    private val _batteryOptimizationPromptFlow =
+        MutableSharedFlow<BatteryOptimizationPromptRequest>(extraBufferCapacity = 1)
+
+    /**
+     * Public flow for battery optimization prompt requests.
+     */
+    val batteryOptimizationPromptFlow: SharedFlow<BatteryOptimizationPromptRequest> =
+        _batteryOptimizationPromptFlow
+
+    /**
+     * Cancels the manager-owned coroutine scope, stopping all background operations.
+     * Should be called when the manager is no longer needed.
+     */
+    fun close() {
+        scope.cancel()
+    }
 
     /**
      * Mutex to synchronize download queue manipulation operations.
@@ -506,17 +543,23 @@ class MangaDownloadManager(
      * Called when user queues 10+ items for download.
      */
     private fun checkBatteryOptimization() {
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val isIgnoringBatteryOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
-
-        if (!isIgnoringBatteryOptimizations) {
+        if (batteryOptimizationChecker.isOptimizationEnabled()) {
             logcat(LogPriority.WARN) {
                 "Battery optimization is enabled - bulk downloads may be interrupted. " +
                     "Consider exempting app from battery optimization."
             }
+
+            scope.launch {
+                try {
+                    _batteryOptimizationPromptFlow.emit(BatteryOptimizationPromptRequest())
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) {
+                        "Failed to emit battery optimization prompt"
+                    }
+                }
+            }
         }
 
-        // Mark as shown so we don't prompt again
         downloadPreferences.batteryOptimizationPromptShown().set(true)
     }
 }
