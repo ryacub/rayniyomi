@@ -5,13 +5,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.domain.ui.model.NavStyle
 import eu.kanade.domain.ui.model.StartScreen
 import eu.kanade.domain.ui.model.TabletUiMode
@@ -21,6 +26,9 @@ import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
+import eu.kanade.presentation.more.settings.widget.CustomThemeAccentPreferenceWidget
+import eu.kanade.presentation.more.settings.widget.CustomThemeColorPickerDialog
+import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -34,6 +42,8 @@ import uy.kohesive.injekt.api.get
 import java.time.LocalDate
 
 object SettingsAppearanceScreen : SearchableSettings {
+
+    internal const val DEFAULT_CUSTOM_ACCENT_PICKER_SEED = 0xFF1E88E5.toInt()
 
     @ReadOnlyComposable
     @Composable
@@ -61,8 +71,19 @@ object SettingsAppearanceScreen : SearchableSettings {
         val appThemePref = uiPreferences.appTheme()
         val appTheme by appThemePref.collectAsStateWithLifecycle()
 
+        val customThemeAccentSeedPref = uiPreferences.customThemeAccentSeed()
+        val customThemeAccentSeed by customThemeAccentSeedPref.collectAsStateWithLifecycle()
+
         val amoledPref = uiPreferences.themeDarkAmoled()
         val amoled by amoledPref.collectAsStateWithLifecycle()
+
+        var showCustomAccentPicker by rememberSaveable { mutableStateOf(false) }
+        var customAccentPickerSeed by rememberSaveable { mutableIntStateOf(DEFAULT_CUSTOM_ACCENT_PICKER_SEED) }
+        var customAccentPickerSession by rememberSaveable { mutableIntStateOf(0) }
+
+        fun recreateForThemeChange() {
+            (context as? Activity)?.let { ActivityCompat.recreate(it) }
+        }
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_theme),
@@ -84,6 +105,37 @@ object SettingsAppearanceScreen : SearchableSettings {
                             amoled = amoled,
                             onItemClick = { appThemePref.set(it) },
                         )
+
+                        if (appTheme == AppTheme.CUSTOM) {
+                            CustomThemeAccentPreferenceWidget(
+                                selectedAccentSeed = customThemeAccentSeed,
+                                onSwatchClick = { selectedSeed ->
+                                    customThemeAccentSeedPref.set(normalizeAccentSeed(selectedSeed))
+                                    recreateForThemeChange()
+                                },
+                                onOpenPicker = {
+                                    customAccentPickerSeed = resolveInitialCustomAccentPickerSeed(customThemeAccentSeed)
+                                    customAccentPickerSession = nextCustomAccentPickerSession(customAccentPickerSession)
+                                    showCustomAccentPicker = true
+                                },
+                                onReset = {
+                                    customThemeAccentSeedPref.set(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
+                                    recreateForThemeChange()
+                                },
+                            )
+                        }
+
+                        if (showCustomAccentPicker) {
+                            CustomThemeColorPickerDialog(
+                                sessionKey = customAccentPickerSession,
+                                initialSeed = customAccentPickerSeed,
+                                onDismiss = { showCustomAccentPicker = false },
+                                onApply = { pickedSeed ->
+                                    customThemeAccentSeedPref.set(normalizeAccentSeed(pickedSeed))
+                                    recreateForThemeChange()
+                                },
+                            )
+                        }
                     }
                 },
                 Preference.PreferenceItem.SwitchPreference(
@@ -178,6 +230,16 @@ object SettingsAppearanceScreen : SearchableSettings {
         )
     }
 }
+
+internal fun resolveInitialCustomAccentPickerSeed(currentAccentSeed: Int): Int {
+    return if (currentAccentSeed == UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
+        SettingsAppearanceScreen.DEFAULT_CUSTOM_ACCENT_PICKER_SEED
+    } else {
+        normalizeAccentSeed(currentAccentSeed)
+    }
+}
+
+internal fun nextCustomAccentPickerSession(currentSession: Int): Int = currentSession + 1
 
 private val DateFormats = listOf(
     "", // Default

@@ -232,6 +232,7 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="theme_custom">Custom</string>
     <string name="theme_monet">Dynamic</string>
     <string name="theme_greenapple">Green Apple</string>
     <string name="theme_lavender">Lavender</string>
@@ -247,6 +248,17 @@
     <string name="pref_dark_theme_pure_black">Pure black dark mode</string>
     <string name="pref_dynamic_entry_cover_theming">Dynamic entry cover theming</string>
     <string name="pref_dynamic_entry_cover_theming_summary">Use entry cover colors for accents on entry screens when contrast is safe</string>
+    <string name="pref_custom_theme_accent">Custom accent</string>
+    <string name="pref_custom_theme_accent_using">Selected accent: %1$s</string>
+    <string name="pref_custom_theme_accent_using_default">Using default accent fallback</string>
+    <string name="pref_custom_theme_choose_color">Custom color…</string>
+    <string name="pref_custom_theme_reset_accent">Reset accent</string>
+    <string name="pref_custom_theme_picker_title">Pick accent color</string>
+    <string name="pref_custom_theme_picker_preview_content_description">Accent preview %1$s</string>
+    <string name="pref_custom_theme_picker_hue">Hue</string>
+    <string name="pref_custom_theme_picker_saturation">Saturation</string>
+    <string name="pref_custom_theme_picker_value">Value</string>
+    <string name="pref_custom_theme_accent_swatch_content_description">Accent swatch %1$s</string>
     <string name="pref_relative_format">Relative timestamps</string>
     <!-- "Today" instead of "2023-12-31" -->
     <string name="pref_relative_format_summary">\"%1$s\" instead of \"%2$s\"</string>

@@ -246,6 +246,7 @@ dependencies {
     implementation(compose.animation)
     implementation(compose.animation.graphics)
     debugImplementation(compose.ui.tooling)
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation(compose.ui.tooling.preview)
     implementation(compose.ui.util)
 
@@ -346,6 +347,9 @@ dependencies {
     // Tests
     testImplementation(libs.bundles.test)
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
+    androidTestImplementation(platform(compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 
     // For detecting memory leaks; see https://square.github.io/leakcanary/
     // debugImplementation(libs.leakcanary.android)
