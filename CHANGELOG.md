@@ -16,6 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - **Custom accent color theme** — Material 3 app-wide theming from a user-selected accent seed; generates light/dark color schemes with Android 14 contrast-awareness and readability guardrails (contrast clamp + fallback)
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
+- **Custom app theme accent controls** — custom app theme is now selectable in Appearance settings with curated accent swatches and one-tap reset to default palette
 - **LightNovelPluginManager unit tests** — 37 tests covering install flow, manifest validation, update policy, APK download/checksum verification, install launch, in-flight mutex deduplication, error recovery, and orphaned APK cleanup
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
 - **PIN error feedback** — shows an error message when saving a new PIN fails (e.g., storage write error), instead of silently closing the dialog
@@ -46,6 +47,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Other
 
 - Unit tests for `PlayerFileLoadedHandler` (29 tests) and `PlayerMpvInitializer` (16 tests); adds `MPVLibProxy` abstraction to both classes to enable JNI-safe unit testing
+- Documented theming migration and fallback behavior (custom accent unset fallback, custom mode night-mode mapping, enum fallback safety, and lowercase legacy migration normalization) in README and inline code comments
 - Compose stack upgrade: BOM → 2026.03.00, `activity-compose` → 1.13.0
 - AndroidX step-up: `core-ktx` → 1.18.0, Lifecycle → 2.10.0, Paging → 3.4.2, WorkManager → 2.11.1, media/mediarouter bumps
 - Core runtime dependency upgrade: jsoup → 1.22.1, Coil → 3.4.0, Material → 1.13.0, OkIO → 3.17.0

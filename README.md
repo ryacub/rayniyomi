@@ -25,6 +25,7 @@ Fork of Aniyomi with anime/manga/light novel tracking, reading, and watching.
 - **Library de-duplication** — detect and merge duplicate entries from different sources, preserving read progress, categories, history, and tracker data
 - **Source health badges** — see broken sources at a glance; broken sources hidden by default
 - **Dynamic cover theming** — entry screens tinted from cover art with contrast-checked fallbacks
+- **Custom app theme accents** — choose a curated accent swatch for the custom theme, with one-tap reset to default palette
 - **Discover feed** — aggregated tracker-based recommendations ranked by multi-tracker affinity, recent activity, and score
 - **Categories with search** — organize that 500-entry library
 
@@ -37,6 +38,13 @@ Fork of Aniyomi with anime/manga/light novel tracking, reading, and watching.
 - Cloud backups
 - Schedule library updates
 - Dark/light themes
+
+### Theming Notes
+
+- `ThemeMode.CUSTOM` uses the custom app palette while still following system day/night mode.
+- If custom accent seed is unset, the app falls back to the default Tachiyomi color scheme.
+- Legacy lowercase theme-mode values are normalized during preference split migration.
+- Invalid stored theme-mode enum values safely fall back to the default (`SYSTEM`).
 
 ## Contributing
 

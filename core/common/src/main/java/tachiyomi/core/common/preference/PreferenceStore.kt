@@ -36,6 +36,7 @@ inline fun <reified T : Enum<T>> PreferenceStore.getEnum(
             try {
                 enumValueOf(it)
             } catch (e: IllegalArgumentException) {
+                // Keep startup/settings resilient when persisted enum values are stale or invalid.
                 defaultValue
             }
         },

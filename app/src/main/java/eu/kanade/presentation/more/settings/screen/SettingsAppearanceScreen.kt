@@ -70,6 +70,8 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         val appThemePref = uiPreferences.appTheme()
         val appTheme by appThemePref.collectAsStateWithLifecycle()
+        val customAccentSeedPref = uiPreferences.customThemeAccentSeed()
+        val customAccentSeed by customAccentSeedPref.collectAsStateWithLifecycle()
 
         val customThemeAccentSeedPref = uiPreferences.customThemeAccentSeed()
         val customThemeAccentSeed by customThemeAccentSeedPref.collectAsStateWithLifecycle()
@@ -103,7 +105,9 @@ object SettingsAppearanceScreen : SearchableSettings {
                         AppThemePreferenceWidget(
                             value = appTheme,
                             amoled = amoled,
+                            customAccentSeed = customAccentSeed,
                             onItemClick = { appThemePref.set(it) },
+                            onCustomAccentSeedChange = { customAccentSeedPref.set(it) },
                         )
 
                         if (appTheme == AppTheme.CUSTOM) {

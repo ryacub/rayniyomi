@@ -95,6 +95,7 @@ internal fun resolveBaseColorScheme(
     return when (appTheme) {
         AppTheme.MONET -> MonetColorScheme(context)
         AppTheme.CUSTOM -> {
+            // Unset custom accent intentionally falls back to the baseline Tachiyomi palette.
             if (customAccentSeed == UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
                 TachiyomiColorScheme
             } else {
