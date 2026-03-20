@@ -61,6 +61,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.presentation.components.AppStateBanners
+import eu.kanade.presentation.components.BatteryOptimizationDialog
 import eu.kanade.presentation.components.DownloadedOnlyBannerBackgroundColor
 import eu.kanade.presentation.components.IncognitoModeBannerBackgroundColor
 import eu.kanade.presentation.components.IndexingBannerBackgroundColor
@@ -75,7 +76,9 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
+import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
+import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
@@ -129,6 +132,9 @@ class MainActivity : BaseActivity() {
     private val animeDownloadCache: AnimeDownloadCache by injectLazy()
     private val downloadCache: MangaDownloadCache by injectLazy()
     private val chapterCache: ChapterCache by injectLazy()
+
+    private val animeDownloadManager: AnimeDownloadManager by injectLazy()
+    private val mangaDownloadManager: MangaDownloadManager by injectLazy()
 
     private val getAnimeIncognitoState: GetAnimeIncognitoState by injectLazy()
     private val getMangaIncognitoState: GetMangaIncognitoState by injectLazy()
@@ -336,6 +342,34 @@ class MainActivity : BaseActivity() {
                             Text(text = stringResource(MR.strings.action_ok))
                         }
                     },
+                )
+            }
+
+            // Battery optimization prompt from anime downloads
+            var showBatteryOptimizationAnimeDlg by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                animeDownloadManager.batteryOptimizationPromptFlow
+                    .collectLatest {
+                        showBatteryOptimizationAnimeDlg = true
+                    }
+            }
+            if (showBatteryOptimizationAnimeDlg) {
+                BatteryOptimizationDialog(
+                    onDismiss = { showBatteryOptimizationAnimeDlg = false },
+                )
+            }
+
+            // Battery optimization prompt from manga downloads
+            var showBatteryOptimizationMangaDlg by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                mangaDownloadManager.batteryOptimizationPromptFlow
+                    .collectLatest {
+                        showBatteryOptimizationMangaDlg = true
+                    }
+            }
+            if (showBatteryOptimizationMangaDlg) {
+                BatteryOptimizationDialog(
+                    onDismiss = { showBatteryOptimizationMangaDlg = false },
                 )
             }
         }

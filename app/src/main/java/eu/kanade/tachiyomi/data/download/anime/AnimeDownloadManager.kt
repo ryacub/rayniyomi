@@ -6,6 +6,8 @@ import androidx.annotation.VisibleForTesting
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationChecker
+import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationPromptRequest
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.util.size
@@ -15,6 +17,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emitAll
@@ -53,9 +57,18 @@ class AnimeDownloadManager(
     private val getCategories: GetAnimeCategories = Injekt.get(),
     private val sourceManager: AnimeSourceManager = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val batteryOptimizationChecker: BatteryOptimizationChecker = BatteryOptimizationChecker(
+        context,
+        context.getSystemService(Context.POWER_SERVICE) as? PowerManager,
+    ),
+    private val downloaderForTesting: AnimeDownloader? = null,
+    private val scopeForTesting: CoroutineScope? = null,
 ) {
 
-    private val downloader: AnimeDownloader by lazy { AnimeDownloader(context, provider, cache, sourceManager) }
+    private val downloader: AnimeDownloader by lazy {
+        downloaderForTesting
+            ?: AnimeDownloader(context, provider, cache, sourceManager)
+    }
     private val pendingDeleter: AnimeDownloadPendingDeleter by lazy { AnimeDownloadPendingDeleter(context) }
 
     @VisibleForTesting
@@ -69,7 +82,20 @@ class AnimeDownloadManager(
         logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeDownloadManager scope" }
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
+    private val scope = scopeForTesting ?: CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
+
+    /**
+     * SharedFlow that emits battery optimization prompt requests when 10+ items
+     * are queued and battery optimization is enabled.
+     */
+    private val _batteryOptimizationPromptFlow =
+        MutableSharedFlow<BatteryOptimizationPromptRequest>(extraBufferCapacity = 1)
+
+    /**
+     * Public flow for battery optimization prompt requests.
+     */
+    val batteryOptimizationPromptFlow: SharedFlow<BatteryOptimizationPromptRequest> =
+        _batteryOptimizationPromptFlow
 
     /**
      * Cancels the manager-owned coroutine scope, stopping all background operations.
@@ -517,15 +543,25 @@ class AnimeDownloadManager(
     /**
      * Checks if battery optimization is disabled and logs a warning if not.
      * Called when user queues 10+ items for download.
+     * Emits a BatteryOptimizationPromptRequest if optimization is enabled.
      */
     private fun checkBatteryOptimization() {
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val isIgnoringBatteryOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
-
-        if (!isIgnoringBatteryOptimizations) {
+        if (batteryOptimizationChecker.isOptimizationEnabled()) {
             logcat(LogPriority.WARN) {
                 "Battery optimization is enabled - bulk downloads may be interrupted. " +
                     "Consider exempting app from battery optimization."
+            }
+
+            // Emit the battery optimization prompt signal
+            // Launch on the scope's context (Dispatchers.IO in production, test dispatcher in tests)
+            scope.launch {
+                try {
+                    _batteryOptimizationPromptFlow.emit(BatteryOptimizationPromptRequest())
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) {
+                        "Failed to emit battery optimization prompt"
+                    }
+                }
             }
         }
 
