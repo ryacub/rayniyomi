@@ -144,7 +144,9 @@ internal fun CustomThemeAccentPreferenceWidget(
             if (contrastWarningSummary != null) {
                 Text(
                     text = contrastWarningSummary,
-                    modifier = Modifier.padding(horizontal = PrefsHorizontalPadding),
+                    modifier = Modifier
+                        .testTag(TAG_CUSTOM_ACCENT_WARNING)
+                        .padding(horizontal = PrefsHorizontalPadding),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
