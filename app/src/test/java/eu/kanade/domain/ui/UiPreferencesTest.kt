@@ -5,10 +5,14 @@ import eu.kanade.domain.ui.model.ThemeMode
 import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
 import eu.kanade.presentation.more.settings.widget.resolvePickerResultSeed
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
@@ -17,10 +21,111 @@ import tachiyomi.core.common.preference.PreferenceStore
 class UiPreferencesTest {
 
     @Test
+    fun `schema seed takes precedence over legacy seed`() {
+        val preferences = UiPreferences(
+            MutablePreferenceStore(
+                initialValues = mapOf(
+                    "pref_custom_theme_accent_seed" to 0xFF112233.toInt(),
+                    "pref_custom_theme_accent_schema" to "v1:80445566",
+                ),
+            ),
+        )
+
+        assertEquals(0xFF445566.toInt(), preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `invalid schema falls back to unset when legacy missing`() {
+        val preferences = UiPreferences(
+            MutablePreferenceStore(
+                initialValues = mapOf(
+                    "pref_custom_theme_accent_schema" to "v999:not-a-seed",
+                ),
+            ),
+        )
+
+        assertEquals(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET, preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `malformed schema falls back to legacy seed`() {
+        val preferences = UiPreferences(
+            MutablePreferenceStore(
+                initialValues = mapOf(
+                    "pref_custom_theme_accent_seed" to 0xFF336699.toInt(),
+                    "pref_custom_theme_accent_schema" to "broken",
+                ),
+            ),
+        )
+
+        assertEquals(0xFF336699.toInt(), preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `unknown schema version falls back to legacy seed`() {
+        val preferences = UiPreferences(
+            MutablePreferenceStore(
+                initialValues = mapOf(
+                    "pref_custom_theme_accent_seed" to 0xFF778899.toInt(),
+                    "pref_custom_theme_accent_schema" to "v2:ffaa5500",
+                ),
+            ),
+        )
+
+        assertEquals(0xFF778899.toInt(), preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `setting schema-backed preference keeps legacy key for downgrade safety`() {
+        val store = MutablePreferenceStore()
+        val preferences = UiPreferences(store)
+
+        preferences.customThemeAccentSeed().set(0x00224466)
+
+        assertEquals(0xFF224466.toInt(), store.getAll()["pref_custom_theme_accent_seed"])
+    }
+
+    @Test
+    fun `deleting schema-backed preference resets to unset sentinel`() {
+        val preferences = UiPreferences(MutablePreferenceStore())
+
+        preferences.customThemeAccentSeed().set(0xFF334455.toInt())
+        preferences.customThemeAccentSeed().delete()
+
+        assertEquals(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET, preferences.customThemeAccentSeed().get())
+        assertEquals(false, preferences.customThemeAccentSeed().isSet())
+    }
+
+    @Test
+    fun `active changes collector does not resurrect deleted accent value`() = runTest {
+        val store = MutablePreferenceStore()
+        val preferences = UiPreferences(store)
+        val preference = preferences.customThemeAccentSeed()
+
+        val collector = launch { preference.changes().collect {} }
+        preference.set(0xFF445566.toInt())
+        preference.delete()
+        advanceUntilIdle()
+        collector.cancelAndJoin()
+
+        assertEquals(false, preference.isSet())
+        assertEquals(null, store.getAll()["pref_custom_theme_accent_seed"])
+    }
+
+    @Test
     fun `custom theme accent seed defaults to unset sentinel`() {
         val preferences = UiPreferences(MutablePreferenceStore())
 
         assertEquals(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET, preferences.customThemeAccentSeed().get())
+    }
+
+    @Test
+    fun `custom theme accent seed is not marked as set on clean read`() {
+        val preferences = UiPreferences(MutablePreferenceStore())
+
+        preferences.customThemeAccentSeed().get()
+
+        assertEquals(false, preferences.customThemeAccentSeed().isSet())
     }
 
     @Test
