@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Custom accent color theme** — Material 3 app-wide theming from a user-selected accent seed; generates light/dark color schemes with Android 14 contrast-awareness and readability guardrails (contrast clamp + fallback)
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
 - **Custom app theme accent controls** — custom app theme is now selectable in Appearance settings with curated accent swatches and one-tap reset to default palette
+- **Theme instrumentation coverage** — added Android instrumentation tests for custom accent persistence, reset behavior, and unset-seed fallback to default `TachiyomiColorScheme`
 - **LightNovelPluginManager unit tests** — 37 tests covering install flow, manifest validation, update policy, APK download/checksum verification, install launch, in-flight mutex deduplication, error recovery, and orphaned APK cleanup
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`
 - **PIN error feedback** — shows an error message when saving a new PIN fails (e.g., storage write error), instead of silently closing the dialog
@@ -43,6 +44,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - Add `workflow_dispatch` trigger to build workflow for manual release runs when automatic tag-triggered CI is blocked by workflow-file security restrictions
 - Replace `[skip ci]` auto-bump strategy with actor-based job condition to unblock tag-triggered release builds
+- Add path-scoped PR theme instrumentation workflow running `:app:connectedDebugAndroidTest` on emulator with test-report/logcat artifact upload on failure
 
 ### Other
 
@@ -58,6 +60,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Pin real SHA-256 certificate fingerprint (`f3565300…`) for LightNovel plugin trust verification; removes placeholder fingerprints
 - Remove unused `CoroutineScope` parameter from `PlayerMpvInitializer` constructor
 - Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager`; converted 4 deferred TODO comments to tracked GitHub issues (#536–#539)
+- Backfilled missing `Unreleased` entries from previously merged Codex PRs, deduped against existing changelog items
 
 ## [0.18.1.75] - 2026-03-13
 

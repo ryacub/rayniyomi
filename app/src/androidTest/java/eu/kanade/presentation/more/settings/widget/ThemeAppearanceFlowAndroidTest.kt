@@ -42,7 +42,9 @@ class ThemeAppearanceFlowAndroidTest {
                     AppThemePreferenceWidget(
                         value = appTheme,
                         amoled = false,
+                        customAccentSeed = selectedAccentSeed,
                         onItemClick = { appTheme = it },
+                        onCustomAccentSeedChange = { selectedAccentSeed = it },
                     )
 
                     if (appTheme == AppTheme.CUSTOM) {

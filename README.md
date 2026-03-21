@@ -45,6 +45,7 @@ Fork of Aniyomi with anime/manga/light novel tracking, reading, and watching.
 - If custom accent seed is unset, the app falls back to the default Tachiyomi color scheme.
 - Legacy lowercase theme-mode values are normalized during preference split migration.
 - Invalid stored theme-mode enum values safely fall back to the default (`SYSTEM`).
+- Theme-related pull requests run a dedicated instrumentation gate in CI with emulator artifacts/logcat attached for failure diagnosis.
 
 ## Contributing
 
