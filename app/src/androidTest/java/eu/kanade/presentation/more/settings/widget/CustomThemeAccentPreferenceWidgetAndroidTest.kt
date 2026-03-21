@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
@@ -16,6 +17,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.more.settings.screen.nextCustomAccentPickerSession
 import eu.kanade.presentation.more.settings.screen.resolveInitialCustomAccentPickerSeed
+import eu.kanade.presentation.theme.colorscheme.CustomAccentContrastMode
+import eu.kanade.presentation.theme.colorscheme.CustomAccentContrastWarning
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,6 +38,7 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
             var pickerSeed by mutableIntStateOf(
                 resolveInitialCustomAccentPickerSeed(selectedAccentSeed),
             )
+            var announcement by mutableStateOf<String?>(null)
 
             MaterialTheme {
                 CustomThemeAccentPreferenceWidget(
@@ -49,6 +53,13 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
                     },
                     onOpenAdvancedEditor = {},
                     onReset = { selectedAccentSeed = UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET },
+                    accessibilityAnnouncement = announcement,
+                    contrastWarningOverride = if (normalizeAccentSeed(selectedAccentSeed) == 0xFFE53935.toInt()) {
+                        CustomAccentContrastWarning(setOf(CustomAccentContrastMode.LIGHT))
+                    } else {
+                        CustomAccentContrastWarning(emptySet())
+                    },
+                    onSwatchAnnouncement = { announcement = it },
                 )
                 if (showPicker) {
                     CustomThemeColorPickerDialog(
@@ -56,15 +67,28 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
                         initialSeed = pickerSeed,
                         onDismiss = { showPicker = false },
                         onApply = { selectedAccentSeed = normalizeAccentSeed(it) },
+                        onAppliedAnnouncement = { announcement = it },
                     )
                 }
             }
         }
 
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SWATCH_ROW).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_PICK).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_RESET).assertExists()
+
         composeRule.onNodeWithContentDescription("Accent swatch #E53935").performClick()
         composeRule.onNodeWithText("Selected accent: #E53935").assertExists()
+        composeRule.onNodeWithText("Warning: low contrast in Light").assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_ANNOUNCEMENT).assertExists()
 
         composeRule.onNodeWithText("Custom color…").performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_PREVIEW).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SLIDER_HUE).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SLIDER_SATURATION).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SLIDER_VALUE).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_APPLY).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_CANCEL).assertExists()
         composeRule.onNodeWithContentDescription("Hue").performSemanticsAction(SemanticsActions.SetProgress) {
             it(240f)
         }
@@ -78,6 +102,8 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
         composeRule.onNodeWithText("Apply").performClick()
         composeRule.onNodeWithText("Selected accent: #E53935").assertDoesNotExist()
         composeRule.onNodeWithText("Selected accent: #FFFFFF").assertExists()
+        composeRule.onNodeWithText("Warning: low contrast in Light").assertDoesNotExist()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_ANNOUNCEMENT).assertExists()
 
         composeRule.onNodeWithText("Reset accent").performClick()
         composeRule.onNodeWithText("Using default accent fallback").assertExists()

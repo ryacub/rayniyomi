@@ -2,6 +2,7 @@ package eu.kanade.presentation.more.settings.widget
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,11 +27,19 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
 import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.presentation.theme.colorscheme.CustomAccentContrastMode
+import eu.kanade.presentation.theme.colorscheme.CustomAccentContrastWarning
+import eu.kanade.presentation.theme.colorscheme.evaluateCustomAccentContrastWarning
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import android.graphics.Color as AndroidColor
@@ -40,6 +49,18 @@ private const val RGB_COLOR_MASK = 0x00FFFFFF
 private const val HUE_MAX = 360f
 private const val SATURATION_MAX = 1f
 private const val VALUE_MAX = 1f
+
+internal const val TAG_CUSTOM_ACCENT_SWATCH_ROW = "custom_accent_swatch_row"
+internal const val TAG_CUSTOM_ACCENT_BUTTON_PICK = "custom_accent_button_pick"
+internal const val TAG_CUSTOM_ACCENT_BUTTON_RESET = "custom_accent_button_reset"
+internal const val TAG_CUSTOM_ACCENT_PICKER_PREVIEW = "custom_accent_picker_preview"
+internal const val TAG_CUSTOM_ACCENT_SLIDER_HUE = "custom_accent_slider_hue"
+internal const val TAG_CUSTOM_ACCENT_SLIDER_SATURATION = "custom_accent_slider_saturation"
+internal const val TAG_CUSTOM_ACCENT_SLIDER_VALUE = "custom_accent_slider_value"
+internal const val TAG_CUSTOM_ACCENT_PICKER_APPLY = "custom_accent_picker_apply"
+internal const val TAG_CUSTOM_ACCENT_PICKER_CANCEL = "custom_accent_picker_cancel"
+internal const val TAG_CUSTOM_ACCENT_ANNOUNCEMENT = "custom_accent_announcement"
+internal const val TAG_CUSTOM_ACCENT_WARNING = "custom_accent_warning"
 
 internal val customAccentSwatches = listOf(
     0xFFE53935.toInt(), // Red
@@ -61,7 +82,11 @@ internal fun CustomThemeAccentPreferenceWidget(
     onOpenPicker: () -> Unit,
     onOpenAdvancedEditor: () -> Unit,
     onReset: () -> Unit,
+    accessibilityAnnouncement: String?,
+    contrastWarningOverride: CustomAccentContrastWarning? = null,
+    onSwatchAnnouncement: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     BasePreferenceWidget(
         title = stringResource(MR.strings.pref_custom_theme_accent),
         subcomponent = {
@@ -69,6 +94,41 @@ internal fun CustomThemeAccentPreferenceWidget(
             val notSelectedStateString = stringResource(MR.strings.not_selected)
             val chooseColorDescription = stringResource(MR.strings.pref_custom_theme_choose_color)
             val resetAccentDescription = stringResource(MR.strings.pref_custom_theme_reset_accent)
+            val warningSummaryFormat = stringResource(MR.strings.pref_custom_theme_contrast_warning_summary)
+            val lightLabel = stringResource(MR.strings.pref_custom_theme_contrast_mode_light)
+            val darkLabel = stringResource(MR.strings.pref_custom_theme_contrast_mode_dark)
+            val amoledLabel = stringResource(MR.strings.pref_custom_theme_contrast_mode_amoled)
+            val swatchSelectedAnnouncementFormat =
+                stringResource(MR.strings.pref_custom_theme_a11y_announce_swatch_selected)
+            val contrastWarning =
+                contrastWarningOverride ?: if (selectedAccentSeed == UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
+                    CustomAccentContrastWarning(emptySet())
+                } else {
+                    evaluateCustomAccentContrastWarning(
+                        context = context,
+                        seed = normalizeAccentSeed(selectedAccentSeed),
+                    )
+                }
+            val contrastWarningSummary = formatCustomAccentContrastWarningSummary(
+                warning = contrastWarning,
+                warningSummaryFormat = warningSummaryFormat,
+                lightLabel = lightLabel,
+                darkLabel = darkLabel,
+                amoledLabel = amoledLabel,
+            )
+
+            if (accessibilityAnnouncement != null) {
+                Box(
+                    modifier = Modifier
+                        .size(1.dp)
+                        .testTag(TAG_CUSTOM_ACCENT_ANNOUNCEMENT)
+                        .semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = accessibilityAnnouncement
+                        },
+                )
+            }
+
             Text(
                 text = if (selectedAccentSeed == UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
                     stringResource(MR.strings.pref_custom_theme_accent_using_default)
@@ -81,10 +141,20 @@ internal fun CustomThemeAccentPreferenceWidget(
                 modifier = Modifier.padding(horizontal = PrefsHorizontalPadding),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (contrastWarningSummary != null) {
+                Text(
+                    text = contrastWarningSummary,
+                    modifier = Modifier.padding(horizontal = PrefsHorizontalPadding),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             LazyRow(
                 modifier = Modifier
+                    .testTag(TAG_CUSTOM_ACCENT_SWATCH_ROW)
                     .fillMaxWidth()
-                    .padding(horizontal = PrefsHorizontalPadding),
+                    .padding(horizontal = PrefsHorizontalPadding)
+                    .semantics { traversalIndex = 0f },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(customAccentSwatches) { swatchSeed ->
@@ -97,7 +167,11 @@ internal fun CustomThemeAccentPreferenceWidget(
                     val swatchStateDescription = if (selected) selectedStateString else notSelectedStateString
                     FilterChip(
                         selected = selected,
-                        onClick = { onSwatchClick(swatchSeed) },
+                        onClick = {
+                            val announcement = swatchSelectedAnnouncementFormat.format(swatchHex)
+                            onSwatchAnnouncement(announcement)
+                            onSwatchClick(swatchSeed)
+                        },
                         label = {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -186,10 +260,12 @@ internal fun CustomThemeAccentPreferenceWidget(
                 Button(
                     onClick = onOpenPicker,
                     modifier = Modifier
+                        .testTag(TAG_CUSTOM_ACCENT_BUTTON_PICK)
                         .weight(1f)
                         .minimumInteractiveComponentSize()
                         .semantics {
                             contentDescription = chooseColorDescription
+                            traversalIndex = 1f
                         },
                 ) {
                     Text(text = stringResource(MR.strings.pref_custom_theme_choose_color))
@@ -197,10 +273,12 @@ internal fun CustomThemeAccentPreferenceWidget(
                 TextButton(
                     onClick = onReset,
                     modifier = Modifier
+                        .testTag(TAG_CUSTOM_ACCENT_BUTTON_RESET)
                         .weight(1f)
                         .minimumInteractiveComponentSize()
                         .semantics {
                             contentDescription = resetAccentDescription
+                            traversalIndex = 2f
                         },
                 ) {
                     Text(text = stringResource(MR.strings.pref_custom_theme_reset_accent))
@@ -224,7 +302,9 @@ internal fun CustomThemeColorPickerDialog(
     initialSeed: Int,
     onDismiss: () -> Unit,
     onApply: (Int) -> Unit,
+    onAppliedAnnouncement: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val initialHsv = seedToHsv(initialSeed)
     var hue by rememberSaveable(sessionKey, initialSeed) { mutableFloatStateOf(initialHsv.hue) }
     var saturation by rememberSaveable(sessionKey, initialSeed) { mutableFloatStateOf(initialHsv.saturation) }
@@ -239,6 +319,24 @@ internal fun CustomThemeColorPickerDialog(
     val hueDescription = stringResource(MR.strings.pref_custom_theme_picker_hue)
     val saturationDescription = stringResource(MR.strings.pref_custom_theme_picker_saturation)
     val valueDescription = stringResource(MR.strings.pref_custom_theme_picker_value)
+    val warningSummaryFormat = stringResource(MR.strings.pref_custom_theme_contrast_warning_summary)
+    val lightLabel = stringResource(MR.strings.pref_custom_theme_contrast_mode_light)
+    val darkLabel = stringResource(MR.strings.pref_custom_theme_contrast_mode_dark)
+    val amoledLabel = stringResource(MR.strings.pref_custom_theme_contrast_mode_amoled)
+    val applyAnnouncementSafeFormat = stringResource(MR.strings.pref_custom_theme_a11y_announce_picker_applied)
+    val applyAnnouncementWarningFormat =
+        stringResource(MR.strings.pref_custom_theme_a11y_announce_picker_applied_warning)
+    val contrastWarning = evaluateCustomAccentContrastWarning(
+        context = context,
+        seed = previewSeed,
+    )
+    val contrastWarningSummary = formatCustomAccentContrastWarningSummary(
+        warning = contrastWarning,
+        warningSummaryFormat = warningSummaryFormat,
+        lightLabel = lightLabel,
+        darkLabel = darkLabel,
+        amoledLabel = amoledLabel,
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -248,6 +346,7 @@ internal fun CustomThemeColorPickerDialog(
                 previewSeed = previewSeed,
                 previewHex = previewHex,
                 previewDescription = previewDescription,
+                contrastWarningSummary = contrastWarningSummary,
                 hue = hue,
                 onHueChange = { hue = it },
                 hueDescription = hueDescription,
@@ -261,7 +360,16 @@ internal fun CustomThemeColorPickerDialog(
         },
         confirmButton = {
             TextButton(
+                modifier = Modifier
+                    .testTag(TAG_CUSTOM_ACCENT_PICKER_APPLY)
+                    .semantics { traversalIndex = 7f },
                 onClick = {
+                    val announcement = if (contrastWarningSummary == null) {
+                        applyAnnouncementSafeFormat.format(previewHex)
+                    } else {
+                        applyAnnouncementWarningFormat.format(previewHex, contrastWarningSummary)
+                    }
+                    onAppliedAnnouncement(announcement)
                     onApply(previewSeed)
                     onDismiss()
                 },
@@ -270,7 +378,12 @@ internal fun CustomThemeColorPickerDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                modifier = Modifier
+                    .testTag(TAG_CUSTOM_ACCENT_PICKER_CANCEL)
+                    .semantics { traversalIndex = 8f },
+                onClick = onDismiss,
+            ) {
                 Text(text = stringResource(MR.strings.action_cancel))
             }
         },
@@ -282,6 +395,7 @@ internal fun CustomThemeAccentEditor(
     previewSeed: Int,
     previewHex: String,
     previewDescription: String,
+    contrastWarningSummary: String?,
     hue: Float,
     onHueChange: (Float) -> Unit,
     hueDescription: String,
@@ -299,8 +413,17 @@ internal fun CustomThemeAccentEditor(
             text = stringResource(MR.strings.pref_custom_theme_accent_using, previewHex),
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (contrastWarningSummary != null) {
+            Text(
+                text = contrastWarningSummary,
+                modifier = Modifier.testTag(TAG_CUSTOM_ACCENT_WARNING),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         Row(
             modifier = Modifier
+                .testTag(TAG_CUSTOM_ACCENT_PICKER_PREVIEW)
                 .fillMaxWidth()
                 .height(56.dp)
                 .background(
@@ -309,6 +432,7 @@ internal fun CustomThemeAccentEditor(
                 )
                 .semantics {
                     contentDescription = previewDescription
+                    traversalIndex = 3f
                 },
         ) {}
 
@@ -317,9 +441,12 @@ internal fun CustomThemeAccentEditor(
             value = hue,
             onValueChange = { onHueChange(it.coerceIn(0f, HUE_MAX)) },
             valueRange = 0f..HUE_MAX,
-            modifier = Modifier.semantics {
-                contentDescription = hueDescription
-            },
+            modifier = Modifier
+                .testTag(TAG_CUSTOM_ACCENT_SLIDER_HUE)
+                .semantics {
+                    contentDescription = hueDescription
+                    traversalIndex = 4f
+                },
         )
 
         Text(text = stringResource(MR.strings.pref_custom_theme_picker_saturation))
@@ -327,9 +454,12 @@ internal fun CustomThemeAccentEditor(
             value = saturation,
             onValueChange = { onSaturationChange(it.coerceIn(0f, SATURATION_MAX)) },
             valueRange = 0f..SATURATION_MAX,
-            modifier = Modifier.semantics {
-                contentDescription = saturationDescription
-            },
+            modifier = Modifier
+                .testTag(TAG_CUSTOM_ACCENT_SLIDER_SATURATION)
+                .semantics {
+                    contentDescription = saturationDescription
+                    traversalIndex = 5f
+                },
         )
 
         Text(text = stringResource(MR.strings.pref_custom_theme_picker_value))
@@ -337,9 +467,12 @@ internal fun CustomThemeAccentEditor(
             value = value,
             onValueChange = { onValueChange(it.coerceIn(0f, VALUE_MAX)) },
             valueRange = 0f..VALUE_MAX,
-            modifier = Modifier.semantics {
-                contentDescription = valueDescription
-            },
+            modifier = Modifier
+                .testTag(TAG_CUSTOM_ACCENT_SLIDER_VALUE)
+                .semantics {
+                    contentDescription = valueDescription
+                    traversalIndex = 6f
+                },
         )
     }
 }
@@ -387,4 +520,27 @@ internal fun hsvToAccentSeed(
 internal fun accentSeedToHex(seed: Int): String {
     val rgb = normalizeAccentSeed(seed) and RGB_COLOR_MASK
     return "#%06X".format(rgb)
+}
+
+internal fun formatCustomAccentContrastWarningSummary(
+    warning: CustomAccentContrastWarning,
+    warningSummaryFormat: String,
+    lightLabel: String,
+    darkLabel: String,
+    amoledLabel: String,
+): String? {
+    if (!warning.hasWarning) return null
+
+    val affectedModes = warning.failingModes
+        .sortedBy { it.ordinal }
+        .map {
+            when (it) {
+                CustomAccentContrastMode.LIGHT -> lightLabel
+                CustomAccentContrastMode.DARK -> darkLabel
+                CustomAccentContrastMode.DARK_AMOLED -> amoledLabel
+            }
+        }
+        .joinToString(", ")
+
+    return warningSummaryFormat.format(affectedModes)
 }

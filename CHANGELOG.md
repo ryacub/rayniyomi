@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
 - **Custom app theme accent controls** — custom app theme is now selectable in Appearance settings with curated accent swatches and one-tap reset to default palette
 - **Advanced custom accent workflow** — Appearance settings now includes an advanced color editor route and recent custom accent recall (last 5 applied colors)
+- **Custom accent a11y guardrails** — custom accent settings now include contrast-risk warnings across light/dark/AMOLED modes, live-region accessibility announcements for swatch/apply actions, and deterministic semantics traversal tags for picker controls
 - **Theme instrumentation coverage** — added Android instrumentation tests for custom accent persistence, reset behavior, and unset-seed fallback to default `TachiyomiColorScheme`
 - **LightNovelPluginManager unit tests** — 37 tests covering install flow, manifest validation, update policy, APK download/checksum verification, install launch, in-flight mutex deduplication, error recovery, and orphaned APK cleanup
 - **Persist dialog/form state across rotation** — PIN setup, PIN change (step/value/error), and enrichment chooser source selection now survive configuration changes via `rememberSaveable`

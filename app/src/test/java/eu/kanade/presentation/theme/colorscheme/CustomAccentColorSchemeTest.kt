@@ -75,4 +75,31 @@ class CustomAccentColorSchemeTest {
 
         assertEquals(TachiyomiColorScheme.lightScheme, resolved)
     }
+
+    @Test
+    fun `contrast warning maps adjusted modes deterministically`() {
+        val warning = contrastWarningFromAdjustments(
+            lightAdjusted = true,
+            darkAdjusted = false,
+            darkAmoledAdjusted = true,
+        )
+
+        assertEquals(
+            setOf(CustomAccentContrastMode.LIGHT, CustomAccentContrastMode.DARK_AMOLED),
+            warning.failingModes,
+        )
+        assertTrue(warning.hasWarning)
+    }
+
+    @Test
+    fun `contrast warning is empty when no mode is adjusted`() {
+        val warning = contrastWarningFromAdjustments(
+            lightAdjusted = false,
+            darkAdjusted = false,
+            darkAmoledAdjusted = false,
+        )
+
+        assertTrue(warning.failingModes.isEmpty())
+        assertTrue(!warning.hasWarning)
+    }
 }

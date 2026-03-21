@@ -1,6 +1,8 @@
 package eu.kanade.presentation.more.settings.widget
 
 import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.presentation.theme.colorscheme.CustomAccentContrastMode
+import eu.kanade.presentation.theme.colorscheme.CustomAccentContrastWarning
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -65,5 +67,33 @@ class CustomThemeAccentPreferenceWidgetTest {
         assertEquals(customAccentSwatches.size, customAccentSwatches.distinct().size)
         assertTrue(customAccentSwatches.isNotEmpty())
         assertNotEquals(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET, customAccentSwatches.first())
+    }
+
+    @Test
+    fun `contrast warning summary includes affected modes in fixed order`() {
+        val summary = formatCustomAccentContrastWarningSummary(
+            warning = CustomAccentContrastWarning(
+                setOf(CustomAccentContrastMode.DARK_AMOLED, CustomAccentContrastMode.LIGHT),
+            ),
+            warningSummaryFormat = "Warning: low contrast in %s",
+            lightLabel = "Light",
+            darkLabel = "Dark",
+            amoledLabel = "Dark (AMOLED)",
+        )
+
+        assertEquals("Warning: low contrast in Light, Dark (AMOLED)", summary)
+    }
+
+    @Test
+    fun `contrast warning summary is null when warning has no failing modes`() {
+        val summary = formatCustomAccentContrastWarningSummary(
+            warning = CustomAccentContrastWarning(emptySet()),
+            warningSummaryFormat = "Warning: low contrast in %s",
+            lightLabel = "Light",
+            darkLabel = "Dark",
+            amoledLabel = "Dark (AMOLED)",
+        )
+
+        assertEquals(null, summary)
     }
 }
