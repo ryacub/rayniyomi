@@ -117,7 +117,7 @@ jobs:
           path: ~/.m2/repository/app/cash
 
       - name: Build app
-        run: ./gradlew assembleRelease --build-cache
+        run: ./gradlew assembleStableRelease --build-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

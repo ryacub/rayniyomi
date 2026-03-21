@@ -282,8 +282,6 @@ class AppModule(val app: Application) : InjektModule {
             get<AnimeDownloadManager>()
             get<LightNovelPluginManager>()
 
-            // R604: Wire first real flag end-to-end
-            // Read beta flag and log status for debugging
             if (BuildConfig.DEBUG) {
                 val betaPreferences = get<BetaPreferences>()
                 val experimentalComposeEnabled = betaPreferences.enableExperimentalComposeSettings().get()
