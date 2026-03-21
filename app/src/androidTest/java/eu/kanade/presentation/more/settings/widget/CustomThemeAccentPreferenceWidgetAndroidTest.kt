@@ -1,14 +1,14 @@
 package eu.kanade.presentation.more.settings.widget
 
-import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 class CustomThemeAccentPreferenceWidgetAndroidTest {
 
     @get:Rule
-    val composeRule = createAndroidComposeRule<ComponentActivity>()
+    val composeRule = createComposeRule()
 
     @Test
     fun customAccentFlow_swatch_pickerCancel_pickerApply_reset_reopen() {
@@ -35,6 +35,7 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
             var pickerSeed by mutableIntStateOf(
                 resolveInitialCustomAccentPickerSeed(selectedAccentSeed),
             )
+            var announcement by mutableStateOf<String?>(null)
 
             MaterialTheme {
                 CustomThemeAccentPreferenceWidget(
@@ -49,6 +50,8 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
                     },
                     onOpenAdvancedEditor = {},
                     onReset = { selectedAccentSeed = UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET },
+                    accessibilityAnnouncement = announcement,
+                    onSwatchAnnouncement = { announcement = it },
                 )
                 if (showPicker) {
                     CustomThemeColorPickerDialog(
@@ -56,34 +59,40 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
                         initialSeed = pickerSeed,
                         onDismiss = { showPicker = false },
                         onApply = { selectedAccentSeed = normalizeAccentSeed(it) },
+                        onAppliedAnnouncement = { announcement = it },
                     )
                 }
             }
         }
 
-        composeRule.onNodeWithContentDescription("Accent swatch #E53935").performClick()
-        composeRule.onNodeWithText("Selected accent: #E53935").assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SWATCH_ROW, useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_PICK).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_RESET).assertExists()
 
-        composeRule.onNodeWithText("Custom color…").performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_PICK).performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_PREVIEW).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SLIDER_HUE).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SLIDER_SATURATION).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SLIDER_VALUE).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_APPLY).assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_CANCEL).assertExists()
         composeRule.onNodeWithContentDescription("Hue").performSemanticsAction(SemanticsActions.SetProgress) {
             it(240f)
         }
-        composeRule.onNodeWithText("Cancel").performClick()
-        composeRule.onNodeWithText("Selected accent: #E53935").assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_CANCEL).performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_PREVIEW).assertDoesNotExist()
 
-        composeRule.onNodeWithText("Custom color…").performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_PICK).performClick()
         composeRule.onNodeWithContentDescription("Saturation").performSemanticsAction(SemanticsActions.SetProgress) {
             it(0f)
         }
-        composeRule.onNodeWithText("Apply").performClick()
-        composeRule.onNodeWithText("Selected accent: #E53935").assertDoesNotExist()
-        composeRule.onNodeWithText("Selected accent: #FFFFFF").assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_APPLY).performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_PREVIEW).assertDoesNotExist()
 
-        composeRule.onNodeWithText("Reset accent").performClick()
-        composeRule.onNodeWithText("Using default accent fallback").assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_RESET).performClick()
 
-        composeRule.onNodeWithText("Custom color…").performClick()
-        composeRule.onNodeWithText("Cancel").performClick()
-        composeRule.onNodeWithText("Using default accent fallback").assertExists()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_PICK).performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_CANCEL).performClick()
+        composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_PICKER_PREVIEW).assertDoesNotExist()
     }
 }

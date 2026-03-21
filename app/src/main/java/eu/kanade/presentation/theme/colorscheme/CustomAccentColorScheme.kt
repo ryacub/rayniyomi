@@ -41,6 +41,72 @@ internal class CustomAccentColorScheme(
 private const val OPAQUE_ALPHA_MASK = -0x1000000
 private const val MIN_CONTRAST_RATIO = 4.5
 
+internal enum class CustomAccentContrastMode {
+    LIGHT,
+    DARK,
+    DARK_AMOLED,
+}
+
+internal data class CustomAccentContrastWarning(
+    val failingModes: Set<CustomAccentContrastMode>,
+) {
+    val hasWarning: Boolean
+        get() = failingModes.isNotEmpty()
+}
+
+internal fun evaluateCustomAccentContrastWarning(
+    context: Context,
+    seed: Int,
+): CustomAccentContrastWarning {
+    val normalizedSeed = seed or OPAQUE_ALPHA_MASK
+    val rawLightScheme = generateColorSchemeFromSeed(
+        context = context,
+        seed = normalizedSeed,
+        dark = false,
+    )
+    val rawDarkScheme = generateColorSchemeFromSeed(
+        context = context,
+        seed = normalizedSeed,
+        dark = true,
+    )
+    val rawBaseColorScheme = object : BaseColorScheme() {
+        override val darkScheme: ColorScheme = rawDarkScheme
+        override val lightScheme: ColorScheme = rawLightScheme
+    }
+    val resolvedBaseColorScheme = object : BaseColorScheme() {
+        override val darkScheme: ColorScheme = ensureReadableOrFallback(
+            source = rawDarkScheme,
+            fallback = TachiyomiColorScheme.darkScheme,
+        )
+        override val lightScheme: ColorScheme = ensureReadableOrFallback(
+            source = rawLightScheme,
+            fallback = TachiyomiColorScheme.lightScheme,
+        )
+    }
+
+    return contrastWarningFromAdjustments(
+        lightAdjusted = rawBaseColorScheme.getColorScheme(isDark = false, isAmoled = false) !=
+            resolvedBaseColorScheme.getColorScheme(isDark = false, isAmoled = false),
+        darkAdjusted = rawBaseColorScheme.getColorScheme(isDark = true, isAmoled = false) !=
+            resolvedBaseColorScheme.getColorScheme(isDark = true, isAmoled = false),
+        darkAmoledAdjusted = rawBaseColorScheme.getColorScheme(isDark = true, isAmoled = true) !=
+            resolvedBaseColorScheme.getColorScheme(isDark = true, isAmoled = true),
+    )
+}
+
+internal fun contrastWarningFromAdjustments(
+    lightAdjusted: Boolean,
+    darkAdjusted: Boolean,
+    darkAmoledAdjusted: Boolean,
+): CustomAccentContrastWarning {
+    val failingModes = buildSet {
+        if (lightAdjusted) add(CustomAccentContrastMode.LIGHT)
+        if (darkAdjusted) add(CustomAccentContrastMode.DARK)
+        if (darkAmoledAdjusted) add(CustomAccentContrastMode.DARK_AMOLED)
+    }
+    return CustomAccentContrastWarning(failingModes = failingModes)
+}
+
 internal fun ensureReadableOrFallback(source: ColorScheme, fallback: ColorScheme): ColorScheme {
     if (isReadable(source)) return source
 
@@ -106,7 +172,7 @@ internal fun resolveCustomSchemeContrast(sdkInt: Int, uiModeContrast: Float?): D
     }
 }
 
-private fun generateColorSchemeFromSeed(context: Context, seed: Int, dark: Boolean): ColorScheme {
+internal fun generateColorSchemeFromSeed(context: Context, seed: Int, dark: Boolean): ColorScheme {
     val uiModeContrast = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         context.getSystemService(UiModeManager::class.java)?.contrast
     } else {

@@ -86,6 +86,7 @@ object SettingsAppearanceScreen : SearchableSettings {
         var showCustomAccentPicker by rememberSaveable { mutableStateOf(false) }
         var customAccentPickerSeed by rememberSaveable { mutableIntStateOf(DEFAULT_CUSTOM_ACCENT_PICKER_SEED) }
         var customAccentPickerSession by rememberSaveable { mutableIntStateOf(0) }
+        var customAccentAccessibilityAnnouncement by rememberSaveable { mutableStateOf<String?>(null) }
 
         fun recreateForThemeChange() {
             (context as? Activity)?.let { ActivityCompat.recreate(it) }
@@ -136,6 +137,10 @@ object SettingsAppearanceScreen : SearchableSettings {
                                     customThemeAccentSeedPref.set(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
                                     recreateForThemeChange()
                                 },
+                                accessibilityAnnouncement = customAccentAccessibilityAnnouncement,
+                                onSwatchAnnouncement = { announcement ->
+                                    customAccentAccessibilityAnnouncement = announcement
+                                },
                             )
                         }
 
@@ -147,6 +152,9 @@ object SettingsAppearanceScreen : SearchableSettings {
                                 onApply = { pickedSeed ->
                                     customThemeAccentSeedPref.set(normalizeAccentSeed(pickedSeed))
                                     recreateForThemeChange()
+                                },
+                                onAppliedAnnouncement = { announcement ->
+                                    customAccentAccessibilityAnnouncement = announcement
                                 },
                             )
                         }
