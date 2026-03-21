@@ -108,13 +108,13 @@ android {
         }
     }
 
+    flavorDimensions += "track"
+    productFlavors {
+        create("stable") { isDefault = true }
+        create("beta") {}
+    }
+
     sourceSets {
-        // AGP 9 + Crashlytics plugin can generate release mapping-file resources without wiring
-        // them into mergeResources; include the release-generated folder explicitly so release
-        // APKs always contain the Crashlytics build ID metadata required at runtime.
-        getByName("release") {
-            res.srcDir("build/generated/res/injectCrashlyticsMappingFileIdRelease")
-        }
         getByName("preview") { res.srcDir("src/debug/res") }
         getByName("benchmark") { res.srcDir("src/debug/res") }
     }
@@ -196,12 +196,30 @@ android {
     }
 }
 
+// AGP 9 + Crashlytics plugin does not automatically wire release mapping-file resources into
+// mergeResources. Register the per-variant generated dirs after evaluation so release APKs
+// contain the Crashlytics build ID metadata required at runtime.
+// Variant source sets (e.g. "stableRelease") only exist after AGP processes flavors.
+afterEvaluate {
+    listOf(
+        "stableRelease" to "injectCrashlyticsMappingFileIdStableRelease",
+        "betaRelease" to "injectCrashlyticsMappingFileIdBetaRelease",
+    ).forEach { (sourceSetName, generatedDir) ->
+        android.sourceSets.findByName(sourceSetName)
+            ?.res?.srcDir("build/generated/res/$generatedDir")
+    }
+}
+
 tasks.configureEach {
     if (
         name.contains("Release") &&
         (name.contains("Resource") || name.contains("Navigation"))
     ) {
-        dependsOn("injectCrashlyticsMappingFileIdRelease")
+        val crashlyticsTask = when {
+            name.contains("Beta") -> "injectCrashlyticsMappingFileIdBetaRelease"
+            else -> "injectCrashlyticsMappingFileIdStableRelease"
+        }
+        dependsOn(crashlyticsTask)
     }
 }
 
