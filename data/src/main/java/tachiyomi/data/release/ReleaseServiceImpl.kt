@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.json.Json
 import tachiyomi.domain.release.interactor.GetApplicationRelease
+import tachiyomi.domain.release.interactor.ReleaseClassifier
 import tachiyomi.domain.release.model.Release
 import tachiyomi.domain.release.service.ReleaseService
 
@@ -14,6 +15,8 @@ class ReleaseServiceImpl(
     private val networkService: NetworkHelper,
     private val json: Json,
 ) : ReleaseService {
+
+    private val releaseClassifier = ReleaseClassifier()
 
     override suspend fun latest(arguments: GetApplicationRelease.Arguments): Release? {
         val release = with(json) {
@@ -24,6 +27,11 @@ class ReleaseServiceImpl(
         }
         val downloadLink = getDownloadLink(release = release) ?: return null
 
+        val quality = releaseClassifier.classify(
+            tagName = release.version,
+            prerelease = release.prerelease,
+        )
+
         return Release(
             version = release.version,
             info = release.info.replace(gitHubUsernameMentionRegex) { mention ->
@@ -31,6 +39,7 @@ class ReleaseServiceImpl(
             },
             releaseLink = release.releaseLink,
             downloadLink = downloadLink,
+            quality = quality,
         )
     }
 
