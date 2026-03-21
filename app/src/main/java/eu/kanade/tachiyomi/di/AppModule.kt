@@ -45,7 +45,10 @@ import eu.kanade.tachiyomi.source.anime.AndroidAnimeSourceManager
 import eu.kanade.tachiyomi.source.manga.AndroidMangaSourceManager
 import eu.kanade.tachiyomi.ui.player.ExternalIntents
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
+import eu.kanade.tachiyomi.ui.settings.BetaPreferences
 import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
+import logcat.LogPriority
+import logcat.logcat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import nl.adaptivity.xmlutil.XmlDeclMode.Charset
@@ -278,6 +281,16 @@ class AppModule(val app: Application) : InjektModule {
             get<MangaDownloadManager>()
             get<AnimeDownloadManager>()
             get<LightNovelPluginManager>()
+
+            // R604: Wire first real flag end-to-end
+            // Read beta flag and log status for debugging
+            if (BuildConfig.DEBUG) {
+                val betaPreferences = get<BetaPreferences>()
+                val experimentalComposeEnabled = betaPreferences.enableExperimentalComposeSettings().get()
+                logcat(LogPriority.DEBUG) {
+                    "Beta: Experimental Compose Settings enabled=$experimentalComposeEnabled"
+                }
+            }
         }
     }
 }
