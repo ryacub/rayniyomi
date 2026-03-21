@@ -48,7 +48,7 @@ fun TextPreferenceWidget(
                 Icon(
                     imageVector = icon,
                     tint = iconTint,
-                    contentDescription = null,
+                    contentDescription = null, // Decorative - title provides semantic meaning
                 )
             }
         } else {

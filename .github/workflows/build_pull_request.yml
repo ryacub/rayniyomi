@@ -123,13 +123,13 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: arm64-v8a-${{ github.sha }}
-          path: app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk
+          path: app/build/outputs/apk/stable/release/app-stable-arm64-v8a-release-unsigned.apk
 
       - name: Upload mapping
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: mapping-${{ github.sha }}
-          path: app/build/outputs/mapping/release
+          path: app/build/outputs/mapping/stableRelease
 
   test:
     name: Run unit tests
@@ -158,4 +158,4 @@ jobs:
           path: ~/.m2/repository/app/cash
 
       - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --build-cache
+        run: ./gradlew :app:testStableDebugUnitTest --build-cache
