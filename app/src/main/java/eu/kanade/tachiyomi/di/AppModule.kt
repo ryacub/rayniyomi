@@ -47,10 +47,10 @@ import eu.kanade.tachiyomi.ui.player.ExternalIntents
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.settings.BetaPreferences
 import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
-import logcat.LogPriority
-import logcat.logcat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import logcat.LogPriority
+import logcat.logcat
 import nl.adaptivity.xmlutil.XmlDeclMode.Charset
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
