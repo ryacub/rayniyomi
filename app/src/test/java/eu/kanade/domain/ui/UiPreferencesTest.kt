@@ -95,6 +95,44 @@ class UiPreferencesTest {
     }
 
     @Test
+    fun `recent custom accents normalize dedupe and keep mru order`() {
+        val preferences = UiPreferences(MutablePreferenceStore())
+
+        preferences.addCustomThemeRecentAccentSeed(0x00112233)
+        preferences.addCustomThemeRecentAccentSeed(0xFF445566.toInt())
+        preferences.addCustomThemeRecentAccentSeed(0x00112233)
+
+        assertEquals(
+            listOf(0xFF112233.toInt(), 0xFF445566.toInt()),
+            preferences.customThemeRecentAccentSeeds().get(),
+        )
+    }
+
+    @Test
+    fun `recent custom accents are limited to five and exclude unset sentinel`() {
+        val preferences = UiPreferences(MutablePreferenceStore())
+
+        preferences.addCustomThemeRecentAccentSeed(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
+        preferences.addCustomThemeRecentAccentSeed(0xFF000001.toInt())
+        preferences.addCustomThemeRecentAccentSeed(0xFF000002.toInt())
+        preferences.addCustomThemeRecentAccentSeed(0xFF000003.toInt())
+        preferences.addCustomThemeRecentAccentSeed(0xFF000004.toInt())
+        preferences.addCustomThemeRecentAccentSeed(0xFF000005.toInt())
+        preferences.addCustomThemeRecentAccentSeed(0xFF000006.toInt())
+
+        assertEquals(
+            listOf(
+                0xFF000006.toInt(),
+                0xFF000005.toInt(),
+                0xFF000004.toInt(),
+                0xFF000003.toInt(),
+                0xFF000002.toInt(),
+            ),
+            preferences.customThemeRecentAccentSeeds().get(),
+        )
+    }
+
+    @Test
     fun `theme mode falls back to default when stored enum value is invalid`() {
         val preferences = UiPreferences(
             MutablePreferenceStore(

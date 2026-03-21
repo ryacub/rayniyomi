@@ -19,9 +19,31 @@ class UiPreferences(
 
     companion object {
         const val CUSTOM_THEME_ACCENT_SEED_UNSET = Int.MIN_VALUE
+        private const val PREF_CUSTOM_THEME_RECENT_ACCENT_SEEDS = "pref_custom_theme_recent_accent_seeds"
+        private const val MAX_RECENT_CUSTOM_THEME_ACCENT_SEEDS = 5
+        private const val OPAQUE_ALPHA_MASK = 0xFF000000.toInt()
         fun dateFormat(format: String): DateTimeFormatter = when (format) {
             "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
             else -> DateTimeFormatter.ofPattern(format, Locale.getDefault())
+        }
+
+        internal fun normalizeRecentAccentSeeds(seeds: List<Int>): List<Int> {
+            return seeds
+                .asSequence()
+                .map { it or OPAQUE_ALPHA_MASK }
+                .filter { it != CUSTOM_THEME_ACCENT_SEED_UNSET }
+                .distinct()
+                .take(MAX_RECENT_CUSTOM_THEME_ACCENT_SEEDS)
+                .toList()
+        }
+
+        internal fun upsertRecentAccentSeed(
+            existing: List<Int>,
+            appliedSeed: Int,
+        ): List<Int> {
+            if (appliedSeed == CUSTOM_THEME_ACCENT_SEED_UNSET) return normalizeRecentAccentSeeds(existing)
+            val normalizedApplied = appliedSeed or OPAQUE_ALPHA_MASK
+            return normalizeRecentAccentSeeds(listOf(normalizedApplied) + existing)
         }
     }
 
@@ -42,6 +64,41 @@ class UiPreferences(
         "pref_custom_theme_accent_seed",
         CUSTOM_THEME_ACCENT_SEED_UNSET,
     )
+
+    fun customThemeRecentAccentSeeds() = preferenceStore.getObject(
+        key = PREF_CUSTOM_THEME_RECENT_ACCENT_SEEDS,
+        defaultValue = emptyList(),
+        serializer = { seeds ->
+            normalizeRecentAccentSeeds(seeds).joinToString(separator = ",") { normalized ->
+                normalized.toUInt().toString(16).padStart(8, '0')
+            }
+        },
+        deserializer = { encoded ->
+            if (encoded.isBlank()) {
+                emptyList()
+            } else {
+                normalizeRecentAccentSeeds(
+                    encoded.split(",")
+                        .mapNotNull { token ->
+                            token.trim()
+                                .takeIf { it.isNotEmpty() }
+                                ?.toUIntOrNull(16)
+                                ?.toInt()
+                        },
+                )
+            }
+        },
+    )
+
+    fun addCustomThemeRecentAccentSeed(seed: Int) {
+        val recentsPref = customThemeRecentAccentSeeds()
+        recentsPref.set(
+            upsertRecentAccentSeed(
+                existing = recentsPref.get(),
+                appliedSeed = seed,
+            ),
+        )
+    }
 
     fun relativeTime() = preferenceStore.getBoolean("relative_time_v2", true)
 

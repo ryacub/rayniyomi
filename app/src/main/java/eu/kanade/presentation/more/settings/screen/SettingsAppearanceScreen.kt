@@ -23,6 +23,7 @@ import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.screen.appearance.AdvancedCustomAccentScreen
 import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
@@ -64,6 +65,7 @@ object SettingsAppearanceScreen : SearchableSettings {
         uiPreferences: UiPreferences,
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
+        val navigator = LocalNavigator.currentOrThrow
 
         val themeModePref = uiPreferences.themeMode()
         val themeMode by themeModePref.collectAsStateWithLifecycle()
@@ -75,6 +77,8 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         val customThemeAccentSeedPref = uiPreferences.customThemeAccentSeed()
         val customThemeAccentSeed by customThemeAccentSeedPref.collectAsStateWithLifecycle()
+        val recentAccentSeedsPref = uiPreferences.customThemeRecentAccentSeeds()
+        val recentAccentSeeds by recentAccentSeedsPref.collectAsStateWithLifecycle()
 
         val amoledPref = uiPreferences.themeDarkAmoled()
         val amoled by amoledPref.collectAsStateWithLifecycle()
@@ -113,7 +117,12 @@ object SettingsAppearanceScreen : SearchableSettings {
                         if (appTheme == AppTheme.CUSTOM) {
                             CustomThemeAccentPreferenceWidget(
                                 selectedAccentSeed = customThemeAccentSeed,
+                                recentAccentSeeds = recentAccentSeeds,
                                 onSwatchClick = { selectedSeed ->
+                                    customThemeAccentSeedPref.set(normalizeAccentSeed(selectedSeed))
+                                    recreateForThemeChange()
+                                },
+                                onRecentColorClick = { selectedSeed ->
                                     customThemeAccentSeedPref.set(normalizeAccentSeed(selectedSeed))
                                     recreateForThemeChange()
                                 },
@@ -122,6 +131,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                                     customAccentPickerSession = nextCustomAccentPickerSession(customAccentPickerSession)
                                     showCustomAccentPicker = true
                                 },
+                                onOpenAdvancedEditor = { navigator.push(AdvancedCustomAccentScreen()) },
                                 onReset = {
                                     customThemeAccentSeedPref.set(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)
                                     recreateForThemeChange()

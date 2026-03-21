@@ -39,12 +39,15 @@ class CustomThemeAccentPreferenceWidgetAndroidTest {
             MaterialTheme {
                 CustomThemeAccentPreferenceWidget(
                     selectedAccentSeed = selectedAccentSeed,
+                    recentAccentSeeds = emptyList(),
                     onSwatchClick = { selectedAccentSeed = normalizeAccentSeed(it) },
+                    onRecentColorClick = { selectedAccentSeed = normalizeAccentSeed(it) },
                     onOpenPicker = {
                         pickerSeed = resolveInitialCustomAccentPickerSeed(selectedAccentSeed)
                         pickerSession = nextCustomAccentPickerSession(pickerSession)
                         showPicker = true
                     },
+                    onOpenAdvancedEditor = {},
                     onReset = { selectedAccentSeed = UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET },
                 )
                 if (showPicker) {
