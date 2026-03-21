@@ -108,6 +108,12 @@ android {
         }
     }
 
+    flavorDimensions += "track"
+    productFlavors {
+        create("stable") { isDefault = true }
+        create("beta") {}
+    }
+
     sourceSets {
         // AGP 9 + Crashlytics plugin can generate release mapping-file resources without wiring
         // them into mergeResources; include the release-generated folder explicitly so release
