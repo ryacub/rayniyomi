@@ -397,7 +397,7 @@ internal fun CustomThemeAccentEditor(
     previewSeed: Int,
     previewHex: String,
     previewDescription: String,
-    contrastWarningSummary: String?,
+    contrastWarningSummary: String? = null,
     hue: Float,
     onHueChange: (Float) -> Unit,
     hueDescription: String,
