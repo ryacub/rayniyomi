@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
@@ -36,6 +37,7 @@ class ThemeAppearanceFlowAndroidTest {
             var showPicker by mutableStateOf(false)
             var pickerSession by mutableIntStateOf(0)
             var pickerSeed by mutableIntStateOf(resolveInitialCustomAccentPickerSeed(selectedAccentSeed))
+            val recentAccentSeeds = mutableStateListOf<Int>()
 
             MaterialTheme {
                 Column {
@@ -50,12 +52,15 @@ class ThemeAppearanceFlowAndroidTest {
                     if (appTheme == AppTheme.CUSTOM) {
                         CustomThemeAccentPreferenceWidget(
                             selectedAccentSeed = selectedAccentSeed,
+                            recentAccentSeeds = recentAccentSeeds.toList(),
                             onSwatchClick = { selectedAccentSeed = normalizeAccentSeed(it) },
+                            onRecentColorClick = { selectedAccentSeed = normalizeAccentSeed(it) },
                             onOpenPicker = {
                                 pickerSeed = resolveInitialCustomAccentPickerSeed(selectedAccentSeed)
                                 pickerSession = nextCustomAccentPickerSession(pickerSession)
                                 showPicker = true
                             },
+                            onOpenAdvancedEditor = {},
                             onReset = { selectedAccentSeed = UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET },
                         )
                     }
@@ -65,7 +70,14 @@ class ThemeAppearanceFlowAndroidTest {
                             sessionKey = pickerSession,
                             initialSeed = pickerSeed,
                             onDismiss = { showPicker = false },
-                            onApply = { selectedAccentSeed = normalizeAccentSeed(it) },
+                            onApply = {
+                                selectedAccentSeed = normalizeAccentSeed(it)
+                                recentAccentSeeds.remove(selectedAccentSeed)
+                                recentAccentSeeds.add(0, selectedAccentSeed)
+                                if (recentAccentSeeds.size > 5) {
+                                    recentAccentSeeds.removeAt(recentAccentSeeds.lastIndex)
+                                }
+                            },
                         )
                     }
                 }
@@ -100,5 +112,7 @@ class ThemeAppearanceFlowAndroidTest {
         composeRule.onNodeWithText("Custom color…").performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onNodeWithText("Using default accent fallback").assertExists()
+
+        composeRule.onNodeWithText("Recent colors").assertExists()
     }
 }

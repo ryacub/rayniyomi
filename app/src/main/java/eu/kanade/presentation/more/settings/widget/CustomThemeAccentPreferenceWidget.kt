@@ -15,6 +15,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,8 +54,11 @@ internal val customAccentSwatches = listOf(
 @Composable
 internal fun CustomThemeAccentPreferenceWidget(
     selectedAccentSeed: Int,
+    recentAccentSeeds: List<Int>,
     onSwatchClick: (Int) -> Unit,
+    onRecentColorClick: (Int) -> Unit,
     onOpenPicker: () -> Unit,
+    onOpenAdvancedEditor: () -> Unit,
     onReset: () -> Unit,
 ) {
     BasePreferenceWidget(
@@ -122,6 +126,56 @@ internal fun CustomThemeAccentPreferenceWidget(
                     )
                 }
             }
+            if (recentAccentSeeds.isNotEmpty()) {
+                Text(
+                    text = stringResource(MR.strings.pref_custom_theme_recent_colors),
+                    modifier = Modifier.padding(horizontal = PrefsHorizontalPadding, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PrefsHorizontalPadding),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(recentAccentSeeds) { recentSeed ->
+                        val normalizedSeed = normalizeAccentSeed(recentSeed)
+                        val swatchHex = accentSeedToHex(normalizedSeed)
+                        val selected = normalizeAccentSeed(selectedAccentSeed) == normalizedSeed
+                        val swatchContentDescription = stringResource(
+                            MR.strings.pref_custom_theme_accent_swatch_content_description,
+                            swatchHex,
+                        )
+                        val swatchStateDescription = if (selected) selectedStateString else notSelectedStateString
+                        FilterChip(
+                            selected = selected,
+                            onClick = { onRecentColorClick(normalizedSeed) },
+                            label = {
+                                Text(
+                                    text = swatchHex,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            },
+                            leadingIcon = {
+                                Row(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .background(
+                                            color = androidx.compose.ui.graphics.Color(normalizedSeed),
+                                            shape = CircleShape,
+                                        ),
+                                ) {}
+                            },
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .semantics {
+                                    contentDescription = swatchContentDescription
+                                    stateDescription = swatchStateDescription
+                                },
+                        )
+                    }
+                }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -150,6 +204,14 @@ internal fun CustomThemeAccentPreferenceWidget(
                 ) {
                     Text(text = stringResource(MR.strings.pref_custom_theme_reset_accent))
                 }
+            }
+            OutlinedButton(
+                onClick = onOpenAdvancedEditor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PrefsHorizontalPadding),
+            ) {
+                Text(text = stringResource(MR.strings.pref_custom_theme_advanced_editor))
             }
         },
     )
@@ -181,56 +243,20 @@ internal fun CustomThemeColorPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = stringResource(MR.strings.pref_custom_theme_picker_title)) },
         text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(MR.strings.pref_custom_theme_accent_using, previewHex),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .background(
-                            color = androidx.compose.ui.graphics.Color(previewSeed),
-                            shape = MaterialTheme.shapes.medium,
-                        )
-                        .semantics {
-                            contentDescription = previewDescription
-                        },
-                ) {}
-
-                Text(text = stringResource(MR.strings.pref_custom_theme_picker_hue))
-                Slider(
-                    value = hue,
-                    onValueChange = { hue = it.coerceIn(0f, HUE_MAX) },
-                    valueRange = 0f..HUE_MAX,
-                    modifier = Modifier.semantics {
-                        contentDescription = hueDescription
-                    },
-                )
-
-                Text(text = stringResource(MR.strings.pref_custom_theme_picker_saturation))
-                Slider(
-                    value = saturation,
-                    onValueChange = { saturation = it.coerceIn(0f, SATURATION_MAX) },
-                    valueRange = 0f..SATURATION_MAX,
-                    modifier = Modifier.semantics {
-                        contentDescription = saturationDescription
-                    },
-                )
-
-                Text(text = stringResource(MR.strings.pref_custom_theme_picker_value))
-                Slider(
-                    value = value,
-                    onValueChange = { value = it.coerceIn(0f, VALUE_MAX) },
-                    valueRange = 0f..VALUE_MAX,
-                    modifier = Modifier.semantics {
-                        contentDescription = valueDescription
-                    },
-                )
-            }
+            CustomThemeAccentEditor(
+                previewSeed = previewSeed,
+                previewHex = previewHex,
+                previewDescription = previewDescription,
+                hue = hue,
+                onHueChange = { hue = it },
+                hueDescription = hueDescription,
+                saturation = saturation,
+                onSaturationChange = { saturation = it },
+                saturationDescription = saturationDescription,
+                value = value,
+                onValueChange = { value = it },
+                valueDescription = valueDescription,
+            )
         },
         confirmButton = {
             TextButton(
@@ -248,6 +274,73 @@ internal fun CustomThemeColorPickerDialog(
             }
         },
     )
+}
+
+@Composable
+internal fun CustomThemeAccentEditor(
+    previewSeed: Int,
+    previewHex: String,
+    previewDescription: String,
+    hue: Float,
+    onHueChange: (Float) -> Unit,
+    hueDescription: String,
+    saturation: Float,
+    onSaturationChange: (Float) -> Unit,
+    saturationDescription: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueDescription: String,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = stringResource(MR.strings.pref_custom_theme_accent_using, previewHex),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(
+                    color = androidx.compose.ui.graphics.Color(previewSeed),
+                    shape = MaterialTheme.shapes.medium,
+                )
+                .semantics {
+                    contentDescription = previewDescription
+                },
+        ) {}
+
+        Text(text = stringResource(MR.strings.pref_custom_theme_picker_hue))
+        Slider(
+            value = hue,
+            onValueChange = { onHueChange(it.coerceIn(0f, HUE_MAX)) },
+            valueRange = 0f..HUE_MAX,
+            modifier = Modifier.semantics {
+                contentDescription = hueDescription
+            },
+        )
+
+        Text(text = stringResource(MR.strings.pref_custom_theme_picker_saturation))
+        Slider(
+            value = saturation,
+            onValueChange = { onSaturationChange(it.coerceIn(0f, SATURATION_MAX)) },
+            valueRange = 0f..SATURATION_MAX,
+            modifier = Modifier.semantics {
+                contentDescription = saturationDescription
+            },
+        )
+
+        Text(text = stringResource(MR.strings.pref_custom_theme_picker_value))
+        Slider(
+            value = value,
+            onValueChange = { onValueChange(it.coerceIn(0f, VALUE_MAX)) },
+            valueRange = 0f..VALUE_MAX,
+            modifier = Modifier.semantics {
+                contentDescription = valueDescription
+            },
+        )
+    }
 }
 
 internal fun normalizeAccentSeed(seed: Int): Int = seed or OPAQUE_ALPHA_MASK
