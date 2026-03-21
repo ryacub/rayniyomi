@@ -9,14 +9,14 @@ class ReleaseTest {
 
     @ParameterizedTest
     @CsvSource(
-        "STABLE, false, true",      // STABLE + includePrerelease=false → true
-        "STABLE, true, true",       // STABLE + includePrerelease=true → true
+        "STABLE, false, true", // STABLE + includePrerelease=false → true
+        "STABLE, true, true", // STABLE + includePrerelease=true → true
         "PRERELEASE, false, false", // PRERELEASE + includePrerelease=false → false
-        "PRERELEASE, true, true",   // PRERELEASE + includePrerelease=true → true
-        "DRAFT, false, false",      // DRAFT + includePrerelease=false → false
-        "DRAFT, true, false",       // DRAFT + includePrerelease=true → false (drafts never usable)
+        "PRERELEASE, true, true", // PRERELEASE + includePrerelease=true → true
+        "DRAFT, false, false", // DRAFT + includePrerelease=false → false
+        "DRAFT, true, false", // DRAFT + includePrerelease=true → false (drafts never usable)
         "DEPRECATED, false, false", // DEPRECATED + includePrerelease=false → false
-        "DEPRECATED, true, false",  // DEPRECATED + includePrerelease=true → false (deprecated never usable)
+        "DEPRECATED, true, false", // DEPRECATED + includePrerelease=true → false (deprecated never usable)
     )
     fun `isUsable filters by quality and includePrerelease setting`(
         quality: ReleaseQuality,
