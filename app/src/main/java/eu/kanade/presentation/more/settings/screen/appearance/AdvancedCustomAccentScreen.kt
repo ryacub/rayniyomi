@@ -31,6 +31,8 @@ import tachiyomi.presentation.core.i18n.stringResource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+private const val DEFAULT_ADVANCED_ACCENT_SEED = 0xFF1E88E5.toInt()
+
 class AdvancedCustomAccentScreen : Screen() {
 
     @Composable
@@ -42,7 +44,7 @@ class AdvancedCustomAccentScreen : Screen() {
         val currentSeed = remember(customAccentSeedPref) { customAccentSeedPref.get() }
         val initialSeed = remember(currentSeed) {
             if (currentSeed == UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET) {
-                0xFF1E88E5.toInt()
+                DEFAULT_ADVANCED_ACCENT_SEED
             } else {
                 normalizeAccentSeed(currentSeed)
             }

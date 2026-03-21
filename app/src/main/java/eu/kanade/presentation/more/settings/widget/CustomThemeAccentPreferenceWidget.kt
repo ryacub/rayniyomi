@@ -36,6 +36,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import android.graphics.Color as AndroidColor
 
 private const val OPAQUE_ALPHA_MASK = -0x1000000
+private const val RGB_COLOR_MASK = 0x00FFFFFF
 private const val HUE_MAX = 360f
 private const val SATURATION_MAX = 1f
 private const val VALUE_MAX = 1f
@@ -384,6 +385,6 @@ internal fun hsvToAccentSeed(
 }
 
 internal fun accentSeedToHex(seed: Int): String {
-    val rgb = normalizeAccentSeed(seed) and 0x00FFFFFF
+    val rgb = normalizeAccentSeed(seed) and RGB_COLOR_MASK
     return "#%06X".format(rgb)
 }
