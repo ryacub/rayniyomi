@@ -64,7 +64,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Remove unused `CoroutineScope` parameter from `PlayerMpvInitializer` constructor
 - Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager`; converted 4 deferred TODO comments to tracked GitHub issues (#536–#539)
 - Backfilled missing `Unreleased` entries from previously merged Codex PRs, deduped against existing changelog items
-- Harden custom accent preference schema migration safety: schema-first read, malformed/unknown-version fallback to legacy/unset, dual-write compatibility for downgrade paths, and delete/isSet reactive stability improvements (R568, PR [#598](https://github.com/ryacub/rayniyomi/pull/598))
+- Harden custom accent preference schema migration safety: schema-first read, malformed/unknown-version fallback to legacy/unset, dual-write compatibility for downgrade paths, and delete/isSet reactive stability improvements
 
 ## [0.18.1.75] - 2026-03-13
 
