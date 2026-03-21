@@ -21,8 +21,6 @@ data class Release(
         return when (quality) {
             ReleaseQuality.STABLE -> true
             ReleaseQuality.PRERELEASE -> includePrerelease
-            ReleaseQuality.DRAFT -> false
-            ReleaseQuality.DEPRECATED -> false
         }
     }
 }

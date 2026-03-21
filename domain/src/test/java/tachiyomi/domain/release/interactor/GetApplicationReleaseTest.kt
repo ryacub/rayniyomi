@@ -228,64 +228,6 @@ class GetApplicationReleaseTest {
     }
 
     @Test
-    fun `When release quality is DRAFT and includePrerelease true expect no new update`() = runTest {
-        every { preference.get() } returns 0
-        every { preference.set(any()) }.answers { }
-
-        val release = Release(
-            "v2.0.0",
-            "info",
-            "http://example.com/release_link",
-            "http://example.com/release_link.apk",
-            quality = ReleaseQuality.DRAFT,
-        )
-
-        coEvery { releaseService.latest(any()) } returns release
-
-        val result = getApplicationRelease.await(
-            GetApplicationRelease.Arguments(
-                isPreview = false,
-                commitCount = 0,
-                versionName = "v1.0.0",
-                repository = "test",
-                forceCheck = false,
-                includePrerelease = true,
-            ),
-        )
-
-        result shouldBe GetApplicationRelease.Result.NoNewUpdate
-    }
-
-    @Test
-    fun `When release quality is DEPRECATED and includePrerelease false expect no new update`() = runTest {
-        every { preference.get() } returns 0
-        every { preference.set(any()) }.answers { }
-
-        val release = Release(
-            "v2.0.0",
-            "info",
-            "http://example.com/release_link",
-            "http://example.com/release_link.apk",
-            quality = ReleaseQuality.DEPRECATED,
-        )
-
-        coEvery { releaseService.latest(any()) } returns release
-
-        val result = getApplicationRelease.await(
-            GetApplicationRelease.Arguments(
-                isPreview = false,
-                commitCount = 0,
-                versionName = "v1.0.0",
-                repository = "test",
-                forceCheck = false,
-                includePrerelease = false,
-            ),
-        )
-
-        result shouldBe GetApplicationRelease.Result.NoNewUpdate
-    }
-
-    @Test
     fun `When service returns null expect no new update`() = runTest {
         every { preference.get() } returns 0
         every { preference.set(any()) }.answers { }

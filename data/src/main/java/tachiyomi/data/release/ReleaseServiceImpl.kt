@@ -30,8 +30,6 @@ class ReleaseServiceImpl(
         val quality = releaseClassifier.classify(
             tagName = release.version,
             prerelease = release.prerelease,
-            draft = release.draft,
-            body = release.info,
         )
 
         return Release(

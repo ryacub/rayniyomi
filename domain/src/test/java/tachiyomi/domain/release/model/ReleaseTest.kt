@@ -13,10 +13,6 @@ class ReleaseTest {
         "STABLE, true, true", // STABLE + includePrerelease=true → true
         "PRERELEASE, false, false", // PRERELEASE + includePrerelease=false → false
         "PRERELEASE, true, true", // PRERELEASE + includePrerelease=true → true
-        "DRAFT, false, false", // DRAFT + includePrerelease=false → false
-        "DRAFT, true, false", // DRAFT + includePrerelease=true → false (drafts never usable)
-        "DEPRECATED, false, false", // DEPRECATED + includePrerelease=false → false
-        "DEPRECATED, true, false", // DEPRECATED + includePrerelease=true → false (deprecated never usable)
     )
     fun `isUsable filters by quality and includePrerelease setting`(
         quality: ReleaseQuality,
@@ -47,34 +43,6 @@ class ReleaseTest {
         )
 
         release.isUsable(includePrerelease = false) shouldBe true
-    }
-
-    @Test
-    fun `isUsable returns false for draft release regardless of includePrerelease`() {
-        val release = Release(
-            version = "1.0.0",
-            info = "Draft release",
-            releaseLink = "https://example.com",
-            downloadLink = "https://example.com/download",
-            quality = ReleaseQuality.DRAFT,
-        )
-
-        release.isUsable(includePrerelease = false) shouldBe false
-        release.isUsable(includePrerelease = true) shouldBe false
-    }
-
-    @Test
-    fun `isUsable returns false for deprecated release regardless of includePrerelease`() {
-        val release = Release(
-            version = "1.0.0",
-            info = "Deprecated release",
-            releaseLink = "https://example.com",
-            downloadLink = "https://example.com/download",
-            quality = ReleaseQuality.DEPRECATED,
-        )
-
-        release.isUsable(includePrerelease = false) shouldBe false
-        release.isUsable(includePrerelease = true) shouldBe false
     }
 
     @Test
