@@ -82,6 +82,7 @@ class ThemeAppearanceFlowAndroidTest {
         composeRule.onNodeWithTag("theme_set_custom").performClick()
 
         composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_SWATCH_ROW, useUnmergedTree = true).assertExists()
+        // Assert the primary control sequence expected by the custom-accent accessibility contract.
         composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_PICK).assertExists()
         composeRule.onNodeWithTag(TAG_CUSTOM_ACCENT_BUTTON_RESET).assertExists()
 
