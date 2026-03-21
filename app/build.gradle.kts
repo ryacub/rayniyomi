@@ -115,14 +115,6 @@ android {
     }
 
     sourceSets {
-        // With the 'track' flavor dimension, Crashlytics generates per-variant resource dirs.
-        // Include them explicitly so release APKs contain the Crashlytics build ID metadata.
-        getByName("stableRelease") {
-            res.srcDir("build/generated/res/injectCrashlyticsMappingFileIdStableRelease")
-        }
-        getByName("betaRelease") {
-            res.srcDir("build/generated/res/injectCrashlyticsMappingFileIdBetaRelease")
-        }
         getByName("preview") { res.srcDir("src/debug/res") }
         getByName("benchmark") { res.srcDir("src/debug/res") }
     }
@@ -201,6 +193,20 @@ android {
     lint {
         abortOnError = false
         checkReleaseBuilds = false
+    }
+}
+
+// AGP 9 + Crashlytics plugin does not automatically wire release mapping-file resources into
+// mergeResources. Register the per-variant generated dirs after evaluation so release APKs
+// contain the Crashlytics build ID metadata required at runtime.
+// Variant source sets (e.g. "stableRelease") only exist after AGP processes flavors.
+afterEvaluate {
+    listOf(
+        "stableRelease" to "injectCrashlyticsMappingFileIdStableRelease",
+        "betaRelease" to "injectCrashlyticsMappingFileIdBetaRelease",
+    ).forEach { (sourceSetName, generatedDir) ->
+        android.sourceSets.findByName(sourceSetName)
+            ?.res?.srcDir("build/generated/res/$generatedDir")
     }
 }
 
