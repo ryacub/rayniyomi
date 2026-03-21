@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Translate
@@ -47,6 +48,7 @@ import eu.kanade.presentation.more.settings.screen.about.AboutScreen
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.ui.setting.PlayerSettingsScreen
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
@@ -177,88 +179,107 @@ object SettingsMainScreen : Screen() {
         val screen: VoyagerScreen,
     )
 
-    private val items = listOf(
-        Item(
-            titleRes = MR.strings.pref_category_appearance,
-            subtitleRes = MR.strings.pref_appearance_summary,
-            icon = Icons.Outlined.Palette,
-            screen = SettingsAppearanceScreen,
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_library,
-            subtitleRes = AYMR.strings.pref_library_summary,
-            icon = Icons.Outlined.CollectionsBookmark,
-            screen = SettingsLibraryScreen,
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_reader,
-            subtitleRes = MR.strings.pref_reader_summary,
-            icon = Icons.AutoMirrored.Outlined.ChromeReaderMode,
-            screen = SettingsReaderScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_category_light_novels,
-            subtitleRes = AYMR.strings.pref_light_novel_settings_summary,
-            icon = Icons.Outlined.MenuBook,
-            screen = SettingsLightNovelScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.label_player,
-            subtitleRes = AYMR.strings.pref_player_settings_summary,
-            icon = Icons.Outlined.VideoSettings,
-            screen = PlayerSettingsScreen(mainSettings = true),
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_downloads,
-            subtitleRes = MR.strings.pref_downloads_summary,
-            icon = Icons.Outlined.GetApp,
-            screen = SettingsDownloadScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_category_translation,
-            subtitleRes = AYMR.strings.pref_translation_summary,
-            icon = Icons.Outlined.Translate,
-            screen = SettingsTranslationScreen,
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_tracking,
-            subtitleRes = MR.strings.pref_tracking_summary,
-            icon = Icons.Outlined.Sync,
-            screen = SettingsTrackingScreen,
-        ),
-        Item(
-            titleRes = MR.strings.browse,
-            subtitleRes = MR.strings.pref_browse_summary,
-            icon = Icons.Outlined.Explore,
-            screen = SettingsBrowseScreen,
-        ),
-        Item(
-            titleRes = MR.strings.label_data_storage,
-            subtitleRes = MR.strings.pref_backup_summary,
-            icon = Icons.Outlined.Storage,
-            screen = SettingsDataScreen,
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_security,
-            subtitleRes = MR.strings.pref_security_summary,
-            icon = Icons.Outlined.Security,
-            screen = SettingsSecurityScreen,
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_advanced,
-            subtitleRes = MR.strings.pref_advanced_summary,
-            icon = Icons.Outlined.Code,
-            screen = SettingsAdvancedScreen,
-        ),
-        Item(
-            titleRes = MR.strings.pref_category_about,
-            formatSubtitle = {
-                "${stringResource(MR.strings.app_name)} ${AboutScreen.getVersionName(
-                    withBuildDate = false,
-                )}"
-            },
-            icon = Icons.Outlined.Info,
-            screen = AboutScreen,
-        ),
-    )
+    private val items: List<Item>
+        get() {
+            val baseItems = mutableListOf(
+                Item(
+                    titleRes = MR.strings.pref_category_appearance,
+                    subtitleRes = MR.strings.pref_appearance_summary,
+                    icon = Icons.Outlined.Palette,
+                    screen = SettingsAppearanceScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.pref_category_library,
+                    subtitleRes = AYMR.strings.pref_library_summary,
+                    icon = Icons.Outlined.CollectionsBookmark,
+                    screen = SettingsLibraryScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.pref_category_reader,
+                    subtitleRes = MR.strings.pref_reader_summary,
+                    icon = Icons.AutoMirrored.Outlined.ChromeReaderMode,
+                    screen = SettingsReaderScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_category_light_novels,
+                    subtitleRes = AYMR.strings.pref_light_novel_settings_summary,
+                    icon = Icons.Outlined.MenuBook,
+                    screen = SettingsLightNovelScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.label_player,
+                    subtitleRes = AYMR.strings.pref_player_settings_summary,
+                    icon = Icons.Outlined.VideoSettings,
+                    screen = PlayerSettingsScreen(mainSettings = true),
+                ),
+                Item(
+                    titleRes = MR.strings.pref_category_downloads,
+                    subtitleRes = MR.strings.pref_downloads_summary,
+                    icon = Icons.Outlined.GetApp,
+                    screen = SettingsDownloadScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_category_translation,
+                    subtitleRes = AYMR.strings.pref_translation_summary,
+                    icon = Icons.Outlined.Translate,
+                    screen = SettingsTranslationScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.pref_category_tracking,
+                    subtitleRes = MR.strings.pref_tracking_summary,
+                    icon = Icons.Outlined.Sync,
+                    screen = SettingsTrackingScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.browse,
+                    subtitleRes = MR.strings.pref_browse_summary,
+                    icon = Icons.Outlined.Explore,
+                    screen = SettingsBrowseScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.label_data_storage,
+                    subtitleRes = MR.strings.pref_backup_summary,
+                    icon = Icons.Outlined.Storage,
+                    screen = SettingsDataScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.pref_category_security,
+                    subtitleRes = MR.strings.pref_security_summary,
+                    icon = Icons.Outlined.Security,
+                    screen = SettingsSecurityScreen,
+                ),
+                Item(
+                    titleRes = MR.strings.pref_category_advanced,
+                    subtitleRes = MR.strings.pref_advanced_summary,
+                    icon = Icons.Outlined.Code,
+                    screen = SettingsAdvancedScreen,
+                ),
+            )
+
+            if (BuildConfig.DEBUG || BuildConfig.FLAVOR == "beta") {
+                baseItems.add(
+                    Item(
+                        titleRes = MR.strings.pref_category_beta,
+                        subtitleRes = MR.strings.pref_beta_summary,
+                        icon = Icons.Outlined.Star,
+                        screen = SettingsBetaScreen,
+                    ),
+                )
+            }
+
+            baseItems.add(
+                Item(
+                    titleRes = MR.strings.pref_category_about,
+                    formatSubtitle = {
+                        "${stringResource(MR.strings.app_name)} ${AboutScreen.getVersionName(
+                            withBuildDate = false,
+                        )}"
+                    },
+                    icon = Icons.Outlined.Info,
+                    screen = AboutScreen,
+                ),
+            )
+
+            return baseItems
+        }
 }
