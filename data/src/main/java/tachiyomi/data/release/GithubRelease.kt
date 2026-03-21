@@ -18,8 +18,6 @@ data class GithubRelease(
     val assets: List<GitHubAsset>,
     @SerialName("prerelease")
     val prerelease: Boolean = false,
-    @SerialName("draft")
-    val draft: Boolean = false,
 )
 
 /**
