@@ -19,7 +19,9 @@ class UiPreferences(
 
     companion object {
         const val CUSTOM_THEME_ACCENT_SEED_UNSET = Int.MIN_VALUE
-        private const val CUSTOM_THEME_RECENT_ACCENT_LIMIT = 5
+        private const val PREF_CUSTOM_THEME_RECENT_ACCENT_SEEDS = "pref_custom_theme_recent_accent_seeds"
+        private const val MAX_RECENT_CUSTOM_THEME_ACCENT_SEEDS = 5
+        private const val OPAQUE_ALPHA_MASK = 0xFF000000.toInt()
         fun dateFormat(format: String): DateTimeFormatter = when (format) {
             "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
             else -> DateTimeFormatter.ofPattern(format, Locale.getDefault())
@@ -28,10 +30,10 @@ class UiPreferences(
         internal fun normalizeRecentAccentSeeds(seeds: List<Int>): List<Int> {
             return seeds
                 .asSequence()
-                .map { it or 0xFF000000.toInt() }
+                .map { it or OPAQUE_ALPHA_MASK }
                 .filter { it != CUSTOM_THEME_ACCENT_SEED_UNSET }
                 .distinct()
-                .take(CUSTOM_THEME_RECENT_ACCENT_LIMIT)
+                .take(MAX_RECENT_CUSTOM_THEME_ACCENT_SEEDS)
                 .toList()
         }
 
@@ -40,7 +42,7 @@ class UiPreferences(
             appliedSeed: Int,
         ): List<Int> {
             if (appliedSeed == CUSTOM_THEME_ACCENT_SEED_UNSET) return normalizeRecentAccentSeeds(existing)
-            val normalizedApplied = appliedSeed or 0xFF000000.toInt()
+            val normalizedApplied = appliedSeed or OPAQUE_ALPHA_MASK
             return normalizeRecentAccentSeeds(listOf(normalizedApplied) + existing)
         }
     }
@@ -64,7 +66,7 @@ class UiPreferences(
     )
 
     fun customThemeRecentAccentSeeds() = preferenceStore.getObject(
-        key = "pref_custom_theme_recent_accent_seeds",
+        key = PREF_CUSTOM_THEME_RECENT_ACCENT_SEEDS,
         defaultValue = emptyList(),
         serializer = { seeds ->
             normalizeRecentAccentSeeds(seeds).joinToString(separator = ",") { normalized ->
