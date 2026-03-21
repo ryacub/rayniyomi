@@ -25,6 +25,7 @@ class AppUpdateChecker {
                     BuildConfig.VERSION_NAME,
                     GITHUB_REPO,
                     forceCheck,
+                    includePrerelease = isPreviewBuildType,
                 ),
             )
 

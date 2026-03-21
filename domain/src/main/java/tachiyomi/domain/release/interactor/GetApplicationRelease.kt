@@ -30,6 +30,11 @@ class GetApplicationRelease(
 
         val release = service.latest(arguments) ?: return Result.NoNewUpdate
 
+        // Filter by release quality and user preference
+        if (!release.isUsable(arguments.includePrerelease)) {
+            return Result.NoNewUpdate
+        }
+
         lastChecked.set(now.toEpochMilli())
 
         // Check if latest version is different from current version
@@ -81,6 +86,7 @@ class GetApplicationRelease(
         val versionName: String,
         val repository: String,
         val forceCheck: Boolean = false,
+        val includePrerelease: Boolean = false,
     )
 
     sealed interface Result {
