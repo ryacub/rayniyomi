@@ -29,6 +29,11 @@ object SettingsBetaScreen : SearchableSettings {
                 title = stringResource(MR.strings.pref_enable_experimental_compose_settings),
                 subtitle = stringResource(MR.strings.pref_experimental_compose_settings_summary),
             ),
+            Preference.PreferenceItem.SwitchPreference(
+                preference = betaPreferences.enableExperimentalThemingSettings(),
+                title = stringResource(MR.strings.pref_enable_experimental_theming_settings),
+                subtitle = stringResource(MR.strings.pref_experimental_theming_settings_summary),
+            ),
         )
     }
 }

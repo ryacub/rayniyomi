@@ -54,6 +54,36 @@ class BetaPreferencesTest {
         assertTrue(allPreferences.containsKey("beta_enable_experimental_compose_settings"))
     }
 
+    @Test
+    fun `enableExperimentalThemingSettings returns false by default when preference not set`() {
+        val store = MutablePreferenceStore()
+
+        val preferences = BetaPreferences(store)
+
+        assertFalse(preferences.enableExperimentalThemingSettings().get())
+    }
+
+    @Test
+    fun `enableExperimentalThemingSettings persists true value`() {
+        val store = MutablePreferenceStore()
+        val preferences = BetaPreferences(store)
+
+        preferences.enableExperimentalThemingSettings().set(true)
+
+        assertTrue(preferences.enableExperimentalThemingSettings().get())
+    }
+
+    @Test
+    fun `enableExperimentalThemingSettings uses beta_ prefixed key`() {
+        val store = MutablePreferenceStore()
+        val preferences = BetaPreferences(store)
+
+        preferences.enableExperimentalThemingSettings().set(true)
+
+        val allPreferences = store.getAll()
+        assertTrue(allPreferences.containsKey("beta_enable_experimental_theming_settings"))
+    }
+
     private class MutablePreferenceStore(initialValues: Map<String, Any?> = emptyMap()) : PreferenceStore {
         private val data = initialValues.toMutableMap()
 

@@ -3,6 +3,7 @@ package eu.kanade.presentation.more.settings.screen
 import android.app.Activity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -30,6 +31,7 @@ import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.CustomThemeAccentPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.CustomThemeColorPickerDialog
 import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
+import eu.kanade.tachiyomi.ui.settings.BetaPreferences
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -79,6 +81,9 @@ object SettingsAppearanceScreen : SearchableSettings {
         val customThemeAccentSeed by customThemeAccentSeedPref.collectAsStateWithLifecycle()
         val recentAccentSeedsPref = uiPreferences.customThemeRecentAccentSeeds()
         val recentAccentSeeds by recentAccentSeedsPref.collectAsStateWithLifecycle()
+        val betaPreferences = remember { Injekt.get<BetaPreferences>() }
+        val experimentalThemingPref = betaPreferences.enableExperimentalThemingSettings()
+        val experimentalThemingEnabled by experimentalThemingPref.collectAsStateWithLifecycle()
 
         val amoledPref = uiPreferences.themeDarkAmoled()
         val amoled by amoledPref.collectAsStateWithLifecycle()
@@ -87,6 +92,12 @@ object SettingsAppearanceScreen : SearchableSettings {
         var customAccentPickerSeed by rememberSaveable { mutableIntStateOf(DEFAULT_CUSTOM_ACCENT_PICKER_SEED) }
         var customAccentPickerSession by rememberSaveable { mutableIntStateOf(0) }
         var customAccentAccessibilityAnnouncement by rememberSaveable { mutableStateOf<String?>(null) }
+
+        LaunchedEffect(experimentalThemingEnabled) {
+            if (!experimentalThemingEnabled) {
+                showCustomAccentPicker = false
+            }
+        }
 
         fun recreateForThemeChange() {
             (context as? Activity)?.let { ActivityCompat.recreate(it) }
@@ -115,7 +126,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                             onCustomAccentSeedChange = { customAccentSeedPref.set(it) },
                         )
 
-                        if (appTheme == AppTheme.CUSTOM) {
+                        if (appTheme == AppTheme.CUSTOM && experimentalThemingEnabled) {
                             CustomThemeAccentPreferenceWidget(
                                 selectedAccentSeed = customThemeAccentSeed,
                                 recentAccentSeeds = recentAccentSeeds,
@@ -144,7 +155,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                             )
                         }
 
-                        if (showCustomAccentPicker) {
+                        if (experimentalThemingEnabled && showCustomAccentPicker) {
                             CustomThemeColorPickerDialog(
                                 sessionKey = customAccentPickerSession,
                                 initialSeed = customAccentPickerSeed,

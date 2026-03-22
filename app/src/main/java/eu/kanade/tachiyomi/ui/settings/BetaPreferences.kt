@@ -10,4 +10,9 @@ class BetaPreferences(
         "beta_enable_experimental_compose_settings",
         false,
     )
+
+    fun enableExperimentalThemingSettings() = preferenceStore.getBoolean(
+        "beta_enable_experimental_theming_settings",
+        false,
+    )
 }

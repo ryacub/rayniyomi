@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 - **Beta/Experimental settings section** — new dedicated settings screen for beta features and experimental UI; gated to debug builds and beta flavor; includes `enableExperimentalComposeSettings()` flag for Phase 28 Compose migration UI surfaces with persistence via PreferenceStore
+- **Beta theming toggle** — added `Enable Experimental Theming Settings` in Beta settings to gate advanced custom theme controls (recent colors + advanced accent editor) behind explicit opt-in
 - **Custom accent color theme** — Material 3 app-wide theming from a user-selected accent seed; generates light/dark color schemes with Android 14 contrast-awareness and readability guardrails (contrast clamp + fallback)
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
 - **Custom app theme accent controls** — custom app theme is now selectable in Appearance settings with curated accent swatches and one-tap reset to default palette
