@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -61,6 +62,7 @@ import eu.kanade.tachiyomi.util.system.LocaleHelper
 import eu.kanade.tachiyomi.util.system.launchRequestPackageInstallsPermission
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.padding
@@ -459,9 +461,9 @@ private fun AnimeExtensionAvailabilityBadge(
         AnimeExtensionUiModel.HealthStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val contentDesc = when (status) {
-        AnimeExtensionUiModel.HealthStatus.HEALTHY -> "Reachable"
-        AnimeExtensionUiModel.HealthStatus.BROKEN -> "Unreachable"
-        AnimeExtensionUiModel.HealthStatus.UNKNOWN -> "Availability unknown"
+        AnimeExtensionUiModel.HealthStatus.HEALTHY -> stringResource(AYMR.strings.ext_availability_reachable)
+        AnimeExtensionUiModel.HealthStatus.BROKEN -> stringResource(AYMR.strings.ext_availability_unreachable)
+        AnimeExtensionUiModel.HealthStatus.UNKNOWN -> stringResource(AYMR.strings.ext_availability_unknown)
     }
     if (onRetryClick != null) {
         IconButton(onClick = onRetryClick) {
@@ -479,6 +481,16 @@ private fun AnimeExtensionAvailabilityBadge(
             tint = tint,
             modifier = modifier.size(16.dp),
         )
+    }
+}
+
+@Preview
+@Composable
+private fun AnimeExtensionAvailabilityBadgePreview() {
+    Row {
+        AnimeExtensionAvailabilityBadge(status = AnimeExtensionUiModel.HealthStatus.HEALTHY, onRetryClick = {})
+        AnimeExtensionAvailabilityBadge(status = AnimeExtensionUiModel.HealthStatus.BROKEN, onRetryClick = {})
+        AnimeExtensionAvailabilityBadge(status = AnimeExtensionUiModel.HealthStatus.UNKNOWN, onRetryClick = null)
     }
 }
 
