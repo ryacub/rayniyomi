@@ -17,7 +17,6 @@ import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import eu.kanade.tachiyomi.ui.settings.BetaPreferences
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import tachiyomi.core.common.preference.AndroidPreferenceStore
 import tachiyomi.core.common.preference.PreferenceStore
@@ -98,9 +97,6 @@ class PreferenceModule(val app: Application) : InjektModule {
         }
         addSingletonFactory {
             NovelFeaturePreferences(get())
-        }
-        addSingletonFactory {
-            BetaPreferences(get())
         }
     }
 }
