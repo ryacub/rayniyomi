@@ -9,7 +9,9 @@ on:
       - 'app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAppearanceScreen.kt'
       - 'app/src/main/java/eu/kanade/presentation/more/settings/widget/AppThemePreferenceWidget.kt'
       - 'app/src/main/java/eu/kanade/presentation/more/onboarding/ThemeStep.kt'
-      - 'app/src/androidTest/**'
+      - 'app/src/androidTest/java/eu/kanade/presentation/theme/**'
+      - 'app/src/androidTest/java/eu/kanade/presentation/more/settings/widget/CustomThemeAccentPreferenceWidgetAndroidTest.kt'
+      - 'app/src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt'
       - '.github/workflows/theme_instrumentation_pr.yml'
   workflow_dispatch:
 
