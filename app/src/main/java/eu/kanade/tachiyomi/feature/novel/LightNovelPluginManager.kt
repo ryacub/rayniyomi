@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import eu.kanade.domain.novel.NovelFeaturePreferences
-import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -72,7 +71,6 @@ class LightNovelPluginManager(
         MANIFEST_HOST_TOO_OLD,
         MANIFEST_HOST_TOO_NEW,
         MANIFEST_PLUGIN_TOO_OLD,
-        MANIFEST_WRONG_CHANNEL,
         DOWNLOAD_FAILED,
         INVALID_PLUGIN_APK,
         ARCHIVE_PACKAGE_MISMATCH,
@@ -105,14 +103,14 @@ class LightNovelPluginManager(
         )
     }
 
-    suspend fun ensurePluginReady(channel: String): InstallResult {
+    suspend fun ensurePluginReady(): InstallResult {
         val installDeferred = inFlightInstallMutex.withLock {
             val inFlight = inFlightInstall
             if (inFlight != null && inFlight.isActive) {
                 inFlight
             } else {
                 installScope.async {
-                    ensurePluginReadyInternal(channel)
+                    ensurePluginReadyInternal()
                 }.also {
                     inFlightInstall = it
                 }
@@ -131,7 +129,8 @@ class LightNovelPluginManager(
         logcat { "pinLastKnownGoodVersion: pinned $versionCode" }
     }
 
-    private suspend fun ensurePluginReadyInternal(channel: String): InstallResult {
+    private suspend fun ensurePluginReadyInternal(): InstallResult {
+        val channel = NovelFeaturePreferences.CHANNEL_STABLE
         if (!isPluginInstallEnabled()) {
             return InstallResult.Error(InstallErrorCode.INSTALL_DISABLED)
         }
@@ -140,7 +139,7 @@ class LightNovelPluginManager(
             if (isPluginReady()) return@withLock InstallResult.AlreadyReady
 
             // --- FETCH stage ---
-            val manifest = fetchManifest(channel).getOrElse {
+            val manifest = fetchManifest().getOrElse {
                 telemetry.recordEvent(
                     stage = PluginStage.FETCH,
                     result = PluginResult.Failure(
@@ -202,15 +201,11 @@ class LightNovelPluginManager(
             )
 
             // R236-J: enforce version and channel policy from the manifest.
-            val hostChannel = preferences.releaseChannel().get()
             val policyEvaluator = PluginUpdatePolicyEvaluator(
-                hostChannel = hostChannel,
                 minPluginVersionCode = manifest.minPluginVersionCode,
             )
-            val pluginChannel = ReleaseChannel.fromString(manifest.releaseChannel)
             val policyResult = policyEvaluator.evaluate(
                 pluginVersionCode = manifest.versionCode,
-                pluginChannel = pluginChannel,
             )
             if (!policyResult.isAllowed) {
                 return@withLock InstallResult.Error(
@@ -302,13 +297,6 @@ class LightNovelPluginManager(
         }
     }
 
-    private fun getManifestUrl(channel: String): String {
-        return when (channel) {
-            NovelFeaturePreferences.CHANNEL_BETA -> BETA_MANIFEST_URL
-            else -> STABLE_MANIFEST_URL
-        }
-    }
-
     private fun verifyPinnedSignature(packageInfo: PackageInfo): Boolean {
         val signatures = getSignatures(packageInfo)
         if (signatures.any { it in TRUSTED_PLUGIN_CERT_DENYLIST }) {
@@ -318,10 +306,9 @@ class LightNovelPluginManager(
         return signatures.any { it in TRUSTED_PLUGIN_CERT_SHA256 }
     }
 
-    private suspend fun fetchManifest(channel: String): Result<LightNovelPluginManifest> {
+    private suspend fun fetchManifest(): Result<LightNovelPluginManifest> {
         return runCatching {
-            val url = getManifestUrl(channel)
-            val response = network.client.newCall(GET(url)).awaitSuccess()
+            val response = network.client.newCall(GET(STABLE_MANIFEST_URL)).awaitSuccess()
             response.use {
                 json.decodeFromString<LightNovelPluginManifest>(it.body.string())
             }
@@ -408,7 +395,6 @@ class LightNovelPluginManager(
     private fun PolicyBlockReason.toInstallErrorCode(): InstallErrorCode {
         return when (this) {
             PolicyBlockReason.PLUGIN_TOO_OLD -> InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD
-            PolicyBlockReason.WRONG_CHANNEL -> InstallErrorCode.MANIFEST_WRONG_CHANNEL
         }
     }
 
@@ -468,8 +454,6 @@ class LightNovelPluginManager(
 
         private const val STABLE_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
-        private const val BETA_MANIFEST_URL =
-            "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
 
         private val TRUSTED_PLUGIN_CERT_SHA256 = setOf(
             "f3565300f2957a3e1f2aab2870d25dc1d222a996a350ffa840484623e85f2098",

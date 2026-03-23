@@ -32,15 +32,7 @@ data class LightNovelPluginManifest(
      */
     @SerialName("min_plugin_version_code")
     val minPluginVersionCode: Long = 0L,
-    /**
-     * The release channel this build targets: `"stable"` or `"beta"`.
-     *
-     * Hosts whose channel preference is [eu.kanade.domain.novel.ReleaseChannel.STABLE]
-     * refuse to install beta plugin builds. Defaults to `"stable"` so manifests
-     * produced before R236-J are handled gracefully.
-     *
-     * Added in R236-J.
-     */
+    /** The release channel this build targets. Defaults to `"stable"`. */
     @SerialName("release_channel")
     val releaseChannel: String = "stable",
 )

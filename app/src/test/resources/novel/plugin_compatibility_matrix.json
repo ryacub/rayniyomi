@@ -112,7 +112,7 @@
     "expectedPolicyBlockReason": null
   },
   {
-    "id": "stable-host-blocks-beta-plugin",
+    "id": "stable-host-allows-beta-plugin",
     "pluginApiVersion": 1,
     "expectedPluginApiVersion": 1,
     "minHostVersion": 100,
@@ -124,8 +124,8 @@
     "hostChannelRaw": "stable",
     "expectedNormalizedPluginChannel": "beta",
     "expectedCompatibility": "COMPATIBLE",
-    "expectedPolicyAllowed": false,
-    "expectedPolicyBlockReason": "WRONG_CHANNEL"
+    "expectedPolicyAllowed": true,
+    "expectedPolicyBlockReason": null
   },
   {
     "id": "beta-host-allows-stable-plugin",

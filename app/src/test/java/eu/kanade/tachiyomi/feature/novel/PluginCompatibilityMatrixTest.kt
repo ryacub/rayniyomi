@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.feature.novel
 
-import eu.kanade.domain.novel.ReleaseChannel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -26,19 +25,10 @@ class PluginCompatibilityMatrixTest {
                 "Compatibility mismatch for case ${case.id}",
             )
 
-            val pluginChannel = ReleaseChannel.fromString(case.pluginChannelRaw)
-            assertEquals(
-                case.expectedNormalizedPluginChannel,
-                pluginChannel,
-                "Channel normalization mismatch for case ${case.id}",
-            )
-
             val policyResult = PluginUpdatePolicyEvaluator(
-                hostChannel = ReleaseChannel.fromString(case.hostChannelRaw),
                 minPluginVersionCode = case.minPluginVersionCode,
             ).evaluate(
                 pluginVersionCode = case.pluginVersionCode,
-                pluginChannel = pluginChannel,
             )
             assertEquals(
                 case.expectedPolicyAllowed,
