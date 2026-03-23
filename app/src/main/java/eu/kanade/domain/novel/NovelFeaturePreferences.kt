@@ -47,8 +47,6 @@ public class NovelFeaturePreferences(
         )
 
     public companion object {
-        public const val CHANNEL_STABLE: String = "stable"
-
         /** 24 hours in milliseconds. */
         public const val DEFAULT_MANIFEST_TTL_MS: Long = 24L * 60L * 60L * 1_000L
 

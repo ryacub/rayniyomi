@@ -130,7 +130,7 @@ class LightNovelPluginManager(
     }
 
     private suspend fun ensurePluginReadyInternal(): InstallResult {
-        val channel = NovelFeaturePreferences.CHANNEL_STABLE
+        val channel = STABLE_CHANNEL
         if (!isPluginInstallEnabled()) {
             return InstallResult.Error(InstallErrorCode.INSTALL_DISABLED)
         }
@@ -442,6 +442,8 @@ class LightNovelPluginManager(
 
     companion object {
         const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
+
+        private const val STABLE_CHANNEL = "stable"
 
         private const val PLUGIN_APK_FILE_NAME = "lightnovel-plugin.apk"
         private const val APK_MIME = "application/vnd.android.package-archive"
