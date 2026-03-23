@@ -693,7 +693,6 @@
     <string name="pref_scan_library_duplicates">Scan for duplicates</string>
     <string name="pref_scan_library_duplicates_summary">Find duplicate library entries across sources</string>
 
-    <!-- Extension availability badges (R619) -->
     <string name="ext_availability_reachable">Reachable</string>
     <string name="ext_availability_unreachable">Unreachable</string>
     <string name="ext_availability_unknown">Availability unknown</string>
