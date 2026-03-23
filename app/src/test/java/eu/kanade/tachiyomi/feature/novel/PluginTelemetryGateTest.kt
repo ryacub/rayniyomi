@@ -43,7 +43,7 @@ class PluginTelemetryGateTest {
                 reason = PluginFailureReason.NETWORK_TIMEOUT,
                 isFatal = false,
             ),
-            channel = "beta",
+            channel = "stable",
             enabled = { true },
         )
 

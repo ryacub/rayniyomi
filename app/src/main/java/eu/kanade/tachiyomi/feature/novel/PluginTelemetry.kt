@@ -127,7 +127,7 @@ internal class PluginTelemetry {
      *
      * @param stage Which stage of the plugin pipeline this event belongs to.
      * @param result Outcome of the operation.
-     * @param channel Distribution channel (e.g. `"stable"`, `"beta"`), or null if not applicable.
+     * @param channel Distribution channel (currently `"stable"`), or null if not applicable.
      * @param durationMs Operation duration in milliseconds, or null if not measured (R236-R).
      * @param enabled Predicate evaluated at call-site; when it returns `false` the event is
      *   silently discarded. Pass `{ isPluginInstallEnabled() }` from [LightNovelPluginManager]
