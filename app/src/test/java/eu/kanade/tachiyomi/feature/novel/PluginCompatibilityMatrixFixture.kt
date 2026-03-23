@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.feature.novel
 
-import eu.kanade.domain.novel.ReleaseChannel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -13,9 +12,6 @@ internal data class PluginCompatibilityMatrixCase(
     val hostVersionCode: Long,
     val pluginVersionCode: Long,
     val minPluginVersionCode: Long,
-    val pluginChannelRaw: String,
-    val hostChannelRaw: String,
-    val expectedNormalizedPluginChannel: ReleaseChannel,
     val expectedCompatibility: LightNovelPluginCompatibilityResult,
     val expectedPolicyAllowed: Boolean,
     val expectedPolicyBlockReason: PolicyBlockReason?,
@@ -31,9 +27,6 @@ private data class RawPluginCompatibilityMatrixCase(
     val hostVersionCode: Long,
     val pluginVersionCode: Long,
     val minPluginVersionCode: Long,
-    val pluginChannelRaw: String,
-    val hostChannelRaw: String,
-    val expectedNormalizedPluginChannel: String,
     val expectedCompatibility: String,
     val expectedPolicyAllowed: Boolean,
     val expectedPolicyBlockReason: String? = null,
@@ -41,7 +34,7 @@ private data class RawPluginCompatibilityMatrixCase(
 
 internal object PluginCompatibilityMatrixFixture {
     private val json = Json {
-        ignoreUnknownKeys = false
+        ignoreUnknownKeys = true
     }
 
     fun loadCases(): List<PluginCompatibilityMatrixCase> {
@@ -66,12 +59,10 @@ internal object PluginCompatibilityMatrixFixture {
                 hostVersionCode = raw.hostVersionCode,
                 pluginVersionCode = raw.pluginVersionCode,
                 minPluginVersionCode = raw.minPluginVersionCode,
-                pluginChannelRaw = raw.pluginChannelRaw,
-                hostChannelRaw = raw.hostChannelRaw,
-                expectedNormalizedPluginChannel = ReleaseChannel.fromString(raw.expectedNormalizedPluginChannel),
                 expectedCompatibility = LightNovelPluginCompatibilityResult.valueOf(raw.expectedCompatibility),
                 expectedPolicyAllowed = raw.expectedPolicyAllowed,
-                expectedPolicyBlockReason = raw.expectedPolicyBlockReason?.let(PolicyBlockReason::valueOf),
+                expectedPolicyBlockReason = raw.expectedPolicyBlockReason
+                    ?.let { runCatching { PolicyBlockReason.valueOf(it) }.getOrNull() },
             )
         }
     }

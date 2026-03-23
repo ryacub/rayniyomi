@@ -11,6 +11,7 @@ on:
       - 'app/src/main/java/eu/kanade/presentation/more/onboarding/ThemeStep.kt'
       - 'app/src/androidTest/**'
       - '.github/workflows/theme_instrumentation_pr.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}

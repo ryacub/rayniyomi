@@ -18,7 +18,6 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Translate
@@ -48,7 +47,6 @@ import eu.kanade.presentation.more.settings.screen.about.AboutScreen
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
-import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.ui.setting.PlayerSettingsScreen
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
@@ -255,17 +253,6 @@ object SettingsMainScreen : Screen() {
                     screen = SettingsAdvancedScreen,
                 ),
             )
-
-            if (BuildConfig.DEBUG || BuildConfig.FLAVOR == "beta") {
-                baseItems.add(
-                    Item(
-                        titleRes = MR.strings.pref_category_beta,
-                        subtitleRes = MR.strings.pref_beta_summary,
-                        icon = Icons.Outlined.Star,
-                        screen = SettingsBetaScreen,
-                    ),
-                )
-            }
 
             baseItems.add(
                 Item(

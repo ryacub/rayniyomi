@@ -164,10 +164,9 @@ jobs:
           ./gradlew -q :app:printLightNovelCompatibilitySnapshot > compatibility_snapshot.json
           EXPECTED_PLUGIN_API_VERSION=$(jq -r '.expectedPluginApiVersion' compatibility_snapshot.json)
           HOST_VERSION_CODE=$(jq -r '.hostVersionCode' compatibility_snapshot.json)
-          HOST_CHANNEL=$(jq -r '.defaultHostChannel' compatibility_snapshot.json)
           echo "EXPECTED_PLUGIN_API_VERSION=$EXPECTED_PLUGIN_API_VERSION" >> $GITHUB_ENV
           echo "HOST_VERSION_CODE=$HOST_VERSION_CODE" >> $GITHUB_ENV
-          echo "HOST_CHANNEL=$HOST_CHANNEL" >> $GITHUB_ENV
+          echo "HOST_CHANNEL=stable" >> $GITHUB_ENV
 
       - name: Generate compatibility-check manifest
         run: |

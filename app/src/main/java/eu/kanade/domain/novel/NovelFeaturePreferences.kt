@@ -2,7 +2,6 @@ package eu.kanade.domain.novel
 
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
-import tachiyomi.core.common.preference.getEnum
 
 /**
  * Preference accessors for the optional light novel feature.
@@ -15,11 +14,6 @@ public class NovelFeaturePreferences(
     private val preferenceStore: PreferenceStore,
 ) {
     public fun enableLightNovels() = preferenceStore.getBoolean("enable_light_novels", false)
-
-    public fun lightNovelPluginChannel() = preferenceStore.getString(
-        "light_novel_plugin_channel",
-        CHANNEL_STABLE,
-    )
 
     // -----------------------------------------------------------------------------------------
     // Manifest cache (R236-M)
@@ -37,19 +31,6 @@ public class NovelFeaturePreferences(
         defaultValue = 0L,
     )
 
-    // -----------------------------------------------------------------------------------------
-    // Release channel & rollback (R236-J)
-    // -----------------------------------------------------------------------------------------
-
-    /**
-     * The user's chosen [ReleaseChannel] for the light novel plugin.
-     *
-     * Stored as the enum name string so it survives app upgrades that add new
-     * channels. Unknown values are silently coerced to [ReleaseChannel.STABLE].
-     */
-    public fun releaseChannel(): Preference<ReleaseChannel> =
-        preferenceStore.getEnum(KEY_RELEASE_CHANNEL, ReleaseChannel.STABLE)
-
     /**
      * The version code of the last successfully validated plugin build.
      *
@@ -66,13 +47,9 @@ public class NovelFeaturePreferences(
         )
 
     public companion object {
-        public const val CHANNEL_STABLE: String = "stable"
-        public const val CHANNEL_BETA: String = "beta"
-
         /** 24 hours in milliseconds. */
         public const val DEFAULT_MANIFEST_TTL_MS: Long = 24L * 60L * 60L * 1_000L
 
-        internal const val KEY_RELEASE_CHANNEL = "light_novel_plugin_channel"
         internal const val KEY_LAST_KNOWN_GOOD_VERSION_CODE = "novel_plugin_last_known_good_version"
     }
 }

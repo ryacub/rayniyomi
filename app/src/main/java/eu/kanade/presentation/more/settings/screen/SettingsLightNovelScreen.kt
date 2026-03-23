@@ -26,7 +26,6 @@ import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.i18n.stringResource
@@ -52,10 +51,8 @@ object SettingsLightNovelScreen : SearchableSettings {
         val stateManager = remember { Injekt.get<LightNovelPluginStateManager>() }
 
         val enableLightNovelsPref = remember { preferences.enableLightNovels() }
-        val lightNovelPluginChannelPref = remember { preferences.lightNovelPluginChannel() }
 
         val enabled by enableLightNovelsPref.collectAsStateWithLifecycle()
-        val channel by lightNovelPluginChannelPref.collectAsStateWithLifecycle()
 
         var status by remember {
             mutableStateOf(
@@ -76,7 +73,7 @@ object SettingsLightNovelScreen : SearchableSettings {
             status = pluginManager.getPluginStatus()
         }
 
-        LaunchedEffect(enabled, channel) {
+        LaunchedEffect(enabled) {
             refreshStatus()
         }
 
@@ -134,8 +131,6 @@ object SettingsLightNovelScreen : SearchableSettings {
                 AYMR.strings.light_novel_plugin_error_install_launch_failed
             LightNovelPluginManager.InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD ->
                 AYMR.strings.light_novel_plugin_error_manifest_plugin_too_old
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_WRONG_CHANNEL ->
-                AYMR.strings.light_novel_plugin_error_manifest_wrong_channel
         }
 
         suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {
@@ -144,7 +139,7 @@ object SettingsLightNovelScreen : SearchableSettings {
             stateManager.onDownloadStarted()
 
             try {
-                when (val result = pluginManager.ensurePluginReady(channel)) {
+                when (val result = pluginManager.ensurePluginReady()) {
                     is LightNovelPluginManager.InstallResult.AlreadyReady -> {
                         if (enableFeatureAfterInstall) {
                             enableLightNovelsPref.set(true)
@@ -233,16 +228,6 @@ object SettingsLightNovelScreen : SearchableSettings {
                             }
                             true
                         },
-                    ),
-                    Preference.PreferenceItem.ListPreference(
-                        preference = lightNovelPluginChannelPref,
-                        entries = mapOf(
-                            NovelFeaturePreferences.CHANNEL_STABLE to
-                                stringResource(AYMR.strings.pref_light_novel_plugin_channel_stable),
-                            NovelFeaturePreferences.CHANNEL_BETA to
-                                stringResource(AYMR.strings.pref_light_novel_plugin_channel_beta),
-                        ).toImmutableMap(),
-                        title = stringResource(AYMR.strings.pref_light_novel_plugin_channel),
                     ),
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(AYMR.strings.pref_light_novel_plugin_status),

@@ -12,7 +12,6 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.core.content.FileProvider
 import eu.kanade.domain.novel.NovelFeaturePreferences
-import eu.kanade.domain.novel.ReleaseChannel
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.util.lang.Hash
 import io.kotest.matchers.shouldBe
@@ -203,7 +202,6 @@ class LightNovelPluginManagerTest {
 
     // Sets up the full pipeline through POLICY and download so tests can focus on later stages.
     private fun stubForInstallStage() {
-        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
         every { context.cacheDir } returns File(System.getProperty("java.io.tmpdir"))
         every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
             createNetworkCallThatSucceeds(validManifestJson(apkSha256 = SHA256_EMPTY_BYTES))
@@ -351,7 +349,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns false
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.INSTALL_DISABLED,
@@ -374,7 +372,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
     }
@@ -393,13 +391,13 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        spyManager.ensurePluginReady(channel = "stable")
+        spyManager.ensurePluginReady()
 
         verify(exactly = 0) { network.client }
     }
 
     @Test
-    fun `ensurePluginReady() returns AlreadyReady regardless of channel when plugin is ready`() = runTest {
+    fun `ensurePluginReady() returns AlreadyReady when plugin is ready`() = runTest {
         val packageInfo = createPackageInfoMock(
             installed = true,
             hasValidSignature = true,
@@ -412,11 +410,9 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val stableResult = spyManager.ensurePluginReady(channel = "stable")
-        val betaResult = spyManager.ensurePluginReady(channel = "beta")
+        val result = spyManager.ensurePluginReady()
 
-        stableResult shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
-        betaResult shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
+        result shouldBe LightNovelPluginManager.InstallResult.AlreadyReady
     }
 
     // ===== Manifest Fetch Flow Tests =====
@@ -428,7 +424,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED,
@@ -444,7 +440,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH,
@@ -452,29 +448,16 @@ class LightNovelPluginManagerTest {
     }
 
     @Test
-    fun `ensurePluginReady() fetches manifest from stable URL when channel is stable`() = runTest {
+    fun `ensurePluginReady() fetches manifest from stable URL`() = runTest {
         val requestSlot = slot<Request>()
         every { network.client.newCall(capture(requestSlot)) } returns createNetworkCallThatFails()
 
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        spyManager.ensurePluginReady(channel = "stable")
+        spyManager.ensurePluginReady()
 
         requestSlot.captured.url.toString() shouldBe STABLE_MANIFEST_URL
-    }
-
-    @Test
-    fun `ensurePluginReady() fetches manifest from beta URL when channel is beta`() = runTest {
-        val requestSlot = slot<Request>()
-        every { network.client.newCall(capture(requestSlot)) } returns createNetworkCallThatFails()
-
-        val spyManager = spyk(manager)
-        every { spyManager.isPluginInstallEnabled() } returns true
-
-        spyManager.ensurePluginReady(channel = "beta")
-
-        requestSlot.captured.url.toString() shouldBe BETA_MANIFEST_URL
     }
 
     // ===== Manifest Compatibility Verification Flow Tests =====
@@ -487,7 +470,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_API_MISMATCH,
@@ -502,7 +485,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_OLD,
@@ -517,7 +500,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_NEW,
@@ -528,33 +511,16 @@ class LightNovelPluginManagerTest {
 
     @Test
     fun `ensurePluginReady() returns Error(MANIFEST_PLUGIN_TOO_OLD) when plugin version is below minimum`() = runTest {
-        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
         every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
             validManifestJson(versionCode = 1L, minPluginVersionCode = 5L),
         )
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD,
-        )
-    }
-
-    @Test
-    fun `ensurePluginReady() returns Error(MANIFEST_WRONG_CHANNEL) when stable host rejects beta plugin`() = runTest {
-        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
-        every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
-            validManifestJson(releaseChannel = "beta"),
-        )
-        val spyManager = spyk(manager)
-        every { spyManager.isPluginInstallEnabled() } returns true
-
-        val result = spyManager.ensurePluginReady(channel = "stable")
-
-        result shouldBe LightNovelPluginManager.InstallResult.Error(
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_WRONG_CHANNEL,
         )
     }
 
@@ -562,7 +528,6 @@ class LightNovelPluginManagerTest {
 
     @Test
     fun `ensurePluginReady() returns Error(DOWNLOAD_FAILED) when APK download fails`() = runTest {
-        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
         every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
             createNetworkCallThatSucceeds(validManifestJson())
         every { network.client.newCall(match { it.url.toString().endsWith(".apk") }) } returns
@@ -570,7 +535,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
@@ -579,7 +544,6 @@ class LightNovelPluginManagerTest {
 
     @Test
     fun `ensurePluginReady() returns Error(DOWNLOAD_FAILED) when APK checksum does not match`() = runTest {
-        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
         every { context.cacheDir } returns File(System.getProperty("java.io.tmpdir"))
         every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
             createNetworkCallThatSucceeds(validManifestJson(apkSha256 = "deadbeef"))
@@ -588,7 +552,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
@@ -604,7 +568,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.INVALID_PLUGIN_APK,
@@ -620,7 +584,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH,
@@ -639,7 +603,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.InstallLaunched
     }
@@ -655,7 +619,7 @@ class LightNovelPluginManagerTest {
         val spyManager = spyk(manager)
         every { spyManager.isPluginInstallEnabled() } returns true
 
-        val result = spyManager.ensurePluginReady(channel = "stable")
+        val result = spyManager.ensurePluginReady()
 
         result shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.INSTALL_LAUNCH_FAILED,
@@ -682,12 +646,12 @@ class LightNovelPluginManagerTest {
         }
 
         // Launch both coroutines on IO threads for true concurrent execution.
-        val deferred1 = async(Dispatchers.IO) { manager.ensurePluginReady("stable") }
+        val deferred1 = async(Dispatchers.IO) { manager.ensurePluginReady() }
         // Wait until deferred1 has started the network call — at this point activeDeferred
         // is guaranteed to be set (it is stored before the network call begins).
         firstCallAtNetworkLatch.await(5, TimeUnit.SECONDS)
 
-        val deferred2 = async(Dispatchers.IO) { manager.ensurePluginReady("stable") }
+        val deferred2 = async(Dispatchers.IO) { manager.ensurePluginReady() }
         // Allow deferred2 to find the active deferred and block on its await().
         // A short sleep is unavoidable here: we need deferred2 to be waiting on the deferred
         // before we release the gate, but there is no production-code hook to signal this.
@@ -708,8 +672,8 @@ class LightNovelPluginManagerTest {
             createNetworkCallThatFails()
         }
 
-        manager.ensurePluginReady("stable")
-        manager.ensurePluginReady("stable")
+        manager.ensurePluginReady()
+        manager.ensurePluginReady()
 
         networkCallCount shouldBe 2
     }
@@ -719,7 +683,7 @@ class LightNovelPluginManagerTest {
     @Test
     fun `ensurePluginReady() retries from scratch after previous error`() = runTest {
         every { network.client.newCall(any()) } returns createNetworkCallThatFails()
-        val result1 = manager.ensurePluginReady("stable")
+        val result1 = manager.ensurePluginReady()
         result1 shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED,
         )
@@ -728,7 +692,7 @@ class LightNovelPluginManagerTest {
         every { network.client.newCall(any()) } returns createNetworkCallThatSucceeds(
             validManifestJson(packageName = "xyz.wrong.package"),
         )
-        val result2 = manager.ensurePluginReady("stable")
+        val result2 = manager.ensurePluginReady()
         result2 shouldBe LightNovelPluginManager.InstallResult.Error(
             LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH,
         )
@@ -738,13 +702,12 @@ class LightNovelPluginManagerTest {
     fun `ensurePluginReady() cleans up APK file when download checksum does not match`() = runTest {
         val tmpDir = File(System.getProperty("java.io.tmpdir"))
         every { context.cacheDir } returns tmpDir
-        every { preferences.releaseChannel() } returns mockk { every { get() } returns ReleaseChannel.STABLE }
         every { network.client.newCall(match { it.url.toString().contains("manifest") }) } returns
             createNetworkCallThatSucceeds(validManifestJson(apkSha256 = "deadbeef"))
         every { network.client.newCall(match { it.url.toString().endsWith(".apk") }) } returns
             createApkDownloadCallThatSucceeds()
 
-        manager.ensurePluginReady("stable")
+        manager.ensurePluginReady()
 
         File(tmpDir, "lightnovel-plugin.apk").exists() shouldBe false
     }
@@ -800,8 +763,6 @@ class LightNovelPluginManagerTest {
         private const val PLUGIN_PACKAGE_NAME = "xyz.rayniyomi.plugin.lightnovel"
         private const val STABLE_MANIFEST_URL =
             "https://github.com/ryacub/rayniyomi/releases/latest/download/lightnovel-plugin-manifest.json"
-        private const val BETA_MANIFEST_URL =
-            "https://github.com/ryacub/rayniyomi/releases/download/plugin-beta/lightnovel-plugin-manifest.json"
 
         // SHA-256 of an empty byte array / empty file
         private const val SHA256_EMPTY_BYTES =

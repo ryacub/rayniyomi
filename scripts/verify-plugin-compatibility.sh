@@ -5,20 +5,19 @@
 #   scripts/verify-plugin-compatibility.sh \
 #     --manifest path/to/lightnovel-plugin-manifest.json \
 #     --host-version 131 \
-#     --host-channel stable \
 #     --expected-api 1
 
 set -euo pipefail
 
 MANIFEST=""
 HOST_VERSION=""
-HOST_CHANNEL=""
+HOST_CHANNEL="stable"
 EXPECTED_API=""
 EXPECTED_PACKAGE="xyz.rayniyomi.plugin.lightnovel"
 
 usage() {
   cat <<USAGE
-Usage: $0 --manifest <file> --host-version <long> --host-channel <stable|beta> --expected-api <int>
+Usage: $0 --manifest <file> --host-version <long> [--host-channel <stable>] --expected-api <int>
 USAGE
 }
 
@@ -52,7 +51,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$MANIFEST" || -z "$HOST_VERSION" || -z "$HOST_CHANNEL" || -z "$EXPECTED_API" ]]; then
+if [[ -z "$MANIFEST" || -z "$HOST_VERSION" || -z "$EXPECTED_API" ]]; then
   usage >&2
   exit 2
 fi
@@ -77,8 +76,8 @@ if [[ ! "$EXPECTED_API" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-if [[ "$HOST_CHANNEL" != "stable" && "$HOST_CHANNEL" != "beta" ]]; then
-  echo "--host-channel must be stable or beta" >&2
+if [[ "$HOST_CHANNEL" != "stable" ]]; then
+  echo "--host-channel must be stable" >&2
   exit 2
 fi
 
@@ -152,12 +151,8 @@ if (( MIN_PLUGIN_VERSION < 0 )); then
   ERRORS+=("min_plugin_version_code must be >= 0")
 fi
 
-if [[ "$PLUGIN_CHANNEL" != "stable" && "$PLUGIN_CHANNEL" != "beta" ]]; then
-  ERRORS+=("release_channel must be stable or beta (got $PLUGIN_CHANNEL)")
-fi
-
-if [[ "$HOST_CHANNEL" == "stable" && "$PLUGIN_CHANNEL" == "beta" ]]; then
-  ERRORS+=("stable host channel cannot accept beta plugin release channel")
+if [[ "$PLUGIN_CHANNEL" != "stable" ]]; then
+  ERRORS+=("release_channel must be stable (got $PLUGIN_CHANNEL)")
 fi
 
 if (( ${#ERRORS[@]} > 0 )); then
