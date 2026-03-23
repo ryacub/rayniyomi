@@ -5,9 +5,7 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
-import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.more.settings.Preference
-import eu.kanade.tachiyomi.ui.settings.BetaFeature
 import eu.kanade.tachiyomi.ui.settings.BetaPreferences
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
@@ -25,31 +23,12 @@ object SettingsBetaScreen : SearchableSettings {
     override fun getPreferences(): List<Preference> {
         val betaPreferences = remember { Injekt.get<BetaPreferences>() }
 
-        return betaSettings.map { setting ->
+        return listOf(
             Preference.PreferenceItem.SwitchPreference(
-                preference = betaPreferences.feature(setting.feature),
-                title = stringResource(setting.titleRes),
-                subtitle = stringResource(setting.summaryRes),
-            )
-        }
+                preference = betaPreferences.enableExperimentalComposeSettings(),
+                title = stringResource(MR.strings.pref_enable_experimental_compose_settings),
+                subtitle = stringResource(MR.strings.pref_experimental_compose_settings_summary),
+            ),
+        )
     }
-
-    private data class BetaSetting(
-        val feature: BetaFeature,
-        val titleRes: StringResource,
-        val summaryRes: StringResource,
-    )
-
-    private val betaSettings = listOf(
-        BetaSetting(
-            feature = BetaFeature.EXPERIMENTAL_COMPOSE_SETTINGS,
-            titleRes = MR.strings.pref_enable_experimental_compose_settings,
-            summaryRes = MR.strings.pref_experimental_compose_settings_summary,
-        ),
-        BetaSetting(
-            feature = BetaFeature.EXPERIMENTAL_THEMING_SETTINGS,
-            titleRes = MR.strings.pref_enable_experimental_theming_settings,
-            summaryRes = MR.strings.pref_experimental_theming_settings_summary,
-        ),
-    )
 }

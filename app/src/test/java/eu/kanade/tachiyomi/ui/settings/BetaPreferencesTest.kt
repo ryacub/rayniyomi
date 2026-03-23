@@ -14,13 +14,6 @@ import tachiyomi.core.common.preference.PreferenceStore
 class BetaPreferencesTest {
 
     @Test
-    fun `all beta feature keys are beta_ prefixed`() {
-        val allKeysArePrefixed = BetaFeature.entries.all { it.preferenceKey.startsWith("beta_") }
-
-        assertTrue(allKeysArePrefixed)
-    }
-
-    @Test
     fun `enableExperimentalComposeSettings returns false by default when preference not set`() {
         val store = MutablePreferenceStore()
 
@@ -59,57 +52,6 @@ class BetaPreferencesTest {
 
         val allPreferences = store.getAll()
         assertTrue(allPreferences.containsKey("beta_enable_experimental_compose_settings"))
-    }
-
-    @Test
-    fun `enableExperimentalThemingSettings returns false by default when preference not set`() {
-        val store = MutablePreferenceStore()
-
-        val preferences = BetaPreferences(store)
-
-        assertFalse(preferences.enableExperimentalThemingSettings().get())
-    }
-
-    @Test
-    fun `enableExperimentalThemingSettings persists true value`() {
-        val store = MutablePreferenceStore()
-        val preferences = BetaPreferences(store)
-
-        preferences.enableExperimentalThemingSettings().set(true)
-
-        assertTrue(preferences.enableExperimentalThemingSettings().get())
-    }
-
-    @Test
-    fun `enableExperimentalThemingSettings uses beta_ prefixed key`() {
-        val store = MutablePreferenceStore()
-        val preferences = BetaPreferences(store)
-
-        preferences.enableExperimentalThemingSettings().set(true)
-
-        val allPreferences = store.getAll()
-        assertTrue(allPreferences.containsKey("beta_enable_experimental_theming_settings"))
-    }
-
-    @Test
-    fun `feature accessor persists value for compose feature`() {
-        val store = MutablePreferenceStore()
-        val preferences = BetaPreferences(store)
-
-        preferences.feature(BetaFeature.EXPERIMENTAL_COMPOSE_SETTINGS).set(true)
-
-        assertTrue(preferences.feature(BetaFeature.EXPERIMENTAL_COMPOSE_SETTINGS).get())
-    }
-
-    @Test
-    fun `feature accessor uses feature key`() {
-        val store = MutablePreferenceStore()
-        val preferences = BetaPreferences(store)
-
-        preferences.feature(BetaFeature.EXPERIMENTAL_THEMING_SETTINGS).set(true)
-
-        val allPreferences = store.getAll()
-        assertTrue(allPreferences.containsKey(BetaFeature.EXPERIMENTAL_THEMING_SETTINGS.preferenceKey))
     }
 
     private class MutablePreferenceStore(initialValues: Map<String, Any?> = emptyMap()) : PreferenceStore {
