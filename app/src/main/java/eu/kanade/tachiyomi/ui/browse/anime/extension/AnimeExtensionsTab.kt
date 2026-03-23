@@ -4,6 +4,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +22,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeExtensionDetai
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.collectLatest
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -53,7 +55,17 @@ fun animeExtensionsTab(
                 onClick = { navigator.push(AnimeExtensionReposScreen()) },
             ),
         ),
-        content = { contentPadding, _ ->
+        content = { contentPadding, snackbarHostState ->
+            val noNetworkString = stringResource(MR.strings.exception_offline)
+            LaunchedEffect(Unit) {
+                extensionsScreenModel.events.collectLatest { event ->
+                    when (event) {
+                        AnimeExtensionsScreenModel.Event.DeviceOffline -> {
+                            snackbarHostState.showSnackbar(noNetworkString)
+                        }
+                    }
+                }
+            }
             AnimeExtensionScreen(
                 state = state,
                 contentPadding = contentPadding,
@@ -91,6 +103,7 @@ fun animeExtensionsTab(
                 onUninstallExtension = { extensionsScreenModel.uninstallExtension(it) },
                 onUpdateExtension = extensionsScreenModel::updateExtension,
                 onRefresh = extensionsScreenModel::findAvailableExtensions,
+                onRetryProbe = extensionsScreenModel::retryProbe,
             )
 
             privateExtensionToUninstall?.let { extension ->
