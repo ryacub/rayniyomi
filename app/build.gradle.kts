@@ -111,7 +111,6 @@ android {
     flavorDimensions += "track"
     productFlavors {
         create("stable") { isDefault = true }
-        create("beta") {}
     }
 
     sourceSets {
@@ -203,7 +202,6 @@ android {
 afterEvaluate {
     listOf(
         "stableRelease" to "injectCrashlyticsMappingFileIdStableRelease",
-        "betaRelease" to "injectCrashlyticsMappingFileIdBetaRelease",
     ).forEach { (sourceSetName, generatedDir) ->
         android.sourceSets.findByName(sourceSetName)
             ?.res?.srcDir("build/generated/res/$generatedDir")
@@ -215,11 +213,7 @@ tasks.configureEach {
         name.contains("Release") &&
         (name.contains("Resource") || name.contains("Navigation"))
     ) {
-        val crashlyticsTask = when {
-            name.contains("Beta") -> "injectCrashlyticsMappingFileIdBetaRelease"
-            else -> "injectCrashlyticsMappingFileIdStableRelease"
-        }
-        dependsOn(crashlyticsTask)
+        dependsOn("injectCrashlyticsMappingFileIdStableRelease")
     }
 }
 
