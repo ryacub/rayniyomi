@@ -14,6 +14,13 @@ import tachiyomi.core.common.preference.PreferenceStore
 class BetaPreferencesTest {
 
     @Test
+    fun `all beta feature keys are beta_ prefixed`() {
+        val allKeysArePrefixed = BetaFeature.entries.all { it.preferenceKey.startsWith("beta_") }
+
+        assertTrue(allKeysArePrefixed)
+    }
+
+    @Test
     fun `enableExperimentalComposeSettings returns false by default when preference not set`() {
         val store = MutablePreferenceStore()
 
@@ -82,6 +89,27 @@ class BetaPreferencesTest {
 
         val allPreferences = store.getAll()
         assertTrue(allPreferences.containsKey("beta_enable_experimental_theming_settings"))
+    }
+
+    @Test
+    fun `feature accessor persists value for compose feature`() {
+        val store = MutablePreferenceStore()
+        val preferences = BetaPreferences(store)
+
+        preferences.feature(BetaFeature.EXPERIMENTAL_COMPOSE_SETTINGS).set(true)
+
+        assertTrue(preferences.feature(BetaFeature.EXPERIMENTAL_COMPOSE_SETTINGS).get())
+    }
+
+    @Test
+    fun `feature accessor uses feature key`() {
+        val store = MutablePreferenceStore()
+        val preferences = BetaPreferences(store)
+
+        preferences.feature(BetaFeature.EXPERIMENTAL_THEMING_SETTINGS).set(true)
+
+        val allPreferences = store.getAll()
+        assertTrue(allPreferences.containsKey(BetaFeature.EXPERIMENTAL_THEMING_SETTINGS.preferenceKey))
     }
 
     private class MutablePreferenceStore(initialValues: Map<String, Any?> = emptyMap()) : PreferenceStore {

@@ -31,6 +31,7 @@ import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.CustomThemeAccentPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.CustomThemeColorPickerDialog
 import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
+import eu.kanade.tachiyomi.ui.settings.BetaFeature
 import eu.kanade.tachiyomi.ui.settings.BetaPreferences
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
@@ -82,7 +83,7 @@ object SettingsAppearanceScreen : SearchableSettings {
         val recentAccentSeedsPref = uiPreferences.customThemeRecentAccentSeeds()
         val recentAccentSeeds by recentAccentSeedsPref.collectAsStateWithLifecycle()
         val betaPreferences = remember { Injekt.get<BetaPreferences>() }
-        val experimentalThemingPref = betaPreferences.enableExperimentalThemingSettings()
+        val experimentalThemingPref = betaPreferences.feature(BetaFeature.EXPERIMENTAL_THEMING_SETTINGS)
         val experimentalThemingEnabled by experimentalThemingPref.collectAsStateWithLifecycle()
 
         val amoledPref = uiPreferences.themeDarkAmoled()
