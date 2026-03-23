@@ -5,20 +5,19 @@
 #   scripts/verify-plugin-compatibility.sh \
 #     --manifest path/to/lightnovel-plugin-manifest.json \
 #     --host-version 131 \
-#     --host-channel stable \
 #     --expected-api 1
 
 set -euo pipefail
 
 MANIFEST=""
 HOST_VERSION=""
-HOST_CHANNEL=""
+HOST_CHANNEL="stable"
 EXPECTED_API=""
 EXPECTED_PACKAGE="xyz.rayniyomi.plugin.lightnovel"
 
 usage() {
   cat <<USAGE
-Usage: $0 --manifest <file> --host-version <long> --host-channel <stable> --expected-api <int>
+Usage: $0 --manifest <file> --host-version <long> [--host-channel <stable>] --expected-api <int>
 USAGE
 }
 
@@ -52,7 +51,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$MANIFEST" || -z "$HOST_VERSION" || -z "$HOST_CHANNEL" || -z "$EXPECTED_API" ]]; then
+if [[ -z "$MANIFEST" || -z "$HOST_VERSION" || -z "$EXPECTED_API" ]]; then
   usage >&2
   exit 2
 fi
