@@ -155,7 +155,10 @@ fun NewUpdateScreen(
                 ) {
                     Text(text = stringResource(MR.strings.update_check_open))
                     Spacer(modifier = Modifier.width(MaterialTheme.padding.extraSmall))
-                    Icon(imageVector = Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = stringResource(MR.strings.action_open_in_browser),
+                    )
                 }
             }
         }
