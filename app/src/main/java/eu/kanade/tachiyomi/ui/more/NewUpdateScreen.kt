@@ -5,10 +5,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.presentation.more.NewUpdateScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.util.system.openInBrowser
+import uy.kohesive.injekt.injectLazy
 
 class NewUpdateScreen(
     private val versionName: String,
@@ -16,6 +18,8 @@ class NewUpdateScreen(
     private val releaseLink: String,
     private val downloadLink: String,
 ) : Screen() {
+
+    private val gatekeeper: UpdatePromptGatekeeper by injectLazy()
 
     @Composable
     override fun Content() {
@@ -36,6 +40,10 @@ class NewUpdateScreen(
                     url = downloadLink,
                     title = versionName,
                 )
+                navigator.pop()
+            },
+            onSkipVersion = {
+                gatekeeper.skipVersion(versionName)
                 navigator.pop()
             },
         )
