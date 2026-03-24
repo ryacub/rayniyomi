@@ -22,9 +22,14 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.domain.update.PromptCadence
+import eu.kanade.domain.update.UpdatePromptGatekeeper
+import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.more.LogoHeader
+import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
@@ -129,6 +134,49 @@ object AboutScreen : Screen() {
                                             },
                                         )
                                     }
+                                }
+                            },
+                        )
+                    }
+
+                    item {
+                        val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
+                        val promptCadence by updatePromptPreferences.promptCadence().asState(scope)
+
+                        ListPreferenceWidget(
+                            value = promptCadence,
+                            title = stringResource(MR.strings.pref_update_check_frequency),
+                            subtitle = null,
+                            icon = null,
+                            entries = mapOf(
+                                PromptCadence.ALWAYS to stringResource(MR.strings.pref_update_check_frequency_always),
+                                PromptCadence.DAILY to stringResource(MR.strings.pref_update_check_frequency_daily),
+                                PromptCadence.WEEKLY to stringResource(MR.strings.pref_update_check_frequency_weekly),
+                                PromptCadence.NEVER to stringResource(MR.strings.pref_update_check_frequency_never),
+                            ),
+                            onValueChange = { newCadence ->
+                                updatePromptPreferences.promptCadence().set(newCadence)
+                            },
+                        )
+                    }
+
+                    item {
+                        val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
+                        val updateGatekeeper = remember { Injekt.get<UpdatePromptGatekeeper>() }
+                        val skipVersion by updatePromptPreferences.skipVersion().asState(scope)
+
+                        val skipVersionDisplay = if (skipVersion.isEmpty()) {
+                            stringResource(MR.strings.pref_update_skip_version_none)
+                        } else {
+                            skipVersion
+                        }
+
+                        TextPreferenceWidget(
+                            title = stringResource(MR.strings.pref_update_skip_version_title),
+                            subtitle = skipVersionDisplay,
+                            onPreferenceClick = {
+                                if (skipVersion.isNotEmpty()) {
+                                    updateGatekeeper.skipVersion("")
                                 }
                             },
                         )
