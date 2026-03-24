@@ -8,23 +8,18 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.time.Instant
-
 /**
- * RED tests for UpdatePromptGatekeeper business logic.
+ * Tests for UpdatePromptGatekeeper business logic.
  *
  * Tests cover shouldPrompt() behavior for all cadence types + skip version logic,
  * plus recordPrompted(), skipVersion(), and clearSkipIfOutdated() mutations.
  *
- * Time is mocked via a fixed reference instant to avoid wall-clock dependency.
+ * Time-based tests use System.currentTimeMillis() offsets to avoid wall-clock fragility.
  */
 class UpdatePromptGatekeeperTest {
 
     private lateinit var prefs: UpdatePromptPreferences
     private lateinit var gatekeeper: UpdatePromptGatekeeper
-
-    // Fixed reference time for all tests
-    private val referenceTime = Instant.parse("2026-03-23T10:00:00Z")
 
     @BeforeEach
     fun setUp() {
@@ -118,9 +113,9 @@ class UpdatePromptGatekeeperTest {
         val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
             every { get() } returns ""
         }
-        // Last prompted 12 hours ago (23 hours before reference time)
+        // Last prompted 12 hours ago — less than 24h, should not prompt
         val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
-            every { get() } returns referenceTime.minusSeconds(12 * 3600).toEpochMilli()
+            every { get() } returns System.currentTimeMillis() - (12 * 3600 * 1000L)
         }
         every { prefs.promptCadence() } returns promptCadencePref
         every { prefs.skipVersion() } returns skipVersionPref
@@ -145,7 +140,7 @@ class UpdatePromptGatekeeperTest {
         }
         // Last prompted exactly 24 hours ago (boundary: >= 24h should prompt)
         val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
-            every { get() } returns referenceTime.minusSeconds(24 * 3600).toEpochMilli()
+            every { get() } returns System.currentTimeMillis() - (24 * 3600 * 1000L)
         }
         every { prefs.promptCadence() } returns promptCadencePref
         every { prefs.skipVersion() } returns skipVersionPref
@@ -168,9 +163,9 @@ class UpdatePromptGatekeeperTest {
         val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
             every { get() } returns ""
         }
-        // Last prompted 36 hours ago
+        // Last prompted 36 hours ago — more than 24h, should prompt
         val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
-            every { get() } returns referenceTime.minusSeconds(36 * 3600).toEpochMilli()
+            every { get() } returns System.currentTimeMillis() - (36 * 3600 * 1000L)
         }
         every { prefs.promptCadence() } returns promptCadencePref
         every { prefs.skipVersion() } returns skipVersionPref
@@ -221,9 +216,9 @@ class UpdatePromptGatekeeperTest {
         val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
             every { get() } returns ""
         }
-        // Last prompted 3 days ago
+        // Last prompted 3 days ago — less than 7d, should not prompt
         val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
-            every { get() } returns referenceTime.minusSeconds(3 * 24 * 3600).toEpochMilli()
+            every { get() } returns System.currentTimeMillis() - (3L * 24 * 3600 * 1000)
         }
         every { prefs.promptCadence() } returns promptCadencePref
         every { prefs.skipVersion() } returns skipVersionPref
@@ -246,9 +241,9 @@ class UpdatePromptGatekeeperTest {
         val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
             every { get() } returns ""
         }
-        // Last prompted 10 days ago
+        // Last prompted 10 days ago — more than 7d, should prompt
         val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
-            every { get() } returns referenceTime.minusSeconds(10 * 24 * 3600).toEpochMilli()
+            every { get() } returns System.currentTimeMillis() - (10L * 24 * 3600 * 1000)
         }
         every { prefs.promptCadence() } returns promptCadencePref
         every { prefs.skipVersion() } returns skipVersionPref
@@ -449,7 +444,7 @@ class UpdatePromptGatekeeperTest {
             every { get() } returns "5.0.0" // This version is skipped
         }
         val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
-            every { get() } returns referenceTime.minusSeconds(10 * 24 * 3600).toEpochMilli()
+            every { get() } returns System.currentTimeMillis() - (10L * 24 * 3600 * 1000)
         }
         every { prefs.promptCadence() } returns promptCadencePref
         every { prefs.skipVersion() } returns skipVersionPref

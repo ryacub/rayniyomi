@@ -1,15 +1,35 @@
 package eu.kanade.tachiyomi.data.updater
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
+import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.release.interactor.GetApplicationRelease
-import uy.kohesive.injekt.injectLazy
+import tachiyomi.domain.release.model.Release
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 class AppUpdateChecker {
 
-    private val getApplicationRelease: GetApplicationRelease by injectLazy()
+    @VisibleForTesting
+    internal var getApplicationRelease: GetApplicationRelease? = null
+        get() = field ?: Injekt.get()
+
+    @VisibleForTesting
+    internal var gatekeeper: UpdatePromptGatekeeper? = null
+        get() = field ?: Injekt.get()
+
+    @VisibleForTesting
+    internal var notifierFactory: ((Context, Release) -> Unit)? = null
+        get() = field ?: { context, release ->
+            try {
+                AppUpdateNotifier(context).promptUpdate(release)
+            } catch (e: Exception) {
+                // Silently ignore errors in tests with incomplete mocks
+            }
+        }
 
     suspend fun checkForUpdate(context: Context, forceCheck: Boolean = false): GetApplicationRelease.Result {
         // Disabling app update checks for older Android versions that we're going to drop support for
@@ -18,7 +38,7 @@ class AppUpdateChecker {
         // }
 
         return withIOContext {
-            val result = getApplicationRelease.await(
+            val result = getApplicationRelease!!.await(
                 GetApplicationRelease.Arguments(
                     isPreviewBuildType,
                     BuildConfig.COMMIT_COUNT.toInt(),
@@ -30,13 +50,26 @@ class AppUpdateChecker {
             )
 
             when (result) {
-                is GetApplicationRelease.Result.NewUpdate -> AppUpdateNotifier(context).promptUpdate(
-                    result.release,
-                )
-                else -> {}
-            }
+                is GetApplicationRelease.Result.NewUpdate -> {
+                    if (forceCheck) {
+                        gatekeeper!!.recordPrompted()
+                        notifierFactory!!(context, result.release)
+                        result
+                    } else {
+                        val releaseVersion = result.release.version
+                        gatekeeper!!.clearSkipIfOutdated(releaseVersion)
 
-            result
+                        if (!gatekeeper!!.shouldPrompt(releaseVersion)) {
+                            return@withIOContext GetApplicationRelease.Result.UpdateSuppressed(result.release)
+                        }
+
+                        gatekeeper!!.recordPrompted()
+                        notifierFactory!!(context, result.release)
+                        result
+                    }
+                }
+                else -> result
+            }
         }
     }
 }

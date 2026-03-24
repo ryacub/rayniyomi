@@ -91,6 +91,7 @@ class GetApplicationRelease(
 
     sealed interface Result {
         data class NewUpdate(val release: Release) : Result
+        data class UpdateSuppressed(val release: Release) : Result
         data object NoNewUpdate : Result
         data object OsTooOld : Result
     }
