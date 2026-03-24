@@ -200,6 +200,7 @@ class AppUpdateCheckerGatekeeperTest {
             mockGetApplicationRelease.await(any())
         } returns GetApplicationRelease.Result.NewUpdate(release)
 
+        every { mockGatekeeper.clearSkipIfOutdated("2.5.0") } returns Unit
         every { mockGatekeeper.recordPrompted() } returns Unit
 
         // Act

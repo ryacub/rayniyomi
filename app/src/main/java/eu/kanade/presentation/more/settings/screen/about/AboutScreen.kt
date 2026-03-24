@@ -25,7 +25,6 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.update.PromptCadence
-import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.more.LogoHeader
@@ -73,6 +72,7 @@ object AboutScreen : Screen() {
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
         var isCheckingUpdates by remember { mutableStateOf(false) }
+        val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -140,7 +140,6 @@ object AboutScreen : Screen() {
                     }
 
                     item {
-                        val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
                         val promptCadence by updatePromptPreferences.promptCadence().asState(scope)
 
                         ListPreferenceWidget(
@@ -161,9 +160,8 @@ object AboutScreen : Screen() {
                     }
 
                     item {
-                        val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
-                        val updateGatekeeper = remember { Injekt.get<UpdatePromptGatekeeper>() }
-                        val skipVersion by updatePromptPreferences.skipVersion().asState(scope)
+                        val skipVersionPref = remember { updatePromptPreferences.skipVersion() }
+                        val skipVersion by skipVersionPref.asState(scope)
 
                         val skipVersionDisplay = if (skipVersion.isEmpty()) {
                             stringResource(MR.strings.pref_update_skip_version_none)
@@ -176,7 +174,7 @@ object AboutScreen : Screen() {
                             subtitle = skipVersionDisplay,
                             onPreferenceClick = {
                                 if (skipVersion.isNotEmpty()) {
-                                    updateGatekeeper.skipVersion("")
+                                    skipVersionPref.set("")
                                 }
                             },
                         )

@@ -52,6 +52,7 @@ class AppUpdateChecker {
             when (result) {
                 is GetApplicationRelease.Result.NewUpdate -> {
                     if (forceCheck) {
+                        gatekeeper!!.clearSkipIfOutdated(result.release.version)
                         gatekeeper!!.recordPrompted()
                         notifierFactory!!(context, result.release)
                         result
