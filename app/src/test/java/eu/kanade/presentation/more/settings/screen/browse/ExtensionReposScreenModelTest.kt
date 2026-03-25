@@ -58,7 +58,14 @@ class ExtensionReposScreenModelTest {
         val deps = createMockDependencies(flowOf(emptyList()))
         val model = ExtensionReposScreenModel(deps)
 
-        // Verify subscribeAll is called during init
+        // subscribeAll() is called inside launchIO (Dispatchers.IO), so we wait for the state
+        // to transition out of Loading — proving subscribeAll() was invoked.
+        withContext(Dispatchers.Default.limitedParallelism(1)) {
+            withTimeout(5_000) {
+                model.state.first { it !is RepoScreenState.Loading }
+            }
+        }
+
         coVerify { deps.subscribeAll() }
     }
 
