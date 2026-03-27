@@ -456,4 +456,105 @@ class UpdatePromptGatekeeperTest {
         // Assert
         assertFalse(result)
     }
+
+    // ============================================================================
+    // Pre-release filtering
+    // ============================================================================
+
+    @Test
+    fun `shouldPrompt with prerelease version and includePrerelease false returns false`() {
+        val includePrereleasePref = mockk<tachiyomi.core.common.preference.Preference<Boolean>> {
+            every { get() } returns false
+        }
+        val promptCadencePref = mockk<tachiyomi.core.common.preference.Preference<PromptCadence>> {
+            every { get() } returns PromptCadence.ALWAYS
+        }
+        val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
+            every { get() } returns ""
+        }
+        val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
+            every { get() } returns 0L
+        }
+        every { prefs.includePrerelease() } returns includePrereleasePref
+        every { prefs.promptCadence() } returns promptCadencePref
+        every { prefs.skipVersion() } returns skipVersionPref
+        every { prefs.lastPromptedAt() } returns lastPromptedAtPref
+
+        val result = gatekeeper.shouldPrompt("1.2.3-beta.1", isPrerelease = true)
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `shouldPrompt with prerelease version and includePrerelease true returns true if cadence permits`() {
+        var includeValue = true
+        val includePrereleasePref = mockk<tachiyomi.core.common.preference.Preference<Boolean>> {
+            every { get() } answers { includeValue }
+        }
+        val promptCadencePref = mockk<tachiyomi.core.common.preference.Preference<PromptCadence>> {
+            every { get() } returns PromptCadence.ALWAYS
+        }
+        val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
+            every { get() } returns ""
+        }
+        val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
+            every { get() } returns 0L
+        }
+        every { prefs.includePrerelease() } returns includePrereleasePref
+        every { prefs.promptCadence() } returns promptCadencePref
+        every { prefs.skipVersion() } returns skipVersionPref
+        every { prefs.lastPromptedAt() } returns lastPromptedAtPref
+
+        val result = gatekeeper.shouldPrompt("1.2.3-beta.1", isPrerelease = true)
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `shouldPrompt with stable version and includePrerelease false still returns true if cadence permits`() {
+        val includePrereleasePref = mockk<tachiyomi.core.common.preference.Preference<Boolean>> {
+            every { get() } returns false
+        }
+        val promptCadencePref = mockk<tachiyomi.core.common.preference.Preference<PromptCadence>> {
+            every { get() } returns PromptCadence.ALWAYS
+        }
+        val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
+            every { get() } returns ""
+        }
+        val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
+            every { get() } returns 0L
+        }
+        every { prefs.includePrerelease() } returns includePrereleasePref
+        every { prefs.promptCadence() } returns promptCadencePref
+        every { prefs.skipVersion() } returns skipVersionPref
+        every { prefs.lastPromptedAt() } returns lastPromptedAtPref
+
+        val result = gatekeeper.shouldPrompt("1.2.3", isPrerelease = false)
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `shouldPrompt with prerelease and includePrerelease false returns false even when cadence NEVER`() {
+        val includePrereleasePref = mockk<tachiyomi.core.common.preference.Preference<Boolean>> {
+            every { get() } returns false
+        }
+        val promptCadencePref = mockk<tachiyomi.core.common.preference.Preference<PromptCadence>> {
+            every { get() } returns PromptCadence.NEVER
+        }
+        val skipVersionPref = mockk<tachiyomi.core.common.preference.Preference<String>> {
+            every { get() } returns ""
+        }
+        val lastPromptedAtPref = mockk<tachiyomi.core.common.preference.Preference<Long>> {
+            every { get() } returns 0L
+        }
+        every { prefs.includePrerelease() } returns includePrereleasePref
+        every { prefs.promptCadence() } returns promptCadencePref
+        every { prefs.skipVersion() } returns skipVersionPref
+        every { prefs.lastPromptedAt() } returns lastPromptedAtPref
+
+        val result = gatekeeper.shouldPrompt("1.2.3-rc.1", isPrerelease = true)
+
+        assertFalse(result)
+    }
 }
