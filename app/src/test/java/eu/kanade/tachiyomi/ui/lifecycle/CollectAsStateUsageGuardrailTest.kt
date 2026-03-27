@@ -161,6 +161,7 @@ class CollectAsStateUsageGuardrailTest {
             "app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsBrowseScreen.kt",
             "app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt",
             "app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt",
+            "app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt",
             "app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLibraryScreen.kt",
             "app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLightNovelScreen.kt",
             "app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsReaderScreen.kt",
