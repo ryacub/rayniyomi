@@ -23,6 +23,7 @@ class AppUpdateChecker {
     }
 
     private var getApplicationReleaseOverride: GetApplicationRelease? = null
+
     @VisibleForTesting
     internal var getApplicationRelease: GetApplicationRelease
         get() = getApplicationReleaseOverride ?: Injekt.get()
@@ -31,6 +32,7 @@ class AppUpdateChecker {
         }
 
     private var gatekeeperOverride: UpdatePromptGatekeeper? = null
+
     @VisibleForTesting
     internal var gatekeeper: UpdatePromptGatekeeper
         get() = gatekeeperOverride ?: Injekt.get()
@@ -39,6 +41,7 @@ class AppUpdateChecker {
         }
 
     private var notifierFactoryOverride: ((Context, Release) -> Unit)? = null
+
     @VisibleForTesting
     internal var notifierFactory: (Context, Release) -> Unit
         get() = notifierFactoryOverride ?: { context, release ->
@@ -53,6 +56,7 @@ class AppUpdateChecker {
         }
 
     private var decisionLoggerOverride: ((DecisionReason) -> Unit)? = null
+
     @VisibleForTesting
     internal var decisionLogger: (DecisionReason) -> Unit
         get() = decisionLoggerOverride ?: { reason ->
