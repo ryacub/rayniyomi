@@ -61,18 +61,24 @@ class GetApplicationRelease(
         return if (isPreview) {
             // Preview builds: based on releases in "tachiyomiorg/tachiyomi-preview" repo
             // tagged as something like "r1234"
-            newVersion.toInt() > commitCount
+            newVersion.toIntOrNull()?.let { it > commitCount } ?: false
         } else {
             // Release builds: based on releases in "tachiyomiorg/tachiyomi" repo
             // tagged as something like "v0.1.2"
             val oldVersion = versionName.replace("[^\\d.]".toRegex(), "")
 
-            val newSemVer = newVersion.split(".").map { it.toInt() }
-            val oldSemVer = oldVersion.split(".").map { it.toInt() }
+            val newSemVer = newVersion.split(".").mapNotNull { it.toIntOrNull() }
+            val oldSemVer = oldVersion.split(".").mapNotNull { it.toIntOrNull() }
+            if (newSemVer.isEmpty() || oldSemVer.isEmpty()) return false
 
-            oldSemVer.mapIndexed { index, i ->
-                if (newSemVer[index] > i) {
+            for (index in 0 until maxOf(newSemVer.size, oldSemVer.size)) {
+                val newComponent = newSemVer.getOrElse(index) { 0 }
+                val oldComponent = oldSemVer.getOrElse(index) { 0 }
+                if (newComponent > oldComponent) {
                     return true
+                }
+                if (newComponent < oldComponent) {
+                    return false
                 }
             }
 
