@@ -24,4 +24,8 @@ class UpdatePromptPreferences(private val preferenceStore: PreferenceStore) {
     fun lastPromptedAt(): Preference<Long> {
         return preferenceStore.getLong(Preference.appStateKey("update_last_prompted"), 0L)
     }
+
+    fun includePrerelease(): Preference<Boolean> {
+        return preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false)
+    }
 }
