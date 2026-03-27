@@ -32,15 +32,18 @@ class AppUpdateCheckerGatekeeperTest {
     private lateinit var mockGetApplicationRelease: GetApplicationRelease
     private lateinit var mockGatekeeper: UpdatePromptGatekeeper
     private lateinit var mockContext: Context
+    private lateinit var decisionEvents: MutableList<AppUpdateChecker.DecisionReason>
 
     @BeforeEach
     fun setUp() {
         mockGetApplicationRelease = mockk()
         mockGatekeeper = mockk()
         mockContext = mockk(relaxed = true)
+        decisionEvents = mutableListOf()
         checker = AppUpdateChecker()
         checker.getApplicationRelease = mockGetApplicationRelease
         checker.gatekeeper = mockGatekeeper
+        checker.decisionLogger = { decisionEvents.add(it) }
     }
 
     // ============================================================================
@@ -67,6 +70,7 @@ class AppUpdateCheckerGatekeeperTest {
 
         // Assert (will fail until UpdateSuppressed result type exists)
         assertEquals(GetApplicationRelease.Result.UpdateSuppressed(release), result)
+        assertEquals(listOf(AppUpdateChecker.DecisionReason.SUPPRESSED_BY_GATEKEEPER), decisionEvents)
     }
 
     // ============================================================================
@@ -94,6 +98,7 @@ class AppUpdateCheckerGatekeeperTest {
 
         // Assert
         assertEquals(GetApplicationRelease.Result.NewUpdate(release), result)
+        assertEquals(listOf(AppUpdateChecker.DecisionReason.PROMPT_ALLOWED), decisionEvents)
     }
 
     // ============================================================================
@@ -208,6 +213,7 @@ class AppUpdateCheckerGatekeeperTest {
 
         // Assert
         assertEquals(GetApplicationRelease.Result.NewUpdate(release), result)
+        assertEquals(listOf(AppUpdateChecker.DecisionReason.PROMPT_FORCED), decisionEvents)
     }
 
     // ============================================================================
@@ -226,5 +232,30 @@ class AppUpdateCheckerGatekeeperTest {
 
         // Assert
         assertEquals(GetApplicationRelease.Result.NoNewUpdate, result)
+        assertEquals(listOf(AppUpdateChecker.DecisionReason.NO_NEW_UPDATE), decisionEvents)
+    }
+
+    @Test
+    fun `checkForUpdate returns UpdateSuppressed when release version is blank`() = runTest {
+        // Arrange
+        val release = mockk<Release> {
+            every { version } returns " "
+        }
+
+        coEvery {
+            mockGetApplicationRelease.await(any())
+        } returns GetApplicationRelease.Result.NewUpdate(release)
+
+        // Act
+        val result = checker.checkForUpdate(mockContext, forceCheck = false)
+
+        // Assert
+        assertEquals(GetApplicationRelease.Result.UpdateSuppressed(release), result)
+        verify(exactly = 0) {
+            mockGatekeeper.clearSkipIfOutdated(any())
+            mockGatekeeper.shouldPrompt(any())
+            mockGatekeeper.recordPrompted()
+        }
+        assertEquals(listOf(AppUpdateChecker.DecisionReason.SUPPRESSED_INVALID_RELEASE_VERSION), decisionEvents)
     }
 }
