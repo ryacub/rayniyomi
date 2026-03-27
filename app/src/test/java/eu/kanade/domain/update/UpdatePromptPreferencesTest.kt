@@ -291,7 +291,8 @@ class UpdatePromptPreferencesTest {
             every { set(any()) } answers { includePrereleaseValue = firstArg() }
         }
 
-        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns includePrereleasePref
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
 
         val prefs = UpdatePromptPreferences(preferenceStore)
         val result = prefs.includePrerelease().get()
@@ -307,7 +308,8 @@ class UpdatePromptPreferencesTest {
             every { set(any()) } answers { includePrereleaseValue = firstArg() }
         }
 
-        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns includePrereleasePref
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
 
         val prefs = UpdatePromptPreferences(preferenceStore)
         prefs.includePrerelease().set(true)
@@ -323,7 +325,8 @@ class UpdatePromptPreferencesTest {
             every { set(any()) } answers { includePrereleaseValue = firstArg() }
         }
 
-        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns includePrereleasePref
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
 
         val prefs = UpdatePromptPreferences(preferenceStore)
         prefs.includePrerelease().set(true)
@@ -341,7 +344,8 @@ class UpdatePromptPreferencesTest {
             every { set(any()) } answers { includePrereleaseValue = firstArg() }
         }
 
-        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns includePrereleasePref
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
 
         val prefs = UpdatePromptPreferences(preferenceStore)
         prefs.includePrerelease()

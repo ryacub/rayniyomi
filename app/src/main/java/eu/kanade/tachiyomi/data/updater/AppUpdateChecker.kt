@@ -3,12 +3,14 @@ package eu.kanade.tachiyomi.data.updater
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import eu.kanade.domain.update.UpdatePromptGatekeeper
+import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.model.Release
+import tachiyomi.domain.release.model.ReleaseQuality
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -38,6 +40,15 @@ class AppUpdateChecker {
         get() = gatekeeperOverride ?: Injekt.get()
         set(value) {
             gatekeeperOverride = value
+        }
+
+    private var updatePromptPreferencesOverride: UpdatePromptPreferences? = null
+
+    @VisibleForTesting
+    internal var updatePromptPreferences: UpdatePromptPreferences
+        get() = updatePromptPreferencesOverride ?: Injekt.get()
+        set(value) {
+            updatePromptPreferencesOverride = value
         }
 
     private var notifierFactoryOverride: ((Context, Release) -> Unit)? = null
@@ -80,7 +91,7 @@ class AppUpdateChecker {
                     BuildConfig.VERSION_NAME,
                     GITHUB_REPO,
                     forceCheck,
-                    includePrerelease = isPreviewBuildType,
+                    includePrerelease = updatePromptPreferences.includePrerelease().get(),
                 ),
             )
 
@@ -101,7 +112,12 @@ class AppUpdateChecker {
                     } else {
                         gatekeeper.clearSkipIfOutdated(releaseVersion)
 
-                        if (!gatekeeper.shouldPrompt(releaseVersion)) {
+                        if (!gatekeeper.shouldPrompt(
+                                releaseVersion,
+                                isPrerelease =
+                                result.release.quality == ReleaseQuality.PRERELEASE,
+                            )
+                        ) {
                             decisionLogger.invoke(DecisionReason.SUPPRESSED_BY_GATEKEEPER)
                             return@withIOContext GetApplicationRelease.Result.UpdateSuppressed(result.release)
                         }
