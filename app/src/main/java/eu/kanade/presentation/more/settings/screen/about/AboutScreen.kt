@@ -25,10 +25,8 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.update.PromptCadence
-import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.presentation.components.AppBar
-import eu.kanade.presentation.more.AppUpdatePromptDialog
 import eu.kanade.presentation.more.LogoHeader
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
@@ -36,9 +34,8 @@ import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
-import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
-import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
+import eu.kanade.tachiyomi.ui.more.AppUpdatePromptDialogHost
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -78,7 +75,6 @@ object AboutScreen : Screen() {
         var isCheckingUpdates by remember { mutableStateOf(false) }
         var pendingUpdate by remember { mutableStateOf<Release?>(null) }
         val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
-        val updatePromptGatekeeper = remember { Injekt.get<UpdatePromptGatekeeper>() }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -243,35 +239,9 @@ object AboutScreen : Screen() {
         }
 
         pendingUpdate?.let { release ->
-            AppUpdatePromptDialog(
-                versionName = release.version,
-                onUpdateNow = {
-                    AppUpdateDownloadJob.start(
-                        context = context,
-                        url = release.downloadLink,
-                        title = release.version,
-                    )
-                    pendingUpdate = null
-                },
-                onLater = {
-                    pendingUpdate = null
-                },
-                onSkipVersion = {
-                    updatePromptGatekeeper.skipVersion(release.version)
-                    pendingUpdate = null
-                },
-                onViewDetails = {
-                    navigator.push(
-                        NewUpdateScreen(
-                            versionName = release.version,
-                            changelogInfo = release.info,
-                            releaseLink = release.releaseLink,
-                            downloadLink = release.downloadLink,
-                            releaseDateEpochMillis = release.publishedAt,
-                        ),
-                    )
-                    pendingUpdate = null
-                },
+            AppUpdatePromptDialogHost(
+                release = release,
+                onDismiss = { pendingUpdate = null },
             )
         }
     }
