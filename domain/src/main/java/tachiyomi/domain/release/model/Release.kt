@@ -9,6 +9,7 @@ data class Release(
     val releaseLink: String,
     val downloadLink: String,
     val quality: ReleaseQuality = ReleaseQuality.STABLE,
+    val publishedAt: Long? = null,
 ) {
     /**
      * Determines if this release is usable based on its quality and the includePrerelease setting.

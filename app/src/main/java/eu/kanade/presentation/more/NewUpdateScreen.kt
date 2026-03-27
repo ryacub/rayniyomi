@@ -23,6 +23,7 @@ import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -41,11 +42,17 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.secondaryItemAlpha
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Composable
 fun NewUpdateScreen(
     versionName: String,
     changelogInfo: String,
+    releaseDateEpochMillis: Long? = null,
     onOpenInBrowser: () -> Unit,
     onRejectUpdate: () -> Unit,
     onAcceptUpdate: () -> Unit,
@@ -136,6 +143,36 @@ fun NewUpdateScreen(
                     .padding(vertical = MaterialTheme.padding.small),
                 style = MaterialTheme.typography.titleSmall,
             )
+            Text(
+                text = stringResource(
+                    MR.strings.update_check_release_channel,
+                    stringResource(MR.strings.update_check_channel_stable),
+                ),
+                modifier = Modifier.secondaryItemAlpha(),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = stringResource(MR.strings.update_check_release_source, "ryacub/rayniyomi"),
+                modifier = Modifier.secondaryItemAlpha(),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            releaseDateEpochMillis?.let { releaseDate ->
+                val formattedDate = remember(releaseDate) {
+                    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).format(
+                        LocalDateTime.ofInstant(
+                            Instant.ofEpochMilli(releaseDate),
+                            ZoneId.systemDefault(),
+                        ),
+                    )
+                }
+                Text(
+                    text = stringResource(MR.strings.update_check_release_date, formattedDate),
+                    modifier = Modifier
+                        .secondaryItemAlpha()
+                        .padding(top = MaterialTheme.padding.extraSmall),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
 
             RichText(
                 modifier = Modifier
