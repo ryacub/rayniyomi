@@ -1008,6 +1008,7 @@
     <string name="update_check_release_channel">Channel: %1$s</string>
     <string name="update_check_release_source">Source: %1$s</string>
     <string name="update_check_release_date">Released: %1$s</string>
+    <string name="update_check_in_progress_a11y">Checking for updates</string>
     <!-- reserved for future use -->
     <string name="update_check_eol">This Android version is no longer supported</string>
     <string name="update_check_no_new_updates">No new updates available</string>

@@ -16,6 +16,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -65,6 +67,7 @@ object AboutScreen : Screen() {
         val updateStateHolder = rememberAppUpdatePromptStateHolder()
         val updateState by updateStateHolder.state.collectAsStateWithLifecycle()
         val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
+        val updateCheckInProgressA11y = stringResource(MR.strings.update_check_in_progress_a11y)
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -96,6 +99,13 @@ object AboutScreen : Screen() {
                 if (updaterEnabled) {
                     item {
                         TextPreferenceWidget(
+                            modifier = if (updateState.isChecking) {
+                                Modifier.semantics {
+                                    stateDescription = updateCheckInProgressA11y
+                                }
+                            } else {
+                                Modifier
+                            },
                             title = stringResource(MR.strings.check_for_updates),
                             widget = {
                                 AnimatedVisibility(visible = updateState.isChecking) {
