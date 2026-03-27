@@ -25,8 +25,10 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.update.PromptCadence
+import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.presentation.components.AppBar
+import eu.kanade.presentation.more.AppUpdatePromptDialog
 import eu.kanade.presentation.more.LogoHeader
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
@@ -34,6 +36,7 @@ import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
+import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.util.CrashLogUtil
@@ -48,6 +51,7 @@ import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.release.interactor.GetApplicationRelease
+import tachiyomi.domain.release.model.Release
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LinkIcon
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
@@ -72,7 +76,9 @@ object AboutScreen : Screen() {
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
         var isCheckingUpdates by remember { mutableStateOf(false) }
+        var pendingUpdate by remember { mutableStateOf<Release?>(null) }
         val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
+        val updatePromptGatekeeper = remember { Injekt.get<UpdatePromptGatekeeper>() }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -121,13 +127,7 @@ object AboutScreen : Screen() {
                                         checkVersion(
                                             context = context,
                                             onAvailableUpdate = { result ->
-                                                val updateScreen = NewUpdateScreen(
-                                                    versionName = result.release.version,
-                                                    changelogInfo = result.release.info,
-                                                    releaseLink = result.release.releaseLink,
-                                                    downloadLink = result.release.downloadLink,
-                                                )
-                                                navigator.push(updateScreen)
+                                                pendingUpdate = result.release
                                             },
                                             onFinish = {
                                                 isCheckingUpdates = false
@@ -240,6 +240,39 @@ object AboutScreen : Screen() {
                     }
                 }
             }
+        }
+
+        pendingUpdate?.let { release ->
+            AppUpdatePromptDialog(
+                versionName = release.version,
+                onUpdateNow = {
+                    AppUpdateDownloadJob.start(
+                        context = context,
+                        url = release.downloadLink,
+                        title = release.version,
+                    )
+                    pendingUpdate = null
+                },
+                onLater = {
+                    pendingUpdate = null
+                },
+                onSkipVersion = {
+                    updatePromptGatekeeper.skipVersion(release.version)
+                    pendingUpdate = null
+                },
+                onViewDetails = {
+                    navigator.push(
+                        NewUpdateScreen(
+                            versionName = release.version,
+                            changelogInfo = release.info,
+                            releaseLink = release.releaseLink,
+                            downloadLink = release.downloadLink,
+                            releaseDateEpochMillis = release.publishedAt,
+                        ),
+                    )
+                    pendingUpdate = null
+                },
+            )
         }
     }
 

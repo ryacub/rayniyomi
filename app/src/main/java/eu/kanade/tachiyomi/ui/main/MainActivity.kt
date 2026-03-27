@@ -60,11 +60,13 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
+import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.presentation.components.AppStateBanners
 import eu.kanade.presentation.components.BatteryOptimizationDialog
 import eu.kanade.presentation.components.DownloadedOnlyBannerBackgroundColor
 import eu.kanade.presentation.components.IncognitoModeBannerBackgroundColor
 import eu.kanade.presentation.components.IndexingBannerBackgroundColor
+import eu.kanade.presentation.more.AppUpdatePromptDialog
 import eu.kanade.presentation.more.settings.screen.browse.AnimeExtensionReposScreen
 import eu.kanade.presentation.more.settings.screen.browse.MangaExtensionReposScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
@@ -81,6 +83,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
+import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.extension.anime.api.AnimeExtensionApi
 import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
@@ -118,6 +121,7 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.release.interactor.GetApplicationRelease
+import tachiyomi.domain.release.model.Release
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.util.collectAsState
@@ -138,6 +142,7 @@ class MainActivity : BaseActivity() {
 
     private val getAnimeIncognitoState: GetAnimeIncognitoState by injectLazy()
     private val getMangaIncognitoState: GetMangaIncognitoState by injectLazy()
+    private val updatePromptGatekeeper: UpdatePromptGatekeeper by injectLazy()
 
     // To be checked by splash screen. If true then splash screen will be removed.
     var ready = false
@@ -427,6 +432,7 @@ class MainActivity : BaseActivity() {
     private fun CheckForUpdates() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
+        var pendingUpdate by remember { mutableStateOf<Release?>(null) }
 
         // App updates
         LaunchedEffect(Unit) {
@@ -434,18 +440,44 @@ class MainActivity : BaseActivity() {
                 try {
                     val result = AppUpdateChecker().checkForUpdate(context)
                     if (result is GetApplicationRelease.Result.NewUpdate) {
-                        val updateScreen = NewUpdateScreen(
-                            versionName = result.release.version,
-                            changelogInfo = result.release.info,
-                            releaseLink = result.release.releaseLink,
-                            downloadLink = result.release.downloadLink,
-                        )
-                        navigator.push(updateScreen)
+                        pendingUpdate = result.release
                     }
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e)
                 }
             }
+        }
+        pendingUpdate?.let { release ->
+            AppUpdatePromptDialog(
+                versionName = release.version,
+                onUpdateNow = {
+                    AppUpdateDownloadJob.start(
+                        context = context,
+                        url = release.downloadLink,
+                        title = release.version,
+                    )
+                    pendingUpdate = null
+                },
+                onLater = {
+                    pendingUpdate = null
+                },
+                onSkipVersion = {
+                    updatePromptGatekeeper.skipVersion(release.version)
+                    pendingUpdate = null
+                },
+                onViewDetails = {
+                    navigator.push(
+                        NewUpdateScreen(
+                            versionName = release.version,
+                            changelogInfo = release.info,
+                            releaseLink = release.releaseLink,
+                            downloadLink = release.downloadLink,
+                            releaseDateEpochMillis = release.publishedAt,
+                        ),
+                    )
+                    pendingUpdate = null
+                },
+            )
         }
 
         // Extensions updates

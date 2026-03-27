@@ -17,6 +17,7 @@ class NewUpdateScreen(
     private val changelogInfo: String,
     private val releaseLink: String,
     private val downloadLink: String,
+    private val releaseDateEpochMillis: Long? = null,
 ) : Screen() {
 
     private val gatekeeper: UpdatePromptGatekeeper by injectLazy()
@@ -32,6 +33,7 @@ class NewUpdateScreen(
         NewUpdateScreen(
             versionName = versionName,
             changelogInfo = changelogInfoNoChecksum,
+            releaseDateEpochMillis = releaseDateEpochMillis,
             onOpenInBrowser = { context.openInBrowser(releaseLink) },
             onRejectUpdate = navigator::pop,
             onAcceptUpdate = {
