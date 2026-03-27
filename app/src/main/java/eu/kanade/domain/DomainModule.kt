@@ -63,6 +63,8 @@ import eu.kanade.domain.track.manga.interactor.RefreshMangaTracks
 import eu.kanade.domain.track.manga.interactor.SyncChapterProgressWithTrack
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackerSyncCoordinator
+import eu.kanade.domain.update.UpdatePromptGatekeeper
+import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
 import mihon.data.repository.anime.AnimeExtensionRepoRepositoryImpl
 import mihon.data.repository.manga.MangaExtensionRepoRepositoryImpl
@@ -312,6 +314,8 @@ class DomainModule : InjektModule {
 
         addSingletonFactory<ReleaseService> { ReleaseServiceImpl(get(), get()) }
         addFactory { GetApplicationRelease(get(), get()) }
+        addSingletonFactory { UpdatePromptPreferences(get()) }
+        addSingletonFactory { UpdatePromptGatekeeper(get()) }
 
         addSingletonFactory<AnimeTrackRepository> { AnimeTrackRepositoryImpl(get()) }
         addFactory { TrackEpisode(get(), get(), get(), get()) }

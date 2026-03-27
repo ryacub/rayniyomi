@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Download queue** — migrated anime and manga download queue screens from RecyclerView/FlexibleAdapter to Jetpack Compose; supports drag-to-reorder sources, per-item progress display, and move-to-top/bottom actions; removes flexibleadapter dependency
 - **Battery optimization prompt** — shows a one-time dialog when queuing 10 or more downloads while the app is subject to battery optimization; offers direct navigation to system settings to exempt the app
 - **Release quality classification** — update candidates are now filtered by stability; pre-release, draft, and deprecated GitHub releases are excluded from the default update path; preview builds opt-in to pre-release updates automatically
+- **Update prompt cadence controls** — users can now set how often the app prompts for updates (always, once per day, once per week, or never) and skip individual versions from the About screen; skipped versions auto-clear when a newer stable release is available
 
 ### Fixed
 
