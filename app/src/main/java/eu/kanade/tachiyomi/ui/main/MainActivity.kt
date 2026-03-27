@@ -80,7 +80,6 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
-import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.extension.anime.api.AnimeExtensionApi
 import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
@@ -97,6 +96,7 @@ import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.more.AppUpdatePromptDialogHost
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
+import eu.kanade.tachiyomi.ui.more.rememberAppUpdatePromptStateHolder
 import eu.kanade.tachiyomi.ui.player.ExternalIntents
 import eu.kanade.tachiyomi.util.system.dpToPx
 import eu.kanade.tachiyomi.util.system.isNavigationBarNeedsScrim
@@ -117,8 +117,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.library.service.LibraryPreferences
-import tachiyomi.domain.release.interactor.GetApplicationRelease
-import tachiyomi.domain.release.model.Release
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.util.collectAsState
@@ -427,27 +425,18 @@ class MainActivity : BaseActivity() {
     @Composable
     private fun CheckForUpdates() {
         val context = LocalContext.current
-        var pendingUpdate by remember { mutableStateOf<Release?>(null) }
+        val updateStateHolder = rememberAppUpdatePromptStateHolder()
 
         // App updates
         LaunchedEffect(Unit) {
             if (updaterEnabled) {
-                try {
-                    val result = AppUpdateChecker().checkForUpdate(context)
-                    if (result is GetApplicationRelease.Result.NewUpdate) {
-                        pendingUpdate = result.release
-                    }
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR, e)
-                }
+                updateStateHolder.checkForUpdates(
+                    forceCheck = false,
+                    showResultToasts = false,
+                )
             }
         }
-        pendingUpdate?.let { release ->
-            AppUpdatePromptDialogHost(
-                release = release,
-                onDismiss = { pendingUpdate = null },
-            )
-        }
+        AppUpdatePromptDialogHost(stateHolder = updateStateHolder)
 
         // Extensions updates
         LaunchedEffect(Unit) {

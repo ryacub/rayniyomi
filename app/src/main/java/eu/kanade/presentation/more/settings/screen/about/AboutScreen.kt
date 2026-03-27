@@ -1,6 +1,5 @@
 package eu.kanade.presentation.more.settings.screen.about
 
-import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -12,14 +11,13 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.preference.asState
@@ -33,22 +31,14 @@ import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
-import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.AppUpdatePromptDialogHost
+import eu.kanade.tachiyomi.ui.more.rememberAppUpdatePromptStateHolder
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
-import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.updaterEnabled
-import kotlinx.coroutines.launch
-import logcat.LogPriority
-import tachiyomi.core.common.util.lang.withIOContext
-import tachiyomi.core.common.util.lang.withUIContext
-import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.release.interactor.GetApplicationRelease
-import tachiyomi.domain.release.model.Release
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LinkIcon
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
@@ -72,8 +62,8 @@ object AboutScreen : Screen() {
         val uriHandler = LocalUriHandler.current
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
-        var isCheckingUpdates by remember { mutableStateOf(false) }
-        var pendingUpdate by remember { mutableStateOf<Release?>(null) }
+        val updateStateHolder = rememberAppUpdatePromptStateHolder()
+        val updateState by updateStateHolder.state.collectAsStateWithLifecycle()
         val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
 
         Scaffold(
@@ -108,7 +98,7 @@ object AboutScreen : Screen() {
                         TextPreferenceWidget(
                             title = stringResource(MR.strings.check_for_updates),
                             widget = {
-                                AnimatedVisibility(visible = isCheckingUpdates) {
+                                AnimatedVisibility(visible = updateState.isChecking) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(28.dp),
                                         strokeWidth = 3.dp,
@@ -116,20 +106,11 @@ object AboutScreen : Screen() {
                                 }
                             },
                             onPreferenceClick = {
-                                if (!isCheckingUpdates) {
-                                    scope.launch {
-                                        isCheckingUpdates = true
-
-                                        checkVersion(
-                                            context = context,
-                                            onAvailableUpdate = { result ->
-                                                pendingUpdate = result.release
-                                            },
-                                            onFinish = {
-                                                isCheckingUpdates = false
-                                            },
-                                        )
-                                    }
+                                if (!updateState.isChecking) {
+                                    updateStateHolder.checkForUpdates(
+                                        forceCheck = true,
+                                        showResultToasts = true,
+                                    )
                                 }
                             },
                         )
@@ -238,51 +219,7 @@ object AboutScreen : Screen() {
             }
         }
 
-        pendingUpdate?.let { release ->
-            AppUpdatePromptDialogHost(
-                release = release,
-                onDismiss = { pendingUpdate = null },
-            )
-        }
-    }
-
-    /**
-     * Checks version and shows a user prompt if an update is available.
-     */
-    private suspend fun checkVersion(
-        context: Context,
-        onAvailableUpdate: (GetApplicationRelease.Result.NewUpdate) -> Unit,
-        onFinish: () -> Unit,
-    ) {
-        val updateChecker = AppUpdateChecker()
-        withUIContext {
-            try {
-                when (
-                    val result = withIOContext {
-                        updateChecker.checkForUpdate(
-                            context,
-                            forceCheck = true,
-                        )
-                    }
-                ) {
-                    is GetApplicationRelease.Result.NewUpdate -> {
-                        onAvailableUpdate(result)
-                    }
-                    is GetApplicationRelease.Result.NoNewUpdate -> {
-                        context.toast(MR.strings.update_check_no_new_updates)
-                    }
-                    is GetApplicationRelease.Result.OsTooOld -> {
-                        context.toast(MR.strings.update_check_eol)
-                    }
-                    else -> {}
-                }
-            } catch (e: Exception) {
-                context.toast(e.message)
-                logcat(LogPriority.ERROR, e)
-            } finally {
-                onFinish()
-            }
-        }
+        AppUpdatePromptDialogHost(stateHolder = updateStateHolder)
     }
 
     fun getVersionName(withBuildDate: Boolean): String {
