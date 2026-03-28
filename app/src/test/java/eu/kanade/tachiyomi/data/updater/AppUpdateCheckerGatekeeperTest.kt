@@ -2,17 +2,22 @@ package eu.kanade.tachiyomi.data.updater
 
 import android.content.Context
 import eu.kanade.domain.update.UpdatePromptGatekeeper
+import eu.kanade.domain.update.UpdatePromptPreferences
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.model.Release
+import tachiyomi.domain.release.model.ReleaseQuality
 
 /**
  * RED tests for AppUpdateChecker gatekeeper integration.
@@ -31,6 +36,7 @@ class AppUpdateCheckerGatekeeperTest {
     private lateinit var checker: AppUpdateChecker
     private lateinit var mockGetApplicationRelease: GetApplicationRelease
     private lateinit var mockGatekeeper: UpdatePromptGatekeeper
+    private lateinit var mockPreferences: UpdatePromptPreferences
     private lateinit var mockContext: Context
     private lateinit var decisionEvents: MutableList<AppUpdateChecker.DecisionReason>
 
@@ -38,12 +44,17 @@ class AppUpdateCheckerGatekeeperTest {
     fun setUp() {
         mockGetApplicationRelease = mockk()
         mockGatekeeper = mockk()
+        mockPreferences = mockk()
         mockContext = mockk(relaxed = true)
         decisionEvents = mutableListOf()
         checker = AppUpdateChecker()
         checker.getApplicationRelease = mockGetApplicationRelease
         checker.gatekeeper = mockGatekeeper
         checker.decisionLogger = { decisionEvents.add(it) }
+        // Set up default includePrerelease preference (false by default)
+        val includePrereleasePref = mockk<Preference<Boolean>> { every { get() } returns false }
+        every { mockPreferences.includePrerelease() } returns includePrereleasePref
+        checker.updatePromptPreferences = mockPreferences
     }
 
     // ============================================================================
@@ -53,9 +64,13 @@ class AppUpdateCheckerGatekeeperTest {
     @Test
     fun `checkForUpdate returns UpdateSuppressed when gatekeeper shouldPrompt is false`() = runTest {
         // Arrange
-        val release = mockk<Release> {
-            every { version } returns "1.2.3"
-        }
+        val release = Release(
+            version = "1.2.3",
+            info = "Test release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.STABLE,
+        )
         val releaseVersion = "1.2.3"
 
         coEvery {
@@ -63,7 +78,7 @@ class AppUpdateCheckerGatekeeperTest {
         } returns GetApplicationRelease.Result.NewUpdate(release)
 
         every { mockGatekeeper.clearSkipIfOutdated(releaseVersion) } returns Unit
-        every { mockGatekeeper.shouldPrompt(releaseVersion) } returns false
+        every { mockGatekeeper.shouldPrompt(releaseVersion, isPrerelease = false) } returns false
 
         // Act
         val result = checker.checkForUpdate(mockContext, forceCheck = false)
@@ -80,9 +95,13 @@ class AppUpdateCheckerGatekeeperTest {
     @Test
     fun `checkForUpdate returns NewUpdate when gatekeeper shouldPrompt is true`() = runTest {
         // Arrange
-        val release = mockk<Release> {
-            every { version } returns "1.5.0"
-        }
+        val release = Release(
+            version = "1.5.0",
+            info = "Test release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.STABLE,
+        )
         val releaseVersion = "1.5.0"
 
         coEvery {
@@ -90,7 +109,7 @@ class AppUpdateCheckerGatekeeperTest {
         } returns GetApplicationRelease.Result.NewUpdate(release)
 
         every { mockGatekeeper.clearSkipIfOutdated(releaseVersion) } returns Unit
-        every { mockGatekeeper.shouldPrompt(releaseVersion) } returns true
+        every { mockGatekeeper.shouldPrompt(releaseVersion, isPrerelease = false) } returns true
         every { mockGatekeeper.recordPrompted() } returns Unit
 
         // Act
@@ -108,9 +127,13 @@ class AppUpdateCheckerGatekeeperTest {
     @Test
     fun `checkForUpdate calls recordPrompted when prompting`() = runTest {
         // Arrange
-        val release = mockk<Release> {
-            every { version } returns "2.0.0"
-        }
+        val release = Release(
+            version = "2.0.0",
+            info = "Test release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.STABLE,
+        )
         val releaseVersion = "2.0.0"
 
         coEvery {
@@ -118,7 +141,7 @@ class AppUpdateCheckerGatekeeperTest {
         } returns GetApplicationRelease.Result.NewUpdate(release)
 
         every { mockGatekeeper.clearSkipIfOutdated(releaseVersion) } returns Unit
-        every { mockGatekeeper.shouldPrompt(releaseVersion) } returns true
+        every { mockGatekeeper.shouldPrompt(releaseVersion, isPrerelease = false) } returns true
         every { mockGatekeeper.recordPrompted() } returns Unit
 
         // Act
@@ -137,9 +160,13 @@ class AppUpdateCheckerGatekeeperTest {
     @Test
     fun `checkForUpdate does NOT call recordPrompted when suppressed`() = runTest {
         // Arrange
-        val release = mockk<Release> {
-            every { version } returns "3.0.0"
-        }
+        val release = Release(
+            version = "3.0.0",
+            info = "Test release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.STABLE,
+        )
         val releaseVersion = "3.0.0"
 
         coEvery {
@@ -147,7 +174,7 @@ class AppUpdateCheckerGatekeeperTest {
         } returns GetApplicationRelease.Result.NewUpdate(release)
 
         every { mockGatekeeper.clearSkipIfOutdated(releaseVersion) } returns Unit
-        every { mockGatekeeper.shouldPrompt(releaseVersion) } returns false
+        every { mockGatekeeper.shouldPrompt(releaseVersion, isPrerelease = false) } returns false
 
         // Act
         checker.checkForUpdate(mockContext, forceCheck = false)
@@ -165,9 +192,13 @@ class AppUpdateCheckerGatekeeperTest {
     @Test
     fun `checkForUpdate calls clearSkipIfOutdated before shouldPrompt`() = runTest {
         // Arrange
-        val release = mockk<Release> {
-            every { version } returns "1.7.0"
-        }
+        val release = Release(
+            version = "1.7.0",
+            info = "Test release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.STABLE,
+        )
         val releaseVersion = "1.7.0"
 
         coEvery {
@@ -178,7 +209,7 @@ class AppUpdateCheckerGatekeeperTest {
         every { mockGatekeeper.clearSkipIfOutdated(releaseVersion) } answers {
             callOrder.add("clearSkipIfOutdated")
         }
-        every { mockGatekeeper.shouldPrompt(releaseVersion) } answers {
+        every { mockGatekeeper.shouldPrompt(releaseVersion, isPrerelease = false) } answers {
             callOrder.add("shouldPrompt")
             false
         }
@@ -257,5 +288,76 @@ class AppUpdateCheckerGatekeeperTest {
             mockGatekeeper.recordPrompted()
         }
         assertEquals(listOf(AppUpdateChecker.DecisionReason.SUPPRESSED_INVALID_RELEASE_VERSION), decisionEvents)
+    }
+
+    // ============================================================================
+    // Pre-release integration: shouldPrompt receives isPrerelease from release quality
+    // ============================================================================
+
+    @Test
+    fun `checkForUpdate passes isPrerelease=true to shouldPrompt when release quality is PRERELEASE`() = runTest {
+        val release = Release(
+            version = "1.2.3-beta.1",
+            info = "Beta release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.PRERELEASE,
+        )
+
+        coEvery { mockGetApplicationRelease.await(any()) } returns GetApplicationRelease.Result.NewUpdate(release)
+        every { mockGatekeeper.clearSkipIfOutdated("1.2.3-beta.1") } returns Unit
+        every { mockGatekeeper.shouldPrompt("1.2.3-beta.1", isPrerelease = true) } returns false
+
+        checker.checkForUpdate(mockContext, forceCheck = false)
+
+        verify { mockGatekeeper.shouldPrompt("1.2.3-beta.1", isPrerelease = true) }
+    }
+
+    @Test
+    fun `checkForUpdate passes isPrerelease=false to shouldPrompt when release quality is STABLE`() = runTest {
+        val release = Release(
+            version = "1.2.3",
+            info = "Stable release",
+            releaseLink = "https://example.com",
+            downloadLink = "https://example.com/download",
+            quality = ReleaseQuality.STABLE,
+        )
+
+        coEvery { mockGetApplicationRelease.await(any()) } returns GetApplicationRelease.Result.NewUpdate(release)
+        every { mockGatekeeper.clearSkipIfOutdated("1.2.3") } returns Unit
+        every { mockGatekeeper.shouldPrompt("1.2.3", isPrerelease = false) } returns false
+
+        checker.checkForUpdate(mockContext, forceCheck = false)
+
+        verify { mockGatekeeper.shouldPrompt("1.2.3", isPrerelease = false) }
+    }
+
+    @Test
+    fun `checkForUpdate passes includePrerelease from preferences to GetApplicationRelease`() = runTest {
+        var includePrereleaseValue = true
+        val includePrereleasePref = mockk<Preference<Boolean>> { every { get() } answers { includePrereleaseValue } }
+        every { mockPreferences.includePrerelease() } returns includePrereleasePref
+
+        val argumentSlot = slot<GetApplicationRelease.Arguments>()
+        coEvery { mockGetApplicationRelease.await(capture(argumentSlot)) } returns
+            GetApplicationRelease.Result.NoNewUpdate
+
+        checker.checkForUpdate(mockContext, forceCheck = false)
+
+        assertTrue(argumentSlot.captured.includePrerelease)
+    }
+
+    @Test
+    fun `checkForUpdate passes includePrerelease=false from preferences when user disabled it`() = runTest {
+        val includePrereleasePref = mockk<Preference<Boolean>> { every { get() } returns false }
+        every { mockPreferences.includePrerelease() } returns includePrereleasePref
+
+        val argumentSlot = slot<GetApplicationRelease.Arguments>()
+        coEvery { mockGetApplicationRelease.await(capture(argumentSlot)) } returns
+            GetApplicationRelease.Result.NoNewUpdate
+
+        checker.checkForUpdate(mockContext, forceCheck = false)
+
+        assertFalse(argumentSlot.captured.includePrerelease)
     }
 }

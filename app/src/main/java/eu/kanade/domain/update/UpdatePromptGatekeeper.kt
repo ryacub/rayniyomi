@@ -4,14 +4,19 @@ import java.time.Instant
 
 class UpdatePromptGatekeeper(private val prefs: UpdatePromptPreferences) {
 
-    fun shouldPrompt(releaseVersion: String): Boolean {
+    fun shouldPrompt(releaseVersion: String, isPrerelease: Boolean = false): Boolean {
         // 1. Check if this version is skipped
         val skippedVersion = prefs.skipVersion().get()
         if (skippedVersion == releaseVersion) {
             return false
         }
 
-        // 2. Check cadence
+        // 2. Check if this is a prerelease and user doesn't want prerelease notifications
+        if (isPrerelease && !prefs.includePrerelease().get()) {
+            return false
+        }
+
+        // 3. Check cadence
         val cadence = prefs.promptCadence().get()
         return when (cadence) {
             PromptCadence.NEVER -> false

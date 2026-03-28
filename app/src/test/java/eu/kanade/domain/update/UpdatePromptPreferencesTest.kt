@@ -280,4 +280,77 @@ class UpdatePromptPreferencesTest {
         // Verify that appStateKey is used in the call
         verify { preferenceStore.getLong(Preference.appStateKey("update_last_prompted"), 0L) }
     }
+
+    // --- includePrerelease() tests ---
+
+    @Test
+    fun `includePrerelease default is false`() {
+        var includePrereleaseValue = false
+        val includePrereleasePref: Preference<Boolean> = mockk {
+            every { get() } answers { includePrereleaseValue }
+            every { set(any()) } answers { includePrereleaseValue = firstArg() }
+        }
+
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
+
+        val prefs = UpdatePromptPreferences(preferenceStore)
+        val result = prefs.includePrerelease().get()
+
+        assertEquals(false, result)
+    }
+
+    @Test
+    fun `includePrerelease can be set to true and retrieved`() {
+        var includePrereleaseValue = false
+        val includePrereleasePref: Preference<Boolean> = mockk {
+            every { get() } answers { includePrereleaseValue }
+            every { set(any()) } answers { includePrereleaseValue = firstArg() }
+        }
+
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
+
+        val prefs = UpdatePromptPreferences(preferenceStore)
+        prefs.includePrerelease().set(true)
+
+        assertEquals(true, prefs.includePrerelease().get())
+    }
+
+    @Test
+    fun `includePrerelease can be toggled back to false`() {
+        var includePrereleaseValue = false
+        val includePrereleasePref: Preference<Boolean> = mockk {
+            every { get() } answers { includePrereleaseValue }
+            every { set(any()) } answers { includePrereleaseValue = firstArg() }
+        }
+
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
+
+        val prefs = UpdatePromptPreferences(preferenceStore)
+        prefs.includePrerelease().set(true)
+        assertEquals(true, prefs.includePrerelease().get())
+
+        prefs.includePrerelease().set(false)
+        assertEquals(false, prefs.includePrerelease().get())
+    }
+
+    @Test
+    fun `includePrerelease uses appStateKey for mutable state`() {
+        var includePrereleaseValue = false
+        val includePrereleasePref: Preference<Boolean> = mockk {
+            every { get() } answers { includePrereleaseValue }
+            every { set(any()) } answers { includePrereleaseValue = firstArg() }
+        }
+
+        every { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) } returns
+            includePrereleasePref
+
+        val prefs = UpdatePromptPreferences(preferenceStore)
+        prefs.includePrerelease()
+
+        // Verify that appStateKey is used in the call
+        verify { preferenceStore.getBoolean(Preference.appStateKey("update_include_prerelease"), false) }
+    }
 }

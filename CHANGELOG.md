@@ -41,6 +41,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Release quality classification** — update candidates are now filtered by stability; pre-release, draft, and deprecated GitHub releases are excluded from the default update path; preview builds opt-in to pre-release updates automatically
 - **Update prompt cadence controls** — users can now set how often the app prompts for updates (always, once per day, once per week, or never) and skip individual versions from the About screen; skipped versions auto-clear when a newer stable release is available
 - **Startup update modal with details-first flow** — stable update checks now surface a startup/manual-check modal with `Update now`, `Later`, and `Skip this version`, plus a `View details` path into the full in-app release details screen (version/date/changelog/source metadata + GitHub link)
+- **Pre-release update toggle** — users can opt in to pre-release (beta) update notifications from the update settings; stable releases are always shown regardless of this setting
 
 ### Fixed
 
