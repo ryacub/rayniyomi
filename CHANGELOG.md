@@ -14,6 +14,19 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Fixed
+
+### Changed
+
+### CI
+
+### Other
+
+
+## [0.18.1.123] - 2026-03-28
+
+### Added
+
 - **Custom accent color theme** — Material 3 app-wide theming from a user-selected accent seed; generates light/dark color schemes with Android 14 contrast-awareness and readability guardrails (contrast clamp + fallback)
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
 - **Custom app theme accent controls** — custom app theme is now selectable in Appearance settings with curated accent swatches and one-tap reset to default palette
@@ -68,6 +81,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager`; converted 4 deferred TODO comments to tracked GitHub issues (#536–#539)
 - Backfilled missing `Unreleased` entries from previously merged Codex PRs, deduped against existing changelog items
 - Harden custom accent preference schema migration safety: schema-first read, malformed/unknown-version fallback to legacy/unset, dual-write compatibility for downgrade paths, and delete/isSet reactive stability improvements
+
 
 ## [0.18.1.75] - 2026-03-13
 
