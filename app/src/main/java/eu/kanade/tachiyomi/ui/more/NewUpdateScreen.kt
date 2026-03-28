@@ -28,7 +28,9 @@ class NewUpdateScreen(
     @VisibleForTesting
     internal var gatekeeper: UpdatePromptGatekeeper
         get() = gatekeeperOverride ?: Injekt.get()
-        set(value) { gatekeeperOverride = value }
+        set(value) {
+            gatekeeperOverride = value
+        }
 
     @VisibleForTesting
     internal fun buildOnSkipVersion(navigator: Navigator): () -> Unit = {
