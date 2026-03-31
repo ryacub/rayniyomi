@@ -156,3 +156,44 @@ tasks.register("checkDeadXmlLayouts") {
         }
     }
 }
+
+tasks.register("checkNoXmlForMigratedScreens") {
+    group = "verification"
+    description = "Guard against re-introduction of XML layouts for screens migrated to Compose"
+    notCompatibleWithConfigurationCache("Scans file system at execution time")
+
+    doLast {
+        // Screens that have been migrated to Compose — their XML layouts must never come back.
+        // Add entries here whenever a screen completes its Compose migration.
+        val migratedScreens = setOf(
+            "download_header",
+            "download_item",
+            "download_list",
+            "player_layout",
+            "reader_error",
+        )
+
+        val layoutDir = projectDir.resolve("src/main/res/layout")
+        if (!layoutDir.exists()) return@doLast
+
+        val reintroduced = layoutDir.listFiles()
+            ?.filter { it.extension == "xml" && it.nameWithoutExtension in migratedScreens }
+            ?: emptyList()
+
+        if (reintroduced.isNotEmpty()) {
+            reintroduced.forEach { file ->
+                logger.error("COMPOSE_REGRESSION: ${file.name} — this screen has been migrated to Compose; delete the XML layout")
+            }
+            throw GradleException(
+                "Found ${reintroduced.size} XML layout(s) for Compose-migrated screen(s). " +
+                "Remove the XML file(s) — these screens must not revert to XML."
+            )
+        } else {
+            logger.lifecycle("checkNoXmlForMigratedScreens: No Compose migration regressions found ✓")
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn("checkBlockingCalls", "checkDeadXmlLayouts", "checkNoXmlForMigratedScreens")
+}
