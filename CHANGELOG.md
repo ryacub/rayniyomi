@@ -16,7 +16,13 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Repaired macrobenchmark target wiring so benchmark startup tests and baseline profile generation point at the `xyz.rayniyomi.benchmark` app package instead of stale package IDs
+- Stable benchmark builds now skip Google Services application and Crashlytics symbol/mapping uploads that are invalid for the benchmark application ID, allowing `stableBenchmark` assembly and installation to complete
+- Anime and manga extension update scans now run on the I/O dispatcher instead of inheriting the startup coroutine context, reducing launch-time contention from package/file scanning work
+
 ### Changed
+
+- Benchmark builds now skip the app's artificial splash minimum/maximum hold and exit animation so startup measurements reflect app work instead of benchmark-only delay
 
 ### CI
 
