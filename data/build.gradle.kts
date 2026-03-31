@@ -41,4 +41,6 @@ dependencies {
     implementation(projects.core.common)
 
     api(libs.bundles.sqldelight)
+
+    testImplementation(libs.bundles.test)
 }

@@ -10,6 +10,7 @@ import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.interactor.ReleaseClassifier
 import tachiyomi.domain.release.model.Release
 import tachiyomi.domain.release.service.ReleaseService
+import java.time.Instant
 
 class ReleaseServiceImpl(
     private val networkService: NetworkHelper,
@@ -40,6 +41,7 @@ class ReleaseServiceImpl(
             releaseLink = release.releaseLink,
             downloadLink = downloadLink,
             quality = quality,
+            publishedAt = parsePublishedAt(release.publishedAt),
         )
     }
 
@@ -66,5 +68,11 @@ class ReleaseServiceImpl(
          */
         private val gitHubUsernameMentionRegex = """\B@([a-z0-9](?:-(?=[a-z0-9])|[a-z0-9]){0,38}(?<=[a-z0-9]))"""
             .toRegex(RegexOption.IGNORE_CASE)
+
+        internal fun parsePublishedAt(value: String?): Long? {
+            return value?.let { publishedAt ->
+                runCatching { Instant.parse(publishedAt).toEpochMilli() }.getOrNull()
+            }
+        }
     }
 }

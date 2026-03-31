@@ -14,6 +14,19 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Fixed
+
+### Changed
+
+### CI
+
+### Other
+
+
+## [0.18.1.123] - 2026-03-28
+
+### Added
+
 - **Custom accent color theme** — Material 3 app-wide theming from a user-selected accent seed; generates light/dark color schemes with Android 14 contrast-awareness and readability guardrails (contrast clamp + fallback)
 - **Download crash notification** — notifies the user when the anime or manga download job crashes repeatedly (threshold: 3 consecutive crashes), with a tap-to-open link to the download manager
 - **Custom app theme accent controls** — custom app theme is now selectable in Appearance settings with curated accent swatches and one-tap reset to default palette
@@ -27,6 +40,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - **Battery optimization prompt** — shows a one-time dialog when queuing 10 or more downloads while the app is subject to battery optimization; offers direct navigation to system settings to exempt the app
 - **Release quality classification** — update candidates are now filtered by stability; pre-release, draft, and deprecated GitHub releases are excluded from the default update path; preview builds opt-in to pre-release updates automatically
 - **Update prompt cadence controls** — users can now set how often the app prompts for updates (always, once per day, once per week, or never) and skip individual versions from the About screen; skipped versions auto-clear when a newer stable release is available
+- **Startup update modal with details-first flow** — stable update checks now surface a startup/manual-check modal with `Update now`, `Later`, and `Skip this version`, plus a `View details` path into the full in-app release details screen (version/date/changelog/source metadata + GitHub link)
+- **Pre-release update toggle** — users can opt in to pre-release (beta) update notifications from the update settings; stable releases are always shown regardless of this setting
 
 ### Fixed
 
@@ -38,6 +53,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Keep RoomDatabase subclass constructors in release builds to prevent WorkManager startup crash from R8 stripping the no-arg constructor
 - MPV subtitle font sync now runs deterministically in initializer IO flow with idempotent copy/cleanup behavior and failure-safe per-file handling
 - Guard source ID generation against invalid extension metadata to prevent `AnimeHttpSource.getId()`/`HttpSource.getId()` null-crash paths
+- App update checks now handle malformed/blank release metadata safely and preserve user flow on fallback paths while recording explicit decision reasons for diagnostics
 
 ### Changed
 
@@ -66,6 +82,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Remove dead `rollbackToLastGood()` stub and `ROLLBACK_NOT_AVAILABLE` error code from `LightNovelPluginManager`; converted 4 deferred TODO comments to tracked GitHub issues (#536–#539)
 - Backfilled missing `Unreleased` entries from previously merged Codex PRs, deduped against existing changelog items
 - Harden custom accent preference schema migration safety: schema-first read, malformed/unknown-version fallback to legacy/unset, dual-write compatibility for downgrade paths, and delete/isSet reactive stability improvements
+
 
 ## [0.18.1.75] - 2026-03-13
 
