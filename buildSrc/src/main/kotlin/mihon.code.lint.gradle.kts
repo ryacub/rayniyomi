@@ -83,3 +83,83 @@ tasks.register("checkBlockingCalls") {
         }
     }
 }
+
+tasks.register("checkDeadXmlLayouts") {
+    group = "verification"
+    description = "Check for unreferenced XML layout files not tracked for migration"
+    notCompatibleWithConfigurationCache("Scans file system at execution time")
+
+    doLast {
+        // Layouts known to be dead and tracked for deletion in R574.
+        // Remove entries from this list as the corresponding XML files are deleted.
+        val migratedLayouts = setOf(
+            "player_layout",
+            "reader_activity",
+            "reader_error",
+            "download_header",
+            "download_item",
+            "download_list",
+        )
+
+        val layoutDir = projectDir.resolve("src/main/res/layout")
+        if (!layoutDir.exists()) return@doLast
+
+        val sourceRoots = listOf(
+            projectDir.resolve("src/main/java"),
+            projectDir.resolve("src/main/kotlin"),
+            projectDir.resolve("src/main/res"),
+        )
+
+        fun toPascalCaseBinding(layoutName: String): String {
+            return layoutName.split("_").joinToString("") { part ->
+                part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            } + "Binding"
+        }
+
+        fun buildSearchPatterns(layoutName: String): List<String> = listOf(
+            "R.layout.$layoutName",
+            "@layout/$layoutName",
+            "${toPascalCaseBinding(layoutName)}.inflate",
+            "${toPascalCaseBinding(layoutName)}.bind",
+        )
+
+        fun isLayoutReferenced(layoutName: String): Boolean {
+            val patterns = buildSearchPatterns(layoutName)
+            for (sourceRoot in sourceRoots) {
+                if (!sourceRoot.exists()) continue
+                sourceRoot.walkTopDown()
+                    .filter { it.isFile && (it.extension == "kt" || it.extension == "java" || it.extension == "xml") }
+                    .forEach { file ->
+                        val content = file.readText()
+                        if (patterns.any { content.contains(it) }) return true
+                    }
+            }
+            return false
+        }
+
+        val violations = mutableListOf<String>()
+
+        layoutDir.listFiles()
+            ?.filter { it.extension == "xml" }
+            ?.forEach { xmlFile ->
+                val layoutName = xmlFile.nameWithoutExtension
+                if (layoutName in migratedLayouts) return@forEach
+                if (!isLayoutReferenced(layoutName)) {
+                    violations.add(layoutName)
+                }
+            }
+
+        if (violations.isNotEmpty()) {
+            violations.forEach { name ->
+                logger.error("DEAD_LAYOUT: $name — not referenced in any source file")
+            }
+            throw GradleException(
+                "Found ${violations.size} unreferenced XML layout(s). " +
+                "Either reference the layout, delete it, or add it to the migratedLayouts " +
+                "baseline in buildSrc/src/main/kotlin/mihon.code.lint.gradle.kts."
+            )
+        } else {
+            logger.lifecycle("checkDeadXmlLayouts: No unexpected dead layouts found ✓")
+        }
+    }
+}
