@@ -11,15 +11,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.tachiyomi.ui.player.controls.PlayerControls
 
-internal data class PlayerHostUiState(
-    val isPipSupportedAndEnabled: Boolean,
-    val isPlayerPaused: Boolean,
-    val pipOnExitEnabled: Boolean,
-)
-
 internal data class PlayerHostUiCallbacks(
-    val onEnterPictureInPicture: () -> Unit,
-    val onFinish: () -> Unit,
+    val onBackPress: () -> Unit,
     val onPipRectChanged: (Rect) -> Unit,
 )
 
@@ -27,7 +20,6 @@ internal data class PlayerHostUiCallbacks(
 internal fun PlayerHostContent(
     playerView: AniyomiMPVView,
     viewModel: PlayerViewModel,
-    state: PlayerHostUiState,
     callbacks: PlayerHostUiCallbacks,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -38,13 +30,7 @@ internal fun PlayerHostContent(
         TachiyomiTheme {
             PlayerControls(
                 viewModel = viewModel,
-                onBackPress = {
-                    if (state.isPipSupportedAndEnabled && !state.isPlayerPaused && state.pipOnExitEnabled) {
-                        callbacks.onEnterPictureInPicture()
-                    } else {
-                        callbacks.onFinish()
-                    }
-                },
+                onBackPress = callbacks.onBackPress,
                 modifier = Modifier
                     .fillMaxSize()
                     .onGloballyPositioned {

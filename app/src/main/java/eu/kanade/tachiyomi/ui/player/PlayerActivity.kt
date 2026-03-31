@@ -236,16 +236,14 @@ class PlayerActivity : BaseActivity() {
             PlayerHostContent(
                 playerView = playerView,
                 viewModel = viewModel,
-                state = PlayerHostUiState(
-                    isPipSupportedAndEnabled = isPipSupportedAndEnabled,
-                    isPlayerPaused = player.paused ?: false,
-                    pipOnExitEnabled = playerPreferences.pipOnExit().get(),
-                ),
                 callbacks = PlayerHostUiCallbacks(
-                    onEnterPictureInPicture = {
-                        enterPictureInPictureMode(createPipParams())
+                    onBackPress = {
+                        if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
+                            enterPictureInPictureMode(createPipParams())
+                        } else {
+                            finish()
+                        }
                     },
-                    onFinish = ::finish,
                     onPipRectChanged = { rect ->
                         pipRect = rect
                     },
