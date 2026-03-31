@@ -1,0 +1,281 @@
+name: Reader parity gate
+
+on:
+  pull_request:
+    paths:
+      - 'macrobenchmark/**'
+      - 'scripts/reader_parity_*.py'
+      - 'scripts/reader_parity_extract_benchmark.py'
+      - 'scripts/tests/test_reader_parity_*.py'
+      - 'app/src/androidTest/java/eu/kanade/tachiyomi/ui/reader/viewer/**'
+      - 'app/src/main/java/eu/kanade/presentation/reader/**'
+      - 'app/src/main/java/eu/kanade/tachiyomi/ui/reader/**'
+      - '.github/workflows/reader_parity_gate.yml'
+  workflow_dispatch:
+    inputs:
+      manual_talkback_validated:
+        description: 'Set true only after manual TalkBack checklist execution'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  SQLDELIGHT_AGP9_FIX_SHA: c8f6011c014368544c71f5e490ef0409bb2f4705
+
+jobs:
+  reader_parity_contract:
+    name: Reader parity evaluator + contract tests
+    runs-on: ubuntu-24.04
+    needs:
+      - reader_a11y_android_test
+      - reader_benchmark_smoke
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Download benchmark observed artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: reader-parity-benchmark-observed-${{ github.sha }}
+          path: .artifacts/benchmark
+
+      - name: Download a11y observed artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: reader-parity-a11y-observed-${{ github.sha }}
+          path: .artifacts/a11y
+
+      - name: Run parity script unit tests
+        run: python3 -m unittest scripts/tests/test_reader_parity_gate.py scripts/tests/test_reader_parity_collect.py scripts/tests/test_reader_parity_extract_benchmark.py
+
+      - name: Collect candidate report
+        run: |
+          python3 scripts/reader_parity_collect.py \
+            --baseline macrobenchmark/parity/reader_parity_baseline.json \
+            --benchmark-observed .artifacts/benchmark/macrobenchmark/parity/reader_parity_benchmark_observed.json \
+            --a11y-observed .artifacts/a11y/macrobenchmark/parity/reader_parity_a11y_observed.json \
+            --output macrobenchmark/parity/reader_parity_candidate.json
+
+      - name: Evaluate parity gate
+        run: |
+          set -euo pipefail
+
+          allow_bypass="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'reader-parity-bypass') }}"
+          bypass_reason=""
+          followup_issue=""
+
+          if [ "$allow_bypass" = "true" ]; then
+            bypass_reason="maintainer-approved emergency bypass"
+            body="$(cat <<'PR_BODY'
+${{ github.event.pull_request.body }}
+PR_BODY
+)"
+            followup_issue=$(printf '%s' "$body" | sed -n 's/.*reader-parity-followup:[[:space:]]*\([^[:space:]]*\).*/\1/p' | head -n1)
+          fi
+
+          extra_args=()
+          if [ "$allow_bypass" = "true" ]; then
+            extra_args+=(--allow-bypass)
+            extra_args+=(--bypass-reason "$bypass_reason")
+            extra_args+=(--followup-issue "$followup_issue")
+          fi
+
+          python3 scripts/reader_parity_gate.py \
+            --baseline macrobenchmark/parity/reader_parity_baseline.json \
+            --candidate macrobenchmark/parity/reader_parity_candidate.json \
+            --output macrobenchmark/parity/reader_parity_gate_result.json \
+            "${extra_args[@]}"
+
+      - name: Upload parity artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: reader-parity-artifacts-${{ github.sha }}
+          path: |
+            macrobenchmark/parity/reader_parity_baseline.json
+            macrobenchmark/parity/reader_parity_candidate.json
+            macrobenchmark/parity/reader_parity_gate_result.json
+            macrobenchmark/parity/manual_talkback_checklist.md
+
+  prepare_sqldelight:
+    name: Prepare SqlDelight artifacts
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Restore SqlDelight local Maven cache
+        id: sqldelight-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.3
+        with:
+          path: ~/.m2/repository/app/cash
+          key: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Build SqlDelight AGP 9 fix
+        if: steps.sqldelight-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euxo pipefail
+
+          git clone --filter=blob:none https://github.com/cashapp/sqldelight.git /tmp/sqldelight
+          cd /tmp/sqldelight
+          git checkout --detach "$SQLDELIGHT_AGP9_FIX_SHA"
+          ./gradlew publishToMavenLocal -x test --no-daemon
+
+      - name: Upload SqlDelight local Maven artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
+          path: ~/.m2/repository/app/cash
+
+  reader_a11y_android_test:
+    name: Reader a11y instrumentation tests
+    runs-on: ubuntu-24.04
+    needs: prepare_sqldelight
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+        with:
+          cache-read-only: false
+
+      - name: Download SqlDelight local Maven artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
+          path: ~/.m2/repository/app/cash
+
+      - name: Build instrumentation APKs
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --build-cache
+
+      - name: Run reader a11y tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          script: |
+            set +e
+            ./gradlew :app:connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorSurfaceAndroidTest \
+              --build-cache
+            status=$?
+            if [ "$status" -eq 0 ]; then
+              manual_talkback_validated="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'reader-parity-talkback-validated') }}"
+              if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.manual_talkback_validated || 'false' }}" = "true" ]; then
+                manual_talkback_validated="true"
+              fi
+              mkdir -p macrobenchmark/parity
+              cat > macrobenchmark/parity/reader_parity_a11y_observed.json <<'JSON'
+              {
+                "a11y": {
+                  "automatedFocusOrderPassed": true,
+                  "automatedRetryDiscoverabilityPassed": true,
+                  "manualTalkBackChecklist": "macrobenchmark/parity/manual_talkback_checklist.md",
+                  "manualTalkBackValidated": __MANUAL_TALKBACK_VALIDATED__
+                }
+              }
+JSON
+              sed -i "s/__MANUAL_TALKBACK_VALIDATED__/${manual_talkback_validated}/" macrobenchmark/parity/reader_parity_a11y_observed.json
+            fi
+            adb logcat -d > app/build/reports/androidTests/reader-a11y-logcat.txt || true
+            exit $status
+
+      - name: Upload reader a11y reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: reader-parity-a11y-observed-${{ github.sha }}
+          path: |
+            app/build/reports/androidTests
+            app/build/outputs/androidTest-results
+            app/build/reports/androidTests/reader-a11y-logcat.txt
+            macrobenchmark/parity/reader_parity_a11y_observed.json
+          if-no-files-found: warn
+
+  reader_benchmark_smoke:
+    name: Reader benchmark smoke
+    runs-on: ubuntu-24.04
+    needs: prepare_sqldelight
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+        with:
+          cache-read-only: false
+
+      - name: Download SqlDelight local Maven artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
+          path: ~/.m2/repository/app/cash
+
+      - name: Run reader parity benchmark smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          script: |
+            set +e
+            ./gradlew :macrobenchmark:connectedBenchmarkAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=tachiyomi.macrobenchmark.ReaderParitySmokeBenchmark \
+              --build-cache 2>&1 | tee macrobenchmark/build/reports/reader-benchmark-stdout.txt
+            status=${PIPESTATUS[0]}
+            if [ "$status" -eq 0 ]; then
+              python3 scripts/reader_parity_extract_benchmark.py \
+                --log macrobenchmark/build/reports/reader-benchmark-stdout.txt \
+                --output macrobenchmark/parity/reader_parity_benchmark_observed.json
+            fi
+            adb logcat -d > macrobenchmark/build/reports/reader-benchmark-logcat.txt || true
+            exit $status
+
+      - name: Upload reader benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: reader-parity-benchmark-observed-${{ github.sha }}
+          path: |
+            macrobenchmark/build/reports
+            macrobenchmark/build/outputs/connected_android_test_additional_output
+            macrobenchmark/build/outputs/androidTest-results
+            macrobenchmark/build/reports/reader-benchmark-logcat.txt
+            macrobenchmark/parity/reader_parity_benchmark_observed.json
+          if-no-files-found: warn

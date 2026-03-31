@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReaderParityReportV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAtUtc",
+    "baselineCommitSha",
+    "candidateCommitSha",
+    "deviceProfile",
+    "sampleSize",
+    "metrics",
+    "scenarios",
+    "a11y"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAtUtc": { "type": "string" },
+    "baselineCommitSha": { "type": "string" },
+    "candidateCommitSha": { "type": "string" },
+    "deviceProfile": {
+      "type": "object",
+      "required": ["apiLevel", "profile", "arch", "target"],
+      "properties": {
+        "apiLevel": { "type": "integer" },
+        "profile": { "type": "string" },
+        "arch": { "type": "string" },
+        "target": { "type": "string" }
+      }
+    },
+    "sampleSize": { "type": "integer" },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "startup_to_reader_entry_ms_p95",
+        "open_chapter_ms_p95",
+        "webtoon_jank_percent_p95",
+        "long_strip_memory_mb_p95",
+        "recovery_pass_rate_percent",
+        "variance_percent"
+      ]
+    },
+    "scenarios": {
+      "type": "array"
+    },
+    "a11y": {
+      "type": "object",
+      "required": [
+        "automatedFocusOrderPassed",
+        "automatedRetryDiscoverabilityPassed",
+        "manualTalkBackChecklist",
+        "manualTalkBackValidated"
+      ]
+    }
+  }
+}
