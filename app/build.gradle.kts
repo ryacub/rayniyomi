@@ -1,8 +1,8 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import mihon.buildlogic.Config
 import mihon.buildlogic.getBuildTime
 import mihon.buildlogic.getCommitCount
 import mihon.buildlogic.getGitSha
-import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 
 // R39: Fork compliance checklist added to PR template
 
