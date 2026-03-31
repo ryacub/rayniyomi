@@ -59,6 +59,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - All scoped Compose screen-level state collection migrated from `collectAsState()` to `collectAsStateWithLifecycle()` across `app/` screens and tabs; lifecycle-aware `Preference<T>.collectAsStateWithLifecycle()` bridge added in `presentation-core`
 - Remove redundant `collectAsState()` calls in `AnimeUpdatesTab` and `MangaUpdatesTab` actions bars — reuse already-collected `state` instead of re-subscribing to the same flow
+- Player activity host shell now uses a Compose root with an embedded mpv AndroidView and controls overlay parity, removing the ViewBinding/XML host layout path
 
 ### CI
 

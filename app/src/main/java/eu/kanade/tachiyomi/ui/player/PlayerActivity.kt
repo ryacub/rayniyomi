@@ -40,14 +40,20 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import android.view.KeyEvent
+import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -60,6 +66,7 @@ import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.material.snackbar.Snackbar
 import eu.kanade.presentation.theme.TachiyomiTheme
+import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -67,7 +74,6 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.database.models.anime.toDomainEpisode
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
-import eu.kanade.tachiyomi.databinding.PlayerLayoutBinding
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.player.cast.CastError
@@ -100,9 +106,11 @@ import uy.kohesive.injekt.api.get
 
 class PlayerActivity : BaseActivity() {
     private val viewModel by viewModels<PlayerViewModel>(factoryProducer = { PlayerViewModelProviderFactory(this) })
-    private val binding by lazy { PlayerLayoutBinding.inflate(layoutInflater) }
     private val playerObserver by lazy { PlayerObserver(this) }
-    val player by lazy { binding.player }
+    private var playerView: AniyomiMPVView? = null
+    private var rootView: View? = null
+    val player: AniyomiMPVView
+        get() = checkNotNull(playerView) { "Player host view is not initialized" }
     val windowInsetsController by lazy { WindowCompat.getInsetsController(window, window.decorView) }
     val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
@@ -232,7 +240,10 @@ class PlayerActivity : BaseActivity() {
         registerSecureActivity(this)
         castManager.resetForNewActivity()
         super.onCreate(savedInstanceState)
-        setContentView(binding.root)
+        setContent {
+            PlayerHostContent()
+        }
+        rootView = findViewById(android.R.id.content)
 
         setupPlayerMPV()
         setupPlayerAudio()
@@ -264,7 +275,7 @@ class PlayerActivity : BaseActivity() {
                 when (error) {
                     is CastError.LoadFailed -> {
                         Snackbar.make(
-                            binding.root,
+                            rootView ?: window.decorView,
                             stringResource(AYMR.strings.cast_error_load_failed),
                             Snackbar.LENGTH_LONG,
                         ).setAction(stringResource(AYMR.strings.cast_watch_locally)) {
@@ -304,7 +315,24 @@ class PlayerActivity : BaseActivity() {
             }
             .launchIn(lifecycleScope)
 
-        binding.controls.setContent {
+        onNewIntent(this.intent)
+    }
+
+    @Composable
+    private fun PlayerHostContent() {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { context ->
+                    (
+                        LayoutInflater.from(
+                            context,
+                        ).inflate(R.layout.player_surface, null, false) as AniyomiMPVView
+                        ).also {
+                        playerView = it
+                    }
+                },
+            )
             TachiyomiTheme {
                 PlayerControls(
                     viewModel = viewModel,
@@ -315,22 +343,22 @@ class PlayerActivity : BaseActivity() {
                             finish()
                         }
                     },
-                    modifier = Modifier.onGloballyPositioned {
-                        pipRect = run {
-                            val boundsInWindow = it.boundsInWindow()
-                            Rect(
-                                boundsInWindow.left.toInt(),
-                                boundsInWindow.top.toInt(),
-                                boundsInWindow.right.toInt(),
-                                boundsInWindow.bottom.toInt(),
-                            )
-                        }
-                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned {
+                            pipRect = run {
+                                val boundsInWindow = it.boundsInWindow()
+                                Rect(
+                                    boundsInWindow.left.toInt(),
+                                    boundsInWindow.top.toInt(),
+                                    boundsInWindow.right.toInt(),
+                                    boundsInWindow.bottom.toInt(),
+                                )
+                            }
+                        },
                 )
             }
         }
-
-        onNewIntent(this.intent)
     }
 
     override fun onDestroy() {
@@ -420,7 +448,7 @@ class PlayerActivity : BaseActivity() {
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
         )
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        binding.root.systemUiVisibility =
+        (rootView ?: window.decorView).systemUiVisibility =
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
