@@ -49,14 +49,16 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         layoutDir.resolve("foo_bar.xml").writeText("<layout/>")
         val sourceRoot = tempDir.resolve("src/main/kotlin").toFile().apply { mkdirs() }
-        sourceRoot.resolve("Activity.kt").writeText("""
+        sourceRoot.resolve("Activity.kt").writeText(
+            """
             import android.os.Bundle
             class MyActivity {
                 fun onCreate(savedInstanceState: Bundle?) {
                     setContentView(R.layout.foo_bar)
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -76,11 +78,13 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         layoutDir.resolve("foo_layout.xml").writeText("<layout/>")
         val sourceRoot = tempDir.resolve("src/main/res").toFile().apply { mkdirs() }
-        sourceRoot.resolve("layout_include.xml").writeText("""
+        sourceRoot.resolve("layout_include.xml").writeText(
+            """
             <merge>
                 <include layout="@layout/foo_layout"/>
             </merge>
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -100,14 +104,16 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         layoutDir.resolve("player_layout.xml").writeText("<layout/>")
         val sourceRoot = tempDir.resolve("src/main/kotlin").toFile().apply { mkdirs() }
-        sourceRoot.resolve("Activity.kt").writeText("""
+        sourceRoot.resolve("Activity.kt").writeText(
+            """
             import com.example.databinding.PlayerLayoutBinding
             class PlayerActivity {
                 fun onCreate() {
                     val binding = PlayerLayoutBinding.inflate(layoutInflater)
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -123,14 +129,16 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         layoutDir.resolve("reader_activity.xml").writeText("<layout/>")
         val sourceRoot = tempDir.resolve("src/main/kotlin").toFile().apply { mkdirs() }
-        sourceRoot.resolve("Activity.kt").writeText("""
+        sourceRoot.resolve("Activity.kt").writeText(
+            """
             import com.example.databinding.ReaderActivityBinding
             class ReaderActivity {
                 fun setupView(root: View) {
                     val binding = ReaderActivityBinding.bind(root)
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -150,13 +158,15 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         val deadLayout = layoutDir.resolve("unused_layout.xml").apply { writeText("<layout/>") }
         val sourceRoot = tempDir.resolve("src/main/kotlin").toFile().apply { mkdirs() }
-        sourceRoot.resolve("Activity.kt").writeText("""
+        sourceRoot.resolve("Activity.kt").writeText(
+            """
             class MyActivity {
                 fun onCreate() {
                     // No reference to unused_layout
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -219,13 +229,15 @@ class DeadLayoutDetectorTest {
         val dead1 = layoutDir.resolve("unused_1.xml").apply { writeText("<layout/>") }
         val dead2 = layoutDir.resolve("unused_2.xml").apply { writeText("<layout/>") }
         val sourceRoot = tempDir.resolve("src/main/kotlin").toFile().apply { mkdirs() }
-        sourceRoot.resolve("Activity.kt").writeText("""
+        sourceRoot.resolve("Activity.kt").writeText(
+            """
             class MyActivity {
                 fun onCreate() {
                     setContentView(R.layout.used_layout)
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -274,13 +286,15 @@ class DeadLayoutDetectorTest {
         sourceRoot1.resolve("Activity.kt").writeText("class A {}")
 
         val sourceRoot2 = tempDir.resolve("src/main/java").toFile().apply { mkdirs() }
-        sourceRoot2.resolve("Activity.java").writeText("""
+        sourceRoot2.resolve("Activity.java").writeText(
+            """
             class B {
                 void onCreate() {
                     setContentView(R.layout.used);
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
 
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot1, sourceRoot2))
 
@@ -302,13 +316,15 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         layoutDir.resolve("foo_bar.xml").writeText("<layout/>")
         val sourceRoot = tempDir.resolve("src/main/kotlin").toFile().apply { mkdirs() }
-        sourceRoot.resolve("Activity.kt").writeText("""
+        sourceRoot.resolve("Activity.kt").writeText(
+            """
             class MyActivity {
                 fun onCreate() {
                     val binding = FooBarBinding.inflate(layoutInflater)
                 }
             }
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
@@ -328,11 +344,13 @@ class DeadLayoutDetectorTest {
         val layoutDir = tempDir.resolve("layout").toFile().apply { mkdirs() }
         layoutDir.resolve("my_layout.xml").writeText("<layout/>")
         val sourceRoot = tempDir.resolve("src/main/res").toFile().apply { mkdirs() }
-        sourceRoot.resolve("container.xml").writeText("""
+        sourceRoot.resolve("container.xml").writeText(
+            """
             <merge>
                 <include layout="@layout/my_layout"/>
             </merge>
-        """.trimIndent())
+            """.trimIndent(),
+        )
         val detector = DeadLayoutDetector(layoutDir, listOf(sourceRoot))
 
         // Act
