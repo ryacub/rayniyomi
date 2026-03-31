@@ -14,6 +14,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View.LAYER_TYPE_HARDWARE
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.core.graphics.ColorUtils
@@ -54,7 +56,6 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
-import eu.kanade.tachiyomi.databinding.ReaderActivityBinding
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -69,6 +70,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
@@ -116,7 +118,12 @@ class ReaderActivity : BaseActivity() {
     private val readerPreferences = Injekt.get<ReaderPreferences>()
     private val preferences = Injekt.get<BasePreferences>()
 
-    lateinit var binding: ReaderActivityBinding
+    private lateinit var rootView: FrameLayout
+    private lateinit var readerContainer: FrameLayout
+    private lateinit var viewerContainer: FrameLayout
+    private lateinit var pageNumber: ComposeView
+    private lateinit var dialogRoot: ComposeView
+    private lateinit var navigationOverlay: ReaderNavigationOverlayView
 
     val viewModel by viewModels<ReaderViewModel>()
 
@@ -131,7 +138,7 @@ class ReaderActivity : BaseActivity() {
     private var readingModeToast: Toast? = null
     private val displayRefreshHost = DisplayRefreshHost()
 
-    private val windowInsetsController by lazy { WindowInsetsControllerCompat(window, binding.root) }
+    private val windowInsetsController by lazy { WindowInsetsControllerCompat(window, rootView) }
 
     private var loadingIndicator: ReaderProgressIndicator? = null
 
@@ -159,8 +166,13 @@ class ReaderActivity : BaseActivity() {
 
         super.onCreate(savedInstanceState)
 
-        binding = ReaderActivityBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.reader_activity)
+        rootView = findViewById(android.R.id.content)
+        readerContainer = findViewById(R.id.reader_container)
+        viewerContainer = findViewById(R.id.viewer_container)
+        pageNumber = findViewById(R.id.page_number)
+        dialogRoot = findViewById(R.id.dialog_root)
+        navigationOverlay = findViewById(R.id.navigation_overlay)
         showAutoScrollPanel = savedInstanceState?.getBoolean(KEY_SHOW_AUTO_SCROLL_PANEL, false) ?: false
         isAutoScrollRunning = savedInstanceState?.getBoolean(KEY_IS_AUTO_SCROLL_RUNNING, false) ?: false
 
@@ -357,7 +369,7 @@ class ReaderActivity : BaseActivity() {
      * Initializes the reader menu. It sets up click listeners and the initial visibility.
      */
     private fun initializeMenu() {
-        binding.pageNumber.setComposeContent {
+        pageNumber.setComposeContent {
             val state by viewModel.state.collectAsState()
             val showPageNumber by viewModel.readerPreferences.showPageNumber().collectAsState()
 
@@ -369,7 +381,7 @@ class ReaderActivity : BaseActivity() {
             }
         }
 
-        binding.dialogRoot.setComposeContent {
+        dialogRoot.setComposeContent {
             val state by viewModel.state.collectAsState()
             val settingsScreenModel = remember {
                 ReaderSettingsScreenModel(
@@ -581,7 +593,7 @@ class ReaderActivity : BaseActivity() {
         // Destroy previous viewer if there was one
         if (prevViewer != null) {
             prevViewer.destroy()
-            binding.viewerContainer.removeAllViews()
+            viewerContainer.removeAllViews()
         }
         viewModel.onViewerLoaded(newViewer)
         if (newViewer is WebtoonViewer) {
@@ -595,14 +607,14 @@ class ReaderActivity : BaseActivity() {
             isAutoScrollRunning = false
         }
         updateViewerInset(readerPreferences.fullscreen().get())
-        binding.viewerContainer.addView(newViewer.getView())
+        viewerContainer.addView(newViewer.getView())
 
         if (readerPreferences.showReadingMode().get()) {
             showReadingModeToast(viewModel.getMangaReadingMode())
         }
 
         loadingIndicator = ReaderProgressIndicator(this)
-        binding.readerContainer.addView(loadingIndicator)
+        readerContainer.addView(loadingIndicator)
 
         startPostponedEnterTransition()
     }
@@ -668,7 +680,7 @@ class ReaderActivity : BaseActivity() {
      */
     @SuppressLint("RestrictedApi")
     private fun setChapters(viewerChapters: ViewerChapters) {
-        binding.readerContainer.removeView(loadingIndicator)
+        readerContainer.removeView(loadingIndicator)
         viewModel.state.value.viewer?.setChapters(viewerChapters)
     }
 
@@ -779,6 +791,10 @@ class ReaderActivity : BaseActivity() {
         }
     }
 
+    fun setNavigationOverlay(navigation: ViewerNavigation, showOnStart: Boolean) {
+        navigationOverlay.setNavigation(navigation, showOnStart)
+    }
+
     /**
      * Called from the presenter when a page is ready to be shared. It shows Android's default
      * sharing tool.
@@ -863,13 +879,13 @@ class ReaderActivity : BaseActivity() {
         init {
             viewModel.readerConfig.backgroundColor
                 .onEach { color ->
-                    binding.readerContainer.setBackgroundColor(color)
+                    readerContainer.setBackgroundColor(color)
                 }
                 .launchIn(lifecycleScope)
 
             viewModel.readerConfig.layerPaint
                 .onEach { paint ->
-                    binding.viewerContainer.setLayerType(LAYER_TYPE_HARDWARE, paint)
+                    viewerContainer.setLayerType(LAYER_TYPE_HARDWARE, paint)
                 }
                 .launchIn(lifecycleScope)
 

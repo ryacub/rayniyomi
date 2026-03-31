@@ -23,6 +23,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Changed
 
 - Benchmark builds now skip the app's artificial splash minimum/maximum hold and exit animation so startup measurements reflect app work instead of benchmark-only delay
+- Reader host/error bridge now uses shared Compose error UI with UDF callbacks across pager/webtoon holders, includes explicit holder cleanup to prevent stale error overlay leaks, and removes `ReaderActivityBinding` host dependency while preserving viewer container insertion behavior
 
 ### CI
 

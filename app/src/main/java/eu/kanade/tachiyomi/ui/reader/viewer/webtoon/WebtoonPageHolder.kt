@@ -1,20 +1,23 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webtoon
 
 import android.content.res.Resources
-import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout
+import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updateMargins
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
-import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorSurface
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorUiActions
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorUiState
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.canOpenReaderPageInWebView
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.dpToPx
 import kotlinx.coroutines.Job
@@ -58,7 +61,7 @@ class WebtoonPageHolder(
     /**
      * Error layout to show when the image fails to load.
      */
-    private var errorLayout: ReaderErrorBinding? = null
+    private var errorLayout: ComposeView? = null
 
     /**
      * Getter to retrieve the height of the recycler view.
@@ -282,30 +285,51 @@ class WebtoonPageHolder(
     /**
      * Initializes a button to retry pages.
      */
-    private fun initErrorLayout(): ReaderErrorBinding {
+    private fun initErrorLayout(): ComposeView {
         if (errorLayout == null) {
-            errorLayout = ReaderErrorBinding.inflate(LayoutInflater.from(context), frame, true)
-            errorLayout?.root?.layoutParams = FrameLayout.LayoutParams(
-                MATCH_PARENT,
-                (parentHeight * 0.8).toInt(),
-            )
-            errorLayout?.actionRetry?.setOnClickListener {
-                page?.let { it.chapter.pageLoader?.retryPage(it) }
+            errorLayout = ComposeView(context).also { errorView ->
+                errorView.layoutParams = FrameLayout.LayoutParams(
+                    MATCH_PARENT,
+                    (parentHeight * 0.8).toInt(),
+                )
+                frame.addView(errorView)
             }
         }
 
         val imageUrl = page?.imageUrl
-        errorLayout?.actionOpenInWebView?.isVisible = imageUrl != null
-        if (imageUrl != null) {
-            if (imageUrl.startsWith("http", true)) {
-                errorLayout?.actionOpenInWebView?.setOnClickListener {
-                    val intent = WebViewActivity.newIntent(context, imageUrl)
-                    context.startActivity(intent)
-                }
-            }
+        val openInWebView = canOpenReaderPageInWebView(imageUrl)
+        errorLayout?.setContent {
+            ReaderErrorSurface(
+                state = ReaderErrorUiState(
+                    showOpenInWebView = openInWebView,
+                ),
+                actions = ReaderErrorUiActions(
+                    onRetry = {
+                        page?.let { currentPage ->
+                            currentPage.chapter.pageLoader?.retryPage(currentPage)
+                        }
+                    },
+                    onOpenInWebView = {
+                        if (imageUrl != null) {
+                            val intent = WebViewActivity.newIntent(context, imageUrl)
+                            context.startActivity(intent)
+                        }
+                    },
+                ),
+            )
         }
 
-        return errorLayout!!
+        return checkNotNull(errorLayout)
+    }
+
+    internal fun errorOverlayCountForTest(): Int {
+        var count = 0
+        for (index in 0 until frame.childCount) {
+            if (frame.getChildAt(index) is ComposeView) {
+                count++
+            }
+        }
+        return count
     }
 
     /**
@@ -313,7 +337,7 @@ class WebtoonPageHolder(
      */
     private fun removeErrorLayout() {
         errorLayout?.let {
-            frame.removeView(it.root)
+            frame.removeView(it)
             errorLayout = null
         }
     }
