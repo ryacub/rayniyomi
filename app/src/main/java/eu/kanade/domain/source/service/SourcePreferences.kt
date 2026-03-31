@@ -46,6 +46,11 @@ class SourcePreferences(
         emptySet(),
     )
 
+    fun invalidAnimeExtensions() = preferenceStore.getStringSet(
+        Preference.appStateKey("invalid_anime_extensions"),
+        emptySet(),
+    )
+
     fun globalSearchFilterState() = preferenceStore.getBoolean(
         Preference.appStateKey("has_filters_toggle_state"),
         false,

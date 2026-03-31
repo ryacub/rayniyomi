@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
+import eu.kanade.tachiyomi.extension.anime.model.InvalidReason
 import eu.kanade.tachiyomi.util.lang.Hash
 import eu.kanade.tachiyomi.util.storage.copyAndSetReadOnlyTo
 import eu.kanade.tachiyomi.util.system.ChildFirstPathClassLoader
@@ -263,6 +264,19 @@ internal object AnimeExtensionLoader {
         if (signatures.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "Package $pkgName isn't signed" }
             return AnimeLoadResult.Error
+        }
+        val signatureHash = signatures.first()
+        if (trustExtension.isInvalid(pkgName, versionCode, signatureHash)) {
+            logcat(LogPriority.WARN) { "Extension $pkgName is denylisted as invalid" }
+            return invalidResult(
+                pkgName = pkgName,
+                extName = extName,
+                versionName = versionName,
+                versionCode = versionCode,
+                signatureHash = signatureHash,
+                reason = InvalidReason.DENYLISTED,
+                debugDetail = "denylisted before trust check",
+            )
         } else if (!trustExtension.isTrusted(pkgInfo, signatures)) {
             val extension = AnimeExtension.Untrusted(
                 extName,
@@ -289,7 +303,20 @@ internal object AnimeExtensionLoader {
             return AnimeLoadResult.Error
         }
 
-        val sources = appInfo.metaData.getString(METADATA_SOURCE_CLASS)!!
+        val sourceClassMetadata = appInfo.metaData.getString(METADATA_SOURCE_CLASS)
+        if (sourceClassMetadata.isNullOrBlank()) {
+            return invalidResult(
+                pkgName = pkgName,
+                extName = extName,
+                versionName = versionName,
+                versionCode = versionCode,
+                signatureHash = signatureHash,
+                reason = InvalidReason.METADATA_INVALID,
+                debugDetail = METADATA_SOURCE_CLASS,
+            )
+        }
+
+        val sources = sourceClassMetadata
             .split(";")
             .map {
                 val sourceClass = it.trim()
@@ -323,14 +350,43 @@ internal object AnimeExtensionLoader {
                             else -> throw Exception("Unknown source class type: ${obj.javaClass}")
                         }
                     } catch (e: Throwable) {
-                        logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($it)" }
-                        return AnimeLoadResult.Error
+                        return invalidResult(
+                            pkgName = pkgName,
+                            extName = extName,
+                            versionName = versionName,
+                            versionCode = versionCode,
+                            signatureHash = signatureHash,
+                            reason = InvalidReason.SOURCE_FACTORY_THROW,
+                            debugDetail = it,
+                            throwable = e,
+                        )
                     }
                 } catch (e: Throwable) {
-                    logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($it)" }
-                    return AnimeLoadResult.Error
+                    return invalidResult(
+                        pkgName = pkgName,
+                        extName = extName,
+                        versionName = versionName,
+                        versionCode = versionCode,
+                        signatureHash = signatureHash,
+                        reason = InvalidReason.SOURCE_FACTORY_THROW,
+                        debugDetail = it,
+                        throwable = e,
+                    )
                 }
             }
+
+        findInvalidSource(sources)?.let { invalidSource ->
+            return invalidResult(
+                pkgName = pkgName,
+                extName = extName,
+                versionName = versionName,
+                versionCode = versionCode,
+                signatureHash = signatureHash,
+                reason = InvalidReason.SOURCE_ID_THROW,
+                debugDetail = invalidSource.javaClass.name,
+                throwable = null,
+            )
+        }
 
         val langs = sources.filterIsInstance<AnimeCatalogueSource>()
             .map { it.lang }
@@ -353,9 +409,49 @@ internal object AnimeExtensionLoader {
             pkgFactory = appInfo.metaData.getString(METADATA_SOURCE_FACTORY),
             icon = appInfo.loadIcon(pkgManager),
             isShared = extensionInfo.isShared,
-            signatureHash = signatures.first(),
+            signatureHash = signatureHash,
         )
         return AnimeLoadResult.Success(extension)
+    }
+
+    internal fun findInvalidSource(sources: List<AnimeSource>): AnimeSource? {
+        for (source in sources) {
+            runCatching {
+                source.id
+                source.lang
+                source.name
+            }
+                .getOrElse { return source }
+        }
+        return null
+    }
+
+    private suspend fun invalidResult(
+        pkgName: String,
+        extName: String,
+        versionName: String,
+        versionCode: Long,
+        signatureHash: String,
+        reason: InvalidReason,
+        debugDetail: String? = null,
+        throwable: Throwable? = null,
+    ): AnimeLoadResult.Invalid {
+        if (throwable != null) {
+            logcat(LogPriority.ERROR, throwable) { "Invalid anime extension load: $extName ($pkgName)" }
+        } else {
+            logcat(LogPriority.ERROR) { "Invalid anime extension load: $extName ($pkgName)" }
+        }
+        trustExtension.markInvalid(pkgName, versionCode, signatureHash)
+        trustExtension.revoke(pkgName)
+        return AnimeLoadResult.Invalid(
+            pkgName = pkgName,
+            name = extName,
+            versionName = versionName,
+            versionCode = versionCode,
+            signatureHash = signatureHash,
+            reason = reason,
+            debugDetail = debugDetail,
+        )
     }
 
     /**
