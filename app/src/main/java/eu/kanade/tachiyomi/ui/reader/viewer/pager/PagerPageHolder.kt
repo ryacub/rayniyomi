@@ -2,14 +2,18 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.view.LayoutInflater
-import androidx.core.view.isVisible
-import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
+import android.view.Gravity
+import android.widget.FrameLayout
+import androidx.compose.ui.platform.ComposeView
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorSurface
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorUiActions
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorUiState
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.canOpenReaderPageInWebView
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import kotlinx.coroutines.Job
@@ -51,7 +55,7 @@ class PagerPageHolder(
     /**
      * Error layout to show when the image fails to load.
      */
-    private var errorLayout: ReaderErrorBinding? = null
+    private var errorLayout: ComposeView? = null
 
     private val scope = MainScope()
 
@@ -70,6 +74,7 @@ class PagerPageHolder(
     @SuppressLint("ClickableViewAccessibility")
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        viewer.pager.setGestureDetectorEnabled(true)
         loadJob?.cancel()
         loadJob = null
         scope.cancel()
@@ -270,36 +275,65 @@ class PagerPageHolder(
         viewer.activity.hideMenu()
     }
 
-    private fun showErrorLayout(): ReaderErrorBinding {
+    private fun showErrorLayout(): ComposeView {
         if (errorLayout == null) {
-            errorLayout = ReaderErrorBinding.inflate(LayoutInflater.from(context), this, true)
-            errorLayout?.actionRetry?.viewer = viewer
-            errorLayout?.actionRetry?.setOnClickListener {
-                page.chapter.pageLoader?.retryPage(page)
+            errorLayout = ComposeView(context).also { errorView ->
+                addView(
+                    errorView,
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply {
+                        gravity = Gravity.CENTER
+                    },
+                )
             }
         }
 
         val imageUrl = page.imageUrl
-        errorLayout?.actionOpenInWebView?.isVisible = imageUrl != null
-        if (imageUrl != null) {
-            if (imageUrl.startsWith("http", true)) {
-                errorLayout?.actionOpenInWebView?.viewer = viewer
-                errorLayout?.actionOpenInWebView?.setOnClickListener {
-                    val intent = WebViewActivity.newIntent(context, imageUrl)
-                    context.startActivity(intent)
-                }
-            }
+        val openInWebView = canOpenReaderPageInWebView(imageUrl)
+        errorLayout?.setContent {
+            ReaderErrorSurface(
+                state = ReaderErrorUiState(
+                    showOpenInWebView = openInWebView,
+                ),
+                actions = ReaderErrorUiActions(
+                    onRetry = {
+                        page.chapter.pageLoader?.retryPage(page)
+                    },
+                    onOpenInWebView = {
+                        if (imageUrl != null) {
+                            val intent = WebViewActivity.newIntent(context, imageUrl)
+                            context.startActivity(intent)
+                        }
+                    },
+                    onActionPressChanged = { isPressed ->
+                        viewer.pager.setGestureDetectorEnabled(!isPressed)
+                    },
+                ),
+            )
         }
 
-        errorLayout?.root?.isVisible = true
-        return errorLayout!!
+        return checkNotNull(errorLayout)
     }
 
     /**
      * Removes the decode error layout from the holder, if found.
      */
     private fun removeErrorLayout() {
-        errorLayout?.root?.isVisible = false
-        errorLayout = null
+        errorLayout?.let { errorView ->
+            removeView(errorView)
+            errorLayout = null
+        }
+    }
+
+    internal fun errorOverlayCountForTest(): Int {
+        var count = 0
+        for (index in 0 until childCount) {
+            if (getChildAt(index) is ComposeView) {
+                count++
+            }
+        }
+        return count
     }
 }
