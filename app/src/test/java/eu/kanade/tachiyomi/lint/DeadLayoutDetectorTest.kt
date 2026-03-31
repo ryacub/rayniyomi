@@ -293,32 +293,6 @@ class DeadLayoutDetectorTest {
     }
 
     // ============================================================================
-    // REAL PROJECT FIXTURES (6 dead layout files)
-    // ============================================================================
-
-    @Test
-    fun `project contains 6 dead layout fixture files for testing`() {
-        // Pre-condition: assert the 6 target files exist in the actual project structure
-        val projectLayoutDir = java.io.File("src/main/res/layout")
-
-        assertTrue(projectLayoutDir.exists(), "Layout dir should exist: $projectLayoutDir")
-
-        val requiredFiles = listOf(
-            "player_layout.xml",
-            "reader_activity.xml",
-            "reader_error.xml",
-            "download_header.xml",
-            "download_item.xml",
-            "download_list.xml",
-        )
-
-        for (filename in requiredFiles) {
-            val file = projectLayoutDir.resolve(filename)
-            assertTrue(file.exists(), "Required fixture file should exist: $filename")
-        }
-    }
-
-    // ============================================================================
     // CASE SENSITIVITY
     // ============================================================================
 

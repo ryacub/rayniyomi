@@ -90,16 +90,9 @@ tasks.register("checkDeadXmlLayouts") {
     notCompatibleWithConfigurationCache("Scans file system at execution time")
 
     doLast {
-        // Layouts known to be dead and tracked for deletion in R574.
-        // Remove entries from this list as the corresponding XML files are deleted.
-        val migratedLayouts = setOf(
-            "player_layout",
-            "reader_activity",
-            "reader_error",
-            "download_header",
-            "download_item",
-            "download_list",
-        )
+        // Layouts known to be dead but pending deletion — add names here to suppress false positives
+        // during the deletion migration window. Remove entries after the file is deleted.
+        val migratedLayouts = emptySet<String>()
 
         val layoutDir = projectDir.resolve("src/main/res/layout")
         if (!layoutDir.exists()) return@doLast
