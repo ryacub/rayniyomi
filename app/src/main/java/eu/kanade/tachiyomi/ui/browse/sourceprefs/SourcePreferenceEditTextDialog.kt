@@ -29,23 +29,30 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.widget.doAfterTextChanged
-import androidx.preference.EditTextPreference
-import androidx.preference.getOnBindEditTextListener
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.widget.TachiyomiTextInputEditText
 import eu.kanade.tachiyomi.widget.TachiyomiTextInputEditText.Companion.setIncognito
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
+internal data class SourcePreferenceEditTextUiModel(
+    val title: String,
+    val subtitle: String?,
+    val dialogTitle: String?,
+    val currentValue: String,
+    val enabled: Boolean,
+    val onBindEditText: ((EditText) -> Unit)? = null,
+)
+
 @Composable
 internal fun SourcePreferenceEditTextDialog(
-    preference: EditTextPreference,
-    title: String,
-    subtitle: String?,
-    enabled: Boolean,
+    model: SourcePreferenceEditTextUiModel,
+    onValueConfirmed: (String) -> Boolean,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     var validationError by rememberSaveable { mutableStateOf<String?>(null) }
+    var draft by rememberSaveable { mutableStateOf(model.currentValue) }
+
     val clearDescription = stringResource(MR.strings.pref_source_preference_clear_text)
     val inputDescriptionFormat = stringResource(MR.strings.pref_source_preference_input_a11y)
     val dialogTitleFallback = stringResource(MR.strings.pref_source_preference_dialog_title_fallback)
@@ -56,15 +63,16 @@ internal fun SourcePreferenceEditTextDialog(
     TextPreferenceWidget(
         modifier = Modifier.semantics {
             contentDescription = buildString {
-                append(title)
+                append(model.title)
                 append(", ")
-                append(subtitle ?: preference.text.orEmpty())
+                append(model.subtitle ?: model.currentValue)
             }
         },
-        title = title,
-        subtitle = subtitle,
+        title = model.title,
+        subtitle = model.subtitle,
         onPreferenceClick = {
-            if (enabled) {
+            if (model.enabled) {
+                draft = model.currentValue
                 validationError = null
                 showDialog = true
             }
@@ -78,10 +86,9 @@ internal fun SourcePreferenceEditTextDialog(
     val confirmFocus = remember { FocusRequester() }
     val cancelFocus = remember { FocusRequester() }
     var editTextRef by remember { mutableStateOf<EditText?>(null) }
-    var draft by rememberSaveable { mutableStateOf(preference.text.orEmpty()) }
-    val dialogTitle = preference.dialogTitle?.toString()
+    val dialogTitle = model.dialogTitle
         ?.takeUnless { it.isBlank() }
-        ?: title.takeUnless { it.isBlank() }
+        ?: model.title.takeUnless { it.isBlank() }
         ?: dialogTitleFallback
 
     AlertDialog(
@@ -100,17 +107,17 @@ internal fun SourcePreferenceEditTextDialog(
                             down = clearFocus
                         }
                         .semantics {
-                            contentDescription = inputDescriptionFormat.format(title, draft)
+                            contentDescription = inputDescriptionFormat.format(model.title, draft)
                             stateDescription = draft.ifBlank { noneText }
-                            if (!enabled) disabled()
+                            if (!model.enabled) disabled()
                             validationError?.let { error(it) }
                         },
                     factory = { context ->
                         TachiyomiTextInputEditText(context).apply {
                             inputType = InputType.TYPE_CLASS_TEXT
                             setIncognito(scope)
-                            preference.getOnBindEditTextListener()?.onBindEditText(this)
-                            setText(preference.text.orEmpty())
+                            model.onBindEditText?.invoke(this)
+                            setText(model.currentValue)
                             setSelection(text?.length ?: 0)
                             doAfterTextChanged {
                                 draft = it?.toString().orEmpty()
@@ -162,8 +169,7 @@ internal fun SourcePreferenceEditTextDialog(
                     },
                 onClick = {
                     val candidate = editTextRef?.text?.toString().orEmpty()
-                    if (preference.callChangeListener(candidate)) {
-                        preference.text = candidate
+                    if (onValueConfirmed(candidate)) {
                         validationError = null
                         showDialog = false
                     } else {

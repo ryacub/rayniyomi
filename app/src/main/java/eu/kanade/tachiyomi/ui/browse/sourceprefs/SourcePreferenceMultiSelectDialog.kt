@@ -16,26 +16,31 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.preference.MultiSelectListPreference
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import tachiyomi.presentation.core.i18n.stringResource
 
+internal data class SourcePreferenceMultiSelectUiModel(
+    val title: String,
+    val subtitle: String?,
+    val entries: Map<String, String>,
+    val selectedValues: Set<String>,
+    val enabled: Boolean,
+)
+
 @Composable
 internal fun SourcePreferenceMultiSelectDialog(
-    preference: MultiSelectListPreference,
-    title: String,
-    subtitle: String?,
+    model: SourcePreferenceMultiSelectUiModel,
+    onValuesConfirmed: (Set<String>) -> Unit,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     val selected = remember(showDialog) { mutableStateListOf<String>() }
-    val entries = preference.toEntryMap()
 
-    val currentSummary = subtitle
-        ?: preference.values
-            .mapNotNull { entries[it] }
+    val currentSummary = model.subtitle
+        ?: model.selectedValues
+            .mapNotNull { model.entries[it] }
             .joinToString()
             .takeUnless { it.isBlank() }
         ?: stringResource(MR.strings.none)
@@ -43,14 +48,14 @@ internal fun SourcePreferenceMultiSelectDialog(
     TextPreferenceWidget(
         modifier = Modifier.semantics {
             role = Role.Button
-            contentDescription = "$title, $currentSummary"
+            contentDescription = "${model.title}, $currentSummary"
         },
-        title = title,
+        title = model.title,
         subtitle = currentSummary,
         onPreferenceClick = {
-            if (!preference.isEnabled) return@TextPreferenceWidget
+            if (!model.enabled) return@TextPreferenceWidget
             selected.clear()
-            selected.addAll(preference.values)
+            selected.addAll(model.selectedValues)
             showDialog = true
         },
     )
@@ -59,10 +64,10 @@ internal fun SourcePreferenceMultiSelectDialog(
 
     AlertDialog(
         onDismissRequest = { showDialog = false },
-        title = { Text(text = title) },
+        title = { Text(text = model.title) },
         text = {
             ScrollbarLazyColumn {
-                items(entries.entries.toList(), key = { it.key }) { (key, value) ->
+                items(model.entries.entries.toList(), key = { it.key }) { (key, value) ->
                     LabeledCheckbox(
                         label = value,
                         checked = selected.contains(key),
@@ -80,10 +85,7 @@ internal fun SourcePreferenceMultiSelectDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val next = selected.toSet()
-                    if (preference.callChangeListener(next)) {
-                        preference.values = next
-                    }
+                    onValuesConfirmed(selected.toSet())
                     showDialog = false
                 },
             ) {
@@ -96,15 +98,4 @@ internal fun SourcePreferenceMultiSelectDialog(
             }
         },
     )
-}
-
-private fun MultiSelectListPreference.toEntryMap(): Map<String, String> {
-    val entries = entries ?: emptyArray()
-    val values = entryValues ?: emptyArray()
-    return buildMap {
-        val size = minOf(entries.size, values.size)
-        repeat(size) { index ->
-            put(values[index].toString(), entries[index].toString())
-        }
-    }
 }

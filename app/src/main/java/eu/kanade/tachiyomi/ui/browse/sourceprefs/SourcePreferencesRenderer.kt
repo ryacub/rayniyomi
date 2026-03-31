@@ -29,6 +29,7 @@ import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
 import androidx.preference.TwoStatePreference
+import androidx.preference.getOnBindEditTextListener
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.PreferenceGroupHeader
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
@@ -161,19 +162,43 @@ fun SourcePreferencesContent(
                     }
 
                     is MultiSelectListPreference -> {
+                        val entryMap = preference.toEntryMap()
                         SourcePreferenceMultiSelectDialog(
-                            preference = preference,
-                            title = preference.title?.toString().orEmpty(),
-                            subtitle = summary,
+                            model = SourcePreferenceMultiSelectUiModel(
+                                title = preference.title?.toString().orEmpty(),
+                                subtitle = summary,
+                                entries = entryMap,
+                                selectedValues = preference.values,
+                                enabled = preference.isEnabled,
+                            ),
+                            onValuesConfirmed = { next ->
+                                if (preference.callChangeListener(next)) {
+                                    preference.values = next
+                                }
+                            },
                         )
                     }
 
                     is EditTextPreference -> {
                         SourcePreferenceEditTextDialog(
-                            preference = preference,
-                            title = preference.title?.toString().orEmpty(),
-                            subtitle = summary,
-                            enabled = preference.isEnabled,
+                            model = SourcePreferenceEditTextUiModel(
+                                title = preference.title?.toString().orEmpty(),
+                                subtitle = summary,
+                                dialogTitle = preference.dialogTitle?.toString(),
+                                currentValue = preference.text.orEmpty(),
+                                enabled = preference.isEnabled,
+                                onBindEditText = { editText ->
+                                    preference.getOnBindEditTextListener()?.onBindEditText(editText)
+                                },
+                            ),
+                            onValueConfirmed = { candidate ->
+                                if (preference.callChangeListener(candidate)) {
+                                    preference.text = candidate
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
                         )
                     }
 
@@ -243,6 +268,17 @@ internal fun formatUnsupportedTypeSubtitle(
 }
 
 private fun ListPreference.toEntryMap(): Map<String, String> {
+    val entries = entries ?: emptyArray()
+    val values = entryValues ?: emptyArray()
+    return buildMap {
+        val size = minOf(entries.size, values.size)
+        repeat(size) { index ->
+            put(values[index].toString(), entries[index].toString())
+        }
+    }
+}
+
+private fun MultiSelectListPreference.toEntryMap(): Map<String, String> {
     val entries = entries ?: emptyArray()
     val values = entryValues ?: emptyArray()
     return buildMap {
