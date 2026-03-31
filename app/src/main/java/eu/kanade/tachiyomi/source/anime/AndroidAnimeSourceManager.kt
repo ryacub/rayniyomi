@@ -65,9 +65,33 @@ class AndroidAnimeSourceManager(
                         ),
                     )
                     extensions.forEach { extension ->
-                        extension.sources.forEach {
-                            mutableMap[it.id] = it
-                            registerStubSource(StubAnimeSource.from(it))
+                        extension.sources.forEach { source ->
+                            val sourceId = runCatching { source.id }.getOrElse { throwable ->
+                                logcat(LogPriority.ERROR, throwable) {
+                                    "Skipping invalid anime source while building source map: ${source.javaClass.name}"
+                                }
+                                return@forEach
+                            }
+                            val sourceLang = runCatching { source.lang }.getOrElse { throwable ->
+                                logcat(LogPriority.ERROR, throwable) {
+                                    "Skipping invalid anime source while building source map: ${source.javaClass.name}"
+                                }
+                                return@forEach
+                            }
+                            val sourceName = runCatching { source.name }.getOrElse { throwable ->
+                                logcat(LogPriority.ERROR, throwable) {
+                                    "Skipping invalid anime source while building source map: ${source.javaClass.name}"
+                                }
+                                return@forEach
+                            }
+                            mutableMap[sourceId] = source
+                            registerStubSource(
+                                StubAnimeSource(
+                                    id = sourceId,
+                                    lang = sourceLang,
+                                    name = sourceName,
+                                ),
+                            )
                         }
                     }
                     sourcesMapFlow.value = mutableMap
@@ -108,7 +132,7 @@ class AndroidAnimeSourceManager(
     override fun getCatalogueSources() = sourcesMapFlow.value.values.filterIsInstance<AnimeCatalogueSource>()
 
     override fun getStubSources(): List<StubAnimeSource> {
-        val onlineSourceIds = getOnlineSources().map { it.id }
+        val onlineSourceIds = getOnlineSources().mapNotNull { runCatching { it.id }.getOrNull() }
         return stubSourcesMap.values.filterNot { it.id in onlineSourceIds }
     }
 

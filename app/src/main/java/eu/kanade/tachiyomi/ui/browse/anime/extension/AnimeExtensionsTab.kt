@@ -18,6 +18,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.presentation.more.settings.screen.browse.AnimeExtensionReposScreen
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
+import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeExtensionDetailsScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
@@ -36,6 +37,7 @@ fun animeExtensionsTab(
 
     val state by extensionsScreenModel.state.collectAsStateWithLifecycle()
     var privateExtensionToUninstall by remember { mutableStateOf<AnimeExtension?>(null) }
+    var invalidExtensionToUninstall by remember { mutableStateOf<AnimeLoadResult.Invalid?>(null) }
 
     return TabContent(
         titleRes = AYMR.strings.label_anime_extensions,
@@ -62,6 +64,9 @@ fun animeExtensionsTab(
                     when (event) {
                         AnimeExtensionsScreenModel.Event.DeviceOffline -> {
                             snackbarHostState.showSnackbar(noNetworkString)
+                        }
+                        is AnimeExtensionsScreenModel.Event.InvalidExtensionRevoked -> {
+                            invalidExtensionToUninstall = event.extension
                         }
                     }
                 }
@@ -117,6 +122,18 @@ fun animeExtensionsTab(
                     },
                 )
             }
+
+            invalidExtensionToUninstall?.let { invalidExtension ->
+                AnimeInvalidExtensionConfirmation(
+                    extensionName = invalidExtension.name,
+                    onClickConfirm = {
+                        extensionsScreenModel.uninstallExtension(invalidExtension.pkgName)
+                    },
+                    onDismissRequest = {
+                        invalidExtensionToUninstall = null
+                    },
+                )
+            }
         },
     )
 }
@@ -142,6 +159,38 @@ private fun AnimeExtensionUninstallConfirmation(
                 },
             ) {
                 Text(text = stringResource(MR.strings.ext_remove))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        onDismissRequest = onDismissRequest,
+    )
+}
+
+@Composable
+private fun AnimeInvalidExtensionConfirmation(
+    extensionName: String,
+    onClickConfirm: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    AlertDialog(
+        title = {
+            Text(text = stringResource(MR.strings.ext_invalid_extension_title))
+        },
+        text = {
+            Text(text = stringResource(MR.strings.ext_invalid_extension_message, extensionName))
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onClickConfirm()
+                    onDismissRequest()
+                },
+            ) {
+                Text(text = stringResource(MR.strings.ext_uninstall))
             }
         },
         dismissButton = {

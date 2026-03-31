@@ -54,6 +54,7 @@ internal class AnimeExtensionInstallReceiver(private val listener: Listener) : B
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is AnimeLoadResult.Success -> listener.onExtensionInstalled(result.extension)
                         is AnimeLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
+                        is AnimeLoadResult.Invalid -> listener.onExtensionInvalid(result)
                         else -> {}
                     }
                 }
@@ -63,6 +64,7 @@ internal class AnimeExtensionInstallReceiver(private val listener: Listener) : B
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is AnimeLoadResult.Success -> listener.onExtensionUpdated(result.extension)
                         is AnimeLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
+                        is AnimeLoadResult.Invalid -> listener.onExtensionInvalid(result)
                         else -> {}
                     }
                 }
@@ -116,6 +118,7 @@ internal class AnimeExtensionInstallReceiver(private val listener: Listener) : B
         fun onExtensionInstalled(extension: AnimeExtension.Installed)
         fun onExtensionUpdated(extension: AnimeExtension.Installed)
         fun onExtensionUntrusted(extension: AnimeExtension.Untrusted)
+        fun onExtensionInvalid(extension: AnimeLoadResult.Invalid)
         fun onPackageUninstalled(pkgName: String)
     }
 
