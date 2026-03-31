@@ -29,10 +29,16 @@ class PlayerActivityHostInitOrderTest {
         val source = loadPlayerActivitySource()
         val rootAssignIdx = source.indexOf("rootView = findViewById(android.R.id.content)")
         val snackbarIdx = source.indexOf("Snackbar.make(")
+        val systemUiVisibilityIdx = source.indexOf("rootView.systemUiVisibility")
 
         assertTrue(rootAssignIdx >= 0, "Expected rootView assignment to exist")
         assertTrue(snackbarIdx >= 0, "Expected Snackbar usage to exist")
+        assertTrue(systemUiVisibilityIdx >= 0, "Expected rootView.systemUiVisibility usage to exist")
         assertTrue(rootAssignIdx < snackbarIdx, "rootView assignment must happen before Snackbar usage")
+        assertTrue(
+            rootAssignIdx < systemUiVisibilityIdx,
+            "rootView assignment must happen before rootView.systemUiVisibility usage",
+        )
     }
 
     private fun loadPlayerActivitySource(): String {
