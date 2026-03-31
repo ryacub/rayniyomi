@@ -47,13 +47,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -65,7 +58,6 @@ import androidx.media.AudioManagerCompat
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.material.snackbar.Snackbar
-import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
@@ -78,7 +70,6 @@ import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.player.cast.CastError
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
-import eu.kanade.tachiyomi.ui.player.controls.PlayerControls
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
@@ -242,7 +233,24 @@ class PlayerActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         playerView = LayoutInflater.from(this).inflate(R.layout.player_surface, null, false) as AniyomiMPVView
         setContent {
-            PlayerHostContent(playerView)
+            PlayerHostContent(
+                playerView = playerView,
+                viewModel = viewModel,
+                state = PlayerHostUiState(
+                    isPipSupportedAndEnabled = isPipSupportedAndEnabled,
+                    isPlayerPaused = player.paused ?: false,
+                    pipOnExitEnabled = playerPreferences.pipOnExit().get(),
+                ),
+                callbacks = PlayerHostUiCallbacks(
+                    onEnterPictureInPicture = {
+                        enterPictureInPictureMode(createPipParams())
+                    },
+                    onFinish = ::finish,
+                    onPipRectChanged = { rect ->
+                        pipRect = rect
+                    },
+                ),
+            )
         }
         rootView = findViewById(android.R.id.content)
 
@@ -317,41 +325,6 @@ class PlayerActivity : BaseActivity() {
             .launchIn(lifecycleScope)
 
         onNewIntent(this.intent)
-    }
-
-    @Composable
-    private fun PlayerHostContent(playerView: AniyomiMPVView) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { playerView },
-            )
-            TachiyomiTheme {
-                PlayerControls(
-                    viewModel = viewModel,
-                    onBackPress = {
-                        if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
-                            enterPictureInPictureMode(createPipParams())
-                        } else {
-                            finish()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .onGloballyPositioned {
-                            pipRect = run {
-                                val boundsInWindow = it.boundsInWindow()
-                                Rect(
-                                    boundsInWindow.left.toInt(),
-                                    boundsInWindow.top.toInt(),
-                                    boundsInWindow.right.toInt(),
-                                    boundsInWindow.bottom.toInt(),
-                                )
-                            }
-                        },
-                )
-            }
-        }
     }
 
     override fun onDestroy() {
