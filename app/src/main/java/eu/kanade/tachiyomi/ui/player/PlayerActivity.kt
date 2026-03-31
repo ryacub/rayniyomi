@@ -107,10 +107,10 @@ import uy.kohesive.injekt.api.get
 class PlayerActivity : BaseActivity() {
     private val viewModel by viewModels<PlayerViewModel>(factoryProducer = { PlayerViewModelProviderFactory(this) })
     private val playerObserver by lazy { PlayerObserver(this) }
-    private var playerView: AniyomiMPVView? = null
-    private var rootView: View? = null
+    private lateinit var playerView: AniyomiMPVView
+    private lateinit var rootView: View
     val player: AniyomiMPVView
-        get() = checkNotNull(playerView) { "Player host view is not initialized" }
+        get() = playerView
     val windowInsetsController by lazy { WindowCompat.getInsetsController(window, window.decorView) }
     val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
@@ -240,8 +240,9 @@ class PlayerActivity : BaseActivity() {
         registerSecureActivity(this)
         castManager.resetForNewActivity()
         super.onCreate(savedInstanceState)
+        playerView = LayoutInflater.from(this).inflate(R.layout.player_surface, null, false) as AniyomiMPVView
         setContent {
-            PlayerHostContent()
+            PlayerHostContent(playerView)
         }
         rootView = findViewById(android.R.id.content)
 
@@ -275,7 +276,7 @@ class PlayerActivity : BaseActivity() {
                 when (error) {
                     is CastError.LoadFailed -> {
                         Snackbar.make(
-                            rootView ?: window.decorView,
+                            rootView,
                             stringResource(AYMR.strings.cast_error_load_failed),
                             Snackbar.LENGTH_LONG,
                         ).setAction(stringResource(AYMR.strings.cast_watch_locally)) {
@@ -319,19 +320,11 @@ class PlayerActivity : BaseActivity() {
     }
 
     @Composable
-    private fun PlayerHostContent() {
+    private fun PlayerHostContent(playerView: AniyomiMPVView) {
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
-                factory = { context ->
-                    (
-                        LayoutInflater.from(
-                            context,
-                        ).inflate(R.layout.player_surface, null, false) as AniyomiMPVView
-                        ).also {
-                        playerView = it
-                    }
-                },
+                factory = { playerView },
             )
             TachiyomiTheme {
                 PlayerControls(
@@ -448,7 +441,7 @@ class PlayerActivity : BaseActivity() {
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
         )
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        (rootView ?: window.decorView).systemUiVisibility =
+        rootView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
