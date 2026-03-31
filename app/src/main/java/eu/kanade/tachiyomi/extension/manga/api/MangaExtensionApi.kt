@@ -73,12 +73,12 @@ internal class MangaExtensionApi {
     suspend fun checkForUpdates(
         context: Context,
         fromAvailableExtensionList: Boolean = false,
-    ): List<MangaExtension.Installed>? {
+    ): List<MangaExtension.Installed>? = withIOContext {
         // Limit checks to once a day at most
         if (fromAvailableExtensionList &&
             Instant.now().toEpochMilli() < lastExtCheck.get() + 1.days.inWholeMilliseconds
         ) {
-            return null
+            return@withIOContext null
         }
 
         // Update extension repo details
@@ -120,7 +120,7 @@ internal class MangaExtensionApi {
             ExtensionUpdateNotifier(context).promptUpdates(extensionsWithUpdate.map { it.name })
         }
 
-        return extensionsWithUpdate
+        extensionsWithUpdate
     }
 
     private fun List<ExtensionJsonObject>.toExtensions(

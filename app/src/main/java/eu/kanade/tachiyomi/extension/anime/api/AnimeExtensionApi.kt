@@ -73,12 +73,12 @@ internal class AnimeExtensionApi {
     suspend fun checkForUpdates(
         context: Context,
         fromAvailableExtensionList: Boolean = false,
-    ): List<AnimeExtension.Installed>? {
+    ): List<AnimeExtension.Installed>? = withIOContext {
         // Limit checks to once a day at most
         if (fromAvailableExtensionList &&
             Instant.now().toEpochMilli() < lastExtCheck.get() + 1.days.inWholeMilliseconds
         ) {
-            return null
+            return@withIOContext null
         }
 
         // Update extension repo details
@@ -124,7 +124,7 @@ internal class AnimeExtensionApi {
             )
         }
 
-        return extensionsWithUpdate
+        extensionsWithUpdate
     }
 
     private fun List<AnimeExtensionJsonObject>.toExtensions(
