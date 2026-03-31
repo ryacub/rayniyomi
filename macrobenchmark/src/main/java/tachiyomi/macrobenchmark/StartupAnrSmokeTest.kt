@@ -51,7 +51,7 @@ class StartupAnrSmokeTest {
     @Test
     fun coldStartupSmokeTest() {
         benchmarkRule.measureRepeated(
-            packageName = "xyz.jmir.tachiyomi.mibenchmark",
+            packageName = BENCHMARK_TARGET_PACKAGE,
             metrics = listOf(StartupTimingMetric()),
             compilationMode = CompilationMode.None(),
             iterations = 3,
@@ -71,7 +71,7 @@ class StartupAnrSmokeTest {
     @Test
     fun coldStartupWithBaselineProfile() {
         benchmarkRule.measureRepeated(
-            packageName = "xyz.jmir.tachiyomi.mibenchmark",
+            packageName = BENCHMARK_TARGET_PACKAGE,
             metrics = listOf(StartupTimingMetric()),
             compilationMode = CompilationMode.Partial(
                 baselineProfileMode = BaselineProfileMode.Require,
@@ -94,7 +94,7 @@ class StartupAnrSmokeTest {
     @Test
     fun warmStartupAfterProcessKill() {
         benchmarkRule.measureRepeated(
-            packageName = "xyz.jmir.tachiyomi.mibenchmark",
+            packageName = BENCHMARK_TARGET_PACKAGE,
             metrics = listOf(StartupTimingMetric()),
             compilationMode = CompilationMode.None(),
             iterations = 3,

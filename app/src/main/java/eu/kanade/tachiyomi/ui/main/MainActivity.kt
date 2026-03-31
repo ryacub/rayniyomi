@@ -376,7 +376,7 @@ class MainActivity : BaseActivity() {
         val startTime = System.currentTimeMillis()
         splashScreen?.setKeepOnScreenCondition {
             val elapsed = System.currentTimeMillis() - startTime
-            elapsed <= SPLASH_MIN_DURATION || !ready && elapsed <= SPLASH_MAX_DURATION
+            elapsed <= splashMinDuration() || !ready && elapsed <= splashMaxDuration()
         }
         setSplashScreenExitAnimation(splashScreen)
 
@@ -469,7 +469,7 @@ class MainActivity : BaseActivity() {
     @Suppress("Deprecation")
     private fun setSplashScreenExitAnimation(splashScreen: SplashScreen?) {
         val root = findViewById<View>(android.R.id.content)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && splashScreen != null) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && splashScreen != null && splashExitAnimDuration() > 0L) {
             window.statusBarColor = Color.TRANSPARENT
             window.navigationBarColor = Color.TRANSPARENT
 
@@ -479,7 +479,7 @@ class MainActivity : BaseActivity() {
 
                 val activityAnim = ValueAnimator.ofFloat(1F, 0F).apply {
                     interpolator = LinearOutSlowInInterpolator()
-                    duration = SPLASH_EXIT_ANIM_DURATION
+                    duration = splashExitAnimDuration()
                     addUpdateListener { va ->
                         val value = va.animatedValue as Float
                         root.translationY = value * 16.dpToPx
@@ -488,7 +488,7 @@ class MainActivity : BaseActivity() {
 
                 val splashAnim = ValueAnimator.ofFloat(1F, 0F).apply {
                     interpolator = FastOutSlowInInterpolator()
-                    duration = SPLASH_EXIT_ANIM_DURATION
+                    duration = splashExitAnimDuration()
                     addUpdateListener { va ->
                         val value = va.animatedValue as Float
                         splashProvider.view.alpha = value
@@ -660,7 +660,13 @@ class MainActivity : BaseActivity() {
     }
 }
 
+private fun splashMinDuration() = if (BuildConfig.BUILD_TYPE == "benchmark") 0L else SPLASH_MIN_DURATION
+
+private fun splashMaxDuration() = if (BuildConfig.BUILD_TYPE == "benchmark") 0L else SPLASH_MAX_DURATION
+
+private fun splashExitAnimDuration() = if (BuildConfig.BUILD_TYPE == "benchmark") 0L else SPLASH_EXIT_ANIM_DURATION
+
 // Splash screen
-private const val SPLASH_MIN_DURATION = 500 // ms
-private const val SPLASH_MAX_DURATION = 5000 // ms
+private const val SPLASH_MIN_DURATION = 500L // ms
+private const val SPLASH_MAX_DURATION = 5000L // ms
 private const val SPLASH_EXIT_ANIM_DURATION = 400L // ms
