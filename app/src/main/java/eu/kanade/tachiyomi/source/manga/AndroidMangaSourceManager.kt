@@ -62,9 +62,21 @@ class AndroidMangaSourceManager(
                         ),
                     )
                     extensions.forEach { extension ->
-                        extension.sources.forEach {
-                            mutableMap[it.id] = it
-                            registerStubSource(StubMangaSource.from(it))
+                        extension.sources.forEach { source ->
+                            val sourceId = runCatching { source.id }.getOrElse { throwable ->
+                                logcat(LogPriority.ERROR, throwable) {
+                                    "Skipping invalid manga source while building source map: ${source.javaClass.name}"
+                                }
+                                return@forEach
+                            }
+                            mutableMap[sourceId] = source
+                            registerStubSource(
+                                StubMangaSource(
+                                    id = sourceId,
+                                    lang = source.lang,
+                                    name = source.name,
+                                ),
+                            )
                         }
                     }
                     sourcesMapFlow.value = mutableMap
@@ -105,7 +117,7 @@ class AndroidMangaSourceManager(
     override fun getCatalogueSources() = sourcesMapFlow.value.values.filterIsInstance<CatalogueSource>()
 
     override fun getStubSources(): List<StubMangaSource> {
-        val onlineSourceIds = getOnlineSources().map { it.id }
+        val onlineSourceIds = getOnlineSources().mapNotNull { runCatching { it.id }.getOrNull() }
         return stubSourcesMap.values.filterNot { it.id in onlineSourceIds }
     }
 

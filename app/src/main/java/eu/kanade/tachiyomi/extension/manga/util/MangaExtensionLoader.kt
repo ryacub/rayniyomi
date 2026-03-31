@@ -10,6 +10,7 @@ import androidx.core.content.pm.PackageInfoCompat
 import dalvik.system.PathClassLoader
 import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.extension.manga.model.InvalidReason
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.source.CatalogueSource
@@ -273,6 +274,19 @@ internal object MangaExtensionLoader {
         if (signatures.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "Package $pkgName isn't signed" }
             return MangaLoadResult.Error
+        }
+        val signatureHash = signatures.first()
+        if (trustExtension.isInvalid(pkgName, versionCode, signatureHash)) {
+            logcat(LogPriority.WARN) { "Extension $pkgName is denylisted as invalid" }
+            return invalidResult(
+                pkgName = pkgName,
+                extName = extName,
+                versionName = versionName,
+                versionCode = versionCode,
+                signatureHash = signatureHash,
+                reason = InvalidReason.DENYLISTED,
+                debugDetail = "denylisted before trust check",
+            )
         } else if (!trustExtension.isTrusted(pkgInfo, signatures)) {
             val extension = MangaExtension.Untrusted(
                 extName,
@@ -280,7 +294,7 @@ internal object MangaExtensionLoader {
                 versionName,
                 versionCode,
                 libVersion,
-                signatures.first(),
+                signatureHash,
             )
             logcat(LogPriority.WARN) { "Extension $pkgName isn't trusted" }
             return MangaLoadResult.Untrusted(extension)
@@ -299,7 +313,20 @@ internal object MangaExtensionLoader {
             return MangaLoadResult.Error
         }
 
-        val sources = appInfo.metaData.getString(METADATA_SOURCE_CLASS)!!
+        val sourceClassMetadata = appInfo.metaData.getString(METADATA_SOURCE_CLASS)
+        if (sourceClassMetadata.isNullOrBlank()) {
+            return invalidResult(
+                pkgName = pkgName,
+                extName = extName,
+                versionName = versionName,
+                versionCode = versionCode,
+                signatureHash = signatureHash,
+                reason = InvalidReason.METADATA_INVALID,
+                debugDetail = METADATA_SOURCE_CLASS,
+            )
+        }
+
+        val sources = sourceClassMetadata
             .split(";")
             .map {
                 val sourceClass = it.trim()
@@ -333,14 +360,42 @@ internal object MangaExtensionLoader {
                             else -> throw Exception("Unknown source class type: ${obj.javaClass}")
                         }
                     } catch (e: Throwable) {
-                        logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($it)" }
-                        return MangaLoadResult.Error
+                        return invalidResult(
+                            pkgName = pkgName,
+                            extName = extName,
+                            versionName = versionName,
+                            versionCode = versionCode,
+                            signatureHash = signatureHash,
+                            reason = InvalidReason.SOURCE_FACTORY_THROW,
+                            debugDetail = it,
+                            throwable = e,
+                        )
                     }
                 } catch (e: Throwable) {
-                    logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($it)" }
-                    return MangaLoadResult.Error
+                    return invalidResult(
+                        pkgName = pkgName,
+                        extName = extName,
+                        versionName = versionName,
+                        versionCode = versionCode,
+                        signatureHash = signatureHash,
+                        reason = InvalidReason.SOURCE_FACTORY_THROW,
+                        debugDetail = it,
+                        throwable = e,
+                    )
                 }
             }
+
+        findInvalidSource(sources)?.let { invalidSource ->
+            return invalidResult(
+                pkgName = pkgName,
+                extName = extName,
+                versionName = versionName,
+                versionCode = versionCode,
+                signatureHash = signatureHash,
+                reason = InvalidReason.SOURCE_ID_THROW,
+                debugDetail = invalidSource.javaClass.name,
+            )
+        }
 
         val langs = sources.filterIsInstance<CatalogueSource>()
             .map { it.lang }
@@ -363,9 +418,49 @@ internal object MangaExtensionLoader {
             pkgFactory = appInfo.metaData.getString(METADATA_SOURCE_FACTORY),
             icon = appInfo.loadIcon(pkgManager),
             isShared = extensionInfo.isShared,
-            signatureHash = signatures.first(),
+            signatureHash = signatureHash,
         )
         return MangaLoadResult.Success(extension)
+    }
+
+    internal fun findInvalidSource(sources: List<MangaSource>): MangaSource? {
+        for (source in sources) {
+            runCatching {
+                source.id
+                source.lang
+                source.name
+            }
+                .getOrElse { return source }
+        }
+        return null
+    }
+
+    private suspend fun invalidResult(
+        pkgName: String,
+        extName: String,
+        versionName: String,
+        versionCode: Long,
+        signatureHash: String,
+        reason: InvalidReason,
+        debugDetail: String? = null,
+        throwable: Throwable? = null,
+    ): MangaLoadResult.Invalid {
+        if (throwable != null) {
+            logcat(LogPriority.ERROR, throwable) { "Invalid manga extension load: $extName ($pkgName)" }
+        } else {
+            logcat(LogPriority.ERROR) { "Invalid manga extension load: $extName ($pkgName)" }
+        }
+        trustExtension.markInvalid(pkgName, versionCode, signatureHash)
+        trustExtension.revoke(pkgName)
+        return MangaLoadResult.Invalid(
+            pkgName = pkgName,
+            name = extName,
+            versionName = versionName,
+            versionCode = versionCode,
+            signatureHash = signatureHash,
+            reason = reason,
+            debugDetail = debugDetail,
+        )
     }
 
     /**

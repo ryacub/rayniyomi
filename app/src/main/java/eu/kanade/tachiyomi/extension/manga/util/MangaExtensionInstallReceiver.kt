@@ -54,6 +54,7 @@ internal class MangaExtensionInstallReceiver(private val listener: Listener) : B
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is MangaLoadResult.Success -> listener.onExtensionInstalled(result.extension)
                         is MangaLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
+                        is MangaLoadResult.Invalid -> listener.onExtensionInvalid(result)
                         else -> {}
                     }
                 }
@@ -63,6 +64,7 @@ internal class MangaExtensionInstallReceiver(private val listener: Listener) : B
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is MangaLoadResult.Success -> listener.onExtensionUpdated(result.extension)
                         is MangaLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
+                        is MangaLoadResult.Invalid -> listener.onExtensionInvalid(result)
                         else -> {}
                     }
                 }
@@ -116,6 +118,7 @@ internal class MangaExtensionInstallReceiver(private val listener: Listener) : B
         fun onExtensionInstalled(extension: MangaExtension.Installed)
         fun onExtensionUpdated(extension: MangaExtension.Installed)
         fun onExtensionUntrusted(extension: MangaExtension.Untrusted)
+        fun onExtensionInvalid(extension: MangaLoadResult.Invalid)
         fun onPackageUninstalled(pkgName: String)
     }
 

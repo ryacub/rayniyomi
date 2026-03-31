@@ -19,9 +19,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
@@ -79,6 +81,12 @@ class MangaExtensionManager(
     private val untrustedExtensionsMapFlow = MutableStateFlow(emptyMap<String, MangaExtension.Untrusted>())
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
 
+    private val invalidExtensionNoticesFlow = MutableSharedFlow<MangaLoadResult.Invalid>(
+        replay = 16,
+        extraBufferCapacity = 16,
+    )
+    val invalidExtensionNotices = invalidExtensionNoticesFlow.asSharedFlow()
+
     init {
         scope.launch(Dispatchers.IO) {
             initExtensions()
@@ -90,7 +98,7 @@ class MangaExtensionManager(
 
     fun getExtensionPackage(sourceId: Long): String? {
         return installedExtensionsFlow.value.find { extension ->
-            extension.sources.any { it.id == sourceId }
+            extension.hasSourceId(sourceId)
         }
             ?.pkgName
     }
@@ -98,7 +106,7 @@ class MangaExtensionManager(
     fun getExtensionPackageAsFlow(sourceId: Long): Flow<String?> {
         return installedExtensionsFlow.map { extensions ->
             extensions.find { extension ->
-                extension.sources.any { it.id == sourceId }
+                extension.hasSourceId(sourceId)
             }
                 ?.pkgName
         }
@@ -107,14 +115,16 @@ class MangaExtensionManager(
     fun getAppIconForSource(sourceId: Long): Drawable? {
         val pkgName = installedExtensionsMapFlow.value.values
             .find { ext ->
-                ext.sources.any { it.id == sourceId }
+                ext.hasSourceId(sourceId)
             }
             ?.pkgName
             ?: return null
 
+        val packageInfo = MangaExtensionLoader.getMangaExtensionPackageInfoFromPkgName(context, pkgName)
+            ?: return null
+        val appInfo = packageInfo.applicationInfo ?: return null
         return iconMap[pkgName] ?: iconMap.getOrPut(pkgName) {
-            MangaExtensionLoader.getMangaExtensionPackageInfoFromPkgName(context, pkgName)!!.applicationInfo!!
-                .loadIcon(context.packageManager)
+            appInfo.loadIcon(context.packageManager)
         }
     }
 
@@ -143,6 +153,9 @@ class MangaExtensionManager(
             untrustedExtensionsMapFlow.value = extensions
                 .filterIsInstance<MangaLoadResult.Untrusted>()
                 .associate { it.extension.pkgName to it.extension }
+
+            extensions.filterIsInstance<MangaLoadResult.Invalid>()
+                .forEach { invalidExtensionNoticesFlow.emit(it) }
         } finally {
             _isInitialized.value = true
         }
@@ -300,6 +313,10 @@ class MangaExtensionManager(
         installer.uninstallApk(extension.pkgName)
     }
 
+    fun uninstallExtension(pkgName: String) {
+        installer.uninstallApk(pkgName)
+    }
+
     /**
      * Adds the given extension to the list of trusted extensions. It also loads in background the
      * now trusted extensions.
@@ -369,8 +386,17 @@ class MangaExtensionManager(
             updatePendingUpdatesCount()
         }
 
+        override fun onExtensionInvalid(extension: MangaLoadResult.Invalid) {
+            unregisterExtension(extension.pkgName)
+            scope.launch {
+                invalidExtensionNoticesFlow.emit(extension)
+            }
+            updatePendingUpdatesCount()
+        }
+
         override fun onPackageUninstalled(pkgName: String) {
             MangaExtensionLoader.uninstallPrivateExtension(context, pkgName)
+            trustExtension.clearInvalid(pkgName)
             unregisterExtension(pkgName)
             updatePendingUpdatesCount()
         }
@@ -406,6 +432,10 @@ class MangaExtensionManager(
     }
 
     private operator fun <T : MangaExtension> Map<String, T>.plus(extension: T) = plus(extension.pkgName to extension)
+
+    private fun MangaExtension.Installed.hasSourceId(sourceId: Long): Boolean {
+        return sources.any { source -> runCatching { source.id }.getOrNull() == sourceId }
+    }
 
     private fun <T : MangaExtension> StateFlow<Map<String, T>>.mapExtensions(
         scope: CoroutineScope,

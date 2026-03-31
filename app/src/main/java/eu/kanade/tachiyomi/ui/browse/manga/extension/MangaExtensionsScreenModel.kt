@@ -12,8 +12,10 @@ import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
+import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.system.LocaleHelper
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.lang.launchIO
@@ -39,12 +42,15 @@ class MangaExtensionsScreenModel(
     basePreferences: BasePreferences = Injekt.get(),
     private val extensionManager: MangaExtensionManager = Injekt.get(),
     private val getExtensions: GetMangaExtensionsByType = Injekt.get(),
+    private val application: Application = Injekt.get(),
 ) : StateScreenModel<MangaExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())
+    private val invalidNoticeKeys = mutableSetOf<String>()
+    private val _events = Channel<Event>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
 
     init {
-        val context = Injekt.get<Application>()
         val extensionMapper: (Map<String, InstallStep>) -> ((MangaExtension) -> MangaExtensionUiModel.Item) = { map ->
             {
                 MangaExtensionUiModel.Item(it, map[it.pkgName] ?: InstallStep.Idle)
@@ -122,7 +128,7 @@ class MangaExtensionsScreenModel(
                     .toSortedMap(LocaleHelper.comparator)
                     .map { (lang, exts) ->
                         MangaExtensionUiModel.Header.Text(
-                            LocaleHelper.getSourceDisplayName(lang, context),
+                            LocaleHelper.getSourceDisplayName(lang, application),
                         ) to exts.map(extensionMapper(downloads))
                     }
 
@@ -143,6 +149,14 @@ class MangaExtensionsScreenModel(
         }
 
         screenModelScope.launchIO { findAvailableExtensions() }
+
+        extensionManager.invalidExtensionNotices
+            .onEach { invalid ->
+                if (invalidNoticeKeys.add(invalid.noticeKey())) {
+                    _events.send(Event.InvalidExtensionRevoked(invalid))
+                }
+            }
+            .launchIn(screenModelScope)
 
         preferences.mangaExtensionUpdatesCount().changes()
             .onEach { mutableState.update { state -> state.copy(updates = it) } }
@@ -203,6 +217,10 @@ class MangaExtensionsScreenModel(
         extensionManager.uninstallExtension(extension)
     }
 
+    fun uninstallExtension(pkgName: String) {
+        extensionManager.uninstallExtension(pkgName)
+    }
+
     fun findAvailableExtensions() {
         screenModelScope.launchIO {
             mutableState.update { it.copy(isRefreshing = true) }
@@ -233,6 +251,10 @@ class MangaExtensionsScreenModel(
     ) {
         val isEmpty = items.isEmpty()
     }
+
+    sealed interface Event {
+        data class InvalidExtensionRevoked(val extension: MangaLoadResult.Invalid) : Event
+    }
 }
 
 typealias ItemGroups = MutableMap<MangaExtensionUiModel.Header, List<MangaExtensionUiModel.Item>>
@@ -247,4 +269,8 @@ object MangaExtensionUiModel {
         val extension: MangaExtension,
         val installStep: InstallStep,
     )
+}
+
+private fun MangaLoadResult.Invalid.noticeKey(): String {
+    return "$pkgName:$versionCode:$signatureHash"
 }
