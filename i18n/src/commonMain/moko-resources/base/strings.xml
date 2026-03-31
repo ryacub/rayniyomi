@@ -864,6 +864,14 @@
     <string name="track_type">Type</string>
     <string name="myanimelist_relogin">Please login to MAL again</string>
     <string name="source_unsupported">Source is not supported</string>
+    <string name="pref_source_preference_empty_title">No source preferences available</string>
+    <string name="pref_source_preference_value_unavailable">Unavailable (%s)</string>
+    <string name="pref_source_preference_unsupported_type">Unsupported preference type: %1$s (%2$s)</string>
+    <string name="pref_source_preference_missing_key">no key</string>
+    <string name="pref_source_preference_clear_text">Clear text</string>
+    <string name="pref_source_preference_dialog_title_fallback">Edit source preference</string>
+    <string name="pref_source_preference_invalid_input">Invalid value. Please update and try again.</string>
+    <string name="pref_source_preference_input_a11y">%1$s input, current value: %2$s</string>
     <string name="error_no_match">No match found</string>
     <string name="track_error">%1$s error: %2$s</string>
     <string name="track_remove_date_conf_title">Remove date?</string>
