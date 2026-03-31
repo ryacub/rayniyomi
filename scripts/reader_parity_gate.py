@@ -7,7 +7,6 @@ import argparse
 import datetime as dt
 import json
 import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -34,15 +33,6 @@ REQUIRED_SCENARIOS = {
     "offline_retry_after_restore",
     "long_images_mixed_dimensions",
 }
-
-
-@dataclass
-class ReaderParityResult:
-    status: str
-    phase: str
-    regressions: list[str]
-    errors: list[str]
-
 
 def parse_utc(value: str) -> dt.datetime:
     if value.endswith("Z"):

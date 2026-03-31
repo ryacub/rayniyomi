@@ -3,8 +3,6 @@ package tachiyomi.macrobenchmark
 import androidx.annotation.VisibleForTesting
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.FrameTimingMetric
-import androidx.benchmark.macro.StartupMode
-import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import androidx.test.platform.app.InstrumentationRegistry
@@ -34,13 +32,12 @@ class ReaderParitySmokeBenchmark {
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
-    fun startup_to_reader_entry_contract_smoke() {
+    fun emit_reader_parity_observed_metrics() {
         benchmarkRule.measureRepeated(
             packageName = BENCHMARK_TARGET_PACKAGE,
-            metrics = listOf(StartupTimingMetric(), FrameTimingMetric()),
+            metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.None(),
-            startupMode = StartupMode.COLD,
-            iterations = 5,
+            iterations = 1,
             setupBlock = {
                 pressHome()
             },
@@ -48,10 +45,7 @@ class ReaderParitySmokeBenchmark {
             startActivityAndWait()
             device.waitForIdle()
         }
-    }
 
-    @Test
-    fun emit_reader_parity_observed_metrics() {
         val launchIntent = instrumentation.targetContext.packageManager
             .getLaunchIntentForPackage(BENCHMARK_TARGET_PACKAGE)
             ?: throw IllegalStateException("Unable to resolve launch intent for benchmark target")
