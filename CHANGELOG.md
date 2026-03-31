@@ -16,6 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Invalid trusted manga extensions now fail closed, auto-revoke trust, and surface a one-shot uninstall prompt instead of crashing source loading
 - Invalid trusted anime extensions now fail closed, auto-revoke local trust, and surface a one-shot uninstall dialog instead of crashing source loading
 - Repaired macrobenchmark target wiring so benchmark startup tests and baseline profile generation point at the `xyz.rayniyomi.benchmark` app package instead of stale package IDs
 - Stable benchmark builds now skip Google Services application and Crashlytics symbol/mapping uploads that are invalid for the benchmark application ID, allowing `stableBenchmark` assembly and installation to complete

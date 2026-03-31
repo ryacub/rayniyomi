@@ -4,6 +4,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +18,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.presentation.more.settings.screen.browse.MangaExtensionReposScreen
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
+import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaExtensionDetailsScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
@@ -34,6 +36,7 @@ fun mangaExtensionsTab(
 
     val state by extensionsScreenModel.state.collectAsStateWithLifecycle()
     var privateExtensionToUninstall by remember { mutableStateOf<MangaExtension?>(null) }
+    var invalidExtensionToUninstall by remember { mutableStateOf<MangaLoadResult.Invalid?>(null) }
 
     return TabContent(
         titleRes = AYMR.strings.label_manga_extensions,
@@ -50,6 +53,16 @@ fun mangaExtensionsTab(
             ),
         ),
         content = { contentPadding, _ ->
+            LaunchedEffect(Unit) {
+                extensionsScreenModel.events.collect { event ->
+                    when (event) {
+                        is MangaExtensionsScreenModel.Event.InvalidExtensionRevoked -> {
+                            invalidExtensionToUninstall = event.extension
+                        }
+                    }
+                }
+            }
+
             MangaExtensionScreen(
                 state = state,
                 contentPadding = contentPadding,
@@ -100,6 +113,18 @@ fun mangaExtensionsTab(
                     },
                 )
             }
+
+            invalidExtensionToUninstall?.let { invalidExtension ->
+                MangaInvalidExtensionConfirmation(
+                    extensionName = invalidExtension.name,
+                    onClickConfirm = {
+                        extensionsScreenModel.uninstallExtension(invalidExtension.pkgName)
+                    },
+                    onDismissRequest = {
+                        invalidExtensionToUninstall = null
+                    },
+                )
+            }
         },
     )
 }
@@ -125,6 +150,38 @@ private fun MangaExtensionUninstallConfirmation(
                 },
             ) {
                 Text(text = stringResource(MR.strings.ext_remove))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        onDismissRequest = onDismissRequest,
+    )
+}
+
+@Composable
+private fun MangaInvalidExtensionConfirmation(
+    extensionName: String,
+    onClickConfirm: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    AlertDialog(
+        title = {
+            Text(text = stringResource(MR.strings.ext_invalid_extension_title))
+        },
+        text = {
+            Text(text = stringResource(MR.strings.ext_invalid_extension_message, extensionName))
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onClickConfirm()
+                    onDismissRequest()
+                },
+            ) {
+                Text(text = stringResource(MR.strings.ext_uninstall))
             }
         },
         dismissButton = {
