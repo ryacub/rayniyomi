@@ -14,6 +14,19 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Fixed
+
+### Changed
+
+### CI
+
+### Other
+
+
+## [0.18.1.134] - 2026-04-01
+
+### Added
+
 - Reader compose migration parity governance gate: added versioned parity baseline/schema artifacts, UTC-phased PASS/WARN/FAIL evaluator with dual-threshold checks and bypass guardrails, reader parity CI workflow (contract + a11y + benchmark smoke jobs), and migration contract documentation
 ### Fixed
 
