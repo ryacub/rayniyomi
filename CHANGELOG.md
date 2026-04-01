@@ -44,6 +44,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Other
 
+- Removed 5 dead XML layout files (download_header, download_item, download_list, player_layout, reader_error) whose screens were already migrated to Compose; added `checkDeadXmlLayouts` and `checkNoXmlForMigratedScreens` Gradle verification tasks to keep the layout directory clean and prevent future regressions
+
 
 ## [0.18.1.123] - 2026-03-28
 
