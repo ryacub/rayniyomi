@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -61,7 +62,7 @@ internal class AnimeExtensionInstallReceiver(private val listener: Listener) : B
             }
             Intent.ACTION_PACKAGE_REPLACED, ACTION_EXTENSION_REPLACED -> {
                 scope.launch {
-                    when (val result = getExtensionFromIntent(context, intent)) {
+                    when (val result = loadWithRetryOnReplace(context, intent)) {
                         is AnimeLoadResult.Success -> listener.onExtensionUpdated(result.extension)
                         is AnimeLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
                         is AnimeLoadResult.Invalid -> listener.onExtensionInvalid(result)
@@ -87,6 +88,25 @@ internal class AnimeExtensionInstallReceiver(private val listener: Listener) : B
      */
     private fun isReplacing(intent: Intent): Boolean {
         return intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
+    }
+
+    /**
+     * Loads an extension for a PACKAGE_REPLACED event, retrying on transient PackageManager
+     * unavailability. Android's ActivityThread can report the package as REMOVED mid-replace
+     * because app info isn't committed to the process cache yet; retrying after a short delay
+     * lets PM settle before we give up.
+     */
+    private suspend fun loadWithRetryOnReplace(context: Context, intent: Intent?): AnimeLoadResult {
+        repeat(REPLACE_RETRY_COUNT) { attempt ->
+            val result = getExtensionFromIntent(context, intent)
+            if (result !is AnimeLoadResult.Error) return result
+            val pkgName = getPackageNameFromIntent(intent) ?: return result
+            logcat(LogPriority.WARN) {
+                "Extension $pkgName not found after replace (attempt ${attempt + 1}/$REPLACE_RETRY_COUNT), retrying..."
+            }
+            delay(REPLACE_RETRY_DELAY_MS)
+        }
+        return getExtensionFromIntent(context, intent)
     }
 
     /**
@@ -123,6 +143,9 @@ internal class AnimeExtensionInstallReceiver(private val listener: Listener) : B
     }
 
     companion object {
+        private const val REPLACE_RETRY_COUNT = 3
+        private const val REPLACE_RETRY_DELAY_MS = 500L
+
         private const val ACTION_EXTENSION_ADDED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_ADDED"
         private const val ACTION_EXTENSION_REPLACED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REPLACED"
         private const val ACTION_EXTENSION_REMOVED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REMOVED"
