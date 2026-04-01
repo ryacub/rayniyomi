@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-03-31T00:00:00Z",
+  "baselineCommitSha": "fe0484d1cc4902565749dfe8c45a2fffa90a1592",
+  "candidateCommitSha": "fe0484d1cc4902565749dfe8c45a2fffa90a1592",
+  "deviceProfile": {
+    "apiLevel": 35,
+    "profile": "pixel_7",
+    "arch": "x86_64",
+    "target": "google_apis"
+  },
+  "sampleSize": 20,
+  "metrics": {
+    "startup_to_reader_entry_ms_p95": 2900.0,
+    "open_chapter_ms_p95": 1800.0,
+    "webtoon_jank_percent_p95": 6.0,
+    "long_strip_memory_mb_p95": 430.0,
+    "recovery_pass_rate_percent": 100.0,
+    "variance_percent": 4.0
+  },
+  "scenarios": [
+    { "id": "startup_to_reader_entry", "status": "pass", "sampleCount": 5 },
+    { "id": "open_chapter_latency", "status": "pass", "sampleCount": 5 },
+    { "id": "webtoon_jank_scroll", "status": "pass", "sampleCount": 5 },
+    { "id": "long_strip_memory", "status": "pass", "sampleCount": 5 },
+    { "id": "prefetch_boundary_transition", "status": "pass", "sampleCount": 5 },
+    { "id": "process_death_recovery", "status": "pass", "sampleCount": 10 },
+    { "id": "background_foreground_resume", "status": "pass", "sampleCount": 5 },
+    { "id": "offline_retry_after_restore", "status": "pass", "sampleCount": 10 },
+    { "id": "long_images_mixed_dimensions", "status": "pass", "sampleCount": 5 }
+  ],
+  "a11y": {
+    "automatedFocusOrderPassed": true,
+    "automatedRetryDiscoverabilityPassed": true,
+    "manualTalkBackChecklist": "macrobenchmark/parity/manual_talkback_checklist.md",
+    "manualTalkBackValidated": true
+  }
+}
