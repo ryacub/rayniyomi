@@ -17,6 +17,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Reader compose migration parity governance gate: added versioned parity baseline/schema artifacts, UTC-phased PASS/WARN/FAIL evaluator with dual-threshold checks and bypass guardrails, reader parity CI workflow (contract + a11y + benchmark smoke jobs), and migration contract documentation
 ### Fixed
 
+- Extension reinstalls and updates no longer silently fail when `ACTION_PACKAGE_REPLACED` fires before Android commits the new package info to the process cache; both anime and manga receivers now retry up to 3× with a 500ms delay before surfacing a final error
+
 ### Changed
 
 ### CI
