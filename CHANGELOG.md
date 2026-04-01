@@ -31,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 
 - Extension reinstalls and updates no longer silently fail when `ACTION_PACKAGE_REPLACED` fires before Android commits the new package info to the process cache; both anime and manga receivers now retry up to 3× with a 500ms delay before surfacing a final error
+- Concurrent calls to `startDownloads()` no longer cancel an already-enqueued download job; WorkManager policy changed from `REPLACE` to `KEEP` for both anime and manga downloaders
 
 ### Changed
 
