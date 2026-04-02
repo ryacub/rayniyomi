@@ -16,6 +16,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Manually-trusted extensions no longer lose their trusted status after an update; trust is now matched by package name and signature hash, ignoring the version code
+
 ### Changed
 
 ### CI
