@@ -139,11 +139,15 @@ class MangaDownloadManager(
 
     // For use by DownloadService only
     fun downloaderStart(): Boolean {
-        // Reset crash count on successful start
+        val started = downloader.start()
+        if (!started) return false
+
+        // Reset stale crash state after successful downloader start.
         if (downloadPreferences.mangaDownloadJobCrashCount().get() > 0) {
             downloadPreferences.mangaDownloadJobCrashCount().set(0)
+            notifier.cancelCrashNotification()
         }
-        return downloader.start()
+        return true
     }
     fun downloaderStop(
         reason: String? = null,

@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Manga battery optimization prompt check is now mutex-serialized so concurrent 10+ chapter queue actions cannot emit the prompt twice in one app session
 
+- Manga downloader now dismisses the stale crash-threshold notification when a subsequent successful start resets the crash counter
 ### Changed
 
 ### CI
