@@ -32,6 +32,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 
 - Tracker enrichment header/actions now adapt on narrow screens to prevent the recommendations refresh control from overlapping or clipping
+- Entry enrichment refresh no longer shows a `0 updated, 0 failed` announcement when there are no result changes
 - Manually-trusted extensions no longer lose their trusted status after an update; trust is now matched by package name and signature hash, ignoring the version code
 
 ### Changed
