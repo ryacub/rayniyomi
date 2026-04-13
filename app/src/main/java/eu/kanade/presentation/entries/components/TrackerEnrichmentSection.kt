@@ -2,10 +2,12 @@ package eu.kanade.presentation.entries.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -23,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import eu.kanade.domain.track.enrichment.model.RecommendationChoice
@@ -54,17 +57,49 @@ fun TrackerEnrichmentSection(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = "Recommendations & Related",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.semantics { heading() },
-                )
-                OutlinedButton(onClick = onRefresh, enabled = !refreshing) {
-                    Text(if (refreshing) "Syncing…" else "Refresh recommendations")
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val compactLayout = maxWidth < 360.dp
+                if (compactLayout) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "Recommendations & Related",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        OutlinedButton(
+                            onClick = onRefresh,
+                            enabled = !refreshing,
+                            modifier = Modifier.widthIn(min = 0.dp),
+                        ) {
+                            Text(if (refreshing) "Syncing…" else "Refresh")
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "Recommendations & Related",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                                .semantics { heading() },
+                        )
+                        OutlinedButton(
+                            onClick = onRefresh,
+                            enabled = !refreshing,
+                            modifier = Modifier.widthIn(min = 0.dp),
+                        ) {
+                            Text(if (refreshing) "Syncing…" else "Refresh")
+                        }
+                    }
                 }
             }
 
