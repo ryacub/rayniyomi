@@ -10,10 +10,13 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -27,6 +30,10 @@ import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.storage.service.StorageManager
 import uy.kohesive.injekt.Injekt
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class MangaDownloadManagerBatteryPromptTest {
 
@@ -287,6 +294,73 @@ class MangaDownloadManagerBatteryPromptTest {
 
         // Should emit exactly once, then subsequent calls do not emit (preference is marked as shown)
         emittedRequests.size shouldBe 1
+    }
+
+    @Test
+    fun `flow emits once under concurrent downloadChapters calls`() = runTest {
+        // Arrange
+        every { batteryOptimizationChecker.isOptimizationEnabled() } returns true
+
+        val shown = AtomicBoolean(false)
+        val setCount = AtomicInteger(0)
+        val firstSetBlocked = CountDownLatch(1)
+        val releaseFirstSet = CountDownLatch(1)
+        val promptShownPreference = mockk<Preference<Boolean>> {
+            every { get() } answers { shown.get() }
+            every { set(any()) } answers {
+                val call = setCount.incrementAndGet()
+                if (call == 1) {
+                    firstSetBlocked.countDown()
+                    releaseFirstSet.await(2, TimeUnit.SECONDS)
+                }
+                shown.set(firstArg())
+            }
+        }
+        every { downloadPreferences.batteryOptimizationPromptShown() } returns promptShownPreference
+
+        val manga = mockk<Manga>()
+        val chapters = createChapters(count = 10)
+        val emittedRequests = mutableListOf<BatteryOptimizationPromptRequest>()
+
+        manager = MangaDownloadManager(
+            context = context,
+            storageManager = storageManager,
+            provider = provider,
+            cache = cache,
+            getCategories = getCategories,
+            sourceManager = sourceManager,
+            downloadPreferences = downloadPreferences,
+            batteryOptimizationChecker = batteryOptimizationChecker,
+            downloaderForTesting = downloader,
+            scopeForTesting = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
+
+        batteryPromptFlow = manager.batteryOptimizationPromptFlow
+        val collectorJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            batteryPromptFlow.collect { request ->
+                emittedRequests.add(request)
+            }
+        }
+
+        // Act: force overlap while first set() is blocked before it can flip the preference value.
+        val firstCall = launch(Dispatchers.Default) {
+            manager.downloadChapters(manga, chapters)
+        }
+        firstSetBlocked.await(2, TimeUnit.SECONDS) shouldBe true
+        val secondCall = launch(Dispatchers.Default) {
+            manager.downloadChapters(manga, chapters)
+        }
+
+        releaseFirstSet.countDown()
+        firstCall.join()
+        secondCall.join()
+
+        advanceUntilIdle()
+        collectorJob.cancel()
+        manager.close()
+
+        emittedRequests.size shouldBe 1
+        setCount.get() shouldBe 1
     }
 
     /**
