@@ -67,6 +67,10 @@ internal class MangaDownloadNotifier(private val context: Context) {
         context.cancelNotification(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
     }
 
+    fun cancelCrashNotification() {
+        context.cancelNotification(Notifications.ID_DOWNLOAD_CHAPTER_CRASH_THRESHOLD)
+    }
+
     /**
      * Called when download progress changes.
      *

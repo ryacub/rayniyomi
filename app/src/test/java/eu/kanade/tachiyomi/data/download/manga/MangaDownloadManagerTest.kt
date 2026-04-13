@@ -12,12 +12,14 @@ import tachiyomi.domain.download.service.DownloadPreferences
 class MangaDownloadManagerTest {
 
     private lateinit var context: Context
+    private lateinit var mockDownloader: MangaDownloader
     private lateinit var mockNotifier: MangaDownloadNotifier
     private lateinit var manager: MangaDownloadManager
 
     @BeforeEach
     fun setUp() {
         context = mockk(relaxed = true)
+        mockDownloader = mockk(relaxed = true)
         mockNotifier = mockk(relaxed = true)
 
         // InMemoryPreferenceStore creates a new Preference object each call, so set() doesn't
@@ -39,6 +41,7 @@ class MangaDownloadManagerTest {
             getCategories = mockk(relaxed = true),
             sourceManager = mockk(relaxed = true),
             downloadPreferences = downloadPreferences,
+            downloaderForTesting = mockDownloader,
         )
         manager.notifier = mockNotifier
     }
@@ -71,5 +74,40 @@ class MangaDownloadManagerTest {
         manager.incrementJobCrashCount()
 
         verify(atLeast = 2) { mockNotifier.onCrashThresholdExceeded() }
+    }
+
+    @Test
+    fun `downloaderStart clears crash state and notification when start succeeds`() {
+        every { mockDownloader.start() } returns true
+
+        manager.incrementJobCrashCount()
+        manager.incrementJobCrashCount()
+        manager.incrementJobCrashCount()
+
+        manager.downloaderStart()
+
+        verify(exactly = 1) { mockNotifier.cancelCrashNotification() }
+    }
+
+    @Test
+    fun `downloaderStart does not cancel crash notification when crash count is zero`() {
+        every { mockDownloader.start() } returns true
+
+        manager.downloaderStart()
+
+        verify(exactly = 0) { mockNotifier.cancelCrashNotification() }
+    }
+
+    @Test
+    fun `downloaderStart does not clear crash state when downloader fails to start`() {
+        every { mockDownloader.start() } returns false
+
+        manager.incrementJobCrashCount()
+        manager.incrementJobCrashCount()
+        manager.incrementJobCrashCount()
+
+        manager.downloaderStart()
+
+        verify(exactly = 0) { mockNotifier.cancelCrashNotification() }
     }
 }
