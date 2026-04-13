@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
@@ -212,11 +213,20 @@ class MangaDownloadManager(
      * @param autoStart whether to start the downloader after enqueing the chapters.
      */
     fun downloadChapters(manga: Manga, chapters: List<Chapter>, autoStart: Boolean = true) {
-        // Check if we should prompt for battery optimization exemption
-        if (chapters.size >= 10 && !downloadPreferences.batteryOptimizationPromptShown().get()) {
-            checkBatteryOptimization()
-        }
+        maybeCheckBatteryOptimizationPrompt(chapters)
         downloader.queueChapters(manga, chapters, autoStart)
+    }
+
+    private fun maybeCheckBatteryOptimizationPrompt(chapters: List<Chapter>) {
+        if (chapters.size < 10) return
+
+        scope.launch {
+            queueMutex.withLock {
+                if (!downloadPreferences.batteryOptimizationPromptShown().get()) {
+                    checkBatteryOptimization()
+                }
+            }
+        }
     }
 
     /**
