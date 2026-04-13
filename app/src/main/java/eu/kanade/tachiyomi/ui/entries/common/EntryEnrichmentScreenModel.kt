@@ -111,9 +111,11 @@ class EntryEnrichmentScreenModel(
                 )
             }
             if (manual) {
-                _announcements.tryEmit(
-                    "${entry.recommendations.size} updated, ${entry.failures.size} failed",
-                )
+                val updatedCount = entry.recommendations.size
+                val failedCount = entry.failures.size
+                if (updatedCount > 0 || failedCount > 0) {
+                    _announcements.tryEmit("$updatedCount updated, $failedCount failed")
+                }
             }
         }.onFailure {
             if (it is CancellationException) throw it
