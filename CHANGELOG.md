@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Manga battery optimization prompt check is now mutex-serialized so concurrent 10+ chapter queue actions cannot emit the prompt twice in one app session
 - Download queue `start now` is now mutex-serialized with safe removal so cancelled entries cannot be reinserted during concurrent queue mutations
+- Manga delete queue removal now executes under the shared download queue mutex so stale reorder snapshots cannot resurrect deleted manga entries
 
 - Manga downloader now dismisses the stale crash-threshold notification when a subsequent successful start resets the crash counter
 - Download queue reorder and add-to-start operations are now mutex-serialized with removals to prevent canceled items from being restored by concurrent queue mutations
