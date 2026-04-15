@@ -1,10 +1,12 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -205,6 +207,51 @@ class DownloadQueueMutationsTest {
         // Only entity3 should remain
         assertEquals(1, queueState.value.size)
         assertEquals(entity3, queueState.value[0].entity)
+    }
+
+    @Test
+    fun `startDownloadNow does not reinsert item removed concurrently`() = runTest {
+        val target = FakeEntity(7, "Entity 7")
+        val queueState = MutableStateFlow<List<FakeDownload>>(emptyList())
+        val createStarted = CompletableDeferred<Unit>()
+        val allowCreate = CompletableDeferred<Unit>()
+        val removeCompleted = CompletableDeferred<Unit>()
+
+        val mutations = createMutations(
+            queueState = queueState,
+            createFromId = { id ->
+                createStarted.complete(Unit)
+                allowCreate.await()
+                FakeDownload(id, target)
+            },
+            moveToFront = { download ->
+                queueState.value = listOf(download) + queueState.value.filterNot { it.id == download.id }
+            },
+            removeFromQueue = { entities ->
+                queueState.value = queueState.value.filterNot { download ->
+                    entities.any { it.id == download.entity.id }
+                }
+                removeCompleted.complete(Unit)
+            },
+        )
+
+        val startNowJob = async { mutations.startDownloadNow(target.id) }
+        createStarted.await()
+
+        val removeJob = async {
+            mutations.removeFromQueueSafely(listOf(target))
+        }
+
+        // If startDownloadNow is unlocked, removal can finish before creation resumes.
+        val removeFinishedEarly = withTimeoutOrNull(50) { removeCompleted.await() }
+        assertNull(removeFinishedEarly, "Removal should be blocked while startDownloadNow holds queueMutex")
+        allowCreate.complete(Unit)
+
+        startNowJob.await()
+        removeJob.await()
+
+        val targetStillQueued = queueState.value.any { it.entity.id == target.id }
+        assertEquals(false, targetStillQueued, "Cancelled target should not be reinserted")
     }
 
     @Test
