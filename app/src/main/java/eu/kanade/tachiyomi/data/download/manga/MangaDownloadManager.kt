@@ -392,7 +392,7 @@ class MangaDownloadManager(
     fun deleteManga(manga: Manga, source: MangaSource, removeQueued: Boolean = true) {
         scope.launch {
             if (removeQueued) {
-                downloader.removeFromQueue(manga)
+                removeQueuedMangaFromQueue(manga)
             }
             provider.findMangaDir(manga.title, source)?.delete()
             cache.removeManga(manga)
@@ -403,6 +403,12 @@ class MangaDownloadManager(
                 sourceDir.delete()
                 cache.removeSource(source)
             }
+        }
+    }
+
+    private suspend fun removeQueuedMangaFromQueue(manga: Manga) {
+        queueMutex.withLock {
+            downloader.removeFromQueue(manga)
         }
     }
 
