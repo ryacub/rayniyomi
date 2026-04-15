@@ -243,7 +243,8 @@ class DownloadQueueMutationsTest {
         }
 
         // If startDownloadNow is unlocked, removal can finish before creation resumes.
-        withTimeoutOrNull(50) { removeCompleted.await() }
+        val removeFinishedEarly = withTimeoutOrNull(50) { removeCompleted.await() }
+        assertNull(removeFinishedEarly, "Removal should be blocked while startDownloadNow holds queueMutex")
         allowCreate.complete(Unit)
 
         startNowJob.await()

@@ -3,29 +3,57 @@ EXTENDS Naturals
 
 CONSTANT Target
 
-VARIABLES queue, removed
+VARIABLES queue, lock, startState, removeState
 
 Init ==
     /\ queue = {}
-    /\ removed = FALSE
+    /\ lock = "start"
+    /\ startState = "lookup"
+    /\ removeState = "waiting"
 
-StartNow ==
-    /\ ~removed
-    /\ queue' = queue \cup {Target}
-    /\ UNCHANGED removed
+\* Model the overlapping call pattern this ticket fixes:
+\* startDownloadNow enters the mutex first, removeFromQueueSafely is queued behind it.
+StartWithinLock ==
+    /\ lock = "start"
+    /\ startState = "lookup"
+    /\ startState' = "moved"
+    /\ queue' \in {queue, queue \cup {Target}}
+    /\ UNCHANGED <<lock, removeState>>
 
-Remove ==
-    /\ removed' = TRUE
+StartReleasesLock ==
+    /\ lock = "start"
+    /\ startState = "moved"
+    /\ startState' = "done"
+    /\ lock' = "none"
+    /\ UNCHANGED <<queue, removeState>>
+
+RemoveAfterStart ==
+    /\ lock = "none"
+    /\ removeState = "waiting"
+    /\ lock' = "none"
+    /\ removeState' = "done"
     /\ queue' = queue \ {Target}
+    /\ UNCHANGED startState
+
+Stutter ==
+    UNCHANGED <<queue, lock, startState, removeState>>
 
 Next ==
-    \/ StartNow
-    \/ Remove
+    \/ StartWithinLock
+    \/ StartReleasesLock
+    \/ RemoveAfterStart
+    \/ Stutter
+
+TypeOk ==
+    /\ queue \subseteq {Target}
+    /\ lock \in {"none", "start"}
+    /\ startState \in {"lookup", "moved", "done"}
+    /\ removeState \in {"waiting", "done"}
 
 NoReinsertAfterRemove ==
-    removed => ~(Target \in queue)
+    removeState = "done" => ~(Target \in queue)
 
 Spec ==
-    Init /\ [][Next]_<<queue, removed>>
+    Init /\ [][Next]_<<queue, lock, startState, removeState>>
 
 ====
