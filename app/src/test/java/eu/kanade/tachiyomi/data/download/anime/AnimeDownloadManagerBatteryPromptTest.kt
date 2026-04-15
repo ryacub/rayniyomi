@@ -66,6 +66,9 @@ class AnimeDownloadManagerBatteryPromptTest {
         val fillermarkPreference = createStatefulBooleanPreference(false)
         every { downloadPreferences.downloadFillermarkedItems() } returns fillermarkPreference
 
+        val crashCountPreference = createStatefulIntPreference(0)
+        every { downloadPreferences.animeDownloadJobCrashCount() } returns crashCountPreference
+
         // Create a fully mocked AnimeDownloader without calling the real constructor
         downloader = mockk(relaxed = true) {
             every { queueState } returns MutableStateFlow(emptyList())
@@ -298,11 +301,60 @@ class AnimeDownloadManagerBatteryPromptTest {
         emittedRequests.size shouldBe 1
     }
 
+    @Test
+    fun `flow emits even when anime crash count is non-zero`() = runTest {
+        // Arrange
+        every { batteryOptimizationChecker.isOptimizationEnabled() } returns true
+
+        val crashCountPreference = createStatefulIntPreference(4)
+        every { downloadPreferences.animeDownloadJobCrashCount() } returns crashCountPreference
+
+        val anime = mockk<Anime>()
+        val episodes = createEpisodes(count = 10)
+        val emittedRequests = mutableListOf<BatteryOptimizationPromptRequest>()
+
+        manager = AnimeDownloadManager(
+            context = context,
+            storageManager = storageManager,
+            provider = provider,
+            cache = cache,
+            getCategories = getCategories,
+            sourceManager = sourceManager,
+            downloadPreferences = downloadPreferences,
+            batteryOptimizationChecker = batteryOptimizationChecker,
+            downloaderForTesting = downloader,
+            scopeForTesting = CoroutineScope(coroutineContext),
+        )
+
+        batteryPromptFlow = manager.batteryOptimizationPromptFlow
+
+        val collectorJob = async {
+            batteryPromptFlow.collect { request ->
+                emittedRequests.add(request)
+            }
+        }
+
+        manager.downloadEpisodes(anime, episodes)
+
+        advanceUntilIdle()
+        collectorJob.cancel()
+
+        emittedRequests.size shouldBe 1
+    }
+
     /**
      * Helper to create a stateful Boolean preference mock.
      * Uses the pattern from project MEMORY.md to handle InMemoryPreferenceStore limitation.
      */
     private fun createStatefulBooleanPreference(initialValue: Boolean): Preference<Boolean> {
+        var currentValue = initialValue
+        return mockk {
+            every { get() } answers { currentValue }
+            every { set(any()) } answers { currentValue = firstArg() }
+        }
+    }
+
+    private fun createStatefulIntPreference(initialValue: Int): Preference<Int> {
         var currentValue = initialValue
         return mockk {
             every { get() } answers { currentValue }

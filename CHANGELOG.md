@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Download queue `start now` is now mutex-serialized with safe removal so cancelled entries cannot be reinserted during concurrent queue mutations
 - Manga delete queue removal now executes under the shared download queue mutex so stale reorder snapshots cannot resurrect deleted manga entries
 - Added regression coverage proving anime downloader crash counter reset behavior in `downloaderStart()` so retries cannot be silenced after prior crash counts
+- Added regression coverage proving anime battery optimization prompt emission remains active for 10+ queued episodes even when crash count is non-zero
 
 - Manga downloader now dismisses the stale crash-threshold notification when a subsequent successful start resets the crash counter
 - Download queue reorder and add-to-start operations are now mutex-serialized with removals to prevent canceled items from being restored by concurrent queue mutations
