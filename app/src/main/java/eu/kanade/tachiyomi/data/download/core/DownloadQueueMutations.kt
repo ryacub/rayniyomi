@@ -78,12 +78,21 @@ class DownloadQueueMutations<D : Any, I : Any>(
      *
      * @param downloads The new queue order
      */
-    fun reorderQueue(downloads: List<D>) {
-        try {
-            updateQueue(downloads)
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR) { "Failed to reorder queue: ${e.message}" }
-            throw e
+    suspend fun reorderQueue(downloads: List<D>) {
+        queueMutex.withLock {
+            try {
+                val currentQueue = queueState.value
+                val currentById = currentQueue.associateBy(itemId)
+                val normalizedOrder = downloads
+                    .mapNotNull { currentById[itemId(it)] }
+                val normalizedIds = normalizedOrder.map(itemId).toSet()
+                val remaining = currentQueue.filterNot { itemId(it) in normalizedIds }
+
+                updateQueue(normalizedOrder + remaining)
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR) { "Failed to reorder queue: ${e.message}" }
+                throw e
+            }
         }
     }
 
@@ -93,14 +102,16 @@ class DownloadQueueMutations<D : Any, I : Any>(
      * @param downloads The downloads to add
      * @param startIfNeeded Callback to start the downloader if needed (e.g., check if job is running)
      */
-    fun addDownloadsToStart(downloads: List<D>, startIfNeeded: () -> Unit) {
+    suspend fun addDownloadsToStart(downloads: List<D>, startIfNeeded: () -> Unit) {
         if (downloads.isEmpty()) return
-        try {
-            addToStart(downloads)
-            startIfNeeded()
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR) { "Failed to add downloads to start: ${e.message}" }
-            throw e
+        queueMutex.withLock {
+            try {
+                addToStart(downloads)
+                startIfNeeded()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR) { "Failed to add downloads to start: ${e.message}" }
+                throw e
+            }
         }
     }
 

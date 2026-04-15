@@ -1013,7 +1013,7 @@ class PlayerViewModel @JvmOverloads constructor(
         if (currentEpisode.value != null) {
             saveWatchingProgress(currentEpisode.value!!)
             episodeToDownload?.let {
-                downloadManager.addDownloadsToStartOfQueue(listOf(it))
+                downloadManager.addDownloadsToStartOfQueueAsync(listOf(it))
             }
         }
     }

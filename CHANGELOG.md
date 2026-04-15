@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Download queue `start now` is now mutex-serialized with safe removal so cancelled entries cannot be reinserted during concurrent queue mutations
 
 - Manga downloader now dismisses the stale crash-threshold notification when a subsequent successful start resets the crash counter
+- Download queue reorder and add-to-start operations are now mutex-serialized with removals to prevent canceled items from being restored by concurrent queue mutations
 ### Changed
 
 ### CI

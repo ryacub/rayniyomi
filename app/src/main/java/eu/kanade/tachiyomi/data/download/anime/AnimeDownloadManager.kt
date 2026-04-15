@@ -198,7 +198,7 @@ class AnimeDownloadManager(
      *
      * @param downloads value to set the download queue to
      */
-    fun reorderQueue(downloads: List<AnimeDownload>) {
+    suspend fun reorderQueue(downloads: List<AnimeDownload>) {
         queueMutations.reorderQueue(downloads)
     }
 
@@ -230,9 +230,20 @@ class AnimeDownloadManager(
      *
      * @param downloads the list of downloads to enqueue.
      */
-    fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
+    suspend fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
         queueMutations.addDownloadsToStart(downloads) {
             if (!AnimeDownloadJob.isRunning(context)) startDownloads()
+        }
+    }
+
+    /**
+     * Enqueues downloads to the front of the queue using manager-owned structured scope.
+     * Use this for call sites where no suspend scope is available (e.g., lifecycle teardown hooks).
+     */
+    fun addDownloadsToStartOfQueueAsync(downloads: List<AnimeDownload>) {
+        if (downloads.isEmpty()) return
+        scope.launch {
+            addDownloadsToStartOfQueue(downloads)
         }
     }
 

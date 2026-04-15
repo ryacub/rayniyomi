@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.data.download.core
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
@@ -110,7 +109,7 @@ class DownloadQueueMutationsTest {
     }
 
     @Test
-    fun `addDownloadsToStart skips empty list`() {
+    fun `addDownloadsToStart skips empty list`() = runTest {
         var started = false
         var added = false
         val mutations = createMutations(
@@ -184,7 +183,6 @@ class DownloadQueueMutationsTest {
             isRunning = { true },
             pauseDownloader = {
                 pauseCount++
-                Thread.sleep(10) // Simulate pause delay
             },
             startDownloader = {
                 startCount++
@@ -193,10 +191,7 @@ class DownloadQueueMutationsTest {
 
         // Launch two concurrent removals
         val job1 = async { mutations.removeFromQueueSafely(listOf(entity1)) }
-        val job2 = async {
-            delay(5) // Slight delay to create contention
-            mutations.removeFromQueueSafely(listOf(entity2))
-        }
+        val job2 = async { mutations.removeFromQueueSafely(listOf(entity2)) }
 
         job1.await()
         job2.await()
@@ -304,9 +299,17 @@ class DownloadQueueMutationsTest {
     }
 
     @Test
-    fun `reorderQueue delegates to updateQueue`() {
+    fun `reorderQueue delegates to updateQueue`() = runTest {
         val reordered = mutableListOf<List<FakeDownload>>()
+        val queueState = MutableStateFlow(
+            listOf(
+                FakeDownload(1, FakeEntity(1, "Entity 1")),
+                FakeDownload(2, FakeEntity(2, "Entity 2")),
+                FakeDownload(3, FakeEntity(3, "Entity 3")),
+            ),
+        )
         val mutations = createMutations(
+            queueState = queueState,
             updateQueue = { reordered.add(it) },
         )
         val newOrder = listOf(
@@ -317,11 +320,11 @@ class DownloadQueueMutationsTest {
         mutations.reorderQueue(newOrder)
 
         assertEquals(1, reordered.size)
-        assertEquals(newOrder, reordered[0])
+        assertEquals(listOf(3L, 1L, 2L), reordered[0].map { it.id })
     }
 
     @Test
-    fun `addDownloadsToStart calls addToStart and startIfNeeded`() {
+    fun `addDownloadsToStart calls addToStart and startIfNeeded`() = runTest {
         val added = mutableListOf<List<FakeDownload>>()
         var started = false
         val mutations = createMutations(
@@ -334,6 +337,90 @@ class DownloadQueueMutationsTest {
         assertEquals(1, added.size)
         assertEquals(downloads, added[0])
         assertTrue(started, "startIfNeeded should be called")
+    }
+
+    @Test
+    fun `reorderQueue does not reintroduce removed item during concurrent removal`() = runTest {
+        val entity1 = FakeEntity(1, "Entity 1")
+        val entity2 = FakeEntity(2, "Entity 2")
+        val entity3 = FakeEntity(3, "Entity 3")
+        val download1 = FakeDownload(1, entity1)
+        val download2 = FakeDownload(2, entity2)
+        val download3 = FakeDownload(3, entity3)
+        val queueState = MutableStateFlow(listOf(download1, download2, download3))
+
+        val removeApplied = CompletableDeferred<Unit>()
+
+        val mutations = createMutations(
+            queueState = queueState,
+            updateQueue = { reordered -> queueState.value = reordered },
+            isRunning = { true },
+            removeFromQueue = { entities ->
+                queueState.value = queueState.value.filterNot { download ->
+                    entities.any { it.id == download.entity.id }
+                }
+                removeApplied.complete(Unit)
+            },
+        )
+
+        val removeJob = async { mutations.removeFromQueueSafely(listOf(entity2)) }
+        val reorderJob = async {
+            removeApplied.await()
+            mutations.reorderQueue(listOf(download3, download1, download2))
+        }
+
+        removeJob.await()
+        reorderJob.await()
+
+        assertEquals(
+            listOf(1L, 3L),
+            queueState.value.map { it.entity.id }.sorted(),
+            "Removed item should not be reintroduced by concurrent reorder",
+        )
+    }
+
+    @Test
+    fun `addDownloadsToStart preserves remove outcome during concurrent removal`() = runTest {
+        val entity1 = FakeEntity(1, "Entity 1")
+        val entity2 = FakeEntity(2, "Entity 2")
+        val entity3 = FakeEntity(3, "Entity 3")
+        val download1 = FakeDownload(1, entity1)
+        val download2 = FakeDownload(2, entity2)
+        val download3 = FakeDownload(3, entity3)
+        val queueState = MutableStateFlow(listOf(download1, download2, download3))
+
+        val removeApplied = CompletableDeferred<Unit>()
+
+        val mutations = createMutations(
+            queueState = queueState,
+            addToStart = { downloads ->
+                val existingIds = queueState.value.map { it.id }.toSet()
+                val newItems = downloads.filterNot { it.id in existingIds }
+                queueState.value = newItems + queueState.value
+            },
+            isRunning = { true },
+            removeFromQueue = { entities ->
+                queueState.value = queueState.value.filterNot { download ->
+                    entities.any { it.id == download.entity.id }
+                }
+                removeApplied.complete(Unit)
+            },
+        )
+
+        val removeJob = async { mutations.removeFromQueueSafely(listOf(entity2)) }
+        val addToStartJob = async {
+            removeApplied.await()
+            mutations.addDownloadsToStart(listOf(download3)) { }
+        }
+
+        removeJob.await()
+        addToStartJob.await()
+
+        assertEquals(
+            listOf(1L, 3L),
+            queueState.value.map { it.entity.id }.sorted(),
+            "Removed item should remain absent after concurrent add-to-start operation",
+        )
     }
 
     @Test
