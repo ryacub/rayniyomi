@@ -42,8 +42,6 @@ import eu.kanade.tachiyomi.util.lang.takeBytes
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -209,9 +207,7 @@ class ReaderViewModel @JvmOverloads constructor(
         if (currentChapters != null) {
             currentChapters.unref()
             chapterToDownload?.let {
-                CoroutineScope(Dispatchers.IO).launch {
-                    downloadManager.addDownloadsToStartOfQueue(listOf(it))
-                }
+                downloadManager.addDownloadsToStartOfQueueAsync(listOf(it))
             }
         }
     }

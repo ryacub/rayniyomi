@@ -237,6 +237,17 @@ class AnimeDownloadManager(
     }
 
     /**
+     * Enqueues downloads to the front of the queue using manager-owned structured scope.
+     * Use this for call sites where no suspend scope is available (e.g., lifecycle teardown hooks).
+     */
+    fun addDownloadsToStartOfQueueAsync(downloads: List<AnimeDownload>) {
+        if (downloads.isEmpty()) return
+        scope.launch {
+            addDownloadsToStartOfQueue(downloads)
+        }
+    }
+
+    /**
      * Builds the page list of a downloaded episode.
      *
      * @param source the source of the episode.

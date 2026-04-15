@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
@@ -182,7 +182,6 @@ class DownloadQueueMutationsTest {
             isRunning = { true },
             pauseDownloader = {
                 pauseCount++
-                Thread.sleep(10) // Simulate pause delay
             },
             startDownloader = {
                 startCount++
@@ -191,10 +190,7 @@ class DownloadQueueMutationsTest {
 
         // Launch two concurrent removals
         val job1 = async { mutations.removeFromQueueSafely(listOf(entity1)) }
-        val job2 = async {
-            delay(5) // Slight delay to create contention
-            mutations.removeFromQueueSafely(listOf(entity2))
-        }
+        val job2 = async { mutations.removeFromQueueSafely(listOf(entity2)) }
 
         job1.await()
         job2.await()
@@ -307,16 +303,23 @@ class DownloadQueueMutationsTest {
         val download3 = FakeDownload(3, entity3)
         val queueState = MutableStateFlow(listOf(download1, download2, download3))
 
+        val removeApplied = CompletableDeferred<Unit>()
+
         val mutations = createMutations(
             queueState = queueState,
             updateQueue = { reordered -> queueState.value = reordered },
             isRunning = { true },
-            pauseDownloader = { Thread.sleep(10) },
+            removeFromQueue = { entities ->
+                queueState.value = queueState.value.filterNot { download ->
+                    entities.any { it.id == download.entity.id }
+                }
+                removeApplied.complete(Unit)
+            },
         )
 
         val removeJob = async { mutations.removeFromQueueSafely(listOf(entity2)) }
         val reorderJob = async {
-            delay(1)
+            removeApplied.await()
             mutations.reorderQueue(listOf(download3, download1, download2))
         }
 
@@ -340,6 +343,8 @@ class DownloadQueueMutationsTest {
         val download3 = FakeDownload(3, entity3)
         val queueState = MutableStateFlow(listOf(download1, download2, download3))
 
+        val removeApplied = CompletableDeferred<Unit>()
+
         val mutations = createMutations(
             queueState = queueState,
             addToStart = { downloads ->
@@ -348,12 +353,17 @@ class DownloadQueueMutationsTest {
                 queueState.value = newItems + queueState.value
             },
             isRunning = { true },
-            pauseDownloader = { Thread.sleep(10) },
+            removeFromQueue = { entities ->
+                queueState.value = queueState.value.filterNot { download ->
+                    entities.any { it.id == download.entity.id }
+                }
+                removeApplied.complete(Unit)
+            },
         )
 
         val removeJob = async { mutations.removeFromQueueSafely(listOf(entity2)) }
         val addToStartJob = async {
-            delay(1)
+            removeApplied.await()
             mutations.addDownloadsToStart(listOf(download3)) { }
         }
 
