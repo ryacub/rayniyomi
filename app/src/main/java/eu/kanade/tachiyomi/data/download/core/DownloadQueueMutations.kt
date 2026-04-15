@@ -53,21 +53,23 @@ class DownloadQueueMutations<D : Any, I : Any>(
      * @param id The download ID to prioritize
      */
     suspend fun startDownloadNow(id: Long) {
-        val existingDownload = getQueuedDownloadOrNull(id)
-        val toAdd = existingDownload ?: run {
-            try {
-                createFromId(id)
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to create download from ID $id: ${e.message}" }
-                null
-            }
-        } ?: return
+        queueMutex.withLock {
+            val existingDownload = queueState.value.find { itemId(it) == id }
+            val toAdd = existingDownload ?: run {
+                try {
+                    createFromId(id)
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR) { "Failed to create download from ID $id: ${e.message}" }
+                    null
+                }
+            } ?: return@withLock
 
-        try {
-            moveToFront(toAdd)
-            startDownloads()
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR) { "Failed to start download now for ID $id: ${e.message}" }
+            try {
+                moveToFront(toAdd)
+                startDownloads()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR) { "Failed to start download now for ID $id: ${e.message}" }
+            }
         }
     }
 
