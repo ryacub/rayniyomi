@@ -205,7 +205,7 @@ class MangaDownloadManager(
      *
      * @param downloads value to set the download queue to
      */
-    fun reorderQueue(downloads: List<MangaDownload>) {
+    suspend fun reorderQueue(downloads: List<MangaDownload>) {
         queueMutations.reorderQueue(downloads)
     }
 
@@ -238,7 +238,7 @@ class MangaDownloadManager(
      *
      * @param downloads the list of downloads to enqueue.
      */
-    fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
+    suspend fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
         queueMutations.addDownloadsToStart(downloads) {
             if (!MangaDownloadJob.isRunning(context)) startDownloads()
         }

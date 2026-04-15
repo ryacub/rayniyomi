@@ -90,6 +90,8 @@ import eu.kanade.tachiyomi.util.system.toast
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.Utils
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -1013,7 +1015,9 @@ class PlayerViewModel @JvmOverloads constructor(
         if (currentEpisode.value != null) {
             saveWatchingProgress(currentEpisode.value!!)
             episodeToDownload?.let {
-                downloadManager.addDownloadsToStartOfQueue(listOf(it))
+                CoroutineScope(Dispatchers.IO).launch {
+                    downloadManager.addDownloadsToStartOfQueue(listOf(it))
+                }
             }
         }
     }

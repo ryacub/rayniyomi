@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -14,6 +15,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -90,9 +92,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.moveToTop(model.state.value[0].downloads[1]) // d2 at index 1
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(2L, 1L, 3L)
     }
 
@@ -105,9 +108,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.moveToTop(model.state.value[0].downloads[0]) // d1 already first
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(1L, 2L)
     }
 
@@ -121,9 +125,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.moveToBottom(model.state.value[0].downloads[0]) // d1 at index 0
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(2L, 3L, 1L)
     }
 
@@ -139,9 +144,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.moveToTopSeries(2L) // anime2 downloads (d3, d4) to front
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(3L, 4L, 1L, 2L)
     }
 
@@ -157,9 +163,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.moveToBottomSeries(1L) // anime1 downloads (d1, d2) to back
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(3L, 4L, 1L, 2L)
     }
 
@@ -213,9 +220,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.reorderQueue(selector = { it.download.episode.id })
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(1L, 2L, 3L)
     }
 
@@ -229,9 +237,10 @@ class AnimeDownloadQueueScreenModelTest {
         val model = AnimeDownloadQueueScreenModel(manager)
 
         model.reorderQueue(selector = { it.download.episode.id }, reverse = true)
+        advanceUntilIdle()
 
         val slot = slot<List<AnimeDownload>>()
-        verify { manager.reorderQueue(capture(slot)) }
+        coVerify { manager.reorderQueue(capture(slot)) }
         slot.captured.map { it.episode.id } shouldContainExactly listOf(3L, 2L, 1L)
     }
 }

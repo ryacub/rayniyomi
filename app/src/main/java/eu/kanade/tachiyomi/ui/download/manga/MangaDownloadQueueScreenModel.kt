@@ -145,7 +145,9 @@ class MangaDownloadQueueScreenModel(
     }
 
     fun reorder(downloads: List<MangaDownload>) {
-        downloadManager.reorderQueue(downloads)
+        screenModelScope.launch {
+            downloadManager.reorderQueue(downloads)
+        }
     }
 
     fun cancel(downloads: List<MangaDownload>) {
