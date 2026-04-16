@@ -16,7 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - R588/#593: Backup restore progress and error tracking are now concurrency-safe so parallel restore branches cannot lose progress increments or drop captured restore errors
-- R625/#658: Download queue mutations now run through a single-writer actor/reducer path with ID-based command normalization to prevent stale concurrent queue operations from resurrecting removed entries
+- Download queue mutations now run through a single-writer actor/reducer path with ID-based command normalization to prevent stale concurrent queue operations from resurrecting removed entries
 - Manga battery optimization prompt check is now mutex-serialized so concurrent 10+ chapter queue actions cannot emit the prompt twice in one app session
 - Download queue `start now` is now mutex-serialized with safe removal so cancelled entries cannot be reinserted during concurrent queue mutations
 - Manga delete queue removal now executes under the shared download queue mutex so stale reorder snapshots cannot resurrect deleted manga entries

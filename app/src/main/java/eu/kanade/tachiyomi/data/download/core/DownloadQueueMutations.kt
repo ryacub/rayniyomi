@@ -58,39 +58,10 @@ class DownloadQueueMutations<D : Any, I : Any>(
         }
     }
 
-    /**
-     * Reorders the download queue to match the provided list.
-     *
-     * @param downloads The new queue order
-     */
-    @Deprecated(
-        message = "Use reorderQueueByIds to avoid stale object snapshot payloads",
-        replaceWith = ReplaceWith("reorderQueueByIds(downloads.map(itemId))"),
-    )
-    suspend fun reorderQueue(downloads: List<D>) {
-        val ids = downloads.map(itemId)
-        reorderQueueByIds(ids)
-    }
-
     suspend fun reorderQueueByIds(downloadIds: List<Long>) {
         queueActor.submit(DownloadQueueCommand.Reorder(downloadIds)) {
             runReducerCommand(DownloadQueueCommand.Reorder(downloadIds))
         }
-    }
-
-    /**
-     * Adds downloads to the start of the queue and optionally starts the downloader.
-     *
-     * @param downloads The downloads to add
-     * @param startIfNeeded Callback to start the downloader if needed (e.g., check if job is running)
-     */
-    @Deprecated(
-        message = "Use addDownloadsToStartByIds to avoid stale object snapshot payloads",
-        replaceWith = ReplaceWith("addDownloadsToStartByIds(downloads.map(itemId), startIfNeeded)"),
-    )
-    suspend fun addDownloadsToStart(downloads: List<D>, startIfNeeded: () -> Unit) {
-        val ids = downloads.map(itemId)
-        addDownloadsToStartByIds(ids, startIfNeeded)
     }
 
     suspend fun addDownloadsToStartByIds(downloadIds: List<Long>, startIfNeeded: () -> Unit) {

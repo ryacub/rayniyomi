@@ -187,19 +187,6 @@ class AnimeDownloadManager(
         queueMutations.startDownloadNow(episodeId)
     }
 
-    /**
-     * Reorders the download queue.
-     *
-     * @param downloads value to set the download queue to
-     */
-    @Deprecated(
-        message = "Use reorderQueueByEpisodeIds to avoid stale object snapshot payloads",
-        replaceWith = ReplaceWith("reorderQueueByEpisodeIds(downloads.mapNotNull { it.episode.id })"),
-    )
-    suspend fun reorderQueue(downloads: List<AnimeDownload>) {
-        reorderQueueByEpisodeIds(downloads.mapNotNull { it.episode.id })
-    }
-
     suspend fun reorderQueueByEpisodeIds(episodeIds: List<Long>) {
         queueMutations.reorderQueueByIds(episodeIds)
     }
@@ -227,30 +214,9 @@ class AnimeDownloadManager(
         downloader.queueEpisodes(anime, filteredEpisodes, autoStart, alt, video)
     }
 
-    /**
-     * Tells the downloader to enqueue the given list of downloads at the start of the queue.
-     *
-     * @param downloads the list of downloads to enqueue.
-     */
-    suspend fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
-        addDownloadsToStartByEpisodeIds(downloads.mapNotNull { it.episode.id })
-    }
-
     suspend fun addDownloadsToStartByEpisodeIds(episodeIds: List<Long>) {
         queueMutations.addDownloadsToStartByIds(episodeIds) {
             if (!AnimeDownloadJob.isRunning(context)) startDownloads()
-        }
-    }
-
-    /**
-     * Enqueues downloads to the front of the queue using manager-owned structured scope.
-     * Use this for call sites where no suspend scope is available (e.g., lifecycle teardown hooks).
-     */
-    fun addDownloadsToStartOfQueueAsync(downloads: List<AnimeDownload>) {
-        val episodeIds = downloads.mapNotNull { it.episode.id }
-        if (episodeIds.isEmpty()) return
-        scope.launch {
-            addDownloadsToStartByEpisodeIds(episodeIds)
         }
     }
 
