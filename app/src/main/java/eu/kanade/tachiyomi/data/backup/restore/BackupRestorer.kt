@@ -55,7 +55,6 @@ class BackupRestorer(
     private val extensionsRestorer: ExtensionsRestorer = ExtensionsRestorer(context),
     private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
 ) {
-
     private var restoreAmount = 0
     // Mutable progress is shared across concurrently launched restore branches.
     // Keep it as a plain var, but only mutate/read it while holding the lock.
