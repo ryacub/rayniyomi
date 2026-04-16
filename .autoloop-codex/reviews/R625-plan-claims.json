@@ -1,0 +1,16 @@
+{
+  "claims": [
+    {
+      "id": "process_delta_section",
+      "claim": "Plan contains Process Delta section",
+      "command": "rg -n '^## Process Delta' .autoloop-codex/reviews/R625-plan.md",
+      "expect_exit_code": 0
+    },
+    {
+      "id": "previous_retro_linked",
+      "claim": "Plan references previous retro artifact",
+      "command": "rg -n 'R625-retro\\.md' .autoloop-codex/reviews/R625-plan.md",
+      "expect_exit_code": 0
+    }
+  ]
+}

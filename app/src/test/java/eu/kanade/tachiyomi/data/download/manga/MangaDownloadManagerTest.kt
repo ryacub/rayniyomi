@@ -148,13 +148,11 @@ class MangaDownloadManagerTest {
         every { mockDownloader.updateQueue(any()) } answers {
             queueState.value = firstArg()
         }
-        every { mockDownloader.removeFromQueue(any<Manga>()) } answers {
-            val manga = firstArg<Manga>()
-            if (manga.id == targetManga.id) {
-                removeEntered.complete(Unit)
-                runBlocking { allowRemove.await() }
-            }
-            queueState.value = queueState.value.filterNot { it.manga.id == manga.id }
+        every { mockDownloader.removeFromQueueByChapterIds(any()) } answers {
+            removeEntered.complete(Unit)
+            runBlocking { allowRemove.await() }
+            val ids = firstArg<List<Long>>().toSet()
+            queueState.value = queueState.value.filterNot { it.chapter.id in ids }
         }
 
         val localManager = MangaDownloadManager(
@@ -181,7 +179,7 @@ class MangaDownloadManagerTest {
             }
 
             val reorderFinishedEarly = withTimeoutOrNull(50) { reorderJob.await() }
-            assertNull(reorderFinishedEarly, "reorderQueue should block while delete holds queueMutex")
+            assertNull(reorderFinishedEarly, "reorderQueue should block while delete-associated removal is active")
 
             allowRemove.complete(Unit)
             reorderJob.await()

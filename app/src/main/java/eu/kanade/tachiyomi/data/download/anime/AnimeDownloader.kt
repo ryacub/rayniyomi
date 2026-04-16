@@ -1133,6 +1133,11 @@ class AnimeDownloader(
         queueOps.removeIf { it.episode.id in episodeIds }
     }
 
+    fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
+        val ids = episodeIds.toSet()
+        queueOps.removeIf { it.episode.id in ids }
+    }
+
     fun removeFromQueue(anime: Anime) {
         queueOps.removeIf { it.anime.id == anime.id }
     }

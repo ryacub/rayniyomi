@@ -27,8 +27,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -106,27 +104,22 @@ class AnimeDownloadManager(
         scope.cancel()
     }
 
-    /**
-     * Mutex to synchronize download queue manipulation operations.
-     * Prevents race conditions when multiple coroutines modify the queue concurrently.
-     */
-    private val queueMutex = Mutex()
-
-    private val queueMutations by lazy {
+    private val queueMutations: DownloadQueueMutations<AnimeDownload, Episode> by lazy {
         DownloadQueueMutations(
             queueState = downloader.queueState,
             itemId = { it.episode.id },
+            ownerItemId = { episode: Episode -> episode.id },
             createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
             moveToFront = downloader::moveToFront,
             updateQueue = downloader::updateQueue,
             addToStart = downloader::addToStartOfQueue,
-            removeFromQueue = downloader::removeFromQueue,
+            removeFromQueueByIds = downloader::removeFromQueueByEpisodeIds,
             isRunning = { downloader.isRunning },
             pauseDownloader = downloader::pause,
             startDownloader = downloader::start,
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
-            queueMutex = queueMutex,
+            mutationScope = scope,
         )
     }
 
@@ -203,6 +196,10 @@ class AnimeDownloadManager(
         queueMutations.reorderQueue(downloads)
     }
 
+    suspend fun reorderQueueByEpisodeIds(episodeIds: List<Long>) {
+        queueMutations.reorderQueueByIds(episodeIds)
+    }
+
     /**
      * Tells the downloader to enqueue the given list of episodes.
      *
@@ -233,6 +230,12 @@ class AnimeDownloadManager(
      */
     suspend fun addDownloadsToStartOfQueue(downloads: List<AnimeDownload>) {
         queueMutations.addDownloadsToStart(downloads) {
+            if (!AnimeDownloadJob.isRunning(context)) startDownloads()
+        }
+    }
+
+    suspend fun addDownloadsToStartByEpisodeIds(episodeIds: List<Long>) {
+        queueMutations.addDownloadsToStartByIds(episodeIds) {
             if (!AnimeDownloadJob.isRunning(context)) startDownloads()
         }
     }
@@ -396,13 +399,14 @@ class AnimeDownloadManager(
     }
 
     private suspend fun removeQueuedAnimeFromQueue(anime: Anime) {
-        queueMutex.withLock {
-            downloader.removeFromQueue(anime)
-        }
+        val episodeIds = queueState.value
+            .filter { it.anime.id == anime.id }
+            .map { it.episode.id }
+        queueMutations.removeFromQueueSafelyByItemIds(episodeIds)
     }
 
     private suspend fun removeFromDownloadQueue(episodes: List<Episode>) {
-        queueMutations.removeFromQueueSafely(episodes)
+        queueMutations.removeFromQueueSafelyByItemIds(episodes.map { it.id })
     }
 
     /**

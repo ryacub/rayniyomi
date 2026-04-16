@@ -113,21 +113,22 @@ class MangaDownloadManager(
      */
     private val queueMutex = Mutex()
 
-    private val queueMutations by lazy {
+    private val queueMutations: DownloadQueueMutations<MangaDownload, Chapter> by lazy {
         DownloadQueueMutations(
             queueState = downloader.queueState,
             itemId = { it.chapter.id },
+            ownerItemId = { chapter: Chapter -> chapter.id },
             createFromId = { id -> MangaDownload.fromChapterId(id) },
             moveToFront = downloader::moveToFront,
             updateQueue = downloader::updateQueue,
             addToStart = downloader::addToStartOfQueue,
-            removeFromQueue = downloader::removeFromQueue,
+            removeFromQueueByIds = downloader::removeFromQueueByChapterIds,
             isRunning = { downloader.isRunning },
             pauseDownloader = downloader::pause,
             startDownloader = downloader::start,
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
-            queueMutex = queueMutex,
+            mutationScope = scope,
         )
     }
 
@@ -209,6 +210,10 @@ class MangaDownloadManager(
         queueMutations.reorderQueue(downloads)
     }
 
+    suspend fun reorderQueueByChapterIds(chapterIds: List<Long>) {
+        queueMutations.reorderQueueByIds(chapterIds)
+    }
+
     /**
      * Tells the downloader to enqueue the given list of chapters.
      *
@@ -240,6 +245,12 @@ class MangaDownloadManager(
      */
     suspend fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
         queueMutations.addDownloadsToStart(downloads) {
+            if (!MangaDownloadJob.isRunning(context)) startDownloads()
+        }
+    }
+
+    suspend fun addDownloadsToStartByChapterIds(chapterIds: List<Long>) {
+        queueMutations.addDownloadsToStartByIds(chapterIds) {
             if (!MangaDownloadJob.isRunning(context)) startDownloads()
         }
     }
@@ -407,13 +418,14 @@ class MangaDownloadManager(
     }
 
     private suspend fun removeQueuedMangaFromQueue(manga: Manga) {
-        queueMutex.withLock {
-            downloader.removeFromQueue(manga)
-        }
+        val chapterIds = queueState.value
+            .filter { it.manga.id == manga.id }
+            .map { it.chapter.id }
+        queueMutations.removeFromQueueSafelyByItemIds(chapterIds)
     }
 
     private suspend fun removeFromDownloadQueue(chapters: List<Chapter>) {
-        queueMutations.removeFromQueueSafely(chapters)
+        queueMutations.removeFromQueueSafelyByItemIds(chapters.map { it.id })
     }
 
     /**

@@ -879,6 +879,11 @@ class MangaDownloader(
         queueOps.removeIf { it.chapter.id in chapterIds }
     }
 
+    fun removeFromQueueByChapterIds(chapterIds: List<Long>) {
+        val ids = chapterIds.toSet()
+        queueOps.removeIf { it.chapter.id in ids }
+    }
+
     fun removeFromQueue(manga: Manga) {
         queueOps.removeIf { it.manga.id == manga.id }
     }
