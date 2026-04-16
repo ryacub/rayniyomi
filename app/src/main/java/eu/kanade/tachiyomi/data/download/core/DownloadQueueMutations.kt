@@ -104,14 +104,20 @@ class DownloadQueueMutations<D : Any, I : Any>(
      */
     suspend fun addDownloadsToStart(downloads: List<D>, startIfNeeded: () -> Unit) {
         if (downloads.isEmpty()) return
-        queueMutex.withLock {
-            try {
+        try {
+            queueMutex.withLock {
                 addToStart(downloads)
-                startIfNeeded()
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to add downloads to start: ${e.message}" }
-                throw e
             }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR) { "Failed to add downloads to start: ${e.message}" }
+            throw e
+        }
+
+        try {
+            startIfNeeded()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR) { "Failed to start downloader after add-to-start: ${e.message}" }
+            throw e
         }
     }
 
