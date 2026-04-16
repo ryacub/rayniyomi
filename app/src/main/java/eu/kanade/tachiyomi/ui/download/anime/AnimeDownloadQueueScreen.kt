@@ -76,7 +76,7 @@ fun AnimeDownloadQueueScreen(
                     from.index,
                     to.index,
                 )
-                screenModel.reorder(reorderedDownloads)
+                screenModel.reorder(reorderedDownloads.mapNotNull { it.episode.id })
             }
         }
 
