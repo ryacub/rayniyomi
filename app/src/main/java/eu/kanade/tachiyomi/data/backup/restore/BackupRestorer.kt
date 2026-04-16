@@ -38,6 +38,8 @@ import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class BackupRestorer(
     private val context: Context,
@@ -57,8 +59,10 @@ class BackupRestorer(
 ) {
 
     private var restoreAmount = 0
+    // Mutable progress is shared across concurrently launched restore branches.
+    // Keep it as a plain var, but only mutate/read it while holding the lock.
     private var restoreProgress = 0
-    private val restoreProgressLock = Any()
+    private val restoreProgressLock = ReentrantLock()
     private val errors: MutableList<Pair<Date, String>> = Collections.synchronizedList(mutableListOf())
 
     /**
@@ -296,7 +300,7 @@ class BackupRestorer(
     }
 
     private fun incrementProgressAndNotify(content: String): Int {
-        val progress = synchronized(restoreProgressLock) {
+        val progress = restoreProgressLock.withLock {
             restoreProgress += 1
             restoreProgress
         }
