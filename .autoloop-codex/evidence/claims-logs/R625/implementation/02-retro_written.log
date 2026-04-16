@@ -1,9 +1,0 @@
-claim_id=retro_written
-command=test -f .autoloop-codex/reviews/R625-retro.md
-expect_exit_code=0
-actual_exit_code=0
-
-STDOUT:
-
-
-STDERR:
