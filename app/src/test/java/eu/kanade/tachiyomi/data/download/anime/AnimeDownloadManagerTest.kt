@@ -1,15 +1,26 @@
 package eu.kanade.tachiyomi.data.download.anime
 
 import android.content.Context
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.items.episode.model.Episode
 
 class AnimeDownloadManagerTest {
 
@@ -115,5 +126,159 @@ class AnimeDownloadManagerTest {
 
         assertEquals(0, crashCountPref.get())
         verify(exactly = 1) { mockDownloader.start() }
+    }
+
+    @Test
+    fun `deleteAnime removeQueued serializes with reorder and prevents stale resurrection`() = runTest {
+        val targetAnime = Anime.create().copy(id = 1L, source = 100L, title = "Target")
+        val otherAnime = Anime.create().copy(id = 2L, source = 100L, title = "Other")
+        val source = mockk<AnimeHttpSource>(relaxed = true)
+
+        val targetDownload = AnimeDownload(
+            source = source,
+            anime = targetAnime,
+            episode = Episode.create().copy(id = 11L, animeId = targetAnime.id, name = "T"),
+        )
+        val otherDownload = AnimeDownload(
+            source = source,
+            anime = otherAnime,
+            episode = Episode.create().copy(id = 22L, animeId = otherAnime.id, name = "O"),
+        )
+
+        val queueState = MutableStateFlow(listOf(targetDownload, otherDownload))
+        val removeEntered = CompletableDeferred<Unit>()
+        val allowRemove = CompletableDeferred<Unit>()
+
+        every { mockDownloader.queueState } returns queueState
+        every { mockDownloader.updateQueue(any()) } answers {
+            queueState.value = firstArg()
+        }
+        every { mockDownloader.removeFromQueue(any<Anime>()) } answers {
+            val anime = firstArg<Anime>()
+            if (anime.id == targetAnime.id) {
+                removeEntered.complete(Unit)
+                runBlocking { allowRemove.await() }
+            }
+            queueState.value = queueState.value.filterNot { it.anime.id == anime.id }
+        }
+
+        val localManager = AnimeDownloadManager(
+            context = context,
+            storageManager = mockk(relaxed = true),
+            provider = mockk(relaxed = true) {
+                every { findAnimeDir(any(), any()) } returns null
+                every { findSourceDir(any()) } returns null
+            },
+            cache = mockk(relaxed = true),
+            getCategories = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            downloadPreferences = mockk(relaxed = true),
+            downloaderForTesting = mockDownloader,
+        )
+
+        try {
+            val staleSnapshot = listOf(targetDownload, otherDownload)
+            localManager.deleteAnime(targetAnime, source, removeQueued = true)
+            removeEntered.await()
+
+            val reorderJob = async {
+                localManager.reorderQueue(staleSnapshot)
+            }
+
+            val reorderFinishedEarly = withTimeoutOrNull(50) { reorderJob.await() }
+            assertNull(reorderFinishedEarly, "reorderQueue should block while delete holds queueMutex")
+
+            allowRemove.complete(Unit)
+            reorderJob.await()
+
+            val queuedAnimeIds = queueState.value.map { it.anime.id }.toSet()
+            assertEquals(setOf(otherAnime.id), queuedAnimeIds)
+        } finally {
+            localManager.close()
+        }
+    }
+
+    @Test
+    fun `deleteAnime with removeQueued false does not touch queue`() = runTest {
+        val anime = Anime.create().copy(id = 1L, source = 100L, title = "Target")
+        val source = mockk<AnimeHttpSource>(relaxed = true)
+        val deleteEntered = CompletableDeferred<Unit>()
+        every { mockDownloader.removeFromQueue(any<Anime>()) } answers {}
+
+        val localManager = AnimeDownloadManager(
+            context = context,
+            storageManager = mockk(relaxed = true),
+            provider = mockk(relaxed = true) {
+                every { findAnimeDir(any(), any()) } answers {
+                    deleteEntered.complete(Unit)
+                    null
+                }
+                every { findSourceDir(any()) } returns null
+            },
+            cache = mockk(relaxed = true),
+            getCategories = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            downloadPreferences = mockk(relaxed = true),
+            downloaderForTesting = mockDownloader,
+        )
+
+        try {
+            localManager.deleteAnime(anime, source, removeQueued = false)
+            deleteEntered.await()
+            verify(exactly = 0) { mockDownloader.removeFromQueue(any<Anime>()) }
+        } finally {
+            localManager.close()
+        }
+    }
+
+    @Test
+    fun `deleteAnime queue removal failure does not deadlock subsequent reorder`() = runTest {
+        val anime = Anime.create().copy(id = 1L, source = 100L, title = "Target")
+        val source = mockk<AnimeHttpSource>(relaxed = true)
+        val removeAttempted = CompletableDeferred<Unit>()
+        val queueState = MutableStateFlow(
+            listOf(
+                AnimeDownload(
+                    source = source,
+                    anime = anime,
+                    episode = Episode.create().copy(id = 11L, animeId = anime.id, name = "T"),
+                ),
+            ),
+        )
+
+        every { mockDownloader.queueState } returns queueState
+        every { mockDownloader.updateQueue(any()) } answers {
+            queueState.value = firstArg()
+        }
+        every { mockDownloader.removeFromQueue(any<Anime>()) } answers {
+            removeAttempted.complete(Unit)
+            throw RuntimeException("remove failed")
+        }
+
+        val localManager = AnimeDownloadManager(
+            context = context,
+            storageManager = mockk(relaxed = true),
+            provider = mockk(relaxed = true) {
+                every { findAnimeDir(any(), any()) } returns null
+                every { findSourceDir(any()) } returns null
+            },
+            cache = mockk(relaxed = true),
+            getCategories = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            downloadPreferences = mockk(relaxed = true),
+            downloaderForTesting = mockDownloader,
+        )
+
+        try {
+            localManager.deleteAnime(anime, source, removeQueued = true)
+            removeAttempted.await()
+            val reorderCompleted = withTimeoutOrNull(500) {
+                localManager.reorderQueue(queueState.value)
+                Unit
+            }
+            assertEquals(Unit, reorderCompleted, "reorderQueue should not deadlock after delete failure")
+        } finally {
+            localManager.close()
+        }
     }
 }
