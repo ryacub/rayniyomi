@@ -201,19 +201,6 @@ class MangaDownloadManager(
         queueMutations.startDownloadNow(chapterId)
     }
 
-    /**
-     * Reorders the download queue.
-     *
-     * @param downloads value to set the download queue to
-     */
-    @Deprecated(
-        message = "Use reorderQueueByChapterIds to avoid stale object snapshot payloads",
-        replaceWith = ReplaceWith("reorderQueueByChapterIds(downloads.mapNotNull { it.chapter.id })"),
-    )
-    suspend fun reorderQueue(downloads: List<MangaDownload>) {
-        reorderQueueByChapterIds(downloads.mapNotNull { it.chapter.id })
-    }
-
     suspend fun reorderQueueByChapterIds(chapterIds: List<Long>) {
         queueMutations.reorderQueueByIds(chapterIds)
     }
@@ -242,30 +229,9 @@ class MangaDownloadManager(
         }
     }
 
-    /**
-     * Tells the downloader to enqueue the given list of downloads at the start of the queue.
-     *
-     * @param downloads the list of downloads to enqueue.
-     */
-    suspend fun addDownloadsToStartOfQueue(downloads: List<MangaDownload>) {
-        addDownloadsToStartByChapterIds(downloads.mapNotNull { it.chapter.id })
-    }
-
     suspend fun addDownloadsToStartByChapterIds(chapterIds: List<Long>) {
         queueMutations.addDownloadsToStartByIds(chapterIds) {
             if (!MangaDownloadJob.isRunning(context)) startDownloads()
-        }
-    }
-
-    /**
-     * Enqueues downloads to the front of the queue using manager-owned structured scope.
-     * Use this for call sites where no suspend scope is available (e.g., lifecycle teardown hooks).
-     */
-    fun addDownloadsToStartOfQueueAsync(downloads: List<MangaDownload>) {
-        val chapterIds = downloads.mapNotNull { it.chapter.id }
-        if (chapterIds.isEmpty()) return
-        scope.launch {
-            addDownloadsToStartByChapterIds(chapterIds)
         }
     }
 
