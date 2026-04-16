@@ -38,7 +38,6 @@ import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicInteger
 
 class BackupRestorer(
     private val context: Context,
@@ -58,7 +57,8 @@ class BackupRestorer(
 ) {
 
     private var restoreAmount = 0
-    private val restoreProgress = AtomicInteger(0)
+    private var restoreProgress = 0
+    private val restoreProgressLock = Any()
     private val errors: MutableList<Pair<Date, String>> = Collections.synchronizedList(mutableListOf())
 
     /**
@@ -296,7 +296,10 @@ class BackupRestorer(
     }
 
     private fun incrementProgressAndNotify(content: String): Int {
-        val progress = restoreProgress.incrementAndGet()
+        val progress = synchronized(restoreProgressLock) {
+            restoreProgress += 1
+            restoreProgress
+        }
         notifier.showRestoreProgress(content, progress, restoreAmount, isSync)
         return progress
     }

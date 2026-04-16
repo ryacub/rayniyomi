@@ -27,7 +27,6 @@ import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.util.Date
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 class BackupRestorerTest {
@@ -162,8 +161,7 @@ class BackupRestorerTest {
     private fun BackupRestorer.getRestoreProgressValue(): Int {
         val field = BackupRestorer::class.java.getDeclaredField("restoreProgress")
         field.isAccessible = true
-        val atomic = field.get(this) as AtomicInteger
-        return atomic.get()
+        return field.getInt(this)
     }
 
     @Suppress("UNCHECKED_CAST")
