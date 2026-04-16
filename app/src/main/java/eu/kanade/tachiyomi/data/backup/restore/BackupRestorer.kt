@@ -35,8 +35,10 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import java.text.SimpleDateFormat
+import java.util.Collections
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
 class BackupRestorer(
     private val context: Context,
@@ -56,8 +58,8 @@ class BackupRestorer(
 ) {
 
     private var restoreAmount = 0
-    private var restoreProgress = 0
-    private val errors = mutableListOf<Pair<Date, String>>()
+    private val restoreProgress = AtomicInteger(0)
+    private val errors: MutableList<Pair<Date, String>> = Collections.synchronizedList(mutableListOf())
 
     /**
      * Mapping of source ID to source name from backup data
@@ -71,12 +73,13 @@ class BackupRestorer(
         restoreFromFile(uri, options)
 
         val time = System.currentTimeMillis() - startTime
+        val errorSnapshot = snapshotErrors()
 
-        val logFile = writeErrorLog()
+        val logFile = writeErrorLog(errorSnapshot)
 
         notifier.showRestoreComplete(
             time,
-            errors.size,
+            errorSnapshot.size,
             logFile,
             isSync,
         )
@@ -160,13 +163,7 @@ class BackupRestorer(
         animeCategoriesRestorer(backupAnimeCategories)
         mangaCategoriesRestorer(backupMangaCategories)
 
-        restoreProgress += 1
-        notifier.showRestoreProgress(
-            context.stringResource(MR.strings.categories),
-            restoreProgress,
-            restoreAmount,
-            isSync,
-        )
+        incrementProgressAndNotify(context.stringResource(MR.strings.categories))
     }
 
     private fun CoroutineScope.restoreAnime(
@@ -182,11 +179,10 @@ class BackupRestorer(
                     animeRestorer.restore(it, backupAnimeCategories, seasons)
                 } catch (e: Exception) {
                     val sourceName = animeSourceMapping[it.source] ?: it.source.toString()
-                    errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
+                    recordError("${it.title} [$sourceName]: ${e.message}")
                 }
 
-                restoreProgress += 1
-                notifier.showRestoreProgress(it.title, restoreProgress, restoreAmount, isSync)
+                incrementProgressAndNotify(it.title)
             }
     }
 
@@ -202,11 +198,10 @@ class BackupRestorer(
                     mangaRestorer.restore(it, backupMangaCategories)
                 } catch (e: Exception) {
                     val sourceName = mangaSourceMapping[it.source] ?: it.source.toString()
-                    errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
+                    recordError("${it.title} [$sourceName]: ${e.message}")
                 }
 
-                restoreProgress += 1
-                notifier.showRestoreProgress(it.title, restoreProgress, restoreAmount, isSync)
+                incrementProgressAndNotify(it.title)
             }
     }
 
@@ -220,26 +215,14 @@ class BackupRestorer(
             categories,
         )
 
-        restoreProgress += 1
-        notifier.showRestoreProgress(
-            context.stringResource(MR.strings.app_settings),
-            restoreProgress,
-            restoreAmount,
-            isSync,
-        )
+        incrementProgressAndNotify(context.stringResource(MR.strings.app_settings))
     }
 
     private fun CoroutineScope.restoreSourcePreferences(preferences: List<BackupSourcePreferences>) = launch {
         ensureActive()
         preferenceRestorer.restoreSource(preferences)
 
-        restoreProgress += 1
-        notifier.showRestoreProgress(
-            context.stringResource(MR.strings.source_settings),
-            restoreProgress,
-            restoreAmount,
-            isSync,
-        )
+        incrementProgressAndNotify(context.stringResource(MR.strings.source_settings))
     }
 
     private fun CoroutineScope.restoreExtensionRepos(
@@ -253,16 +236,10 @@ class BackupRestorer(
                 try {
                     animeExtensionRepoRestorer(it)
                 } catch (e: Exception) {
-                    errors.add(Date() to "Error Adding Anime Repo: ${it.name} : ${e.message}")
+                    recordError("Error Adding Anime Repo: ${it.name} : ${e.message}")
                 }
 
-                restoreProgress += 1
-                notifier.showRestoreProgress(
-                    context.stringResource(MR.strings.extensionRepo_settings),
-                    restoreProgress,
-                    restoreAmount,
-                    isSync,
-                )
+                incrementProgressAndNotify(context.stringResource(MR.strings.extensionRepo_settings))
             }
 
         backupMangaExtensionRepo
@@ -272,16 +249,10 @@ class BackupRestorer(
                 try {
                     mangaExtensionRepoRestorer(it)
                 } catch (e: Exception) {
-                    errors.add(Date() to "Error Adding Manga Repo: ${it.name} : ${e.message}")
+                    recordError("Error Adding Manga Repo: ${it.name} : ${e.message}")
                 }
 
-                restoreProgress += 1
-                notifier.showRestoreProgress(
-                    context.stringResource(MR.strings.extensionRepo_settings),
-                    restoreProgress,
-                    restoreAmount,
-                    isSync,
-                )
+                incrementProgressAndNotify(context.stringResource(MR.strings.extensionRepo_settings))
             }
     }
 
@@ -289,26 +260,14 @@ class BackupRestorer(
         ensureActive()
         customButtonRestorer(customButtons)
 
-        restoreProgress += 1
-        notifier.showRestoreProgress(
-            context.stringResource(AYMR.strings.custom_button_settings),
-            restoreProgress,
-            restoreAmount,
-            isSync,
-        )
+        incrementProgressAndNotify(context.stringResource(AYMR.strings.custom_button_settings))
     }
 
     private fun CoroutineScope.restoreExtensions(extensions: List<BackupExtension>) = launch {
         ensureActive()
         extensionsRestorer.restoreExtensions(extensions)
 
-        restoreProgress += 1
-        notifier.showRestoreProgress(
-            context.stringResource(MR.strings.source_settings),
-            restoreProgress,
-            restoreAmount,
-            isSync,
-        )
+        incrementProgressAndNotify(context.stringResource(MR.strings.source_settings))
     }
 
     private suspend fun restoreLightNovels(lightNovelBackupData: ByteArray?) {
@@ -326,15 +285,9 @@ class BackupRestorer(
         } catch (e: Exception) {
             val errorMessage = "Failed to restore Light Novel metadata: ${e.message}"
             logcat(LogPriority.ERROR, e) { errorMessage }
-            errors.add(Date() to errorMessage)
+            recordError(errorMessage)
         } finally {
-            restoreProgress += 1
-            notifier.showRestoreProgress(
-                context.stringResource(AYMR.strings.light_novel_library),
-                restoreProgress,
-                restoreAmount,
-                isSync,
-            )
+            incrementProgressAndNotify(context.stringResource(AYMR.strings.light_novel_library))
         }
     }
 
@@ -342,13 +295,29 @@ class BackupRestorer(
         return lightNovelBackupDataSource.isPluginInstalled()
     }
 
-    private fun writeErrorLog(): ErrorLogWriteOutcome {
-        return writeErrorLogOutcome(hasErrors = errors.isNotEmpty()) {
+    private fun incrementProgressAndNotify(content: String): Int {
+        val progress = restoreProgress.incrementAndGet()
+        notifier.showRestoreProgress(content, progress, restoreAmount, isSync)
+        return progress
+    }
+
+    private fun recordError(message: String) {
+        errors.add(Date() to message)
+    }
+
+    private fun snapshotErrors(): List<Pair<Date, String>> {
+        synchronized(errors) {
+            return errors.toList()
+        }
+    }
+
+    private fun writeErrorLog(errorSnapshot: List<Pair<Date, String>>): ErrorLogWriteOutcome {
+        return writeErrorLogOutcome(hasErrors = errorSnapshot.isNotEmpty()) {
             val file = context.createFileInCacheDir("aniyomi_restore_error.txt")
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 
             file.bufferedWriter().use { out ->
-                errors.forEach { (date, message) ->
+                errorSnapshot.forEach { (date, message) ->
                     out.write("[${sdf.format(date)}] $message\n")
                 }
             }
