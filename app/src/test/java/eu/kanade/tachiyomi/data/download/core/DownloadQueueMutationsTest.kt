@@ -3,10 +3,12 @@ package eu.kanade.tachiyomi.data.download.core
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -337,6 +339,38 @@ class DownloadQueueMutationsTest {
         assertEquals(1, added.size)
         assertEquals(downloads, added[0])
         assertTrue(started, "startIfNeeded should be called")
+    }
+
+    @Test
+    fun `addDownloadsToStart callback can safely run nested queue mutation`() = runTest {
+        val queueState = MutableStateFlow(
+            listOf(
+                FakeDownload(1, FakeEntity(1, "Entity 1")),
+                FakeDownload(2, FakeEntity(2, "Entity 2")),
+            ),
+        )
+        val mutations = createMutations(
+            queueState = queueState,
+            addToStart = { downloads ->
+                queueState.value = downloads + queueState.value
+            },
+            updateQueue = { reordered ->
+                queueState.value = reordered
+            },
+        )
+
+        val added = FakeDownload(3, FakeEntity(3, "Entity 3"))
+        val completed = withTimeoutOrNull(500) {
+            mutations.addDownloadsToStart(listOf(added)) {
+                runBlocking {
+                    mutations.reorderQueue(queueState.value)
+                }
+            }
+            Unit
+        }
+
+        assertNotNull(completed, "Nested queue mutation in callback should not deadlock")
+        assertEquals(listOf(3L, 1L, 2L), queueState.value.map { it.id })
     }
 
     @Test
