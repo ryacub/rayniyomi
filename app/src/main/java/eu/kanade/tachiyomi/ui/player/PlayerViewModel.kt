@@ -1013,7 +1013,10 @@ class PlayerViewModel @JvmOverloads constructor(
         if (currentEpisode.value != null) {
             saveWatchingProgress(currentEpisode.value!!)
             episodeToDownload?.let {
-                downloadManager.addDownloadsToStartOfQueueAsync(listOf(it))
+                val episodeId = it.episode.id
+                if (episodeId != null) {
+                    downloadManager.addDownloadsToStartByEpisodeIdsAsync(listOf(episodeId))
+                }
             }
         }
     }

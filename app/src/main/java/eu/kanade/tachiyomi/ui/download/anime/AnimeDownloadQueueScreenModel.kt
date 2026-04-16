@@ -71,7 +71,7 @@ class AnimeDownloadQueueScreenModel(
 
     fun moveToTop(item: AnimeDownloadUiItem) {
         val currentState = _state.value
-        val newDownloads = mutableListOf<AnimeDownload>()
+        val reorderedEpisodeIds = mutableListOf<Long>()
         currentState.forEach { header ->
             val mutable = header.downloads.toMutableList()
             val idx = mutable.indexOfFirst { it.download == item.download }
@@ -79,14 +79,14 @@ class AnimeDownloadQueueScreenModel(
                 mutable.removeAt(idx)
                 mutable.add(0, item)
             }
-            newDownloads.addAll(mutable.map { it.download })
+            reorderedEpisodeIds.addAll(mutable.mapNotNull { it.download.episode.id })
         }
-        reorder(newDownloads)
+        reorder(reorderedEpisodeIds)
     }
 
     fun moveToBottom(item: AnimeDownloadUiItem) {
         val currentState = _state.value
-        val newDownloads = mutableListOf<AnimeDownload>()
+        val reorderedEpisodeIds = mutableListOf<Long>()
         currentState.forEach { header ->
             val mutable = header.downloads.toMutableList()
             val idx = mutable.indexOfFirst { it.download == item.download }
@@ -94,21 +94,21 @@ class AnimeDownloadQueueScreenModel(
                 mutable.removeAt(idx)
                 mutable.add(mutable.size, item)
             }
-            newDownloads.addAll(mutable.map { it.download })
+            reorderedEpisodeIds.addAll(mutable.mapNotNull { it.download.episode.id })
         }
-        reorder(newDownloads)
+        reorder(reorderedEpisodeIds)
     }
 
     fun moveToTopSeries(animeId: Long) {
         val all = _state.value.flatMap { it.downloads }
         val (series, others) = all.partition { it.download.anime.id == animeId }
-        reorder((series + others).map { it.download })
+        reorder((series + others).mapNotNull { it.download.episode.id })
     }
 
     fun moveToBottomSeries(animeId: Long) {
         val all = _state.value.flatMap { it.downloads }
         val (series, others) = all.partition { it.download.anime.id == animeId }
-        reorder((others + series).map { it.download })
+        reorder((others + series).mapNotNull { it.download.episode.id })
     }
 
     fun cancelDownload(item: AnimeDownloadUiItem) {
@@ -144,9 +144,9 @@ class AnimeDownloadQueueScreenModel(
         downloadManager.clearQueue()
     }
 
-    fun reorder(downloads: List<AnimeDownload>) {
+    fun reorder(downloadEpisodeIds: List<Long>) {
         screenModelScope.launch {
-            downloadManager.reorderQueue(downloads)
+            downloadManager.reorderQueueByEpisodeIds(downloadEpisodeIds)
         }
     }
 
@@ -159,13 +159,13 @@ class AnimeDownloadQueueScreenModel(
         reverse: Boolean = false,
     ) {
         val currentState = _state.value
-        val newAnimeDownloads = mutableListOf<AnimeDownload>()
+        val newAnimeDownloadIds = mutableListOf<Long>()
         currentState.forEach { headerItem ->
             val sortedItems = headerItem.downloads.sortedBy(selector).let {
                 if (reverse) it.reversed() else it
             }
-            newAnimeDownloads.addAll(sortedItems.map { it.download })
+            newAnimeDownloadIds.addAll(sortedItems.mapNotNull { it.download.episode.id })
         }
-        reorder(newAnimeDownloads)
+        reorder(newAnimeDownloadIds)
     }
 }

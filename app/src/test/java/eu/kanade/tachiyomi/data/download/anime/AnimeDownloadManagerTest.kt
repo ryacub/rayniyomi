@@ -180,7 +180,7 @@ class AnimeDownloadManagerTest {
             removeEntered.await()
 
             val reorderJob = async {
-                localManager.reorderQueue(staleSnapshot)
+                localManager.reorderQueueByEpisodeIds(staleSnapshot.mapNotNull { it.episode.id })
             }
 
             val reorderFinishedEarly = withTimeoutOrNull(50) { reorderJob.await() }
@@ -271,7 +271,7 @@ class AnimeDownloadManagerTest {
             localManager.deleteAnime(anime, source, removeQueued = true)
             removeAttempted.await()
             val reorderCompleted = withTimeoutOrNull(500) {
-                localManager.reorderQueue(queueState.value)
+                localManager.reorderQueueByEpisodeIds(queueState.value.mapNotNull { it.episode.id })
                 Unit
             }
             assertEquals(Unit, reorderCompleted, "reorderQueue should not deadlock after delete failure")

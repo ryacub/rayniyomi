@@ -27,6 +27,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Download queue add-to-start now runs downloader start callbacks outside the queue mutex to prevent callback re-entrancy deadlocks while preserving queue mutation serialization
 - R586/#590: Anime `deleteAnime(removeQueued=true)` queue removal is now mutex-serialized so stale reorder snapshots cannot resurrect deleted anime entries
 - Extension installers now serialize per-package download slot ownership so concurrent install requests cannot spawn orphaned duplicate downloads
+- R626/#659: Queue reorder/prioritize callsites now dispatch ID-based commands (including reader/player priority hooks), removing production full-snapshot reorder payloads across anime and manga flows
 ### Changed
 
 ### CI

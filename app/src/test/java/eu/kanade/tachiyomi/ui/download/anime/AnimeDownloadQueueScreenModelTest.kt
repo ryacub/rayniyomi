@@ -94,9 +94,9 @@ class AnimeDownloadQueueScreenModelTest {
         model.moveToTop(model.state.value[0].downloads[1]) // d2 at index 1
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(2L, 1L, 3L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(2L, 1L, 3L)
     }
 
     @Test
@@ -110,9 +110,9 @@ class AnimeDownloadQueueScreenModelTest {
         model.moveToTop(model.state.value[0].downloads[0]) // d1 already first
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(1L, 2L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(1L, 2L)
     }
 
     @Test
@@ -127,9 +127,9 @@ class AnimeDownloadQueueScreenModelTest {
         model.moveToBottom(model.state.value[0].downloads[0]) // d1 at index 0
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(2L, 3L, 1L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(2L, 3L, 1L)
     }
 
     @Test
@@ -146,9 +146,9 @@ class AnimeDownloadQueueScreenModelTest {
         model.moveToTopSeries(2L) // anime2 downloads (d3, d4) to front
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(3L, 4L, 1L, 2L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(3L, 4L, 1L, 2L)
     }
 
     @Test
@@ -165,9 +165,9 @@ class AnimeDownloadQueueScreenModelTest {
         model.moveToBottomSeries(1L) // anime1 downloads (d1, d2) to back
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(3L, 4L, 1L, 2L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(3L, 4L, 1L, 2L)
     }
 
     @Test
@@ -222,9 +222,9 @@ class AnimeDownloadQueueScreenModelTest {
         model.reorderQueue(selector = { it.download.episode.id })
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(1L, 2L, 3L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(1L, 2L, 3L)
     }
 
     @Test
@@ -239,8 +239,8 @@ class AnimeDownloadQueueScreenModelTest {
         model.reorderQueue(selector = { it.download.episode.id }, reverse = true)
         advanceUntilIdle()
 
-        val slot = slot<List<AnimeDownload>>()
-        coVerify { manager.reorderQueue(capture(slot)) }
-        slot.captured.map { it.episode.id } shouldContainExactly listOf(3L, 2L, 1L)
+        val slot = slot<List<Long>>()
+        coVerify { manager.reorderQueueByEpisodeIds(capture(slot)) }
+        slot.captured shouldContainExactly listOf(3L, 2L, 1L)
     }
 }

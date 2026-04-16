@@ -76,7 +76,7 @@ fun DownloadQueueScreen(
                     from.index,
                     to.index,
                 )
-                screenModel.reorder(reorderedDownloads)
+                screenModel.reorder(reorderedDownloads.mapNotNull { it.chapter.id })
             }
         }
 

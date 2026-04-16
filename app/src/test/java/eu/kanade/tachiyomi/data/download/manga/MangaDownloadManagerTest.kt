@@ -175,7 +175,7 @@ class MangaDownloadManagerTest {
             removeEntered.await()
 
             val reorderJob = async {
-                localManager.reorderQueue(staleSnapshot)
+                localManager.reorderQueueByChapterIds(staleSnapshot.mapNotNull { it.chapter.id })
             }
 
             val reorderFinishedEarly = withTimeoutOrNull(50) { reorderJob.await() }

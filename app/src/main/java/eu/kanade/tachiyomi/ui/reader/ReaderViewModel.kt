@@ -207,7 +207,10 @@ class ReaderViewModel @JvmOverloads constructor(
         if (currentChapters != null) {
             currentChapters.unref()
             chapterToDownload?.let {
-                downloadManager.addDownloadsToStartOfQueueAsync(listOf(it))
+                val chapterId = it.chapter.id
+                if (chapterId != null) {
+                    downloadManager.addDownloadsToStartByChapterIdsAsync(listOf(chapterId))
+                }
             }
         }
     }
