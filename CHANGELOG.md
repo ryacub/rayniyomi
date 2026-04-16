@@ -24,6 +24,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Manga downloader now dismisses the stale crash-threshold notification when a subsequent successful start resets the crash counter
 - Download queue reorder and add-to-start operations are now mutex-serialized with removals to prevent canceled items from being restored by concurrent queue mutations
 - Download queue add-to-start now runs downloader start callbacks outside the queue mutex to prevent callback re-entrancy deadlocks while preserving queue mutation serialization
+- R586/#590: Anime `deleteAnime(removeQueued=true)` queue removal is now mutex-serialized so stale reorder snapshots cannot resurrect deleted anime entries
 ### Changed
 
 ### CI

@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -380,7 +381,9 @@ class AnimeDownloadManager(
      */
     fun deleteAnime(anime: Anime, source: AnimeSource, removeQueued: Boolean = true) {
         scope.launch {
-            if (removeQueued) downloader.removeFromQueue(anime)
+            if (removeQueued) {
+                removeQueuedAnimeFromQueue(anime)
+            }
             provider.findAnimeDir(anime.title, source)?.delete()
             cache.removeAnime(anime)
             // Delete source directory if empty
@@ -389,6 +392,12 @@ class AnimeDownloadManager(
                 sourceDir.delete()
                 cache.removeSource(source)
             }
+        }
+    }
+
+    private suspend fun removeQueuedAnimeFromQueue(anime: Anime) {
+        queueMutex.withLock {
+            downloader.removeFromQueue(anime)
         }
     }
 
