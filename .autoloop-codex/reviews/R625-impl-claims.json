@@ -1,0 +1,17 @@
+{
+  "phase": "implementation",
+  "claims": [
+    {
+      "id": "changelog_one_bullet",
+      "claim": "CHANGELOG contains #658 bullet for this ticket",
+      "command": "rg -n 'R625/#658' CHANGELOG.md",
+      "expect_exit_code": 0
+    },
+    {
+      "id": "retro_written",
+      "claim": "Retro artifact exists for this ticket",
+      "command": "test -f .autoloop-codex/reviews/R625-retro.md",
+      "expect_exit_code": 0
+    }
+  ]
+}

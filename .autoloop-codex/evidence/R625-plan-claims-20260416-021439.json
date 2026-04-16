@@ -1,0 +1,32 @@
+{
+  "ticket": "R625",
+  "phase": "plan",
+  "timestamp": "2026-04-16T02:14:39+00:00",
+  "claims_file": "/Users/rayyacub/Documents/rayniyomi/.worktrees/codex/r625-queue-actor-reducer/.autoloop-codex/reviews/R625-plan-claims.json",
+  "repo": "/Users/rayyacub/Documents/rayniyomi/.worktrees/codex/r625-queue-actor-reducer",
+  "overall": "PASS",
+  "results": [
+    {
+      "id": "process_delta_section",
+      "claim": "Plan contains Process Delta section",
+      "command": "rg -n '^## Process Delta' .autoloop-codex/reviews/R625-plan.md",
+      "expect_exit_code": 0,
+      "actual_exit_code": 0,
+      "status": "PASS",
+      "stdout_tail": "6:## Process Delta\n",
+      "stderr_tail": "",
+      "log_file": "/Users/rayyacub/Documents/rayniyomi/.worktrees/codex/r625-queue-actor-reducer/.autoloop-codex/evidence/claims-logs/R625/plan/01-process_delta_section.log"
+    },
+    {
+      "id": "previous_retro_linked",
+      "claim": "Plan references previous retro artifact",
+      "command": "rg -n 'R625-retro\\.md' .autoloop-codex/reviews/R625-plan.md",
+      "expect_exit_code": 0,
+      "actual_exit_code": 0,
+      "status": "PASS",
+      "stdout_tail": "4:- `.autoloop-codex/reviews/R625-retro.md`\n",
+      "stderr_tail": "",
+      "log_file": "/Users/rayyacub/Documents/rayniyomi/.worktrees/codex/r625-queue-actor-reducer/.autoloop-codex/evidence/claims-logs/R625/plan/02-previous_retro_linked.log"
+    }
+  ]
+}

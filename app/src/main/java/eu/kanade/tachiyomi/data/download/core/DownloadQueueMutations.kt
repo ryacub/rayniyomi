@@ -1,8 +1,7 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 
@@ -12,8 +11,7 @@ import tachiyomi.core.common.util.system.logcat
  * Keeps queue mutations consistent across anime and manga managers while
  * preserving their downloader-specific behavior via callbacks.
  *
- * Thread-safe: All public methods use internal [queueMutex] for synchronization.
- * All callbacks are invoked on the caller's coroutine context.
+ * Thread-safe: all mutations are serialized through an internal actor.
  *
  * @param D Download type (e.g., AnimeDownload, MangaDownload) - the item being downloaded
  * @param I Entity type that owns downloads (e.g., Episode, Chapter) - used for removal operations
@@ -21,18 +19,20 @@ import tachiyomi.core.common.util.system.logcat
 class DownloadQueueMutations<D : Any, I : Any>(
     private val queueState: StateFlow<List<D>>,
     private val itemId: (D) -> Long,
+    private val ownerItemId: (I) -> Long,
     private val createFromId: suspend (Long) -> D?,
     private val moveToFront: (D) -> Unit,
     private val updateQueue: (List<D>) -> Unit,
     private val addToStart: (List<D>) -> Unit,
-    private val removeFromQueue: (List<I>) -> Unit,
+    private val removeFromQueueByIds: (List<Long>) -> Unit,
     private val isRunning: () -> Boolean,
     private val pauseDownloader: () -> Unit,
     private val startDownloader: () -> Unit,
     private val stopDownloader: () -> Unit,
     private val startDownloads: () -> Unit,
-    private val queueMutex: Mutex,
+    mutationScope: CoroutineScope,
 ) {
+    private val queueActor = DownloadQueueActor(mutationScope)
 
     /**
      * Finds a queued download by its ID.
@@ -53,23 +53,8 @@ class DownloadQueueMutations<D : Any, I : Any>(
      * @param id The download ID to prioritize
      */
     suspend fun startDownloadNow(id: Long) {
-        queueMutex.withLock {
-            val existingDownload = queueState.value.find { itemId(it) == id }
-            val toAdd = existingDownload ?: run {
-                try {
-                    createFromId(id)
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR) { "Failed to create download from ID $id: ${e.message}" }
-                    null
-                }
-            } ?: return@withLock
-
-            try {
-                moveToFront(toAdd)
-                startDownloads()
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to start download now for ID $id: ${e.message}" }
-            }
+        queueActor.submit(DownloadQueueCommand.StartNow(id)) {
+            runReducerCommand(DownloadQueueCommand.StartNow(id))
         }
     }
 
@@ -79,20 +64,13 @@ class DownloadQueueMutations<D : Any, I : Any>(
      * @param downloads The new queue order
      */
     suspend fun reorderQueue(downloads: List<D>) {
-        queueMutex.withLock {
-            try {
-                val currentQueue = queueState.value
-                val currentById = currentQueue.associateBy(itemId)
-                val normalizedOrder = downloads
-                    .mapNotNull { currentById[itemId(it)] }
-                val normalizedIds = normalizedOrder.map(itemId).toSet()
-                val remaining = currentQueue.filterNot { itemId(it) in normalizedIds }
+        val ids = downloads.map(itemId)
+        reorderQueueByIds(ids)
+    }
 
-                updateQueue(normalizedOrder + remaining)
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to reorder queue: ${e.message}" }
-                throw e
-            }
+    suspend fun reorderQueueByIds(downloadIds: List<Long>) {
+        queueActor.submit(DownloadQueueCommand.Reorder(downloadIds)) {
+            runReducerCommand(DownloadQueueCommand.Reorder(downloadIds))
         }
     }
 
@@ -103,82 +81,99 @@ class DownloadQueueMutations<D : Any, I : Any>(
      * @param startIfNeeded Callback to start the downloader if needed (e.g., check if job is running)
      */
     suspend fun addDownloadsToStart(downloads: List<D>, startIfNeeded: () -> Unit) {
-        if (downloads.isEmpty()) return
-        try {
-            queueMutex.withLock {
-                addToStart(downloads)
-            }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR) { "Failed to add downloads to start: ${e.message}" }
-            throw e
-        }
+        val ids = downloads.map(itemId)
+        addDownloadsToStartByIds(ids, startIfNeeded)
+    }
 
-        try {
-            startIfNeeded()
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR) { "Failed to start downloader after add-to-start: ${e.message}" }
-            throw e
+    suspend fun addDownloadsToStartByIds(downloadIds: List<Long>, startIfNeeded: () -> Unit) {
+        if (downloadIds.isEmpty()) return
+        queueActor.submit(DownloadQueueCommand.AddToStart(downloadIds)) {
+            runReducerCommand(DownloadQueueCommand.AddToStart(downloadIds), startIfNeeded)
         }
     }
 
     /**
      * Removes items from the queue safely with proper downloader state management.
      *
-     * Thread-safe: Acquires [queueMutex] to ensure atomic pause-remove-restart sequence.
-     * If downloader was running:
-     * - Pauses downloader before removal
-     * - If queue becomes empty after removal, stops downloader
-     * - Otherwise, restarts downloader
+     * Thread-safe: all commands are serialized by [DownloadQueueActor].
      *
      * @param items The entities (episodes/chapters) to remove from the queue
      */
     suspend fun removeFromQueueSafely(items: List<I>) {
-        queueMutex.withLock {
-            val wasRunning = try {
+        removeFromQueueSafelyByItemIds(items.map(ownerItemId))
+    }
+
+    suspend fun removeFromQueueSafelyByItemIds(itemIds: List<Long>) {
+        if (itemIds.isEmpty()) return
+        queueActor.submit(DownloadQueueCommand.RemoveByItemIds(itemIds)) {
+            runReducerCommand(DownloadQueueCommand.RemoveByItemIds(itemIds))
+        }
+    }
+
+    private suspend fun runReducerCommand(
+        command: DownloadQueueCommand,
+        startIfNeeded: (() -> Unit)? = null,
+    ) {
+        val state = DownloadQueueReducerState(
+            downloadIds = queueState.value.map(itemId),
+            isDownloaderRunning = try {
                 isRunning()
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to check if downloader is running: ${e.message}" }
+            } catch (_: Exception) {
                 false
-            }
+            },
+        )
+        val result = DownloadQueueReducer.reduce(state, command)
 
-            if (wasRunning) {
-                try {
-                    pauseDownloader()
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR) { "Failed to pause downloader: ${e.message}" }
-                    // Continue with removal even if pause fails
+        var skipStartDownloads = false
+        for (effect in result.effects) {
+            if (skipStartDownloads && effect == DownloadQueueEffect.StartDownloads) {
+                continue
+            }
+            val applied = applyEffect(effect, startIfNeeded)
+            if (!applied && effect is DownloadQueueEffect.MoveToFrontById) {
+                skipStartDownloads = true
+            }
+        }
+    }
+
+    private suspend fun applyEffect(
+        effect: DownloadQueueEffect,
+        startIfNeeded: (() -> Unit)?,
+    ): Boolean {
+        try {
+            when (effect) {
+                is DownloadQueueEffect.MoveToFrontById -> {
+                    val existing = queueState.value.find { itemId(it) == effect.downloadId }
+                    val toMove = existing ?: createFromId(effect.downloadId) ?: return false
+                    moveToFront(toMove)
                 }
-            }
-
-            try {
-                removeFromQueue(items)
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to remove items from queue: ${e.message}" }
-                // Attempt to restart if we paused, even if removal failed
-                if (wasRunning) {
-                    try {
-                        startDownloader()
-                    } catch (restartError: Exception) {
-                        logcat(LogPriority.ERROR) {
-                            "Failed to restart downloader after removal error: ${restartError.message}"
-                        }
+                is DownloadQueueEffect.ReorderByIds -> {
+                    val currentById = queueState.value.associateBy(itemId)
+                    val ordered = effect.orderedIds.mapNotNull { currentById[it] }
+                    updateQueue(ordered)
+                }
+                is DownloadQueueEffect.AddToStartByIds -> {
+                    val currentById = queueState.value.associateBy(itemId)
+                    val toAdd = effect.downloadIds.mapNotNull { id ->
+                        currentById[id] ?: createFromId(id)
                     }
-                }
-                throw e
-            }
-
-            if (wasRunning) {
-                try {
-                    if (queueState.value.isEmpty()) {
-                        stopDownloader()
-                    } else {
-                        startDownloader()
+                    if (toAdd.isNotEmpty()) {
+                        addToStart(toAdd)
                     }
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR) { "Failed to restart downloader: ${e.message}" }
-                    throw e
+                    startIfNeeded?.invoke() ?: startDownloads()
                 }
+                is DownloadQueueEffect.RemoveByItemIds -> {
+                    removeFromQueueByIds(effect.itemIds)
+                }
+                DownloadQueueEffect.PauseDownloader -> pauseDownloader()
+                DownloadQueueEffect.StartDownloader -> startDownloader()
+                DownloadQueueEffect.StopDownloader -> stopDownloader()
+                DownloadQueueEffect.StartDownloads -> startDownloads()
             }
+            return true
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR) { "Queue effect failed: $effect (${e.message})" }
+            throw e
         }
     }
 }
