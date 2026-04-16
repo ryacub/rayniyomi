@@ -15,11 +15,11 @@ import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.installer.InstallerAnime
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
+import eu.kanade.tachiyomi.extension.util.ExtensionDownloadRegistry
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapNotNull
@@ -55,9 +55,7 @@ internal class AnimeExtensionInstaller(private val context: Context) {
      * The currently requested downloads, with the package name (unique id) as key, and the id
      * returned by the download manager.
      */
-    private val activeDownloads = hashMapOf<String, Long>()
-
-    private val downloadsStateFlows = hashMapOf<Long, MutableStateFlow<InstallStep>>()
+    private val downloadRegistry = ExtensionDownloadRegistry()
 
     private val extensionInstaller = Injekt.get<BasePreferences>().extensionInstaller()
 
@@ -71,30 +69,24 @@ internal class AnimeExtensionInstaller(private val context: Context) {
     fun downloadAndInstall(url: String, extension: AnimeExtension): Flow<InstallStep> {
         val pkgName = extension.pkgName
 
-        val oldDownload = activeDownloads[pkgName]
-        if (oldDownload != null) {
-            deleteDownload(pkgName)
-        }
-
-        // Register the receiver after removing (and unregistering) the previous download
         downloadReceiver.register()
 
-        val downloadUri = url.toUri()
-        val request = DownloadManager.Request(downloadUri)
-            .setTitle(extension.name)
-            .setMimeType(APK_MIME)
-            .setDestinationInExternalFilesDir(
-                context,
-                Environment.DIRECTORY_DOWNLOADS,
-                downloadUri.lastPathSegment,
-            )
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        val activeDownload = downloadRegistry.getOrCreate(pkgName) {
+            val downloadUri = url.toUri()
+            val request = DownloadManager.Request(downloadUri)
+                .setTitle(extension.name)
+                .setMimeType(APK_MIME)
+                .setDestinationInExternalFilesDir(
+                    context,
+                    Environment.DIRECTORY_DOWNLOADS,
+                    downloadUri.lastPathSegment,
+                )
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
 
-        val id = downloadManager.enqueue(request)
-        activeDownloads[pkgName] = id
-
-        val downloadStateFlow = MutableStateFlow(InstallStep.Pending)
-        downloadsStateFlows[id] = downloadStateFlow
+            downloadManager.enqueue(request)
+        }
+        val id = activeDownload.downloadId
+        val downloadStateFlow = activeDownload.stateFlow
 
         // Poll download status
         val pollStatusFlow = downloadStatusFlow(id).mapNotNull { downloadStatus ->
@@ -114,7 +106,7 @@ internal class AnimeExtensionInstaller(private val context: Context) {
             // Always notify on main thread
             withUIContext {
                 // Always remove the download when unsubscribed
-                deleteDownload(pkgName)
+                deleteDownload(pkgName, expectedId = id)
             }
         }
     }
@@ -208,9 +200,13 @@ internal class AnimeExtensionInstaller(private val context: Context) {
      * Cancels extension install and remove from download manager and installer.
      */
     fun cancelInstall(pkgName: String) {
-        val downloadId = activeDownloads.remove(pkgName) ?: return
+        val activeDownload = downloadRegistry.removeCurrent(pkgName) ?: return
+        val downloadId = activeDownload.downloadId
         downloadManager.remove(downloadId)
         InstallerAnime.cancelInstallQueue(context, downloadId)
+        if (downloadRegistry.isEmpty()) {
+            downloadReceiver.unregister()
+        }
     }
 
     /**
@@ -237,7 +233,7 @@ internal class AnimeExtensionInstaller(private val context: Context) {
      * @param step New install step.
      */
     fun updateInstallStep(downloadId: Long, step: InstallStep) {
-        downloadsStateFlows[downloadId]?.let { it.value = step }
+        downloadRegistry.updateInstallStep(downloadId, step)
     }
 
     /**
@@ -245,13 +241,10 @@ internal class AnimeExtensionInstaller(private val context: Context) {
      *
      * @param pkgName The package name of the download to delete.
      */
-    private fun deleteDownload(pkgName: String) {
-        val downloadId = activeDownloads.remove(pkgName)
-        if (downloadId != null) {
-            downloadManager.remove(downloadId)
-            downloadsStateFlows.remove(downloadId)
-        }
-        if (activeDownloads.isEmpty()) {
+    private fun deleteDownload(pkgName: String, expectedId: Long? = null) {
+        val removed = downloadRegistry.removeIfMatch(pkgName, expectedId) ?: return
+        downloadManager.remove(removed.downloadId)
+        if (downloadRegistry.isEmpty()) {
             downloadReceiver.unregister()
         }
     }
@@ -295,7 +288,7 @@ internal class AnimeExtensionInstaller(private val context: Context) {
             val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0) ?: return
 
             // Avoid events for downloads we didn't request
-            if (id !in activeDownloads.values) return
+            if (!downloadRegistry.containsDownloadId(id)) return
 
             val uri = downloadManager.getUriForDownloadedFile(id)
 
