@@ -32,6 +32,7 @@ import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -257,14 +258,13 @@ internal class AnimeExtensionInstaller(private val context: Context) {
         /**
          * Whether this receiver is currently registered.
          */
-        private var isRegistered = false
+        private val isRegistered = AtomicBoolean(false)
 
         /**
          * Registers this receiver if it's not already.
          */
         fun register() {
-            if (isRegistered) return
-            isRegistered = true
+            if (!isRegistered.compareAndSet(false, true)) return
 
             val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
             ContextCompat.registerReceiver(context, this, filter, ContextCompat.RECEIVER_EXPORTED)
@@ -274,8 +274,7 @@ internal class AnimeExtensionInstaller(private val context: Context) {
          * Unregisters this receiver if it's not already.
          */
         fun unregister() {
-            if (!isRegistered) return
-            isRegistered = false
+            if (!isRegistered.compareAndSet(true, false)) return
 
             context.unregisterReceiver(this)
         }

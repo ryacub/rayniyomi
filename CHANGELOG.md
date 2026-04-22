@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Fixed
+- Extension installer download-completion receivers now use atomic registration guards, preventing duplicate receiver registration during concurrent install starts
 - R588/#593: Backup restore progress and error tracking are now concurrency-safe so parallel restore branches cannot lose progress increments or drop captured restore errors
 - Download queue mutations now run through a single-writer actor/reducer path with ID-based command normalization to prevent stale concurrent queue operations from resurrecting removed entries
 - Manga battery optimization prompt check is now mutex-serialized so concurrent 10+ chapter queue actions cannot emit the prompt twice in one app session
