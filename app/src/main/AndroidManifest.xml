@@ -85,6 +85,17 @@
                 <data android:host="add-repo" />
             </intent-filter>
 
+            <!-- Deep link to add repos (fork-owned alias) -->
+            <intent-filter android:label="@string/action_add_repo">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="rayniyomi" />
+                <data android:host="add-repo" />
+            </intent-filter>
+
             <!-- Open backup files -->
             <intent-filter android:label="@string/pref_restore_backup">
                 <action android:name="android.intent.action.VIEW" />
@@ -241,6 +252,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="aniyomi"/>
+                <data android:scheme="rayniyomi"/>
 
                 <data android:host="myanimelist-auth" />
                 <data android:host="anilist-auth" />
