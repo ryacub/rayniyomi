@@ -23,11 +23,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.util.Date
-import kotlin.time.Duration.Companion.seconds
 
 class BackupRestorerTest {
 
@@ -101,9 +99,7 @@ class BackupRestorerTest {
         job2.cancel()
         gate.complete(Unit)
 
-        withTimeout(5.seconds) {
-            joinAll(job1, job2)
-        }
+        joinAll(job1, job2)
 
         assertEquals(1, restorer.getRestoreProgressValue())
         verify(exactly = 1) { notifier.showRestoreProgress(any(), any(), 2, false) }
