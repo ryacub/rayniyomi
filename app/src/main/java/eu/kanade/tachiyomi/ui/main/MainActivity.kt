@@ -598,11 +598,25 @@ class MainActivity : BaseActivity() {
                         navigator.popUntilRoot()
                         navigator.push(AnimeExtensionReposScreen(repoUrl))
                     }
-                } // Deep link to add extension repo
+                }
+                // Deep link to add extension repo
                 else if (intent.scheme == "tachiyomi" && intent.data?.host == "add-repo") {
                     intent.data?.getQueryParameter("url")?.let { repoUrl ->
                         navigator.popUntilRoot()
                         navigator.push(MangaExtensionReposScreen(repoUrl))
+                    }
+                }
+                // Fork-owned alias for add-repo links.
+                // Uses explicit type query when provided; defaults to manga for safety.
+                else if (intent.scheme == "rayniyomi" && intent.data?.host == "add-repo") {
+                    intent.data?.getQueryParameter("url")?.let { repoUrl ->
+                        navigator.popUntilRoot()
+                        val type = intent.data?.getQueryParameter("type")
+                        if (type.equals("anime", ignoreCase = true)) {
+                            navigator.push(AnimeExtensionReposScreen(repoUrl))
+                        } else {
+                            navigator.push(MangaExtensionReposScreen(repoUrl))
+                        }
                     }
                 }
                 null
