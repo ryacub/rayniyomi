@@ -6,7 +6,7 @@ import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class R635ErrorLogFilenamesTest {
+class ErrorLogFilenamesTest {
 
     @Test
     fun `manga update error log filename uses rayniyomi branding`() {

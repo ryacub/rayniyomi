@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class R635UserAgentHeadersTest {
+class UserAgentHeadersTest {
 
     @Test
     fun `ShikimoriInterceptor sets User-Agent with Rayniyomi branding`() {

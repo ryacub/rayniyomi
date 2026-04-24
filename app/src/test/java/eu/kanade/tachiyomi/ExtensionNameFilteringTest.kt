@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class R635ExtensionNameFilteringTest {
+class ExtensionNameFilteringTest {
 
     // ---- AnimeExtensionLoader: substringAfter("Rayniyomi: ") ----
 

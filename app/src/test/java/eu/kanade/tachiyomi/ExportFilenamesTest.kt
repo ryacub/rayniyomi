@@ -5,7 +5,7 @@ import eu.kanade.tachiyomi.util.CrashLogUtil
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class R635ExportFilenamesTest {
+class ExportFilenamesTest {
 
     @Test
     fun `library export filename uses rayniyomi branding`() {

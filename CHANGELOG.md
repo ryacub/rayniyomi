@@ -31,6 +31,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Extension installers now serialize per-package download slot ownership so concurrent install requests cannot spawn orphaned duplicate downloads
 - R626/#659: Queue reorder/prioritize callsites now dispatch ID-based commands (including reader/player priority hooks), removing production full-snapshot reorder payloads across anime and manga flows
 ### Changed
+- R635/#675: Extension names now strip both `Rayniyomi: ` and `Aniyomi: ` prefixes for smooth migration from Aniyomi extension repos
+- R635/#675: All tracker and service HTTP clients now identify as `Rayniyomi` in the User-Agent header
+- R635/#675: Export filenames and error logs now use the `Rayniyomi` app name
 
 ### CI
 
