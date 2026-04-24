@@ -33,6 +33,7 @@ import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
+import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.AppUpdatePromptDialogHost
 import eu.kanade.tachiyomi.ui.more.rememberAppUpdatePromptStateHolder
@@ -40,7 +41,9 @@ import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
+import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.updaterEnabled
+import eu.kanade.tachiyomi.util.system.workManager
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LinkIcon
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
@@ -66,6 +69,12 @@ object AboutScreen : Screen() {
         val navigator = LocalNavigator.currentOrThrow
         val updateStateHolder = rememberAppUpdatePromptStateHolder()
         val updateState by updateStateHolder.state.collectAsStateWithLifecycle()
+        val updateWorkInfos by context.workManager
+            .getWorkInfosForUniqueWorkFlow(AppUpdateDownloadJob.TAG)
+            .collectAsStateWithLifecycle(initialValue = emptyList())
+        val hasInstallCandidate = remember(updateWorkInfos) {
+            AppUpdateDownloadJob.hasValidDownloadedUpdate(context)
+        }
         val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
         val updateCheckInProgressA11y = stringResource(MR.strings.update_check_in_progress_a11y)
 
@@ -124,6 +133,20 @@ object AboutScreen : Screen() {
                                 }
                             },
                         )
+                    }
+
+                    if (hasInstallCandidate) {
+                        item {
+                            TextPreferenceWidget(
+                                title = stringResource(MR.strings.update_check_install_downloaded_update),
+                                onPreferenceClick = {
+                                    val installed = AppUpdateDownloadJob.installDownloadedUpdate(context)
+                                    if (!installed) {
+                                        context.toast(MR.strings.update_check_notification_download_error)
+                                    }
+                                },
+                            )
+                        }
                     }
 
                     item {

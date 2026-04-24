@@ -53,6 +53,7 @@ fun NewUpdateScreen(
     versionName: String,
     changelogInfo: String,
     releaseDateEpochMillis: Long? = null,
+    isInstallAction: Boolean = false,
     onOpenInBrowser: () -> Unit,
     onRejectUpdate: () -> Unit,
     onAcceptUpdate: () -> Unit,
@@ -83,7 +84,15 @@ fun NewUpdateScreen(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onAcceptUpdate,
                 ) {
-                    Text(text = stringResource(MR.strings.update_check_confirm))
+                    Text(
+                        text = stringResource(
+                            if (isInstallAction) {
+                                MR.strings.action_install
+                            } else {
+                                MR.strings.update_check_confirm
+                            },
+                        ),
+                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -216,6 +225,7 @@ private fun NewUpdateScreenPreview() {
                 - Hello
                 - World
             """.trimIndent(),
+            isInstallAction = false,
             onOpenInBrowser = {},
             onRejectUpdate = {},
             onAcceptUpdate = {},
