@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Fixed
+- Updater now preserves an in-app install path when notification permission is denied on Android 13+, with validated downloaded-APK install actions surfaced in About and New Update details
 
 ### Changed
 - Added `rayniyomi://` deep-link alias support for add-repo and tracker auth callbacks while keeping `aniyomi://` and `tachiyomi://` compatibility routes intact

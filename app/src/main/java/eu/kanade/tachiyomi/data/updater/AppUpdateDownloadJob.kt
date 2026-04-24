@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.newCachelessCallWithProgress
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.storage.saveTo
+import eu.kanade.tachiyomi.util.system.canPostNotifications
 import eu.kanade.tachiyomi.util.system.workManager
 import logcat.LogPriority
 import okhttp3.internal.http2.ErrorCode
@@ -36,10 +37,12 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
 
     private val notifier = AppUpdateNotifier(context)
     private val network: NetworkHelper by injectLazy()
+    private val installStateRepository = AppUpdateInstallStateRepository(context)
 
     override suspend fun doWork(): Result {
         val url = inputData.getString(EXTRA_DOWNLOAD_URL)
         val title = inputData.getString(EXTRA_DOWNLOAD_TITLE) ?: context.stringResource(MR.strings.app_name)
+        val expectedVersion = inputData.getString(EXTRA_RELEASE_VERSION)
 
         if (url.isNullOrEmpty()) {
             return Result.failure()
@@ -52,7 +55,7 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
         }
 
         withIOContext {
-            downloadApk(title, url)
+            downloadApk(title, url, expectedVersion)
         }
 
         return Result.success()
@@ -75,9 +78,10 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
      *
      * @param url url location of file
      */
-    private suspend fun downloadApk(title: String, url: String) {
+    private suspend fun downloadApk(title: String, url: String, expectedVersion: String?) {
         // Show notification download starting.
         notifier.onDownloadStarted(title)
+        installStateRepository.markDownloading(expectedVersion)
 
         val progressListener = object : ProgressListener {
             // Progress of the download
@@ -111,11 +115,15 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
                 response.close()
                 throw Exception("Unsuccessful response")
             }
+            installStateRepository.markDownloaded(apkFile, expectedVersion)
             notifier.cancel()
-            notifier.promptInstall(apkFile.getUriCompat(context))
+            if (context.canPostNotifications()) {
+                notifier.promptInstall(apkFile.getUriCompat(context))
+            }
         } catch (e: Exception) {
             val shouldCancel = e is CancellationException ||
                 (e is StreamResetException && e.errorCode == ErrorCode.CANCEL)
+            installStateRepository.markFailed()
             if (shouldCancel) {
                 notifier.cancel()
             } else {
@@ -125,12 +133,20 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
     }
 
     companion object {
-        private const val TAG = "AppUpdateDownload"
+        internal const val TAG = "AppUpdateDownload"
 
         const val EXTRA_DOWNLOAD_URL = "DOWNLOAD_URL"
         const val EXTRA_DOWNLOAD_TITLE = "DOWNLOAD_TITLE"
+        const val EXTRA_RELEASE_VERSION = "RELEASE_VERSION"
 
-        fun start(context: Context, url: String, title: String? = null) {
+        fun start(
+            context: Context,
+            url: String,
+            title: String? = null,
+            expectedVersion: String? = null,
+        ) {
+            val installStateRepository = AppUpdateInstallStateRepository(context)
+            installStateRepository.markDownloading(expectedVersion)
             val constraints = Constraints(
                 requiredNetworkType = NetworkType.CONNECTED,
             )
@@ -142,6 +158,7 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
                     workDataOf(
                         EXTRA_DOWNLOAD_URL to url,
                         EXTRA_DOWNLOAD_TITLE to title,
+                        EXTRA_RELEASE_VERSION to expectedVersion,
                     ),
                 )
                 .build()
@@ -150,7 +167,16 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
         }
 
         fun stop(context: Context) {
+            AppUpdateInstallStateRepository(context).markFailed()
             context.workManager.cancelUniqueWork(TAG)
+        }
+
+        fun hasValidDownloadedUpdate(context: Context, expectedVersion: String? = null): Boolean {
+            return AppUpdateInstallStateRepository(context).hasValidDownloadedArtifact(expectedVersion)
+        }
+
+        fun installDownloadedUpdate(context: Context, expectedVersion: String? = null): Boolean {
+            return AppUpdateInstallStateRepository(context).installDownloadedArtifact(expectedVersion)
         }
     }
 }
