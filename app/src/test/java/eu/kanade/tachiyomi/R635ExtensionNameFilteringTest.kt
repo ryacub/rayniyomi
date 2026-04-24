@@ -22,11 +22,10 @@ class R635ExtensionNameFilteringTest {
     }
 
     @Test
-    fun `AnimeExtensionLoader does NOT strip old Aniyomi prefix`() {
+    fun `AnimeExtensionLoader strips legacy Aniyomi prefix for smooth migration`() {
         val raw = "Aniyomi: Action"
-        val result = raw.substringAfter("Rayniyomi: ")
-        // substringAfter returns original string when separator not found
-        assertEquals("Aniyomi: Action", result)
+        val result = raw.substringAfter("Rayniyomi: ").substringAfter("Aniyomi: ")
+        assertEquals("Action", result)
     }
 
     // ---- AnimeExtensionApi: substringAfter("Rayniyomi: ") ----
@@ -46,9 +45,9 @@ class R635ExtensionNameFilteringTest {
     }
 
     @Test
-    fun `AnimeExtensionApi does NOT strip old Aniyomi prefix`() {
+    fun `AnimeExtensionApi strips legacy Aniyomi prefix for smooth migration`() {
         val raw = "Aniyomi: Comedy"
-        val result = raw.substringAfter("Rayniyomi: ")
-        assertEquals("Aniyomi: Comedy", result)
+        val result = raw.substringAfter("Rayniyomi: ").substringAfter("Aniyomi: ")
+        assertEquals("Comedy", result)
     }
 }

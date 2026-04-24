@@ -241,7 +241,9 @@ internal object AnimeExtensionLoader {
         val appInfo = pkgInfo.applicationInfo!!
         val pkgName = pkgInfo.packageName
 
-        val extName = pkgManager.getApplicationLabel(appInfo).toString().substringAfter("Rayniyomi: ")
+        val extName = pkgManager.getApplicationLabel(appInfo).toString()
+            .substringAfter("Rayniyomi: ")
+            .substringAfter("Aniyomi: ")
         val versionName = pkgInfo.versionName
         val versionCode = PackageInfoCompat.getLongVersionCode(pkgInfo)
 
