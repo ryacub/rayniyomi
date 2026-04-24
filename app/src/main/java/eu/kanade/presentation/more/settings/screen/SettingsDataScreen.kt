@@ -88,6 +88,7 @@ object SettingsDataScreen : SearchableSettings {
 
     val restorePreferenceKeyString = MR.strings.label_backup
     const val HELP_URL = "https://aniyomi.org/docs/faq/storage"
+    internal const val LIBRARY_EXPORT_FILENAME = "rayniyomi_library.csv"
 
     @ReadOnlyComposable
     @Composable
@@ -394,7 +395,7 @@ object SettingsDataScreen : SearchableSettings {
                 options = exportOptions,
                 onConfirm = { options ->
                     exportOptions = options
-                    saveFileLauncher.launch("aniyomi_library.csv")
+                    saveFileLauncher.launch(LIBRARY_EXPORT_FILENAME)
                 },
                 onDismissRequest = { showDialog = false },
             )

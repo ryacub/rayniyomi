@@ -138,7 +138,7 @@ internal class AnimeExtensionApi {
             }
             .map {
                 AnimeExtension.Available(
-                    name = it.name.substringAfter("Aniyomi: "),
+                    name = it.name.substringAfter("Rayniyomi: ").substringAfter("Aniyomi: "),
                     pkgName = it.pkg,
                     versionName = it.version,
                     versionCode = it.code,

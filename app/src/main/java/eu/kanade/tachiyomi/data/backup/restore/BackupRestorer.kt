@@ -55,6 +55,10 @@ class BackupRestorer(
     private val extensionsRestorer: ExtensionsRestorer = ExtensionsRestorer(context),
     private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
 ) {
+    companion object {
+        internal const val RESTORE_ERROR_LOG_FILENAME = "rayniyomi_restore_error.txt"
+    }
+
     private var restoreAmount = 0
 
     // Mutable progress is shared across concurrently launched restore branches.
@@ -318,7 +322,7 @@ class BackupRestorer(
 
     private fun writeErrorLog(errorSnapshot: List<Pair<Date, String>>): ErrorLogWriteOutcome {
         return writeErrorLogOutcome(hasErrors = errorSnapshot.isNotEmpty()) {
-            val file = context.createFileInCacheDir("aniyomi_restore_error.txt")
+            val file = context.createFileInCacheDir(RESTORE_ERROR_LOG_FILENAME)
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 
             file.bufferedWriter().use { out ->

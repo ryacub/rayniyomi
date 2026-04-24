@@ -21,7 +21,7 @@ class CrashLogUtil(private val context: Context) {
 
     suspend fun dumpLogs(exception: Throwable? = null) = withNonCancellableContext {
         try {
-            val file = context.createFileInCacheDir("aniyomi_crash_logs.txt")
+            val file = context.createFileInCacheDir(CRASH_LOG_FILENAME)
 
             file.appendText(getDebugInfo() + "\n\n")
             getExtensionsInfo()?.let { file.appendText("$it\n\n") }
@@ -121,5 +121,9 @@ class CrashLogUtil(private val context: Context) {
         } else {
             null
         }
+    }
+
+    companion object {
+        internal const val CRASH_LOG_FILENAME = "rayniyomi_crash_logs.txt"
     }
 }
