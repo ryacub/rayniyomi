@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi
 
-import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.track.anilist.AnilistInterceptor
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALOAuth
 import eu.kanade.tachiyomi.data.track.jellyfin.JellyfinInterceptor
 import eu.kanade.tachiyomi.data.track.kavita.KavitaInterceptor
 import eu.kanade.tachiyomi.data.track.kitsu.KitsuInterceptor
+import eu.kanade.tachiyomi.data.track.komga.KomgaApi
 import eu.kanade.tachiyomi.data.track.mangaupdates.MangaUpdatesInterceptor
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriInterceptor
 import eu.kanade.tachiyomi.data.track.simkl.SimklInterceptor
@@ -14,7 +14,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import okhttp3.Headers
 import okhttp3.Interceptor
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -104,18 +103,16 @@ class R635UserAgentHeadersTest {
     }
 
     @Test
+    @Suppress("UNCHECKED_CAST")
     fun `KomgaApi sets User-Agent with Rayniyomi branding in headers builder`() {
-        // KomgaApi initializes headers via: Headers.Builder().add("User-Agent", "Rayniyomi v...")
-        // We test by constructing the same Headers.Builder pattern with the current UA string
-        val expectedUA = "Rayniyomi v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})"
-        val headers = Headers.Builder()
-            .add("User-Agent", expectedUA)
-            .build()
+        // KomgaApi.headers is private+lazy; access via the Kotlin lazy-delegate backing field
+        // so we test the real class without needing Injekt (headers has no dependencies).
+        val komgaApi = KomgaApi(0L, mockk(relaxed = true))
+        val delegateField = KomgaApi::class.java.getDeclaredField("headers\$delegate")
+        delegateField.isAccessible = true
+        val headers = (delegateField.get(komgaApi) as Lazy<Headers>).value
 
-        val ua = headers["User-Agent"] ?: error("User-Agent header not set")
-
-        // This test will fail because the UA is currently "Aniyomi v..."
-        // After the fix, it should say "Rayniyomi v..."
+        val ua = headers["User-Agent"] ?: error("User-Agent header not set in KomgaApi")
         assertUserAgentIsRayniyomi(ua)
     }
 
