@@ -17,7 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 
 ### Changed
-- R634/#673: Added `rayniyomi://` deep-link alias support for add-repo and tracker auth callbacks while keeping `aniyomi://` and `tachiyomi://` compatibility routes intact
+- Added `rayniyomi://` deep-link alias support for add-repo and tracker auth callbacks while keeping `aniyomi://` and `tachiyomi://` compatibility routes intact
 
 ### CI
 
