@@ -19,12 +19,44 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   # Temporary: remove this bootstrap and mavenLocal wiring once a released SqlDelight version includes AGP 9 compatibility.
   SQLDELIGHT_AGP9_FIX_SHA: c8f6011c014368544c71f5e490ef0409bb2f4705
 
 jobs:
+  branding_guardrail:
+    name: Branding guardrail
+    runs-on: 'ubuntu-24.04'
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Run branding regression guardrail
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euxo pipefail
+          python3 scripts/check_branding_guardrail.py --base "$BASE_SHA"
+
+      - name: Require PR exception section when allowlist grows
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euxo pipefail
+          added_lines=$(git diff --unified=0 "$BASE_SHA...HEAD" -- scripts/branding_guardrail_allowlist.txt | grep -E '^\+[^+]' | wc -l | tr -d ' ')
+          if [ "$added_lines" -gt 0 ]; then
+            if ! printf '%s\n' "${PR_BODY:-}" | grep -Eq '^##[[:space:]]+Branding Guardrail Exceptions'; then
+              echo "Allowlist grew, but PR body is missing '## Branding Guardrail Exceptions'" >&2
+              exit 1
+            fi
+          fi
+
   prepare_sqldelight:
     name: Prepare SqlDelight artifacts
     runs-on: 'ubuntu-24.04'
