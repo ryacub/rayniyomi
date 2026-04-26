@@ -13,8 +13,8 @@ This repository enforces a PR-time guardrail that scans added lines for upstream
   - `docs/**`
 - Excluded files:
   - `.github/**`
-  - `**/strings-aniyomi.xml`
-  - `**/plurals-aniyomi.xml`
+  - compatibility `strings-<legacy>.xml` resources
+  - compatibility `plurals-<legacy>.xml` resources
 
 ## Fix flow
 
