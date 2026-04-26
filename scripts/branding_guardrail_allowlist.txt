@@ -1,0 +1,5 @@
+# <path_regex>\t<token_regex>\t<reason>
+i18n/src/commonMain/moko-resources/.*/strings-aniyomi\.xml\t\bi18n-aniyomi\b\tCompatibility i18n resource naming
+.*\t\bAYMR\b\tLegacy backup/version compatibility token
+.*\t\baniyomi\.lua\b\tCompatibility script filename
+README\.md\tCopyright .+ Aniyomi Open Source Project\tRequired upstream attribution
