@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeExtensionDetailsScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
+import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.collectLatest
 import tachiyomi.i18n.MR
@@ -67,6 +68,9 @@ fun animeExtensionsTab(
                         }
                         is AnimeExtensionsScreenModel.Event.InvalidExtensionRevoked -> {
                             invalidExtensionToUninstall = event.extension
+                        }
+                        is AnimeExtensionsScreenModel.Event.InstallError -> {
+                            context.toast(MR.strings.extension_install_error)
                         }
                     }
                 }

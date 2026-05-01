@@ -72,6 +72,7 @@ data class RestoreOptions(
                 label = MR.strings.label_extensions,
                 getter = RestoreOptions::extensions,
                 setter = { options, enabled -> options.copy(extensions = enabled) },
+                requiresExtensionData = true,
             ),
             Entry(
                 label = AYMR.strings.light_novel_library,
@@ -96,5 +97,6 @@ data class RestoreOptions(
         val label: StringResource,
         val getter: (RestoreOptions) -> Boolean,
         val setter: (RestoreOptions, Boolean) -> RestoreOptions,
+        val requiresExtensionData: Boolean = false,
     )
 }

@@ -67,11 +67,12 @@ class BackupFileValidator(
             .map { it.name }
             .sorted()
 
-        return Results(missingSources, missingTrackers)
+        return Results(missingSources, missingTrackers, backup.backupExtensions.isNotEmpty())
     }
 
     data class Results(
         val missingSources: List<String>,
         val missingTrackers: List<String>,
+        val hasExtensions: Boolean = false,
     )
 }
