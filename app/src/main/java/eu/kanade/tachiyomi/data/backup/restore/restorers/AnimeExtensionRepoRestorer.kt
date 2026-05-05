@@ -17,6 +17,9 @@ class AnimeExtensionRepoRestorer(
     ) {
         val dbRepos = getExtensionRepos.getAll()
         val validationResult = ExtensionRepoValidator.validateForRestore(backupRepo, dbRepos)
+        if (validationResult is ExtensionRepoValidator.ValidationResult.AlreadyExists) {
+            return
+        }
         validationResult.throwIfInvalid()
 
         animeHandler.await {

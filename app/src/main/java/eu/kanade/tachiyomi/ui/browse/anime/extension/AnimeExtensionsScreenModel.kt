@@ -40,11 +40,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import logcat.LogPriority
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -222,12 +220,7 @@ class AnimeExtensionsScreenModel(
 
     fun installExtension(extension: AnimeExtension.Available) {
         screenModelScope.launchIO {
-            try {
-                extensionManager.installExtension(extension).collectToInstallUpdate(extension)
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to install extension ${extension.name}" }
-                _events.send(Event.InstallError(extension))
-            }
+            extensionManager.installExtension(extension).collectToInstallUpdate(extension)
         }
     }
 
@@ -371,7 +364,6 @@ class AnimeExtensionsScreenModel(
     sealed interface Event {
         data object DeviceOffline : Event
         data class InvalidExtensionRevoked(val extension: AnimeLoadResult.Invalid) : Event
-        data class InstallError(val extension: AnimeExtension.Available) : Event
     }
 }
 
