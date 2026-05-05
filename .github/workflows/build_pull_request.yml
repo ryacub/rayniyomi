@@ -49,7 +49,7 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euxo pipefail
-          added_lines=$(git diff --unified=0 "$BASE_SHA...HEAD" -- scripts/branding_guardrail_allowlist.txt | grep -E '^\+[^+]' | wc -l | tr -d ' ')
+          added_lines=$(git diff --unified=0 "$BASE_SHA...HEAD" -- scripts/branding_guardrail_allowlist.txt | { grep -E '^\+[^+]' || true; } | wc -l | tr -d ' ')
           if [ "$added_lines" -gt 0 ]; then
             if ! printf '%s\n' "${PR_BODY:-}" | grep -Eq '^##[[:space:]]+Branding Guardrail Exceptions'; then
               echo "Allowlist grew, but PR body is missing '## Branding Guardrail Exceptions'" >&2
