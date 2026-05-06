@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Updater now preserves an in-app install path when notification permission is denied on Android 13+, with validated downloaded-APK install actions surfaced in About and New Update details
 - Extension repo restore now skips database insertions for exact duplicate repo records already present in local storage, preventing restore failures from primary-key/unique-key collisions when restoring the same backup more than once
+- Localized string format placeholders were normalized to Android-compatible positional syntax and malformed locale placeholders were corrected, unblocking stable release resource merge/build failures
 
 ### Changed
 - Added `rayniyomi://` deep-link alias support for add-repo and tracker auth callbacks while keeping `aniyomi://` and `tachiyomi://` compatibility routes intact
