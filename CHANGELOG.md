@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Changed
 - Added `rayniyomi://` deep-link alias support for add-repo and tracker auth callbacks while keeping `aniyomi://` and `tachiyomi://` compatibility routes intact
+- Replaced remaining user-facing `Aniyomi` naming artifacts with `Rayniyomi` across app-facing labels and update-related UI paths (R635, #677)
 
 ### CI
 - R637/#672: Added a diff-only PR branding guardrail that blocks newly introduced user-facing upstream-brand tokens in scoped app/docs paths with a path-aware allowlist
