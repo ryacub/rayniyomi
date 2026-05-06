@@ -16,11 +16,11 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Updater now preserves an in-app install path when notification permission is denied on Android 13+, with validated downloaded-APK install actions surfaced in About and New Update details
-- Extension repo restore now skips database insertions for exact duplicate repo records already present in local storage, preventing restore failures from primary-key/unique-key collisions when restoring the same backup more than once (R639, #681)
+- Extension repo restore now skips database insertions for exact duplicate repo records already present in local storage, preventing restore failures from primary-key/unique-key collisions when restoring the same backup more than once
 
 ### Changed
 - Added `rayniyomi://` deep-link alias support for add-repo and tracker auth callbacks while keeping `aniyomi://` and `tachiyomi://` compatibility routes intact
-- Replaced remaining user-facing `Aniyomi` naming artifacts with `Rayniyomi` across app-facing labels and update-related UI paths (R635, #677)
+- Replaced remaining user-facing `Aniyomi` naming artifacts with `Rayniyomi` across app-facing labels and update-related UI paths
 
 ### CI
 - R637/#672: Added a diff-only PR branding guardrail that blocks newly introduced user-facing upstream-brand tokens in scoped app/docs paths with a path-aware allowlist
@@ -54,7 +54,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Export filenames and error logs now use the `Rayniyomi` app name
 
 ### CI
-- Branding guardrail PR checks now handle zero added allowlist lines without failing under `pipefail`, eliminating false-negative failures on unrelated pull requests (R640, #684)
+- Branding guardrail PR checks now handle zero added allowlist lines without failing under `pipefail`, eliminating false-negative failures on unrelated pull requests
 
 ### Other
 
