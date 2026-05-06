@@ -59,8 +59,7 @@ class ExtensionRepoValidatorTest {
     }
 
     @Test
-    fun `validateForRestore returns Valid when URL exists with same fingerprint`() {
-        // This is an update case - same repo being restored
+    fun `validateForRestore returns AlreadyExists when URL and fingerprint both match`() {
         val backupRepo = createBackupRepo("https://same.url", "same-fingerprint")
         val existingRepos = listOf(
             createExtensionRepo("https://same.url", "same-fingerprint"),
@@ -68,8 +67,19 @@ class ExtensionRepoValidatorTest {
 
         val result = ExtensionRepoValidator.validateForRestore(backupRepo, existingRepos)
 
-        // Since URL matches and fingerprint matches, SHA check will find it
-        assertTrue(result is ExtensionRepoValidator.ValidationResult.SignatureAlreadyExists)
+        assertTrue(result is ExtensionRepoValidator.ValidationResult.AlreadyExists)
+    }
+
+    @Test
+    fun `throwIfInvalid does not throw for AlreadyExists`() {
+        val backupRepo = createBackupRepo("https://same.url", "same-fingerprint")
+        val existingRepos = listOf(
+            createExtensionRepo("https://same.url", "same-fingerprint"),
+        )
+
+        val result = ExtensionRepoValidator.validateForRestore(backupRepo, existingRepos)
+        // Should not throw — re-restoring an already-present repo is a no-op, not an error.
+        result.throwIfInvalid()
     }
 
     private fun createBackupRepo(baseUrl: String, fingerprint: String) = BackupExtensionRepos(

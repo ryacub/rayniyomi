@@ -27,7 +27,11 @@ object ExtensionRepoValidator {
         val shaExists = existingReposBySHA[backupRepo.signingKeyFingerprint]
 
         return when {
-            urlExists != null && urlExists.signingKeyFingerprint != backupRepo.signingKeyFingerprint -> {
+            urlExists != null && urlExists.signingKeyFingerprint == backupRepo.signingKeyFingerprint -> {
+                // Exact same repo already present — nothing to do.
+                ValidationResult.AlreadyExists
+            }
+            urlExists != null -> {
                 ValidationResult.UrlExistsWithDifferentSignature
             }
             shaExists != null -> {
@@ -41,12 +45,13 @@ object ExtensionRepoValidator {
 
     sealed class ValidationResult {
         data object Valid : ValidationResult()
+        data object AlreadyExists : ValidationResult()
         data object UrlExistsWithDifferentSignature : ValidationResult()
         data class SignatureAlreadyExists(val existingRepoName: String) : ValidationResult()
 
         fun throwIfInvalid() {
             when (this) {
-                is Valid -> { /* Success */ }
+                is Valid, is AlreadyExists -> { /* Success / skip */ }
                 is UrlExistsWithDifferentSignature -> {
                     error("Already Exists with different signing key fingerprint")
                 }

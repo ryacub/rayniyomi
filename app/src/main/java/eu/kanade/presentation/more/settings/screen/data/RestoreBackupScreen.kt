@@ -79,6 +79,7 @@ class RestoreBackupScreen(
                     item {
                         SectionCard {
                             RestoreOptions.options.forEach { option ->
+                                if (option.requiresExtensionData && !state.hasExtensions) return@forEach
                                 LabeledCheckbox(
                                     label = stringResource(option.label),
                                     checked = option.getter(state.options),
@@ -204,18 +205,20 @@ private class RestoreBackupScreenModel(
             setError(
                 error = MissingRestoreComponents(uri, results.missingSources, results.missingTrackers),
                 canRestore = true,
+                hasExtensions = results.hasExtensions,
             )
             return
         }
 
-        setError(error = null, canRestore = true)
+        setError(error = null, canRestore = true, hasExtensions = results.hasExtensions)
     }
 
-    private fun setError(error: Any?, canRestore: Boolean) {
+    private fun setError(error: Any?, canRestore: Boolean, hasExtensions: Boolean = false) {
         mutableState.update {
             it.copy(
                 error = error,
                 canRestore = canRestore,
+                hasExtensions = hasExtensions,
             )
         }
     }
@@ -224,6 +227,7 @@ private class RestoreBackupScreenModel(
     data class State(
         val error: Any? = null,
         val canRestore: Boolean = false,
+        val hasExtensions: Boolean = false,
         val options: RestoreOptions = RestoreOptions(),
     )
 }
