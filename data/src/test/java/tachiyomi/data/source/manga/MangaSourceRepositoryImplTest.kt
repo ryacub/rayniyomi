@@ -7,11 +7,14 @@ import io.kotest.matchers.shouldBe
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
+import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
@@ -20,9 +23,7 @@ class MangaSourceRepositoryImplTest {
     @Test
     fun `getMangaSources upserts known runtime metadata`() = runBlocking {
         val source = mockCatalogueSource(id = 1L, lang = "en", name = "Runtime Manga", supportsLatest = true)
-        val sourceManager = mockk<MangaSourceManager> {
-            every { catalogueSources } returns flowOf(listOf(source))
-        }
+        val sourceManager = TestMangaSourceManager(listOf(source))
         val stubRepo = mockk<MangaStubSourceRepository>(relaxed = true)
 
         val repository = MangaSourceRepositoryImpl(
@@ -45,9 +46,7 @@ class MangaSourceRepositoryImplTest {
         val catalogueSource =
             mockCatalogueSource(id = 10L, lang = "ja", name = "Catalogue Only", supportsLatest = false)
         val httpSource = mockHttpSource(id = 11L, lang = "en", name = "Http Source")
-        val sourceManager = mockk<MangaSourceManager> {
-            every { catalogueSources } returns flowOf(listOf(catalogueSource, httpSource))
-        }
+        val sourceManager = TestMangaSourceManager(listOf(catalogueSource, httpSource))
         val stubRepo = mockk<MangaStubSourceRepository>(relaxed = true)
 
         val repository = MangaSourceRepositoryImpl(
@@ -88,5 +87,22 @@ class MangaSourceRepositoryImplTest {
             every { this@apply.lang } returns lang
             every { this@apply.name } returns name
         }
+    }
+
+    private class TestMangaSourceManager(
+        private val sources: List<CatalogueSource>,
+    ) : MangaSourceManager {
+        override val isInitialized = MutableStateFlow(true)
+        override val catalogueSources: Flow<List<CatalogueSource>> = flowOf(sources)
+
+        override fun get(sourceKey: Long) = sources.firstOrNull { it.id == sourceKey }
+
+        override fun getOrStub(sourceKey: Long) = get(sourceKey) ?: error("Unknown source id: $sourceKey")
+
+        override fun getOnlineSources(): List<HttpSource> = sources.filterIsInstance<HttpSource>()
+
+        override fun getCatalogueSources(): List<CatalogueSource> = sources
+
+        override fun getStubSources(): List<StubMangaSource> = emptyList()
     }
 }
