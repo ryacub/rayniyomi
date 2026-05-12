@@ -6,12 +6,14 @@ import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
+import eu.kanade.tachiyomi.data.backup.models.BackupAnimeSource
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupCustomButtons
 import eu.kanade.tachiyomi.data.backup.models.BackupExtension
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
+import eu.kanade.tachiyomi.data.backup.models.BackupSource
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeExtensionRepoRestorer
@@ -32,8 +34,12 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
+import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
@@ -54,6 +60,8 @@ class BackupRestorer(
     private val mangaRestorer: MangaRestorer = MangaRestorer(),
     private val extensionsRestorer: ExtensionsRestorer = ExtensionsRestorer(context),
     private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
+    private val animeStubSourceRepository: AnimeStubSourceRepository = Injekt.get(),
+    private val mangaStubSourceRepository: MangaStubSourceRepository = Injekt.get(),
 ) {
     companion object {
         internal const val RESTORE_ERROR_LOG_FILENAME = "rayniyomi_restore_error.txt"
@@ -99,6 +107,11 @@ class BackupRestorer(
         animeSourceMapping = backupAnimeMaps.associate { it.sourceId to it.name }
         val backupMangaMaps = backup.backupSources
         mangaSourceMapping = backupMangaMaps.associate { it.sourceId to it.name }
+
+        hydrateStubSourceMetadata(
+            backupAnimeSources = backupAnimeMaps,
+            backupMangaSources = backupMangaMaps,
+        )
 
         if (options.libraryEntries) {
             restoreAmount += backup.backupManga.size + backup.backupAnime.size
@@ -158,6 +171,30 @@ class BackupRestorer(
             }
 
             // TODO: optionally trigger online library + tracker update
+        }
+    }
+
+    private suspend fun hydrateStubSourceMetadata(
+        backupAnimeSources: List<BackupAnimeSource>,
+        backupMangaSources: List<BackupSource>,
+    ) {
+        backupAnimeSources.forEach { source ->
+            if (source.name.isNotBlank()) {
+                animeStubSourceRepository.upsertStubAnimeSource(
+                    id = source.sourceId,
+                    lang = "",
+                    name = source.name,
+                )
+            }
+        }
+        backupMangaSources.forEach { source ->
+            if (source.name.isNotBlank()) {
+                mangaStubSourceRepository.upsertStubMangaSource(
+                    id = source.sourceId,
+                    lang = "",
+                    name = source.name,
+                )
+            }
         }
     }
 

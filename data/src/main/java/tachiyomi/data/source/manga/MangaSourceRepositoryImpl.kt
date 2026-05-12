@@ -11,6 +11,7 @@ import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.source.manga.model.MangaSourceWithCount
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.repository.MangaSourceRepository
+import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.domain.source.manga.repository.SourcePagingSourceType
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.source.manga.model.Source as DomainSource
@@ -18,10 +19,12 @@ import tachiyomi.domain.source.manga.model.Source as DomainSource
 class MangaSourceRepositoryImpl(
     private val sourceManager: MangaSourceManager,
     private val handler: MangaDatabaseHandler,
+    private val stubSourceRepository: MangaStubSourceRepository,
 ) : MangaSourceRepository {
 
     override fun getMangaSources(): Flow<List<DomainSource>> {
         return sourceManager.catalogueSources.map { sources ->
+            sources.forEach { stubSourceRepository.upsertStubMangaSource(it.id, it.lang, it.name) }
             sources.map {
                 mapSourceToDomainSource(it).copy(
                     supportsLatest = it.supportsLatest,
@@ -32,6 +35,7 @@ class MangaSourceRepositoryImpl(
 
     override fun getOnlineMangaSources(): Flow<List<DomainSource>> {
         return sourceManager.catalogueSources.map { sources ->
+            sources.forEach { stubSourceRepository.upsertStubMangaSource(it.id, it.lang, it.name) }
             sources
                 .filterIsInstance<HttpSource>()
                 .map(::mapSourceToDomainSource)
@@ -46,6 +50,9 @@ class MangaSourceRepositoryImpl(
             .map {
                 it.map { (sourceId, count) ->
                     val source = sourceManager.getOrStub(sourceId)
+                    if (source.name.isNotBlank() || source.lang.isNotBlank()) {
+                        stubSourceRepository.upsertStubMangaSource(source.id, source.lang, source.name)
+                    }
                     val domainSource = mapSourceToDomainSource(source).copy(
                         isStub = source is StubMangaSource,
                     )
@@ -60,6 +67,9 @@ class MangaSourceRepositoryImpl(
         return sourceIdWithNonLibraryManga.map { sourceId ->
             sourceId.map { (sourceId, count) ->
                 val source = sourceManager.getOrStub(sourceId)
+                if (source.name.isNotBlank() || source.lang.isNotBlank()) {
+                    stubSourceRepository.upsertStubMangaSource(source.id, source.lang, source.name)
+                }
                 val domainSource = mapSourceToDomainSource(source).copy(
                     isStub = source is StubMangaSource,
                 )
