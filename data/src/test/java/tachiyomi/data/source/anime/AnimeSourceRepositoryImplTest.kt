@@ -7,11 +7,14 @@ import io.kotest.matchers.shouldBe
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
+import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
@@ -20,9 +23,7 @@ class AnimeSourceRepositoryImplTest {
     @Test
     fun `getAnimeSources upserts known runtime metadata`() = runBlocking {
         val source = mockAnimeCatalogueSource(id = 1L, lang = "en", name = "Runtime Anime", supportsLatest = true)
-        val sourceManager = mockk<AnimeSourceManager> {
-            every { catalogueSources } returns flowOf(listOf(source))
-        }
+        val sourceManager = TestAnimeSourceManager(listOf(source))
         val stubRepo = mockk<AnimeStubSourceRepository>(relaxed = true)
 
         val repository = AnimeSourceRepositoryImpl(
@@ -45,9 +46,7 @@ class AnimeSourceRepositoryImplTest {
         val catalogueSource =
             mockAnimeCatalogueSource(id = 10L, lang = "ja", name = "Catalogue Only", supportsLatest = false)
         val httpSource = mockAnimeHttpSource(id = 11L, lang = "en", name = "Http Anime")
-        val sourceManager = mockk<AnimeSourceManager> {
-            every { catalogueSources } returns flowOf(listOf(catalogueSource, httpSource))
-        }
+        val sourceManager = TestAnimeSourceManager(listOf(catalogueSource, httpSource))
         val stubRepo = mockk<AnimeStubSourceRepository>(relaxed = true)
 
         val repository = AnimeSourceRepositoryImpl(
@@ -88,5 +87,22 @@ class AnimeSourceRepositoryImplTest {
             every { this@apply.lang } returns lang
             every { this@apply.name } returns name
         }
+    }
+
+    private class TestAnimeSourceManager(
+        private val sources: List<AnimeCatalogueSource>,
+    ) : AnimeSourceManager {
+        override val isInitialized = MutableStateFlow(true)
+        override val catalogueSources: Flow<List<AnimeCatalogueSource>> = flowOf(sources)
+
+        override fun get(sourceKey: Long) = sources.firstOrNull { it.id == sourceKey }
+
+        override fun getOrStub(sourceKey: Long) = get(sourceKey) ?: error("Unknown source id: $sourceKey")
+
+        override fun getOnlineSources(): List<AnimeHttpSource> = sources.filterIsInstance<AnimeHttpSource>()
+
+        override fun getCatalogueSources(): List<AnimeCatalogueSource> = sources
+
+        override fun getStubSources(): List<StubAnimeSource> = emptyList()
     }
 }
