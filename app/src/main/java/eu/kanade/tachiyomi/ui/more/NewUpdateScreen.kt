@@ -30,12 +30,12 @@ import eu.kanade.tachiyomi.util.system.canPostNotifications
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.workManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class NewUpdateScreen(
     private val versionName: String,
