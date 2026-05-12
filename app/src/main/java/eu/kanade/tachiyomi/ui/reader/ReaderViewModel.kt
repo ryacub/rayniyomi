@@ -251,7 +251,12 @@ class ReaderViewModel @JvmOverloads constructor(
                     chapterListManager.chapterId = chapterId
                     chapterListManager.initChapterList(manga)
 
-                    loadChapter(loader!!, chapterListManager.getChapterById(chapterId))
+                    loadChapter(
+                        checkNotNull(loader) {
+                            "ChapterLoader must be initialized in init(mangaId, initialChapterId) before loadChapter()"
+                        },
+                        chapterListManager.getChapterById(chapterId),
+                    )
                     Result.success(true)
                 } else {
                     // Unlikely but okay
