@@ -78,7 +78,12 @@ private fun AnimeHistoryScreenContent(
     ) {
         items(
             items = history,
-            key = { "history-${it.hashCode()}" },
+            key = {
+                when (it) {
+                    is AnimeHistoryUiModel.Header -> "history-header-${it.date.toEpochDay()}"
+                    is AnimeHistoryUiModel.Item -> "history-anime-${it.item.id}"
+                }
+            },
             contentType = {
                 when (it) {
                     is AnimeHistoryUiModel.Header -> "header"

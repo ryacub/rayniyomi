@@ -159,7 +159,12 @@ private fun UpcomingMangaScreenSmallImpl(
         }
         items(
             items = items,
-            key = { "upcoming-${it.hashCode()}" },
+            key = {
+                when (it) {
+                    is UpcomingMangaUIModel.Header -> "upcoming-header-${it.date.toEpochDay()}"
+                    is UpcomingMangaUIModel.Item -> "upcoming-manga-${it.manga.id}"
+                }
+            },
             contentType = {
                 when (it) {
                     is UpcomingMangaUIModel.Header -> "header"
@@ -211,7 +216,12 @@ private fun UpcomingMangaScreenLargeImpl(
             FastScrollLazyColumn(state = listState) {
                 items(
                     items = items,
-                    key = { "upcoming-${it.hashCode()}" },
+                    key = {
+                        when (it) {
+                            is UpcomingMangaUIModel.Header -> "upcoming-header-${it.date.toEpochDay()}"
+                            is UpcomingMangaUIModel.Item -> "upcoming-manga-${it.manga.id}"
+                        }
+                    },
                     contentType = {
                         when (it) {
                             is UpcomingMangaUIModel.Header -> "header"

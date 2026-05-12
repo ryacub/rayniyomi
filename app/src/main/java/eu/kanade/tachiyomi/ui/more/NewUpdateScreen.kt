@@ -11,6 +11,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,8 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class NewUpdateScreen(
     private val versionName: String,
@@ -68,11 +71,14 @@ class NewUpdateScreen(
             .getWorkInfosForUniqueWorkFlow(AppUpdateDownloadJob.TAG)
             .collectAsStateWithLifecycle(initialValue = emptyList())
         var installStateRefreshNonce by remember { mutableStateOf(0) }
-        val hasInstallCandidate = remember(workInfos, installStateRefreshNonce) {
-            AppUpdateDownloadJob.hasValidDownloadedUpdate(
-                context = context,
-                expectedVersion = versionName,
-            )
+        var hasInstallCandidate by remember { mutableStateOf(false) }
+        LaunchedEffect(workInfos, installStateRefreshNonce, versionName) {
+            hasInstallCandidate = withContext(Dispatchers.IO) {
+                AppUpdateDownloadJob.hasValidDownloadedUpdate(
+                    context = context,
+                    expectedVersion = versionName,
+                )
+            }
         }
         var showPermissionDeniedDialog by remember { mutableStateOf(false) }
         var pendingPermissionRequest by remember { mutableStateOf(false) }
