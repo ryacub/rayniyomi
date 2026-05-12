@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
+import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import java.util.Date
 
 class BackupRestorerTest {
@@ -133,6 +135,8 @@ class BackupRestorerTest {
             mangaRestorer = mockk<MangaRestorer>(relaxed = true),
             extensionsRestorer = mockk<ExtensionsRestorer>(relaxed = true),
             lightNovelBackupDataSource = mockk<LightNovelBackupDataSource>(relaxed = true),
+            animeStubSourceRepository = mockk<AnimeStubSourceRepository>(relaxed = true),
+            mangaStubSourceRepository = mockk<MangaStubSourceRepository>(relaxed = true),
         )
     }
 
