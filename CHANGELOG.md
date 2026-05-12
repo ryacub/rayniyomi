@@ -14,6 +14,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Improved
+- Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
+
 ### Fixed
 - Updater now preserves an in-app install path when notification permission is denied on Android 13+, with validated downloaded-APK install actions surfaced in About and New Update details
 - Extension repo restore now skips database insertions for exact duplicate repo records already present in local storage, preventing restore failures from primary-key/unique-key collisions when restoring the same backup more than once
