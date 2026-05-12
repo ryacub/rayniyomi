@@ -14,6 +14,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Improved
+- Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
+
 ### Fixed
 
 ### Changed

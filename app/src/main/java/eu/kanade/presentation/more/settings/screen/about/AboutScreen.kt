@@ -10,9 +10,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -44,6 +47,8 @@ import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.updaterEnabled
 import eu.kanade.tachiyomi.util.system.workManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LinkIcon
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
@@ -72,8 +77,11 @@ object AboutScreen : Screen() {
         val updateWorkInfos by context.workManager
             .getWorkInfosForUniqueWorkFlow(AppUpdateDownloadJob.TAG)
             .collectAsStateWithLifecycle(initialValue = emptyList())
-        val hasInstallCandidate = remember(updateWorkInfos) {
-            AppUpdateDownloadJob.hasValidDownloadedUpdate(context)
+        var hasInstallCandidate by remember { mutableStateOf(false) }
+        LaunchedEffect(updateWorkInfos) {
+            hasInstallCandidate = withContext(Dispatchers.IO) {
+                AppUpdateDownloadJob.hasValidDownloadedUpdate(context)
+            }
         }
         val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
         val updateCheckInProgressA11y = stringResource(MR.strings.update_check_in_progress_a11y)
