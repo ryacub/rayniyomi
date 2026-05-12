@@ -400,7 +400,7 @@ class DomainModule : InjektModule {
         addSingletonFactory<MangaUpdatesRepository> { MangaUpdatesRepositoryImpl(get()) }
         addFactory { GetMangaUpdates(get()) }
 
-        addSingletonFactory<AnimeSourceRepository> { AnimeSourceRepositoryImpl(get(), get()) }
+        addSingletonFactory<AnimeSourceRepository> { AnimeSourceRepositoryImpl(get(), get(), get()) }
         addSingletonFactory<AnimeStubSourceRepository> { AnimeStubSourceRepositoryImpl(get()) }
         addFactory { GetEnabledAnimeSources(get(), get(), get()) }
         addFactory { CheckAnimeSourceHealth(get(), get<AnimeSourceHealthChecker>()) }
@@ -411,7 +411,7 @@ class DomainModule : InjektModule {
         addFactory { ToggleAnimeSource(get()) }
         addFactory { ToggleAnimeSourcePin(get()) }
 
-        addSingletonFactory<MangaSourceRepository> { MangaSourceRepositoryImpl(get(), get()) }
+        addSingletonFactory<MangaSourceRepository> { MangaSourceRepositoryImpl(get(), get(), get()) }
         addSingletonFactory<MangaStubSourceRepository> { MangaStubSourceRepositoryImpl(get()) }
         addSingletonFactory<SourceHealthRepository> { SourceHealthRepositoryImpl(get()) }
         addSingletonFactory { RunSourceHealthCheck(get()) }

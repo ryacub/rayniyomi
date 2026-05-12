@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
 
 ### Fixed
+- Missing-extension sources now preserve readable stub source names from runtime and backup metadata (fallback to raw source ID only when metadata is unavailable), for both manga and anime source flows.
 
 ### Changed
 
