@@ -10,6 +10,28 @@ To generate the baseline profile, select the `devBenchmark` build variant and ru
 `BaselineProfileGenerator` benchmark test on an AOSP Android Emulator.
 Then copy the resulting baseline profile from the emulator to [`app/src/main/baseline-prof.txt`](../app/src/main/baseline-prof.txt).
 
+### R458 coverage contract
+
+The generator now attempts deterministic coverage for:
+- Browse entry render (Sources/Extensions/Migrate marker)
+- Discover screen render (For You/Trending/Recommendations marker)
+- Light Novels entry render (Open Library/Install/Downloading/Waiting marker)
+- Enrichment-adjacent entry details (Tracking/Recommendations/Related marker)
+
+Preconditions:
+- Preferred locale: English (`en-US`) for text fallback selectors.
+- Benchmark target package must be installable (`xyz.rayniyomi.benchmark`).
+- Novel and enrichment paths are best-effort and depend on runtime state (plugin/library availability).
+
+Failure diagnostics:
+- On required-step failures, the generator prints `BASELINE_PROFILE_DIAG_SCREENSHOT:` with an on-device screenshot path.
+- Non-blocking marker misses are logged as `BASELINE_PROFILE_NOTE: ...`.
+
+Symbol checklist for refreshed `baseline-prof.txt` (post-generation):
+- Discover: `eu/kanade/tachiyomi/ui/discover/DiscoverScreen`
+- Enrichment: `eu/kanade/tachiyomi/ui/entries/common/EntryEnrichmentScreenModel`
+- Novel: `eu/kanade/tachiyomi/ui/browse/novel/source/NovelSourcesTab`
+
 ## Reader Parity Gate (R573 / #576)
 
 Reader compose migration is CI-gated before deeper rewrite work.
