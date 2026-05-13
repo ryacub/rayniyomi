@@ -7,6 +7,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
+import android.util.LruCache
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
@@ -314,17 +315,16 @@ open class ReaderPageImageView @JvmOverloads constructor(
                 isVisible = true
             }
             is BufferedSource -> {
-                // Performance optimization: single header read for both checks when needed
+                val analysis = getOrAnalyzeImageForReader(data, config.sourceCacheKey)
+
                 if (!isWebtoon || alwaysDecodeLongStripWithSSIV) {
                     // Use SSIV path without checking if tall
-                    setHardwareConfig(ImageUtil.canUseHardwareBitmap(data))
+                    setHardwareConfig(analysis.canUseHardwareBitmap)
                     setImage(ImageSource.inputStream(data.inputStream()))
                     isVisible = true
                     return@apply
                 }
 
-                // Webtoon mode: analyze image once for both tall check and hardware bitmap compatibility
-                val analysis = ImageUtil.analyzeImageForReader(data)
                 if (analysis.isTallImage) {
                     setHardwareConfig(analysis.canUseHardwareBitmap)
                     setImage(ImageSource.inputStream(data.inputStream()))
@@ -441,6 +441,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         val cropBorders: Boolean = false,
         val zoomStartPosition: ZoomStartPosition = ZoomStartPosition.CENTER,
         val landscapeZoom: Boolean = false,
+        val sourceCacheKey: String? = null,
     )
 
     enum class ZoomStartPosition {
@@ -448,6 +449,24 @@ open class ReaderPageImageView @JvmOverloads constructor(
         CENTER,
         RIGHT,
     }
+
+    private fun getOrAnalyzeImageForReader(
+        imageSource: BufferedSource,
+        sourceCacheKey: String?,
+    ): ImageUtil.ImageAnalysis {
+        val cachedAnalysis = sourceCacheKey?.let(ssivSourceAnalysisCache::get)
+        if (cachedAnalysis != null) {
+            return cachedAnalysis
+        }
+
+        val analysis = ImageUtil.analyzeImageForReader(imageSource)
+        if (sourceCacheKey != null) {
+            ssivSourceAnalysisCache.put(sourceCacheKey, analysis)
+        }
+        return analysis
+    }
 }
 
 private const val MAX_ZOOM_SCALE = 5F
+private const val SSIV_SOURCE_ANALYSIS_CACHE_SIZE = 200
+private val ssivSourceAnalysisCache = LruCache<String, ImageUtil.ImageAnalysis>(SSIV_SOURCE_ANALYSIS_CACHE_SIZE)

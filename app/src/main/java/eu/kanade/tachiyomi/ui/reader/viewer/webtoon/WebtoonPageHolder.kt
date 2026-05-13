@@ -212,6 +212,7 @@ class WebtoonPageHolder(
                         zoomDuration = viewer.config.doubleTapAnimDuration,
                         minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
                         cropBorders = viewer.config.imageCropBorders,
+                        sourceCacheKey = page?.imageUrl ?: page?.url,
                     ),
                 )
                 removeErrorLayout()
