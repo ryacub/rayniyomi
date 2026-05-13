@@ -196,7 +196,9 @@ class WebtoonPageHolder(
     private suspend fun setImage() {
         progressIndicator.setProgress(0)
 
-        val streamFn = page?.stream ?: return
+        val currentPage = page ?: return
+        val streamFn = currentPage.stream ?: return
+        val sourceCacheKey = buildSourceCacheKey(currentPage)
 
         try {
             val (source, isAnimated) = withIOContext {
@@ -212,7 +214,7 @@ class WebtoonPageHolder(
                         zoomDuration = viewer.config.doubleTapAnimDuration,
                         minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
                         cropBorders = viewer.config.imageCropBorders,
-                        sourceCacheKey = page?.imageUrl ?: page?.url,
+                        sourceCacheKey = sourceCacheKey,
                     ),
                 )
                 removeErrorLayout()
@@ -248,6 +250,17 @@ class WebtoonPageHolder(
             ImageUtil.rotateImage(imageSource, rotation)
         } else {
             imageSource
+        }
+    }
+
+    private fun buildSourceCacheKey(page: ReaderPage): String {
+        val base = page.imageUrl ?: page.url
+        return buildString {
+            append(base)
+            append("|rotate=").append(viewer.config.dualPageRotateToFit)
+            append("|rotateInvert=").append(viewer.config.dualPageRotateToFitInvert)
+            append("|split=").append(viewer.config.dualPageSplit)
+            append("|invert=").append(viewer.config.dualPageInvert)
         }
     }
 

@@ -152,6 +152,7 @@ class PagerPageHolder(
         progressIndicator?.setProgress(0)
 
         val streamFn = page.stream ?: return
+        val sourceCacheKey = buildSourceCacheKey(item)
 
         try {
             val (source, isAnimated, background) = withIOContext {
@@ -174,7 +175,7 @@ class PagerPageHolder(
                         cropBorders = viewer.config.imageCropBorders,
                         zoomStartPosition = viewer.config.imageZoomType,
                         landscapeZoom = viewer.config.landscapeZoom,
-                        sourceCacheKey = item.imageUrl ?: item.url,
+                        sourceCacheKey = sourceCacheKey,
                     ),
                 )
                 if (!isAnimated) {
@@ -245,6 +246,19 @@ class PagerPageHolder(
     private fun onPageSplit(page: ReaderPage) {
         val newPage = InsertPage(page)
         viewer.onPageSplit(page, newPage)
+    }
+
+    private fun buildSourceCacheKey(page: ReaderPage): String {
+        val base = page.imageUrl ?: page.url
+        return buildString {
+            append(base)
+            append("|rotate=").append(viewer.config.dualPageRotateToFit)
+            append("|rotateInvert=").append(viewer.config.dualPageRotateToFitInvert)
+            append("|split=").append(viewer.config.dualPageSplit)
+            append("|invert=").append(viewer.config.dualPageInvert)
+            append("|insert=").append(page is InsertPage)
+            append("|l2r=").append(viewer is L2RPagerViewer)
+        }
     }
 
     /**
