@@ -16,6 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
+- Reader SSIV long-strip loads now reuse cached per-source image analysis (tall-image + hardware-bitmap compatibility) across pager and webtoon holders, reducing repeated header parsing on warm page reopens
 
 ### Fixed
 - Missing-extension sources now preserve readable stub source names from runtime and backup metadata (fallback to raw source ID only when metadata is unavailable), for both manga and anime source flows.
