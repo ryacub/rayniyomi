@@ -26,27 +26,28 @@ class BaselineProfileGenerator {
             openMainNav("nav_more", "More")
             openMainNav("nav_browse", "Browse")
             // Browse depth marker: first content render point.
-            waitForAnyText("Sources", "Extensions", "Migrate")
+            waitForAnyTextRequired("Sources", "Extensions", "Migrate")
 
             openMainNav("nav_more", "More")
             clickTextWithRetry("Discover")
             // Discover depth marker: first render point.
-            waitForAnyText("For You", "Trending", "Recommendations")
+            waitForAnyTextRequired("For You", "Trending", "Recommendations")
             device.pressBack()
 
             // Novel flow: only deterministic when plugin section is present.
             openMainNav("nav_more", "More")
             clickTextWithRetry("Light Novels", required = false)
-            if (device.hasObject(By.text("Light Novels"))) {
-                clickTextWithRetry("Light Novels")
-                waitForAnyText("Open Library", "Install", "Downloading", "Waiting for install")
+            if (device.wait(Until.hasObject(By.text("Light Novels")), 1_000)) {
+                noteStep("Light Novels entry unavailable after retries; skipping novel marker")
+            } else {
+                waitForAnyTextOptional("Open Library", "Install", "Downloading", "Waiting for install")
                 device.pressBack()
             }
 
             // Enrichment flow (best effort): attempt to enter a library detail screen.
             openMainNav("nav_library", "Manga")
             clickFirstCardIfPresent()
-            waitForAnyText("Tracking", "Recommendations", "Related")
+            waitForAnyTextOptional("Tracking", "Recommendations", "Related")
             device.pressBack()
 
             openMainNav("nav_more", "More")
@@ -72,21 +73,28 @@ class BaselineProfileGenerator {
                 return
             }
             if (attempt < FIND_RETRIES - 1) {
-                device.swipe(540, 1800, 540, 800, 24)
+                val x = device.displayWidth / 2
+                val startY = (device.displayHeight * 0.85f).toInt()
+                val endY = (device.displayHeight * 0.35f).toInt()
+                device.swipe(x, startY, x, endY, 24)
                 device.waitForIdle()
             }
         }
         if (required) failStep("Unable to click text='$text'")
     }
 
-    private fun MacrobenchmarkScope.waitForAnyText(vararg texts: String) {
+    private fun MacrobenchmarkScope.waitForAnyTextRequired(vararg texts: String) {
         val found = texts.any { text ->
             device.wait(Until.hasObject(By.textContains(text)), FIND_TIMEOUT_MS)
         }
-        if (!found) {
-            // This is best-effort coverage; don't abort profile generation.
-            noteStep("None of expected markers found: ${texts.joinToString()}")
+        if (!found) failStep("None of required markers found: ${texts.joinToString()}")
+    }
+
+    private fun MacrobenchmarkScope.waitForAnyTextOptional(vararg texts: String) {
+        val found = texts.any { text ->
+            device.wait(Until.hasObject(By.textContains(text)), FIND_TIMEOUT_MS)
         }
+        if (!found) noteStep("None of optional markers found: ${texts.joinToString()}")
     }
 
     private fun MacrobenchmarkScope.clickFirstCardIfPresent() {

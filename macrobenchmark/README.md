@@ -12,16 +12,17 @@ Then copy the resulting baseline profile from the emulator to [`app/src/main/bas
 
 ### R458 coverage contract
 
-The generator now attempts deterministic coverage for:
-- Browse entry render (Sources/Extensions/Migrate marker)
-- Discover screen render (For You/Trending/Recommendations marker)
-- Light Novels entry render (Open Library/Install/Downloading/Waiting marker)
-- Enrichment-adjacent entry details (Tracking/Recommendations/Related marker)
+Flow matrix:
+- Browse entry render (`Sources`/`Extensions`/`Migrate`): required, generation fails if missing.
+- Discover screen render (`For You`/`Trending`/`Recommendations`): required, generation fails if missing.
+- Light Novels entry render (`Open Library`/`Install`/`Downloading`/`Waiting`): optional, skipped when entry is not reachable.
+- Enrichment-adjacent entry details (`Tracking`/`Recommendations`/`Related`): optional, skipped when no deterministic library entry exists.
 
 Preconditions:
 - Preferred locale: English (`en-US`) for text fallback selectors.
 - Benchmark target package must be installable (`xyz.rayniyomi.benchmark`).
-- Novel and enrichment paths are best-effort and depend on runtime state (plugin/library availability).
+- Novel and enrichment paths depend on runtime state (plugin/library availability).
+- Split rule trigger: if more than one manual workaround is needed to reach flows, split follow-up ticket instead of merging unstable automation.
 
 Failure diagnostics:
 - On required-step failures, the generator prints `BASELINE_PROFILE_DIAG_SCREENSHOT:` with an on-device screenshot path.
