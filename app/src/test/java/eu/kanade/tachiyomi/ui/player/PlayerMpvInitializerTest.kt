@@ -964,4 +964,30 @@ class PlayerMpvInitializerTest {
         verify { mockScriptsDir.createFile("custombuttons.lua") }
         verify { mpvLibProxy.command(any()) }
     }
+
+    @Test
+    fun `setupCustomButtons_scriptsDirNull_doesNotCrash`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+        // Mock: createDirectory("scripts") returns null, triggering the null-safe guard
+        every { mockMpvDir.createDirectory("scripts") } returns null
+        every { mockMpvDir.filePath } returns "/data/files/mpv"
+
+        val button = createMockCustomButton(id = 1)
+
+        // Should not throw, should handle null gracefully
+        // No exception should be raised when scriptsDir() returns null
+        try {
+            initializer.setupCustomButtons(listOf(button), primaryButtonId = 1)
+            // Test passes if no exception is thrown
+        } catch (e: NullPointerException) {
+            throw AssertionError(
+                "setupCustomButtons should handle null scriptsDirPath gracefully, but threw NPE: ${e.message}",
+            )
+        }
+    }
 }

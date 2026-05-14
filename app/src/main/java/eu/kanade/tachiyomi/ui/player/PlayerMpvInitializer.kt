@@ -245,12 +245,15 @@ internal class PlayerMpvInitializer(
                 ?.createDirectory(MPV_SCRIPTS_DIR)
         }
 
+        val scriptsDirPath = scriptsDir()?.filePath
         val customButtonsContent = buildString {
             append(
                 """
                     local lua_modules = mp.find_config_file('scripts')
                     if lua_modules then
-                        package.path = package.path .. ';' .. lua_modules .. '/?.lua;' .. lua_modules .. '/?/init.lua;' .. '${scriptsDir()!!.filePath}' .. '/?.lua'
+                        package.path = package.path .. ';' .. lua_modules .. '/?.lua;' .. lua_modules .. '/?/init.lua'${
+                    if (scriptsDirPath != null) " .. ';' .. '$scriptsDirPath' .. '/?.lua'" else ""
+                }
                     end
                     local aniyomi = require 'aniyomi'
                 """.trimIndent(),
