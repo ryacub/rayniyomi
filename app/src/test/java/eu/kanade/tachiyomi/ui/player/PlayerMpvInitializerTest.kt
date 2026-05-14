@@ -169,6 +169,50 @@ class PlayerMpvInitializerTest {
         assertEquals(expectedPath, result)
     }
 
+    @Test
+    fun `initialize_mpvDirPathNull_throwsWithMessage`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        // Create mock with relaxed but override filePath to return null
+        val mockMpvDir = mockk<UniFile>(relaxed = true) {
+            every { filePath } returns null
+        }
+        // Explicitly set up the methods needed during initialization
+        every { mockMpvDir.createFile("mpv.conf") } returns createMockUniFile("/data/files/mpv/mpv.conf")
+        every { mockMpvDir.createFile("input.conf") } returns createMockUniFile("/data/files/mpv/input.conf")
+        every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+
+        val mockAssets = mockk<AssetManager>(relaxed = true)
+        every { context.assets } returns mockAssets
+        every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open(any(), any()) } answers { ByteArrayInputStream(ByteArray(0)) }
+
+        every { storageManager.getFontsDirectory() } returns null
+        every { storageManager.getScriptsDirectory() } returns null
+        every { storageManager.getScriptOptsDirectory() } returns null
+        every { storageManager.getShadersDirectory() } returns null
+
+        // Expect an IllegalArgumentException with descriptive message
+        val exception = try {
+            initializer.initialize("", "", false)
+            null
+        } catch (e: Exception) {
+            e
+        }
+
+        assert(exception is IllegalArgumentException) {
+            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        }
+        assert(exception?.message?.contains("MPV directory path unavailable") == true) {
+            "Expected message containing 'MPV directory path unavailable' but got: ${exception?.message}"
+        }
+    }
+
     // ==================== User Files Copy Tests (Enabled) ====================
 
     @Test

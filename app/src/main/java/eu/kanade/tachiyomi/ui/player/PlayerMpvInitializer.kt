@@ -75,7 +75,9 @@ internal class PlayerMpvInitializer(
         copyAssets(mpvDir)
         syncFontsDirectory(mpvDir)
 
-        return@withContext mpvDir.filePath!!
+        return@withContext requireNotNull(mpvDir.filePath) {
+            "MPV directory path unavailable after successful creation"
+        }
     }
 
     private fun copyUserFiles(mpvDir: UniFile, enabled: Boolean) {
