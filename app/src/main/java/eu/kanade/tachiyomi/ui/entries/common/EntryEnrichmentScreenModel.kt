@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.entries.common
 
+import androidx.compose.runtime.Stable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.track.enrichment.EntryEnrichmentCoordinator
@@ -24,6 +25,7 @@ class EntryEnrichmentScreenModel(
     private val coordinator: EntryEnrichmentCoordinator = Injekt.get(),
 ) : StateScreenModel<EntryEnrichmentScreenModel.State>(State()) {
 
+    @Stable
     data class State(
         val loading: Boolean = true,
         val refreshing: Boolean = false,

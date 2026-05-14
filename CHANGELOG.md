@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
 - Baseline profile generation now includes deterministic coverage attempts for discover, light-novel, browse, and enrichment-adjacent flows with retry/timeout diagnostics to keep startup profile maintenance aligned with newer app paths
 - Reader SSIV long-strip loads now reuse cached per-source image analysis (tall-image + hardware-bitmap compatibility) across pager and webtoon holders, reducing repeated header parsing on warm page reopens
+- Discover and entry-enrichment Compose screen state now uses explicit stability annotations, and discover feed items are stored as immutable collections at the UI-state boundary to reduce avoidable recompositions.
 
 ### Fixed
 - Missing-extension sources now preserve readable stub source names from runtime and backup metadata (fallback to raw source ID only when metadata is unavailable), for both manga and anime source flows.
