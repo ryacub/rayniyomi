@@ -128,7 +128,7 @@ object SettingsMainScreen : Screen() {
                 ) {
                     itemsIndexed(
                         items = items,
-                        key = { _, item -> item.hashCode() },
+                        key = { _, item -> item.titleRes to item.screen::class.qualifiedName },
                     ) { index, item ->
                         val selected = indexSelected == index
                         var modifier: Modifier = Modifier
