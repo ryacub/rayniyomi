@@ -19,6 +19,7 @@ package eu.kanade.tachiyomi.ui.player
 
 import android.content.Context
 import android.content.res.AssetManager
+import androidx.annotation.VisibleForTesting
 import com.hippo.unifile.UniFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,19 +63,29 @@ internal class PlayerMpvInitializer(
         mpvInput: String,
         mpvUserFilesEnabled: Boolean,
     ): String = withContext(Dispatchers.IO) {
-        val mpvDir = UniFile.fromFile(context.filesDir)!!.createDirectory(MPV_DIR)!!
-
-        val mpvConfFile = mpvDir.createFile("mpv.conf")!!
+        val filesDir = checkNotNull(UniFile.fromFile(context.filesDir)) {
+            "Failed to access app files directory"
+        }
+        val mpvDir = checkNotNull(filesDir.createDirectory(MPV_DIR)) {
+            "Failed to create MPV directory in app files"
+        }
+        val mpvConfFile = checkNotNull(mpvDir.createFile("mpv.conf")) {
+            "Failed to create mpv.conf"
+        }
         mpvConfFile.writeText(mpvConf)
 
-        val mpvInputFile = mpvDir.createFile("input.conf")!!
+        val mpvInputFile = checkNotNull(mpvDir.createFile("input.conf")) {
+            "Failed to create input.conf"
+        }
         mpvInputFile.writeText(mpvInput)
 
         copyUserFiles(mpvDir, mpvUserFilesEnabled)
         copyAssets(mpvDir)
         syncFontsDirectory(mpvDir)
 
-        return@withContext mpvDir.filePath!!
+        return@withContext checkNotNull(mpvDir.filePath) {
+            "MPV directory path unavailable after successful creation"
+        }
     }
 
     private fun copyUserFiles(mpvDir: UniFile, enabled: Boolean) {
@@ -125,7 +136,10 @@ internal class PlayerMpvInitializer(
             var out: OutputStream? = null
             try {
                 ins = assetManager.open(filename, AssetManager.ACCESS_STREAMING)
-                val outFile = mpvDir.createFile(filename)!!
+                val outFile = mpvDir.createFile(filename) ?: run {
+                    logcat(LogPriority.ERROR) { "Failed to create output file for asset: $filename" }
+                    continue
+                }
                 // Note that .available() officially returns an *estimated* number of bytes available
                 // this is only true for generic streams, asset streams return the full file size
                 if (outFile.length() == ins.available().toLong()) {
@@ -150,8 +164,13 @@ internal class PlayerMpvInitializer(
      * We intentionally keep an app-private copy rather than pointing MPV directly at the
      * SAF-backed source directory, because MPV/libass expects a stable filesystem path.
      */
-    private fun syncFontsDirectory(mpvDir: UniFile) {
-        val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)!!
+    @VisibleForTesting
+    internal fun syncFontsDirectory(mpvDir: UniFile) {
+        val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)
+        if (fontsDirectory == null) {
+            logcat(LogPriority.ERROR) { "Failed to create MPV fonts directory" }
+            return
+        }
         val sourceFontsDir = storageManager.getFontsDirectory()
         val sourceFiles = sourceFontsDir?.listFiles()
         val destinationFiles = fontsDirectory.listFiles().orEmpty()
@@ -208,9 +227,11 @@ internal class PlayerMpvInitializer(
             logcat(LogPriority.VERBOSE) { "Skipped unchanged MPV font: $fontName" }
         }
 
-        mpvLibProxy.setPropertyString("sub-fonts-dir", fontsDirectory.filePath!!)
-        mpvLibProxy.setPropertyString("osd-fonts-dir", fontsDirectory.filePath!!)
-        logcat(LogPriority.VERBOSE) { "Applied MPV font directories: ${fontsDirectory.filePath}" }
+        fontsDirectory.filePath?.let { fontPath ->
+            mpvLibProxy.setPropertyString("sub-fonts-dir", fontPath)
+            mpvLibProxy.setPropertyString("osd-fonts-dir", fontPath)
+            logcat(LogPriority.VERBOSE) { "Applied MPV font directories: $fontPath" }
+        } ?: logcat(LogPriority.WARN) { "Font directory path unavailable; skipping MPV font configuration" }
     }
 
     /**
@@ -224,12 +245,15 @@ internal class PlayerMpvInitializer(
                 ?.createDirectory(MPV_SCRIPTS_DIR)
         }
 
+        val scriptsDirPath = scriptsDir()?.filePath
         val customButtonsContent = buildString {
             append(
                 """
                     local lua_modules = mp.find_config_file('scripts')
                     if lua_modules then
-                        package.path = package.path .. ';' .. lua_modules .. '/?.lua;' .. lua_modules .. '/?/init.lua;' .. '${scriptsDir()!!.filePath}' .. '/?.lua'
+                        package.path = package.path .. ';' .. lua_modules .. '/?.lua;' .. lua_modules .. '/?/init.lua'${
+                    if (scriptsDirPath != null) " .. ';' .. '$scriptsDirPath' .. '/?.lua'" else ""
+                }
                     end
                     local aniyomi = require 'aniyomi'
                 """.trimIndent(),
