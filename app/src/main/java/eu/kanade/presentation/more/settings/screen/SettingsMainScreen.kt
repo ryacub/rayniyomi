@@ -129,7 +129,10 @@ object SettingsMainScreen : Screen() {
                     itemsIndexed(
                         items = items,
                         key = { _, item ->
-                            "${item.titleRes.hashCode()}-${item.screen::class.qualifiedName ?: item.screen::class.simpleName}"
+                            val screenName = item.screen::class.qualifiedName
+                                ?: item.screen::class.simpleName
+                                ?: item.screen::class.hashCode().toString()
+                            "${item.titleRes.hashCode()}-$screenName"
                         },
                     ) { index, item ->
                         val selected = indexSelected == index
