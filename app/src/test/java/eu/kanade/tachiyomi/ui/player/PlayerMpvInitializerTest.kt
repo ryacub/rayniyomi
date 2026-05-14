@@ -479,6 +479,50 @@ class PlayerMpvInitializerTest {
         assertEquals("/data/files/mpv", result)
     }
 
+    @Test
+    fun `copyAssets_createFileReturnsNull_skipsFileAndContinues`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
+        val mockConfFile = createMockUniFile("/data/files/mpv/mpv.conf")
+        val mockInputFile = createMockUniFile("/data/files/mpv/input.conf")
+        val mockCacertFile = createMockUniFile("/data/files/mpv/cacert.pem", size = 0)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+        every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
+        every { mockMpvDir.createFile("input.conf") } returns mockInputFile
+        every { mockMpvDir.createDirectory("fonts") } returns createMockUniFile("/data/files/mpv/fonts", isFile = false)
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        // Mock: createFile("subfont.ttf") returns null (storage full, permission error, etc.)
+        every { mockMpvDir.createFile("subfont.ttf") } returns null
+        // Mock: createFile("cacert.pem") succeeds
+        every { mockMpvDir.createFile("cacert.pem") } returns mockCacertFile
+        every { mockMpvDir.filePath } returns "/data/files/mpv"
+
+        val mockAssets = mockk<AssetManager>(relaxed = true)
+        every { context.assets } returns mockAssets
+        every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("subfont data".toByteArray()) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("cert data".toByteArray()) }
+
+        every { storageManager.getScriptsDirectory() } returns null
+        every { storageManager.getScriptOptsDirectory() } returns null
+        every { storageManager.getShadersDirectory() } returns null
+
+        // Should not crash, should skip subfont.ttf and continue to process cacert.pem
+        val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
+        assertEquals("/data/files/mpv", result)
+
+        // Verify that cacert.pem was still processed (openOutputStream was called on it)
+        verify { mockCacertFile.openOutputStream() }
+    }
+
     // ==================== Font Sync Integration Tests ====================
 
     @Test

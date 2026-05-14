@@ -136,7 +136,10 @@ internal class PlayerMpvInitializer(
             var out: OutputStream? = null
             try {
                 ins = assetManager.open(filename, AssetManager.ACCESS_STREAMING)
-                val outFile = mpvDir.createFile(filename)!!
+                val outFile = mpvDir.createFile(filename) ?: run {
+                    logcat(LogPriority.ERROR) { "Failed to create output file for asset: $filename" }
+                    continue
+                }
                 // Note that .available() officially returns an *estimated* number of bytes available
                 // this is only true for generic streams, asset streams return the full file size
                 if (outFile.length() == ins.available().toLong()) {
