@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- Settings main screen lazy list now uses stable, null-safe composite keys instead of `hashCode()`, eliminating spurious recompositions on rotation and theme changes
 - Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
 - Baseline profile generation now includes deterministic coverage attempts for discover, light-novel, browse, and enrichment-adjacent flows with retry/timeout diagnostics to keep startup profile maintenance aligned with newer app paths
 - Reader SSIV long-strip loads now reuse cached per-source image analysis (tall-image + hardware-bitmap compatibility) across pager and webtoon holders, reducing repeated header parsing on warm page reopens
