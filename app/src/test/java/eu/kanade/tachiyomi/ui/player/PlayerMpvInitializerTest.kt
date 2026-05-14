@@ -197,7 +197,7 @@ class PlayerMpvInitializerTest {
         every { storageManager.getScriptOptsDirectory() } returns null
         every { storageManager.getShadersDirectory() } returns null
 
-        // Expect an IllegalArgumentException with descriptive message
+        // Expect an IllegalStateException with descriptive message
         val exception = try {
             initializer.initialize("", "", false)
             null
@@ -205,8 +205,8 @@ class PlayerMpvInitializerTest {
             e
         }
 
-        assert(exception is IllegalArgumentException) {
-            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        assert(exception is IllegalStateException) {
+            "Expected IllegalStateException but got ${exception?.javaClass?.simpleName}"
         }
         assert(exception?.message?.contains("MPV directory path unavailable") == true) {
             "Expected message containing 'MPV directory path unavailable' but got: ${exception?.message}"
@@ -668,8 +668,8 @@ class PlayerMpvInitializerTest {
             e
         }
 
-        assert(exception is IllegalArgumentException) {
-            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        assert(exception is IllegalStateException) {
+            "Expected IllegalStateException but got ${exception?.javaClass?.simpleName}"
         }
         assert(exception?.message?.contains("Failed to access app files directory") == true) {
             "Expected message containing 'Failed to access app files directory' but got: ${exception?.message}"
@@ -692,8 +692,8 @@ class PlayerMpvInitializerTest {
             e
         }
 
-        assert(exception is IllegalArgumentException) {
-            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        assert(exception is IllegalStateException) {
+            "Expected IllegalStateException but got ${exception?.javaClass?.simpleName}"
         }
         assert(exception?.message?.contains("Failed to create MPV directory") == true) {
             "Expected message containing 'Failed to create MPV directory' but got: ${exception?.message}"
@@ -718,8 +718,8 @@ class PlayerMpvInitializerTest {
             e
         }
 
-        assert(exception is IllegalArgumentException) {
-            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        assert(exception is IllegalStateException) {
+            "Expected IllegalStateException but got ${exception?.javaClass?.simpleName}"
         }
         assert(exception?.message?.contains("Failed to create mpv.conf") == true) {
             "Expected message containing 'Failed to create mpv.conf' but got: ${exception?.message}"
