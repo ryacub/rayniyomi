@@ -1,10 +1,14 @@
 package eu.kanade.tachiyomi.ui.discover
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Stable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.track.enrichment.DiscoverFeedCoordinator
 import eu.kanade.domain.track.enrichment.model.DiscoverFeedItem
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -20,10 +24,11 @@ class DiscoverScreenModel(
     private val coordinator: DiscoverFeedCoordinator = Injekt.get(),
 ) : StateScreenModel<DiscoverScreenModel.State>(State()) {
 
+    @Stable
     data class State(
         val loading: Boolean = true,
         val refreshing: Boolean = false,
-        val items: List<DiscoverFeedItem> = emptyList(),
+        val items: ImmutableList<DiscoverFeedItem> = persistentListOf(),
         val errorText: String? = null,
     )
 
@@ -49,7 +54,7 @@ class DiscoverScreenModel(
                         mutableState.update {
                             it.copy(
                                 loading = false,
-                                items = items,
+                                items = items.toImmutableList(),
                             )
                         }
                     }
