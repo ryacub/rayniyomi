@@ -19,6 +19,7 @@ package eu.kanade.tachiyomi.ui.player
 
 import android.content.Context
 import android.content.res.AssetManager
+import androidx.annotation.VisibleForTesting
 import com.hippo.unifile.UniFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -150,8 +151,13 @@ internal class PlayerMpvInitializer(
      * We intentionally keep an app-private copy rather than pointing MPV directly at the
      * SAF-backed source directory, because MPV/libass expects a stable filesystem path.
      */
-    private fun syncFontsDirectory(mpvDir: UniFile) {
-        val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)!!
+    @VisibleForTesting
+    internal fun syncFontsDirectory(mpvDir: UniFile) {
+        val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)
+        if (fontsDirectory == null) {
+            logcat(LogPriority.ERROR) { "Failed to create MPV fonts directory" }
+            return
+        }
         val sourceFontsDir = storageManager.getFontsDirectory()
         val sourceFiles = sourceFontsDir?.listFiles()
         val destinationFiles = fontsDirectory.listFiles().orEmpty()
@@ -208,9 +214,11 @@ internal class PlayerMpvInitializer(
             logcat(LogPriority.VERBOSE) { "Skipped unchanged MPV font: $fontName" }
         }
 
-        mpvLibProxy.setPropertyString("sub-fonts-dir", fontsDirectory.filePath!!)
-        mpvLibProxy.setPropertyString("osd-fonts-dir", fontsDirectory.filePath!!)
-        logcat(LogPriority.VERBOSE) { "Applied MPV font directories: ${fontsDirectory.filePath}" }
+        fontsDirectory.filePath?.let { fontPath ->
+            mpvLibProxy.setPropertyString("sub-fonts-dir", fontPath)
+            mpvLibProxy.setPropertyString("osd-fonts-dir", fontPath)
+            logcat(LogPriority.VERBOSE) { "Applied MPV font directories: $fontPath" }
+        } ?: logcat(LogPriority.WARN) { "Font directory path unavailable; skipping MPV font configuration" }
     }
 
     /**

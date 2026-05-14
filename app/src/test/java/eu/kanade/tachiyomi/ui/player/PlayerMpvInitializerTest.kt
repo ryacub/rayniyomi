@@ -565,6 +565,136 @@ class PlayerMpvInitializerTest {
         assertEquals("/data/files/mpv", result)
     }
 
+    // ==================== Feature 1: Safe Font Directory Creation Tests ====================
+
+    @Test
+    fun `syncFontsDirectory_fontsDirectoryCreationFails_skipsPropertySetting`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
+        val mockConfFile = createMockUniFile("/data/files/mpv/mpv.conf")
+        val mockInputFile = createMockUniFile("/data/files/mpv/input.conf")
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+        every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
+        every { mockMpvDir.createFile("input.conf") } returns mockInputFile
+        // fonts directory creation returns null (line 154 scenario)
+        every { mockMpvDir.createDirectory("fonts") } returns null
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.filePath } returns "/data/files/mpv"
+
+        every { storageManager.getFontsDirectory() } returns null
+        every { storageManager.getScriptsDirectory() } returns null
+        every { storageManager.getScriptOptsDirectory() } returns null
+        every { storageManager.getShadersDirectory() } returns null
+
+        val mockAssets = mockk<AssetManager>(relaxed = true)
+        every { context.assets } returns mockAssets
+        every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+
+        // Should not crash when fontsDirectory is null; should not call setPropertyString
+        val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
+        assertEquals("/data/files/mpv", result)
+
+        verify(exactly = 0) { mpvLibProxy.setPropertyString(any(), any()) }
+    }
+
+    @Test
+    fun `syncFontsDirectory_fontsDirFilePathNull_skipsPropertySetting`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
+        val mockConfFile = createMockUniFile("/data/files/mpv/mpv.conf")
+        val mockInputFile = createMockUniFile("/data/files/mpv/input.conf")
+        val mockFontsDir = mockk<UniFile>(relaxed = true)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+        every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
+        every { mockMpvDir.createFile("input.conf") } returns mockInputFile
+        every { mockMpvDir.createDirectory("fonts") } returns mockFontsDir
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.filePath } returns "/data/files/mpv"
+        // fontsDir exists but filePath is null (lines 211-212 scenario)
+        every { mockFontsDir.filePath } returns null
+        every { mockFontsDir.listFiles() } returns emptyArray()
+
+        every { storageManager.getFontsDirectory() } returns null
+        every { storageManager.getScriptsDirectory() } returns null
+        every { storageManager.getScriptOptsDirectory() } returns null
+        every { storageManager.getShadersDirectory() } returns null
+
+        val mockAssets = mockk<AssetManager>(relaxed = true)
+        every { context.assets } returns mockAssets
+        every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+
+        // Should not crash when filePath is null; should not call setPropertyString
+        val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
+        assertEquals("/data/files/mpv", result)
+
+        verify(exactly = 0) { mpvLibProxy.setPropertyString(any(), any()) }
+    }
+
+    @Test
+    fun `syncFontsDirectory_validFontsDirectory_setsPropertyStrings`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
+        val mockConfFile = createMockUniFile("/data/files/mpv/mpv.conf")
+        val mockInputFile = createMockUniFile("/data/files/mpv/input.conf")
+        val mockFontsDir = createMockUniFile("/data/files/mpv/fonts", isFile = false)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+        every { mockMpvDir.createFile("mpv.conf") } returns mockConfFile
+        every { mockMpvDir.createFile("input.conf") } returns mockInputFile
+        every { mockMpvDir.createDirectory("fonts") } returns mockFontsDir
+        every { mockMpvDir.createDirectory("scripts") } returns
+            createMockUniFile("/data/files/mpv/scripts", isFile = false)
+        every { mockMpvDir.filePath } returns "/data/files/mpv"
+        every { mockFontsDir.filePath } returns "/data/files/mpv/fonts"
+        every { mockFontsDir.listFiles() } returns emptyArray()
+
+        every { storageManager.getFontsDirectory() } returns null
+        every { storageManager.getScriptsDirectory() } returns null
+        every { storageManager.getScriptOptsDirectory() } returns null
+        every { storageManager.getShadersDirectory() } returns null
+
+        val mockAssets = mockk<AssetManager>(relaxed = true)
+        every { context.assets } returns mockAssets
+        every { mockAssets.open("aniyomi.lua") } answers { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("aniyomi.lua", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream("-- lua".toByteArray()) }
+        every { mockAssets.open("subfont.ttf", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+        every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(ByteArray(0)) }
+
+        // Happy path: fonts dir is valid, filePath is non-null
+        val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
+        assertEquals("/data/files/mpv", result)
+
+        verify {
+            mpvLibProxy.setPropertyString("sub-fonts-dir", "/data/files/mpv/fonts")
+            mpvLibProxy.setPropertyString("osd-fonts-dir", "/data/files/mpv/fonts")
+        }
+    }
+
     // ==================== Custom Buttons Tests ====================
 
     @Test
