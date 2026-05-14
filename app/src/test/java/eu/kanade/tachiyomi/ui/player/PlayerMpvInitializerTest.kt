@@ -609,7 +609,80 @@ class PlayerMpvInitializerTest {
         assertEquals("/data/files/mpv", result)
     }
 
-    // ==================== Feature 1: Safe Font Directory Creation Tests ====================
+    // ==================== Feature 1: Safe UniFile Operations in initialize ====================
+
+    @Test
+    fun `initialize_fromFileReturnsNull_throwsWithMessage`() = runTest {
+        every { context.filesDir } returns mockk(relaxed = true)
+        // Mock UniFile.fromFile() to return null
+        every { UniFile.fromFile(any()) } returns null
+
+        val exception = try {
+            initializer.initialize("", "", false)
+            null
+        } catch (e: Exception) {
+            e
+        }
+
+        assert(exception is IllegalArgumentException) {
+            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        }
+        assert(exception?.message?.contains("Failed to access app files directory") == true) {
+            "Expected message containing 'Failed to access app files directory' but got: ${exception?.message}"
+        }
+    }
+
+    @Test
+    fun `initialize_createDirectoryReturnsNull_throwsWithMessage`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        // Mock createDirectory("mpv") to return null
+        every { mockFilesDir.createDirectory("mpv") } returns null
+
+        val exception = try {
+            initializer.initialize("", "", false)
+            null
+        } catch (e: Exception) {
+            e
+        }
+
+        assert(exception is IllegalArgumentException) {
+            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        }
+        assert(exception?.message?.contains("Failed to create MPV directory") == true) {
+            "Expected message containing 'Failed to create MPV directory' but got: ${exception?.message}"
+        }
+    }
+
+    @Test
+    fun `initialize_createConfFileReturnsNull_throwsWithMessage`() = runTest {
+        val mockFilesDir = createMockUniFile("/data/files", isFile = false)
+        val mockMpvDir = mockk<UniFile>(relaxed = true)
+
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns mockFilesDir
+        every { mockFilesDir.createDirectory("mpv") } returns mockMpvDir
+        // Mock createFile("mpv.conf") to return null
+        every { mockMpvDir.createFile("mpv.conf") } returns null
+
+        val exception = try {
+            initializer.initialize("", "", false)
+            null
+        } catch (e: Exception) {
+            e
+        }
+
+        assert(exception is IllegalArgumentException) {
+            "Expected IllegalArgumentException but got ${exception?.javaClass?.simpleName}"
+        }
+        assert(exception?.message?.contains("Failed to create mpv.conf") == true) {
+            "Expected message containing 'Failed to create mpv.conf' but got: ${exception?.message}"
+        }
+    }
+
+    // ==================== Feature 2: Safe Font Directory Creation Tests ====================
 
     @Test
     fun `syncFontsDirectory_fontsDirectoryCreationFails_skipsPropertySetting`() = runTest {
