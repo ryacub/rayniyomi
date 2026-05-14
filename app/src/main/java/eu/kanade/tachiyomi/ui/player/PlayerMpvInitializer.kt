@@ -63,18 +63,18 @@ internal class PlayerMpvInitializer(
         mpvInput: String,
         mpvUserFilesEnabled: Boolean,
     ): String = withContext(Dispatchers.IO) {
-        val filesDir = requireNotNull(UniFile.fromFile(context.filesDir)) {
+        val filesDir = checkNotNull(UniFile.fromFile(context.filesDir)) {
             "Failed to access app files directory"
         }
-        val mpvDir = requireNotNull(filesDir.createDirectory(MPV_DIR)) {
+        val mpvDir = checkNotNull(filesDir.createDirectory(MPV_DIR)) {
             "Failed to create MPV directory in app files"
         }
-        val mpvConfFile = requireNotNull(mpvDir.createFile("mpv.conf")) {
+        val mpvConfFile = checkNotNull(mpvDir.createFile("mpv.conf")) {
             "Failed to create mpv.conf"
         }
         mpvConfFile.writeText(mpvConf)
 
-        val mpvInputFile = requireNotNull(mpvDir.createFile("input.conf")) {
+        val mpvInputFile = checkNotNull(mpvDir.createFile("input.conf")) {
             "Failed to create input.conf"
         }
         mpvInputFile.writeText(mpvInput)
@@ -83,7 +83,7 @@ internal class PlayerMpvInitializer(
         copyAssets(mpvDir)
         syncFontsDirectory(mpvDir)
 
-        return@withContext requireNotNull(mpvDir.filePath) {
+        return@withContext checkNotNull(mpvDir.filePath) {
             "MPV directory path unavailable after successful creation"
         }
     }
