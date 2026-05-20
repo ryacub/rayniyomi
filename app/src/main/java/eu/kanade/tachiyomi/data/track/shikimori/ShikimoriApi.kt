@@ -7,10 +7,15 @@ import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMAddEntryResponse
-import eu.kanade.tachiyomi.data.track.shikimori.dto.SMEntry
+import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLResponse
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMOAuth
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUser
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUserListEntry
+import eu.kanade.tachiyomi.data.track.shikimori.dto.requireData
+import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeByIdPayload
+import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeSearchPayload
+import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaByIdPayload
+import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaSearchPayload
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -123,45 +128,42 @@ class ShikimoriApi(
 
     suspend fun search(search: String): List<MangaTrackSearch> {
         return withIOContext {
-            val url = "$API_URL/mangas".toUri().buildUpon()
-                .appendQueryParameter("order", "popularity")
-                .appendQueryParameter("search", search)
-                .appendQueryParameter("limit", "20")
-                .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
+                authClient.newCall(graphQLRequest(shikimoriMangaSearchPayload(search)))
                     .awaitSuccess()
-                    .parseAs<List<SMEntry>>()
-                    .map { it.toMangaTrack(trackId) }
+                    .parseAs<SMGraphQLResponse>()
+                    .requireData()
+                    .mangas
+                    .orEmpty()
+                    .mapNotNull { it.toMangaTrack(trackId) }
             }
         }
     }
 
     suspend fun searchAnime(search: String): List<AnimeTrackSearch> {
         return withIOContext {
-            val url = "$API_URL/animes".toUri().buildUpon()
-                .appendQueryParameter("order", "popularity")
-                .appendQueryParameter("search", search)
-                .appendQueryParameter("limit", "20")
-                .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
+                authClient.newCall(graphQLRequest(shikimoriAnimeSearchPayload(search)))
                     .awaitSuccess()
-                    .parseAs<List<SMEntry>>()
-                    .map { it.toAnimeTrack(trackId) }
+                    .parseAs<SMGraphQLResponse>()
+                    .requireData()
+                    .animes
+                    .orEmpty()
+                    .mapNotNull { it.toAnimeTrack(trackId) }
             }
         }
     }
 
     suspend fun findLibManga(track: MangaTrack, userId: String): MangaTrack? {
         return withIOContext {
-            val urlMangas = "$API_URL/mangas".toUri().buildUpon()
-                .appendPath(track.remote_id.toString())
-                .build()
             val manga = with(json) {
-                authClient.newCall(GET(urlMangas.toString()))
+                authClient.newCall(graphQLRequest(shikimoriMangaByIdPayload(track.remote_id)))
                     .awaitSuccess()
-                    .parseAs<SMEntry>()
+                    .parseAs<SMGraphQLResponse>()
+                    .requireData()
+                    .mangas
+                    .orEmpty()
+                    .firstOrNull()
             }
 
             val url = "$API_URL/v2/user_rates".toUri().buildUpon()
@@ -178,26 +180,27 @@ class ShikimoriApi(
                             throw Exception("Too many manga in response")
                         }
                         entries
-                            .map { it.toMangaTrack(trackId, manga) }
+                            .map { it.toMangaTrack(trackId, track.remote_id, manga) }
                             .firstOrNull()
                     }
             }
         }
     }
 
-    suspend fun findLibAnime(track: AnimeTrack, user_id: String): AnimeTrack? {
+    suspend fun findLibAnime(track: AnimeTrack, userId: String): AnimeTrack? {
         return withIOContext {
-            val urlAnimes = "$API_URL/animes".toUri().buildUpon()
-                .appendPath(track.remote_id.toString())
-                .build()
             val anime = with(json) {
-                authClient.newCall(GET(urlAnimes.toString()))
+                authClient.newCall(graphQLRequest(shikimoriAnimeByIdPayload(track.remote_id)))
                     .awaitSuccess()
-                    .parseAs<SMEntry>()
+                    .parseAs<SMGraphQLResponse>()
+                    .requireData()
+                    .animes
+                    .orEmpty()
+                    .firstOrNull()
             }
 
             val url = "$API_URL/v2/user_rates".toUri().buildUpon()
-                .appendQueryParameter("user_id", user_id)
+                .appendQueryParameter("user_id", userId)
                 .appendQueryParameter("target_id", track.remote_id.toString())
                 .appendQueryParameter("target_type", "Anime")
                 .build()
@@ -207,10 +210,10 @@ class ShikimoriApi(
                     .parseAs<List<SMUserListEntry>>()
                     .let { entries ->
                         if (entries.size > 1) {
-                            throw Exception("Too many manga in response")
+                            throw Exception("Too many anime in response")
                         }
                         entries
-                            .map { it.toAnimeTrack(trackId, anime) }
+                            .map { it.toAnimeTrack(trackId, track.remote_id, anime) }
                             .firstOrNull()
                     }
             }
@@ -247,9 +250,15 @@ class ShikimoriApi(
             .build(),
     )
 
+    private fun graphQLRequest(payload: String) = POST(
+        GRAPHQL_URL,
+        body = payload.toRequestBody(jsonMime),
+    )
+
     companion object {
         const val BASE_URL = "https://shikimori.one"
         private const val API_URL = "$BASE_URL/api"
+        private const val GRAPHQL_URL = "https://shikimori.io/api/graphql"
         private const val OAUTH_URL = "$BASE_URL/oauth/token"
         private const val LOGIN_URL = "$BASE_URL/oauth/authorize"
 

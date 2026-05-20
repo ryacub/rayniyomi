@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- Shikimori tracker search now uses GraphQL-backed media data and safer nullable chapter/episode mapping while preserving REST compatibility for list sync.
 - Settings main screen lazy list now uses stable, null-safe composite keys instead of `hashCode()`, eliminating spurious recompositions on rotation and theme changes
 - Fork-owned custom back interceptors now use predictive-back gesture handling where Rayniyomi owns the commit/cancel behavior.
 - Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
