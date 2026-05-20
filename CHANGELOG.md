@@ -31,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### CI
 
 ### Other
+- Added a repeatable installer for the local `autoloop` command used by ticket-gated agent workflows.
 
 
 ## [0.18.1.162] - 2026-05-06
