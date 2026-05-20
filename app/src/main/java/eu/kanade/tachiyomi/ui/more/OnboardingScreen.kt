@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.more
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -8,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.presentation.components.PredictiveBackHandlerCompat
 import eu.kanade.presentation.more.onboarding.OnboardingScreen
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
 import eu.kanade.presentation.more.settings.screen.SettingsDataScreen
@@ -34,7 +34,7 @@ class OnboardingScreen : Screen() {
 
         val restoreSettingKey = stringResource(SettingsDataScreen.restorePreferenceKeyString)
 
-        BackHandler(
+        PredictiveBackHandlerCompat(
             enabled = !shownOnboardingFlow,
             onBack = {
                 // Prevent exiting if onboarding hasn't been completed
