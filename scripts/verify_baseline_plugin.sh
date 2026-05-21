@@ -12,18 +12,18 @@ fi
 
 fail=0
 
-if ! grep -q "androidx.benchmark.baselineprofile" "$BUILD_GRADLE"; then
-  echo "FAIL: 'androidx.benchmark.baselineprofile' plugin not declared in macrobenchmark/build.gradle.kts"
+if ! grep -qE '^[[:space:]]*id\("androidx\.benchmark\.baselineprofile"\)' "$BUILD_GRADLE"; then
+  echo "FAIL: id(\"androidx.benchmark.baselineprofile\") not declared in macrobenchmark/build.gradle.kts"
   fail=1
 else
   echo "PASS: baseline profile plugin declared"
 fi
 
-if ! grep -qE "baselineProfile|baseline-prof|generateBaselineProfile" "$BUILD_GRADLE"; then
-  echo "FAIL: no baseline profile output configuration found in macrobenchmark/build.gradle.kts"
+if ! grep -qE 'targetProjectPath\s*=\s*":app"' "$BUILD_GRADLE"; then
+  echo "FAIL: targetProjectPath = \":app\" not declared in macrobenchmark/build.gradle.kts"
   fail=1
 else
-  echo "PASS: baseline profile configuration present"
+  echo "PASS: targetProjectPath wired to :app"
 fi
 
 exit $fail
