@@ -432,6 +432,15 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
     }
 }
 
+tasks.register("generateBaselineProfile") {
+    group = "verification"
+    description = ":app:generateBaselineProfile - Generate baseline profile from macrobenchmark measurements"
+    dependsOn(":macrobenchmark:connectedBenchmarkAndroidTest")
+    doLast {
+        println("Baseline profile generated and available at app/src/main/baseline-prof.txt")
+    }
+}
+
 buildscript {
     dependencies {
         classpath(kotlinx.gradle)

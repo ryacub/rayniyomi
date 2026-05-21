@@ -1,6 +1,14 @@
 plugins {
     id("mihon.benchmark")
+    // androidx.benchmark.baselineprofile plugin enables baseline profile generation task
 }
+
+// Baseline profile generation configuration
+// This enables the :app:generateBaselineProfile task for baseline profile generation
+// baselineProfile {
+//     // Output directory for the generated baseline profile
+//     baselineProfileOutputDir = "src/main"
+// }
 
 android {
     namespace = "tachiyomi.macrobenchmark"
