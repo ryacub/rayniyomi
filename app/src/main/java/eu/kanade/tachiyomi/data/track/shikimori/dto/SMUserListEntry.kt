@@ -14,29 +14,31 @@ data class SMUserListEntry(
     val score: Int,
     val status: String,
 ) {
-    fun toMangaTrack(trackId: Long, manga: SMEntry): MangaTrack {
+    internal fun toMangaTrack(trackId: Long, mediaId: Long, manga: SMGraphQLEntry?): MangaTrack {
+        val searchTrack = manga?.toMangaTrack(trackId)
         return MangaTrack.create(trackId).apply {
-            title = manga.name
-            remote_id = this@SMUserListEntry.id
-            total_chapters = manga.chapters!!
+            title = searchTrack?.title.orEmpty()
+            remote_id = searchTrack?.remote_id ?: mediaId
+            total_chapters = searchTrack?.total_chapters ?: 0L
             library_id = this@SMUserListEntry.id
             last_chapter_read = this@SMUserListEntry.chapters
             score = this@SMUserListEntry.score.toDouble()
             status = toTrackStatus(this@SMUserListEntry.status)
-            tracking_url = ShikimoriApi.BASE_URL + manga.url
+            tracking_url = searchTrack?.tracking_url ?: ShikimoriApi.BASE_URL
         }
     }
 
-    fun toAnimeTrack(trackId: Long, anime: SMEntry): AnimeTrack {
+    internal fun toAnimeTrack(trackId: Long, mediaId: Long, anime: SMGraphQLEntry?): AnimeTrack {
+        val searchTrack = anime?.toAnimeTrack(trackId)
         return AnimeTrack.create(trackId).apply {
-            title = anime.name
-            remote_id = this@SMUserListEntry.id
-            total_episodes = anime.episodes!!
+            title = searchTrack?.title.orEmpty()
+            remote_id = searchTrack?.remote_id ?: mediaId
+            total_episodes = searchTrack?.total_episodes ?: 0L
             library_id = this@SMUserListEntry.id
             last_episode_seen = this@SMUserListEntry.episodes
             score = this@SMUserListEntry.score.toDouble()
             status = toTrackStatus(this@SMUserListEntry.status)
-            tracking_url = ShikimoriApi.BASE_URL + anime.url
+            tracking_url = searchTrack?.tracking_url ?: ShikimoriApi.BASE_URL
         }
     }
 }

@@ -24,7 +24,7 @@ data class SMEntry(
         return MangaTrackSearch.create(trackId).apply {
             remote_id = this@SMEntry.id
             title = name
-            total_chapters = chapters!!
+            total_chapters = chapters ?: 0L
             cover_url = ShikimoriApi.BASE_URL + image.preview
             summary = ""
             score = this@SMEntry.score
@@ -39,7 +39,7 @@ data class SMEntry(
         return AnimeTrackSearch.create(trackId).apply {
             remote_id = this@SMEntry.id
             title = name
-            total_episodes = episodes!!
+            total_episodes = episodes ?: 0L
             cover_url = ShikimoriApi.BASE_URL + image.preview
             summary = ""
             score = this@SMEntry.score
