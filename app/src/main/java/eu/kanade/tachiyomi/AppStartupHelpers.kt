@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LifecycleCoroutineScope
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
 import eu.kanade.tachiyomi.network.NetworkPreferences
-import kotlinx.coroutines.CoroutineScope
 import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.LogcatLogger
@@ -13,63 +13,35 @@ import tachiyomi.presentation.widget.entries.manga.MangaWidgetManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
-/**
- * Installs LogcatLogger if verbose logging is enabled and it hasn't already been installed.
- *
- * This is called from App.onCreate on a background coroutine to defer logging setup
- * from the main thread.
- */
-internal fun installLogcatLoggerIfEnabled(
-    networkPreferences: NetworkPreferences,
-    scope: CoroutineScope,
-) {
+private const val TAG = "AppStartupHelpers"
+
+internal fun installLogcatLoggerIfEnabled(networkPreferences: NetworkPreferences) {
     if (!LogcatLogger.isInstalled && networkPreferences.verboseLogging().get()) {
         LogcatLogger.install(AndroidLogcatLogger(LogPriority.VERBOSE))
     }
 }
 
-/**
- * Initializes both MangaWidgetManager and AnimeWidgetManager.
- *
- * This is called from App.onCreate on a background coroutine to defer widget setup
- * from the main thread.
- */
-internal fun setupWidgetManagers(
-    context: Context,
-    scope: CoroutineScope,
-) {
+internal fun setupWidgetManagers(context: Context, lifecycleScope: LifecycleCoroutineScope) {
     try {
         with(MangaWidgetManager(Injekt.get(), Injekt.get())) {
-            context.init(scope as LifecycleCoroutineScope)
+            context.init(lifecycleScope)
         }
     } catch (e: Exception) {
-        // Silently fail in test environments where Injekt isn't fully set up
-        // In production, Injekt is always initialized before this is called
+        Log.e(TAG, "MangaWidgetManager initialization failed", e)
     }
     try {
         with(AnimeWidgetManager(Injekt.get(), Injekt.get())) {
-            context.init(scope as LifecycleCoroutineScope)
+            context.init(lifecycleScope)
         }
     } catch (e: Exception) {
-        // Silently fail in test environments where Injekt isn't fully set up
-        // In production, Injekt is always initialized before this is called
+        Log.e(TAG, "AnimeWidgetManager initialization failed", e)
     }
 }
 
-/**
- * Schedules periodic tracker sync by calling PeriodicTrackerSyncJob.setupTask.
- *
- * This is called from App.onCreate on a background coroutine to defer tracker sync setup
- * from the main thread.
- */
-internal fun schedulePeriodicTrackerSync(
-    context: Context,
-    scope: CoroutineScope,
-) {
+internal fun schedulePeriodicTrackerSync(context: Context) {
     try {
         PeriodicTrackerSyncJob.setupTask(context)
     } catch (e: Exception) {
-        // Silently fail in test environments where Injekt isn't fully set up
-        // In production, Injekt is always initialized before this is called
+        Log.e(TAG, "PeriodicTrackerSyncJob.setupTask failed", e)
     }
 }

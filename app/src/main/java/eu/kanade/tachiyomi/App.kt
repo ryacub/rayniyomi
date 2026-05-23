@@ -205,10 +205,10 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             setupWidgetManagers(this@App, scope)
         }
         scope.launch(Dispatchers.IO) {
-            installLogcatLoggerIfEnabled(networkPreferences, scope)
+            installLogcatLoggerIfEnabled(networkPreferences)
         }
         scope.launch(Dispatchers.IO) {
-            schedulePeriodicTrackerSync(this@App, scope)
+            schedulePeriodicTrackerSync(this@App)
         }
         initializeMigrator()
     }
