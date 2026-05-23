@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi
 
 import android.content.Context
 import androidx.lifecycle.LifecycleCoroutineScope
+import eu.kanade.tachiyomi.network.NetworkPreferences
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.TestDispatcher
@@ -10,7 +11,6 @@ import kotlinx.coroutines.test.runTest
 import logcat.LogcatLogger
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import eu.kanade.tachiyomi.network.NetworkPreferences
 
 class AppStartupOptimizationTest {
 
