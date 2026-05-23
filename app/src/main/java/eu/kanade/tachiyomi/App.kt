@@ -201,20 +201,15 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         setAppCompatDelegateThemeMode(Injekt.get<UiPreferences>().themeMode().get())
 
-        // Updates widget update
-        with(MangaWidgetManager(Injekt.get(), Injekt.get())) {
-            init(ProcessLifecycleOwner.get().lifecycleScope)
+        scope.launch(Dispatchers.IO) {
+            setupWidgetManagers(this@App, scope)
         }
-
-        with(AnimeWidgetManager(Injekt.get(), Injekt.get())) {
-            init(ProcessLifecycleOwner.get().lifecycleScope)
+        scope.launch(Dispatchers.IO) {
+            installLogcatLoggerIfEnabled(networkPreferences, scope)
         }
-
-        if (!LogcatLogger.isInstalled && networkPreferences.verboseLogging().get()) {
-            LogcatLogger.install(AndroidLogcatLogger(LogPriority.VERBOSE))
+        scope.launch(Dispatchers.IO) {
+            schedulePeriodicTrackerSync(this@App, scope)
         }
-
-        PeriodicTrackerSyncJob.setupTask(this)
         initializeMigrator()
     }
 
