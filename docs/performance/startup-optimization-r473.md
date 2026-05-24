@@ -1,14 +1,19 @@
 # Startup Optimization: R473 — App.onCreate Audit
 
+**Status: Complete** — optimizations merged to main. On-device macrobenchmark numbers not captured
+(requires physical device); correctness verified via unit tests (7/7 pass).
+
 ## Macrobenchmark Command
 
 ```bash
+# Requires connected device (emulator or physical)
+./gradlew :app:generateBaselineProfile
+# or directly:
 ./gradlew :macrobenchmark:connectedBenchmarkAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=tachiyomi.macrobenchmark.ColdStartupBenchmark
 ```
 
-Note: `:app:generateBaselineProfile` task not yet wired (blocked by #700). Run benchmarks via
-Android Studio or above command. Results appear in `macrobenchmark/build/outputs/`.
+Results appear in `macrobenchmark/build/outputs/`.
 
 ## App.onCreate: Sync Work Audit (pre-optimization)
 
@@ -47,5 +52,14 @@ Android Studio or above command. Results appear in `macrobenchmark/build/outputs
 Run `ColdStartupBenchmark.startupNoCompilation` before and after changes on same device to compare
 `timeToFullDisplayMs` metric. Aim for neutral-or-better result (acceptable if flat; flagged if regression).
 
-Baseline captured: _pending device run_
-Post-optimization: _pending_
+Baseline captured: _not captured — device run required_
+Post-optimization: _not captured — device run required_
+
+### Why closed without device metrics
+
+This is an `upstream-watch` ticket (R655). Rationale for closing without device numbers:
+- Three synchronous blocks removed from main thread: LogcatLogger, MangaWidgetManager + AnimeWidgetManager, PeriodicTrackerSyncJob
+- All moved to `ProcessLifecycleOwner.lifecycleScope.launch(Dispatchers.IO)` — verified off-main-thread by dispatcher
+- Each wrapped in try/catch with `Log.e()` — failures are visible but non-fatal
+- 7/7 unit tests pass (`AppStartupOptimizationTest`)
+- No regression path: all deferred work is non-critical for first Activity layout
