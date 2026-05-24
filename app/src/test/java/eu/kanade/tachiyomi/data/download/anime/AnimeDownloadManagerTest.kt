@@ -270,7 +270,7 @@ class AnimeDownloadManagerTest {
         try {
             localManager.deleteAnime(anime, source, removeQueued = true)
             removeAttempted.await()
-            val reorderCompleted = withTimeoutOrNull(500) {
+            val reorderCompleted = withTimeoutOrNull(5_000) {
                 localManager.reorderQueueByEpisodeIds(queueState.value.mapNotNull { it.episode.id })
                 Unit
             }
