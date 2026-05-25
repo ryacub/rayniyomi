@@ -16,6 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - Shikimori tracker search now uses GraphQL-backed media data and safer nullable chapter/episode mapping while preserving REST compatibility for list sync.
+- Shikimori find-library operations (manga and anime) now use the GraphQL `userRates` query with correct enum types and a 50-entry limit; add/update/delete remain on REST v2 since Shikimori's GraphQL API has no mutation support yet.
 - Settings main screen lazy list now uses stable, null-safe composite keys instead of `hashCode()`, eliminating spurious recompositions on rotation and theme changes
 - Fork-owned custom back interceptors now use predictive-back gesture handling where Rayniyomi owns the commit/cancel behavior.
 - Upcoming and History Compose lists now use stable item/header keys, reducing avoidable row churn during list updates, and update-install candidate checks now refresh off the composition thread while preserving the current CTA state
@@ -30,9 +31,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Changed
 
 ### CI
+- Baseline profile CI job now dry-runs `:app:generateBaselineProfile` and verifies `baseline-prof.txt` is committed and non-empty on every PR touching app or macrobenchmark paths.
 
 ### Other
 - Added a repeatable installer for the local `autoloop` command used by ticket-gated agent workflows.
+- Baseline profile generation is now a real executable Gradle task via the AndroidX Baseline Profile plugin; removed the placeholder stub task added in an earlier pass.
+- Native library dependencies updated for 16 KB page-size alignment on Android 15+ devices: `libarchive` 1.1.6, `sqlite-android` 3.49.0, `image-decoder` (Mihon fork), `quickjs-android` (zhanghai fork), `ffmpeg-kit-16kb` 6.1.1. Compile SDK bumped to 37. APK alignment verifier wired into release builds.
 
 
 ## [0.18.1.162] - 2026-05-06
