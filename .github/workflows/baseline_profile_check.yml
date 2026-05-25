@@ -1,0 +1,48 @@
+name: Baseline Profile Check
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'macrobenchmark/**'
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline-profile:
+    name: Verify baseline profile task and artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Verify generateBaselineProfile task is wired
+        run: ./gradlew :app:generateBaselineProfile --dry-run
+
+      - name: Verify baseline-prof.txt artifact is committed and non-empty
+        run: |
+          ARTIFACT="app/src/main/baseline-prof.txt"
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "ERROR: $ARTIFACT not found — run :app:generateBaselineProfile and commit the result"
+            exit 1
+          fi
+          if [ ! -s "$ARTIFACT" ]; then
+            echo "ERROR: $ARTIFACT is empty — regenerate with :app:generateBaselineProfile"
+            exit 1
+          fi
+          echo "baseline-prof.txt present ($(wc -l < "$ARTIFACT") lines)"

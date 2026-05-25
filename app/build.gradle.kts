@@ -9,6 +9,7 @@ import mihon.buildlogic.getGitSha
 plugins {
     id("mihon.android.application")
     id("mihon.android.application.compose")
+    alias(androidx.plugins.baselineprofile)
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
     // Google Services: conditional - only release (google-services.json has release package only)
@@ -429,15 +430,6 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
             }
             """.trimIndent(),
         )
-    }
-}
-
-tasks.register("generateBaselineProfile") {
-    group = "verification"
-    description = ":app:generateBaselineProfile - Generate baseline profile from macrobenchmark measurements"
-    dependsOn(":macrobenchmark:connectedBenchmarkAndroidTest")
-    doLast {
-        println("Baseline profile generated and available at app/src/main/baseline-prof.txt")
     }
 }
 
