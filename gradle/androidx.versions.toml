@@ -30,11 +30,14 @@ paging-compose = { module = "androidx.paging:paging-compose", version.ref = "pag
 
 interpolator = { group = "androidx.interpolator", name = "interpolator", version.ref = "interpolator_version" }
 
-benchmark-gradle = { module = "androidx.benchmark:benchmark-gradle-plugin", version = "1.3.3" }
-benchmark-macro = "androidx.benchmark:benchmark-macro-junit4:1.3.3"
+benchmark-gradle = { module = "androidx.benchmark:benchmark-gradle-plugin", version = "1.5.0-alpha06" }
+benchmark-macro = "androidx.benchmark:benchmark-macro-junit4:1.5.0-alpha06"
 test-ext = "androidx.test.ext:junit-ktx:1.2.1"
 test-espresso-core = "androidx.test.espresso:espresso-core:3.6.1"
 test-uiautomator = "androidx.test.uiautomator:uiautomator:2.3.0"
+
+[plugins]
+baselineprofile = { id = "androidx.baselineprofile", version = "1.5.0-alpha06" }
 
 [bundles]
 lifecycle = ["lifecycle-common", "lifecycle-process", "lifecycle-runtimektx"]
