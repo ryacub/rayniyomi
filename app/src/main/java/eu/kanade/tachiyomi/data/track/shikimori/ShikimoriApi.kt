@@ -52,12 +52,13 @@ class ShikimoriApi(
                     score = track.score.toLong(),
                     status = track.toShikimoriStatus(),
                 )
-                authClient.newCall(graphQLRequest(payload))
+                val userRate = authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
                     .requireData()
                     .userRateCreate
-                    ?.let { track.library_id = it.id }
+                    ?: error("Shikimori userRateCreate returned null")
+                track.library_id = userRate.id
                 track
             }
         }
@@ -91,12 +92,13 @@ class ShikimoriApi(
                     score = track.score.toLong(),
                     status = track.toShikimoriStatus(),
                 )
-                authClient.newCall(graphQLRequest(payload))
+                val userRate = authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
                     .requireData()
                     .userRateCreate
-                    ?.let { track.library_id = it.id }
+                    ?: error("Shikimori userRateCreate returned null")
+                track.library_id = userRate.id
                 track
             }
         }

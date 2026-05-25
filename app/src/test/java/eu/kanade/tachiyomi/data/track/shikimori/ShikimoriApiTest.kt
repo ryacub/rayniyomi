@@ -274,6 +274,27 @@ class ShikimoriApiTest {
     }
 
     @Nested
+    @DisplayName("SMGraphQLData: userRateCreate null handling")
+    inner class UserRateCreateNullHandling {
+
+        @Test
+        @DisplayName("SMGraphQLData userRateCreate is nullable — callers must throw, not swallow")
+        fun userRateCreateNullInDataIsDistinctFromErrorResponse() {
+            // requireData() only validates that data != null; it does NOT validate that
+            // userRateCreate is present. A response like {"data": {}} would have
+            // userRateCreate == null. Callers must use ?: error() — not ?.let — to
+            // ensure library_id is always set after a successful create mutation.
+            val dataWithNullCreate = SMGraphQLData(userRateCreate = null)
+            val response = SMGraphQLResponse(data = dataWithNullCreate)
+
+            // requireData passes (data is non-null)
+            response.requireData() shouldBe dataWithNullCreate
+            // but userRateCreate is null — caller is responsible for throwing here
+            response.requireData().userRateCreate shouldBe null
+        }
+    }
+
+    @Nested
     @DisplayName("Feature 8: Dead REST v2 code removed")
     inner class DeadCodeRemoval {
 
