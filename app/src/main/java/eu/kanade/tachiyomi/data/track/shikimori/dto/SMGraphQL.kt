@@ -3,10 +3,13 @@ package eu.kanade.tachiyomi.data.track.shikimori.dto
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
+import eu.kanade.tachiyomi.data.track.shikimori.toTrackStatus
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack as DbAnimeTrack
+import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack as DbMangaTrack
 
 @Serializable
 internal data class SMGraphQLResponse(
@@ -18,6 +21,7 @@ internal data class SMGraphQLResponse(
 internal data class SMGraphQLData(
     val mangas: List<SMGraphQLEntry> = emptyList(),
     val animes: List<SMGraphQLEntry> = emptyList(),
+    val userRates: List<SMUserRate> = emptyList(),
 )
 
 @Serializable
@@ -81,6 +85,50 @@ internal data class SMGraphQLPoster(
 internal data class SMGraphQLDate(
     val date: String? = null,
 )
+
+@Serializable
+internal data class SMUserRateMedia(
+    val id: String,
+)
+
+@Serializable
+internal data class SMUserRate(
+    val id: Long,
+    val chapters: Long? = null,
+    val episodes: Long? = null,
+    val score: Long = 0,
+    val status: String = "",
+    val anime: SMUserRateMedia? = null,
+    val manga: SMUserRateMedia? = null,
+) {
+    internal fun toMangaTrack(trackId: Long, mediaId: Long, manga: SMGraphQLEntry?): DbMangaTrack {
+        val searchTrack = manga?.toMangaTrack(trackId)
+        return DbMangaTrack.create(trackId).apply {
+            title = searchTrack?.title.orEmpty()
+            remote_id = searchTrack?.remote_id ?: mediaId
+            total_chapters = searchTrack?.total_chapters ?: 0L
+            library_id = this@SMUserRate.id
+            last_chapter_read = chapters?.toDouble() ?: 0.0
+            score = this@SMUserRate.score.toDouble()
+            status = toTrackStatus(this@SMUserRate.status)
+            tracking_url = searchTrack?.tracking_url ?: ShikimoriApi.BASE_URL
+        }
+    }
+
+    internal fun toAnimeTrack(trackId: Long, mediaId: Long, anime: SMGraphQLEntry?): DbAnimeTrack {
+        val searchTrack = anime?.toAnimeTrack(trackId)
+        return DbAnimeTrack.create(trackId).apply {
+            title = searchTrack?.title.orEmpty()
+            remote_id = searchTrack?.remote_id ?: mediaId
+            total_episodes = searchTrack?.total_episodes ?: 0L
+            library_id = this@SMUserRate.id
+            last_episode_seen = episodes?.toDouble() ?: 0.0
+            score = this@SMUserRate.score.toDouble()
+            status = toTrackStatus(this@SMUserRate.status)
+            tracking_url = searchTrack?.tracking_url ?: ShikimoriApi.BASE_URL
+        }
+    }
+}
 
 internal fun shikimoriMangaSearchPayload(query: String): String {
     return shikimoriGraphQLPayload(
@@ -184,6 +232,38 @@ internal fun shikimoriAnimeByIdPayload(id: Long): String {
         """.trimMargin(),
         id.toString(),
     )
+}
+
+internal fun shikimoriUserRatesQueryPayload(
+    userId: Long,
+    targetType: String,
+): String {
+    return buildJsonObject {
+        put(
+            "query",
+            """
+            |query UserRates(${'$'}userId: ID, ${'$'}targetType: UserRateTargetTypeEnum) {
+                |userRates(userId: ${'$'}userId, targetType: ${'$'}targetType, limit: 50) {
+                    |id
+                    |chapters
+                    |episodes
+                    |score
+                    |status
+                    |anime {
+                        |id
+                    |}
+                    |manga {
+                        |id
+                    |}
+                |}
+            |}
+            """.trimMargin(),
+        )
+        putJsonObject("variables") {
+            put("userId", userId.toString())
+            put("targetType", targetType)
+        }
+    }.toString()
 }
 
 internal fun SMGraphQLResponse.requireData(): SMGraphQLData {

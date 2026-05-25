@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.data.track.shikimori
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLEntry
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLPoster
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLResponse
-import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUserListEntry
+import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUserRate
 import eu.kanade.tachiyomi.data.track.shikimori.dto.requireData
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeSearchPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaSearchPayload
@@ -93,11 +93,11 @@ class ShikimoriMappingTest {
             chapters = 700,
             poster = SMGraphQLPoster(mainUrl = "https://img.example/main.webp"),
         )
-        val userRate = SMUserListEntry(
+        val userRate = SMUserRate(
             id = 555L,
-            chapters = 12.0,
-            episodes = 0.0,
-            score = 9,
+            chapters = 12L,
+            episodes = 0L,
+            score = 9L,
             status = "watching",
         )
 

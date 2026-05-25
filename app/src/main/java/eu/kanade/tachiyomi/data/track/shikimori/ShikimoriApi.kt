@@ -10,12 +10,12 @@ import eu.kanade.tachiyomi.data.track.shikimori.dto.SMAddEntryResponse
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLResponse
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMOAuth
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUser
-import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUserListEntry
 import eu.kanade.tachiyomi.data.track.shikimori.dto.requireData
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeByIdPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeSearchPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaByIdPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaSearchPayload
+import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRatesQueryPayload
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -64,9 +64,7 @@ class ShikimoriApi(
                     ),
                 ).awaitSuccess()
                     .parseAs<SMAddEntryResponse>()
-                    .let {
-                        track.library_id = it.id
-                    }
+                    .let { track.library_id = it.id }
                 track
             }
         }
@@ -105,9 +103,7 @@ class ShikimoriApi(
                     ),
                 ).awaitSuccess()
                     .parseAs<SMAddEntryResponse>()
-                    .let {
-                        track.library_id = it.id
-                    }
+                    .let { track.library_id = it.id }
                 track
             }
         }
@@ -166,20 +162,18 @@ class ShikimoriApi(
                     .firstOrNull()
             }
 
-            val url = "$API_URL/v2/user_rates".toUri().buildUpon()
-                .appendQueryParameter("user_id", userId)
-                .appendQueryParameter("target_id", track.remote_id.toString())
-                .appendQueryParameter("target_type", "Manga")
-                .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
+                val payload = shikimoriUserRatesQueryPayload(
+                    userId = userId.toLong(),
+                    targetType = "Manga",
+                )
+                authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
-                    .parseAs<List<SMUserListEntry>>()
-                    .let { entries ->
-                        if (entries.size > 1) {
-                            throw Exception("Too many manga in response")
-                        }
-                        entries
+                    .parseAs<SMGraphQLResponse>()
+                    .let { response ->
+                        response.data?.userRates
+                            .orEmpty()
+                            .filter { it.manga?.id == track.remote_id.toString() }
                             .map { it.toMangaTrack(trackId, track.remote_id, manga) }
                             .firstOrNull()
                     }
@@ -199,20 +193,18 @@ class ShikimoriApi(
                     .firstOrNull()
             }
 
-            val url = "$API_URL/v2/user_rates".toUri().buildUpon()
-                .appendQueryParameter("user_id", userId)
-                .appendQueryParameter("target_id", track.remote_id.toString())
-                .appendQueryParameter("target_type", "Anime")
-                .build()
             with(json) {
-                authClient.newCall(GET(url.toString()))
+                val payload = shikimoriUserRatesQueryPayload(
+                    userId = userId.toLong(),
+                    targetType = "Anime",
+                )
+                authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
-                    .parseAs<List<SMUserListEntry>>()
-                    .let { entries ->
-                        if (entries.size > 1) {
-                            throw Exception("Too many anime in response")
-                        }
-                        entries
+                    .parseAs<SMGraphQLResponse>()
+                    .let { response ->
+                        response.data?.userRates
+                            .orEmpty()
+                            .filter { it.anime?.id == track.remote_id.toString() }
                             .map { it.toAnimeTrack(trackId, track.remote_id, anime) }
                             .firstOrNull()
                     }
