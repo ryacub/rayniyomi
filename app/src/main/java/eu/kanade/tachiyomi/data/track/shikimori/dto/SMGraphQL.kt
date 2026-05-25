@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.track.shikimori.dto
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
+import eu.kanade.tachiyomi.data.track.shikimori.toTrackStatus
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -18,6 +19,10 @@ internal data class SMGraphQLResponse(
 internal data class SMGraphQLData(
     val mangas: List<SMGraphQLEntry> = emptyList(),
     val animes: List<SMGraphQLEntry> = emptyList(),
+    val userRateCreate: SMUserRateResponse? = null,
+    val userRateUpdate: SMUserRateResponse? = null,
+    val userRateDelete: SMUserRateResponse? = null,
+    val userRates: List<SMUserRate> = emptyList(),
 )
 
 @Serializable
@@ -81,6 +86,52 @@ internal data class SMGraphQLPoster(
 internal data class SMGraphQLDate(
     val date: String? = null,
 )
+
+@Serializable
+internal data class SMUserRateResponse(
+    val id: Long,
+    val chapters: Long? = null,
+    val episodes: Long? = null,
+    val score: Long = 0,
+    val status: String = "",
+)
+
+@Serializable
+internal data class SMUserRate(
+    val id: Long,
+    val chapters: Long? = null,
+    val episodes: Long? = null,
+    val score: Long = 0,
+    val status: String = "",
+) {
+    internal fun toMangaTrack(trackId: Long, mediaId: Long, manga: SMGraphQLEntry?): eu.kanade.tachiyomi.data.database.models.manga.MangaTrack {
+        val searchTrack = manga?.toMangaTrack(trackId)
+        return eu.kanade.tachiyomi.data.database.models.manga.MangaTrack.create(trackId).apply {
+            title = searchTrack?.title.orEmpty()
+            remote_id = searchTrack?.remote_id ?: mediaId
+            total_chapters = searchTrack?.total_chapters ?: 0L
+            library_id = this@SMUserRate.id
+            last_chapter_read = chapters?.toDouble() ?: 0.0
+            score = this@SMUserRate.score.toDouble()
+            status = toTrackStatus(this@SMUserRate.status)
+            tracking_url = searchTrack?.tracking_url ?: ShikimoriApi.BASE_URL
+        }
+    }
+
+    internal fun toAnimeTrack(trackId: Long, mediaId: Long, anime: SMGraphQLEntry?): eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack {
+        val searchTrack = anime?.toAnimeTrack(trackId)
+        return eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack.create(trackId).apply {
+            title = searchTrack?.title.orEmpty()
+            remote_id = searchTrack?.remote_id ?: mediaId
+            total_episodes = searchTrack?.total_episodes ?: 0L
+            library_id = this@SMUserRate.id
+            last_episode_seen = episodes?.toDouble() ?: 0.0
+            score = this@SMUserRate.score.toDouble()
+            status = toTrackStatus(this@SMUserRate.status)
+            tracking_url = searchTrack?.tracking_url ?: ShikimoriApi.BASE_URL
+        }
+    }
+}
 
 internal fun shikimoriMangaSearchPayload(query: String): String {
     return shikimoriGraphQLPayload(
@@ -186,6 +237,77 @@ internal fun shikimoriAnimeByIdPayload(id: Long): String {
     )
 }
 
+internal fun shikimoriUserRateCreatePayload(
+    userId: Long,
+    targetId: Long,
+    targetType: String,
+    chapters: Long? = null,
+    episodes: Long? = null,
+    score: Long = 0,
+    status: String,
+): String {
+    return shikimoriGraphQLMutationPayload(
+        """
+        |mutation CreateUserRate(${'$'}userId: Int!, ${'$'}targetId: Int!, ${'$'}targetType: String!, ${'$'}chapters: Int, ${'$'}episodes: Int, ${'$'}score: Int, ${'$'}status: String!) {
+            |userRateCreate(input: {userId: ${'$'}userId, targetId: ${'$'}targetId, targetType: ${'$'}targetType, chapters: ${'$'}chapters, episodes: ${'$'}episodes, score: ${'$'}score, status: ${'$'}status}) {
+                |id
+                |chapters
+                |episodes
+                |score
+                |status
+            |}
+        |}
+        """.trimMargin(),
+        userId,
+        targetId,
+        targetType,
+        chapters,
+        episodes,
+        score,
+        status,
+    )
+}
+
+internal fun shikimoriUserRateDeletePayload(id: Long): String {
+    return buildJsonObject {
+        put("query", """
+            |mutation DeleteUserRate(${'$'}id: Int!) {
+                |userRateDelete(id: ${'$'}id) {
+                    |id
+                |}
+            |}
+        """.trimMargin())
+        putJsonObject("variables") {
+            put("id", id)
+        }
+    }.toString()
+}
+
+internal fun shikimoriUserRatesQueryPayload(
+    userId: Long,
+    targetId: Long,
+    targetType: String,
+): String {
+    return buildJsonObject {
+        put("query", """
+            |query UserRates(${'$'}userId: Int!, ${'$'}targetId: Int!, ${'$'}targetType: String!) {
+                |userRates(userId: ${'$'}userId, targetId: ${'$'}targetId, targetType: ${'$'}targetType) {
+                    |id
+                    |chapters
+                    |episodes
+                    |score
+                    |status
+                |}
+            |}
+        """.trimMargin())
+        putJsonObject("variables") {
+            put("userId", userId)
+            put("targetId", targetId)
+            put("targetType", targetType)
+        }
+    }.toString()
+}
+
 internal fun SMGraphQLResponse.requireData(): SMGraphQLData {
     data?.let { return it }
     val errorMessage = errors.joinToString("; ") { it.message }.ifBlank { "empty response" }
@@ -198,6 +320,30 @@ private fun shikimoriGraphQLPayload(query: String, searchOrId: String): String {
         putJsonObject("variables") {
             put("query", searchOrId)
             put("id", searchOrId)
+        }
+    }.toString()
+}
+
+private fun shikimoriGraphQLMutationPayload(
+    mutation: String,
+    userId: Long,
+    targetId: Long,
+    targetType: String,
+    chapters: Long? = null,
+    episodes: Long? = null,
+    score: Long = 0,
+    status: String,
+): String {
+    return buildJsonObject {
+        put("query", mutation)
+        putJsonObject("variables") {
+            put("userId", userId)
+            put("targetId", targetId)
+            put("targetType", targetType)
+            if (chapters != null) put("chapters", chapters)
+            if (episodes != null) put("episodes", episodes)
+            put("score", score)
+            put("status", status)
         }
     }.toString()
 }
