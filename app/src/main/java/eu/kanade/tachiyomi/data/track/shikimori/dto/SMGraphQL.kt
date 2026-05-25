@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.data.track.shikimori.dto
 
+import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack as DbAnimeTrack
+import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack as DbMangaTrack
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
@@ -104,9 +106,9 @@ internal data class SMUserRate(
     val score: Long = 0,
     val status: String = "",
 ) {
-    internal fun toMangaTrack(trackId: Long, mediaId: Long, manga: SMGraphQLEntry?): eu.kanade.tachiyomi.data.database.models.manga.MangaTrack {
+    internal fun toMangaTrack(trackId: Long, mediaId: Long, manga: SMGraphQLEntry?): DbMangaTrack {
         val searchTrack = manga?.toMangaTrack(trackId)
-        return eu.kanade.tachiyomi.data.database.models.manga.MangaTrack.create(trackId).apply {
+        return DbMangaTrack.create(trackId).apply {
             title = searchTrack?.title.orEmpty()
             remote_id = searchTrack?.remote_id ?: mediaId
             total_chapters = searchTrack?.total_chapters ?: 0L
@@ -118,9 +120,9 @@ internal data class SMUserRate(
         }
     }
 
-    internal fun toAnimeTrack(trackId: Long, mediaId: Long, anime: SMGraphQLEntry?): eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack {
+    internal fun toAnimeTrack(trackId: Long, mediaId: Long, anime: SMGraphQLEntry?): DbAnimeTrack {
         val searchTrack = anime?.toAnimeTrack(trackId)
-        return eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack.create(trackId).apply {
+        return DbAnimeTrack.create(trackId).apply {
             title = searchTrack?.title.orEmpty()
             remote_id = searchTrack?.remote_id ?: mediaId
             total_episodes = searchTrack?.total_episodes ?: 0L

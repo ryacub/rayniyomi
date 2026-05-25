@@ -55,12 +55,9 @@ class ShikimoriApi(
                 authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
-                    .let { response ->
-                        val userRate = response.data?.userRateCreate
-                        if (userRate != null) {
-                            track.library_id = userRate.id
-                        }
-                    }
+                    .requireData()
+                    .userRateCreate
+                    ?.let { track.library_id = it.id }
                 track
             }
         }
@@ -78,6 +75,7 @@ class ShikimoriApi(
                 authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
+                    .requireData()
             }
         }
     }
@@ -96,12 +94,9 @@ class ShikimoriApi(
                 authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
-                    .let { response ->
-                        val userRate = response.data?.userRateCreate
-                        if (userRate != null) {
-                            track.library_id = userRate.id
-                        }
-                    }
+                    .requireData()
+                    .userRateCreate
+                    ?.let { track.library_id = it.id }
                 track
             }
         }
@@ -119,6 +114,7 @@ class ShikimoriApi(
                 authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
+                    .requireData()
             }
         }
     }
