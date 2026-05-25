@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.data.track.shikimori.dto
 
-import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack as DbAnimeTrack
-import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack as DbMangaTrack
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
@@ -10,6 +8,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack as DbAnimeTrack
+import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack as DbMangaTrack
 
 @Serializable
 internal data class SMGraphQLResponse(
@@ -272,13 +272,16 @@ internal fun shikimoriUserRateCreatePayload(
 
 internal fun shikimoriUserRateDeletePayload(id: Long): String {
     return buildJsonObject {
-        put("query", """
+        put(
+            "query",
+            """
             |mutation DeleteUserRate(${'$'}id: Int!) {
                 |userRateDelete(id: ${'$'}id) {
                     |id
                 |}
             |}
-        """.trimMargin())
+            """.trimMargin(),
+        )
         putJsonObject("variables") {
             put("id", id)
         }
@@ -291,7 +294,9 @@ internal fun shikimoriUserRatesQueryPayload(
     targetType: String,
 ): String {
     return buildJsonObject {
-        put("query", """
+        put(
+            "query",
+            """
             |query UserRates(${'$'}userId: Int!, ${'$'}targetId: Int!, ${'$'}targetType: String!) {
                 |userRates(userId: ${'$'}userId, targetId: ${'$'}targetId, targetType: ${'$'}targetType) {
                     |id
@@ -301,7 +306,8 @@ internal fun shikimoriUserRatesQueryPayload(
                     |status
                 |}
             |}
-        """.trimMargin())
+            """.trimMargin(),
+        )
         putJsonObject("variables") {
             put("userId", userId)
             put("targetId", targetId)
