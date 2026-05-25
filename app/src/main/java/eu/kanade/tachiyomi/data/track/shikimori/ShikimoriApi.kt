@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack
 import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
+import eu.kanade.tachiyomi.data.track.shikimori.dto.SMAddEntryResponse
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLResponse
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMOAuth
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUser
@@ -14,15 +15,17 @@ import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeByIdPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeSearchPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaByIdPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaSearchPayload
-import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRateCreatePayload
-import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRateDeletePayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRatesQueryPayload
+import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.jsonMime
 import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -44,21 +47,24 @@ class ShikimoriApi(
     suspend fun addLibManga(track: MangaTrack, userId: String): MangaTrack {
         return withIOContext {
             with(json) {
-                val payload = shikimoriUserRateCreatePayload(
-                    userId = userId.toLong(),
-                    targetId = track.remote_id,
-                    targetType = "Manga",
-                    chapters = track.last_chapter_read.toLong(),
-                    score = track.score.toLong(),
-                    status = track.toShikimoriStatus(),
-                )
-                val userRate = authClient.newCall(graphQLRequest(payload))
-                    .awaitSuccess()
-                    .parseAs<SMGraphQLResponse>()
-                    .requireData()
-                    .userRateCreate
-                    ?: error("Shikimori userRateCreate returned null")
-                track.library_id = userRate.id
+                val payload = buildJsonObject {
+                    putJsonObject("user_rate") {
+                        put("user_id", userId)
+                        put("target_id", track.remote_id)
+                        put("target_type", "Manga")
+                        put("chapters", track.last_chapter_read.toInt())
+                        put("score", track.score.toInt())
+                        put("status", track.toShikimoriStatus())
+                    }
+                }
+                authClient.newCall(
+                    POST(
+                        "$API_URL/v2/user_rates",
+                        body = payload.toString().toRequestBody(jsonMime),
+                    ),
+                ).awaitSuccess()
+                    .parseAs<SMAddEntryResponse>()
+                    .let { track.library_id = it.id }
                 track
             }
         }
@@ -71,34 +77,33 @@ class ShikimoriApi(
 
     suspend fun deleteLibManga(track: DomainMangaTrack) {
         withIOContext {
-            with(json) {
-                val payload = shikimoriUserRateDeletePayload(track.libraryId ?: return@with)
-                authClient.newCall(graphQLRequest(payload))
-                    .awaitSuccess()
-                    .parseAs<SMGraphQLResponse>()
-                    .requireData()
-            }
+            authClient
+                .newCall(DELETE("$API_URL/v2/user_rates/${track.libraryId}"))
+                .awaitSuccess()
         }
     }
 
     suspend fun addLibAnime(track: AnimeTrack, userId: String): AnimeTrack {
         return withIOContext {
             with(json) {
-                val payload = shikimoriUserRateCreatePayload(
-                    userId = userId.toLong(),
-                    targetId = track.remote_id,
-                    targetType = "Anime",
-                    episodes = track.last_episode_seen.toLong(),
-                    score = track.score.toLong(),
-                    status = track.toShikimoriStatus(),
-                )
-                val userRate = authClient.newCall(graphQLRequest(payload))
-                    .awaitSuccess()
-                    .parseAs<SMGraphQLResponse>()
-                    .requireData()
-                    .userRateCreate
-                    ?: error("Shikimori userRateCreate returned null")
-                track.library_id = userRate.id
+                val payload = buildJsonObject {
+                    putJsonObject("user_rate") {
+                        put("user_id", userId)
+                        put("target_id", track.remote_id)
+                        put("target_type", "Anime")
+                        put("episodes", track.last_episode_seen.toInt())
+                        put("score", track.score.toInt())
+                        put("status", track.toShikimoriStatus())
+                    }
+                }
+                authClient.newCall(
+                    POST(
+                        "$API_URL/v2/user_rates",
+                        body = payload.toString().toRequestBody(jsonMime),
+                    ),
+                ).awaitSuccess()
+                    .parseAs<SMAddEntryResponse>()
+                    .let { track.library_id = it.id }
                 track
             }
         }
@@ -111,13 +116,9 @@ class ShikimoriApi(
 
     suspend fun deleteLibAnime(track: DomainAnimeTrack) {
         withIOContext {
-            with(json) {
-                val payload = shikimoriUserRateDeletePayload(track.libraryId ?: return@with)
-                authClient.newCall(graphQLRequest(payload))
-                    .awaitSuccess()
-                    .parseAs<SMGraphQLResponse>()
-                    .requireData()
-            }
+            authClient
+                .newCall(DELETE("$API_URL/v2/user_rates/${track.libraryId}"))
+                .awaitSuccess()
         }
     }
 
@@ -164,18 +165,15 @@ class ShikimoriApi(
             with(json) {
                 val payload = shikimoriUserRatesQueryPayload(
                     userId = userId.toLong(),
-                    targetId = track.remote_id,
                     targetType = "Manga",
                 )
                 authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
                     .let { response ->
-                        val entries = response.data?.userRates.orEmpty()
-                        if (entries.size > 1) {
-                            throw Exception("Too many manga in response")
-                        }
-                        entries
+                        response.data?.userRates
+                            .orEmpty()
+                            .filter { it.manga?.id == track.remote_id.toString() }
                             .map { it.toMangaTrack(trackId, track.remote_id, manga) }
                             .firstOrNull()
                     }
@@ -198,18 +196,15 @@ class ShikimoriApi(
             with(json) {
                 val payload = shikimoriUserRatesQueryPayload(
                     userId = userId.toLong(),
-                    targetId = track.remote_id,
                     targetType = "Anime",
                 )
                 authClient.newCall(graphQLRequest(payload))
                     .awaitSuccess()
                     .parseAs<SMGraphQLResponse>()
                     .let { response ->
-                        val entries = response.data?.userRates.orEmpty()
-                        if (entries.size > 1) {
-                            throw Exception("Too many anime in response")
-                        }
-                        entries
+                        response.data?.userRates
+                            .orEmpty()
+                            .filter { it.anime?.id == track.remote_id.toString() }
                             .map { it.toAnimeTrack(trackId, track.remote_id, anime) }
                             .firstOrNull()
                     }

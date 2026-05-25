@@ -21,9 +21,6 @@ internal data class SMGraphQLResponse(
 internal data class SMGraphQLData(
     val mangas: List<SMGraphQLEntry> = emptyList(),
     val animes: List<SMGraphQLEntry> = emptyList(),
-    val userRateCreate: SMUserRateResponse? = null,
-    val userRateUpdate: SMUserRateResponse? = null,
-    val userRateDelete: SMUserRateResponse? = null,
     val userRates: List<SMUserRate> = emptyList(),
 )
 
@@ -90,12 +87,8 @@ internal data class SMGraphQLDate(
 )
 
 @Serializable
-internal data class SMUserRateResponse(
-    val id: Long,
-    val chapters: Long? = null,
-    val episodes: Long? = null,
-    val score: Long = 0,
-    val status: String = "",
+internal data class SMUserRateMedia(
+    val id: String,
 )
 
 @Serializable
@@ -105,6 +98,8 @@ internal data class SMUserRate(
     val episodes: Long? = null,
     val score: Long = 0,
     val status: String = "",
+    val anime: SMUserRateMedia? = null,
+    val manga: SMUserRateMedia? = null,
 ) {
     internal fun toMangaTrack(trackId: Long, mediaId: Long, manga: SMGraphQLEntry?): DbMangaTrack {
         val searchTrack = manga?.toMangaTrack(trackId)
@@ -239,78 +234,33 @@ internal fun shikimoriAnimeByIdPayload(id: Long): String {
     )
 }
 
-internal fun shikimoriUserRateCreatePayload(
-    userId: Long,
-    targetId: Long,
-    targetType: String,
-    chapters: Long? = null,
-    episodes: Long? = null,
-    score: Long = 0,
-    status: String,
-): String {
-    return shikimoriGraphQLMutationPayload(
-        """
-        |mutation CreateUserRate(${'$'}userId: Int!, ${'$'}targetId: Int!, ${'$'}targetType: String!, ${'$'}chapters: Int, ${'$'}episodes: Int, ${'$'}score: Int, ${'$'}status: String!) {
-            |userRateCreate(input: {userId: ${'$'}userId, targetId: ${'$'}targetId, targetType: ${'$'}targetType, chapters: ${'$'}chapters, episodes: ${'$'}episodes, score: ${'$'}score, status: ${'$'}status}) {
-                |id
-                |chapters
-                |episodes
-                |score
-                |status
-            |}
-        |}
-        """.trimMargin(),
-        userId,
-        targetId,
-        targetType,
-        chapters,
-        episodes,
-        score,
-        status,
-    )
-}
-
-internal fun shikimoriUserRateDeletePayload(id: Long): String {
-    return buildJsonObject {
-        put(
-            "query",
-            """
-            |mutation DeleteUserRate(${'$'}id: Int!) {
-                |userRateDelete(id: ${'$'}id) {
-                    |id
-                |}
-            |}
-            """.trimMargin(),
-        )
-        putJsonObject("variables") {
-            put("id", id)
-        }
-    }.toString()
-}
-
 internal fun shikimoriUserRatesQueryPayload(
     userId: Long,
-    targetId: Long,
     targetType: String,
 ): String {
     return buildJsonObject {
         put(
             "query",
             """
-            |query UserRates(${'$'}userId: Int!, ${'$'}targetId: Int!, ${'$'}targetType: String!) {
-                |userRates(userId: ${'$'}userId, targetId: ${'$'}targetId, targetType: ${'$'}targetType) {
+            |query UserRates(${'$'}userId: ID, ${'$'}targetType: UserRateTargetTypeEnum) {
+                |userRates(userId: ${'$'}userId, targetType: ${'$'}targetType, limit: 50) {
                     |id
                     |chapters
                     |episodes
                     |score
                     |status
+                    |anime {
+                        |id
+                    |}
+                    |manga {
+                        |id
+                    |}
                 |}
             |}
             """.trimMargin(),
         )
         putJsonObject("variables") {
-            put("userId", userId)
-            put("targetId", targetId)
+            put("userId", userId.toString())
             put("targetType", targetType)
         }
     }.toString()
@@ -328,30 +278,6 @@ private fun shikimoriGraphQLPayload(query: String, searchOrId: String): String {
         putJsonObject("variables") {
             put("query", searchOrId)
             put("id", searchOrId)
-        }
-    }.toString()
-}
-
-private fun shikimoriGraphQLMutationPayload(
-    mutation: String,
-    userId: Long,
-    targetId: Long,
-    targetType: String,
-    chapters: Long? = null,
-    episodes: Long? = null,
-    score: Long = 0,
-    status: String,
-): String {
-    return buildJsonObject {
-        put("query", mutation)
-        putJsonObject("variables") {
-            put("userId", userId)
-            put("targetId", targetId)
-            put("targetType", targetType)
-            if (chapters != null) put("chapters", chapters)
-            if (episodes != null) put("episodes", episodes)
-            put("score", score)
-            put("status", status)
         }
     }.toString()
 }

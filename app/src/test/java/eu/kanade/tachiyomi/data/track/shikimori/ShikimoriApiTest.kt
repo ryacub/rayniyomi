@@ -5,12 +5,11 @@ import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLEntry
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLError
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMGraphQLResponse
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUserRate
+import eu.kanade.tachiyomi.data.track.shikimori.dto.SMUserRateMedia
 import eu.kanade.tachiyomi.data.track.shikimori.dto.requireData
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeSearchPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaByIdPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaSearchPayload
-import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRateCreatePayload
-import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRateDeletePayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRatesQueryPayload
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -33,78 +32,31 @@ class ShikimoriApiTest {
     inner class GraphQLPayloadBuilders {
 
         @Test
-        @DisplayName("shikimoriUserRateCreatePayload produces valid GraphQL mutation JSON")
-        fun createPayloadStructure() {
-            val payload = shikimoriUserRateCreatePayload(
-                userId = 123L,
-                targetId = 456L,
-                targetType = "Manga",
-                chapters = 10L,
-                score = 8L,
-                status = "watching",
-            )
-            val root = json.parseToJsonElement(payload).jsonObject
-
-            root["query"]!!.jsonPrimitive.content shouldContain "userRateCreate"
-            root["query"]!!.jsonPrimitive.content shouldContain "userId"
-            root["query"]!!.jsonPrimitive.content shouldContain "targetId"
-            root["query"]!!.jsonPrimitive.content shouldContain "targetType"
-            root["query"]!!.jsonPrimitive.content shouldContain "chapters"
-            root["query"]!!.jsonPrimitive.content shouldContain "status"
-
-            val vars = root["variables"]!!.jsonObject
-            vars["userId"]!!.jsonPrimitive.content shouldBe "123"
-            vars["targetId"]!!.jsonPrimitive.content shouldBe "456"
-            vars["targetType"]!!.jsonPrimitive.content shouldBe "Manga"
-            vars["chapters"]!!.jsonPrimitive.content shouldBe "10"
-            vars["score"]!!.jsonPrimitive.content shouldBe "8"
-            vars["status"]!!.jsonPrimitive.content shouldBe "watching"
-        }
-
-        @Test
-        @DisplayName("shikimoriUserRateCreatePayload omits chapters when null (anime path)")
-        fun createPayloadOmitsNullChapters() {
-            val payload = shikimoriUserRateCreatePayload(
-                userId = 1L,
-                targetId = 2L,
-                targetType = "Anime",
-                episodes = 5L,
-                score = 7L,
-                status = "completed",
-            )
-            val root = json.parseToJsonElement(payload).jsonObject
-            val vars = root["variables"]!!.jsonObject
-
-            vars["targetType"]!!.jsonPrimitive.content shouldBe "Anime"
-            vars["episodes"]!!.jsonPrimitive.content shouldBe "5"
-            vars.containsKey("chapters") shouldBe false
-        }
-
-        @Test
-        @DisplayName("shikimoriUserRateDeletePayload produces valid GraphQL mutation JSON")
-        fun deletePayloadStructure() {
-            val payload = shikimoriUserRateDeletePayload(789L)
-            val root = json.parseToJsonElement(payload).jsonObject
-
-            root["query"]!!.jsonPrimitive.content shouldContain "userRateDelete"
-            root["variables"]!!.jsonObject["id"]!!.jsonPrimitive.content shouldBe "789"
-        }
-
-        @Test
         @DisplayName("shikimoriUserRatesQueryPayload produces valid GraphQL query JSON")
         fun queryPayloadStructure() {
             val payload = shikimoriUserRatesQueryPayload(
                 userId = 111L,
-                targetId = 222L,
                 targetType = "Manga",
             )
             val root = json.parseToJsonElement(payload).jsonObject
 
             root["query"]!!.jsonPrimitive.content shouldContain "userRates"
+            root["query"]!!.jsonPrimitive.content shouldContain "UserRateTargetTypeEnum"
+            root["query"]!!.jsonPrimitive.content shouldContain "anime"
+            root["query"]!!.jsonPrimitive.content shouldContain "manga"
+            root["query"]!!.jsonPrimitive.content shouldContain "limit: 50"
             val vars = root["variables"]!!.jsonObject
             vars["userId"]!!.jsonPrimitive.content shouldBe "111"
-            vars["targetId"]!!.jsonPrimitive.content shouldBe "222"
             vars["targetType"]!!.jsonPrimitive.content shouldBe "Manga"
+            vars.containsKey("targetId") shouldBe false
+        }
+
+        @Test
+        @DisplayName("shikimoriUserRatesQueryPayload sends userId as string (ID type)")
+        fun queryPayloadUserIdIsString() {
+            val payload = shikimoriUserRatesQueryPayload(userId = 42L, targetType = "Anime")
+            val root = json.parseToJsonElement(payload).jsonObject
+            root["variables"]!!.jsonObject["userId"]!!.jsonPrimitive.content shouldBe "42"
         }
 
         @Test
@@ -239,6 +191,20 @@ class ShikimoriApiTest {
             val track = rate.toMangaTrack(trackId = 4L, mediaId = 11L, manga = entry)
             track.tracking_url shouldBe "https://shikimori.one/manga/11"
         }
+
+        @Test
+        @DisplayName("SMUserRate.manga.id is used for client-side filtering")
+        fun smUserRateMangaIdForFiltering() {
+            val rate = SMUserRate(id = 1L, score = 0L, status = "planned", manga = SMUserRateMedia(id = "11"))
+            rate.manga?.id shouldBe "11"
+        }
+
+        @Test
+        @DisplayName("SMUserRate.anime.id is used for client-side filtering")
+        fun smUserRateAnimeIdForFiltering() {
+            val rate = SMUserRate(id = 1L, score = 0L, status = "planned", anime = SMUserRateMedia(id = "20"))
+            rate.anime?.id shouldBe "20"
+        }
     }
 
     @Nested
@@ -274,40 +240,8 @@ class ShikimoriApiTest {
     }
 
     @Nested
-    @DisplayName("SMGraphQLData: userRateCreate null handling")
-    inner class UserRateCreateNullHandling {
-
-        @Test
-        @DisplayName("SMGraphQLData userRateCreate is nullable — callers must throw, not swallow")
-        fun userRateCreateNullInDataIsDistinctFromErrorResponse() {
-            // requireData() only validates that data != null; it does NOT validate that
-            // userRateCreate is present. A response like {"data": {}} would have
-            // userRateCreate == null. Callers must use ?: error() — not ?.let — to
-            // ensure library_id is always set after a successful create mutation.
-            val dataWithNullCreate = SMGraphQLData(userRateCreate = null)
-            val response = SMGraphQLResponse(data = dataWithNullCreate)
-
-            // requireData passes (data is non-null)
-            response.requireData() shouldBe dataWithNullCreate
-            // but userRateCreate is null — caller is responsible for throwing here
-            response.requireData().userRateCreate shouldBe null
-        }
-    }
-
-    @Nested
-    @DisplayName("Feature 8: Dead REST v2 code removed")
+    @DisplayName("Feature 8: Dead code removed")
     inner class DeadCodeRemoval {
-
-        @Test
-        @DisplayName("SMAddEntryResponse class does not exist")
-        fun smAddEntryResponseRemoved() {
-            try {
-                Class.forName("eu.kanade.tachiyomi.data.track.shikimori.dto.SMAddEntryResponse")
-                throw AssertionError("SMAddEntryResponse should be deleted but was found")
-            } catch (e: ClassNotFoundException) {
-                // Expected
-            }
-        }
 
         @Test
         @DisplayName("SMUserListEntry class does not exist")
