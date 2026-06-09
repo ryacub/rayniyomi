@@ -156,10 +156,6 @@ class MainActivity : BaseActivity() {
         // Prevent splash screen showing up on configuration changes
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
-        // Keep splash screen visible until migration completes
-        var migrationComplete = false
-        splashScreen?.setKeepOnScreenCondition { !migrationComplete }
-
         super.onCreate(savedInstanceState)
 
         // Register ActivityResultLauncher for external player
@@ -191,18 +187,6 @@ class MainActivity : BaseActivity() {
         }
 
         setComposeContent {
-            var didMigration by remember { mutableStateOf(false) }
-            var migrationChecked by remember { mutableStateOf(false) }
-
-            LaunchedEffect(Unit) {
-                didMigration = Migrator.await()
-                Migrator.release()
-                migrationChecked = true
-                migrationComplete = true
-            }
-
-            if (!migrationChecked) return@setComposeContent
-
             val context = LocalContext.current
 
             var incognito by remember { mutableStateOf(getMangaIncognitoState.await(null)) }
@@ -322,7 +306,14 @@ class MainActivity : BaseActivity() {
                 ShowOnboarding()
             }
 
-            var showChangelog by remember { mutableStateOf(didMigration && !BuildConfig.DEBUG) }
+            var showChangelog by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                val didMigration = Migrator.await()
+                if (shouldShowPostMigrationChangelog(didMigration, BuildConfig.DEBUG)) {
+                    showChangelog = true
+                }
+                Migrator.release()
+            }
             if (showChangelog) {
                 AlertDialog(
                     onDismissRequest = { showChangelog = false },
@@ -672,6 +663,10 @@ class MainActivity : BaseActivity() {
             )
         }
     }
+}
+
+internal fun shouldShowPostMigrationChangelog(didMigration: Boolean, isDebugBuild: Boolean): Boolean {
+    return didMigration && !isDebugBuild
 }
 
 private fun splashMinDuration() = if (BuildConfig.BUILD_TYPE == "benchmark") 0L else SPLASH_MIN_DURATION
