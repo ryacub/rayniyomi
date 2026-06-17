@@ -34,6 +34,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Baseline profile CI job now dry-runs `:app:generateBaselineProfile` and verifies `baseline-prof.txt` is committed and non-empty on every PR touching app or macrobenchmark paths.
 
 ### Other
+- Data saver compression bypass logic now uses one shared jpg/gif ignore helper across supported image proxy backends.
 - Added a repeatable installer for the local `autoloop` command used by ticket-gated agent workflows.
 - Baseline profile generation is now a real executable Gradle task via the AndroidX Baseline Profile plugin; removed the placeholder stub task added in an earlier pass.
 - Native library dependencies updated for 16 KB page-size alignment on Android 15+ devices: `libarchive` 1.1.6, `sqlite-android` 3.49.0, `image-decoder` (Mihon fork), `quickjs-android` (zhanghai fork), `ffmpeg-kit-16kb` 6.1.1. Compile SDK bumped to 37. APK alignment verifier wired into release builds.

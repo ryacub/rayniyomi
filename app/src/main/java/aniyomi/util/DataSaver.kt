@@ -64,17 +64,7 @@ private class BandwidthHeroDataSaver(preferences: SourcePreferences) : DataSaver
 
     override fun compress(imageUrl: String): String {
         return if (dataSavedServer.isNotBlank() && !imageUrl.contains(dataSavedServer)) {
-            when {
-                imageUrl.contains(".jpeg", true) || imageUrl.contains(".jpg", true) -> if (ignoreJpg) {
-                    imageUrl
-                } else {
-                    getUrl(
-                        imageUrl,
-                    )
-                }
-                imageUrl.contains(".gif", true) -> if (ignoreGif) imageUrl else getUrl(imageUrl)
-                else -> getUrl(imageUrl)
-            }
+            imageUrl.compressUnlessIgnored(ignoreJpg, ignoreGif, ::getUrl)
         } else {
             imageUrl
         }
@@ -97,17 +87,7 @@ private class WsrvNlDataSaver(preferences: SourcePreferences) : DataSaver {
     private val quality = preferences.dataSaverImageQuality().get()
 
     override fun compress(imageUrl: String): String {
-        return when {
-            imageUrl.contains(".jpeg", true) || imageUrl.contains(".jpg", true) -> if (ignoreJpg) {
-                imageUrl
-            } else {
-                getUrl(
-                    imageUrl,
-                )
-            }
-            imageUrl.contains(".gif", true) -> if (ignoreGif) imageUrl else getUrl(imageUrl)
-            else -> getUrl(imageUrl)
-        }
+        return imageUrl.compressUnlessIgnored(ignoreJpg, ignoreGif, ::getUrl)
     }
 
     private fun getUrl(imageUrl: String): String {
@@ -148,17 +128,7 @@ private class ReSmushItDataSaver(preferences: SourcePreferences) : DataSaver {
     private val quality = preferences.dataSaverImageQuality().get()
 
     override fun compress(imageUrl: String): String {
-        return when {
-            imageUrl.contains(".jpeg", true) || imageUrl.contains(".jpg", true) -> if (ignoreJpg) {
-                imageUrl
-            } else {
-                getUrl(
-                    imageUrl,
-                )
-            }
-            imageUrl.contains(".gif", true) -> if (ignoreGif) imageUrl else getUrl(imageUrl)
-            else -> getUrl(imageUrl)
-        }
+        return imageUrl.compressUnlessIgnored(ignoreJpg, ignoreGif, ::getUrl)
     }
 
     private fun getUrl(imageUrl: String): String {
@@ -167,3 +137,17 @@ private class ReSmushItDataSaver(preferences: SourcePreferences) : DataSaver {
             .body.string().substringAfter("\"dest\":\"").substringBefore("\",")
     }
 }
+
+private inline fun String.compressUnlessIgnored(
+    ignoreJpg: Boolean,
+    ignoreGif: Boolean,
+    compress: (String) -> String,
+): String {
+    return when {
+        isJpg() && ignoreJpg -> this
+        contains(".gif", true) && ignoreGif -> this
+        else -> compress(this)
+    }
+}
+
+private fun String.isJpg() = contains(".jpeg", true) || contains(".jpg", true)
