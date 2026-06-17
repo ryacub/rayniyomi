@@ -10,7 +10,7 @@ import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.presentation.category.MangaCategoryScreen
+import eu.kanade.presentation.category.CategoryScreen
 import eu.kanade.presentation.category.components.CategoryCreateDialog
 import eu.kanade.presentation.category.components.CategoryDeleteDialog
 import eu.kanade.presentation.category.components.CategoryRenameDialog
@@ -55,8 +55,10 @@ fun Screen.mangaCategoryTab(): TabContent {
             } else {
                 val successState = state as MangaCategoryScreenState.Success
 
-                MangaCategoryScreen(
-                    state = successState,
+                CategoryScreen(
+                    categories = successState.categories,
+                    alphabeticalSortEnabled = successState.alphabeticalSortEnabled,
+                    isEmpty = successState.isEmpty,
                     onClickCreate = { screenModel.showDialog(MangaCategoryDialog.Create) },
                     onClickRename = { screenModel.showDialog(MangaCategoryDialog.Rename(it)) },
                     onClickHide = screenModel::hideCategory,
