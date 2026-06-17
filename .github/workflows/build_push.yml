@@ -64,6 +64,22 @@ jobs:
 
           ./gradlew publishToMavenLocal -x test --no-daemon
 
+      - name: Verify generateBaselineProfile task is wired
+        run: ./gradlew :app:generateBaselineProfile --dry-run
+
+      - name: Verify baseline-prof.txt artifact is committed and non-empty
+        run: |
+          ARTIFACT="app/src/main/baseline-prof.txt"
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "ERROR: $ARTIFACT not found — run :app:generateBaselineProfile and commit the result"
+            exit 1
+          fi
+          if [ ! -s "$ARTIFACT" ]; then
+            echo "ERROR: $ARTIFACT is empty — regenerate with :app:generateBaselineProfile"
+            exit 1
+          fi
+          echo "baseline-prof.txt present ($(wc -l < "$ARTIFACT") lines)"
+
       - name: Check format and run unit tests
         run: ./gradlew spotlessCheck :app:testDebugUnitTest
 

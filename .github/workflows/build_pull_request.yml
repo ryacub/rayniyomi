@@ -194,3 +194,43 @@ jobs:
 
       - name: Run unit tests
         run: ./gradlew :app:testStableDebugUnitTest --build-cache
+
+  baseline-profile:
+    name: Verify baseline profile task and artifact
+    runs-on: 'ubuntu-24.04'
+    needs: prepare_sqldelight
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Download SqlDelight local Maven artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
+          path: ~/.m2/repository/app/cash
+
+      - name: Verify generateBaselineProfile task is wired
+        run: ./gradlew :app:generateBaselineProfile --dry-run
+
+      - name: Verify baseline-prof.txt artifact is committed and non-empty
+        run: |
+          ARTIFACT="app/src/main/baseline-prof.txt"
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "ERROR: $ARTIFACT not found — run :app:generateBaselineProfile and commit the result"
+            exit 1
+          fi
+          if [ ! -s "$ARTIFACT" ]; then
+            echo "ERROR: $ARTIFACT is empty — regenerate with :app:generateBaselineProfile"
+            exit 1
+          fi
+          echo "baseline-prof.txt present ($(wc -l < "$ARTIFACT") lines)"
