@@ -2,10 +2,10 @@ package tachiyomi.domain.storage.service
 
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
-import tachiyomi.core.common.storage.FolderProvider
+import tachiyomi.core.common.storage.AndroidStorageFolderProvider
 
 class StoragePreferences(
-    private val folderProvider: FolderProvider,
+    private val folderProvider: AndroidStorageFolderProvider,
     private val preferenceStore: PreferenceStore,
 ) {
 

@@ -9,16 +9,16 @@ import java.io.File
 
 class AndroidStorageFolderProvider(
     private val context: Context,
-) : FolderProvider {
+) {
 
-    override fun directory(): File {
+    fun directory(): File {
         return File(
             Environment.getExternalStorageDirectory().absolutePath + File.separator +
                 context.stringResource(MR.strings.app_name),
         )
     }
 
-    override fun path(): String {
+    fun path(): String {
         return directory().toUri().toString()
     }
 }
