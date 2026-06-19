@@ -2,53 +2,16 @@ package eu.kanade.presentation.track.manga
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
-import eu.kanade.tachiyomi.ui.entries.manga.track.MangaTrackItem
-import eu.kanade.test.DummyTracker
-import tachiyomi.domain.track.manga.model.MangaTrack
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
+import eu.kanade.presentation.track.previewMangaTrackItemWithTrack
+import eu.kanade.presentation.track.previewMangaTrackItemWithoutTrack
+import eu.kanade.presentation.track.previewTrackDateFormat
 
 internal class MangaTrackInfoDialogHomePreviewProvider :
     PreviewParameterProvider<@Composable () -> Unit> {
 
-    private val aTrack = MangaTrack(
-        id = 1L,
-        mangaId = 2L,
-        trackerId = 3L,
-        remoteId = 4L,
-        libraryId = null,
-        title = "Manage Name On Tracker Site",
-        lastChapterRead = 2.0,
-        totalChapters = 12L,
-        status = 1L,
-        score = 2.0,
-        remoteUrl = "https://example.com",
-        startDate = 0L,
-        finishDate = 0L,
-        private = false,
-    )
-    private val privateTrack = aTrack.copy(private = true)
-    private val trackItemWithoutTrack = MangaTrackItem(
-        track = null,
-        tracker = DummyTracker(
-            id = 1L,
-            name = "Example Tracker",
-        ),
-    )
-    private val trackItemWithTrack = MangaTrackItem(
-        track = aTrack,
-        tracker = DummyTracker(
-            id = 2L,
-            name = "Example Tracker 2",
-        ),
-    )
-    private val trackItemWithPrivateTrack = MangaTrackItem(
-        track = privateTrack,
-        tracker = DummyTracker(
-            id = 2L,
-            name = "Example Tracker 2",
-        ),
-    )
+    private val trackItemWithoutTrack = previewMangaTrackItemWithoutTrack()
+    private val trackItemWithTrack = previewMangaTrackItemWithTrack()
+    private val trackItemWithPrivateTrack = previewMangaTrackItemWithTrack(privateTracking = true)
 
     private val trackersWithAndWithoutTrack = @Composable {
         MangaTrackInfoDialogHome(
@@ -56,7 +19,7 @@ internal class MangaTrackInfoDialogHomePreviewProvider :
                 trackItemWithoutTrack,
                 trackItemWithTrack,
             ),
-            dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM),
+            dateFormat = previewTrackDateFormat(),
             onStatusClick = {},
             onChapterClick = {},
             onScoreClick = {},
@@ -73,7 +36,7 @@ internal class MangaTrackInfoDialogHomePreviewProvider :
     private val noTrackers = @Composable {
         MangaTrackInfoDialogHome(
             trackItems = listOf(),
-            dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM),
+            dateFormat = previewTrackDateFormat(),
             onStatusClick = {},
             onChapterClick = {},
             onScoreClick = {},
@@ -90,7 +53,7 @@ internal class MangaTrackInfoDialogHomePreviewProvider :
     private val trackerWithPrivateTracking = @Composable {
         MangaTrackInfoDialogHome(
             trackItems = listOf(trackItemWithPrivateTrack),
-            dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM),
+            dateFormat = previewTrackDateFormat(),
             onStatusClick = {},
             onChapterClick = {},
             onScoreClick = {},
