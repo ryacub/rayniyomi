@@ -1,10 +1,8 @@
 package tachiyomi.domain.category.manga.interactor
 
-import logcat.LogPriority
-import tachiyomi.core.common.util.lang.withNonCancellableContext
-import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.category.interactor.CreateCategoryWithName
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.category.manga.repository.MangaCategoryRepository
-import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.service.LibraryPreferences
 
 class CreateMangaCategoryWithName(
@@ -12,34 +10,19 @@ class CreateMangaCategoryWithName(
     private val preferences: LibraryPreferences,
 ) {
 
-    private val initialFlags: Long
-        get() {
+    private val createCategory = CreateCategoryWithName(
+        repository = categoryRepository.asCategoryRepositoryOps(),
+        initialFlags = {
             val sort = preferences.mangaSortingMode().get()
-            return sort.type.flag or sort.direction.flag
-        }
+            sort.type.flag or sort.direction.flag
+        },
+    )
 
-    suspend fun await(name: String, parentId: Long? = null): Result = withNonCancellableContext {
-        val categories = categoryRepository.getAllMangaCategories()
-        val validatedParentId = parentId?.let { id ->
-            categories.find { it.id == id && it.parentId == null }?.id
-                ?: return@withNonCancellableContext Result.InvalidParent
-        }
-        val nextOrder = categories.maxOfOrNull { it.order }?.plus(1) ?: 0
-        val newCategory = Category(
-            id = 0,
-            name = name,
-            order = nextOrder,
-            flags = initialFlags,
-            hidden = false,
-            parentId = validatedParentId,
-        )
-
-        try {
-            categoryRepository.insertMangaCategory(newCategory)
-            Result.Success
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            Result.InternalError(e)
+    suspend fun await(name: String, parentId: Long? = null): Result {
+        return when (val result = createCategory.await(name, parentId)) {
+            CreateCategoryWithName.Result.Success -> Result.Success
+            CreateCategoryWithName.Result.InvalidParent -> Result.InvalidParent
+            is CreateCategoryWithName.Result.InternalError -> Result.InternalError(result.error)
         }
     }
 

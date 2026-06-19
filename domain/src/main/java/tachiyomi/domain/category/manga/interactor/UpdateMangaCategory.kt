@@ -1,6 +1,7 @@
 package tachiyomi.domain.category.manga.interactor
 
-import tachiyomi.core.common.util.lang.withNonCancellableContext
+import tachiyomi.domain.category.interactor.UpdateCategory
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.category.manga.repository.MangaCategoryRepository
 import tachiyomi.domain.category.model.CategoryUpdate
 
@@ -8,12 +9,12 @@ class UpdateMangaCategory(
     private val categoryRepository: MangaCategoryRepository,
 ) {
 
-    suspend fun await(payload: CategoryUpdate): Result = withNonCancellableContext {
-        try {
-            categoryRepository.updatePartialMangaCategory(payload)
-            Result.Success
-        } catch (e: Exception) {
-            Result.Error(e)
+    private val updateCategory = UpdateCategory(categoryRepository.asCategoryRepositoryOps())
+
+    suspend fun await(payload: CategoryUpdate): Result {
+        return when (val result = updateCategory.await(payload)) {
+            UpdateCategory.Result.Success -> Result.Success
+            is UpdateCategory.Result.InternalError -> Result.Error(result.error)
         }
     }
 

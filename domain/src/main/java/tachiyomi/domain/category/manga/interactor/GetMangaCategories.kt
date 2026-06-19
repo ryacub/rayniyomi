@@ -1,25 +1,20 @@
 package tachiyomi.domain.category.manga.interactor
 
-import kotlinx.coroutines.flow.Flow
+import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.category.manga.repository.MangaCategoryRepository
 import tachiyomi.domain.category.model.Category
 
 class GetMangaCategories(
     private val categoryRepository: MangaCategoryRepository,
 ) {
-    fun subscribe(): Flow<List<Category>> {
-        return categoryRepository.getAllMangaCategoriesAsFlow()
-    }
+    private val getCategories = GetCategories(categoryRepository.asCategoryRepositoryOps())
 
-    fun subscribe(mangaId: Long): Flow<List<Category>> {
-        return categoryRepository.getCategoriesByMangaIdAsFlow(mangaId)
-    }
+    fun subscribe() = getCategories.subscribe()
 
-    suspend fun await(): List<Category> {
-        return categoryRepository.getAllMangaCategories()
-    }
+    fun subscribe(mangaId: Long) = getCategories.subscribe(mangaId)
 
-    suspend fun await(mangaId: Long): List<Category> {
-        return categoryRepository.getCategoriesByMangaId(mangaId)
-    }
+    suspend fun await(): List<Category> = getCategories.await()
+
+    suspend fun await(mangaId: Long): List<Category> = getCategories.await(mangaId)
 }

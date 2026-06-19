@@ -1,7 +1,8 @@
 package tachiyomi.domain.category.anime.interactor
 
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
-import tachiyomi.domain.category.model.CategoryUpdate
+import tachiyomi.domain.category.interactor.ResetCategoryFlags
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.library.model.plus
 import tachiyomi.domain.library.service.LibraryPreferences
 
@@ -10,17 +11,10 @@ class ResetAnimeCategoryFlags(
     private val categoryRepository: AnimeCategoryRepository,
 ) {
 
-    private val sortMask = 0b01111100L
+    private val resetCategoryFlags = ResetCategoryFlags(categoryRepository.asCategoryRepositoryOps())
 
     suspend fun await() {
         val sort = preferences.animeSortingMode().get()
-        val updates = categoryRepository.getAllAnimeCategories().map {
-            // Reset only sort mode bits; keep auxiliary flags such as alphabetical category sorting.
-            CategoryUpdate(
-                id = it.id,
-                flags = (it.flags and sortMask.inv()) + sort.type + sort.direction,
-            )
-        }
-        categoryRepository.updatePartialAnimeCategories(updates)
+        resetCategoryFlags.await(sort.type + sort.direction)
     }
 }

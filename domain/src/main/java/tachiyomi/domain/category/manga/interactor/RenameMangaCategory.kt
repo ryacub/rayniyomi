@@ -1,28 +1,20 @@
 package tachiyomi.domain.category.manga.interactor
 
-import logcat.LogPriority
-import tachiyomi.core.common.util.lang.withNonCancellableContext
-import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.category.interactor.RenameCategory
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.category.manga.repository.MangaCategoryRepository
 import tachiyomi.domain.category.model.Category
-import tachiyomi.domain.category.model.CategoryUpdate
 
 class RenameMangaCategory(
     private val categoryRepository: MangaCategoryRepository,
 ) {
 
-    suspend fun await(categoryId: Long, name: String) = withNonCancellableContext {
-        val update = CategoryUpdate(
-            id = categoryId,
-            name = name,
-        )
+    private val renameCategory = RenameCategory(categoryRepository.asCategoryRepositoryOps())
 
-        try {
-            categoryRepository.updatePartialMangaCategory(update)
-            Result.Success
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            Result.InternalError(e)
+    suspend fun await(categoryId: Long, name: String): Result {
+        return when (val result = renameCategory.await(categoryId, name)) {
+            RenameCategory.Result.Success -> Result.Success
+            is RenameCategory.Result.InternalError -> Result.InternalError(result.error)
         }
     }
 

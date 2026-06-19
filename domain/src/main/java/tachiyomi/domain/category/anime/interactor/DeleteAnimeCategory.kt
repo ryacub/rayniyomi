@@ -1,10 +1,8 @@
 package tachiyomi.domain.category.anime.interactor
 
-import logcat.LogPriority
-import tachiyomi.core.common.util.lang.withNonCancellableContext
-import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
-import tachiyomi.domain.category.model.CategoryUpdate
+import tachiyomi.domain.category.interactor.DeleteCategory
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 
@@ -14,49 +12,22 @@ class DeleteAnimeCategory(
     private val downloadPreferences: DownloadPreferences,
 ) {
 
-    suspend fun await(categoryId: Long) = withNonCancellableContext {
-        try {
-            categoryRepository.deleteAnimeCategory(categoryId)
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            return@withNonCancellableContext Result.InternalError(e)
-        }
-
-        val categories = categoryRepository.getAllAnimeCategories()
-        val updates = categories.mapIndexed { index, category ->
-            CategoryUpdate(
-                id = category.id,
-                order = index.toLong(),
-                parentId = if (category.parentId == categoryId) null else category.parentId,
-                updateParentId = category.parentId == categoryId,
-            )
-        }
-
-        val defaultCategory = libraryPreferences.defaultAnimeCategory().get()
-        if (defaultCategory == categoryId.toInt()) {
-            libraryPreferences.defaultAnimeCategory().delete()
-        }
-
-        val categoryPreferences = listOf(
+    private val deleteCategory = DeleteCategory(
+        repository = categoryRepository.asCategoryRepositoryOps(),
+        defaultCategory = libraryPreferences.defaultAnimeCategory(),
+        categoryPreferences = listOf(
             libraryPreferences.animeUpdateCategories(),
             libraryPreferences.animeUpdateCategoriesExclude(),
             downloadPreferences.removeExcludeAnimeCategories(),
             downloadPreferences.downloadNewEpisodeCategories(),
             downloadPreferences.downloadNewEpisodeCategoriesExclude(),
-        )
-        val categoryIdString = categoryId.toString()
-        categoryPreferences.forEach { preference ->
-            val ids = preference.get()
-            if (categoryIdString !in ids) return@forEach
-            preference.set(ids.minus(categoryIdString))
-        }
+        ),
+    )
 
-        try {
-            categoryRepository.updatePartialAnimeCategories(updates)
-            Result.Success
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            Result.InternalError(e)
+    suspend fun await(categoryId: Long): Result {
+        return when (val result = deleteCategory.await(categoryId)) {
+            DeleteCategory.Result.Success -> Result.Success
+            is DeleteCategory.Result.InternalError -> Result.InternalError(result.error)
         }
     }
 
