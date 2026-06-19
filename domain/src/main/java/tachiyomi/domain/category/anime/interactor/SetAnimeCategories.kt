@@ -1,18 +1,15 @@
 package tachiyomi.domain.category.anime.interactor
 
-import logcat.LogPriority
-import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.category.interactor.SetEntryCategories
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 
 class SetAnimeCategories(
     private val animeRepository: AnimeRepository,
 ) {
 
+    private val setEntryCategories = SetEntryCategories(animeRepository::setAnimeCategories)
+
     suspend fun await(animeId: Long, categoryIds: List<Long>) {
-        try {
-            animeRepository.setAnimeCategories(animeId, categoryIds)
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-        }
+        setEntryCategories.await(animeId, categoryIds)
     }
 }

@@ -1,28 +1,20 @@
 package tachiyomi.domain.category.anime.interactor
 
-import logcat.LogPriority
-import tachiyomi.core.common.util.lang.withNonCancellableContext
-import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
+import tachiyomi.domain.category.interactor.HideCategory
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.category.model.Category
-import tachiyomi.domain.category.model.CategoryUpdate
 
 class HideAnimeCategory(
     private val categoryRepository: AnimeCategoryRepository,
 ) {
 
-    suspend fun await(category: Category) = withNonCancellableContext {
-        val update = CategoryUpdate(
-            id = category.id,
-            hidden = !category.hidden,
-        )
+    private val hideCategory = HideCategory(categoryRepository.asCategoryRepositoryOps())
 
-        try {
-            categoryRepository.updatePartialAnimeCategory(update)
-            RenameAnimeCategory.Result.Success
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            Result.InternalError(e)
+    suspend fun await(category: Category): Result {
+        return when (val result = hideCategory.await(category)) {
+            HideCategory.Result.Success -> Result.Success
+            is HideCategory.Result.InternalError -> Result.InternalError(result.error)
         }
     }
 

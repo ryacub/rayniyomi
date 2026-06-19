@@ -1,45 +1,28 @@
 package tachiyomi.domain.category.anime.interactor
 
-import logcat.LogPriority
-import tachiyomi.core.common.util.lang.withNonCancellableContext
-import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
-import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.interactor.asCategoryRepositoryOps
 import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.category.interactor.CreateCategoryWithName as SharedCreateCategoryWithName
 
 class CreateAnimeCategoryWithName(
     private val categoryRepository: AnimeCategoryRepository,
     private val preferences: LibraryPreferences,
 ) {
 
-    private val initialFlags: Long
-        get() {
+    private val createCategory = SharedCreateCategoryWithName(
+        repository = categoryRepository.asCategoryRepositoryOps(),
+        initialFlags = {
             val sort = preferences.animeSortingMode().get()
-            return sort.type.flag or sort.direction.flag
-        }
+            sort.type.flag or sort.direction.flag
+        },
+    )
 
-    suspend fun await(name: String, parentId: Long? = null): Result = withNonCancellableContext {
-        val categories = categoryRepository.getAllAnimeCategories()
-        val validatedParentId = parentId?.let { id ->
-            categories.find { it.id == id && it.parentId == null }?.id
-                ?: return@withNonCancellableContext Result.InvalidParent
-        }
-        val nextOrder = categories.maxOfOrNull { it.order }?.plus(1) ?: 0
-        val newCategory = Category(
-            id = 0,
-            name = name,
-            order = nextOrder,
-            flags = initialFlags,
-            hidden = false,
-            parentId = validatedParentId,
-        )
-
-        try {
-            categoryRepository.insertAnimeCategory(newCategory)
-            Result.Success
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            Result.InternalError(e)
+    suspend fun await(name: String, parentId: Long? = null): Result {
+        return when (val result = createCategory.await(name, parentId)) {
+            SharedCreateCategoryWithName.Result.Success -> Result.Success
+            SharedCreateCategoryWithName.Result.InvalidParent -> Result.InvalidParent
+            is SharedCreateCategoryWithName.Result.InternalError -> Result.InternalError(result.error)
         }
     }
 
