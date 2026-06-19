@@ -34,6 +34,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Baseline profile CI job now dry-runs `:app:generateBaselineProfile` and verifies `baseline-prof.txt` is committed and non-empty on every PR touching app or macrobenchmark paths.
 
 ### Other
+- Track previews now share sample fixture builders between anime and manga preview providers.
 - Storage preferences now use the concrete Android storage folder provider directly instead of a single-implementation abstraction.
 - Data saver compression bypass logic now uses one shared jpg/gif ignore helper across supported image proxy backends.
 - Added a repeatable installer for the local `autoloop` command used by ticket-gated agent workflows.
