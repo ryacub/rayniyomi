@@ -1,7 +1,10 @@
 package tachiyomi.domain.category.interactor
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -9,13 +12,18 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
+import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.domain.category.anime.interactor.HideAnimeCategory
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
+import tachiyomi.domain.category.manga.interactor.DeleteMangaCategory
+import tachiyomi.domain.category.manga.repository.MangaCategoryRepository
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.CategoryFlags
 import tachiyomi.domain.category.model.CategoryUpdate
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.model.FlagWithMask
 import tachiyomi.domain.library.model.plus
+import tachiyomi.domain.library.service.LibraryPreferences
 
 class CategoryInteractorOperationsTest {
 
@@ -298,6 +306,53 @@ class CategoryInteractorOperationsTest {
         assertInstanceOf(DeleteCategory.Result.InternalError::class.java, result)
     }
 
+    @Test
+    fun `manga delete facade removes deleted category from manga preferences`() = runTest {
+        val categoryId = 2L
+        val preferences = KeyedMutablePreferenceStore()
+        val libraryPreferences = LibraryPreferences(preferences)
+        val downloadPreferences = DownloadPreferences(preferences)
+        libraryPreferences.defaultMangaCategory().set(categoryId.toInt())
+        libraryPreferences.mangaUpdateCategories().set(setOf("1", "2"))
+        libraryPreferences.mangaUpdateCategoriesExclude().set(setOf("2", "3"))
+        downloadPreferences.removeExcludeCategories().set(setOf("2", "4"))
+        downloadPreferences.downloadNewChapterCategories().set(setOf("2", "5"))
+        downloadPreferences.downloadNewChapterCategoriesExclude().set(setOf("2", "6"))
+        libraryPreferences.animeUpdateCategoriesExclude().set(setOf("2", "7"))
+        val repository = FakeMangaCategoryRepository(
+            listOf(
+                category(id = 1, name = "Parent", order = 0),
+                category(id = categoryId, name = "Deleted", order = 1),
+                category(id = 3, name = "Child", order = 2, parentId = categoryId),
+                category(id = 4, name = "Later", order = 3),
+            ),
+        )
+        val deleteMangaCategory = DeleteMangaCategory(
+            categoryRepository = repository,
+            libraryPreferences = libraryPreferences,
+            downloadPreferences = downloadPreferences,
+        )
+
+        val result = deleteMangaCategory.await(categoryId)
+
+        assertEquals(DeleteMangaCategory.Result.Success, result)
+        assertEquals(-1, libraryPreferences.defaultMangaCategory().get())
+        assertEquals(setOf("1"), libraryPreferences.mangaUpdateCategories().get())
+        assertEquals(setOf("3"), libraryPreferences.mangaUpdateCategoriesExclude().get())
+        assertEquals(setOf("4"), downloadPreferences.removeExcludeCategories().get())
+        assertEquals(setOf("5"), downloadPreferences.downloadNewChapterCategories().get())
+        assertEquals(setOf("6"), downloadPreferences.downloadNewChapterCategoriesExclude().get())
+        assertEquals(setOf("2", "7"), libraryPreferences.animeUpdateCategoriesExclude().get())
+        assertEquals(
+            listOf(
+                CategoryUpdate(id = 1, order = 0, parentId = null, updateParentId = false),
+                CategoryUpdate(id = 3, order = 1, parentId = null, updateParentId = true),
+                CategoryUpdate(id = 4, order = 2, parentId = null, updateParentId = false),
+            ),
+            repository.updates,
+        )
+    }
+
     private class FakeCategoryRepositoryOps(
         initialCategories: List<Category>,
     ) : CategoryRepositoryOps {
@@ -407,6 +462,129 @@ class CategoryInteractorOperationsTest {
         fun singleUpdate(): CategoryUpdate = updates.single()
     }
 
+    private class FakeMangaCategoryRepository(
+        initialCategories: List<Category>,
+    ) : MangaCategoryRepository {
+
+        private val categories = initialCategories.toMutableList()
+        val updates = mutableListOf<CategoryUpdate>()
+
+        override suspend fun getMangaCategory(id: Long): Category? = categories.find { it.id == id }
+
+        override suspend fun getAllMangaCategories(): List<Category> = categories.toList()
+
+        override suspend fun getAllVisibleMangaCategories(): List<Category> =
+            categories.filterNot { it.hidden }
+
+        override fun getAllMangaCategoriesAsFlow(): Flow<List<Category>> = MutableStateFlow(categories.toList())
+
+        override fun getAllVisibleMangaCategoriesAsFlow(): Flow<List<Category>> =
+            MutableStateFlow(categories.filterNot { it.hidden })
+
+        override suspend fun getCategoriesByMangaId(mangaId: Long): List<Category> = categories.toList()
+
+        override suspend fun getVisibleCategoriesByMangaId(mangaId: Long): List<Category> =
+            categories.filterNot { it.hidden }
+
+        override fun getCategoriesByMangaIdAsFlow(mangaId: Long): Flow<List<Category>> =
+            MutableStateFlow(categories.toList())
+
+        override fun getVisibleCategoriesByMangaIdAsFlow(mangaId: Long): Flow<List<Category>> =
+            MutableStateFlow(categories.filterNot { it.hidden })
+
+        override suspend fun insertMangaCategory(category: Category) {
+            throw UnsupportedOperationException("Not needed by this test")
+        }
+
+        override suspend fun updatePartialMangaCategory(update: CategoryUpdate) {
+            throw UnsupportedOperationException("Not needed by this test")
+        }
+
+        override suspend fun updatePartialMangaCategories(updates: List<CategoryUpdate>) {
+            this.updates += updates
+        }
+
+        override suspend fun updateAllMangaCategoryFlags(flags: Long?) {
+            throw UnsupportedOperationException("Not needed by this test")
+        }
+
+        override suspend fun deleteMangaCategory(categoryId: Long) {
+            categories.removeAll { it.id == categoryId }
+        }
+    }
+
+    private class KeyedMutablePreferenceStore(
+        initialValues: Map<String, Any?> = emptyMap(),
+    ) : PreferenceStore {
+
+        private val values = initialValues.toMutableMap()
+
+        override fun getString(key: String, defaultValue: String): Preference<String> =
+            getPreference(key, defaultValue)
+
+        override fun getLong(key: String, defaultValue: Long): Preference<Long> =
+            getPreference(key, defaultValue)
+
+        override fun getInt(key: String, defaultValue: Int): Preference<Int> =
+            getPreference(key, defaultValue)
+
+        override fun getFloat(key: String, defaultValue: Float): Preference<Float> =
+            getPreference(key, defaultValue)
+
+        override fun getBoolean(key: String, defaultValue: Boolean): Preference<Boolean> =
+            getPreference(key, defaultValue)
+
+        override fun getStringSet(key: String, defaultValue: Set<String>): Preference<Set<String>> =
+            getPreference(key, defaultValue)
+
+        override fun <T> getObject(
+            key: String,
+            defaultValue: T,
+            serializer: (T) -> String,
+            deserializer: (String) -> T,
+        ): Preference<T> = getPreference(key, defaultValue)
+
+        override fun getAll(): Map<String, *> = values.toMap()
+
+        private fun <T> getPreference(key: String, defaultValue: T): Preference<T> {
+            return KeyedMutablePreference(key, defaultValue, values)
+        }
+    }
+
+    private class KeyedMutablePreference<T>(
+        private val key: String,
+        private val defaultValue: T,
+        private val values: MutableMap<String, Any?>,
+    ) : Preference<T> {
+
+        private val flow = MutableStateFlow(currentValue())
+
+        override fun key(): String = key
+
+        override fun get(): T = currentValue()
+
+        override fun set(value: T) {
+            values[key] = value
+            flow.value = value
+        }
+
+        override fun isSet(): Boolean = values.containsKey(key)
+
+        override fun delete() {
+            values.remove(key)
+            flow.value = defaultValue
+        }
+
+        override fun defaultValue(): T = defaultValue
+
+        override fun changes(): Flow<T> = flow
+
+        override fun stateIn(scope: CoroutineScope): StateFlow<T> = flow.asStateFlow()
+
+        @Suppress("UNCHECKED_CAST")
+        private fun currentValue(): T = values.getOrDefault(key, defaultValue) as T
+    }
+
     private class MutablePreference<T>(
         private val defaultValue: T,
         initialValue: T,
@@ -432,7 +610,7 @@ class CategoryInteractorOperationsTest {
 
         override fun changes(): Flow<T> = flow
 
-        override fun stateIn(scope: kotlinx.coroutines.CoroutineScope): kotlinx.coroutines.flow.StateFlow<T> = flow
+        override fun stateIn(scope: CoroutineScope): StateFlow<T> = flow
     }
 
     private fun category(

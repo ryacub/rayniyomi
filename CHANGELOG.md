@@ -27,6 +27,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Missing-extension sources now preserve readable stub source names from runtime and backup metadata (fallback to raw source ID only when metadata is unavailable), for both manga and anime source flows.
 - Reader initialization now guards chapter loading with a descriptive `checkNotNull` for `ChapterLoader`, replacing an unsafe null assertion crash path in `ReaderViewModel`.
+- Manga category deletion now clears deleted categories from both library update include and exclude preferences.
 
 ### Changed
 
