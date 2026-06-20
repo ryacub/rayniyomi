@@ -35,6 +35,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Baseline profile CI job now dry-runs `:app:generateBaselineProfile` and verifies `baseline-prof.txt` is committed and non-empty on every PR touching app or macrobenchmark paths.
 
 ### Other
+- Anime and manga tracking screens now share common presentation components while keeping their typed entrypoints separate.
 - Category interactors now share common domain mechanics while keeping anime and manga entrypoints separate.
 - Track previews now share sample fixture builders between anime and manga preview providers.
 - Storage preferences now use the concrete Android storage folder provider directly instead of a single-implementation abstraction.
