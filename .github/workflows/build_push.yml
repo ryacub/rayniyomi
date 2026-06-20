@@ -20,10 +20,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Temporary: remove this bootstrap and mavenLocal wiring once a released SqlDelight version includes AGP 9 compatibility.
-  SQLDELIGHT_AGP9_FIX_SHA: c8f6011c014368544c71f5e490ef0409bb2f4705
-
 jobs:
   build:
     name: Build app
@@ -37,13 +33,6 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Restore SqlDelight local Maven cache
-        id: sqldelight-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.3
-        with:
-          path: ~/.m2/repository/app/cash
-          key: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
-
       - name: Set up JDK
         uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
@@ -52,17 +41,6 @@ jobs:
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
-
-      - name: Build SqlDelight AGP 9 fix
-        if: steps.sqldelight-cache.outputs.cache-hit != 'true'
-        run: |
-          set -euxo pipefail
-
-          git clone --filter=blob:none https://github.com/cashapp/sqldelight.git /tmp/sqldelight
-          cd /tmp/sqldelight
-          git checkout --detach "$SQLDELIGHT_AGP9_FIX_SHA"
-
-          ./gradlew publishToMavenLocal -x test --no-daemon
 
       - name: Verify generateBaselineProfile task is wired
         run: ./gradlew :app:generateBaselineProfile --dry-run
