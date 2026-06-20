@@ -26,6 +26,39 @@ env:
   SQLDELIGHT_AGP9_FIX_SHA: c8f6011c014368544c71f5e490ef0409bb2f4705
 
 jobs:
+  classify_pr_changes:
+    name: Classify PR changes
+    runs-on: 'ubuntu-24.04'
+    outputs:
+      android_changed: ${{ steps.changed.outputs.android_changed }}
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          android_changed=false
+          while IFS= read -r path; do
+            case "$path" in
+              docs/**|.github/**|scripts/tests/**|*.md)
+                ;;
+              *)
+                android_changed=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA...HEAD")
+
+          echo "android_changed=$android_changed" >> "$GITHUB_OUTPUT"
+
   branding_guardrail:
     name: Branding guardrail
     runs-on: 'ubuntu-24.04'
@@ -60,6 +93,8 @@ jobs:
   prepare_sqldelight:
     name: Prepare SqlDelight artifacts
     runs-on: 'ubuntu-24.04'
+    needs: classify_pr_changes
+    if: needs.classify_pr_changes.outputs.android_changed == 'true'
 
     steps:
       - name: Restore SqlDelight local Maven cache
@@ -94,7 +129,10 @@ jobs:
   spotless:
     name: Check code format
     runs-on: 'ubuntu-24.04'
-    needs: prepare_sqldelight
+    needs:
+      - classify_pr_changes
+      - prepare_sqldelight
+    if: needs.classify_pr_changes.outputs.android_changed == 'true'
 
     steps:
       - name: Clone repo
@@ -121,7 +159,10 @@ jobs:
   build:
     name: Build app
     runs-on: 'ubuntu-24.04'
-    needs: prepare_sqldelight
+    needs:
+      - classify_pr_changes
+      - prepare_sqldelight
+    if: needs.classify_pr_changes.outputs.android_changed == 'true'
 
     steps:
       - name: Clone repo
@@ -169,7 +210,10 @@ jobs:
   test:
     name: Run unit tests
     runs-on: 'ubuntu-24.04'
-    needs: prepare_sqldelight
+    needs:
+      - classify_pr_changes
+      - prepare_sqldelight
+    if: needs.classify_pr_changes.outputs.android_changed == 'true'
 
     steps:
       - name: Clone repo
@@ -198,7 +242,10 @@ jobs:
   baseline-profile:
     name: Verify baseline profile task and artifact
     runs-on: 'ubuntu-24.04'
-    needs: prepare_sqldelight
+    needs:
+      - classify_pr_changes
+      - prepare_sqldelight
+    if: needs.classify_pr_changes.outputs.android_changed == 'true'
 
     steps:
       - name: Clone repo
