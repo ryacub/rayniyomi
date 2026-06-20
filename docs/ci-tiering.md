@@ -20,6 +20,10 @@ These checks are expected on normal pull requests:
 | `Branding guardrail` | `.github/workflows/build_pull_request.yml` | Prevents user-facing fork-brand regressions. |
 | `Plugin Compatibility` | `.github/workflows/plugin_compatibility.yml` | Targeted PR gate for light novel plugin host and manifest changes. |
 
+The gitleaks workflow checks out the pull request head SHA with full history so
+its commit-range scan can resolve PR head commits even if queued jobs finish
+after merge or branch cleanup. Push and manual runs fall back to `github.sha`.
+
 ## Removed Emulator Gate
 
 These hosted-emulator workflows were removed because they were slow, noisy, and

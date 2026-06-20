@@ -29,6 +29,12 @@ class CiWorkflowTieringTest(unittest.TestCase):
 
         self.assertIn("'.github/workflows/plugin_compatibility.yml'", workflow)
 
+    def test_gitleaks_scans_pull_request_head_history(self) -> None:
+        workflow = read_workflow("secret_scan.yml")
+
+        self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
+
     def test_pr_build_skips_gradle_for_non_android_changes(self) -> None:
         workflow = read_workflow("build_pull_request.yml")
 
@@ -45,6 +51,7 @@ class CiWorkflowTieringTest(unittest.TestCase):
         self.assertIn("Required PR Gate", text)
         self.assertIn("Removed Emulator Gate", text)
         self.assertIn("Release Gate", text)
+        self.assertIn("pull request head SHA", text)
         self.assertIn("SqlDelight bootstrap", text)
 
 
