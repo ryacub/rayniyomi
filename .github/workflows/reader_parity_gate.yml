@@ -3,7 +3,8 @@ name: Reader parity gate
 on:
   pull_request:
     paths:
-      - 'macrobenchmark/**'
+      - 'reader-parity/**'
+      - 'macrobenchmark/parity/**'
       - 'scripts/reader_parity_*.py'
       - 'scripts/reader_parity_extract_benchmark.py'
       - 'scripts/tests/test_reader_parity_*.py'
@@ -36,7 +37,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - reader_a11y_android_test
-      - reader_benchmark_smoke
+      - reader_smoke
 
     steps:
       - name: Clone repo
@@ -60,7 +61,7 @@ jobs:
           path: .artifacts/a11y
 
       - name: Run parity script unit tests
-        run: python3 -m unittest scripts/tests/test_reader_parity_gate.py scripts/tests/test_reader_parity_collect.py scripts/tests/test_reader_parity_extract_benchmark.py
+        run: python3 -m unittest scripts/tests/test_reader_parity_gate.py scripts/tests/test_reader_parity_collect.py scripts/tests/test_reader_parity_extract_benchmark.py scripts/tests/test_reader_parity_workflow.py
 
       - name: Collect candidate report
         run: |
@@ -71,6 +72,8 @@ jobs:
             --output macrobenchmark/parity/reader_parity_candidate.json
 
       - name: Evaluate parity gate
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
 
@@ -80,10 +83,7 @@ jobs:
 
           if [ "$allow_bypass" = "true" ]; then
             bypass_reason="maintainer-approved emergency bypass"
-            body="$(cat <<'PR_BODY'
-${{ github.event.pull_request.body }}
-PR_BODY
-)"
+            body="${PR_BODY:-}"
             followup_issue=$(printf '%s' "$body" | sed -n 's/.*reader-parity-followup:[[:space:]]*\([^[:space:]]*\).*/\1/p' | head -n1)
           fi
 
@@ -181,32 +181,26 @@ PR_BODY
           arch: x86_64
           target: google_apis
           profile: pixel_7
-          script: |
-            set +e
-            ./gradlew :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorSurfaceAndroidTest \
-              --build-cache
-            status=$?
-            if [ "$status" -eq 0 ]; then
-              manual_talkback_validated="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'reader-parity-talkback-validated') }}"
-              if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.manual_talkback_validated || 'false' }}" = "true" ]; then
-                manual_talkback_validated="true"
-              fi
-              mkdir -p macrobenchmark/parity
-              cat > macrobenchmark/parity/reader_parity_a11y_observed.json <<'JSON'
-              {
-                "a11y": {
-                  "automatedFocusOrderPassed": true,
-                  "automatedRetryDiscoverabilityPassed": true,
-                  "manualTalkBackChecklist": "macrobenchmark/parity/manual_talkback_checklist.md",
-                  "manualTalkBackValidated": __MANUAL_TALKBACK_VALIDATED__
-                }
-              }
-JSON
-              sed -i "s/__MANUAL_TALKBACK_VALIDATED__/${manual_talkback_validated}/" macrobenchmark/parity/reader_parity_a11y_observed.json
-            fi
-            adb logcat -d > app/build/reports/androidTests/reader-a11y-logcat.txt || true
-            exit $status
+          script: >-
+            bash -c 'set +e; ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorSurfaceAndroidTest --build-cache; status=$?; adb logcat -d > app/build/reports/androidTests/reader-a11y-logcat.txt || true; exit "$status"'
+
+      - name: Write reader a11y observed report
+        run: |
+          manual_talkback_validated="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'reader-parity-talkback-validated') }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.manual_talkback_validated || 'false' }}" = "true" ]; then
+            manual_talkback_validated="true"
+          fi
+          mkdir -p macrobenchmark/parity
+          {
+            printf '{\n'
+            printf '  "a11y": {\n'
+            printf '    "automatedFocusOrderPassed": true,\n'
+            printf '    "automatedRetryDiscoverabilityPassed": true,\n'
+            printf '    "manualTalkBackChecklist": "macrobenchmark/parity/manual_talkback_checklist.md",\n'
+            printf '    "manualTalkBackValidated": %s\n' "$manual_talkback_validated"
+            printf '  }\n'
+            printf '}\n'
+          } > macrobenchmark/parity/reader_parity_a11y_observed.json
 
       - name: Upload reader a11y reports
         if: always()
@@ -220,8 +214,8 @@ JSON
             macrobenchmark/parity/reader_parity_a11y_observed.json
           if-no-files-found: warn
 
-  reader_benchmark_smoke:
-    name: Reader benchmark smoke
+  reader_smoke:
+    name: Reader parity smoke
     runs-on: ubuntu-24.04
     needs: prepare_sqldelight
 
@@ -246,26 +240,15 @@ JSON
           name: sqldelight-m2-${{ env.SQLDELIGHT_AGP9_FIX_SHA }}
           path: ~/.m2/repository/app/cash
 
-      - name: Run reader parity benchmark smoke
+      - name: Run reader parity smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
           target: google_apis
           profile: pixel_7
-          script: |
-            set +e
-            ./gradlew :macrobenchmark:connectedBenchmarkAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=tachiyomi.macrobenchmark.ReaderParitySmokeBenchmark \
-              --build-cache 2>&1 | tee macrobenchmark/build/reports/reader-benchmark-stdout.txt
-            status=${PIPESTATUS[0]}
-            if [ "$status" -eq 0 ]; then
-              python3 scripts/reader_parity_extract_benchmark.py \
-                --log macrobenchmark/build/reports/reader-benchmark-stdout.txt \
-                --output macrobenchmark/parity/reader_parity_benchmark_observed.json
-            fi
-            adb logcat -d > macrobenchmark/build/reports/reader-benchmark-logcat.txt || true
-            exit $status
+          script: >-
+            bash -o pipefail -c 'set +e; mkdir -p reader-parity/build/reports; ./gradlew :reader-parity:connectedBenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=tachiyomi.readerparity.ReaderParitySmokeTest --build-cache 2>&1 | tee reader-parity/build/reports/reader-benchmark-stdout.txt; status=$?; if [ "$status" -eq 0 ]; then python3 scripts/reader_parity_extract_benchmark.py --log reader-parity/build/reports/reader-benchmark-stdout.txt --output macrobenchmark/parity/reader_parity_benchmark_observed.json; fi; adb logcat -d > reader-parity/build/reports/reader-benchmark-logcat.txt || true; exit "$status"'
 
       - name: Upload reader benchmark artifacts
         if: always()
@@ -273,9 +256,8 @@ JSON
         with:
           name: reader-parity-benchmark-observed-${{ github.sha }}
           path: |
-            macrobenchmark/build/reports
-            macrobenchmark/build/outputs/connected_android_test_additional_output
-            macrobenchmark/build/outputs/androidTest-results
-            macrobenchmark/build/reports/reader-benchmark-logcat.txt
+            reader-parity/build/reports
+            reader-parity/build/outputs/androidTest-results
+            reader-parity/build/reports/reader-benchmark-logcat.txt
             macrobenchmark/parity/reader_parity_benchmark_observed.json
           if-no-files-found: warn

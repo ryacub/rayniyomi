@@ -1,14 +1,10 @@
-package tachiyomi.macrobenchmark
+package tachiyomi.readerparity
 
 import androidx.annotation.VisibleForTesting
-import androidx.benchmark.macro.CompilationMode
-import androidx.benchmark.macro.FrameTimingMetric
-import androidx.benchmark.macro.junit4.MacrobenchmarkRule
-import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
 import org.json.JSONObject
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.FileInputStream
@@ -17,45 +13,29 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * Governance smoke benchmark for reader parity gate.
+ * Governance smoke test for reader parity gate.
  *
- * This benchmark intentionally keeps interactions lightweight and deterministic so CI can
- * continuously validate benchmark execution plumbing before deeper reader-fixture expansion.
+ * This test intentionally keeps interactions lightweight and deterministic so CI can
+ * validate reader parity plumbing before deeper reader-fixture expansion.
  */
-@RunWith(AndroidJUnit4ClassRunner::class)
-class ReaderParitySmokeBenchmark {
+@RunWith(AndroidJUnit4::class)
+class ReaderParitySmokeTest {
 
     private val instrumentation
         get() = InstrumentationRegistry.getInstrumentation()
 
-    @get:Rule
-    val benchmarkRule = MacrobenchmarkRule()
-
     @Test
     fun emit_reader_parity_observed_metrics() {
-        benchmarkRule.measureRepeated(
-            packageName = BENCHMARK_TARGET_PACKAGE,
-            metrics = listOf(FrameTimingMetric()),
-            compilationMode = CompilationMode.None(),
-            iterations = 1,
-            setupBlock = {
-                pressHome()
-            },
-        ) {
-            startActivityAndWait()
-            device.waitForIdle()
-        }
-
         val launchIntent = instrumentation.targetContext.packageManager
-            .getLaunchIntentForPackage(BENCHMARK_TARGET_PACKAGE)
-            ?: throw IllegalStateException("Unable to resolve launch intent for benchmark target")
+            .getLaunchIntentForPackage(TARGET_PACKAGE)
+            ?: throw IllegalStateException("Unable to resolve launch intent for reader parity target")
         val launchComponent = launchIntent.component
-            ?: throw IllegalStateException("Missing launch component for benchmark target")
+            ?: throw IllegalStateException("Missing launch component for reader parity target")
         val componentName = "${launchComponent.packageName}/${launchComponent.className}"
 
         val coldStartupRuns = mutableListOf<Double>()
         repeat(5) {
-            shell("am force-stop $BENCHMARK_TARGET_PACKAGE")
+            shell("am force-stop $TARGET_PACKAGE")
             startTotalTimeMs(componentName)?.let { value -> coldStartupRuns.add(value) }
         }
 
@@ -67,7 +47,7 @@ class ReaderParitySmokeBenchmark {
         val recoveryAttempts = 10
         var recoverySuccesses = 0
         repeat(recoveryAttempts) {
-            shell("am force-stop $BENCHMARK_TARGET_PACKAGE")
+            shell("am force-stop $TARGET_PACKAGE")
             if (startTotalTimeMs(componentName) != null) {
                 recoverySuccesses++
             }
@@ -79,8 +59,8 @@ class ReaderParitySmokeBenchmark {
             percentile = 0.95,
         ) ?: 50_000.0
 
-        val observedJankPercent = parseJankPercent(shell("dumpsys gfxinfo $BENCHMARK_TARGET_PACKAGE")) ?: 100.0
-        val observedMemoryMb = parseTotalPssMb(shell("dumpsys meminfo $BENCHMARK_TARGET_PACKAGE")) ?: 4096.0
+        val observedJankPercent = parseJankPercent(shell("dumpsys gfxinfo $TARGET_PACKAGE")) ?: 100.0
+        val observedMemoryMb = parseTotalPssMb(shell("dumpsys meminfo $TARGET_PACKAGE")) ?: 4096.0
 
         val recoveryPassRatePercent = (recoverySuccesses.toDouble() / recoveryAttempts.toDouble()) * 100.0
         val variancePercent = coefficientOfVariationPercent(coldStartupRuns) ?: 0.0
@@ -169,6 +149,7 @@ class ReaderParitySmokeBenchmark {
     }
 
     private companion object {
+        private const val TARGET_PACKAGE = "xyz.rayniyomi.benchmark"
         private val TOTAL_TIME_REGEX = Regex("TotalTime:\\s*(\\d+)")
         private val JANK_PERCENT_REGEX = Regex("Janky frames:\\s+\\d+\\s+\\((\\d+(?:\\.\\d+)?)%\\)")
         private val TOTAL_PSS_REGEX = Regex("TOTAL\\s+PSS:\\s*(\\d+)")

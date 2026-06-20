@@ -82,6 +82,7 @@ include(":i18n-aniyomi")
 include(":macrobenchmark")
 include(":presentation-core")
 include(":presentation-widget")
+include(":reader-parity")
 include(":source-api")
 include(":source-local")
 
