@@ -18,7 +18,7 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
 }
 
-val appVersionCode = 318
+val appVersionCode = 319
 val lightNovelExpectedPluginApiVersion = 1
 
 // Apply Google Services plugin before AGP variant configuration and only for builds whose
@@ -43,7 +43,7 @@ android {
         applicationId = "xyz.rayniyomi"
 
         versionCode = appVersionCode
-        versionName = "0.18.1.187"
+        versionName = "0.18.1.188"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
