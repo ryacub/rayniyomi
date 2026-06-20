@@ -53,6 +53,14 @@ normal PR branches use PR workflows. Expected impact: branch pushes avoid a
 duplicate release-style build, baseline-profile dry run, unit test pass, and APK
 artifact upload.
 
+Before R665, the PR build workflow ran Gradle-heavy jobs for docs-only,
+workflow-only, and CI-regression-test-only PRs. After R665, a cheap classifier
+skips SqlDelight bootstrap, formatting, app build, app unit tests, and baseline
+profile verification when changed files are limited to `docs/**`, `.github/**`,
+`scripts/tests/**`, or Markdown. Expected impact: non-Android PRs keep
+governance, secret scanning, and branding checks without spending runner time on
+Android compilation.
+
 Before R665, reader parity and theme instrumentation ran automatically on PR path
 matches. After R665, both workflows are removed. Expected impact: ordinary
 reader/theme PR iteration avoids 20-40 minute hosted-emulator jobs and stale
