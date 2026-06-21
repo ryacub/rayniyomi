@@ -38,8 +38,8 @@
 - If no user-facing impact, explain why.
 
 ## Checklist
-- [ ] Naming conventions followed (use "Rayniyomi" in user-facing text, see [naming conventions](../docs/governance/naming-conventions.md))
-- [ ] Branch rebased on latest main and verification re-run (see [rebase policy](../docs/governance/agent-workflow.md#rebase-before-merge-policy-r45))
+- [ ] Naming conventions followed (use "Rayniyomi" in user-facing text; see [branding guardrail](../docs/branding-guardrail.md))
+- [ ] Branch rebased on latest main and verification re-run
 - [ ] New coroutine scopes have documented owner and cancellation path
 - [ ] No new `runBlocking` on UI/main thread paths
 

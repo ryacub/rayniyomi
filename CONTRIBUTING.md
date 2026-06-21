@@ -16,19 +16,16 @@ You do not need to ask for permission nor an assignment.
 
 ## Pull Request policy
 
-- Use ticket-based PR titles: `[R123] short imperative summary`
+- Use Conventional Commit PR titles with the ticket ID suffix: `fix: short summary (R123)`.
 - Fill out all required sections in the PR template.
 - Include verification evidence.
 - For user-facing changes, include a concrete Release Notes section.
 
-See governance docs:
-- [`docs/governance/agent-workflow.md`](docs/governance/agent-workflow.md)
-- [`docs/governance/branch-protection.md`](docs/governance/branch-protection.md)
-- [`docs/governance/dependency-policy.md`](docs/governance/dependency-policy.md)
-- [`docs/governance/labels-policy.md`](docs/governance/labels-policy.md)
-- [`docs/governance/release-notes-policy.md`](docs/governance/release-notes-policy.md)
-
-- ADRs: [`docs/adr/`](docs/adr/)
+See current governance docs:
+- PR validation: [`.github/workflows/pr_governance.yml`](.github/workflows/pr_governance.yml)
+- PR template: [`.github/pull_request_template.md`](.github/pull_request_template.md)
+- CI tiering: [`docs/ci-tiering.md`](docs/ci-tiering.md)
+- Branding guardrail: [`docs/branding-guardrail.md`](docs/branding-guardrail.md)
 
 ## Prerequisites
 
