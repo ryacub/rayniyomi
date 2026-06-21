@@ -18,6 +18,9 @@ import io.kotest.matchers.string.shouldNotContain
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -26,6 +29,72 @@ import org.junit.jupiter.api.Test
 class ShikimoriApiTest {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    @Nested
+    @DisplayName("OAuth")
+    inner class OAuth {
+
+        @Test
+        @DisplayName("authUrl uses Rayniyomi redirect and fork-owned client")
+        fun authUrlUsesRayniyomiRedirectAndClient() {
+            val authUrl = ShikimoriApi.authUrlString().toHttpUrl()
+
+            authUrl.scheme shouldBe "https"
+            authUrl.host shouldBe "shikimori.one"
+            authUrl.encodedPath shouldBe "/oauth/authorize"
+            authUrl.queryParameter("redirect_uri") shouldBe RAYNIYOMI_REDIRECT_URI
+            authUrl.toString() shouldNotContain "aniyomi://shikimori-auth"
+            authUrl.queryParameter("client_id").shouldBeConfiguredCredential("client_id", ANIYOMI_CLIENT_ID)
+            authUrl.queryParameter("response_type") shouldBe "code"
+        }
+
+        @Test
+        @DisplayName("access token request uses Rayniyomi redirect and fork-owned credentials")
+        fun accessTokenRequestUsesRayniyomiRedirectAndClient() {
+            val request = ShikimoriApi.accessTokenRequest("auth-code")
+            val form = request.formBody()
+            val authRedirect = ShikimoriApi.authUrlString()
+                .toHttpUrl()
+                .queryParameter("redirect_uri")
+
+            request.url.scheme shouldBe "https"
+            request.url.host shouldBe "shikimori.one"
+            request.url.encodedPath shouldBe "/oauth/token"
+            form.value("grant_type") shouldBe "authorization_code"
+            form.value("code") shouldBe "auth-code"
+            form.value("redirect_uri") shouldBe RAYNIYOMI_REDIRECT_URI
+            form.value("redirect_uri") shouldBe authRedirect
+            form.value("client_id").shouldBeConfiguredCredential("client_id", ANIYOMI_CLIENT_ID)
+            form.value("client_secret").shouldBeConfiguredCredential("client_secret", ANIYOMI_CLIENT_SECRET)
+        }
+
+        private fun Request.formBody(): FormBody = body as FormBody
+
+        private fun String?.shouldBeConfiguredCredential(name: String, aniyomiValue: String) {
+            val credential = this
+            if (credential.isNullOrBlank()) {
+                throw AssertionError("$name must be configured")
+            }
+            if (credential == aniyomiValue) {
+                throw AssertionError("$name must not use the old Aniyomi credential")
+            }
+            if (
+                credential.contains("<") ||
+                credential.contains("placeholder", ignoreCase = true) ||
+                credential.contains("redacted", ignoreCase = true) ||
+                credential.contains("todo", ignoreCase = true)
+            ) {
+                throw AssertionError("$name must not use a placeholder")
+            }
+        }
+
+        private fun FormBody.value(name: String): String {
+            for (i in 0 until size) {
+                if (name(i) == name) return value(i)
+            }
+            throw AssertionError("Missing form field: $name")
+        }
+    }
 
     @Nested
     @DisplayName("Feature 1: GraphQL payload builders")
@@ -253,5 +322,11 @@ class ShikimoriApiTest {
                 // Expected
             }
         }
+    }
+
+    private companion object {
+        private const val RAYNIYOMI_REDIRECT_URI = "rayniyomi://shikimori-auth"
+        private const val ANIYOMI_CLIENT_ID = "aOAYRqOLwxpA8skpcQIXetNy4cw2rn2fRzScawlcQ5U"
+        private const val ANIYOMI_CLIENT_SECRET = "jqjmORn6bh2046ulkm4lHEwJ3OA1RmO3FD2sR9f6Clw"
     }
 }

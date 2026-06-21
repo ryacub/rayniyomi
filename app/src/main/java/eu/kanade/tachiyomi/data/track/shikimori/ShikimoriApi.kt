@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.track.shikimori
 
 import android.net.Uri
+import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack
 import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack
@@ -27,6 +28,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
@@ -231,17 +233,6 @@ class ShikimoriApi(
         }
     }
 
-    private fun accessTokenRequest(code: String) = POST(
-        OAUTH_URL,
-        body = FormBody.Builder()
-            .add("grant_type", "authorization_code")
-            .add("client_id", CLIENT_ID)
-            .add("client_secret", CLIENT_SECRET)
-            .add("code", code)
-            .add("redirect_uri", REDIRECT_URL)
-            .build(),
-    )
-
     private fun graphQLRequest(payload: String) = POST(
         GRAPHQL_URL,
         body = payload.toRequestBody(jsonMime),
@@ -254,16 +245,32 @@ class ShikimoriApi(
         private const val OAUTH_URL = "$BASE_URL/oauth/token"
         private const val LOGIN_URL = "$BASE_URL/oauth/authorize"
 
-        private const val REDIRECT_URL = "aniyomi://shikimori-auth"
+        private const val REDIRECT_URL = "rayniyomi://shikimori-auth"
 
-        private const val CLIENT_ID = "aOAYRqOLwxpA8skpcQIXetNy4cw2rn2fRzScawlcQ5U"
-        private const val CLIENT_SECRET = "jqjmORn6bh2046ulkm4lHEwJ3OA1RmO3FD2sR9f6Clw"
+        private const val CLIENT_ID = "SmkA50jJviGntLvJLsEwEVetogb0RnS35OgvFCQttpM"
+        private const val CLIENT_SECRET = "lOFK6rLfV8Eu7cO0V9pMLIoC8X2f3BL11HVn-MRitvQ"
 
-        fun authUrl(): Uri = LOGIN_URL.toUri().buildUpon()
-            .appendQueryParameter("client_id", CLIENT_ID)
-            .appendQueryParameter("redirect_uri", REDIRECT_URL)
-            .appendQueryParameter("response_type", "code")
+        fun authUrl(): Uri = authUrlString().toUri()
+
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal fun authUrlString(): String = LOGIN_URL.toHttpUrl().newBuilder()
+            .addQueryParameter("client_id", CLIENT_ID)
+            .addQueryParameter("redirect_uri", REDIRECT_URL)
+            .addQueryParameter("response_type", "code")
             .build()
+            .toString()
+
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal fun accessTokenRequest(code: String) = POST(
+            OAUTH_URL,
+            body = FormBody.Builder()
+                .add("grant_type", "authorization_code")
+                .add("client_id", CLIENT_ID)
+                .add("client_secret", CLIENT_SECRET)
+                .add("code", code)
+                .add("redirect_uri", REDIRECT_URL)
+                .build(),
+        )
 
         fun refreshTokenRequest(token: String) = POST(
             OAUTH_URL,
