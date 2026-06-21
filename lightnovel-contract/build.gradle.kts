@@ -7,5 +7,6 @@ android {
 }
 
 dependencies {
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
 }

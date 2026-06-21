@@ -1,16 +1,16 @@
 [versions]
 aboutlib_version = "11.6.3"
-cast = "22.0.0"
+cast = "22.3.1"
 google_services = "4.4.4"
 firebase_crashlytics_gradle = "3.0.6"
 leakcanary = "2.14"
 mediarouter = "1.8.1"
 moko = "0.26.0"
-okhttp_version = "5.3.2"
+okhttp = "5.4.0"
 richtext = "0.20.0"
 shizuku_version = "13.1.0"
 sqldelight = "2.3.2"
-sqlite = "2.4.0"
+sqlite = "2.6.2"
 voyager = "1.1.0-beta03"
 spotless = "8.2.1"
 ktlint-core = "1.7.1"
@@ -20,10 +20,11 @@ desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
 
 rxjava = "io.reactivex:rxjava:1.3.8"
 
-okhttp-core = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp_version" }
-okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp_version" }
-okhttp-brotli = { module = "com.squareup.okhttp3:okhttp-brotli", version.ref = "okhttp_version" }
-okhttp-dnsoverhttps = { module = "com.squareup.okhttp3:okhttp-dnsoverhttps", version.ref = "okhttp_version" }
+okhttp-bom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp" }
+okhttp-core = { module = "com.squareup.okhttp3:okhttp" }
+okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor" }
+okhttp-brotli = { module = "com.squareup.okhttp3:okhttp-brotli" }
+okhttp-dnsoverhttps = { module = "com.squareup.okhttp3:okhttp-dnsoverhttps" }
 okio = "com.squareup.okio:okio:3.17.0"
 
 androidx-mediarouter = { module = "androidx.mediarouter:mediarouter", version.ref = "mediarouter" }
@@ -33,7 +34,7 @@ conscrypt-android = "org.conscrypt:conscrypt-android:2.5.3"
 
 quickjs-android = "com.github.zhanghai.quickjs-java:quickjs-android:547f5b1597"
 
-jsoup = "org.jsoup:jsoup:1.22.1"
+jsoup = "org.jsoup:jsoup:1.22.2"
 
 disklrucache = "com.jakewharton:disklrucache:2.0.2"
 unifile = "com.github.tachiyomiorg:unifile:a9de196cc7"
@@ -47,7 +48,7 @@ preferencektx = "androidx.preference:preference-ktx:1.2.1"
 
 injekt = "com.github.mihonapp:injekt:91edab2317"
 
-coil-bom = { module = "io.coil-kt.coil3:coil-bom", version = "3.4.0" }
+coil-bom = { module = "io.coil-kt.coil3:coil-bom", version = "3.5.0" }
 coil-core = { module = "io.coil-kt.coil3:coil" }
 coil-gif = { module = "io.coil-kt.coil3:coil-gif" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose" }
@@ -61,7 +62,7 @@ natural-comparator = "com.github.gpanther:java-nat-sort:natural-comparator-1.1"
 richtext-commonmark = { module = "com.halilibo.compose-richtext:richtext-commonmark", version.ref = "richtext" }
 richtext-m3 = { module = "com.halilibo.compose-richtext:richtext-ui-material3", version.ref = "richtext" }
 
-material = "com.google.android.material:material:1.13.0"
+material = "com.google.android.material:material:1.14.0"
 photoview = "com.github.chrisbanes:PhotoView:2.3.0"
 directionalviewpager = "com.github.tachiyomiorg:DirectionalViewPager:1.0.0"
 insetter = "dev.chrisbanes.insetter:insetter:0.6.1"
@@ -89,10 +90,11 @@ sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", ver
 sqldelight-coroutines = { module = "app.cash.sqldelight:coroutines-extensions-jvm", version.ref = "sqldelight" }
 sqldelight-dialects-sql = { module = "app.cash.sqldelight:sqlite-3-38-dialect", version.ref = "sqldelight" }
 
-junit = "org.junit.jupiter:junit-jupiter:6.0.3"
-junit-platform-launcher = "org.junit.platform:junit-platform-launcher:6.0.3"
-kotest-assertions = "io.kotest:kotest-assertions-core:6.1.7"
-mockk = "io.mockk:mockk:1.14.9"
+junit-bom = { module = "org.junit:junit-bom", version = "6.1.0" }
+junit = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotest-assertions = "io.kotest:kotest-assertions-core:6.2.1"
+mockk = "io.mockk:mockk:1.14.11"
 
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
 voyager-screenmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager" }

@@ -23,6 +23,7 @@ dependencies {
 
     api(libs.rxjava)
 
+    api(platform(libs.okhttp.bom))
     api(libs.okhttp.core)
     api(libs.okhttp.logging)
     api(libs.okhttp.brotli)
@@ -52,5 +53,6 @@ dependencies {
     implementation(aniyomilibs.ffmpeg.kit)
 
     // Tests
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
 }

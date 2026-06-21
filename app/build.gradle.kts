@@ -311,6 +311,7 @@ dependencies {
     implementation(libs.rxjava)
 
     // Networking
+    implementation(platform(libs.okhttp.bom))
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
     implementation(libs.conscrypt.android) // TLS 1.3 support for Android < 10
@@ -370,6 +371,7 @@ dependencies {
     implementation(libs.bundles.shizuku)
 
     // Tests
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
     androidTestImplementation(platform(compose.bom))

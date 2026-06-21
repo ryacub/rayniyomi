@@ -32,6 +32,7 @@ dependencies {
 
     compileOnly(libs.compose.stablemarker)
 
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
     testImplementation(kotlinx.coroutines.test)
 }

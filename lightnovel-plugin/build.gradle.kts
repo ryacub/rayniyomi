@@ -57,5 +57,6 @@ dependencies {
     implementation(kotlinx.serialization.json)
     implementation(kotlinx.coroutines.android)
 
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
 }
