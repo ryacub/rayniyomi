@@ -20,9 +20,7 @@ class CiWorkflowTieringTest(unittest.TestCase):
         self.assertNotIn("branches:\n      - '*'", workflow)
 
     def test_emulator_workflows_are_removed(self) -> None:
-        for workflow_name in ("reader_parity_gate.yml", "theme_instrumentation_pr.yml"):
-            with self.subTest(workflow=workflow_name):
-                self.assertFalse((ROOT / ".github" / "workflows" / workflow_name).exists())
+        self.assertFalse((ROOT / ".github" / "workflows" / "theme_instrumentation_pr.yml").exists())
 
     def test_plugin_compatibility_validates_its_own_workflow(self) -> None:
         workflow = read_workflow("plugin_compatibility.yml")

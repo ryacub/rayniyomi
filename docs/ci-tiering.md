@@ -32,12 +32,7 @@ leave unowned CI surface area without a clear merge-blocking signal.
 
 | Removed check | Former workflow | Rationale |
 | --- | --- | --- |
-| Reader parity gate | `.github/workflows/reader_parity_gate.yml` | The smoke path was not a real benchmark gate and repeatedly produced 20-40 minute hosted-emulator failures without a stable PR-time decision. |
 | Theme instrumentation gate | `.github/workflows/theme_instrumentation_pr.yml` | The gate duplicated broad instrumentation coverage on an unreliable hosted-emulator path and was not a required PR check. |
-
-The reader parity smoke is classified as a smoke/contract gate, not a benchmark.
-It does not currently provide stable performance thresholds or a reliable
-regression signal on hosted runners.
 
 ## Release Gate
 
@@ -65,10 +60,9 @@ profile verification when changed files are limited to `docs/**`, `.github/**`,
 governance, secret scanning, and branding checks without spending runner time on
 Android compilation.
 
-Before R665, reader parity and theme instrumentation ran automatically on PR path
-matches. After R665, both workflows are removed. Expected impact: ordinary
-reader/theme PR iteration avoids 20-40 minute hosted-emulator jobs and stale
-manual workflow surface area.
+Before R665, hosted emulator gates ran automatically on PR path matches. After
+R665, those workflows are removed. Expected impact: ordinary UI PR iteration
+avoids 20-40 minute hosted-emulator jobs and stale manual workflow surface area.
 
 The SqlDelight bootstrap workaround is tracked separately by R663 / #724. R665
 does not duplicate that dependency replacement; this document treats the
