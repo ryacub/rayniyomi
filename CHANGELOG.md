@@ -41,6 +41,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Baseline profile CI job now dry-runs `:app:generateBaselineProfile` and verifies `baseline-prof.txt` is committed and non-empty on every PR touching app or macrobenchmark paths.
 
 ### Other
+- Core maintenance dependencies refreshed: OkHttp 5.4.0, Cast framework 22.3.1, jsoup 1.22.2, AndroidX SQLite 2.6.2, Coil BOM 3.5.0, Material Components 1.14.0, JUnit 6.1.0, Kotest 6.2.1, and MockK 1.14.11.
+- OkHttp and JUnit test dependencies now use BOM-managed versions so related artifacts stay aligned across app, core, and test modules.
 - Anime and manga tracking screens now share common presentation components while keeping their typed entrypoints separate.
 - Category interactors now share common domain mechanics while keeping anime and manga entrypoints separate.
 - Track previews now share sample fixture builders between anime and manga preview providers.

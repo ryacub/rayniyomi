@@ -42,5 +42,6 @@ dependencies {
 
     api(libs.bundles.sqldelight)
 
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
 }
