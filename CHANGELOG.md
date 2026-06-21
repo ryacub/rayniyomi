@@ -31,7 +31,13 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Changed
 
+### Removed
+- Orphaned Compose reader migration benchmark gate scripts, artifacts, tests, and documentation were removed after the invoking CI workflow was deleted.
+
 ### CI
+- PR CI now skips Gradle-heavy jobs for docs, workflow, and CI-test-only changes while keeping app-relevant build, format, unit-test, and baseline-profile coverage.
+- Gitleaks PR scans now check out the pull request head with enough history to resolve commit ranges after queue delays, merges, or branch cleanup.
+- SqlDelight now uses released artifacts instead of snapshot/local Maven bootstrap wiring, with CI guardrails preventing snapshot dependency regression.
 - Baseline profile CI job now dry-runs `:app:generateBaselineProfile` and verifies `baseline-prof.txt` is committed and non-empty on every PR touching app or macrobenchmark paths.
 
 ### Other
@@ -116,7 +122,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
-- Reader compose migration parity governance gate: added versioned parity baseline/schema artifacts, UTC-phased PASS/WARN/FAIL evaluator with dual-threshold checks and bypass guardrails, reader parity CI workflow (contract + a11y + benchmark smoke jobs), and migration contract documentation
+- Reader compose migration governance gate: added versioned baseline/schema artifacts, UTC-phased PASS/WARN/FAIL evaluator with dual-threshold checks and bypass guardrails, CI workflow contract, a11y checks, benchmark smoke jobs, and migration contract documentation
 ### Fixed
 
 - Extension reinstalls and updates no longer silently fail when `ACTION_PACKAGE_REPLACED` fires before Android commits the new package info to the process cache; both anime and manga receivers now retry up to 3× with a 500ms delay before surfacing a final error
