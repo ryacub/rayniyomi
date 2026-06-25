@@ -35,6 +35,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Orphaned Compose reader migration benchmark gate scripts, artifacts, tests, and documentation were removed after the invoking CI workflow was deleted.
 
 ### CI
+- Custom lint guardrails now run cleanly with Gradle configuration cache enabled.
 - PR CI now skips Gradle-heavy jobs for docs, workflow, and CI-test-only changes while keeping app-relevant build, format, unit-test, and baseline-profile coverage.
 - Gitleaks PR scans now check out the pull request head with enough history to resolve commit ranges after queue delays, merges, or branch cleanup.
 - SqlDelight now uses released artifacts instead of snapshot/local Maven bootstrap wiring, with CI guardrails preventing snapshot dependency regression.
