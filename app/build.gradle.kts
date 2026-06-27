@@ -127,8 +127,8 @@ android {
     }
 
     sourceSets {
-        getByName("preview") { res.srcDir("src/debug/res") }
-        getByName("benchmark") { res.srcDir("src/debug/res") }
+        getByName("preview") { res.directories.add("src/debug/res") }
+        getByName("benchmark") { res.directories.add("src/debug/res") }
     }
 
     testOptions {
@@ -217,7 +217,7 @@ afterEvaluate {
         "stableRelease" to "injectCrashlyticsMappingFileIdStableRelease",
     ).forEach { (sourceSetName, generatedDir) ->
         android.sourceSets.findByName(sourceSetName)
-            ?.res?.srcDir("build/generated/res/$generatedDir")
+            ?.res?.directories?.add("build/generated/res/$generatedDir")
     }
 }
 
