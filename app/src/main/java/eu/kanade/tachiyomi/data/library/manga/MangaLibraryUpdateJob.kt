@@ -38,6 +38,7 @@ import eu.kanade.tachiyomi.util.system.isConnectedToWifi
 import eu.kanade.tachiyomi.util.system.isRunning
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -121,7 +122,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         return withIOContext {
             try {
-                updateChapterList()
+                updateChapterList(this)
                 Result.success()
             } catch (e: Exception) {
                 if (e is CancellationException) {
@@ -241,7 +242,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
      *
      * @return an observable delivering the progress of each update.
      */
-    private suspend fun updateChapterList() {
+    private suspend fun updateChapterList(scope: CoroutineScope) {
         val semaphore = Semaphore(5)
         val progressCount = AtomicInteger(0)
         val currentlyUpdatingManga = CopyOnWriteArrayList<Manga>()
@@ -309,7 +310,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         notifier.cancelProgressNotification()
 
         if (newUpdates.isNotEmpty()) {
-            notifier.showUpdateNotifications(newUpdates)
+            notifier.showUpdateNotifications(newUpdates, scope)
             if (hasDownloads.get()) {
                 downloadManager.startDownloads()
             }

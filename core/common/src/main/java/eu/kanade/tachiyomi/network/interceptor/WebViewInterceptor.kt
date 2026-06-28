@@ -5,16 +5,15 @@ import android.os.Build
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.setDefaultSettings
 import eu.kanade.tachiyomi.util.system.toast
-import kotlinx.coroutines.DelicateCoroutinesApi
 import okhttp3.Headers
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
-import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.i18n.MR
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
@@ -49,7 +48,6 @@ abstract class WebViewInterceptor(
 
     abstract fun intercept(chain: Interceptor.Chain, request: Request, response: Response): Response
 
-    @OptIn(DelicateCoroutinesApi::class)
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
@@ -58,14 +56,18 @@ abstract class WebViewInterceptor(
         }
 
         if (!WebViewUtil.supportsWebView(context)) {
-            launchUI {
-                context.toast(MR.strings.information_webview_required, Toast.LENGTH_LONG)
-            }
+            notifyWebViewRequired()
             return response
         }
         initWebView
 
         return intercept(chain, request, response)
+    }
+
+    private fun notifyWebViewRequired() {
+        ContextCompat.getMainExecutor(context).execute {
+            context.toast(MR.strings.information_webview_required, Toast.LENGTH_LONG)
+        }
     }
 
     fun parseHeaders(headers: Headers): Map<String, String> {
