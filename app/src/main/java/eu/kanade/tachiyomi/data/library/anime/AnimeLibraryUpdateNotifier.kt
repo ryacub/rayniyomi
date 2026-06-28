@@ -29,9 +29,11 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
-import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
@@ -183,7 +185,7 @@ class AnimeLibraryUpdateNotifier(
      *
      * @param updates a list of anime with new updates.
      */
-    fun showUpdateNotifications(updates: List<Pair<Anime, Array<Episode>>>) {
+    fun showUpdateNotifications(updates: List<Pair<Anime, Array<Episode>>>, scope: CoroutineScope) {
         // Parent group notification
         context.notify(
             Notifications.ID_NEW_EPISODES,
@@ -226,7 +228,7 @@ class AnimeLibraryUpdateNotifier(
 
         // Per-anime notification
         if (!securityPreferences.hideNotificationContent().get()) {
-            launchUI {
+            scope.launch(Dispatchers.Main) {
                 context.notify(
                     updates.mapNotNull { (anime, episodes) ->
                         createNewEpisodesNotification(anime, episodes)?.let {

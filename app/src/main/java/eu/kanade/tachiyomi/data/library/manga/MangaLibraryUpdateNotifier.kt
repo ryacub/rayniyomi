@@ -29,8 +29,12 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
-import tachiyomi.core.common.util.lang.launchUI
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.manga.LibraryManga
@@ -170,7 +174,7 @@ class MangaLibraryUpdateNotifier(
      *
      * @param updates a list of manga with new updates.
      */
-    fun showUpdateNotifications(updates: List<Pair<Manga, Array<Chapter>>>) {
+    fun showUpdateNotifications(updates: List<Pair<Manga, Array<Chapter>>>, scope: CoroutineScope) {
         // Parent group notification
         context.notify(
             Notifications.ID_NEW_CHAPTERS,
@@ -213,20 +217,28 @@ class MangaLibraryUpdateNotifier(
 
         // Per-manga notification
         if (!securityPreferences.hideNotificationContent().get()) {
-            launchUI {
+            scope.launch(Dispatchers.Main) {
                 context.notify(
-                    updates.map { (manga, chapters) ->
-                        NotificationManagerCompat.NotificationWithIdAndTag(
-                            manga.id.hashCode(),
-                            createNewChaptersNotification(manga, chapters),
-                        )
+                    updates.mapNotNull { (manga, chapters) ->
+                        createNewChaptersNotification(manga, chapters)?.let {
+                            NotificationManagerCompat.NotificationWithIdAndTag(manga.id.hashCode(), it)
+                        }
                     },
                 )
             }
         }
     }
 
-    private suspend fun createNewChaptersNotification(manga: Manga, chapters: Array<Chapter>): Notification {
+    private suspend fun createNewChaptersNotification(manga: Manga, chapters: Array<Chapter>): Notification? {
+        return try {
+            buildNewChaptersNotification(manga, chapters)
+        } catch (e: Throwable) {
+            logcat(LogPriority.WARN, e) { "Failed to create notification for manga: ${manga.title}" }
+            null
+        }
+    }
+
+    private suspend fun buildNewChaptersNotification(manga: Manga, chapters: Array<Chapter>): Notification {
         val icon = getMangaIcon(manga)
         return context.notificationBuilder(Notifications.CHANNEL_NEW_CHAPTERS_EPISODES) {
             setContentTitle(manga.title)

@@ -43,6 +43,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Other
 - Gradle resource source-set declarations now use the current directory-set API.
+- Removed the deprecated top-level UI coroutine launch helper after migrating its remaining callers.
 - Contributor docs now point PR authors at existing governance and guardrail files instead of removed policy paths.
 - Core maintenance dependencies refreshed: OkHttp 5.4.0, Cast framework 22.3.1, jsoup 1.22.2, AndroidX SQLite 2.6.2, Coil BOM 3.5.0, Material Components 1.14.0, JUnit 6.1.0, Kotest 6.2.1, and MockK 1.14.11.
 - OkHttp and JUnit test dependencies now use BOM-managed versions so related artifacts stay aligned across app, core, and test modules.
