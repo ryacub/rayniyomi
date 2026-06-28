@@ -29,9 +29,6 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -170,11 +167,11 @@ class MangaLibraryUpdateNotifier(
     }
 
     /**
-     * Shows the notification containing the result of the update done by the service.
+     * Shows the parent group notification containing the result of the update done by the service.
      *
      * @param updates a list of manga with new updates.
      */
-    fun showUpdateNotifications(updates: List<Pair<Manga, Array<Chapter>>>, scope: CoroutineScope) {
+    fun showUpdateSummaryNotification(updates: List<Pair<Manga, Array<Chapter>>>) {
         // Parent group notification
         context.notify(
             Notifications.ID_NEW_CHAPTERS,
@@ -214,19 +211,21 @@ class MangaLibraryUpdateNotifier(
             setContentIntent(getNotificationIntent())
             setAutoCancel(true)
         }
+    }
 
-        // Per-manga notification
-        if (!securityPreferences.hideNotificationContent().get()) {
-            scope.launch(Dispatchers.Main) {
-                context.notify(
-                    updates.mapNotNull { (manga, chapters) ->
-                        createNewChaptersNotification(manga, chapters)?.let {
-                            NotificationManagerCompat.NotificationWithIdAndTag(manga.id.hashCode(), it)
-                        }
-                    },
-                )
-            }
-        }
+    fun shouldShowUpdateDetailNotifications(): Boolean {
+        return !securityPreferences.hideNotificationContent().get()
+    }
+
+    internal suspend fun showUpdateDetailNotifications(updates: List<Pair<Manga, Array<Chapter>>>) {
+        // Per-manga notifications
+        context.notify(
+            updates.mapNotNull { (manga, chapters) ->
+                createNewChaptersNotification(manga, chapters)?.let {
+                    NotificationManagerCompat.NotificationWithIdAndTag(manga.id.hashCode(), it)
+                }
+            },
+        )
     }
 
     private suspend fun createNewChaptersNotification(manga: Manga, chapters: Array<Chapter>): Notification? {

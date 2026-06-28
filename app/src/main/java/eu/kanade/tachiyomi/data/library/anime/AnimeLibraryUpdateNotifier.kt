@@ -29,9 +29,6 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -181,11 +178,11 @@ class AnimeLibraryUpdateNotifier(
     }
 
     /**
-     * Shows the notification containing the result of the update done by the service.
+     * Shows the parent group notification containing the result of the update done by the service.
      *
      * @param updates a list of anime with new updates.
      */
-    fun showUpdateNotifications(updates: List<Pair<Anime, Array<Episode>>>, scope: CoroutineScope) {
+    fun showUpdateSummaryNotification(updates: List<Pair<Anime, Array<Episode>>>) {
         // Parent group notification
         context.notify(
             Notifications.ID_NEW_EPISODES,
@@ -225,19 +222,21 @@ class AnimeLibraryUpdateNotifier(
             setContentIntent(getNotificationIntent())
             setAutoCancel(true)
         }
+    }
 
-        // Per-anime notification
-        if (!securityPreferences.hideNotificationContent().get()) {
-            scope.launch(Dispatchers.Main) {
-                context.notify(
-                    updates.mapNotNull { (anime, episodes) ->
-                        createNewEpisodesNotification(anime, episodes)?.let {
-                            NotificationManagerCompat.NotificationWithIdAndTag(anime.id.hashCode(), it)
-                        }
-                    },
-                )
-            }
-        }
+    fun shouldShowUpdateDetailNotifications(): Boolean {
+        return !securityPreferences.hideNotificationContent().get()
+    }
+
+    internal suspend fun showUpdateDetailNotifications(updates: List<Pair<Anime, Array<Episode>>>) {
+        // Per-anime notifications
+        context.notify(
+            updates.mapNotNull { (anime, episodes) ->
+                createNewEpisodesNotification(anime, episodes)?.let {
+                    NotificationManagerCompat.NotificationWithIdAndTag(anime.id.hashCode(), it)
+                }
+            },
+        )
     }
 
     private suspend fun createNewEpisodesNotification(anime: Anime, episodes: Array<Episode>): Notification? {
