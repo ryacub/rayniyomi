@@ -41,10 +41,12 @@ import eu.kanade.tachiyomi.util.system.isRunning
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import logcat.LogPriority
@@ -128,7 +130,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         return withIOContext {
             try {
-                updateEpisodeList(this)
+                updateEpisodeList()
                 Result.success()
             } catch (e: Exception) {
                 if (e is CancellationException) {
@@ -268,7 +270,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
      *
      * @return an observable delivering the progress of each update.
      */
-    private suspend fun updateEpisodeList(scope: CoroutineScope) {
+    private suspend fun CoroutineScope.updateEpisodeList() {
         val semaphore = Semaphore(5)
         val progressCount = AtomicInteger(0)
         val currentlyUpdatingAnime = CopyOnWriteArrayList<Anime>()
@@ -338,7 +340,12 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         notifier.cancelProgressNotification()
 
         if (newUpdates.isNotEmpty()) {
-            notifier.showUpdateNotifications(newUpdates, scope)
+            notifier.showUpdateSummaryNotification(newUpdates)
+            if (notifier.shouldShowUpdateDetailNotifications()) {
+                launch(Dispatchers.Main) {
+                    notifier.showUpdateDetailNotifications(newUpdates)
+                }
+            }
             if (hasDownloads.get()) {
                 downloadManager.startDownloads()
             }
