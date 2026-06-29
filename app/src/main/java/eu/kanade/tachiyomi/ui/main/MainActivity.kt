@@ -542,9 +542,9 @@ class MainActivity : BaseActivity() {
                 if (!query.isNullOrEmpty()) {
                     navigator.popUntilRoot()
 
-                    val screenType = intent.getStringExtra(INTENT_SEARCH_TYPE).orEmpty()
-                        .ifBlank { "ANIME" }
-                        .let(DeepLinkScreenType::valueOf)
+                    val screenType = DeepLinkScreenType.fromIntentExtra(
+                        intent.getStringExtra(INTENT_SEARCH_TYPE),
+                    )
 
                     when (screenType) {
                         DeepLinkScreenType.MANGA -> {
