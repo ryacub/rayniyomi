@@ -31,9 +31,6 @@ import eu.kanade.tachiyomi.data.backup.models.BackupSource
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
-import okio.buffer
-import okio.gzip
-import okio.sink
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
@@ -46,7 +43,7 @@ import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.io.FileOutputStream
+import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
@@ -75,10 +72,16 @@ class BackupCreator(
     private val mangaSourcesBackupCreator: MangaSourcesBackupCreator = MangaSourcesBackupCreator(),
     private val extensionsBackupCreator: ExtensionsBackupCreator = ExtensionsBackupCreator(context),
     private val lightNovelBackupCreator: LightNovelBackupCreator = LightNovelBackupCreator(context),
+    private val backupFileWriter: BackupFileWriter = BackupFileWriter { BackupFileValidator(context).validate(it) },
+    private val manualBackupTempFileFactory: () -> File = {
+        File.createTempFile("rayniyomi-manual-backup-", ".tachibk", context.cacheDir)
+    },
 ) {
 
     suspend fun backup(uri: Uri, options: BackupOptions): String {
         var file: UniFile? = null
+        var stagedFile: UniFile? = null
+        var stagedLightNovelBackupFile: UniFile? = null
         try {
             file = if (isAutoBackup) {
                 // Get dir of file and create
@@ -139,21 +142,41 @@ class BackupCreator(
                 throw IllegalStateException(context.stringResource(MR.strings.empty_backup_error))
             }
 
-            file.openOutputStream().use { outputStream ->
-                // Force overwrite old file
-                (outputStream as? FileOutputStream)?.channel?.truncate(0)
-                outputStream.sink().gzip().buffer().use {
-                    it.write(byteArray)
+            val stagedLightNovelBackup = if (!isAutoBackup && options.lightNovels) {
+                prepareLightNovelBackup(file)
+            } else {
+                null
+            }
+            stagedLightNovelBackupFile = stagedLightNovelBackup?.stagedFile
+
+            val fileUri = if (isAutoBackup) {
+                backupFileWriter.writeAutoBackup(file, byteArray)
+            } else {
+                val previousManualBackupBytes = backupFileWriter.readBytesOrNull(file)
+                try {
+                    val manualStagedFile = UniFile.fromFile(manualBackupTempFileFactory())
+                        ?: throw IllegalStateException(context.stringResource(MR.strings.create_backup_file_error))
+                    stagedFile = manualStagedFile
+                    val manualFileUri = backupFileWriter.writeManualBackup(
+                        stagedFile = manualStagedFile,
+                        targetFile = file,
+                        backupBytes = byteArray,
+                    )
+                    stagedLightNovelBackup?.let(::commitLightNovelBackup)
+                    manualFileUri
+                } catch (e: Exception) {
+                    if (previousManualBackupBytes != null) {
+                        backupFileWriter.restoreRawFile(file, previousManualBackupBytes)
+                    }
+                    throw e
                 }
             }
-            val fileUri = file.uri
-
-            // Make sure it's a valid backup file
-            BackupFileValidator(context).validate(fileUri)
 
             if (options.lightNovels) {
                 // Create separate light novel backup file
-                createLightNovelBackup(file)
+                if (isAutoBackup) {
+                    createLightNovelBackup(file)
+                }
             }
 
             if (isAutoBackup) {
@@ -163,8 +186,13 @@ class BackupCreator(
             return fileUri.toString()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
-            file?.delete()
+            if (isAutoBackup) {
+                file?.delete()
+            }
             throw e
+        } finally {
+            stagedFile?.delete()
+            stagedLightNovelBackupFile?.delete()
         }
     }
 
@@ -234,6 +262,33 @@ class BackupCreator(
         return extensionsBackupCreator()
     }
 
+    private suspend fun prepareLightNovelBackup(parentBackupFile: UniFile): StagedLightNovelBackup? {
+        val lightNovelBackupBytes = lightNovelBackupCreator() ?: return null
+        val parentDir = parentBackupFile.parentFile
+        if (parentDir == null) {
+            logcat(LogPriority.WARN) { "Cannot create Light Novel backup: backup file has no parent directory" }
+            return null
+        }
+
+        val sidecarFileName = LightNovelBackupContract.sidecarNameFor(parentBackupFile.name.orEmpty())
+        val stagedSidecarFileName = "$sidecarFileName.tmp-${System.currentTimeMillis()}"
+        val stagedSidecarFile = parentDir.createFile(stagedSidecarFileName)
+            ?: throw IllegalStateException("Unable to create staged Light Novel backup file")
+        backupFileWriter.writeRawStagedFile(stagedSidecarFile, lightNovelBackupBytes)
+        return StagedLightNovelBackup(
+            parentDir = parentDir,
+            sidecarFileName = sidecarFileName,
+            stagedFile = stagedSidecarFile,
+        )
+    }
+
+    private fun commitLightNovelBackup(stagedBackup: StagedLightNovelBackup) {
+        val sidecarFile = stagedBackup.parentDir.findFile(stagedBackup.sidecarFileName)
+            ?: stagedBackup.parentDir.createFile(stagedBackup.sidecarFileName)
+            ?: throw IllegalStateException("Unable to create Light Novel backup file")
+        backupFileWriter.commitRawStagedFile(stagedBackup.stagedFile, sidecarFile)
+    }
+
     private suspend fun createLightNovelBackup(parentBackupFile: UniFile?) {
         try {
             val lightNovelBackupBytes = lightNovelBackupCreator()
@@ -256,6 +311,12 @@ class BackupCreator(
             logcat(LogPriority.WARN, e) { "Failed to create Light Novel backup: ${e.message}" }
         }
     }
+
+    private data class StagedLightNovelBackup(
+        val parentDir: UniFile,
+        val sidecarFileName: String,
+        val stagedFile: UniFile,
+    )
 
     companion object {
         private const val MAX_AUTO_BACKUPS: Int = 4
