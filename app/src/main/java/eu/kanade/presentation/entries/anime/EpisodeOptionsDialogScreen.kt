@@ -169,8 +169,22 @@ class EpisodeOptionsDialogScreenModel(
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
         screenModelScope.launchIO {
-            val episode = Injekt.get<GetEpisode>().await(episodeId)!!
-            val anime = Injekt.get<GetAnime>().await(animeId)!!
+            val episode = Injekt.get<GetEpisode>().await(episodeId)
+            if (episode == null) {
+                _hosterState.update { _ ->
+                    Result.failure(IllegalStateException("Episode is no longer available"))
+                }
+                return@launchIO
+            }
+
+            val anime = Injekt.get<GetAnime>().await(animeId)
+            if (anime == null) {
+                _hosterState.update { _ ->
+                    Result.failure(IllegalStateException("Anime is no longer available"))
+                }
+                return@launchIO
+            }
+
             val source = sourceManager.getOrStub(sourceId)
 
             _episode.update { _ -> episode }
@@ -197,10 +211,10 @@ class EpisodeOptionsDialogScreenModel(
             }
 
             val initialHosterState = hosterList.map { hoster ->
-                if (hoster.videoList == null) {
+                val videoList = hoster.videoList
+                if (videoList == null) {
                     HosterState.Loading(hoster.hosterName)
                 } else {
-                    val videoList = hoster.videoList!!
                     HosterState.Ready(
                         hoster.hosterName,
                         videoList,
@@ -222,8 +236,11 @@ class EpisodeOptionsDialogScreenModel(
                             val prefIndex = hosterState.videoList.indexOfFirst { it.preferred }
                             if (prefIndex != -1) {
                                 if (hasFoundPreferredVideo.compareAndSet(false, true)) {
-                                    val success =
-                                        loadVideo(source, hosterState.videoList[prefIndex], hosterIdx, prefIndex)
+                                    val preferredVideo = EpisodeOptionsDialogStateGuard
+                                        .readyVideo(Result.success(listOf(hosterState)), 0, prefIndex)
+                                        ?.video
+                                    val success = preferredVideo != null &&
+                                        loadVideo(source, preferredVideo, hosterIdx, prefIndex)
                                     if (!success) {
                                         hasFoundPreferredVideo.set(false)
                                     }
@@ -234,7 +251,14 @@ class EpisodeOptionsDialogScreenModel(
                 }.awaitAll()
 
                 if (hasFoundPreferredVideo.compareAndSet(false, true)) {
-                    val hosterStateList = hosterState.value!!.getOrThrow()
+                    val hosterStateList = hosterState.value?.getOrNull()
+                    if (hosterStateList == null) {
+                        _hosterState.update { _ ->
+                            Result.failure(IllegalStateException("Hoster state is unavailable"))
+                        }
+                        return@launchIO
+                    }
+
                     val (hosterIdx, videoIdx) = HosterLoader.selectBestVideo(hosterStateList)
                     if (hosterIdx == -1) {
                         _hosterState.update { _ ->
@@ -243,7 +267,15 @@ class EpisodeOptionsDialogScreenModel(
                         return@launchIO
                     }
 
-                    val video = (hosterStateList[hosterIdx] as HosterState.Ready).videoList[videoIdx]
+                    val video = EpisodeOptionsDialogStateGuard
+                        .readyVideo(Result.success(hosterStateList), hosterIdx, videoIdx)
+                        ?.video
+                    if (video == null) {
+                        _hosterState.update { _ ->
+                            Result.failure(IllegalStateException("Selected video is unavailable"))
+                        }
+                        return@launchIO
+                    }
 
                     loadVideo(source, video, hosterIdx, videoIdx)
                 }
@@ -258,7 +290,11 @@ class EpisodeOptionsDialogScreenModel(
     }
 
     private suspend fun loadVideo(source: AnimeSource, video: Video, hosterIndex: Int, videoIndex: Int): Boolean {
-        val selectedHosterState = (_hosterState.value!!.getOrThrow()[hosterIndex] as? HosterState.Ready) ?: return false
+        val selectedHosterState = EpisodeOptionsDialogStateGuard
+            .readyVideo(_hosterState.value, hosterIndex, videoIndex)
+            ?.hosterState
+            ?: return false
+        val videoState = selectedHosterState.videoState.getOrNull(videoIndex) ?: return false
 
         val oldSelectedIndex = _selectedHosterVideoIndex.value
         _selectedHosterVideoIndex.update { _ -> Pair(hosterIndex, videoIndex) }
@@ -268,7 +304,7 @@ class EpisodeOptionsDialogScreenModel(
             selectedHosterState.getChangedAt(videoIndex, video, Video.State.LOAD_VIDEO),
         )
 
-        val resolvedVideo = if (selectedHosterState.videoState[videoIndex] != Video.State.READY) {
+        val resolvedVideo = if (videoState != Video.State.READY) {
             HosterLoader.getResolvedVideo(source, video)
         } else {
             video
@@ -291,7 +327,10 @@ class EpisodeOptionsDialogScreenModel(
                     return false
                 }
 
-                val newVideo = (hosterStateList[newHosterIdx] as HosterState.Ready).videoList[newVideoIdx]
+                val newVideo = EpisodeOptionsDialogStateGuard
+                    .readyVideo(Result.success(hosterStateList), newHosterIdx, newVideoIdx)
+                    ?.video
+                    ?: return false
 
                 return loadVideo(source, newVideo, newHosterIdx, newVideoIdx)
             } else {
@@ -318,7 +357,9 @@ class EpisodeOptionsDialogScreenModel(
             values?.getOrNull()?.let {
                 Result.success(
                     it.toMutableList().apply {
-                        this[index] = newValue
+                        if (index in indices) {
+                            this[index] = newValue
+                        }
                     },
                 )
             } ?: values
@@ -342,12 +383,19 @@ class EpisodeOptionsDialogScreenModel(
             }
             is HosterState.Error, is HosterState.Idle -> {
                 val hosterName = hosterState.name
+                val source = _source.value
+                val hoster = EpisodeOptionsDialogStateGuard.hosterAt(
+                    sourceAvailable = source != null,
+                    hosterList = _hosterList.value,
+                    hosterIndex = hosterIndex,
+                ) ?: return
+
                 _hosterState.updateAt(hosterIndex, HosterState.Loading(hosterName))
 
                 screenModelScope.launchIO {
                     val newHosterState = EpisodeLoader.loadHosterVideos(
-                        _source.value!!,
-                        _hosterList.value[hosterIndex],
+                        source ?: return@launchIO,
+                        hoster,
                     )
                     _hosterState.updateAt(hosterIndex, newHosterState)
                 }
@@ -357,13 +405,14 @@ class EpisodeOptionsDialogScreenModel(
     }
 
     fun onClickVideo(hosterIndex: Int, videoIndex: Int) {
-        val video = (_hosterState.value?.getOrNull()?.getOrNull(hosterIndex) as? HosterState.Ready)
-            ?.videoList
-            ?.getOrNull(videoIndex)
+        val video = EpisodeOptionsDialogStateGuard
+            .readyVideo(_hosterState.value, hosterIndex, videoIndex)
+            ?.video
             ?: return
+        val source = _source.value ?: return
 
         screenModelScope.launchIO {
-            val success = loadVideo(_source.value!!, video, hosterIndex, videoIndex)
+            val success = loadVideo(source, video, hosterIndex, videoIndex)
             if (success) {
                 _showAllQualities.update { _ -> false }
             }
@@ -373,11 +422,12 @@ class EpisodeOptionsDialogScreenModel(
     fun getHosterList(): List<Hoster>? {
         val hosterStateList = hosterState.value?.getOrNull() ?: return null
         return _hosterList.value.mapIndexed { index, h ->
-            if (hosterStateList[index] is HosterState.Ready) {
+            val state = hosterStateList.getOrNull(index)
+            if (state is HosterState.Ready) {
                 Hoster(
                     hosterName = h.hosterName,
                     hosterUrl = h.hosterUrl,
-                    videoList = (hosterStateList[index] as HosterState.Ready).videoList,
+                    videoList = state.videoList,
                 )
             } else {
                 Hoster(
@@ -387,6 +437,37 @@ class EpisodeOptionsDialogScreenModel(
                 )
             }
         }
+    }
+}
+
+internal object EpisodeOptionsDialogStateGuard {
+
+    data class ReadyVideo(
+        val hosterState: HosterState.Ready,
+        val video: Video,
+    )
+
+    fun readyVideo(
+        hosterState: Result<List<HosterState>>?,
+        hosterIndex: Int,
+        videoIndex: Int,
+    ): ReadyVideo? {
+        val readyHoster = hosterState
+            ?.getOrNull()
+            ?.getOrNull(hosterIndex) as? HosterState.Ready
+            ?: return null
+        val video = readyHoster.videoList.getOrNull(videoIndex) ?: return null
+        readyHoster.videoState.getOrNull(videoIndex) ?: return null
+        return ReadyVideo(readyHoster, video)
+    }
+
+    fun hosterAt(
+        sourceAvailable: Boolean,
+        hosterList: List<Hoster>,
+        hosterIndex: Int,
+    ): Hoster? {
+        if (!sourceAvailable) return null
+        return hosterList.getOrNull(hosterIndex)
     }
 }
 

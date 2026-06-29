@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Exported search intents now ignore malformed search type extras instead of crashing, and anime custom search no longer routes through the manga deep-link activity.
+- Episode options now shows a stable error state instead of crashing when episode, anime, source, hoster, or video state is unavailable.
 - Manual backup creation now stages and validates new backup data before replacing the selected file, preserving existing backups when generation, validation, or final writes fail.
 - Missing-extension sources now preserve readable stub source names from runtime and backup metadata (fallback to raw source ID only when metadata is unavailable), for both manga and anime source flows.
 - Reader initialization now guards chapter loading with a descriptive `checkNotNull` for `ChapterLoader`, replacing an unsafe null assertion crash path in `ReaderViewModel`.
