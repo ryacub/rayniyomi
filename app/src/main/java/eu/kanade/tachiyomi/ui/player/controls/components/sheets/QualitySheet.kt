@@ -171,7 +171,7 @@ fun QualitySheetVideoContent(
         itemsIndexed(videoList) { videoIdx, video ->
             VideoTrack(
                 video = video,
-                videoState = videoState[videoIdx],
+                videoState = videoState.getOrNull(videoIdx) ?: Video.State.LOAD_VIDEO,
                 selected = selectedVideoIndex == videoIdx,
                 onClick = { onClickVideo(0, videoIdx) },
                 noHoster = true,
@@ -263,7 +263,7 @@ internal fun LazyListScope.hosterContent(
                         it.videoList.forEachIndexed { videoIdx, video ->
                             VideoTrack(
                                 video = video,
-                                videoState = hoster.videoState[videoIdx],
+                                videoState = hoster.videoState.getOrNull(videoIdx) ?: Video.State.LOAD_VIDEO,
                                 selected = selectedVideoIndex == Pair(hosterIdx, videoIdx),
                                 onClick = { onClickVideo(hosterIdx, videoIdx) },
                                 noHoster = false,
