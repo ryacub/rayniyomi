@@ -24,6 +24,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -585,9 +586,18 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
             return BASE_ANIME_URL + mediaId
         }
 
-        fun authUrl(): Uri = "${BASE_URL}oauth/authorize".toUri().buildUpon()
-            .appendQueryParameter("client_id", CLIENT_ID)
-            .appendQueryParameter("response_type", "token")
-            .build()
+        fun authUrl(state: String? = null): Uri = authUrlString(state).toUri()
+
+        internal fun authUrlString(state: String? = null): String =
+            "${BASE_URL}oauth/authorize".toHttpUrl().newBuilder()
+                .addQueryParameter("client_id", CLIENT_ID)
+                .addQueryParameter("response_type", "token")
+                .apply {
+                    if (state != null) {
+                        addQueryParameter("state", state)
+                    }
+                }
+                .build()
+                .toString()
     }
 }

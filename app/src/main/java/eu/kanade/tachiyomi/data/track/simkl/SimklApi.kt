@@ -21,6 +21,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
@@ -244,11 +245,19 @@ class SimklApi(private val client: OkHttpClient, interceptor: SimklInterceptor) 
 
         private const val REDIRECT_URL = "aniyomi://simkl-auth"
 
-        fun authUrl(): Uri =
-            LOGIN_URL.toUri().buildUpon()
-                .appendQueryParameter("response_type", "code")
-                .appendQueryParameter("client_id", CLIENT_ID)
-                .appendQueryParameter("redirect_uri", REDIRECT_URL)
+        fun authUrl(state: String? = null): Uri = authUrlString(state).toUri()
+
+        internal fun authUrlString(state: String? = null): String =
+            LOGIN_URL.toHttpUrl().newBuilder()
+                .addQueryParameter("response_type", "code")
+                .addQueryParameter("client_id", CLIENT_ID)
+                .addQueryParameter("redirect_uri", REDIRECT_URL)
+                .apply {
+                    if (state != null) {
+                        addQueryParameter("state", state)
+                    }
+                }
                 .build()
+                .toString()
     }
 }

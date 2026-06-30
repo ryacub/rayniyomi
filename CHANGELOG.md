@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Invalid extension trust-revoked dialogs now show the failure reason, package, version, signature prefix, debug detail, and recovery guidance.
+- Tracker OAuth callbacks now require a matching one-time state token before accepting provider login results.
 - Exported search intents now ignore malformed search type extras instead of crashing, and anime custom search no longer routes through the manga deep-link activity.
 - Episode options now shows a stable error state instead of crashing when episode, anime, source, hoster, or video state is unavailable.
 - Player quality selection now ignores stale hoster/video taps instead of crashing when hoster state changes asynchronously.
