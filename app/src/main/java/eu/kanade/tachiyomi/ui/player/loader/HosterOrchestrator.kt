@@ -85,15 +85,14 @@ class HosterOrchestrator(
                 hosterList.map { hoster ->
                     if (hoster.lazy) {
                         HosterState.Idle(hoster.hosterName)
-                    } else if (hoster.videoList == null) {
-                        HosterState.Loading(hoster.hosterName)
                     } else {
-                        val videoList = hoster.videoList!!
-                        HosterState.Ready(
-                            hoster.hosterName,
-                            videoList,
-                            List(videoList.size) { Video.State.QUEUE },
-                        )
+                        hoster.videoList?.let { videoList ->
+                            HosterState.Ready(
+                                hoster.hosterName,
+                                videoList,
+                                List(videoList.size) { Video.State.QUEUE },
+                            )
+                        } ?: HosterState.Loading(hoster.hosterName)
                     }
                 }
             }
@@ -121,13 +120,16 @@ class HosterOrchestrator(
                                 if (prefIndex != -1 && hosterIndex == -1) {
                                     if (hasFoundPreferredVideo.compareAndSet(false, true)) {
                                         if (selectedHosterVideoIndex.value == Pair(-1, -1)) {
-                                            val success =
-                                                loadVideo(
-                                                    source,
-                                                    hosterState.videoList[prefIndex],
-                                                    hosterIdx,
-                                                    prefIndex,
-                                                )
+                                            val success = hosterState.videoList.getOrNull(prefIndex)
+                                                ?.let { preferredVideo ->
+                                                    loadVideo(
+                                                        source,
+                                                        preferredVideo,
+                                                        hosterIdx,
+                                                        prefIndex,
+                                                    )
+                                                }
+                                                ?: false
                                             if (!success) {
                                                 hasFoundPreferredVideo.set(false)
                                             }
@@ -144,9 +146,9 @@ class HosterOrchestrator(
                             throw Exception("No available videos")
                         }
 
-                        val video = (hosterState.value[hosterIdx] as HosterState.Ready).videoList[videoIdx]
-
-                        loadVideo(source, video, hosterIdx, videoIdx)
+                        readyVideoAt(hosterIdx, videoIdx)?.let { video ->
+                            loadVideo(source, video, hosterIdx, videoIdx)
+                        }
                     }
                 }
             } catch (e: CancellationException) {
@@ -171,6 +173,10 @@ class HosterOrchestrator(
             val selectedHosterState =
                 (_hosterState.value.getOrNull(currentHosterIndex) as? HosterState.Ready)
                     ?: return false
+            val videoState = selectedHosterState.videoState.getOrNull(currentVideoIndex)
+            if (videoState == null) {
+                return false
+            }
 
             _selectedHosterVideoIndex.update { Pair(currentHosterIndex, currentVideoIndex) }
             _hosterState.updateAt(
@@ -180,7 +186,7 @@ class HosterOrchestrator(
 
             onPauseRequested?.invoke()
 
-            val resolvedVideo = if (selectedHosterState.videoState[currentVideoIndex] != Video.State.READY) {
+            val resolvedVideo = if (videoState != Video.State.READY) {
                 HosterLoader.getResolvedVideo(source, currentVideo)
             } else {
                 currentVideo
@@ -203,7 +209,10 @@ class HosterOrchestrator(
                         }
                     }
 
-                    val newVideo = (hosterState.value[newHosterIdx] as HosterState.Ready).videoList[newVideoIdx]
+                    val newVideo = readyVideoAt(newHosterIdx, newVideoIdx)
+                    if (newVideo == null) {
+                        return false
+                    }
                     currentHosterIndex = newHosterIdx
                     currentVideoIndex = newVideoIdx
                     currentVideo = newVideo
@@ -237,7 +246,7 @@ class HosterOrchestrator(
         onSuccess: () -> Unit,
         onFailure: () -> Unit,
     ) {
-        val hosterState = _hosterState.value[hosterIndex] as? HosterState.Ready
+        val hosterState = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready
         val video = hosterState?.videoList
             ?.getOrNull(videoIndex)
             ?: return
@@ -261,18 +270,21 @@ class HosterOrchestrator(
     }
 
     fun onHosterClicked(index: Int, currentSource: AnimeSource?) {
-        when (hosterState.value[index]) {
+        when (hosterState.value.getOrNull(index) ?: return) {
             is HosterState.Ready -> {
-                _hosterExpandedList.updateAt(index, !_hosterExpandedList.value[index])
+                val isExpanded = _hosterExpandedList.value.getOrNull(index) ?: return
+                _hosterExpandedList.updateAt(index, !isExpanded)
             }
             is HosterState.Idle -> {
-                val hosterName = hosterList.value[index].hosterName
+                val source = currentSource ?: return
+                val hoster = hosterList.value.getOrNull(index) ?: return
+                val hosterName = hoster.hosterName
                 _hosterState.updateAt(index, HosterState.Loading(hosterName))
 
                 scope.launch(hosterLoadDispatcher) {
                     val hosterState = EpisodeLoader.loadHosterVideos(
-                        source = currentSource!!,
-                        hoster = hosterList.value[index],
+                        source = source,
+                        hoster = hoster,
                         force = true,
                     )
                     _hosterState.updateAt(index, hosterState)
@@ -282,10 +294,18 @@ class HosterOrchestrator(
         }
     }
 
+    private fun readyVideoAt(hosterIndex: Int, videoIndex: Int): Video? {
+        return (_hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready)
+            ?.videoList
+            ?.getOrNull(videoIndex)
+    }
+
     private fun <T> MutableStateFlow<List<T>>.updateAt(index: Int, newValue: T) {
         this.update { values ->
             values.toMutableList().apply {
-                this[index] = newValue
+                if (index in indices) {
+                    this[index] = newValue
+                }
             }
         }
     }
