@@ -93,7 +93,7 @@ class PreferenceModule(val app: Application) : InjektModule {
             BasePreferences(app, get())
         }
         addSingletonFactory {
-            TranslationPreferences(get())
+            TranslationPreferences(SecurePreferenceStore(get()))
         }
         addSingletonFactory {
             NovelFeaturePreferences(get())

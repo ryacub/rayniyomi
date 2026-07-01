@@ -191,6 +191,29 @@ class RayniyomiSecurePrefsTest {
         RayniyomiSecurePrefs.getTrackerToken(3L).shouldBeNull()
     }
 
+    // Translation API key tests
+
+    @Test
+    fun `stores and retrieves translation api key successfully`() {
+        RayniyomiSecurePrefs.translationApiKey = "translation-provider-key"
+
+        RayniyomiSecurePrefs.translationApiKey shouldBe "translation-provider-key"
+    }
+
+    @Test
+    fun `returns null translation api key when not set`() {
+        RayniyomiSecurePrefs.translationApiKey.shouldBeNull()
+    }
+
+    @Test
+    fun `clears translation api key when set to null`() {
+        RayniyomiSecurePrefs.translationApiKey = "translation-provider-key"
+
+        RayniyomiSecurePrefs.translationApiKey = null
+
+        RayniyomiSecurePrefs.translationApiKey.shouldBeNull()
+    }
+
     // Storage isolation (key name verification)
 
     @Test
@@ -209,6 +232,12 @@ class RayniyomiSecurePrefsTest {
     fun `tracker tokens use prefixed keys in storage`() {
         RayniyomiSecurePrefs.setTrackerToken(99L, "tokenValue")
         storage.getString("track_token_99") shouldBe "tokenValue"
+    }
+
+    @Test
+    fun `translation api key uses correct key in storage`() {
+        RayniyomiSecurePrefs.translationApiKey = "translation-provider-key"
+        storage.getString("translation_api_key") shouldBe "translation-provider-key"
     }
 
     @Test

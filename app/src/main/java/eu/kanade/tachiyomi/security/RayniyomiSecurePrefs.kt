@@ -5,7 +5,8 @@ import androidx.annotation.VisibleForTesting
 
 /**
  * Singleton for managing sensitive data in encrypted storage.
- * Stores PIN hash/salt and rayniyomi-specific tracker API tokens using
+ * Stores PIN hash/salt, rayniyomi-specific tracker API tokens, and translation
+ * provider API keys using
  * Android Keystore AES-256-GCM encryption via [KeystoreSecureStorage].
  *
  * Usage:
@@ -17,6 +18,7 @@ object RayniyomiSecurePrefs {
     private const val PIN_HASH_KEY = "pin_hash"
     private const val PIN_SALT_KEY = "pin_salt"
     private const val TRACKER_TOKEN_PREFIX = "track_token_"
+    private const val TRANSLATION_API_KEY = "translation_api_key"
 
     private lateinit var storage: SecureStorage
 
@@ -54,4 +56,9 @@ object RayniyomiSecurePrefs {
     /** Store or update a tracker API token. Pass null to clear. */
     fun setTrackerToken(trackerId: Long, token: String?) =
         storage.putString("$TRACKER_TOKEN_PREFIX$trackerId", token)
+
+    /** Translation provider API key. Returns null if not set. */
+    var translationApiKey: String?
+        get() = storage.getString(TRANSLATION_API_KEY)
+        set(value) = storage.putString(TRANSLATION_API_KEY, value)
 }
