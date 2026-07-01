@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Discover and entry-enrichment Compose screen state now uses explicit stability annotations, and discover feed items are stored as immutable collections at the UI-state boundary to reduce avoidable recompositions.
 
 ### Fixed
+- Invalid extension trust-revoked dialogs now show the failure reason, package, version, signature prefix, debug detail, and recovery guidance.
 - Exported search intents now ignore malformed search type extras instead of crashing, and anime custom search no longer routes through the manga deep-link activity.
 - Episode options now shows a stable error state instead of crashing when episode, anime, source, hoster, or video state is unavailable.
 - Player quality selection now ignores stale hoster/video taps instead of crashing when hoster state changes asynchronously.

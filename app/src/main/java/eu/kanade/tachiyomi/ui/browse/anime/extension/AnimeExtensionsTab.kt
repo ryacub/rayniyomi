@@ -19,7 +19,10 @@ import eu.kanade.presentation.components.TabContent
 import eu.kanade.presentation.more.settings.screen.browse.AnimeExtensionReposScreen
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
+import eu.kanade.tachiyomi.extension.anime.model.InvalidReason
 import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeExtensionDetailsScreen
+import eu.kanade.tachiyomi.ui.browse.extension.InvalidExtensionDiagnostics
+import eu.kanade.tachiyomi.ui.browse.extension.InvalidExtensionDialogContent
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
 import kotlinx.collections.immutable.persistentListOf
@@ -125,7 +128,7 @@ fun animeExtensionsTab(
 
             invalidExtensionToUninstall?.let { invalidExtension ->
                 AnimeInvalidExtensionConfirmation(
-                    extensionName = invalidExtension.name,
+                    extension = invalidExtension,
                     onClickConfirm = {
                         extensionsScreenModel.uninstallExtension(invalidExtension.pkgName)
                     },
@@ -172,16 +175,27 @@ private fun AnimeExtensionUninstallConfirmation(
 
 @Composable
 private fun AnimeInvalidExtensionConfirmation(
-    extensionName: String,
+    extension: AnimeLoadResult.Invalid,
     onClickConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    val diagnostics = InvalidExtensionDiagnostics.from(
+        pkgName = extension.pkgName,
+        versionName = extension.versionName,
+        versionCode = extension.versionCode,
+        signatureHash = extension.signatureHash,
+        debugDetail = extension.debugDetail,
+    )
     AlertDialog(
         title = {
             Text(text = stringResource(MR.strings.ext_invalid_extension_title))
         },
         text = {
-            Text(text = stringResource(MR.strings.ext_invalid_extension_message, extensionName))
+            InvalidExtensionDialogContent(
+                extensionName = extension.name,
+                reason = stringResource(extension.reason.labelRes),
+                diagnostics = diagnostics,
+            )
         },
         confirmButton = {
             TextButton(
@@ -201,3 +215,11 @@ private fun AnimeInvalidExtensionConfirmation(
         onDismissRequest = onDismissRequest,
     )
 }
+
+private val InvalidReason.labelRes
+    get() = when (this) {
+        InvalidReason.DENYLISTED -> MR.strings.ext_invalid_extension_reason_denylisted
+        InvalidReason.METADATA_INVALID -> MR.strings.ext_invalid_extension_reason_metadata
+        InvalidReason.SOURCE_FACTORY_THROW -> MR.strings.ext_invalid_extension_reason_source_factory
+        InvalidReason.SOURCE_ID_THROW -> MR.strings.ext_invalid_extension_reason_source_id
+    }
