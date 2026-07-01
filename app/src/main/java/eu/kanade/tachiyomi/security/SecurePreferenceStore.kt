@@ -11,9 +11,11 @@ import tachiyomi.core.common.preference.PreferenceStore
  * Secure keys handled:
  * - `pin_hash` / `pin_salt` — PIN lock credentials
  * - `__PRIVATE_track_token_<id>` — rayniyomi tracker API tokens
+ * - `translation_api_key` — translation provider API key
  *
- * Used by [eu.kanade.tachiyomi.di.PreferenceModule] to construct [SecurityPreferences]
- * and [eu.kanade.domain.track.service.TrackPreferences] with encrypted backing.
+ * Used by [eu.kanade.tachiyomi.di.PreferenceModule] to construct [SecurityPreferences],
+ * [eu.kanade.domain.track.service.TrackPreferences], and
+ * [eu.kanade.tachiyomi.data.translation.TranslationPreferences] with encrypted backing.
  */
 class SecurePreferenceStore(
     private val delegate: PreferenceStore,
@@ -29,6 +31,11 @@ class SecurePreferenceStore(
             key = key,
             getter = { RayniyomiSecurePrefs.pinSalt },
             setter = { RayniyomiSecurePrefs.pinSalt = it },
+        )
+        key == TRANSLATION_API_KEY -> SecureStringPreference(
+            key = key,
+            getter = { RayniyomiSecurePrefs.translationApiKey },
+            setter = { RayniyomiSecurePrefs.translationApiKey = it },
         )
         key.startsWith(TRACKER_TOKEN_PREFIX) -> {
             val trackerId = key.removePrefix(TRACKER_TOKEN_PREFIX).toLongOrNull()
@@ -47,5 +54,6 @@ class SecurePreferenceStore(
 
     private companion object {
         const val TRACKER_TOKEN_PREFIX = "__PRIVATE_track_token_"
+        const val TRANSLATION_API_KEY = "translation_api_key"
     }
 }
