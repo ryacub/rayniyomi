@@ -47,6 +47,7 @@ import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
 import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.domain.track.service.TrackerOAuthStateStore
 import eu.kanade.domain.track.service.TrackerSyncCoordinator
 import eu.kanade.domain.track.service.TrackerSyncResult
 import eu.kanade.domain.track.service.TrackerSyncTrigger
@@ -60,6 +61,7 @@ import eu.kanade.tachiyomi.data.track.bangumi.BangumiApi
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeListApi
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
 import eu.kanade.tachiyomi.data.track.simkl.SimklApi
+import eu.kanade.tachiyomi.ui.setting.track.TrackerOAuthCallback
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
@@ -101,6 +103,7 @@ object SettingsTrackingScreen : SearchableSettings {
     override fun getPreferences(): List<Preference> {
         val context = LocalContext.current
         val trackPreferences = remember { Injekt.get<TrackPreferences>() }
+        val oauthStateStore = remember { TrackerOAuthStateStore(trackPreferences) }
         val trackerManager = remember { Injekt.get<TrackerManager>() }
         val mangaSourceManager = remember { Injekt.get<MangaSourceManager>() }
         val animeSourceManager = remember { Injekt.get<AnimeSourceManager>() }
@@ -240,7 +243,9 @@ object SettingsTrackingScreen : SearchableSettings {
                         tracker = trackerManager.myAnimeList,
                         login = {
                             context.openInBrowser(
-                                MyAnimeListApi.authUrl(),
+                                MyAnimeListApi.authUrl(
+                                    oauthStateStore.begin(TrackerOAuthCallback.MyAnimeList.HOST),
+                                ),
                                 forceDefaultBrowser = true,
                             )
                         },
@@ -250,7 +255,9 @@ object SettingsTrackingScreen : SearchableSettings {
                         tracker = trackerManager.aniList,
                         login = {
                             context.openInBrowser(
-                                AnilistApi.authUrl(),
+                                AnilistApi.authUrl(
+                                    oauthStateStore.begin(TrackerOAuthCallback.Anilist.HOST),
+                                ),
                                 forceDefaultBrowser = true,
                             )
                         },
@@ -270,7 +277,9 @@ object SettingsTrackingScreen : SearchableSettings {
                         tracker = trackerManager.shikimori,
                         login = {
                             context.openInBrowser(
-                                ShikimoriApi.authUrl(),
+                                ShikimoriApi.authUrl(
+                                    oauthStateStore.begin(TrackerOAuthCallback.Shikimori.HOST),
+                                ),
                                 forceDefaultBrowser = true,
                             )
                         },
@@ -280,7 +289,9 @@ object SettingsTrackingScreen : SearchableSettings {
                         tracker = trackerManager.simkl,
                         login = {
                             context.openInBrowser(
-                                SimklApi.authUrl(),
+                                SimklApi.authUrl(
+                                    oauthStateStore.begin(TrackerOAuthCallback.Simkl.HOST),
+                                ),
                                 forceDefaultBrowser = true,
                             )
                         },
@@ -290,7 +301,9 @@ object SettingsTrackingScreen : SearchableSettings {
                         tracker = trackerManager.bangumi,
                         login = {
                             context.openInBrowser(
-                                BangumiApi.authUrl(),
+                                BangumiApi.authUrl(
+                                    oauthStateStore.begin(TrackerOAuthCallback.Bangumi.HOST),
+                                ),
                                 forceDefaultBrowser = true,
                             )
                         },

@@ -24,6 +24,7 @@ import kotlinx.serialization.json.putJsonObject
 import okhttp3.CacheControl
 import okhttp3.FormBody
 import okhttp3.Headers.Companion.headersOf
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -276,12 +277,20 @@ class BangumiApi(
 
         private const val APP_JSON = "application/json"
 
-        fun authUrl(): Uri =
-            LOGIN_URL.toUri().buildUpon()
-                .appendQueryParameter("client_id", CLIENT_ID)
-                .appendQueryParameter("response_type", "code")
-                .appendQueryParameter("redirect_uri", REDIRECT_URL)
+        fun authUrl(state: String? = null): Uri = authUrlString(state).toUri()
+
+        internal fun authUrlString(state: String? = null): String =
+            LOGIN_URL.toHttpUrl().newBuilder()
+                .addQueryParameter("client_id", CLIENT_ID)
+                .addQueryParameter("response_type", "code")
+                .addQueryParameter("redirect_uri", REDIRECT_URL)
+                .apply {
+                    if (state != null) {
+                        addQueryParameter("state", state)
+                    }
+                }
                 .build()
+                .toString()
 
         fun refreshTokenRequest(token: String) = POST(
             OAUTH_URL,

@@ -31,6 +31,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -395,11 +396,20 @@ class MyAnimeListApi(
 
         private var codeVerifier: String = ""
 
-        fun authUrl(): Uri = "$BASE_OAUTH_URL/authorize".toUri().buildUpon()
-            .appendQueryParameter("client_id", CLIENT_ID)
-            .appendQueryParameter("code_challenge", getPkceChallengeCode())
-            .appendQueryParameter("response_type", "code")
-            .build()
+        fun authUrl(state: String? = null): Uri = authUrlString(state).toUri()
+
+        internal fun authUrlString(state: String? = null): String =
+            "$BASE_OAUTH_URL/authorize".toHttpUrl().newBuilder()
+                .addQueryParameter("client_id", CLIENT_ID)
+                .addQueryParameter("code_challenge", getPkceChallengeCode())
+                .addQueryParameter("response_type", "code")
+                .apply {
+                    if (state != null) {
+                        addQueryParameter("state", state)
+                    }
+                }
+                .build()
+                .toString()
 
         fun mangaUrl(id: Long): Uri = "$BASE_API_URL/manga".toUri().buildUpon()
             .appendPath(id.toString())

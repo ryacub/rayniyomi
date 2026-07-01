@@ -250,15 +250,21 @@ class ShikimoriApi(
         private const val CLIENT_ID = "SmkA50jJviGntLvJLsEwEVetogb0RnS35OgvFCQttpM"
         private const val CLIENT_SECRET = "lOFK6rLfV8Eu7cO0V9pMLIoC8X2f3BL11HVn-MRitvQ"
 
-        fun authUrl(): Uri = authUrlString().toUri()
+        fun authUrl(state: String? = null): Uri = authUrlString(state).toUri()
 
         @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-        internal fun authUrlString(): String = LOGIN_URL.toHttpUrl().newBuilder()
-            .addQueryParameter("client_id", CLIENT_ID)
-            .addQueryParameter("redirect_uri", REDIRECT_URL)
-            .addQueryParameter("response_type", "code")
-            .build()
-            .toString()
+        internal fun authUrlString(state: String? = null): String =
+            LOGIN_URL.toHttpUrl().newBuilder()
+                .addQueryParameter("client_id", CLIENT_ID)
+                .addQueryParameter("redirect_uri", REDIRECT_URL)
+                .addQueryParameter("response_type", "code")
+                .apply {
+                    if (state != null) {
+                        addQueryParameter("state", state)
+                    }
+                }
+                .build()
+                .toString()
 
         @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
         internal fun accessTokenRequest(code: String) = POST(
