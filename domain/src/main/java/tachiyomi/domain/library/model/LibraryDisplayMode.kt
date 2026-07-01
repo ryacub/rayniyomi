@@ -2,10 +2,23 @@ package tachiyomi.domain.library.model
 
 sealed interface LibraryDisplayMode {
 
-    data object CompactGrid : LibraryDisplayMode
-    data object ComfortableGrid : LibraryDisplayMode
-    data object List : LibraryDisplayMode
-    data object CoverOnlyGrid : LibraryDisplayMode
+    val preferenceKey: String
+
+    data object CompactGrid : LibraryDisplayMode {
+        override val preferenceKey: String = "COMPACT_GRID"
+    }
+
+    data object ComfortableGrid : LibraryDisplayMode {
+        override val preferenceKey: String = "COMFORTABLE_GRID"
+    }
+
+    data object List : LibraryDisplayMode {
+        override val preferenceKey: String = "LIST"
+    }
+
+    data object CoverOnlyGrid : LibraryDisplayMode {
+        override val preferenceKey: String = "COVER_ONLY_GRID"
+    }
 
     object Serializer {
         fun deserialize(serialized: String): LibraryDisplayMode {
@@ -21,23 +34,16 @@ sealed interface LibraryDisplayMode {
         val values by lazy { setOf(CompactGrid, ComfortableGrid, List, CoverOnlyGrid) }
         val default = CompactGrid
 
+        fun fromPreferenceKey(preferenceKey: String): LibraryDisplayMode {
+            return values.find { it.preferenceKey == preferenceKey } ?: default
+        }
+
         fun deserialize(serialized: String): LibraryDisplayMode {
-            return when (serialized) {
-                "COMFORTABLE_GRID" -> ComfortableGrid
-                "COMPACT_GRID" -> CompactGrid
-                "COVER_ONLY_GRID" -> CoverOnlyGrid
-                "LIST" -> List
-                else -> default
-            }
+            return fromPreferenceKey(serialized)
         }
     }
 
     fun serialize(): String {
-        return when (this) {
-            ComfortableGrid -> "COMFORTABLE_GRID"
-            CompactGrid -> "COMPACT_GRID"
-            CoverOnlyGrid -> "COVER_ONLY_GRID"
-            List -> "LIST"
-        }
+        return preferenceKey
     }
 }

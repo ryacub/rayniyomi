@@ -21,6 +21,25 @@ class LibraryFlagsTest {
     }
 
     @Test
+    fun `LibraryDisplayMode preference keys remain stable`() {
+        LibraryDisplayMode.CompactGrid.preferenceKey shouldBe "COMPACT_GRID"
+        LibraryDisplayMode.ComfortableGrid.preferenceKey shouldBe "COMFORTABLE_GRID"
+        LibraryDisplayMode.CoverOnlyGrid.preferenceKey shouldBe "COVER_ONLY_GRID"
+        LibraryDisplayMode.List.preferenceKey shouldBe "LIST"
+    }
+
+    @Test
+    fun `LibraryDisplayMode resolves persisted keys with default fallback`() {
+        LibraryDisplayMode.fromPreferenceKey("COMPACT_GRID") shouldBe LibraryDisplayMode.CompactGrid
+        LibraryDisplayMode.fromPreferenceKey("COMFORTABLE_GRID") shouldBe LibraryDisplayMode.ComfortableGrid
+        LibraryDisplayMode.fromPreferenceKey("COVER_ONLY_GRID") shouldBe LibraryDisplayMode.CoverOnlyGrid
+        LibraryDisplayMode.fromPreferenceKey("LIST") shouldBe LibraryDisplayMode.List
+
+        LibraryDisplayMode.fromPreferenceKey("") shouldBe LibraryDisplayMode.default
+        LibraryDisplayMode.fromPreferenceKey("stale-value") shouldBe LibraryDisplayMode.default
+    }
+
+    @Test
     fun `Test Flag plus operator (LibrarySort)`() {
         val mangacurrent = MangaLibrarySort(
             MangaLibrarySort.Type.LastRead,
