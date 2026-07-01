@@ -391,6 +391,16 @@
     <string name="ext_confirm_remove">Remove Extension?</string>
     <string name="ext_invalid_extension_title">Invalid extension</string>
     <string name="ext_invalid_extension_message">"%1$s" was loaded with invalid source data. Trust was revoked to prevent crashes. You can remove it now.</string>
+    <string name="ext_invalid_extension_reason">Reason: %1$s</string>
+    <string name="ext_invalid_extension_reason_denylisted">Previously marked invalid</string>
+    <string name="ext_invalid_extension_reason_metadata">Missing or invalid source metadata</string>
+    <string name="ext_invalid_extension_reason_source_factory">Source factory failed to load</string>
+    <string name="ext_invalid_extension_reason_source_id">Source identity failed to load</string>
+    <string name="ext_invalid_extension_package">Package: %1$s</string>
+    <string name="ext_invalid_extension_version">Version: %1$s</string>
+    <string name="ext_invalid_extension_signature">Signature: %1$s</string>
+    <string name="ext_invalid_extension_detail">Detail: %1$s</string>
+    <string name="ext_invalid_extension_recovery_hint">Uninstalling clears the invalid trust entry. If this keeps happening, remove stale or duplicate extension repos before reinstalling.</string>
     <string name="ext_app_info">App info</string>
     <string name="untrusted_extension">Untrusted extension</string>
     <string name="untrusted_extension_message">Malicious extensions can read any stored login credentials or execute arbitrary code.\n\nBy trusting this extension, you accept these risks.</string>
