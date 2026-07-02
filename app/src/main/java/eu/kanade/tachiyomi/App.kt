@@ -55,6 +55,7 @@ import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.security.PinHashMigration
 import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
 import eu.kanade.tachiyomi.security.TrackerTokenMigration
+import eu.kanade.tachiyomi.security.TranslationApiKeyMigration
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.GLUtil
@@ -146,6 +147,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         PinHashMigration.migrate(defaultPrefs)
         TrackerTokenMigration.migrate(defaultPrefs)
+        TranslationApiKeyMigration.migrate(defaultPrefs)
 
         patchInjekt()
 
