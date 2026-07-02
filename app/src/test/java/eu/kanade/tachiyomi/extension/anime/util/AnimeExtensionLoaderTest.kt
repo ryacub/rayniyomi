@@ -54,7 +54,7 @@ class AnimeExtensionLoaderTest {
     }
 
     @Test
-    fun `findInvalidSource returns null when all source ids are readable`() {
+    fun `findInvalidSource returns null when all source metadata is readable`() {
         val good = mockk<AnimeSource>()
 
         every { good.id } returns 1L
@@ -62,5 +62,25 @@ class AnimeExtensionLoaderTest {
         every { good.name } returns "good"
 
         AnimeExtensionLoader.findInvalidSource(listOf(good)) shouldBe null
+    }
+
+    @Test
+    fun `findInvalidSource returns null for an empty source list`() {
+        AnimeExtensionLoader.findInvalidSource(emptyList()) shouldBe null
+    }
+
+    @Test
+    fun `findInvalidSource returns first invalid source when multiple sources are invalid`() {
+        val first = mockk<AnimeSource>()
+        val second = mockk<AnimeSource>()
+
+        every { first.id } throws IllegalStateException("first")
+        every { first.lang } returns "en"
+        every { first.name } returns "first"
+        every { second.id } throws IllegalStateException("second")
+        every { second.lang } returns "en"
+        every { second.name } returns "second"
+
+        AnimeExtensionLoader.findInvalidSource(listOf(first, second)) shouldBe first
     }
 }
