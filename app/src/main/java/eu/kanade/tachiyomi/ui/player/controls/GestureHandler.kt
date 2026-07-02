@@ -40,7 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.player.components.LeftSideOvalShape
 import eu.kanade.presentation.player.components.RightSideOvalShape
 import eu.kanade.presentation.theme.playerRippleConfiguration
@@ -69,7 +69,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.math.roundToInt
@@ -86,14 +86,14 @@ fun GestureHandler(
     val gesturePreferences = remember { Injekt.get<GesturePreferences>() }
     val audioPreferences = remember { Injekt.get<AudioPreferences>() }
 
-    val panelShown by viewModel.panelShown.collectAsState()
-    val allowGesturesInPanels by playerPreferences.allowGestures().collectAsState()
-    val duration by viewModel.duration.collectAsState()
-    val position by viewModel.pos.collectAsState()
-    val controlsShown by viewModel.controlsShown.collectAsState()
-    val areControlsLocked by viewModel.areControlsLocked.collectAsState()
-    val seekAmount by viewModel.doubleTapSeekAmount.collectAsState()
-    val isSeekingForwards by viewModel.isSeekingForwards.collectAsState()
+    val panelShown by viewModel.panelShown.collectAsStateWithLifecycle()
+    val allowGesturesInPanels by playerPreferences.allowGestures().collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
+    val position by viewModel.pos.collectAsStateWithLifecycle()
+    val controlsShown by viewModel.controlsShown.collectAsStateWithLifecycle()
+    val areControlsLocked by viewModel.areControlsLocked.collectAsStateWithLifecycle()
+    val seekAmount by viewModel.doubleTapSeekAmount.collectAsStateWithLifecycle()
+    val isSeekingForwards by viewModel.isSeekingForwards.collectAsStateWithLifecycle()
     var isDoubleTapSeeking by remember { mutableStateOf(false) }
 
     LaunchedEffect(seekAmount) {
@@ -106,10 +106,10 @@ fun GestureHandler(
     }
 
     val gestureVolumeBrightness = gesturePreferences.gestureVolumeBrightness().get()
-    val swapVolumeBrightness by gesturePreferences.swapVolumeBrightness().collectAsState()
-    val seekGesture by gesturePreferences.gestureHorizontalSeek().collectAsState()
-    val preciseSeeking by gesturePreferences.playerSmoothSeek().collectAsState()
-    val showSeekbar by gesturePreferences.showSeekBar().collectAsState()
+    val swapVolumeBrightness by gesturePreferences.swapVolumeBrightness().collectAsStateWithLifecycle()
+    val seekGesture by gesturePreferences.gestureHorizontalSeek().collectAsStateWithLifecycle()
+    val preciseSeeking by gesturePreferences.playerSmoothSeek().collectAsStateWithLifecycle()
+    val showSeekbar by gesturePreferences.showSeekBar().collectAsStateWithLifecycle()
     var isLongPressing by remember { mutableStateOf(false) }
     var speedBeforeBoost by remember { mutableStateOf(1.0f) }
 
@@ -121,9 +121,9 @@ fun GestureHandler(
             }
         }
     }
-    val currentVolume by viewModel.currentVolume.collectAsState()
-    val currentMPVVolume by viewModel.currentMPVVolume.collectAsState()
-    val currentBrightness by viewModel.currentBrightness.collectAsState()
+    val currentVolume by viewModel.currentVolume.collectAsStateWithLifecycle()
+    val currentMPVVolume by viewModel.currentMPVVolume.collectAsStateWithLifecycle()
+    val currentBrightness by viewModel.currentBrightness.collectAsStateWithLifecycle()
     val volumeBoostingCap = audioPreferences.volumeBoostCap().get()
     val haptics = LocalHapticFeedback.current
 
