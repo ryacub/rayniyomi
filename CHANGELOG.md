@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Discover and entry-enrichment Compose screen state now uses explicit stability annotations, and discover feed items are stored as immutable collections at the UI-state boundary to reduce avoidable recompositions.
 
 ### Fixed
+- Reader config reinitialization now cancels stale preference collectors before replacing the active manager.
 - Reader and player gesture UI now use lifecycle-aware flow collection so inactive screens stop collecting targeted state updates.
 - Translation provider API keys now migrate from plaintext preferences into encrypted secure preferences while preserving existing empty-key behavior.
 - Invalid extension trust-revoked dialogs now show the failure reason, package, version, signature prefix, debug detail, and recovery guidance.

@@ -194,6 +194,7 @@ class ReaderViewModel @JvmOverloads constructor(
      * Safe to call multiple times (e.g., on configuration changes).
      */
     fun initReaderConfig(isNightMode: Boolean) {
+        _readerConfig?.close()
         _readerConfig = ReaderConfigManager(
             readerPreferences = readerPreferences,
             basePreferences = basePreferences,
@@ -203,6 +204,9 @@ class ReaderViewModel @JvmOverloads constructor(
     }
 
     override fun onCleared() {
+        _readerConfig?.close()
+        _readerConfig = null
+
         val currentChapters = state.value.viewerChapters
         if (currentChapters != null) {
             currentChapters.unref()
