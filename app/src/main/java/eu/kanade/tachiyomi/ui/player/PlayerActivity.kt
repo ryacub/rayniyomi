@@ -78,6 +78,7 @@ import eu.kanade.tachiyomi.util.system.powerManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import `is`.xyz.mpv.MPVLib
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -105,7 +106,6 @@ class PlayerActivity : BaseActivity() {
     val windowInsetsController by lazy { WindowCompat.getInsetsController(window, window.decorView) }
     val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
-    private var previousUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private var mediaSession: MediaSession? = null
     private val gesturePreferences: GesturePreferences by lazy { viewModel.gesturePreferences }
     private val playerPreferences: PlayerPreferences by lazy { viewModel.playerPreferences }
@@ -297,15 +297,6 @@ class PlayerActivity : BaseActivity() {
             }
         }
 
-        previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
-            runOnUiThread {
-                toast(throwable.message)
-            }
-            logcat(LogPriority.ERROR, throwable)
-            finish()
-        }
-
         viewModel.eventFlow
             .onEach { event ->
                 when (event) {
@@ -326,12 +317,6 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
-        // Restore global handler FIRST to prevent leak if cleanup throws
-        previousUncaughtExceptionHandler?.let {
-            Thread.setDefaultUncaughtExceptionHandler(it)
-        }
-        previousUncaughtExceptionHandler = null
-
         player.isExiting = true
 
         audioFocusRequest?.let {
@@ -446,23 +431,31 @@ class PlayerActivity : BaseActivity() {
         val logLevel = if (networkPreferences.verboseLogging().get()) "info" else "warn"
 
         lifecycleScope.launchIO {
-            val configDir = mpvInitializer.initialize(
-                mpvConf = advancedPlayerPreferences.mpvConf().get(),
-                mpvInput = advancedPlayerPreferences.mpvInput().get(),
-                mpvUserFilesEnabled = advancedPlayerPreferences.mpvUserFiles().get(),
-            )
-
-            withUIContext {
-                MPVLib.setOptionString("sub-ass-force-margins", "yes")
-                MPVLib.setOptionString("sub-use-margins", "yes")
-
-                player.initialize(
-                    configDir = configDir,
-                    cacheDir = applicationContext.cacheDir.path,
-                    logLvl = logLevel,
+            try {
+                val configDir = mpvInitializer.initialize(
+                    mpvConf = advancedPlayerPreferences.mpvConf().get(),
+                    mpvInput = advancedPlayerPreferences.mpvInput().get(),
+                    mpvUserFilesEnabled = advancedPlayerPreferences.mpvUserFiles().get(),
                 )
-                MPVLib.addLogObserver(playerObserver)
-                MPVLib.addObserver(playerObserver)
+
+                withUIContext {
+                    MPVLib.setOptionString("sub-ass-force-margins", "yes")
+                    MPVLib.setOptionString("sub-use-margins", "yes")
+
+                    player.initialize(
+                        configDir = configDir,
+                        cacheDir = applicationContext.cacheDir.path,
+                        logLvl = logLevel,
+                    )
+                    MPVLib.addLogObserver(playerObserver)
+                    MPVLib.addObserver(playerObserver)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                withUIContext {
+                    setInitialEpisodeError(error)
+                }
             }
         }
     }

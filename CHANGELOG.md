@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Reader config reinitialization now cancels stale preference collectors before replacing the active manager.
+- Player startup errors now use the local player failure path instead of replacing process-wide crash handling while the player screen is open.
 - Reader and player gesture UI now use lifecycle-aware flow collection so inactive screens stop collecting targeted state updates.
 - Translation provider API keys now migrate from plaintext preferences into encrypted secure preferences while preserving existing empty-key behavior.
 - Invalid extension trust-revoked dialogs now show the failure reason, package, version, signature prefix, debug detail, and recovery guidance.
