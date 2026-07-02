@@ -12,6 +12,8 @@ import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,9 +37,13 @@ import logcat.logcat
 class ReaderConfigManager(
     private val readerPreferences: ReaderPreferences,
     private val basePreferences: BasePreferences,
-    private val scope: CoroutineScope,
+    scope: CoroutineScope,
     private val isNightMode: Boolean,
+    private val displayProfileLoader: suspend (String) -> ByteArray? = ::loadDisplayProfile,
 ) {
+    private val managerJob = SupervisorJob(scope.coroutineContext[Job])
+    private val managerScope = CoroutineScope(scope.coroutineContext + managerJob)
+
     private val _backgroundColor = MutableStateFlow(Color.BLACK)
     val backgroundColor: StateFlow<Int> = _backgroundColor.asStateFlow()
 
@@ -110,7 +116,7 @@ class ReaderConfigManager(
                     }
                 }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun getGrayBackgroundColor(): Int {
@@ -122,7 +128,7 @@ class ReaderConfigManager(
             .onStart { emit(basePreferences.displayProfile().get()) }
             .onEach { path ->
                 val profile = withContext(Dispatchers.IO) {
-                    loadDisplayProfile(path)
+                    displayProfileLoader(path)
                 }
                 _displayProfile.update { profile }
                 profile?.let {
@@ -130,7 +136,7 @@ class ReaderConfigManager(
                     TachiyomiImageDecoder.displayProfile = it
                 }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun observeCutoutShort() {
@@ -139,7 +145,7 @@ class ReaderConfigManager(
             .onEach { enabled ->
                 _cutoutShort.update { enabled }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun observeKeepScreenOn() {
@@ -148,7 +154,7 @@ class ReaderConfigManager(
             .onEach { enabled ->
                 _keepScreenOn.update { enabled }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun observeCustomBrightness() {
@@ -160,7 +166,7 @@ class ReaderConfigManager(
                     _customBrightnessValue.update { 0 }
                 }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
 
         readerPreferences.customBrightnessValue().changes()
             .onStart { emit(readerPreferences.customBrightnessValue().get()) }
@@ -169,7 +175,7 @@ class ReaderConfigManager(
                     _customBrightnessValue.update { value }
                 }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun observeColorFilters() {
@@ -188,7 +194,7 @@ class ReaderConfigManager(
                     }
                 }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun observeFullscreen() {
@@ -197,7 +203,7 @@ class ReaderConfigManager(
             .onEach { enabled ->
                 _fullscreen.update { enabled }
             }
-            .launchIn(scope)
+            .launchIn(managerScope)
     }
 
     private fun automaticBackgroundColor(): Int {
@@ -208,16 +214,8 @@ class ReaderConfigManager(
         }
     }
 
-    private fun loadDisplayProfile(path: String): ByteArray? {
-        val file = UniFile.fromUri(null, path.toUri()) ?: return null
-        if (!file.exists()) return null
-
-        return try {
-            file.openInputStream().use { it.readBytes() }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR) { "Failed to load display profile from $path: ${e.message}" }
-            null
-        }
+    fun close() {
+        managerJob.cancel()
     }
 
     private fun getCombinedPaint(grayscale: Boolean, invertedColors: Boolean): Paint {
@@ -249,4 +247,16 @@ class ReaderConfigManager(
      * Delegates to companion object for testability.
      */
     fun calculateReaderBrightness(value: Int): Float = calculateBrightness(value)
+}
+
+private fun loadDisplayProfile(path: String): ByteArray? {
+    val file = UniFile.fromUri(null, path.toUri()) ?: return null
+    if (!file.exists()) return null
+
+    return try {
+        file.openInputStream().use { it.readBytes() }
+    } catch (e: Exception) {
+        logcat("ReaderConfigManager", LogPriority.ERROR) { "Failed to load display profile from $path: ${e.message}" }
+        null
+    }
 }
