@@ -41,6 +41,32 @@ class PlayerActivityHostInitOrderTest {
         )
     }
 
+    @Test
+    fun `player activity does not replace the process uncaught exception handler`() {
+        val source = loadPlayerActivitySource()
+
+        assertTrue(
+            !source.contains("Thread.setDefaultUncaughtExceptionHandler"),
+            "PlayerActivity must not replace process-wide crash handling",
+        )
+        assertTrue(
+            !source.contains("Thread.getDefaultUncaughtExceptionHandler"),
+            "PlayerActivity must not read process-wide crash handling",
+        )
+    }
+
+    @Test
+    fun `mpv setup failures route through the local initial episode error path`() {
+        val source = loadPlayerActivitySource()
+        val setupMpvIdx = source.indexOf("private fun setupPlayerMPV()")
+        val catchIdx = source.indexOf("catch (error: Exception)", startIndex = setupMpvIdx)
+        val errorPathIdx = source.indexOf("setInitialEpisodeError(error)", startIndex = catchIdx)
+
+        assertTrue(setupMpvIdx >= 0, "Expected setupPlayerMPV to exist")
+        assertTrue(catchIdx > setupMpvIdx, "Expected setupPlayerMPV to catch startup failures locally")
+        assertTrue(errorPathIdx > catchIdx, "Expected MPV startup failures to use setInitialEpisodeError")
+    }
+
     private fun loadPlayerActivitySource(): String {
         val moduleRelative = Paths.get(
             "src/main/java/eu/kanade/tachiyomi/ui/player/PlayerActivity.kt",
