@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +37,7 @@ import androidx.core.transition.doOnEnd
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.elevation.SurfaceColors
 import com.google.android.material.transition.platform.MaterialContainerTransform
@@ -96,7 +96,7 @@ import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -370,8 +370,8 @@ class ReaderActivity : BaseActivity() {
      */
     private fun initializeMenu() {
         pageNumber.setComposeContent {
-            val state by viewModel.state.collectAsState()
-            val showPageNumber by viewModel.readerPreferences.showPageNumber().collectAsState()
+            val state by viewModel.state.collectAsStateWithLifecycle()
+            val showPageNumber by viewModel.readerPreferences.showPageNumber().collectAsStateWithLifecycle()
 
             if (!state.menuVisible && showPageNumber) {
                 PageIndicatorText(
@@ -382,7 +382,7 @@ class ReaderActivity : BaseActivity() {
         }
 
         dialogRoot.setComposeContent {
-            val state by viewModel.state.collectAsState()
+            val state by viewModel.state.collectAsStateWithLifecycle()
             val settingsScreenModel = remember {
                 ReaderSettingsScreenModel(
                     readerState = viewModel.state,
@@ -397,18 +397,18 @@ class ReaderActivity : BaseActivity() {
             }
 
             val isHttpSource = viewModel.getSource() is HttpSource
-            val isFullscreen by readerPreferences.fullscreen().collectAsState()
-            val flashOnPageChange by readerPreferences.flashOnPageChange().collectAsState()
+            val isFullscreen by readerPreferences.fullscreen().collectAsStateWithLifecycle()
+            val flashOnPageChange by readerPreferences.flashOnPageChange().collectAsStateWithLifecycle()
 
-            val colorOverlayEnabled by readerPreferences.colorFilter().collectAsState()
-            val colorOverlay by readerPreferences.colorFilterValue().collectAsState()
-            val colorOverlayMode by readerPreferences.colorFilterMode().collectAsState()
+            val colorOverlayEnabled by readerPreferences.colorFilter().collectAsStateWithLifecycle()
+            val colorOverlay by readerPreferences.colorFilterValue().collectAsStateWithLifecycle()
+            val colorOverlayMode by readerPreferences.colorFilterMode().collectAsStateWithLifecycle()
             val colorOverlayBlendMode = remember(colorOverlayMode) {
                 ReaderPreferences.ColorFilterMode.getOrNull(colorOverlayMode)?.second
             }
 
-            val cropBorderPaged by readerPreferences.cropBorders().collectAsState()
-            val cropBorderWebtoon by readerPreferences.cropBordersWebtoon().collectAsState()
+            val cropBorderPaged by readerPreferences.cropBorders().collectAsStateWithLifecycle()
+            val cropBorderWebtoon by readerPreferences.cropBordersWebtoon().collectAsStateWithLifecycle()
             val isPagerType = ReadingMode.isPagerType(viewModel.getMangaReadingMode())
             val cropEnabled = if (isPagerType) cropBorderPaged else cropBorderWebtoon
 

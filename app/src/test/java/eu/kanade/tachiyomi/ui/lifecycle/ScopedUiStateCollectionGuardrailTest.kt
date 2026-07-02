@@ -123,6 +123,8 @@ class ScopedUiStateCollectionGuardrailTest {
         val TRIPLE_QUOTED_STRING = Regex(""""\"\"\"[\s\S]*?\"\"\""""")
         val EXPLICIT_SCOPED_TARGETS = setOf(
             "app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt",
+            "app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/GestureHandler.kt",
+            "app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderActivity.kt",
         )
     }
 }
