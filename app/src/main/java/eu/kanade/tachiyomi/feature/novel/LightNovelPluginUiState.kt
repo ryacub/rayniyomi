@@ -28,6 +28,12 @@ sealed interface LightNovelPluginUiState {
     data object Ready : LightNovelPluginUiState
 
     /**
+     * The most recent install attempt failed while the plugin is not installed/ready.
+     * Carries the specific [errorCode] so the UI can show why. Action: "Retry" / "Install".
+     */
+    data class InstallFailed(val errorCode: LightNovelPluginManager.InstallErrorCode) : LightNovelPluginUiState
+
+    /**
      * Policy or build config prevents installation.
      * Shows reason + optional "Learn more" action.
      */

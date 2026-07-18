@@ -148,4 +148,91 @@ class LightNovelPluginStateReducerTest {
         )
         assertEquals(LightNovelPluginUiState.Ready, result)
     }
+
+    @Test
+    fun `every install error code surfaces its own InstallFailed variant`() {
+        // Guards against any code silently collapsing into a generic missing or blocked state.
+        LightNovelPluginManager.InstallErrorCode.entries.forEach { code ->
+            val result = resolvePluginUiState(
+                featureEnabled = true,
+                pluginStatus = status(installed = false),
+                installPhase = InstallPhase.IDLE,
+                installBlocked = false,
+                blockReason = null,
+                lastInstallError = code,
+            )
+            assertEquals(LightNovelPluginUiState.InstallFailed(code), result)
+        }
+    }
+
+    @Test
+    fun `install failure surfaces even when install is blocked`() {
+        // A concrete failure reason is more actionable than the generic blocked message.
+        val result = resolvePluginUiState(
+            featureEnabled = true,
+            pluginStatus = status(installed = false),
+            installPhase = InstallPhase.IDLE,
+            installBlocked = true,
+            blockReason = "Blocked in release",
+            lastInstallError = LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        )
+        assertEquals(
+            LightNovelPluginUiState.InstallFailed(LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED),
+            result,
+        )
+    }
+
+    @Test
+    fun `ready plugin ignores stale install error`() {
+        // If the plugin became usable, a leftover failure code must not mask Ready.
+        val result = resolvePluginUiState(
+            featureEnabled = true,
+            pluginStatus = status(installed = true, signed = true, compatible = true),
+            installPhase = InstallPhase.IDLE,
+            installBlocked = false,
+            blockReason = null,
+            lastInstallError = LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        )
+        assertEquals(LightNovelPluginUiState.Ready, result)
+    }
+
+    @Test
+    fun `installed incompatible plugin takes priority over install error`() {
+        val result = resolvePluginUiState(
+            featureEnabled = true,
+            pluginStatus = status(installed = true, signed = true, compatible = false),
+            installPhase = InstallPhase.IDLE,
+            installBlocked = false,
+            blockReason = null,
+            lastInstallError = LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        )
+        assertEquals(LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH), result)
+    }
+
+    @Test
+    fun `active download clears reported failure by taking phase priority`() {
+        // A fresh attempt (DOWNLOADING) should show progress, not the previous failure.
+        val result = resolvePluginUiState(
+            featureEnabled = true,
+            pluginStatus = status(installed = false),
+            installPhase = InstallPhase.DOWNLOADING,
+            installBlocked = false,
+            blockReason = null,
+            lastInstallError = LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        )
+        assertEquals(LightNovelPluginUiState.Downloading, result)
+    }
+
+    @Test
+    fun `no install error falls back to Missing`() {
+        val result = resolvePluginUiState(
+            featureEnabled = true,
+            pluginStatus = status(installed = false),
+            installPhase = InstallPhase.IDLE,
+            installBlocked = false,
+            blockReason = null,
+            lastInstallError = null,
+        )
+        assertEquals(LightNovelPluginUiState.Missing, result)
+    }
 }

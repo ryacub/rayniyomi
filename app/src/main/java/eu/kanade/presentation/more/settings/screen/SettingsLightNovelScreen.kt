@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.presentation.more.lightNovelInstallErrorMessageRes
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
@@ -108,31 +109,6 @@ object SettingsLightNovelScreen : SearchableSettings {
             }
         }
 
-        fun installErrorMessage(code: LightNovelPluginManager.InstallErrorCode) = when (code) {
-            LightNovelPluginManager.InstallErrorCode.INSTALL_DISABLED ->
-                AYMR.strings.light_novel_plugin_error_install_disabled
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_FETCH_FAILED ->
-                AYMR.strings.light_novel_plugin_error_manifest_fetch_failed
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_PACKAGE_MISMATCH ->
-                AYMR.strings.light_novel_plugin_error_manifest_package_mismatch
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_API_MISMATCH ->
-                AYMR.strings.light_novel_plugin_error_manifest_api_mismatch
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_OLD ->
-                AYMR.strings.light_novel_plugin_error_manifest_host_too_old
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_HOST_TOO_NEW ->
-                AYMR.strings.light_novel_plugin_error_manifest_host_too_new
-            LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED ->
-                AYMR.strings.light_novel_plugin_error_download_failed
-            LightNovelPluginManager.InstallErrorCode.INVALID_PLUGIN_APK ->
-                AYMR.strings.light_novel_plugin_error_invalid_apk
-            LightNovelPluginManager.InstallErrorCode.ARCHIVE_PACKAGE_MISMATCH ->
-                AYMR.strings.light_novel_plugin_error_archive_package_mismatch
-            LightNovelPluginManager.InstallErrorCode.INSTALL_LAUNCH_FAILED ->
-                AYMR.strings.light_novel_plugin_error_install_launch_failed
-            LightNovelPluginManager.InstallErrorCode.MANIFEST_PLUGIN_TOO_OLD ->
-                AYMR.strings.light_novel_plugin_error_manifest_plugin_too_old
-        }
-
         suspend fun runInstallFlow(enableFeatureAfterInstall: Boolean) {
             installInProgress = true
             installError = null
@@ -156,8 +132,11 @@ object SettingsLightNovelScreen : SearchableSettings {
                         context.toast(AYMR.strings.light_novel_plugin_install_started)
                     }
                     is LightNovelPluginManager.InstallResult.Error -> {
-                        installError = context.stringResource(installErrorMessage(result.code))
-                        context.toast(installErrorMessage(result.code))
+                        val messageRes = lightNovelInstallErrorMessageRes(result.code)
+                        installError = context.stringResource(messageRes)
+                        context.toast(messageRes)
+                        // Preserve the failure so the More screen row can surface why setup failed.
+                        stateManager.onInstallFailed(result.code)
                         if (enableFeatureAfterInstall) {
                             enableAfterInstallAwaitingPackageAdded = false
                             enableLightNovelsPref.set(false)
