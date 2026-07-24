@@ -59,6 +59,7 @@ import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.material.snackbar.Snackbar
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -95,6 +96,21 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+
+internal fun resolvePlayerSourceAfterInit(
+    initResult: Result<Boolean>,
+    source: AnimeSource?,
+): Result<AnimeSource> {
+    if (!initResult.getOrDefault(false)) {
+        return Result.failure(
+            initResult.exceptionOrNull() ?: IllegalStateException("Unknown error"),
+        )
+    }
+    if (source == null) {
+        return Result.failure(IllegalStateException("Player source unavailable after initialization"))
+    }
+    return Result.success(source)
+}
 
 class PlayerActivity : BaseActivity() {
     private val viewModel by viewModels<PlayerViewModel>(factoryProducer = { PlayerViewModelProviderFactory(this) })
@@ -201,20 +217,22 @@ class PlayerActivity : BaseActivity() {
             viewModel.updateIsLoadingHosters(true)
 
             val initResult = viewModel.init(animeId, episodeId, hostList, hostIndex, vidIndex)
-            if (!initResult.second.getOrDefault(false)) {
-                val exception = initResult.second.exceptionOrNull() ?: IllegalStateException(
-                    "Unknown error",
-                )
+            val sourceResult = resolvePlayerSourceAfterInit(
+                initResult = initResult.second,
+                source = viewModel.currentSource.value,
+            )
+            viewModel.updateIsLoadingHosters(false)
+
+            val source = sourceResult.getOrElse { exception ->
                 withUIContext {
                     setInitialEpisodeError(exception)
                 }
+                return@launchNonCancellable
             }
-
-            viewModel.updateIsLoadingHosters(false)
 
             lifecycleScope.launch {
                 viewModel.loadHosters(
-                    source = viewModel.currentSource.value!!,
+                    source = source,
                     hosterList = initResult.first.hosterList ?: emptyList(),
                     hosterIndex = initResult.first.videoIndex.first,
                     videoIndex = initResult.first.videoIndex.second,

@@ -141,9 +141,10 @@ class PlayerViewModelProviderFactory(
     }
 }
 
-class PlayerViewModel @JvmOverloads constructor(
+class PlayerViewModel @JvmOverloads internal constructor(
     private val activity: PlayerActivity,
     private val savedState: SavedStateHandle,
+    private val host: PlayerHost = PlayerActivityHost(activity),
     private val sourceManager: AnimeSourceManager = Injekt.get(),
     private val downloadManager: AnimeDownloadManager = Injekt.get(),
     private val imageSaver: ImageSaver = Injekt.get(),
@@ -206,7 +207,7 @@ class PlayerViewModel @JvmOverloads constructor(
         onVideoReady = { video ->
             // Update quality index for SavedState persistence
             qualityIndex = selectedHosterVideoIndex.value
-            activity.setVideo(video)
+            host.setVideo(video)
         }
         onLoadingStateChanged = { isLoading ->
             updateIsLoadingEpisode(isLoading)
@@ -239,7 +240,7 @@ class PlayerViewModel @JvmOverloads constructor(
             seekToWithText(seekValue, text ?: "")
         }
         onToastRequested = { message ->
-            activity.showToast(message)
+            host.showToast(message)
         }
     }
 
@@ -338,7 +339,7 @@ class PlayerViewModel @JvmOverloads constructor(
                         setPrimaryCustomButtonTitle(it)
                     }
                 }
-                activity.setupCustomButtons(buttons)
+                host.setupCustomButtons(buttons)
                 _customButtons.update { _ -> CustomButtonFetchState.Success(buttons.toImmutableList()) }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
@@ -877,16 +878,16 @@ class PlayerViewModel @JvmOverloads constructor(
 
     fun changeEpisode(previous: Boolean, autoPlay: Boolean = false) {
         if (previous && !hasPreviousEpisode.value) {
-            activity.showToast(activity.stringResource(AYMR.strings.no_prev_episode))
+            host.showToast(activity.stringResource(AYMR.strings.no_prev_episode))
             return
         }
 
         if (!previous && !hasNextEpisode.value) {
-            activity.showToast(activity.stringResource(AYMR.strings.no_next_episode))
+            host.showToast(activity.stringResource(AYMR.strings.no_next_episode))
             return
         }
 
-        activity.changeEpisode(
+        host.changeEpisode(
             episodeId = getAdjacentEpisodeId(previous = previous),
             autoPlay = autoPlay,
         )

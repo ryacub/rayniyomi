@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Discover and entry-enrichment Compose screen state now uses explicit stability annotations, and discover feed items are stored as immutable collections at the UI-state boundary to reduce avoidable recompositions.
 
 ### Fixed
+- Player episode switches now use the existing player error UI when initialization cannot resolve a source instead of crashing during hoster loading.
 - Reader config reinitialization now cancels stale preference collectors before replacing the active manager.
 - Player startup errors now use the local player failure path instead of replacing process-wide crash handling while the player screen is open.
 - Reader and player gesture UI now use lifecycle-aware flow collection so inactive screens stop collecting targeted state updates.
