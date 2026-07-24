@@ -67,18 +67,41 @@ class PlayerActivityHostInitOrderTest {
         assertTrue(errorPathIdx > catchIdx, "Expected MPV startup failures to use setInitialEpisodeError")
     }
 
+    @Test
+    fun `player view model routes selected activity calls through player host`() {
+        val source = loadPlayerViewModelSource()
+
+        assertTrue(source.contains("private val host: PlayerHost"))
+        assertTrue(source.contains("host.setVideo(video)"))
+        assertTrue(source.contains("host.showToast(message)"))
+        assertTrue(source.contains("host.setupCustomButtons(buttons)"))
+        assertTrue(source.contains("host.changeEpisode("))
+        assertTrue(!source.contains("activity.setVideo("))
+        assertTrue(!source.contains("activity.showToast("))
+        assertTrue(!source.contains("activity.setupCustomButtons("))
+        assertTrue(!source.contains("activity.changeEpisode("))
+    }
+
     private fun loadPlayerActivitySource(): String {
+        return loadPlayerSource("PlayerActivity.kt")
+    }
+
+    private fun loadPlayerViewModelSource(): String {
+        return loadPlayerSource("PlayerViewModel.kt")
+    }
+
+    private fun loadPlayerSource(fileName: String): String {
         val moduleRelative = Paths.get(
-            "src/main/java/eu/kanade/tachiyomi/ui/player/PlayerActivity.kt",
+            "src/main/java/eu/kanade/tachiyomi/ui/player/$fileName",
         )
         val rootRelative = Paths.get(
-            "app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerActivity.kt",
+            "app/src/main/java/eu/kanade/tachiyomi/ui/player/$fileName",
         )
         val sourcePath = when {
             Files.exists(moduleRelative) -> moduleRelative
             Files.exists(rootRelative) -> rootRelative
             else -> throw java.nio.file.NoSuchFileException(
-                "Could not find PlayerActivity.kt from module or repo root paths",
+                "Could not find $fileName from module or repo root paths",
             )
         }
         return String(Files.readAllBytes(sourcePath), UTF_8)
