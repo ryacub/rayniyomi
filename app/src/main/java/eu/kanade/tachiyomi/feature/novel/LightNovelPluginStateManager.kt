@@ -41,6 +41,11 @@ class LightNovelPluginStateManager(
 
     private val installPhaseFlow = MutableStateFlow(InstallPhase.IDLE)
 
+    // Holds the error code of the most recent failed install attempt so the More screen can show
+    // why setup failed. Cleared when a fresh attempt starts (see [onDownloadStarted]).
+    private val lastInstallErrorFlow =
+        MutableStateFlow<LightNovelPluginManager.InstallErrorCode?>(null)
+
     // Initialize with a safe default; the actual status is loaded asynchronously in init
     // to avoid calling PackageManager on the construction thread.
     private val pluginStatusFlow = MutableStateFlow(
@@ -68,7 +73,8 @@ class LightNovelPluginStateManager(
             preferences.enableLightNovels().changes(),
             pluginStatusFlow,
             installPhaseFlow,
-        ) { enabled, status, phase ->
+            lastInstallErrorFlow,
+        ) { enabled, status, phase, lastError ->
             val isBlocked = !pluginManager.isPluginInstallEnabled()
             resolvePluginUiState(
                 featureEnabled = enabled,
@@ -76,6 +82,7 @@ class LightNovelPluginStateManager(
                 installPhase = phase,
                 installBlocked = isBlocked,
                 blockReason = null, // reason resolved at UI layer via string resource
+                lastInstallError = lastError,
             )
         }.onEach { newState ->
             logcat { "LightNovelPluginStateManager: state -> $newState" }
@@ -84,6 +91,8 @@ class LightNovelPluginStateManager(
     }
 
     fun onDownloadStarted() {
+        // A fresh attempt supersedes any previous failure; clear it so stale errors don't linger.
+        lastInstallErrorFlow.value = null
         installPhaseFlow.value = InstallPhase.DOWNLOADING
     }
 
@@ -93,6 +102,11 @@ class LightNovelPluginStateManager(
 
     fun onInstallIdle() {
         installPhaseFlow.value = InstallPhase.IDLE
+    }
+
+    /** Records the error code of a failed install so the More screen can surface the reason. */
+    fun onInstallFailed(code: LightNovelPluginManager.InstallErrorCode) {
+        lastInstallErrorFlow.value = code
     }
 
     fun refreshPluginStatus() {

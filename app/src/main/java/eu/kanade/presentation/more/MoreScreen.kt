@@ -26,6 +26,7 @@ import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.feature.novel.IncompatibleReason
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import eu.kanade.tachiyomi.ui.more.DownloadQueueState
 import tachiyomi.i18n.MR
@@ -138,6 +139,16 @@ fun MoreScreen(
                     TextPreferenceWidget(
                         title = stringResource(AYMR.strings.pref_category_light_novels),
                         subtitle = subtitle,
+                        icon = Icons.Outlined.Book,
+                        onPreferenceClick = onClickInstallPlugin,
+                    )
+                }
+                is LightNovelPluginUiState.InstallFailed -> item {
+                    TextPreferenceWidget(
+                        title = stringResource(AYMR.strings.pref_category_light_novels),
+                        subtitle = stringResource(
+                            lightNovelInstallErrorMessageRes(lightNovelUiState.errorCode),
+                        ),
                         icon = Icons.Outlined.Book,
                         onPreferenceClick = onClickInstallPlugin,
                     )
@@ -429,6 +440,34 @@ private fun MoreScreenPreviewBlockedPlugin() {
         onClickSettings = {},
         onClickAbout = {},
         lightNovelUiState = LightNovelPluginUiState.Blocked(""),
+        onClickLightNovels = {},
+        onClickInstallPlugin = {},
+    )
+}
+
+@Preview
+@Composable
+private fun MoreScreenPreviewInstallFailedPlugin() {
+    MoreScreen(
+        downloadQueueStateProvider = { DownloadQueueState.Stopped },
+        downloadedOnly = false,
+        onDownloadedOnlyChange = {},
+        incognitoMode = false,
+        onIncognitoModeChange = {},
+        navStyle = NavStyle.MOVE_MANGA_TO_MORE,
+        onClickAlt = {},
+        onClickDownloadQueue = {},
+        onClickCategories = {},
+        onClickStats = {},
+        onClickDiscover = {},
+        onClickStorage = {},
+        onClickDataAndStorage = {},
+        onClickPlayerSettings = {},
+        onClickSettings = {},
+        onClickAbout = {},
+        lightNovelUiState = LightNovelPluginUiState.InstallFailed(
+            LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
+        ),
         onClickLightNovels = {},
         onClickInstallPlugin = {},
     )
