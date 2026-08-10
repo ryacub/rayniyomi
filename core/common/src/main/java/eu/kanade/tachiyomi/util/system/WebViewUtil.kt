@@ -9,13 +9,33 @@ import android.webkit.WebView
 import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import java.util.Locale
 import kotlin.coroutines.resume
 
 object WebViewUtil {
     private const val CHROME_PACKAGE = "com.android.chrome"
     private const val SYSTEM_SETTINGS_PACKAGE = "com.android.settings"
 
+    private val CHROMIUM_PACKAGE_NAME_CLASSES = setOf(
+        "org.chromium.base.buildinfo",
+        "org.chromium.base.apkinfo",
+    )
+    private val CHROMIUM_PACKAGE_NAME_METHODS = setOf("getall", "getpackagename", "<init>")
+
     const val MINIMUM_WEBVIEW_VERSION = 118
+
+    /**
+     * Whether the stack trace belongs to the Chromium code that reads the package name to build the
+     * `X-Requested-With` header. Callers must pass their own stack trace: reading the main thread's
+     * stack instead spoofs the package name for whatever unrelated caller happens to ask while
+     * Chromium is initializing.
+     */
+    fun isChromiumPackageNameCall(stackTrace: Array<StackTraceElement>): Boolean {
+        return stackTrace.any { trace ->
+            trace.className.lowercase(Locale.ENGLISH) in CHROMIUM_PACKAGE_NAME_CLASSES &&
+                trace.methodName.lowercase(Locale.ENGLISH) in CHROMIUM_PACKAGE_NAME_METHODS
+        }
+    }
 
     /**
      * Uses the WebView's user agent string to create something similar to what Chrome on Android
