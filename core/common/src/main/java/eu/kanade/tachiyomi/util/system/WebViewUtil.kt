@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.webkit.UserAgentMetadata
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -111,6 +114,78 @@ fun WebView.setDefaultSettings() {
 
     CookieManager.getInstance().acceptThirdPartyCookies(this)
 }
+
+/**
+ * Sets the user agent along with matching user agent metadata, which Chromium uses to build the
+ * `Sec-CH-UA` client hints. Without this the hints keep advertising the real WebView brand and
+ * version, contradicting the spoofed user agent.
+ *
+ * Non-Chrome user agents are left alone: there is no correct brand/version to advertise for them,
+ * and rewriting the metadata would produce a different mismatch rather than remove one.
+ */
+fun WebView.setUserAgent(userAgent: String) {
+    settings.userAgentString = userAgent
+
+    if (!WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) return
+    val version = parseChromeUserAgentVersion(userAgent) ?: return
+
+    try {
+        val metadata = WebSettingsCompat.getUserAgentMetadata(settings)
+        val brandVersionList = metadata.brandVersionList.map { brandVersion ->
+            val brand = spoofedBrand(brandVersion.brand) ?: return@map brandVersion
+
+            UserAgentMetadata.BrandVersion.Builder()
+                .setBrand(brand)
+                .setMajorVersion(version.major)
+                .setFullVersion(version.full)
+                .build()
+        }
+
+        WebSettingsCompat.setUserAgentMetadata(
+            settings,
+            UserAgentMetadata.Builder(metadata)
+                .setBrandVersionList(brandVersionList)
+                .setFullVersion(version.full)
+                .build(),
+        )
+    } catch (e: Exception) {
+        logcat(LogPriority.ERROR, e) { "Failed to set user agent metadata" }
+    }
+}
+
+internal data class ChromeUserAgentVersion(val major: String, val full: String)
+
+/**
+ * Returns null for any user agent without a `Chrome/N` token, which is what keeps the client-hint
+ * rewrite from firing on non-Chrome user agents.
+ */
+internal fun parseChromeUserAgentVersion(userAgent: String): ChromeUserAgentVersion? {
+    val match = CHROME_VERSION_REGEX.find(userAgent) ?: return null
+    val components = (match.groupValues[1] + match.groupValues[2]).split('.')
+    return ChromeUserAgentVersion(
+        major = components[0],
+        // Chromium expects a four-component full version, so short ones are padded rather than
+        // passed through: a user agent may be hand-edited in Settings to something like Chrome/149.0
+        full = List(FULL_VERSION_COMPONENTS) { components.getOrNull(it).orEmpty().ifEmpty { "0" } }
+            .joinToString("."),
+    )
+}
+
+/**
+ * Maps a brand reported by the real WebView onto the brand the spoofed user agent claims. Returns
+ * null for brands that must be passed through untouched, such as Chromium's `Not?A_Brand` padding.
+ */
+internal fun spoofedBrand(brand: String): String? = when (brand) {
+    WEBVIEW_BRAND -> CHROME_BRAND
+    CHROMIUM_BRAND -> CHROMIUM_BRAND
+    else -> null
+}
+
+private const val FULL_VERSION_COMPONENTS = 4
+private const val WEBVIEW_BRAND = "Android WebView"
+private const val CHROMIUM_BRAND = "Chromium"
+private const val CHROME_BRAND = "Google Chrome"
+private val CHROME_VERSION_REGEX = """Chrome/(\d+)(\.[\d.]+)?""".toRegex()
 
 private fun WebView.getWebViewMajorVersion(): Int {
     val uaRegexMatch = """.*Chrome/(\d+)\..*""".toRegex().matchEntire(getDefaultUserAgentString())

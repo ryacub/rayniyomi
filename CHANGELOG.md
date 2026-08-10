@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- WebView requests now spoof the `Sec-CH-UA` client hints to match the advertised user agent, so sites no longer see the real WebView brand and version contradicting it.
 - Installed light novel plugins that fail signature or API compatibility checks now show package, version, trust, compatibility, and host/plugin API diagnostics with recovery guidance.
 - Shikimori tracker search now uses GraphQL-backed media data and safer nullable chapter/episode mapping while preserving REST compatibility for list sync.
 - Shikimori find-library operations (manga and anime) now use the GraphQL `userRates` query with correct enum types and a 50-entry limit; add/update/delete remain on REST v2 since Shikimori's GraphQL API has no mutation support yet.
@@ -44,6 +45,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Manga category deletion now clears deleted categories from both library update include and exclude preferences.
 
 ### Changed
+- Default user agent is now a current Chrome-on-Android string instead of a stale desktop Firefox one, so it matches the WebView engine actually making the requests. Anyone who prefers the old value can set it under Settings -> Advanced -> User agent string.
 
 ### Removed
 - Removed Discover and entry-detail recommendations because tracker title-search matches were not genuine related-title recommendations; tracker sync no longer performs the associated library-wide enrichment requests.

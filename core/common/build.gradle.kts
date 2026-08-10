@@ -40,6 +40,7 @@ dependencies {
     api(kotlinx.serialization.json.okio)
 
     api(libs.preferencektx)
+    implementation(libs.androidx.webkit)
 
     implementation(libs.jsoup)
 

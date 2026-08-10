@@ -43,6 +43,7 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.getHtml
 import eu.kanade.tachiyomi.util.system.setDefaultSettings
+import eu.kanade.tachiyomi.util.system.setUserAgent
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
 import okhttp3.Request
@@ -264,9 +265,7 @@ fun WebViewScreenContent(
                     WebView.setWebContentsDebuggingEnabled(true)
                 }
 
-                headers["user-agent"]?.let {
-                    webView.settings.userAgentString = it
-                }
+                webView.setUserAgent(headers["user-agent"] ?: network.defaultUserAgentProvider())
             },
             client = webClient,
         )
