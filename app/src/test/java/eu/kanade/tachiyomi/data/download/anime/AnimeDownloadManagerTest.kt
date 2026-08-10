@@ -7,9 +7,13 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -253,6 +257,12 @@ class AnimeDownloadManagerTest {
             throw RuntimeException("remove failed")
         }
 
+        // The manager's own scope must share the test scheduler: otherwise the delete runs on
+        // Dispatchers.IO while withTimeoutOrNull below counts virtual time, and the timeout can
+        // fire before the real thread releases the queue lock.
+        val managerScope = CoroutineScope(
+            SupervisorJob() + StandardTestDispatcher(testScheduler) + CoroutineExceptionHandler { _, _ -> },
+        )
         val localManager = AnimeDownloadManager(
             context = context,
             storageManager = mockk(relaxed = true),
@@ -265,6 +275,7 @@ class AnimeDownloadManagerTest {
             sourceManager = mockk(relaxed = true),
             downloadPreferences = mockk(relaxed = true),
             downloaderForTesting = mockDownloader,
+            scopeForTesting = managerScope,
         )
 
         try {
