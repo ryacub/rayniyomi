@@ -28,12 +28,6 @@ class BaselineProfileGenerator {
             // Browse depth marker: first content render point.
             waitForAnyTextRequired("Sources", "Extensions", "Migrate")
 
-            openMainNav("nav_more", "More")
-            clickTextWithRetry("Discover")
-            // Discover depth marker: first render point.
-            waitForAnyTextRequired("For You", "Trending", "Recommendations")
-            device.pressBack()
-
             // Novel flow: only deterministic when plugin section is present.
             openMainNav("nav_more", "More")
             clickTextWithRetry("Light Novels", required = false)
@@ -43,12 +37,6 @@ class BaselineProfileGenerator {
                 waitForAnyTextOptional("Open Library", "Install", "Downloading", "Waiting for install")
                 device.pressBack()
             }
-
-            // Enrichment flow (best effort): attempt to enter a library detail screen.
-            openMainNav("nav_library", "Manga")
-            clickFirstCardIfPresent()
-            waitForAnyTextOptional("Tracking", "Recommendations", "Related")
-            device.pressBack()
 
             openMainNav("nav_more", "More")
             clickTextWithRetry("Settings")
@@ -95,17 +83,6 @@ class BaselineProfileGenerator {
             device.wait(Until.hasObject(By.textContains(text)), FIND_TIMEOUT_MS)
         }
         if (!found) noteStep("None of optional markers found: ${texts.joinToString()}")
-    }
-
-    private fun MacrobenchmarkScope.clickFirstCardIfPresent() {
-        val candidates = listOf(
-            By.res(BENCHMARK_TARGET_PACKAGE, "manga_library_item"),
-            By.res(BENCHMARK_TARGET_PACKAGE, "anime_library_item"),
-            By.descContains("cover"),
-        )
-        val hit = candidates.firstNotNullOfOrNull { device.wait(Until.findObject(it), 2_000) }
-        hit?.click()
-        device.waitForIdle()
     }
 
     private fun MacrobenchmarkScope.failStep(message: String): Nothing {

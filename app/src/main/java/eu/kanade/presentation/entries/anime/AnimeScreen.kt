@@ -62,7 +62,6 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.entries.anime.model.episodesFiltered
 import eu.kanade.domain.entries.anime.model.seasonsFiltered
-import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.relativeDateTimeText
 import eu.kanade.presentation.entries.DownloadAction
@@ -78,7 +77,6 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
-import eu.kanade.presentation.entries.components.TrackerEnrichmentSection
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -168,12 +166,6 @@ fun AnimeScreen(
     // Season clicked
     onSeasonClicked: (SeasonAnime) -> Unit,
     onContinueWatchingClicked: ((SeasonAnime) -> Unit)?,
-    enrichmentState: EnrichedEntry?,
-    enrichmentLoading: Boolean,
-    enrichmentRefreshing: Boolean,
-    enrichmentErrorText: String?,
-    onRefreshEnrichment: () -> Unit,
-    onOpenEnrichmentRecommendation: (title: String, url: String) -> Unit,
 ) {
     val context = LocalContext.current
     val onCopyTagToClipboard: (tag: String) -> Unit = {
@@ -238,12 +230,6 @@ fun AnimeScreen(
                 onSettingsClicked = onSettingsClicked,
                 onSeasonClicked = onSeasonClicked,
                 onClickContinueWatching = onContinueWatchingClicked,
-                enrichmentState = enrichmentState,
-                enrichmentLoading = enrichmentLoading,
-                enrichmentRefreshing = enrichmentRefreshing,
-                enrichmentErrorText = enrichmentErrorText,
-                onRefreshEnrichment = onRefreshEnrichment,
-                onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
             )
         } else {
             AnimeScreenLargeImpl(
@@ -286,12 +272,6 @@ fun AnimeScreen(
                 onSettingsClicked = onSettingsClicked,
                 onSeasonClicked = onSeasonClicked,
                 onClickContinueWatching = onContinueWatchingClicked,
-                enrichmentState = enrichmentState,
-                enrichmentLoading = enrichmentLoading,
-                enrichmentRefreshing = enrichmentRefreshing,
-                enrichmentErrorText = enrichmentErrorText,
-                onRefreshEnrichment = onRefreshEnrichment,
-                onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
             )
         }
     }
@@ -354,12 +334,6 @@ private fun AnimeScreenSmallImpl(
     // Season clicked
     onSeasonClicked: (SeasonAnime) -> Unit,
     onClickContinueWatching: ((SeasonAnime) -> Unit)?,
-    enrichmentState: EnrichedEntry?,
-    enrichmentLoading: Boolean,
-    enrichmentRefreshing: Boolean,
-    enrichmentErrorText: String?,
-    onRefreshEnrichment: () -> Unit,
-    onOpenEnrichmentRecommendation: (title: String, url: String) -> Unit,
 ) {
     val density = LocalDensity.current
     val offsetGridPaddingPx = with(density) { GRID_PADDING.roundToPx() }
@@ -559,21 +533,6 @@ private fun AnimeScreenSmallImpl(
                     }
 
                     item(
-                        key = "enrichment_section",
-                        contentType = "enrichment_section",
-                        span = { GridItemSpan(maxLineSpan) },
-                    ) {
-                        TrackerEnrichmentSection(
-                            state = enrichmentState,
-                            loading = enrichmentLoading,
-                            refreshing = enrichmentRefreshing,
-                            errorText = enrichmentErrorText,
-                            onRefresh = onRefreshEnrichment,
-                            onOpenRecommendation = onOpenEnrichmentRecommendation,
-                        )
-                    }
-
-                    item(
                         key = EntryScreenItem.ITEM_HEADER,
                         contentType = EntryScreenItem.ITEM_HEADER,
                         span = { GridItemSpan(maxLineSpan) },
@@ -720,12 +679,6 @@ fun AnimeScreenLargeImpl(
     // Season clicked
     onSeasonClicked: (SeasonAnime) -> Unit,
     onClickContinueWatching: ((SeasonAnime) -> Unit)?,
-    enrichmentState: EnrichedEntry?,
-    enrichmentLoading: Boolean,
-    enrichmentRefreshing: Boolean,
-    enrichmentErrorText: String?,
-    onRefreshEnrichment: () -> Unit,
-    onOpenEnrichmentRecommendation: (title: String, url: String) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
@@ -889,14 +842,6 @@ fun AnimeScreenLargeImpl(
                                 tagsProvider = { state.anime.genre },
                                 onTagSearch = onTagSearch,
                                 onCopyTagToClipboard = onCopyTagToClipboard,
-                            )
-                            TrackerEnrichmentSection(
-                                state = enrichmentState,
-                                loading = enrichmentLoading,
-                                refreshing = enrichmentRefreshing,
-                                errorText = enrichmentErrorText,
-                                onRefresh = onRefreshEnrichment,
-                                onOpenRecommendation = onOpenEnrichmentRecommendation,
                             )
                         }
                     },
