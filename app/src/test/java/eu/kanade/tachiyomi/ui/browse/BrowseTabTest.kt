@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.ui.browse
 
 import eu.kanade.tachiyomi.feature.novel.IncompatibleReason
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginCompatibilityCategory
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginDiagnostics
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -28,7 +31,18 @@ class BrowseTabTest {
     fun `should hide novel tab when plugin state is incompatible`() {
         assertFalse(
             shouldShowNovelSourcesTab(
-                LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH),
+                LightNovelPluginUiState.Incompatible(
+                    reason = IncompatibleReason.API_MISMATCH,
+                    diagnostics = LightNovelPluginDiagnostics(
+                        packageName = LightNovelPluginManager.PLUGIN_PACKAGE_NAME,
+                        installedVersionCode = 1L,
+                        signedAndTrusted = true,
+                        compatibility = LightNovelPluginCompatibilityCategory.API_MISMATCH,
+                        pluginApiVersion = 1,
+                        expectedPluginApiVersion = 2,
+                        hostVersionCode = 1L,
+                    ),
+                ),
             ),
         )
     }

@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.feature.novel
 
+import eu.kanade.tachiyomi.BuildConfig
+
 /**
  * Resolves the current [LightNovelPluginUiState] from discrete input signals.
  *
@@ -41,9 +43,15 @@ fun resolvePluginUiState(
             pluginStatus.installed && pluginStatus.signedAndTrusted && pluginStatus.compatible ->
                 LightNovelPluginUiState.Ready
             pluginStatus.installed && !pluginStatus.signedAndTrusted ->
-                LightNovelPluginUiState.Incompatible(IncompatibleReason.UNTRUSTED)
+                LightNovelPluginUiState.Incompatible(
+                    reason = IncompatibleReason.UNTRUSTED,
+                    diagnostics = pluginStatus.toDiagnostics(),
+                )
             pluginStatus.installed && !pluginStatus.compatible ->
-                LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH)
+                LightNovelPluginUiState.Incompatible(
+                    reason = IncompatibleReason.API_MISMATCH,
+                    diagnostics = pluginStatus.toDiagnostics(),
+                )
             lastInstallError != null ->
                 LightNovelPluginUiState.InstallFailed(lastInstallError)
             installBlocked ->
@@ -53,6 +61,16 @@ fun resolvePluginUiState(
         }
     }
 }
+
+private fun LightNovelPluginManager.PluginStatus.toDiagnostics() = LightNovelPluginDiagnostics(
+    packageName = LightNovelPluginManager.PLUGIN_PACKAGE_NAME,
+    installedVersionCode = requireNotNull(installedVersionCode),
+    signedAndTrusted = signedAndTrusted,
+    compatibility = compatibility ?: LightNovelPluginCompatibilityCategory.API_MISMATCH,
+    pluginApiVersion = pluginApiVersion,
+    expectedPluginApiVersion = BuildConfig.LIGHT_NOVEL_PLUGIN_API_VERSION,
+    hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
+)
 
 /** The current phase of the plugin install/update pipeline. */
 enum class InstallPhase {

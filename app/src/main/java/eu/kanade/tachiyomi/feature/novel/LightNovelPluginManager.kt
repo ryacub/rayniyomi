@@ -55,6 +55,8 @@ class LightNovelPluginManager(
         val signedAndTrusted: Boolean,
         val compatible: Boolean,
         val installedVersionCode: Long?,
+        val pluginApiVersion: Int? = null,
+        val compatibility: LightNovelPluginCompatibilityCategory? = null,
     )
 
     sealed interface InstallResult {
@@ -95,12 +97,25 @@ class LightNovelPluginManager(
             )
         }
 
+        val pluginApiVersion = packageInfo.applicationInfo?.metaData
+            ?.getInt(META_PLUGIN_API_VERSION, -1)
+            ?.takeIf { it >= 0 }
+        val compatibility = evaluateCompatibility(packageInfo)
         return PluginStatus(
             installed = true,
             signedAndTrusted = verifyPinnedSignature(packageInfo),
-            compatible = isCompatible(packageInfo),
+            compatible = compatibility == LightNovelPluginCompatibilityResult.COMPATIBLE,
             installedVersionCode = PackageInfoCompat.getLongVersionCode(packageInfo),
+            pluginApiVersion = pluginApiVersion,
+            compatibility = compatibility.toCategory(),
         )
+    }
+
+    private fun LightNovelPluginCompatibilityResult.toCategory() = when (this) {
+        LightNovelPluginCompatibilityResult.COMPATIBLE -> LightNovelPluginCompatibilityCategory.COMPATIBLE
+        LightNovelPluginCompatibilityResult.API_MISMATCH -> LightNovelPluginCompatibilityCategory.API_MISMATCH
+        LightNovelPluginCompatibilityResult.HOST_TOO_OLD -> LightNovelPluginCompatibilityCategory.HOST_TOO_OLD
+        LightNovelPluginCompatibilityResult.HOST_TOO_NEW -> LightNovelPluginCompatibilityCategory.HOST_TOO_NEW
     }
 
     suspend fun ensurePluginReady(): InstallResult {
@@ -364,21 +379,20 @@ class LightNovelPluginManager(
         }
     }
 
-    private fun isCompatible(packageInfo: PackageInfo): Boolean {
-        val metaData = packageInfo.applicationInfo?.metaData ?: return false
+    private fun evaluateCompatibility(packageInfo: PackageInfo): LightNovelPluginCompatibilityResult {
+        val metaData = packageInfo.applicationInfo?.metaData
+            ?: return LightNovelPluginCompatibilityResult.API_MISMATCH
         val pluginApiVersion = metaData.getInt(META_PLUGIN_API_VERSION, -1)
         val minHostVersion = metaData.getLong(META_MIN_HOST_VERSION, Long.MAX_VALUE)
         val targetHostVersion = metaData.getLong(META_TARGET_HOST_VERSION, 0L)
             .let(::normalizeTargetHostVersion)
-        val compatibility = evaluateLightNovelPluginCompatibility(
+        return evaluateLightNovelPluginCompatibility(
             pluginApiVersion = pluginApiVersion,
             minHostVersion = minHostVersion,
             targetHostVersion = targetHostVersion,
             hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
             expectedPluginApiVersion = BuildConfig.LIGHT_NOVEL_PLUGIN_API_VERSION,
         )
-
-        return compatibility == LightNovelPluginCompatibilityResult.COMPATIBLE
     }
 
     private fun LightNovelPluginCompatibilityResult.toInstallErrorCode(): InstallErrorCode {

@@ -26,6 +26,8 @@ import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.feature.novel.IncompatibleReason
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginCompatibilityCategory
+import eu.kanade.tachiyomi.feature.novel.LightNovelPluginDiagnostics
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import eu.kanade.tachiyomi.ui.more.DownloadQueueState
@@ -130,15 +132,10 @@ fun MoreScreen(
                     )
                 }
                 is LightNovelPluginUiState.Incompatible -> item {
-                    val subtitle = when (lightNovelUiState.reason) {
-                        IncompatibleReason.UNTRUSTED ->
-                            stringResource(AYMR.strings.light_novel_plugin_status_incompatible)
-                        IncompatibleReason.API_MISMATCH ->
-                            stringResource(AYMR.strings.light_novel_plugin_status_api_mismatch)
-                    }
+                    val message = lightNovelPluginDiagnosticMessage(lightNovelUiState)
                     TextPreferenceWidget(
                         title = stringResource(AYMR.strings.pref_category_light_novels),
-                        subtitle = subtitle,
+                        subtitle = stringResource(message.resource, *message.arguments.toTypedArray()),
                         icon = Icons.Outlined.Book,
                         onPreferenceClick = onClickInstallPlugin,
                     )
@@ -413,7 +410,18 @@ private fun MoreScreenPreviewIncompatiblePlugin() {
         onClickPlayerSettings = {},
         onClickSettings = {},
         onClickAbout = {},
-        lightNovelUiState = LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH),
+        lightNovelUiState = LightNovelPluginUiState.Incompatible(
+            reason = IncompatibleReason.API_MISMATCH,
+            diagnostics = LightNovelPluginDiagnostics(
+                packageName = LightNovelPluginManager.PLUGIN_PACKAGE_NAME,
+                installedVersionCode = 42L,
+                signedAndTrusted = true,
+                compatibility = LightNovelPluginCompatibilityCategory.API_MISMATCH,
+                pluginApiVersion = 1,
+                expectedPluginApiVersion = 2,
+                hostVersionCode = 343L,
+            ),
+        ),
         onClickLightNovels = {},
         onClickInstallPlugin = {},
     )
