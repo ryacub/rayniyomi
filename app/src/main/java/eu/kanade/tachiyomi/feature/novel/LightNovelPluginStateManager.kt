@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import eu.kanade.domain.novel.NovelFeaturePreferences
@@ -35,6 +36,7 @@ class LightNovelPluginStateManager(
     private val appContext: Context,
     private val pluginManager: LightNovelPluginManager,
     private val preferences: NovelFeaturePreferences,
+    private val lifecycle: Lifecycle = ProcessLifecycleOwner.get().lifecycle,
 ) : DefaultLifecycleObserver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pluginPackageReceiver: BroadcastReceiver? = null
@@ -67,7 +69,7 @@ class LightNovelPluginStateManager(
         }
         registerPluginPackageReceiver()
 
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        lifecycle.addObserver(this)
 
         combine(
             preferences.enableLightNovels().changes(),
