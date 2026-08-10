@@ -6,7 +6,6 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.GetApp
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.QueryStats
@@ -50,7 +49,6 @@ fun MoreScreen(
     onClickDownloadQueue: () -> Unit,
     onClickCategories: () -> Unit,
     onClickStats: () -> Unit,
-    onClickDiscover: () -> Unit,
     onClickStorage: () -> Unit,
     onClickDataAndStorage: () -> Unit,
     onClickPlayerSettings: () -> Unit,
@@ -205,14 +203,6 @@ fun MoreScreen(
             }
             item {
                 TextPreferenceWidget(
-                    title = "Discover",
-                    subtitle = "Recommendations from your tracked library activity",
-                    icon = Icons.Outlined.Explore,
-                    onPreferenceClick = onClickDiscover,
-                )
-            }
-            item {
-                TextPreferenceWidget(
                     title = stringResource(MR.strings.label_stats),
                     icon = Icons.Outlined.QueryStats,
                     onPreferenceClick = onClickStats,
@@ -274,7 +264,6 @@ private fun MoreScreenPreviewWithLightNovels() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -300,7 +289,6 @@ private fun MoreScreenPreviewWithoutLightNovels() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -326,7 +314,6 @@ private fun MoreScreenPreviewMissingPlugin() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -352,7 +339,6 @@ private fun MoreScreenPreviewDownloadingPlugin() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -378,7 +364,6 @@ private fun MoreScreenPreviewInstallingPlugin() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -404,7 +389,6 @@ private fun MoreScreenPreviewIncompatiblePlugin() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -441,7 +425,6 @@ private fun MoreScreenPreviewBlockedPlugin() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},
@@ -467,7 +450,6 @@ private fun MoreScreenPreviewInstallFailedPlugin() {
         onClickDownloadQueue = {},
         onClickCategories = {},
         onClickStats = {},
-        onClickDiscover = {},
         onClickStorage = {},
         onClickDataAndStorage = {},
         onClickPlayerSettings = {},

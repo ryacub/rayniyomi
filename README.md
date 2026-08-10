@@ -21,12 +21,10 @@ Fork of Aniyomi with anime/manga/light novel tracking, reading, and watching.
 - **Light novel support** — dedicated plugin system with a reactive browse tab
 - **AI translation toggle** — translate untranslated manga on the fly (Claude, GPT-4, Gemini)
 - **8 trackers with bidirectional sync** — MAL, AniList, Kitsu, Bangumi — progress syncs back automatically on a configurable schedule
-- **Tracker enrichment & recommendations** — "More like this" row in every entry powered by aggregated tracker metadata
 - **Library de-duplication** — detect and merge duplicate entries from different sources, preserving read progress, categories, history, and tracker data
 - **Source health badges** — see broken sources at a glance; broken sources hidden by default
 - **Dynamic cover theming** — entry screens tinted from cover art with contrast-checked fallbacks
 - **Custom app theme accents** — choose a curated accent swatch for the custom theme, with one-tap reset to default palette
-- **Discover feed** — aggregated tracker-based recommendations ranked by multi-tracker affinity, recent activity, and score
 - **Categories with search** — organize that 500-entry library
 
 ## Features

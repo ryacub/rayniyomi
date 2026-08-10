@@ -50,7 +50,6 @@ import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.domain.track.enrichment.model.EnrichedEntry
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.relativeDateTimeText
 import eu.kanade.presentation.entries.DownloadAction
@@ -59,7 +58,6 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
-import eu.kanade.presentation.entries.components.TrackerEnrichmentSection
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescription
@@ -144,12 +142,6 @@ fun MangaScreen(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
-    enrichmentState: EnrichedEntry?,
-    enrichmentLoading: Boolean,
-    enrichmentRefreshing: Boolean,
-    enrichmentErrorText: String?,
-    onRefreshEnrichment: () -> Unit,
-    onOpenEnrichmentRecommendation: (title: String, url: String) -> Unit,
 ) {
     val context = LocalContext.current
     val onCopyTagToClipboard: (tag: String) -> Unit = {
@@ -209,12 +201,6 @@ fun MangaScreen(
                 onAllChapterSelected = onAllChapterSelected,
                 onInvertSelection = onInvertSelection,
                 onSettingsClicked = onSettingsClicked,
-                enrichmentState = enrichmentState,
-                enrichmentLoading = enrichmentLoading,
-                enrichmentRefreshing = enrichmentRefreshing,
-                enrichmentErrorText = enrichmentErrorText,
-                onRefreshEnrichment = onRefreshEnrichment,
-                onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
             )
         } else {
             MangaScreenLargeImpl(
@@ -252,12 +238,6 @@ fun MangaScreen(
                 onAllChapterSelected = onAllChapterSelected,
                 onInvertSelection = onInvertSelection,
                 onSettingsClicked = onSettingsClicked,
-                enrichmentState = enrichmentState,
-                enrichmentLoading = enrichmentLoading,
-                enrichmentRefreshing = enrichmentRefreshing,
-                enrichmentErrorText = enrichmentErrorText,
-                onRefreshEnrichment = onRefreshEnrichment,
-                onOpenEnrichmentRecommendation = onOpenEnrichmentRecommendation,
             )
         }
     }
@@ -314,12 +294,6 @@ private fun MangaScreenSmallImpl(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
-    enrichmentState: EnrichedEntry?,
-    enrichmentLoading: Boolean,
-    enrichmentRefreshing: Boolean,
-    enrichmentErrorText: String?,
-    onRefreshEnrichment: () -> Unit,
-    onOpenEnrichmentRecommendation: (title: String, url: String) -> Unit,
 ) {
     val chapterListState = rememberLazyListState()
 
@@ -489,20 +463,6 @@ private fun MangaScreenSmallImpl(
                     }
 
                     item(
-                        key = "enrichment_section",
-                        contentType = "enrichment_section",
-                    ) {
-                        TrackerEnrichmentSection(
-                            state = enrichmentState,
-                            loading = enrichmentLoading,
-                            refreshing = enrichmentRefreshing,
-                            errorText = enrichmentErrorText,
-                            onRefresh = onRefreshEnrichment,
-                            onOpenRecommendation = onOpenEnrichmentRecommendation,
-                        )
-                    }
-
-                    item(
                         key = EntryScreenItem.ITEM_HEADER,
                         contentType = EntryScreenItem.ITEM_HEADER,
                     ) {
@@ -587,12 +547,6 @@ fun MangaScreenLargeImpl(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
-    enrichmentState: EnrichedEntry?,
-    enrichmentLoading: Boolean,
-    enrichmentRefreshing: Boolean,
-    enrichmentErrorText: String?,
-    onRefreshEnrichment: () -> Unit,
-    onOpenEnrichmentRecommendation: (title: String, url: String) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
@@ -740,14 +694,6 @@ fun MangaScreenLargeImpl(
                             tagsProvider = { state.manga.genre },
                             onTagSearch = onTagSearch,
                             onCopyTagToClipboard = onCopyTagToClipboard,
-                        )
-                        TrackerEnrichmentSection(
-                            state = enrichmentState,
-                            loading = enrichmentLoading,
-                            refreshing = enrichmentRefreshing,
-                            errorText = enrichmentErrorText,
-                            onRefresh = onRefreshEnrichment,
-                            onOpenRecommendation = onOpenEnrichmentRecommendation,
                         )
                     }
                 },

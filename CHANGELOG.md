@@ -45,6 +45,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Changed
 
 ### Removed
+- Removed Discover and entry-detail recommendations because tracker title-search matches were not genuine related-title recommendations; tracker sync no longer performs the associated library-wide enrichment requests.
 - Orphaned Compose reader migration benchmark gate scripts, artifacts, tests, and documentation were removed after the invoking CI workflow was deleted.
 
 ### CI
