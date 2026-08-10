@@ -34,29 +34,7 @@ class TrustMangaExtension(
         }
     }
 
-    suspend fun isInvalid(pkgName: String, versionCode: Long, signatureHash: String): Boolean {
-        return invalidKey(pkgName, versionCode, signatureHash) in preferences.invalidMangaExtensions().get()
-    }
-
-    fun markInvalid(pkgName: String, versionCode: Long, signatureHash: String) {
-        preferences.invalidMangaExtensions().getAndSet { exts ->
-            val removed = exts.filterNot { it.startsWith("$pkgName:") }.toMutableSet()
-
-            removed.also { it += invalidKey(pkgName, versionCode, signatureHash) }
-        }
-    }
-
-    fun clearInvalid(pkgName: String) {
-        preferences.invalidMangaExtensions().getAndSet { exts ->
-            exts.filterNot { it.startsWith("$pkgName:") }.toMutableSet()
-        }
-    }
-
     fun revokeAll() {
         preferences.trustedExtensions().delete()
-    }
-
-    private fun invalidKey(pkgName: String, versionCode: Long, signatureHash: String): String {
-        return "$pkgName:$versionCode:$signatureHash"
     }
 }

@@ -4,7 +4,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,11 +16,7 @@ import eu.kanade.presentation.browse.manga.MangaExtensionScreen
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.presentation.more.settings.screen.browse.MangaExtensionReposScreen
-import eu.kanade.tachiyomi.extension.manga.model.InvalidReason
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
-import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
-import eu.kanade.tachiyomi.ui.browse.extension.InvalidExtensionDiagnostics
-import eu.kanade.tachiyomi.ui.browse.extension.InvalidExtensionDialogContent
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaExtensionDetailsScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
@@ -39,7 +34,6 @@ fun mangaExtensionsTab(
 
     val state by extensionsScreenModel.state.collectAsStateWithLifecycle()
     var privateExtensionToUninstall by remember { mutableStateOf<MangaExtension?>(null) }
-    var invalidExtensionToUninstall by remember { mutableStateOf<MangaLoadResult.Invalid?>(null) }
 
     return TabContent(
         titleRes = AYMR.strings.label_manga_extensions,
@@ -56,16 +50,6 @@ fun mangaExtensionsTab(
             ),
         ),
         content = { contentPadding, _ ->
-            LaunchedEffect(Unit) {
-                extensionsScreenModel.events.collect { event ->
-                    when (event) {
-                        is MangaExtensionsScreenModel.Event.InvalidExtensionRevoked -> {
-                            invalidExtensionToUninstall = event.extension
-                        }
-                    }
-                }
-            }
-
             MangaExtensionScreen(
                 state = state,
                 contentPadding = contentPadding,
@@ -116,18 +100,6 @@ fun mangaExtensionsTab(
                     },
                 )
             }
-
-            invalidExtensionToUninstall?.let { invalidExtension ->
-                MangaInvalidExtensionConfirmation(
-                    extension = invalidExtension,
-                    onClickConfirm = {
-                        extensionsScreenModel.uninstallExtension(invalidExtension.pkgName)
-                    },
-                    onDismissRequest = {
-                        invalidExtensionToUninstall = null
-                    },
-                )
-            }
         },
     )
 }
@@ -163,54 +135,3 @@ private fun MangaExtensionUninstallConfirmation(
         onDismissRequest = onDismissRequest,
     )
 }
-
-@Composable
-private fun MangaInvalidExtensionConfirmation(
-    extension: MangaLoadResult.Invalid,
-    onClickConfirm: () -> Unit,
-    onDismissRequest: () -> Unit,
-) {
-    val diagnostics = InvalidExtensionDiagnostics.from(
-        pkgName = extension.pkgName,
-        versionName = extension.versionName,
-        versionCode = extension.versionCode,
-        signatureHash = extension.signatureHash,
-        debugDetail = extension.debugDetail,
-    )
-    AlertDialog(
-        title = {
-            Text(text = stringResource(MR.strings.ext_invalid_extension_title))
-        },
-        text = {
-            InvalidExtensionDialogContent(
-                extensionName = extension.name,
-                reason = stringResource(extension.reason.labelRes),
-                diagnostics = diagnostics,
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onClickConfirm()
-                    onDismissRequest()
-                },
-            ) {
-                Text(text = stringResource(MR.strings.ext_uninstall))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text(text = stringResource(MR.strings.action_cancel))
-            }
-        },
-        onDismissRequest = onDismissRequest,
-    )
-}
-
-private val InvalidReason.labelRes
-    get() = when (this) {
-        InvalidReason.DENYLISTED -> MR.strings.ext_invalid_extension_reason_denylisted
-        InvalidReason.METADATA_INVALID -> MR.strings.ext_invalid_extension_reason_metadata
-        InvalidReason.SOURCE_FACTORY_THROW -> MR.strings.ext_invalid_extension_reason_source_factory
-        InvalidReason.SOURCE_ID_THROW -> MR.strings.ext_invalid_extension_reason_source_id
-    }

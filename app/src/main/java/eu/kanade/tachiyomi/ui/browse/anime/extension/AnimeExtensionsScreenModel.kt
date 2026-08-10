@@ -13,7 +13,6 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
-import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.system.LocaleHelper
@@ -61,7 +60,6 @@ class AnimeExtensionsScreenModel(
 ) : StateScreenModel<AnimeExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())
-    private val invalidNoticeKeys = mutableSetOf<String>()
 
     private val probeTimestamps = ConcurrentHashMap<String, Long>()
     private val probeSemaphore = Semaphore(10)
@@ -174,14 +172,6 @@ class AnimeExtensionsScreenModel(
                 }
         }
         screenModelScope.launchIO { findAvailableExtensions() }
-
-        extensionManager.invalidExtensionNotices
-            .onEach { invalid ->
-                if (invalidNoticeKeys.add(invalid.noticeKey())) {
-                    _events.send(Event.InvalidExtensionRevoked(invalid))
-                }
-            }
-            .launchIn(screenModelScope)
 
         // Probe available extensions for availability whenever the list changes
         screenModelScope.launchIO {
@@ -363,7 +353,6 @@ class AnimeExtensionsScreenModel(
 
     sealed interface Event {
         data object DeviceOffline : Event
-        data class InvalidExtensionRevoked(val extension: AnimeLoadResult.Invalid) : Event
     }
 }
 
@@ -379,8 +368,4 @@ object AnimeExtensionUiModel {
         val installStep: InstallStep,
     )
     enum class HealthStatus { UNKNOWN, HEALTHY, BROKEN }
-}
-
-private fun AnimeLoadResult.Invalid.noticeKey(): String {
-    return "$pkgName:$versionCode:$signatureHash"
 }

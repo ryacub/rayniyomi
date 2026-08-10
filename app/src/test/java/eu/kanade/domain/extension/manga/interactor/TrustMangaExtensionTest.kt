@@ -1,10 +1,8 @@
 package eu.kanade.domain.extension.manga.interactor
 
 import eu.kanade.domain.source.service.SourcePreferences
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldNotContain
-import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -40,20 +38,6 @@ class TrustMangaExtensionTest {
         trusted.shouldContain("com.example.good:1:hash-a")
         trusted.shouldContain("com.example.other:3:hash-c")
         trusted.shouldNotContain("com.example.bad:2:hash-b")
-    }
-
-    @Test
-    fun `markInvalid and clearInvalid update the denylist`() = runTest {
-        val store = MutablePreferenceStore()
-        val preferences = SourcePreferences(store)
-        val trust = createTrust(preferences)
-
-        trust.markInvalid("com.example.bad", 42L, "hash-z")
-        trust.isInvalid("com.example.bad", 42L, "hash-z").shouldBeTrue()
-        trust.isInvalid("com.example.bad", 43L, "hash-z").shouldBe(false)
-
-        trust.clearInvalid("com.example.bad")
-        trust.isInvalid("com.example.bad", 42L, "hash-z").shouldBe(false)
     }
 
     private fun createTrust(preferences: SourcePreferences): TrustMangaExtension {

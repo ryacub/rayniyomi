@@ -15,7 +15,6 @@ import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
-import eu.kanade.tachiyomi.extension.anime.model.InvalidReason
 import eu.kanade.tachiyomi.util.lang.Hash
 import eu.kanade.tachiyomi.util.storage.copyAndSetReadOnlyTo
 import eu.kanade.tachiyomi.util.system.ChildFirstPathClassLoader
@@ -268,18 +267,7 @@ internal object AnimeExtensionLoader {
             return AnimeLoadResult.Error
         }
         val signatureHash = signatures.first()
-        if (trustExtension.isInvalid(pkgName, versionCode, signatureHash)) {
-            logcat(LogPriority.WARN) { "Extension $pkgName is denylisted as invalid" }
-            return invalidResult(
-                pkgName = pkgName,
-                extName = extName,
-                versionName = versionName,
-                versionCode = versionCode,
-                signatureHash = signatureHash,
-                reason = InvalidReason.DENYLISTED,
-                debugDetail = "denylisted before trust check",
-            )
-        } else if (!trustExtension.isTrusted(pkgInfo, signatures)) {
+        if (!trustExtension.isTrusted(pkgInfo, signatures)) {
             val extension = AnimeExtension.Untrusted(
                 extName,
                 pkgName,
@@ -307,15 +295,8 @@ internal object AnimeExtensionLoader {
 
         val sourceClassMetadata = appInfo.metaData.getString(METADATA_SOURCE_CLASS)
         if (sourceClassMetadata.isNullOrBlank()) {
-            return invalidResult(
-                pkgName = pkgName,
-                extName = extName,
-                versionName = versionName,
-                versionCode = versionCode,
-                signatureHash = signatureHash,
-                reason = InvalidReason.METADATA_INVALID,
-                debugDetail = METADATA_SOURCE_CLASS,
-            )
+            logcat(LogPriority.ERROR) { "Extension load error: $extName (missing $METADATA_SOURCE_CLASS)" }
+            return AnimeLoadResult.Error
         }
 
         val sources = sourceClassMetadata
@@ -329,14 +310,17 @@ internal object AnimeExtensionLoader {
                 }
             }
             .flatMap {
-                try {
-                    when (val obj = Class.forName(it, false, classLoader).getDeclaredConstructor().newInstance()) {
-                        is AnimeSource -> listOf(obj)
-                        is AnimeSourceFactory -> obj.createSources()
-                        else -> throw Exception("Unknown source class type: ${obj.javaClass}")
-                    }
-                } catch (e: LinkageError) {
-                    try {
+                instantiateSources(
+                    extensionName = extName,
+                    sourceClass = it,
+                    instantiate = {
+                        when (val obj = Class.forName(it, false, classLoader).getDeclaredConstructor().newInstance()) {
+                            is AnimeSource -> listOf(obj)
+                            is AnimeSourceFactory -> obj.createSources()
+                            else -> throw Exception("Unknown source class type: ${obj.javaClass}")
+                        }
+                    },
+                    fallback = {
                         val fallBackClassLoader = PathClassLoader(appInfo.sourceDir, null, context.classLoader)
                         when (
                             val obj = Class.forName(
@@ -351,44 +335,9 @@ internal object AnimeExtensionLoader {
                             is AnimeSourceFactory -> obj.createSources()
                             else -> throw Exception("Unknown source class type: ${obj.javaClass}")
                         }
-                    } catch (e: Throwable) {
-                        return invalidResult(
-                            pkgName = pkgName,
-                            extName = extName,
-                            versionName = versionName,
-                            versionCode = versionCode,
-                            signatureHash = signatureHash,
-                            reason = InvalidReason.SOURCE_FACTORY_THROW,
-                            debugDetail = it,
-                            throwable = e,
-                        )
-                    }
-                } catch (e: Throwable) {
-                    return invalidResult(
-                        pkgName = pkgName,
-                        extName = extName,
-                        versionName = versionName,
-                        versionCode = versionCode,
-                        signatureHash = signatureHash,
-                        reason = InvalidReason.SOURCE_FACTORY_THROW,
-                        debugDetail = it,
-                        throwable = e,
-                    )
-                }
+                    },
+                ) ?: return AnimeLoadResult.Error
             }
-
-        findInvalidSource(sources)?.let { invalidSource ->
-            return invalidResult(
-                pkgName = pkgName,
-                extName = extName,
-                versionName = versionName,
-                versionCode = versionCode,
-                signatureHash = signatureHash,
-                reason = InvalidReason.SOURCE_ID_THROW,
-                debugDetail = invalidSource.javaClass.name,
-                throwable = null,
-            )
-        }
 
         val langs = sources.filterIsInstance<AnimeCatalogueSource>()
             .map { it.lang }
@@ -416,44 +365,23 @@ internal object AnimeExtensionLoader {
         return AnimeLoadResult.Success(extension)
     }
 
-    internal fun findInvalidSource(sources: List<AnimeSource>): AnimeSource? {
-        for (source in sources) {
-            runCatching {
-                source.id
-                source.lang
-                source.name
+    internal fun instantiateSources(
+        extensionName: String,
+        sourceClass: String,
+        instantiate: () -> List<AnimeSource>,
+        fallback: () -> List<AnimeSource>,
+    ): List<AnimeSource>? {
+        return try {
+            instantiate()
+        } catch (error: LinkageError) {
+            runCatching(fallback).getOrElse {
+                logcat(LogPriority.ERROR, it) { "Extension load error: $extensionName ($sourceClass)" }
+                null
             }
-                .getOrElse { return source }
+        } catch (error: Throwable) {
+            logcat(LogPriority.ERROR, error) { "Extension load error: $extensionName ($sourceClass)" }
+            null
         }
-        return null
-    }
-
-    private suspend fun invalidResult(
-        pkgName: String,
-        extName: String,
-        versionName: String,
-        versionCode: Long,
-        signatureHash: String,
-        reason: InvalidReason,
-        debugDetail: String? = null,
-        throwable: Throwable? = null,
-    ): AnimeLoadResult.Invalid {
-        if (throwable != null) {
-            logcat(LogPriority.ERROR, throwable) { "Invalid anime extension load: $extName ($pkgName)" }
-        } else {
-            logcat(LogPriority.ERROR) { "Invalid anime extension load: $extName ($pkgName)" }
-        }
-        trustExtension.markInvalid(pkgName, versionCode, signatureHash)
-        trustExtension.revoke(pkgName)
-        return AnimeLoadResult.Invalid(
-            pkgName = pkgName,
-            name = extName,
-            versionName = versionName,
-            versionCode = versionCode,
-            signatureHash = signatureHash,
-            reason = reason,
-            debugDetail = debugDetail,
-        )
     }
 
     /**

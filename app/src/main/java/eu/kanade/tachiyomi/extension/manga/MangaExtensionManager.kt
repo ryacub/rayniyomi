@@ -19,11 +19,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
@@ -80,12 +78,6 @@ class MangaExtensionManager(
 
     private val untrustedExtensionsMapFlow = MutableStateFlow(emptyMap<String, MangaExtension.Untrusted>())
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
-
-    private val invalidExtensionNoticesFlow = MutableSharedFlow<MangaLoadResult.Invalid>(
-        replay = 16,
-        extraBufferCapacity = 16,
-    )
-    val invalidExtensionNotices = invalidExtensionNoticesFlow.asSharedFlow()
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -153,9 +145,6 @@ class MangaExtensionManager(
             untrustedExtensionsMapFlow.value = extensions
                 .filterIsInstance<MangaLoadResult.Untrusted>()
                 .associate { it.extension.pkgName to it.extension }
-
-            extensions.filterIsInstance<MangaLoadResult.Invalid>()
-                .forEach { invalidExtensionNoticesFlow.emit(it) }
         } finally {
             _isInitialized.value = true
         }
@@ -386,17 +375,8 @@ class MangaExtensionManager(
             updatePendingUpdatesCount()
         }
 
-        override fun onExtensionInvalid(extension: MangaLoadResult.Invalid) {
-            unregisterExtension(extension.pkgName)
-            scope.launch {
-                invalidExtensionNoticesFlow.emit(extension)
-            }
-            updatePendingUpdatesCount()
-        }
-
         override fun onPackageUninstalled(pkgName: String) {
             MangaExtensionLoader.uninstallPrivateExtension(context, pkgName)
-            trustExtension.clearInvalid(pkgName)
             unregisterExtension(pkgName)
             updatePendingUpdatesCount()
         }
