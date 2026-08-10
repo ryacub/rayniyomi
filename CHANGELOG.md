@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- Installed light novel plugins that fail signature or API compatibility checks now show package, version, trust, compatibility, and host/plugin API diagnostics with recovery guidance.
 - Shikimori tracker search now uses GraphQL-backed media data and safer nullable chapter/episode mapping while preserving REST compatibility for list sync.
 - Shikimori find-library operations (manga and anime) now use the GraphQL `userRates` query with correct enum types and a 50-entry limit; add/update/delete remain on REST v2 since Shikimori's GraphQL API has no mutation support yet.
 - Settings main screen lazy list now uses stable, null-safe composite keys instead of `hashCode()`, eliminating spurious recompositions on rotation and theme changes

@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.feature.novel
 
+import eu.kanade.tachiyomi.BuildConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -9,11 +10,24 @@ class LightNovelPluginStateReducerTest {
         installed: Boolean = false,
         signed: Boolean = false,
         compatible: Boolean = false,
+        versionCode: Long? = if (installed) 42L else null,
+        pluginApiVersion: Int? = if (installed) 3 else null,
+        compatibility: LightNovelPluginCompatibilityCategory? = if (installed) {
+            if (compatible) {
+                LightNovelPluginCompatibilityCategory.COMPATIBLE
+            } else {
+                LightNovelPluginCompatibilityCategory.API_MISMATCH
+            }
+        } else {
+            null
+        },
     ) = LightNovelPluginManager.PluginStatus(
         installed = installed,
         signedAndTrusted = signed,
         compatible = compatible,
-        installedVersionCode = if (installed) 1L else null,
+        installedVersionCode = versionCode,
+        pluginApiVersion = pluginApiVersion,
+        compatibility = compatibility,
     )
 
     @Test
@@ -122,7 +136,21 @@ class LightNovelPluginStateReducerTest {
             installBlocked = false,
             blockReason = null,
         )
-        assertEquals(LightNovelPluginUiState.Incompatible(IncompatibleReason.UNTRUSTED), result)
+        assertEquals(
+            LightNovelPluginUiState.Incompatible(
+                reason = IncompatibleReason.UNTRUSTED,
+                diagnostics = LightNovelPluginDiagnostics(
+                    packageName = LightNovelPluginManager.PLUGIN_PACKAGE_NAME,
+                    installedVersionCode = 42L,
+                    signedAndTrusted = false,
+                    compatibility = LightNovelPluginCompatibilityCategory.API_MISMATCH,
+                    pluginApiVersion = 3,
+                    expectedPluginApiVersion = BuildConfig.LIGHT_NOVEL_PLUGIN_API_VERSION,
+                    hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
+                ),
+            ),
+            result,
+        )
     }
 
     @Test
@@ -134,7 +162,21 @@ class LightNovelPluginStateReducerTest {
             installBlocked = false,
             blockReason = null,
         )
-        assertEquals(LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH), result)
+        assertEquals(
+            LightNovelPluginUiState.Incompatible(
+                reason = IncompatibleReason.API_MISMATCH,
+                diagnostics = LightNovelPluginDiagnostics(
+                    packageName = LightNovelPluginManager.PLUGIN_PACKAGE_NAME,
+                    installedVersionCode = 42L,
+                    signedAndTrusted = true,
+                    compatibility = LightNovelPluginCompatibilityCategory.API_MISMATCH,
+                    pluginApiVersion = 3,
+                    expectedPluginApiVersion = BuildConfig.LIGHT_NOVEL_PLUGIN_API_VERSION,
+                    hostVersionCode = BuildConfig.VERSION_CODE.toLong(),
+                ),
+            ),
+            result,
+        )
     }
 
     @Test
@@ -206,7 +248,9 @@ class LightNovelPluginStateReducerTest {
             blockReason = null,
             lastInstallError = LightNovelPluginManager.InstallErrorCode.DOWNLOAD_FAILED,
         )
-        assertEquals(LightNovelPluginUiState.Incompatible(IncompatibleReason.API_MISMATCH), result)
+        val incompatible = result as LightNovelPluginUiState.Incompatible
+        assertEquals(IncompatibleReason.API_MISMATCH, incompatible.reason)
+        assertEquals(42L, incompatible.diagnostics.installedVersionCode)
     }
 
     @Test

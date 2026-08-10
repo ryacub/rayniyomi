@@ -292,6 +292,8 @@ class LightNovelPluginManagerTest {
         status.signedAndTrusted shouldBe false
         status.compatible shouldBe false
         status.installedVersionCode shouldBe null
+        status.pluginApiVersion shouldBe null
+        status.compatibility shouldBe null
     }
 
     @Test
@@ -308,6 +310,8 @@ class LightNovelPluginManagerTest {
 
         status.installed shouldBe true
         status.installedVersionCode shouldBe 123L
+        status.pluginApiVersion shouldBe 1
+        status.compatibility shouldBe LightNovelPluginCompatibilityCategory.COMPATIBLE
     }
 
     @Test
@@ -338,6 +342,7 @@ class LightNovelPluginManagerTest {
         val status = manager.getPluginStatus()
 
         status.compatible shouldBe true
+        status.compatibility shouldBe LightNovelPluginCompatibilityCategory.COMPATIBLE
     }
 
     // ===== Install Disabled Flow Tests =====

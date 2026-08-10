@@ -16,7 +16,10 @@ sealed interface LightNovelPluginUiState {
      * Plugin installed but not usable (wrong API version, untrusted signature).
      * Action: "Update" or "Reinstall".
      */
-    data class Incompatible(val reason: IncompatibleReason) : LightNovelPluginUiState
+    data class Incompatible(
+        val reason: IncompatibleReason,
+        val diagnostics: LightNovelPluginDiagnostics,
+    ) : LightNovelPluginUiState
 
     /** APK download in flight. Passive: indeterminate progress. */
     data object Downloading : LightNovelPluginUiState
@@ -38,6 +41,24 @@ sealed interface LightNovelPluginUiState {
      * Shows reason + optional "Learn more" action.
      */
     data class Blocked(val reason: String) : LightNovelPluginUiState
+}
+
+/** Installed-plugin context shown only when the plugin cannot be used. */
+data class LightNovelPluginDiagnostics(
+    val packageName: String,
+    val installedVersionCode: Long,
+    val signedAndTrusted: Boolean,
+    val compatibility: LightNovelPluginCompatibilityCategory,
+    val pluginApiVersion: Int?,
+    val expectedPluginApiVersion: Int,
+    val hostVersionCode: Long,
+)
+
+enum class LightNovelPluginCompatibilityCategory {
+    COMPATIBLE,
+    API_MISMATCH,
+    HOST_TOO_OLD,
+    HOST_TOO_NEW,
 }
 
 /** Why the installed plugin is not usable. Drives subtitle text and remediation label. */
