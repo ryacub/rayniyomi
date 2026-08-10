@@ -345,6 +345,28 @@ class LightNovelPluginManagerTest {
         status.compatibility shouldBe LightNovelPluginCompatibilityCategory.COMPATIBLE
     }
 
+    @Test
+    fun `getPluginStatus preserves each incompatible compatibility category`() {
+        val cases = listOf(
+            Triple(999, 100L to 1000L, LightNovelPluginCompatibilityCategory.API_MISMATCH),
+            Triple(1, Long.MAX_VALUE to 0L, LightNovelPluginCompatibilityCategory.HOST_TOO_OLD),
+            Triple(1, 0L to 1L, LightNovelPluginCompatibilityCategory.HOST_TOO_NEW),
+        )
+
+        cases.forEach { (apiVersion, hostRange, expectedCategory) ->
+            val packageInfo = createPackageInfoMock(
+                installed = true,
+                hasValidSignature = true,
+                apiVersion = apiVersion,
+                minHostVersion = hostRange.first,
+                targetHostVersion = hostRange.second,
+            )!!
+            every { packageManager.getPackageInfo(PLUGIN_PACKAGE_NAME, any<Int>()) } returns packageInfo
+
+            manager.getPluginStatus().compatibility shouldBe expectedCategory
+        }
+    }
+
     // ===== Install Disabled Flow Tests =====
 
     @Test
