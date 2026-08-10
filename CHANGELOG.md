@@ -27,6 +27,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Extension source factory failures are recoverable again and no longer persistently revoke trust or block the same extension package identity.
+- WebView `X-Requested-With` spoofing now matches the newer Chromium `ApkInfo` caller as well as `BuildInfo`, so the real package name is no longer sent to sites on recent WebView versions, and the spoofed value no longer leaks to unrelated callers on other threads.
 - Player episode switches now use the existing player error UI when initialization cannot resolve a source instead of crashing during hoster loading.
 - Reader config reinitialization now cancels stale preference collectors before replacing the active manager.
 - Player startup errors now use the local player failure path instead of replacing process-wide crash handling while the player screen is open.
