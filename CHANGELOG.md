@@ -49,6 +49,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Removed
 - Removed the anime extension availability badges because a single HTTP `HEAD` against a source landing page could not distinguish a working extension from an unreachable one; opening the Extensions tab no longer probes third-party hosts.
+- Removed source health tracking and its badges from the Sources lists. Sources that had been marked broken are visible again — the "show broken sources" preference that was supposed to reveal them had no UI to toggle it, so a failed probe hid a source with no way to bring it back. Pull-to-refresh on the Sources lists is also gone, as it existed only to run health checks.
 - Removed Discover and entry-detail recommendations because tracker title-search matches were not genuine related-title recommendations; tracker sync no longer performs the associated library-wide enrichment requests.
 - Orphaned Compose reader migration benchmark gate scripts, artifacts, tests, and documentation were removed after the invoking CI workflow was deleted.
 
