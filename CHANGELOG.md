@@ -48,6 +48,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Default user agent is now a current Chrome-on-Android string instead of a stale desktop Firefox one, so it matches the WebView engine actually making the requests. Anyone who prefers the old value can set it under Settings -> Advanced -> User agent string.
 
 ### Removed
+- Removed the anime extension availability badges because a single HTTP `HEAD` against a source landing page could not distinguish a working extension from an unreachable one; opening the Extensions tab no longer probes third-party hosts.
 - Removed Discover and entry-detail recommendations because tracker title-search matches were not genuine related-title recommendations; tracker sync no longer performs the associated library-wide enrichment requests.
 - Orphaned Compose reader migration benchmark gate scripts, artifacts, tests, and documentation were removed after the invoking CI workflow was deleted.
 
