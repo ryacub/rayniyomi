@@ -5,14 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,8 +19,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.manga.components.BaseMangaSourceItem
 import eu.kanade.tachiyomi.ui.browse.manga.source.MangaSourcesScreenModel
@@ -32,11 +26,9 @@ import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import tachiyomi.domain.source.manga.model.Pin
 import tachiyomi.domain.source.manga.model.Source
-import tachiyomi.domain.source.manga.model.SourceHealthStatus
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
-import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.components.material.topSmallPaddingValues
@@ -54,7 +46,6 @@ fun MangaSourcesScreen(
     onClickItem: (Source, Listing) -> Unit,
     onClickPin: (Source) -> Unit,
     onLongClickItem: (Source) -> Unit,
-    onRefresh: () -> Unit,
 ) {
     when {
         state.isLoading -> LoadingScreen(Modifier.padding(contentPadding))
@@ -63,45 +54,38 @@ fun MangaSourcesScreen(
             modifier = Modifier.padding(contentPadding),
         )
         else -> {
-            PullRefresh(
-                refreshing = state.isRefreshing,
-                onRefresh = onRefresh,
-                enabled = !state.isRefreshing,
-                indicatorPadding = contentPadding,
+            ScrollbarLazyColumn(
+                contentPadding = contentPadding + topSmallPaddingValues,
             ) {
-                ScrollbarLazyColumn(
-                    contentPadding = contentPadding + topSmallPaddingValues,
-                ) {
-                    items(
-                        items = state.items,
-                        contentType = {
-                            when (it) {
-                                is MangaSourceUiModel.Header -> "header"
-                                is MangaSourceUiModel.Item -> "item"
-                            }
-                        },
-                        key = {
-                            when (it) {
-                                is MangaSourceUiModel.Header -> it.hashCode()
-                                is MangaSourceUiModel.Item -> "source-${it.source.key()}"
-                            }
-                        },
-                    ) { model ->
-                        when (model) {
-                            is MangaSourceUiModel.Header -> {
-                                SourceHeader(
-                                    modifier = Modifier.animateItem(),
-                                    language = model.language,
-                                )
-                            }
-                            is MangaSourceUiModel.Item -> SourceItem(
+                items(
+                    items = state.items,
+                    contentType = {
+                        when (it) {
+                            is MangaSourceUiModel.Header -> "header"
+                            is MangaSourceUiModel.Item -> "item"
+                        }
+                    },
+                    key = {
+                        when (it) {
+                            is MangaSourceUiModel.Header -> it.hashCode()
+                            is MangaSourceUiModel.Item -> "source-${it.source.key()}"
+                        }
+                    },
+                ) { model ->
+                    when (model) {
+                        is MangaSourceUiModel.Header -> {
+                            SourceHeader(
                                 modifier = Modifier.animateItem(),
-                                source = model.source,
-                                onClickItem = onClickItem,
-                                onLongClickItem = onLongClickItem,
-                                onClickPin = onClickPin,
+                                language = model.language,
                             )
                         }
+                        is MangaSourceUiModel.Item -> SourceItem(
+                            modifier = Modifier.animateItem(),
+                            source = model.source,
+                            onClickItem = onClickItem,
+                            onLongClickItem = onLongClickItem,
+                            onClickPin = onClickPin,
+                        )
                     }
                 }
             }
@@ -150,57 +134,12 @@ private fun SourceItem(
                     )
                 }
             }
-            SourceHealthBadge(healthStatus = source.healthStatus)
             SourcePinButton(
                 isPinned = Pin.Pinned in source.pin,
                 onClick = { onClickPin(source) },
             )
         },
     )
-}
-
-@Composable
-private fun SourceHealthBadge(
-    healthStatus: SourceHealthStatus,
-) {
-    when (healthStatus) {
-        SourceHealthStatus.HEALTHY -> {
-            val desc = stringResource(AYMR.strings.source_health_healthy)
-            Icon(
-                imageVector = Icons.Outlined.CheckCircle,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp)
-                    .semantics { contentDescription = desc },
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        SourceHealthStatus.DEGRADED -> {
-            val desc = stringResource(AYMR.strings.source_health_degraded)
-            Icon(
-                imageVector = Icons.Outlined.Warning,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp)
-                    .semantics { contentDescription = desc },
-                tint = MaterialTheme.colorScheme.tertiary,
-            )
-        }
-        SourceHealthStatus.BROKEN -> {
-            val desc = stringResource(AYMR.strings.source_health_broken)
-            Icon(
-                imageVector = Icons.Outlined.Error,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp)
-                    .semantics { contentDescription = desc },
-                tint = MaterialTheme.colorScheme.error,
-            )
-        }
-        SourceHealthStatus.UNKNOWN -> {
-            // No badge for unknown status
-        }
-    }
 }
 
 @Composable
@@ -234,7 +173,6 @@ fun MangaSourceOptionsDialog(
     // SY -->
     onClickToggleDataSaver: (() -> Unit)?,
     // SY <--
-    onClickRetryHealthCheck: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -275,15 +213,6 @@ fun MangaSourceOptionsDialog(
                     )
                 }
                 // SY <--
-                if (onClickRetryHealthCheck != null) {
-                    Text(
-                        text = stringResource(AYMR.strings.source_health_retry),
-                        modifier = Modifier
-                            .clickable(onClick = onClickRetryHealthCheck)
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                    )
-                }
             }
         },
         onDismissRequest = onDismiss,

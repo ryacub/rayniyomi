@@ -678,14 +678,6 @@
     <string name="light_novel_plugin_status_api_mismatch_diagnostic">%1$s version %2$d is incompatible (%3$s; trust: trusted): plugin API %4$s, expected API %5$d; host version %6$d. Update Rayniyomi or the plugin.</string>
     <string name="light_novel_plugin_status_blocked">Plugin not available</string>
 
-    <!-- Source health tracking (R395) -->
-    <string name="source_health_healthy">Source status: Healthy</string>
-    <string name="source_health_degraded">Source status: Degraded</string>
-    <string name="source_health_broken">Source status: Broken</string>
-    <string name="source_health_retry">Retry health check</string>
-    <string name="source_health_show_broken">Show broken sources</string>
-    <string name="source_health_check_summary">%1$d healthy, %2$d degraded, %3$d broken</string>
-
     <!-- Library de-duplication (R416) -->
     <string name="action_merge_entries">Merge entries</string>
     <string name="action_merge_entries_cd">Merge duplicate entries icon</string>
