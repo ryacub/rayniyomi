@@ -26,6 +26,7 @@ See current governance docs:
 - PR template: [`.github/pull_request_template.md`](.github/pull_request_template.md)
 - CI tiering: [`docs/ci-tiering.md`](docs/ci-tiering.md)
 - Branding guardrail: [`docs/branding-guardrail.md`](docs/branding-guardrail.md)
+- Default user agent (check each release cycle): [`docs/release/user-agent.md`](docs/release/user-agent.md)
 
 ## Prerequisites
 
