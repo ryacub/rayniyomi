@@ -10,16 +10,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.GetApp
-import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
@@ -41,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -62,7 +57,6 @@ import eu.kanade.tachiyomi.util.system.LocaleHelper
 import eu.kanade.tachiyomi.util.system.launchRequestPackageInstallsPermission
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
-import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.padding
@@ -89,7 +83,6 @@ fun AnimeExtensionScreen(
     onOpenExtension: (AnimeExtension.Installed) -> Unit,
     onClickUpdateAll: () -> Unit,
     onRefresh: () -> Unit,
-    onRetryProbe: (pkgName: String, url: String) -> Unit,
 ) {
     val navigator = LocalNavigator.currentOrThrow
 
@@ -131,7 +124,6 @@ fun AnimeExtensionScreen(
                     onTrustExtension = onTrustExtension,
                     onOpenExtension = onOpenExtension,
                     onClickUpdateAll = onClickUpdateAll,
-                    onRetryProbe = onRetryProbe,
                 )
             }
         }
@@ -151,7 +143,6 @@ private fun AnimeExtensionContent(
     onTrustExtension: (AnimeExtension.Untrusted) -> Unit,
     onOpenExtension: (AnimeExtension.Installed) -> Unit,
     onClickUpdateAll: () -> Unit,
-    onRetryProbe: (pkgName: String, url: String) -> Unit,
 ) {
     val context = LocalContext.current
     var trustState by remember { mutableStateOf<AnimeExtension.Untrusted?>(null) }
@@ -219,28 +210,9 @@ private fun AnimeExtensionContent(
                     }
                 },
             ) { item ->
-                val baseUrl = (item.extension as? AnimeExtension.Available)
-                    ?.sources?.firstOrNull()?.baseUrl
-                val isLocalhost = baseUrl?.let {
-                    it.contains("localhost") || it.contains("127.0.0.1")
-                } == true
-                val healthStatus: AnimeExtensionUiModel.HealthStatus? = when {
-                    item.extension is AnimeExtension.Installed -> null
-                    isLocalhost -> null
-                    item.extension is AnimeExtension.Available ->
-                        state.extensionHealthStatuses[item.extension.pkgName]
-                            ?: AnimeExtensionUiModel.HealthStatus.UNKNOWN
-                    else -> AnimeExtensionUiModel.HealthStatus.UNKNOWN
-                }
                 AnimeExtensionItem(
                     item = item,
                     modifier = Modifier.animateItemFastScroll(),
-                    healthStatus = healthStatus,
-                    onRetryProbe = if (item.extension is AnimeExtension.Available && !baseUrl.isNullOrBlank()) {
-                        { onRetryProbe(item.extension.pkgName, baseUrl) }
-                    } else {
-                        null
-                    },
                     onClickItem = {
                         when (it) {
                             is AnimeExtension.Available -> onInstallExtension(it)
@@ -304,8 +276,6 @@ private fun AnimeExtensionItem(
     onClickItemCancel: (AnimeExtension) -> Unit,
     onClickItemAction: (AnimeExtension) -> Unit,
     modifier: Modifier = Modifier,
-    healthStatus: AnimeExtensionUiModel.HealthStatus? = null,
-    onRetryProbe: (() -> Unit)? = null,
     onClickItemSecondaryAction: (AnimeExtension) -> Unit,
 ) {
     val (extension, installStep) = item
@@ -356,8 +326,6 @@ private fun AnimeExtensionItem(
         AnimeExtensionItemContent(
             extension = extension,
             installStep = installStep,
-            healthStatus = healthStatus,
-            onRetryProbe = onRetryProbe,
             modifier = Modifier.weight(1f),
         )
     }
@@ -368,30 +336,16 @@ private fun AnimeExtensionItemContent(
     extension: AnimeExtension,
     installStep: InstallStep,
     modifier: Modifier = Modifier,
-    healthStatus: AnimeExtensionUiModel.HealthStatus? = null,
-    onRetryProbe: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.padding(start = MaterialTheme.padding.medium),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = extension.name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
-            if (healthStatus != null) {
-                AnimeExtensionAvailabilityBadge(
-                    status = healthStatus,
-                    onRetryClick = onRetryProbe,
-                )
-            }
-        }
+        Text(
+            text = extension.name,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyMedium,
+        )
         // Won't look good but it's not like we can ellipsize overflowing content
         FlowRow(
             modifier = Modifier.secondaryItemAlpha(),
@@ -441,56 +395,6 @@ private fun AnimeExtensionItemContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun AnimeExtensionAvailabilityBadge(
-    status: AnimeExtensionUiModel.HealthStatus,
-    onRetryClick: (() -> Unit)?,
-    modifier: Modifier = Modifier,
-) {
-    val icon = when (status) {
-        AnimeExtensionUiModel.HealthStatus.HEALTHY -> Icons.Filled.CheckCircle
-        AnimeExtensionUiModel.HealthStatus.BROKEN -> Icons.Filled.Cancel
-        AnimeExtensionUiModel.HealthStatus.UNKNOWN -> Icons.Outlined.HelpOutline
-    }
-    val tint = when (status) {
-        AnimeExtensionUiModel.HealthStatus.HEALTHY -> MaterialTheme.colorScheme.primary
-        AnimeExtensionUiModel.HealthStatus.BROKEN -> MaterialTheme.colorScheme.error
-        AnimeExtensionUiModel.HealthStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val contentDesc = when (status) {
-        AnimeExtensionUiModel.HealthStatus.HEALTHY -> stringResource(AYMR.strings.ext_availability_reachable)
-        AnimeExtensionUiModel.HealthStatus.BROKEN -> stringResource(AYMR.strings.ext_availability_unreachable)
-        AnimeExtensionUiModel.HealthStatus.UNKNOWN -> stringResource(AYMR.strings.ext_availability_unknown)
-    }
-    if (onRetryClick != null) {
-        IconButton(onClick = onRetryClick) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDesc,
-                tint = tint,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    } else {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDesc,
-            tint = tint,
-            modifier = modifier.size(16.dp),
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun AnimeExtensionAvailabilityBadgePreview() {
-    Row {
-        AnimeExtensionAvailabilityBadge(status = AnimeExtensionUiModel.HealthStatus.HEALTHY, onRetryClick = {})
-        AnimeExtensionAvailabilityBadge(status = AnimeExtensionUiModel.HealthStatus.BROKEN, onRetryClick = {})
-        AnimeExtensionAvailabilityBadge(status = AnimeExtensionUiModel.HealthStatus.UNKNOWN, onRetryClick = null)
     }
 }
 

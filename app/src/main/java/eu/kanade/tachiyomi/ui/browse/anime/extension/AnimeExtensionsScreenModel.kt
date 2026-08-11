@@ -13,15 +13,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
-import eu.kanade.tachiyomi.network.NetworkHelper
-import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.system.LocaleHelper
-import eu.kanade.tachiyomi.util.system.activeNetworkState
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,20 +26,12 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class AnimeExtensionsScreenModel(
@@ -55,24 +39,10 @@ class AnimeExtensionsScreenModel(
     basePreferences: BasePreferences = Injekt.get(),
     private val extensionManager: AnimeExtensionManager = Injekt.get(),
     private val getExtensions: GetAnimeExtensionsByType = Injekt.get(),
-    private val network: NetworkHelper = Injekt.get(),
     private val application: Application = Injekt.get(),
 ) : StateScreenModel<AnimeExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())
-
-    private val probeTimestamps = ConcurrentHashMap<String, Long>()
-    private val probeSemaphore = Semaphore(10)
-    private val probeClient: OkHttpClient by lazy {
-        network.nonCloudflareClient.newBuilder()
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.SECONDS)
-            .callTimeout(8, TimeUnit.SECONDS)
-            .build()
-    }
-
-    private val _events = Channel<Event>(Channel.BUFFERED)
-    val events = _events.receiveAsFlow()
 
     init {
         val extensionMapper: (Map<String, InstallStep>) -> ((AnimeExtension) -> AnimeExtensionUiModel.Item) = { map ->
@@ -173,16 +143,6 @@ class AnimeExtensionsScreenModel(
         }
         screenModelScope.launchIO { findAvailableExtensions() }
 
-        // Probe available extensions for availability whenever the list changes
-        screenModelScope.launchIO {
-            getExtensions.subscribe()
-                .map { it.available }
-                .distinctUntilChanged()
-                .collectLatest { available ->
-                    checkExtensionAvailability(available)
-                }
-        }
-
         preferences.animeExtensionUpdatesCount().changes()
             .onEach { mutableState.update { state -> state.copy(updates = it) } }
             .launchIn(screenModelScope)
@@ -264,80 +224,6 @@ class AnimeExtensionsScreenModel(
         }
     }
 
-    fun retryProbe(pkgName: String, url: String) {
-        screenModelScope.launchIO {
-            if (!application.activeNetworkState().isOnline) {
-                _events.send(Event.DeviceOffline)
-                return@launchIO
-            }
-            probeTimestamps.remove(pkgName)
-            val status = probeSemaphore.withPermit { probeUrl(url) }
-            probeTimestamps[pkgName] = System.currentTimeMillis()
-            mutableState.update { state ->
-                state.copy(extensionHealthStatuses = state.extensionHealthStatuses + (pkgName to status))
-            }
-        }
-    }
-
-    private suspend fun checkExtensionAvailability(available: List<AnimeExtension.Available>) {
-        if (!application.activeNetworkState().isOnline) {
-            _events.send(Event.DeviceOffline)
-            return
-        }
-        val ttlMillis = 5.minutes.inWholeMilliseconds
-        val now = System.currentTimeMillis()
-
-        // Mark blank URLs as BROKEN immediately
-        val brokenImmediate = available.filter { ext ->
-            ext.sources.firstOrNull()?.baseUrl.orEmpty().isBlank()
-        }
-        if (brokenImmediate.isNotEmpty()) {
-            mutableState.update { state ->
-                state.copy(
-                    extensionHealthStatuses = state.extensionHealthStatuses +
-                        brokenImmediate.associate { it.pkgName to AnimeExtensionUiModel.HealthStatus.BROKEN },
-                )
-            }
-        }
-
-        val toProbe = available.filter { ext ->
-            val url = ext.sources.firstOrNull()?.baseUrl.orEmpty()
-            if (url.isBlank()) return@filter false
-            if (url.contains("localhost") || url.contains("127.0.0.1")) return@filter false
-            val lastProbed = probeTimestamps[ext.pkgName] ?: 0L
-            now - lastProbed >= ttlMillis
-        }
-
-        coroutineScope {
-            toProbe.map { ext ->
-                async {
-                    probeSemaphore.withPermit {
-                        val url = ext.sources.first().baseUrl
-                        val status = probeUrl(url)
-                        probeTimestamps[ext.pkgName] = System.currentTimeMillis()
-                        mutableState.update { state ->
-                            state.copy(
-                                extensionHealthStatuses = state.extensionHealthStatuses + (ext.pkgName to status),
-                            )
-                        }
-                    }
-                }
-            }.awaitAll()
-        }
-    }
-
-    private suspend fun probeUrl(url: String): AnimeExtensionUiModel.HealthStatus {
-        return try {
-            val request = Request.Builder().url(url).head().build()
-            probeClient.newCall(request).await().close()
-            AnimeExtensionUiModel.HealthStatus.HEALTHY
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            AnimeExtensionUiModel.HealthStatus.BROKEN
-        }
-    }
-
     @Immutable
     data class State(
         val isLoading: Boolean = true,
@@ -346,13 +232,8 @@ class AnimeExtensionsScreenModel(
         val updates: Int = 0,
         val installer: BasePreferences.ExtensionInstaller? = null,
         val searchQuery: String? = null,
-        val extensionHealthStatuses: Map<String, AnimeExtensionUiModel.HealthStatus> = emptyMap(),
     ) {
         val isEmpty = items.isEmpty()
-    }
-
-    sealed interface Event {
-        data object DeviceOffline : Event
     }
 }
 
@@ -367,5 +248,4 @@ object AnimeExtensionUiModel {
         val extension: AnimeExtension,
         val installStep: InstallStep,
     )
-    enum class HealthStatus { UNKNOWN, HEALTHY, BROKEN }
 }
