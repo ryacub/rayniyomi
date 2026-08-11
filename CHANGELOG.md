@@ -15,6 +15,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.221] - 2026-08-11
+
+### Added
+
+### Improved
 - WebView requests now spoof the `Sec-CH-UA` client hints to match the advertised user agent, so sites no longer see the real WebView brand and version contradicting it.
 - Installed light novel plugins that fail signature or API compatibility checks now show package, version, trust, compatibility, and host/plugin API diagnostics with recovery guidance.
 - Shikimori tracker search now uses GraphQL-backed media data and safer nullable chapter/episode mapping while preserving REST compatibility for list sync.
