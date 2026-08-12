@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- The player "Reverse landscape" orientation setting now rotates to reverse landscape. It rotated to reverse portrait before, which is the wrong axis, and made the setting identical to "Reverse portrait".
 
 ### Changed
 
