@@ -17,6 +17,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.222] - 2026-08-12
+
+### Added
+
+### Improved
+
+### Fixed
 - Release APKs now keep the manga and anime extension source API ABI, so installed extensions can load after installation.
 
 ### Changed
