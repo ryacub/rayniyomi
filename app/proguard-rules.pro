@@ -39,6 +39,22 @@
 -keep,allowoptimization class eu.kanade.tachiyomi.network.RequestsKt { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.AppInfo { public protected *; }
 
+##---------------Begin: extension source API ABI ----------
+# Installed extensions call these public methods across a child-first class loader.
+# Do not allow R8 to optimize their signatures in release APKs.
+-keep class eu.kanade.tachiyomi.source.model.** { public protected *; }
+-keep class eu.kanade.tachiyomi.source.* { public protected *; }
+-keep class eu.kanade.tachiyomi.source.online.** { public protected *; }
+-keep class eu.kanade.tachiyomi.source.** extends eu.kanade.tachiyomi.source.MangaSource { public protected *; }
+
+-keep class eu.kanade.tachiyomi.animesource.model.** { public protected *; }
+-keep class eu.kanade.tachiyomi.animesource.* { public protected *; }
+-keep class eu.kanade.tachiyomi.animesource.online.** { public protected *; }
+-keep class eu.kanade.tachiyomi.animesource.** extends eu.kanade.tachiyomi.animesource.AnimeSource { public protected *; }
+
+-keep class eu.kanade.tachiyomi.util.JsoupExtensionsKt { public protected *; }
+##---------------End: extension source API ABI ----------
+
 ##---------------Begin: proguard configuration for RxJava 1.x  ----------
 -dontwarn sun.misc.**
 

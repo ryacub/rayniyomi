@@ -17,12 +17,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Release APKs now keep the manga and anime extension source API ABI, so installed extensions can load after installation.
 
 ### Changed
 
 ### Removed
 
 ### CI
+- Release CI now checks that optimized APKs keep extension source API methods callable and overridable.
 
 ### Other
 
