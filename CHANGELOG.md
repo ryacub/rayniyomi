@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- The launcher icon now supports themed icons on Android 13 and later, so it takes the colors of your wallpaper theme when themed icons are enabled.
 
 ### Improved
 
