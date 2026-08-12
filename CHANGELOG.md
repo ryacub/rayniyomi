@@ -32,25 +32,6 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
-
-### Fixed
-- Release APKs now keep the manga and anime extension source API ABI, so installed extensions can load after installation.
-
-### Changed
-
-### Removed
-
-### CI
-- Release CI now checks that optimized APKs keep extension source API methods callable and overridable.
-
-### Other
-
-
-## [0.18.1.221] - 2026-08-11
-
-### Added
-
-### Improved
 - WebView requests now spoof the `Sec-CH-UA` client hints to match the advertised user agent, so sites no longer see the real WebView brand and version contradicting it.
 - Installed light novel plugins that fail signature or API compatibility checks now show package, version, trust, compatibility, and host/plugin API diagnostics with recovery guidance.
 - Shikimori tracker search now uses GraphQL-backed media data and safer nullable chapter/episode mapping while preserving REST compatibility for list sync.
@@ -63,6 +44,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Discover and entry-enrichment Compose screen state now uses explicit stability annotations, and discover feed items are stored as immutable collections at the UI-state boundary to reduce avoidable recompositions.
 
 ### Fixed
+- Release APKs now keep the manga and anime extension source API ABI, so installed extensions can load after installation.
 - Extension source factory failures are recoverable again and no longer persistently revoke trust or block the same extension package identity.
 - WebView `X-Requested-With` spoofing now matches the newer Chromium `ApkInfo` caller as well as `BuildInfo`, so the real package name is no longer sent to sites on recent WebView versions, and the spoofed value no longer leaks to unrelated callers on other threads.
 - Player episode switches now use the existing player error UI when initialization cannot resolve a source instead of crashing during hoster loading.
@@ -90,6 +72,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Orphaned Compose reader migration benchmark gate scripts, artifacts, tests, and documentation were removed after the invoking CI workflow was deleted.
 
 ### CI
+- Release CI now checks that optimized APKs keep extension source API methods callable and overridable.
 - Custom lint guardrails now run cleanly with Gradle configuration cache enabled.
 - PR CI now skips Gradle-heavy jobs for docs, workflow, and CI-test-only changes while keeping app-relevant build, format, unit-test, and baseline-profile coverage.
 - Gitleaks PR scans now check out the pull request head with enough history to resolve commit ranges after queue delays, merges, or branch cleanup.
