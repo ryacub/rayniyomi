@@ -19,7 +19,7 @@ Fork of Aniyomi with anime/manga/light novel tracking, reading, and watching.
 - **PIN lock** — secure your library with SHA-256 salted hashing and escalating timeouts
 - **Resumable downloads** — HTTP range resume with multi-thread support and stall detection
 - **Light novel support** — dedicated plugin system with a reactive browse tab
-- **AI translation toggle** — translate untranslated manga on the fly (Claude, GPT-4, Gemini)
+- **AI translation toggle** — translate untranslated manga on the fly via Claude (Sonnet 4.5), OpenAI (GPT-4o), Google Gemini (2.0 Flash), or OpenRouter; each default model is overridable with any model id the provider accepts
 - **8 trackers with bidirectional sync** — MAL, AniList, Kitsu, Bangumi — progress syncs back automatically on a configurable schedule
 - **Library de-duplication** — detect and merge duplicate entries from different sources, preserving read progress, categories, history, and tracker data
 - **Dynamic cover theming** — entry screens tinted from cover art with contrast-checked fallbacks
