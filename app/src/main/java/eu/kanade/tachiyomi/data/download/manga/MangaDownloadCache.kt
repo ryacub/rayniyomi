@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
@@ -56,6 +57,8 @@ import uy.kohesive.injekt.api.get
 import java.io.File
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
+
+private const val TAG = "MangaDownloadCache"
 
 /**
  * Cache where we dump the downloads directory from the filesystem. This class is needed because
@@ -372,13 +375,27 @@ class MangaDownloadCache(
             rootDownloadsDirMutex.withLock {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
-                updatedRootDir.sourceDirs = updatedRootDir.dir?.listFiles().orEmpty()
+                val candidateDirs = updatedRootDir.dir?.listFiles().orEmpty()
                     .filter { it.isDirectory && !it.name.isNullOrBlank() }
+
+                updatedRootDir.sourceDirs = candidateDirs
                     .mapNotNull { dir ->
                         val sourceId = sourceMap[dir.name!!.lowercase()]
                         sourceId?.let { it to SourceDirectory(dir) }
                     }
                     .toMap()
+
+                val droppedDirs = candidateDirs
+                    .map { it.name!! }
+                    .filter { sourceMap[it.lowercase()] == null }
+                if (droppedDirs.isNotEmpty()) {
+                    Log.w(
+                        TAG,
+                        "${droppedDirs.size} of ${candidateDirs.size} download directories match " +
+                            "no loaded source and are ignored (${sources.size} sources loaded): " +
+                            droppedDirs.joinToString(),
+                    )
+                }
 
                 updatedRootDir.sourceDirs.values.map { sourceDir ->
                     async {

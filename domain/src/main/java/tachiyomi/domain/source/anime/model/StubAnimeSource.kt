@@ -12,7 +12,10 @@ class StubAnimeSource(
     override val name: String,
 ) : AnimeSource {
 
-    private val isInvalid: Boolean = name.isBlank() || lang.isBlank()
+    // Only a missing name forces the id fallback. A known name must render the same as
+    // AnimeHttpSource.toString(), which ignores a blank lang, or the download directory
+    // this stub resolves to stops matching the one the installed source wrote.
+    private val isInvalid: Boolean = name.isBlank()
 
     override suspend fun getAnimeDetails(anime: SAnime): SAnime =
         throw AnimeSourceNotInstalledException()
