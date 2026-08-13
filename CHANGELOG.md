@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Duplicate-library checks no longer crash on Android when you add manga or anime entries with normalized titles.
 - The player "Reverse landscape" orientation setting now rotates to reverse landscape. It rotated to reverse portrait before, which is the wrong axis, and made the setting identical to "Reverse portrait".
 
 ### Changed
