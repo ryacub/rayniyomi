@@ -356,11 +356,17 @@ class AnimeDownloadCache(
 
             // Try to wait until extensions and sources have loaded
             var sources = emptyList<AnimeSource>()
-            withTimeoutOrNull(30.seconds) {
+            val loaded = withTimeoutOrNull(30.seconds) {
                 extensionManager.isInitialized.first { it }
                 sourceManager.isInitialized.first { it }
 
                 sources = getSources()
+            }
+            if (loaded == null) {
+                // Every download directory is dropped below when no source loaded.
+                logcat(LogPriority.ERROR) {
+                    "DownloadCache: sources did not initialize within 30s; the cache will be empty"
+                }
             }
 
             val sourceMap = sources.associate {
@@ -370,13 +376,34 @@ class AnimeDownloadCache(
             rootDownloadsDirMutex.withLock {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
-                updatedRootDir.sourceDirs = updatedRootDir.dir?.listFiles().orEmpty()
+                val rootDir = updatedRootDir.dir
+                val candidateDirs = rootDir?.listFiles().orEmpty()
                     .filter { it.isDirectory && !it.name.isNullOrBlank() }
+
+                if (candidateDirs.isEmpty()) {
+                    logcat(LogPriority.WARN) {
+                        "DownloadCache: no download directories to index " +
+                            "(root=${rootDir?.uri}, exists=${rootDir?.exists()})"
+                    }
+                }
+
+                updatedRootDir.sourceDirs = candidateDirs
                     .mapNotNull { dir ->
                         val sourceId = sourceMap[dir.name!!.lowercase()]
                         sourceId?.let { it to SourceDirectory(dir) }
                     }
                     .toMap()
+
+                val droppedDirs = candidateDirs
+                    .map { it.name!! }
+                    .filter { sourceMap[it.lowercase()] == null }
+                if (droppedDirs.isNotEmpty()) {
+                    logcat(LogPriority.WARN) {
+                        "DownloadCache: ${droppedDirs.size} of ${candidateDirs.size} download " +
+                            "directories match no loaded source and are ignored " +
+                            "(${sources.size} sources loaded): ${droppedDirs.joinToString()}"
+                    }
+                }
 
                 updatedRootDir.sourceDirs.values.map { sourceDir ->
                     async {
