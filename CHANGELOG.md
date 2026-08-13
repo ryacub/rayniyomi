@@ -21,6 +21,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Duplicate-library checks no longer crash on Android when you add manga or anime entries with normalized titles.
 - The player "Reverse landscape" orientation setting now rotates to reverse landscape. It rotated to reverse portrait before, which is the wrong axis, and made the setting identical to "Reverse portrait".
 - A defective extension no longer crashes the app when you open its Browse screen or run a global search. The app now shows a message that tells you to update or reinstall the extension, and browsing continues without its filters.
+- A backup restore no longer drops library entries when two entries contain the same chapter or episode URL. The app now reads the history of each entry inside that entry. Before, the restore failed and lost the entry.
 
 ### Changed
 
