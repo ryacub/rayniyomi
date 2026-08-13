@@ -28,7 +28,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -743,21 +742,8 @@ class PlayerActivity : BaseActivity() {
 
     private fun setupPlayerOrientation() {
         if (player.isExiting) return
-        requestedOrientation = when (playerPreferences.defaultPlayerOrientationType().get()) {
-            PlayerOrientation.Free -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
-            PlayerOrientation.Video -> if ((player.getVideoOutAspect() ?: 0.0) > 1.0) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            }
-
-            PlayerOrientation.Portrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            PlayerOrientation.ReversePortrait -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-            PlayerOrientation.SensorPortrait -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            PlayerOrientation.Landscape -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            PlayerOrientation.ReverseLandscape -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-            PlayerOrientation.SensorLandscape -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
+        requestedOrientation = playerPreferences.defaultPlayerOrientationType().get()
+            .toActivityOrientation(player.getVideoOutAspect())
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
