@@ -12,7 +12,10 @@ class StubMangaSource(
     override val name: String,
 ) : MangaSource {
 
-    private val isInvalid: Boolean = name.isBlank() || lang.isBlank()
+    // Only a missing name forces the id fallback. A known name must render the same as
+    // HttpSource.toString(), which ignores a blank lang, or the download directory this
+    // stub resolves to stops matching the one the installed source wrote.
+    private val isInvalid: Boolean = name.isBlank()
 
     override suspend fun getMangaDetails(manga: SManga): SManga =
         throw SourceNotInstalledException()
