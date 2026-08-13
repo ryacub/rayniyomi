@@ -170,6 +170,11 @@ abstract class MangaSearchScreenModel(
                         if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, MangaSearchItemResult.Success(titles))
                         }
+                    } catch (e: LinkageError) {
+                        // A defective extension fails to link against the app's shared libraries.
+                        if (isActive && requestCoordinator.isLatest(requestId)) {
+                            updateItem(source, MangaSearchItemResult.Error(e))
+                        }
                     } catch (e: Exception) {
                         if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, MangaSearchItemResult.Error(e))

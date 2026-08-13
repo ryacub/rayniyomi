@@ -128,6 +128,14 @@ data class BrowseAnimeSourceScreen(
             assistUrl = (screenModel.source as? AnimeHttpSource)?.baseUrl
         }
 
+        val filtersUnavailableMessage = stringResource(MR.strings.source_filters_unavailable)
+        LaunchedEffect(state.filtersFailed) {
+            if (state.filtersFailed) {
+                snackbarHostState.showSnackbar(filtersUnavailableMessage)
+                screenModel.onFiltersFailureShown()
+            }
+        }
+
         var topBarHeight by remember { mutableIntStateOf(0) }
         Scaffold(
             topBar = {

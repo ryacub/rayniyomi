@@ -171,6 +171,11 @@ abstract class AnimeSearchScreenModel(
                         if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, AnimeSearchItemResult.Success(titles))
                         }
+                    } catch (e: LinkageError) {
+                        // A defective extension fails to link against the app's shared libraries.
+                        if (isActive && requestCoordinator.isLatest(requestId)) {
+                            updateItem(source, AnimeSearchItemResult.Error(e))
+                        }
                     } catch (e: Exception) {
                         if (isActive && requestCoordinator.isLatest(requestId)) {
                             updateItem(source, AnimeSearchItemResult.Error(e))
