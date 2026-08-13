@@ -127,6 +127,14 @@ data class BrowseMangaSourceScreen(
             assistUrl = (screenModel.source as? HttpSource)?.baseUrl
         }
 
+        val filtersUnavailableMessage = stringResource(MR.strings.source_filters_unavailable)
+        LaunchedEffect(state.filtersFailed) {
+            if (state.filtersFailed) {
+                snackbarHostState.showSnackbar(filtersUnavailableMessage)
+                screenModel.onFiltersFailureShown()
+            }
+        }
+
         var topBarHeight by remember { mutableIntStateOf(0) }
         Scaffold(
             topBar = {

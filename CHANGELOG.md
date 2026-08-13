@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - The player "Reverse landscape" orientation setting now rotates to reverse landscape. It rotated to reverse portrait before, which is the wrong axis, and made the setting identical to "Reverse portrait".
+- A defective extension no longer crashes the app when you open its Browse screen or run a global search. The app now shows a message that tells you to update or reinstall the extension, and browsing continues without its filters.
 
 ### Changed
 

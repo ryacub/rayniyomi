@@ -23,6 +23,7 @@ import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.util.getFilterListOrNull
 import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -80,19 +81,26 @@ class BrowseMangaSourceScreenModel(
 
     init {
         if (source is CatalogueSource) {
+            var filtersFailed = false
+
+            val initialListing = state.value.listing
+            val listing = if (initialListing is Listing.Search) {
+                val searchFilters = source.getFilterListOrNull()
+                filtersFailed = searchFilters == null
+                Listing.Search(initialListing.query, searchFilters ?: FilterList())
+            } else {
+                initialListing
+            }
+
+            val filters = source.getFilterListOrNull()
+            filtersFailed = filtersFailed || filters == null
+
             mutableState.update {
-                var query: String? = null
-                var listing = it.listing
-
-                if (listing is Listing.Search) {
-                    query = listing.query
-                    listing = Listing.Search(query, source.getFilterList())
-                }
-
                 it.copy(
                     listing = listing,
-                    filters = source.getFilterList(),
-                    toolbarQuery = query,
+                    filters = filters ?: FilterList(),
+                    filtersFailed = filtersFailed,
+                    toolbarQuery = (listing as? Listing.Search)?.query,
                 )
             }
         }
@@ -144,10 +152,26 @@ class BrowseMangaSourceScreenModel(
         }.get()
     }
 
+    /**
+     * Returns the extension filters, and records a defective extension so the screen can report it.
+     */
+    private fun CatalogueSource.filterListOrEmpty(): FilterList {
+        val filters = getFilterListOrNull()
+        if (filters == null) {
+            mutableState.update { it.copy(filtersFailed = true) }
+        }
+        return filters ?: FilterList()
+    }
+
+    fun onFiltersFailureShown() {
+        mutableState.update { it.copy(filtersFailed = false) }
+    }
+
     fun resetFilters() {
         if (source !is CatalogueSource) return
 
-        mutableState.update { it.copy(filters = source.getFilterList()) }
+        val filters = source.filterListOrEmpty()
+        mutableState.update { it.copy(filters = filters) }
     }
 
     fun setListing(listing: Listing) {
@@ -168,7 +192,7 @@ class BrowseMangaSourceScreenModel(
         if (source !is CatalogueSource) return
 
         val input = state.value.listing as? Listing.Search
-            ?: Listing.Search(query = null, filters = source.getFilterList())
+            ?: Listing.Search(query = null, filters = source.filterListOrEmpty())
 
         mutableState.update {
             it.copy(
@@ -184,7 +208,7 @@ class BrowseMangaSourceScreenModel(
     fun searchGenre(genreName: String) {
         if (source !is CatalogueSource) return
 
-        val defaultFilters = source.getFilterList()
+        val defaultFilters = source.filterListOrEmpty()
         var genreExists = false
 
         filter@ for (sourceFilter in defaultFilters) {
@@ -362,6 +386,7 @@ class BrowseMangaSourceScreenModel(
     data class State(
         val listing: Listing,
         val filters: FilterList = FilterList(),
+        val filtersFailed: Boolean = false,
         val toolbarQuery: String? = null,
         val dialog: Dialog? = null,
     ) {
