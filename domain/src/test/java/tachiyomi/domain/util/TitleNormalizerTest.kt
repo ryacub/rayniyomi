@@ -74,4 +74,19 @@ class TitleNormalizerTest {
     fun `normalize handles unicode fullwidth characters`() {
         TitleNormalizer.normalize("Ｏｎｅ Ｐｉｅｃｅ") shouldBe "ｏｎｅ ｐｉｅｃｅ"
     }
+
+    @Test
+    fun `normalize preserves unicode title word characters without inline flags`() {
+        TitleNormalizer.normalize("L'été 漫画_123!") shouldBe "l été 漫画_123"
+    }
+
+    @Test
+    fun `punctuation pattern does not use Android-incompatible inline flags`() {
+        val punctuationField = TitleNormalizer::class.java.getDeclaredField("punctuation")
+        punctuationField.isAccessible = true
+
+        val pattern = (punctuationField.get(TitleNormalizer) as Regex).pattern
+
+        pattern.contains("(?U)") shouldBe false
+    }
 }
