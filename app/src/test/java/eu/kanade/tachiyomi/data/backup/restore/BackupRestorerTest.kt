@@ -12,6 +12,8 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
+import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
+import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
@@ -137,6 +139,8 @@ class BackupRestorerTest {
             lightNovelBackupDataSource = mockk<LightNovelBackupDataSource>(relaxed = true),
             animeStubSourceRepository = mockk<AnimeStubSourceRepository>(relaxed = true),
             mangaStubSourceRepository = mockk<MangaStubSourceRepository>(relaxed = true),
+            mangaDownloadCache = mockk<MangaDownloadCache>(relaxed = true),
+            animeDownloadCache = mockk<AnimeDownloadCache>(relaxed = true),
         )
     }
 

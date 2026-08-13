@@ -24,6 +24,8 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
+import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
+import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
@@ -62,6 +64,8 @@ class BackupRestorer(
     private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
     private val animeStubSourceRepository: AnimeStubSourceRepository = Injekt.get(),
     private val mangaStubSourceRepository: MangaStubSourceRepository = Injekt.get(),
+    private val mangaDownloadCache: MangaDownloadCache = Injekt.get(),
+    private val animeDownloadCache: AnimeDownloadCache = Injekt.get(),
 ) {
     companion object {
         internal const val RESTORE_ERROR_LOG_FILENAME = "rayniyomi_restore_error.txt"
@@ -85,6 +89,8 @@ class BackupRestorer(
         val startTime = System.currentTimeMillis()
 
         restoreFromFile(uri, options)
+
+        invalidateDownloadCachesIfLibraryRestored(options)
 
         val time = System.currentTimeMillis() - startTime
         val errorSnapshot = snapshotErrors()
@@ -336,6 +342,22 @@ class BackupRestorer(
 
     private fun isPluginInstalled(): Boolean {
         return lightNovelBackupDataSource.isPluginInstalled()
+    }
+
+    private fun invalidateDownloadCachesIfLibraryRestored(options: RestoreOptions) {
+        if (!options.libraryEntries) return
+
+        try {
+            mangaDownloadCache.invalidateCache()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to invalidate manga download cache after restore" }
+        }
+
+        try {
+            animeDownloadCache.invalidateCache()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to invalidate anime download cache after restore" }
+        }
     }
 
     private fun incrementProgressAndNotify(content: String): Int {
