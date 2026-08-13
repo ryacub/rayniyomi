@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.items.episode.model.NoEpisodesException
 import tachiyomi.domain.source.anime.repository.AnimeSourcePagingSourceType
@@ -46,6 +47,9 @@ abstract class AnimeSourcePagingSource(
                     .takeIf { it.animes.isNotEmpty() }
                     ?: throw NoEpisodesException()
             }
+        } catch (e: LinkageError) {
+            // A defective extension cannot link against the app shared libraries.
+            return LoadResult.Error(e.reportAsSourceFailure { source.name })
         } catch (e: Exception) {
             return LoadResult.Error(e)
         }

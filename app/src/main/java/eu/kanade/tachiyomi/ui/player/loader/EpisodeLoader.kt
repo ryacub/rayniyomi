@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import kotlinx.coroutines.CancellationException
+import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
@@ -32,11 +33,17 @@ class EpisodeLoader {
          */
         suspend fun getHosters(episode: Episode, anime: Anime, source: AnimeSource): List<Hoster> {
             val isDownloaded = isDownload(episode, anime)
-            return when {
-                isDownloaded -> getHostersOnDownloaded(episode, anime, source)
-                source is AnimeHttpSource -> getHostersOnHttp(episode, source)
-                source is LocalAnimeSource -> getHostersOnLocal(episode)
-                else -> error("source not supported")
+            return try {
+                when {
+                    isDownloaded -> getHostersOnDownloaded(episode, anime, source)
+                    source is AnimeHttpSource -> getHostersOnHttp(episode, source)
+                    source is LocalAnimeSource -> getHostersOnLocal(episode)
+                    else -> error("source not supported")
+                }
+            } catch (e: LinkageError) {
+                // A defective extension cannot link against the app shared libraries. Report it as
+                // an exception so the callers, which all catch Exception, can show the fault.
+                throw e.reportAsSourceFailure { source.name }
             }
         }
 
@@ -194,6 +201,10 @@ class EpisodeLoader {
             return try {
                 val videos = getVideos(source, hoster)
                 HosterState.Ready(hoster.hosterName, videos, List(videos.size) { Video.State.QUEUE })
+            } catch (e: LinkageError) {
+                // A defective extension cannot link against the app shared libraries.
+                e.reportAsSourceFailure { source.name }
+                HosterState.Error(hoster.hosterName)
             } catch (e: Exception) {
                 if (e is CancellationException) {
                     throw e
