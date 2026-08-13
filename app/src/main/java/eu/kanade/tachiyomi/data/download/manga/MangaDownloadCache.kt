@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
@@ -56,6 +57,8 @@ import uy.kohesive.injekt.api.get
 import java.io.File
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
+
+private const val TAG = "MangaDownloadCache"
 
 /**
  * Cache where we dump the downloads directory from the filesystem. This class is needed because
@@ -368,9 +371,9 @@ class MangaDownloadCache(
             }
             if (loaded == null) {
                 // Every download directory is dropped below when no source loaded.
-                logcat(LogPriority.ERROR) {
-                    "DownloadCache: sources did not initialize within 30s; the cache will be empty"
-                }
+                // Not logcat(): that logger is optional and off by default, so these
+                // diagnostics would vanish exactly when they are needed.
+                Log.e(TAG, "sources did not initialize within 30s; the cache will be empty")
             }
 
             val sourceMap = sources.associate { provider.getSourceDirName(it).lowercase() to it.id }
@@ -383,10 +386,7 @@ class MangaDownloadCache(
                     .filter { it.isDirectory && !it.name.isNullOrBlank() }
 
                 if (candidateDirs.isEmpty()) {
-                    logcat(LogPriority.WARN) {
-                        "DownloadCache: no download directories to index " +
-                            "(root=${rootDir?.uri}, exists=${rootDir?.exists()})"
-                    }
+                    Log.w(TAG, "no download directories to index (root=${rootDir?.uri}, exists=${rootDir?.exists()})")
                 }
 
                 updatedRootDir.sourceDirs = candidateDirs
@@ -400,11 +400,12 @@ class MangaDownloadCache(
                     .map { it.name!! }
                     .filter { sourceMap[it.lowercase()] == null }
                 if (droppedDirs.isNotEmpty()) {
-                    logcat(LogPriority.WARN) {
-                        "DownloadCache: ${droppedDirs.size} of ${candidateDirs.size} download " +
-                            "directories match no loaded source and are ignored " +
-                            "(${sources.size} sources loaded): ${droppedDirs.joinToString()}"
-                    }
+                    Log.w(
+                        TAG,
+                        "${droppedDirs.size} of ${candidateDirs.size} download directories match " +
+                            "no loaded source and are ignored (${sources.size} sources loaded): " +
+                            droppedDirs.joinToString(),
+                    )
                 }
 
                 updatedRootDir.sourceDirs.values.map { sourceDir ->
