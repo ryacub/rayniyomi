@@ -56,6 +56,7 @@ import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
 import eu.kanade.tachiyomi.security.TrackerTokenMigration
 import eu.kanade.tachiyomi.security.TranslationApiKeyMigration
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
+import eu.kanade.tachiyomi.util.system.CrashlyticLogger
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.GLUtil
 import eu.kanade.tachiyomi.util.system.WebViewUtil
@@ -75,6 +76,8 @@ import org.conscrypt.Conscrypt
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
+import tachiyomi.core.common.util.lang.SourceLinkageGuard
+import tachiyomi.core.common.util.lang.SourceLinkageReporter
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
@@ -109,6 +112,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         // Crash handler must be installed in all processes
         GlobalExceptionHandler.initialize(applicationContext, CrashActivity::class.java)
+
+        // A defective extension raises LinkageError from its own code. RxJava treats it as fatal
+        // and stops the process, so contain it before any source can run. A contained fault makes
+        // no crash report, so record it as a non-fatal to identify the extension.
+        SourceLinkageGuard.install()
+        SourceLinkageReporter.onFailure = { failure ->
+            CrashlyticLogger.logException(failure, "extension_linkage")
+        }
 
         // Secondary processes (e.g. :error_handler for crash UI) only need the above.
         // WorkManager and all DI singletons are only initialized in the main process via
