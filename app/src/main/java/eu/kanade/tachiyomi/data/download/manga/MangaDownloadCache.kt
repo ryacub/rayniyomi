@@ -363,17 +363,11 @@ class MangaDownloadCache(
 
             // Try to wait until extensions and sources have loaded
             var sources = emptyList<MangaSource>()
-            val loaded = withTimeoutOrNull(30.seconds) {
+            withTimeoutOrNull(30.seconds) {
                 extensionManager.isInitialized.first { it }
                 sourceManager.isInitialized.first { it }
 
                 sources = getSources()
-            }
-            if (loaded == null) {
-                // Every download directory is dropped below when no source loaded.
-                // Not logcat(): that logger is optional and off by default, so these
-                // diagnostics would vanish exactly when they are needed.
-                Log.e(TAG, "sources did not initialize within 30s; the cache will be empty")
             }
 
             val sourceMap = sources.associate { provider.getSourceDirName(it).lowercase() to it.id }
@@ -381,13 +375,8 @@ class MangaDownloadCache(
             rootDownloadsDirMutex.withLock {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
-                val rootDir = updatedRootDir.dir
-                val candidateDirs = rootDir?.listFiles().orEmpty()
+                val candidateDirs = updatedRootDir.dir?.listFiles().orEmpty()
                     .filter { it.isDirectory && !it.name.isNullOrBlank() }
-
-                if (candidateDirs.isEmpty()) {
-                    Log.w(TAG, "no download directories to index (root=${rootDir?.uri}, exists=${rootDir?.exists()})")
-                }
 
                 updatedRootDir.sourceDirs = candidateDirs
                     .mapNotNull { dir ->
