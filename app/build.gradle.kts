@@ -374,6 +374,7 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
+    testImplementation(libs.sqldelight.sqlite.driver)
     androidTestImplementation(platform(compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

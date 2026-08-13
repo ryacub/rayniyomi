@@ -76,16 +76,12 @@ FROM chapters
 WHERE bookmark
 AND manga_id = :mangaId;
 
-getChapterByUrl:
-SELECT *
-FROM chapters
-WHERE url = :chapterUrl;
-
 getChapterByUrlAndMangaId:
 SELECT *
 FROM chapters
 WHERE url = :chapterUrl
-AND manga_id = :mangaId;
+AND manga_id = :mangaId
+LIMIT 1;
 
 removeChaptersWithIds:
 DELETE FROM chapters
