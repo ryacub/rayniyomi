@@ -222,7 +222,7 @@ class BackupRestorerCacheInvalidationTest {
     }
 
     @Test
-    fun `restore with library entries selected but an empty backup still invalidates caches`() = runTest {
+    fun `restore with library entries selected but no entries restored still invalidates caches`() = runTest {
         val backup = Backup(backupManga = listOf(BackupManga(source = 1, url = "m", title = "M")))
         val file = tempBackup(backup)
         val notifier = mockk<BackupNotifier>(relaxed = true)
@@ -239,8 +239,8 @@ class BackupRestorerCacheInvalidationTest {
             animeDownloadCache = animeDownloadCache,
         )
 
-        coEvery { mangaRestorer.sortByNew(any()) } returns backup.backupManga
-        coEvery { animeRestorer.sortByNew(any()) } returns backup.backupAnime
+        coEvery { mangaRestorer.sortByNew(any()) } returns emptyList()
+        coEvery { animeRestorer.sortByNew(any()) } returns emptyList()
 
         restorer.restore(mockk<Uri>(), options(libraryEntries = true))
 
