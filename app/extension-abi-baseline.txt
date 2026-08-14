@@ -1237,6 +1237,7 @@ Leu/kanade/tachiyomi/util/system/NotificationExtensionsKt;->notificationBuilder(
 Leu/kanade/tachiyomi/util/system/NotificationExtensionsKt;->notify(Landroid/content/Context;ILandroid/app/Notification;)V [PUBLIC STATIC FINAL]
 Leu/kanade/tachiyomi/util/system/NotificationExtensionsKt;->notify(Landroid/content/Context;ILjava/lang/String;Lkotlin/jvm/functions/Function1;)V [PUBLIC STATIC FINAL]
 Leu/kanade/tachiyomi/util/system/NotificationExtensionsKt;->notify(Landroid/content/Context;Ljava/util/List;)V [PUBLIC STATIC FINAL]
+Leu/kanade/tachiyomi/util/system/OrientationCapabilitiesKt;->honorsOrientationRequests(Landroid/content/res/Configuration;)Z [PUBLIC STATIC FINAL]
 Leu/kanade/tachiyomi/util/system/ToastExtensionsKt;->toast$default(Landroid/content/Context;ILjava/lang/String;)Landroid/widget/Toast; [PUBLIC STATIC]
 Leu/kanade/tachiyomi/util/system/ToastExtensionsKt;->toast$default(Landroid/content/Context;Ldev/icerock/moko/resources/StringResource;I)Landroid/widget/Toast; [PUBLIC STATIC]
 Leu/kanade/tachiyomi/util/system/WebViewUtil;-><clinit>()V [STATIC]

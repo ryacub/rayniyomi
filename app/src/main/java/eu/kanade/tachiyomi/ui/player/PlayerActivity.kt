@@ -74,6 +74,7 @@ import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import eu.kanade.tachiyomi.util.system.powerManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
@@ -808,7 +809,7 @@ class PlayerActivity : BaseActivity() {
     }
 
     private fun setupPlayerOrientation() {
-        if (player.isExiting) return
+        if (player.isExiting || !honorsOrientationRequests(resources.configuration)) return
         requestedOrientation = playerPreferences.defaultPlayerOrientationType().get()
             .toActivityOrientation(player.getVideoOutAspect())
     }

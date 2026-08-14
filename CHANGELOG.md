@@ -35,6 +35,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Library search now supports the operators `&&` (AND), `||` (OR), and `-` (NOT), grouped expressions with parentheses, and double-quoted values. Field filters search by `title`, `author`, `artist`, `description` (or `desc`), `genre` (or `tag`), and `source` (or `src`); the `source:local` value matches local entries. Queries without these markers keep the old behavior, including comma lists, a leading minus, and the `id:` prefix. The new Search help item in the library menu explains the syntax.
 
 ### Improved
+- The reader and player rotation controls now disable on Android 16 large screens, because the system ignores orientation requests there. The app shows a short explanation, and the stored orientation preference remains available for use on smaller screens.
 
 ### Fixed
 - Duplicate-library checks no longer crash on Android when you add manga or anime entries with normalized titles.

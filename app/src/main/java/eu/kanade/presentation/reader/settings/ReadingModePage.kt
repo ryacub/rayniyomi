@@ -1,6 +1,7 @@
 package eu.kanade.presentation.reader.settings
 
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -8,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import eu.kanade.domain.entries.manga.model.readerOrientation
 import eu.kanade.domain.entries.manga.model.readingMode
 import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
@@ -16,10 +19,12 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
+import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
 import tachiyomi.presentation.core.components.HeadingItem
 import tachiyomi.presentation.core.components.SettingsChipRow
+import tachiyomi.presentation.core.components.SettingsItemsPaddings
 import tachiyomi.presentation.core.components.SliderItem
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -50,14 +55,24 @@ internal fun ColumnScope.ReadingModePage(screenModel: ReaderSettingsScreenModel)
             manga?.readerOrientation?.toInt(),
         )
     }
+    val orientationControlEnabled = honorsOrientationRequests(LocalConfiguration.current)
     SettingsChipRow(MR.strings.rotation_type) {
         ReaderOrientation.entries.map {
             FilterChip(
                 selected = it == orientation,
                 onClick = { screenModel.onChangeOrientation(it) },
+                enabled = orientationControlEnabled,
                 label = { Text(stringResource(it.stringRes)) },
             )
         }
+    }
+    if (!orientationControlEnabled) {
+        Text(
+            text = stringResource(MR.strings.rotation_not_available_large_screen),
+            modifier = Modifier.padding(horizontal = SettingsItemsPaddings.Horizontal),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 
     val viewer by screenModel.viewerFlow.collectAsState()

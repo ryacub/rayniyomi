@@ -5,13 +5,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.reader.formatWebtoonAutoScrollSpeed
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
+import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -82,13 +85,29 @@ object SettingsReaderScreen : SearchableSettings {
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_display),
             preferenceItems = persistentListOf(
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.defaultOrientationType(),
-                    entries = ReaderOrientation.entries.drop(1)
-                        .associate { it.flagValue to stringResource(it.stringRes) }
-                        .toImmutableMap(),
+                Preference.PreferenceItem.CustomPreference(
                     title = stringResource(MR.strings.pref_rotation_type),
-                ),
+                ) {
+                    val orientationControlEnabled = honorsOrientationRequests(LocalConfiguration.current)
+                    val defaultOrientation by readerPreferences.defaultOrientationType()
+                        .collectAsStateWithLifecycle()
+                    val entries = ReaderOrientation.entries.drop(1)
+                        .associate { it.flagValue to stringResource(it.stringRes) }
+                        .toImmutableMap()
+                    ListPreferenceWidget(
+                        value = defaultOrientation,
+                        title = stringResource(MR.strings.pref_rotation_type),
+                        subtitle = if (orientationControlEnabled) {
+                            entries[defaultOrientation]
+                        } else {
+                            stringResource(MR.strings.rotation_not_available_large_screen)
+                        },
+                        icon = null,
+                        entries = entries,
+                        onValueChange = { readerPreferences.defaultOrientationType().set(it) },
+                        enabled = orientationControlEnabled,
+                    )
+                },
                 Preference.PreferenceItem.ListPreference(
                     preference = readerPreferences.readerTheme(),
                     entries = persistentMapOf(

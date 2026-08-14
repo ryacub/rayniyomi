@@ -5,10 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
+import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.tachiyomi.ui.player.JUST_PLAYER
 import eu.kanade.tachiyomi.ui.player.MPV_KT
 import eu.kanade.tachiyomi.ui.player.MPV_KT_PREVIEW
@@ -23,6 +25,7 @@ import eu.kanade.tachiyomi.ui.player.VLC_PLAYER
 import eu.kanade.tachiyomi.ui.player.WEB_VIDEO_CASTER
 import eu.kanade.tachiyomi.ui.player.X_PLAYER
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -64,13 +67,29 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
                 preference = playerPreferences.preserveWatchingPosition(),
                 title = stringResource(AYMR.strings.pref_preserve_watching_position),
             ),
-            Preference.PreferenceItem.ListPreference(
-                preference = playerPreferences.defaultPlayerOrientationType(),
-                entries = PlayerOrientation.entries.associateWith {
-                    stringResource(it.titleRes)
-                }.toPersistentMap(),
+            Preference.PreferenceItem.CustomPreference(
                 title = stringResource(AYMR.strings.pref_category_player_orientation),
-            ),
+            ) {
+                val orientationControlEnabled = honorsOrientationRequests(LocalConfiguration.current)
+                val defaultOrientation by playerPreferences.defaultPlayerOrientationType()
+                    .collectAsStateWithLifecycle()
+                val entries = PlayerOrientation.entries.associateWith {
+                    stringResource(it.titleRes)
+                }.toPersistentMap()
+                ListPreferenceWidget(
+                    value = defaultOrientation,
+                    title = stringResource(AYMR.strings.pref_category_player_orientation),
+                    subtitle = if (orientationControlEnabled) {
+                        entries[defaultOrientation]
+                    } else {
+                        stringResource(MR.strings.rotation_not_available_large_screen)
+                    },
+                    icon = null,
+                    entries = entries,
+                    onValueChange = { playerPreferences.defaultPlayerOrientationType().set(it) },
+                    enabled = orientationControlEnabled,
+                )
+            },
             getControlsGroup(playerPreferences = playerPreferences),
             getHosterGroup(playerPreferences = playerPreferences),
             getDisplayGroup(playerPreferences = playerPreferences),

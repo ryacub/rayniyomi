@@ -74,6 +74,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
+import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import eu.kanade.tachiyomi.util.system.isNightMode
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toShareIntent
@@ -418,6 +419,8 @@ class ReaderActivity : BaseActivity() {
                 colorBlendMode = colorOverlayBlendMode,
             )
 
+            val orientationControlEnabled = honorsOrientationRequests(resources.configuration)
+
             ReaderAppBars(
                 visible = state.menuVisible,
                 fullscreen = isFullscreen,
@@ -453,6 +456,7 @@ class ReaderActivity : BaseActivity() {
                     viewModel.getMangaOrientation(resolveDefault = false),
                 ),
                 onClickOrientation = viewModel::openOrientationModeSelectDialog,
+                orientationControlEnabled = orientationControlEnabled,
                 cropEnabled = cropEnabled,
                 onClickCropBorder = {
                     val enabled = viewModel.toggleCropBorders()
@@ -849,6 +853,7 @@ class ReaderActivity : BaseActivity() {
      * Forces the user preferred [orientation] on the activity.
      */
     private fun setOrientation(orientation: Int) {
+        if (!honorsOrientationRequests(resources.configuration)) return
         val newOrientation = ReaderOrientation.fromPreference(orientation)
         if (newOrientation.flag != requestedOrientation) {
             requestedOrientation = newOrientation.flag
