@@ -58,10 +58,12 @@ class LibrarySearchCompatTest {
 
     @Test
     fun `parseSearchQuery returns the parsed tree for valid input`() {
-        parseSearchQuery("a && b") shouldBe AndNode(listOf(
-            GeneralQueryNode("a", false),
-            GeneralQueryNode("b", false),
-        ))
+        parseSearchQuery("a && b") shouldBe AndNode(
+            listOf(
+                GeneralQueryNode("a", false),
+                GeneralQueryNode("b", false),
+            ),
+        )
         parseSearchQuery("") shouldBe AndNode(emptyList())
     }
 

@@ -9,24 +9,40 @@ class LibrarySearchParserTest {
     @Test
     fun `AND binds tighter than OR`() {
         QueryNode.from("a || b && c") shouldBe
-            OrNode(listOf(GeneralQueryNode("a", false), AndNode(listOf(
-                GeneralQueryNode("b", false),
-                GeneralQueryNode("c", false),
-            ))))
+            OrNode(
+                listOf(
+                    GeneralQueryNode("a", false),
+                    AndNode(
+                        listOf(
+                            GeneralQueryNode("b", false),
+                            GeneralQueryNode("c", false),
+                        ),
+                    ),
+                ),
+            )
         QueryNode.from("a && b || c") shouldBe
-            OrNode(listOf(AndNode(listOf(
-                GeneralQueryNode("a", false),
-                GeneralQueryNode("b", false),
-            )), GeneralQueryNode("c", false)))
+            OrNode(
+                listOf(
+                    AndNode(
+                        listOf(
+                            GeneralQueryNode("a", false),
+                            GeneralQueryNode("b", false),
+                        ),
+                    ),
+                    GeneralQueryNode("c", false),
+                ),
+            )
     }
 
     @Test
     fun `parentheses group expressions`() {
         QueryNode.from("(a || b) && c") shouldBe
-            AndNode(listOf(
-                OrNode(listOf(GeneralQueryNode("a", false), GeneralQueryNode("b", false))),
-                GeneralQueryNode("c", false),
-            ))
+            AndNode(
+                listOf(
+                    OrNode(listOf(GeneralQueryNode("a", false), GeneralQueryNode("b", false))),
+                    GeneralQueryNode("c", false),
+                ),
+            )
         QueryNode.from("((a))") shouldBe GeneralQueryNode("a", false)
     }
 
@@ -67,16 +83,20 @@ class LibrarySearchParserTest {
 
     @Test
     fun `chained operators flatten into one node`() {
-        QueryNode.from("a && b && c") shouldBe AndNode(listOf(
-            GeneralQueryNode("a", false),
-            GeneralQueryNode("b", false),
-            GeneralQueryNode("c", false),
-        ))
-        QueryNode.from("a || b || c") shouldBe OrNode(listOf(
-            GeneralQueryNode("a", false),
-            GeneralQueryNode("b", false),
-            GeneralQueryNode("c", false),
-        ))
+        QueryNode.from("a && b && c") shouldBe AndNode(
+            listOf(
+                GeneralQueryNode("a", false),
+                GeneralQueryNode("b", false),
+                GeneralQueryNode("c", false),
+            ),
+        )
+        QueryNode.from("a || b || c") shouldBe OrNode(
+            listOf(
+                GeneralQueryNode("a", false),
+                GeneralQueryNode("b", false),
+                GeneralQueryNode("c", false),
+            ),
+        )
     }
 
     @Test
