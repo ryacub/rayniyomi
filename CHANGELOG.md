@@ -31,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- CI now compares the whole extension-facing ABI of the release build against a recorded baseline, so a minifier change that would break installed extensions fails the build instead of reaching users. The check covered 91 hand-listed methods before; it now covers 1254.
 
 ### Other
 
