@@ -127,7 +127,7 @@ class MangaLibraryScreenModel(
                     .applySort(tracks, trackingFilter.keys)
                     .mapValues { (_, value) ->
                         if (searchQuery != null) {
-                            value.filter { it.matches(searchQuery) }
+                            value.filter { it.matchesQuery(searchQuery) }
                         } else {
                             value
                         }
@@ -578,6 +578,10 @@ class MangaLibraryScreenModel(
         mutableState.update { it.copy(dialog = Dialog.SettingsSheet) }
     }
 
+    fun showSearchHelp() {
+        mutableState.update { it.copy(dialog = Dialog.SearchHelp) }
+    }
+
     fun clearSelection() {
         mutableState.update { it.copy(selection = persistentListOf()) }
     }
@@ -699,6 +703,7 @@ class MangaLibraryScreenModel(
 
     sealed interface Dialog {
         data object SettingsSheet : Dialog
+        data object SearchHelp : Dialog
         data class ChangeCategory(
             val manga: List<Manga>,
             val initialSelection: ImmutableList<CheckboxState<Category>>,
