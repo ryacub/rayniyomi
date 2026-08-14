@@ -7,6 +7,8 @@ import eu.kanade.tachiyomi.source.model.FilterList
 import kotlinx.coroutines.CancellationException
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.anime.AnimeSourceGateway
+import tachiyomi.data.source.manga.MangaSourceGateway
 
 /**
  * Returns the source filters, or null when the extension cannot produce them.
@@ -16,9 +18,11 @@ import tachiyomi.core.common.util.system.logcat
  * `kotlinx.coroutines.BuildersKt` resolve from the app APK, and the extension's own copy can
  * disagree about their members.
  */
-fun CatalogueSource.getFilterListOrNull(): FilterList? = runSourceFilterCatching({ name }, ::getFilterList)
+fun CatalogueSource.getFilterListOrNull(): FilterList? =
+    runSourceFilterCatching({ name }) { MangaSourceGateway.filters(this) }
 
-fun AnimeCatalogueSource.getFilterListOrNull(): AnimeFilterList? = runSourceFilterCatching({ name }, ::getFilterList)
+fun AnimeCatalogueSource.getFilterListOrNull(): AnimeFilterList? =
+    runSourceFilterCatching({ name }) { AnimeSourceGateway.filters(this) }
 
 private inline fun <T> Any.runSourceFilterCatching(sourceName: () -> String, filters: () -> T): T? {
     return try {

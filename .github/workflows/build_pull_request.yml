@@ -75,6 +75,11 @@ jobs:
       - name: Check SqlDelight dependency strategy
         run: python3 scripts/check_sqldelight_dependency_strategy.py
 
+      - name: Check extension source gateway
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.tests.test_source_gateway
+          PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_source_gateway.py
+
       - name: Require PR exception section when allowlist grows
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -185,7 +190,7 @@ jobs:
           cache-read-only: false
 
       - name: Run unit tests
-        run: ./gradlew :app:testStableDebugUnitTest --build-cache
+        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest --build-cache
 
   baseline-profile:
     name: Verify baseline profile task and artifact

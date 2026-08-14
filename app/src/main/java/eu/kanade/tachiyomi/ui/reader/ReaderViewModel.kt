@@ -61,6 +61,7 @@ import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
@@ -612,7 +613,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val source = getSource() ?: return null
 
         return try {
-            source.getChapterUrl(sChapter)
+            MangaSourceGateway.chapterUrl(source, sChapter)
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             null

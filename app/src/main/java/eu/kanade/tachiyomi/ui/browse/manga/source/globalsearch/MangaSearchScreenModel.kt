@@ -26,6 +26,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.preference.toggle
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.model.Manga
@@ -160,7 +161,7 @@ abstract class MangaSearchScreenModel(
                     }
                     try {
                         val page = withContext(searchDispatcher) {
-                            source.getSearchManga(1, query, source.getFilterList())
+                            MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
                         }
 
                         val titles = page.mangas.map {

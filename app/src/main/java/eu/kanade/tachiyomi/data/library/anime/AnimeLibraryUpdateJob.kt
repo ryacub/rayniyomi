@@ -55,6 +55,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnime
@@ -393,11 +394,11 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         // Update anime metadata if needed
         if (libraryPreferences.autoUpdateMetadata().get()) {
-            val networkAnime = source.getAnimeDetails(anime.toSAnime())
+            val networkAnime = AnimeSourceGateway.details(source, anime.toSAnime())
             updateAnime.awaitUpdateFromSource(anime, networkAnime, manualFetch = false, coverCache, backgroundCache)
         }
 
-        val episodes = source.getEpisodeList(anime.toSAnime())
+        val episodes = AnimeSourceGateway.episodes(source, anime.toSAnime())
 
         // Get anime from database to account for if it was removed during the update and
         // to get latest data so it doesn't get overwritten later on

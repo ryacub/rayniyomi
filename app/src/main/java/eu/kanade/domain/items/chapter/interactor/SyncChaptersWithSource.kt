@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.online.HttpSource
 import tachiyomi.data.items.chapter.ChapterSanitizer
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.interactor.ShouldUpdateDbChapter
@@ -89,7 +90,7 @@ class SyncChaptersWithSource(
             // Update metadata from source if necessary.
             if (source is HttpSource) {
                 val sChapter = chapter.toSChapter()
-                source.prepareNewChapter(sChapter, manga.toSManga())
+                MangaSourceGateway.prepareChapter(source, sChapter, manga.toSManga())
                 chapter = chapter.copyFromSChapter(sChapter)
             }
 

@@ -37,7 +37,6 @@ import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.data.preference.SharedPreferencesDataStore
 import logcat.LogPriority
 import logcat.logcat
-import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import tachiyomi.presentation.core.i18n.stringResource
@@ -56,13 +55,7 @@ fun buildSourcePreferenceScreen(
     preferenceManager.preferenceDataStore = SharedPreferencesDataStore(sourcePreferences)
 
     val screen = preferenceManager.createPreferenceScreen(context)
-    try {
-        setup(screen)
-    } catch (error: LinkageError) {
-        // A defective extension builds its own preference screen here. Keep the screen empty
-        // rather than stop the app during composition.
-        error.reportAsSourceFailure()
-    }
+    setup(screen)
     normalizePreferenceTree(screen)
     return screen
 }

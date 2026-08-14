@@ -75,6 +75,7 @@ import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
 import tachiyomi.domain.category.model.Category
@@ -290,7 +291,7 @@ class AnimeScreenModel(
         val state = successState ?: return
         try {
             withIOContext {
-                val networkAnime = state.source.getAnimeDetails(state.anime.toSAnime())
+                val networkAnime = AnimeSourceGateway.details(state.source, state.anime.toSAnime())
                 updateAnime.awaitUpdateFromSource(state.anime, networkAnime, manualFetch)
             }
         } catch (e: Throwable) {
@@ -624,7 +625,7 @@ class AnimeScreenModel(
         source: AnimeSource,
         manualFetch: Boolean = false,
     ) {
-        val episodes = source.getEpisodeList(anime.toSAnime())
+        val episodes = AnimeSourceGateway.episodes(source, anime.toSAnime())
 
         val newEpisodes = syncEpisodesWithSource.await(
             episodes,
@@ -642,7 +643,7 @@ class AnimeScreenModel(
         val state = successState ?: return
         try {
             withIOContext {
-                val seasons = state.source.getSeasonList(state.anime.toSAnime())
+                val seasons = AnimeSourceGateway.seasons(state.source, state.anime.toSAnime())
 
                 val newSeasons = syncSeasonsWithSource.await(
                     seasons,

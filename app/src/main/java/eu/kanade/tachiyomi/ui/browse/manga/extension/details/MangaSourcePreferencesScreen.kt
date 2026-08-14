@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.sourcePreferences
 import eu.kanade.tachiyomi.ui.browse.sourceprefs.SourcePreferencesContent
 import eu.kanade.tachiyomi.ui.browse.sourceprefs.buildSourcePreferenceScreen
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -46,7 +47,7 @@ class MangaSourcePreferencesScreen(val sourceId: Long) : Screen() {
                 sourcePreferences = sourcePrefs,
             ) { screen ->
                 if (source is ConfigurableSource) {
-                    source.setupPreferenceScreen(screen)
+                    MangaSourceGateway.setupPreferences(source, screen)
                 }
             }
         }
@@ -54,7 +55,7 @@ class MangaSourcePreferencesScreen(val sourceId: Long) : Screen() {
         Scaffold(
             topBar = {
                 AppBar(
-                    title = source.toString(),
+                    title = MangaSourceGateway.displayName(source),
                     navigateUp = navigator::pop,
                     scrollBehavior = it,
                 )

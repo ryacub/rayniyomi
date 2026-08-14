@@ -67,6 +67,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.i18n.MR
@@ -422,7 +423,7 @@ class AnimeScreen(
         val source = source_ as? AnimeHttpSource ?: return null
 
         return try {
-            source.getAnimeUrl(anime.toSAnime())
+            AnimeSourceGateway.animeUrl(source, anime.toSAnime())
         } catch (e: Exception) {
             null
         }
@@ -512,7 +513,7 @@ class AnimeScreen(
     private fun copyAnimeUrl(context: Context, anime_: Anime?, source_: AnimeSource?) {
         val anime = anime_ ?: return
         val source = source_ as? AnimeHttpSource ?: return
-        val url = source.getAnimeUrl(anime.toSAnime())
+        val url = AnimeSourceGateway.animeUrl(source, anime.toSAnime())
         context.copyToClipboard(url, url)
     }
 }

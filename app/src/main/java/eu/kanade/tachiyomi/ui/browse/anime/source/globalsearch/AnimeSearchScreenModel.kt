@@ -26,6 +26,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.preference.toggle
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
@@ -161,7 +162,7 @@ abstract class AnimeSearchScreenModel(
                     }
                     try {
                         val page = withContext(searchDispatcher) {
-                            source.getSearchAnime(1, query, source.getFilterList())
+                            AnimeSourceGateway.search(source, 1, query, AnimeSourceGateway.filters(source))
                         }
 
                         val titles = page.animes.map {

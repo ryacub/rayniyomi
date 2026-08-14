@@ -28,6 +28,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - A backup restore no longer drops library entries when two entries contain the same chapter or episode URL. The app now reads the history of each entry inside that entry. Before, the restore failed and lost the entry.
 - A defective extension no longer crashes the app when it loads a source list, plays an episode, or opens its settings. The app now reports the fault and continues. Update or reinstall the extension to use it again.
 - A backup restore now refreshes the manga and anime download caches, so download indicators show the restored library state instead of stale data from before the restore.
+- Extension linkage faults now pass through one manga or anime source gateway, so each report identifies the source at the host boundary.
 
 ### Changed
 
@@ -35,6 +36,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 - CI now compares the whole extension-facing ABI of the release build against a recorded baseline, so a minifier change that would break installed extensions fails the build instead of reaching users. The check covered 91 hand-listed methods before; it now covers 1254.
+- CI now rejects direct extension source calls outside the manga and anime source gateways.
 
 ### Other
 

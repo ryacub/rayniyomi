@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
-import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.items.episode.model.NoEpisodesException
 import tachiyomi.domain.source.anime.repository.AnimeSourcePagingSourceType
@@ -16,19 +15,19 @@ class AnimeSourceSearchPagingSource(
     val filters: AnimeFilterList,
 ) : AnimeSourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): AnimesPage {
-        return source.getSearchAnime(currentPage, query, filters)
+        return AnimeSourceGateway.search(source, currentPage, query, filters)
     }
 }
 
 class AnimeSourcePopularPagingSource(source: AnimeCatalogueSource) : AnimeSourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): AnimesPage {
-        return source.getPopularAnime(currentPage)
+        return AnimeSourceGateway.popular(source, currentPage)
     }
 }
 
 class AnimeSourceLatestPagingSource(source: AnimeCatalogueSource) : AnimeSourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): AnimesPage {
-        return source.getLatestUpdates(currentPage)
+        return AnimeSourceGateway.latest(source, currentPage)
     }
 }
 
@@ -47,9 +46,6 @@ abstract class AnimeSourcePagingSource(
                     .takeIf { it.animes.isNotEmpty() }
                     ?: throw NoEpisodesException()
             }
-        } catch (e: LinkageError) {
-            // A defective extension cannot link against the app shared libraries.
-            return LoadResult.Error(e.reportAsSourceFailure { source.name })
         } catch (e: Exception) {
             return LoadResult.Error(e)
         }

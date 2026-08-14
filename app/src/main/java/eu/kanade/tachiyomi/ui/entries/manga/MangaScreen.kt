@@ -63,6 +63,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.i18n.MR
@@ -324,7 +325,7 @@ class MangaScreen(
         val source = source_ as? HttpSource ?: return null
 
         return try {
-            source.getMangaUrl(manga.toSManga())
+            MangaSourceGateway.mangaUrl(source, manga.toSManga())
         } catch (e: Exception) {
             null
         }
@@ -414,7 +415,7 @@ class MangaScreen(
     private fun copyMangaUrl(context: Context, manga_: Manga?, source_: MangaSource?) {
         val manga = manga_ ?: return
         val source = source_ as? HttpSource ?: return
-        val url = source.getMangaUrl(manga.toSManga())
+        val url = MangaSourceGateway.mangaUrl(source, manga.toSManga())
         context.copyToClipboard(url, url)
     }
 }

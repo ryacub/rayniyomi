@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.SManga
-import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.items.chapter.model.NoChaptersException
 import tachiyomi.domain.source.manga.repository.SourcePagingSourceType
@@ -19,19 +18,19 @@ class SourceSearchPagingSource(
         source,
     ) {
     override suspend fun requestNextPage(currentPage: Int): MangasPage {
-        return source.getSearchManga(currentPage, query, filters)
+        return MangaSourceGateway.search(source, currentPage, query, filters)
     }
 }
 
 class SourcePopularPagingSource(source: CatalogueSource) : SourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): MangasPage {
-        return source.getPopularManga(currentPage)
+        return MangaSourceGateway.popular(source, currentPage)
     }
 }
 
 class SourceLatestPagingSource(source: CatalogueSource) : SourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): MangasPage {
-        return source.getLatestUpdates(currentPage)
+        return MangaSourceGateway.latest(source, currentPage)
     }
 }
 
@@ -50,9 +49,6 @@ abstract class SourcePagingSource(
                     .takeIf { it.mangas.isNotEmpty() }
                     ?: throw NoChaptersException()
             }
-        } catch (e: LinkageError) {
-            // A defective extension cannot link against the app shared libraries.
-            return LoadResult.Error(e.reportAsSourceFailure { source.name })
         } catch (e: Exception) {
             return LoadResult.Error(e)
         }

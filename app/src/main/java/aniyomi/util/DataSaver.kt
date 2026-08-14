@@ -8,10 +8,7 @@ import eu.kanade.domain.source.service.SourcePreferences.DataSaver.WSRV_NL
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.source.online.HttpSource
 import okhttp3.OkHttpClient
-import okhttp3.Response
 import tachiyomi.core.common.preference.Preference
 import uy.kohesive.injekt.injectLazy
 import java.net.URLEncoder
@@ -24,16 +21,6 @@ interface DataSaver {
         val NoOp = object : DataSaver {
             override fun compress(imageUrl: String): String {
                 return imageUrl
-            }
-        }
-
-        suspend fun HttpSource.getImage(page: Page, dataSaver: DataSaver): Response {
-            val imageUrl = page.imageUrl ?: return getImage(page)
-            page.imageUrl = dataSaver.compress(imageUrl)
-            return try {
-                getImage(page)
-            } finally {
-                page.imageUrl = imageUrl
             }
         }
     }

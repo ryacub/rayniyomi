@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import aniyomi.util.DataSaver
-import aniyomi.util.DataSaver.Companion.getImage
 import com.hippo.unifile.UniFile
 import eu.kanade.domain.entries.manga.model.getComicInfo
 import eu.kanade.domain.items.chapter.model.toSChapter
@@ -61,6 +60,7 @@ import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.core.metadata.comicinfo.COMIC_INFO_FILE
 import tachiyomi.core.metadata.comicinfo.ComicInfo
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.model.Manga
@@ -462,7 +462,7 @@ class MangaDownloader(
             // If the page list already exists, start from the file
             val pageList = download.pages ?: run {
                 // Otherwise, pull page list from network and add them to download object
-                val pages = download.source.getPageList(download.chapter.toSChapter())
+                val pages = MangaSourceGateway.pages(download.source, download.chapter.toSChapter())
 
                 if (pages.isEmpty()) {
                     throw Exception(context.stringResource(MR.strings.page_list_empty_error))
@@ -531,7 +531,7 @@ class MangaDownloader(
                                 if (page.imageUrl.isNullOrEmpty()) {
                                     page.status = Page.State.LOAD_PAGE
                                     try {
-                                        page.imageUrl = download.source.getImageUrl(page)
+                                        page.imageUrl = MangaSourceGateway.imageUrl(download.source, page)
                                     } catch (e: Throwable) {
                                         page.status = Page.State.ERROR
                                     }
@@ -679,7 +679,7 @@ class MangaDownloader(
         page.status = Page.State.DOWNLOAD_IMAGE
         page.progress = 0
         return flow {
-            val response = source.getImage(page, dataSaver)
+            val response = MangaSourceGateway.image(source, page, dataSaver::compress)
             val file = tmpDir.createFile("$filename.tmp")!!
             try {
                 throttler.apply {
@@ -840,7 +840,7 @@ class MangaDownloader(
             .mapNotNull { track ->
                 track.remoteUrl.takeUnless { url -> url.isBlank() }?.trim()
             }
-            .plus(source.getChapterUrl(chapter.toSChapter()).trim())
+            .plus(MangaSourceGateway.chapterUrl(source, chapter.toSChapter()).trim())
             .distinct()
 
         val comicInfo = getComicInfo(

@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.source.online.ResolvableSource
 import eu.kanade.tachiyomi.source.online.UriType
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.model.Manga
@@ -35,14 +36,16 @@ class DeepLinkMangaScreenModel(
         screenModelScope.launchIO {
             val source = sourceManager.getCatalogueSources()
                 .filterIsInstance<ResolvableSource>()
-                .firstOrNull { it.getUriType(query) != UriType.Unknown }
+                .firstOrNull { MangaSourceGateway.uriType(it, query) != UriType.Unknown }
 
-            val manga = source?.getManga(query)?.let {
+            val manga = source?.let { MangaSourceGateway.mangaFromUri(it, query) }?.let {
                 getMangaFromSManga(it, source.id)
             }
 
-            val chapter = if (source?.getUriType(query) == UriType.Chapter && manga != null) {
-                source.getChapter(query)?.let { getChapterFromSChapter(it, manga, source) }
+            val chapter = if (source != null && MangaSourceGateway.uriType(source, query) == UriType.Chapter &&
+                manga != null
+            ) {
+                MangaSourceGateway.chapterFromUri(source, query)?.let { getChapterFromSChapter(it, manga, source) }
             } else {
                 null
             }
@@ -65,7 +68,7 @@ class DeepLinkMangaScreenModel(
         val localChapter = getChapterByUrlAndMangaId.await(sChapter.url, manga.id)
 
         return if (localChapter == null) {
-            val sourceChapters = source.getChapterList(manga.toSManga())
+            val sourceChapters = MangaSourceGateway.chapters(source, manga.toSManga())
             val newChapters = syncChaptersWithSource.await(sourceChapters, manga, source, false)
             newChapters.find { it.url == sChapter.url }
         } else {
