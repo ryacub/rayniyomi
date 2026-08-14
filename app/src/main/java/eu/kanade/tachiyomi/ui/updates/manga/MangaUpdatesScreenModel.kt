@@ -23,18 +23,25 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.category.manga.interactor.GetMangaCategories
+import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.items.chapter.interactor.GetChapter
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
@@ -45,6 +52,7 @@ import tachiyomi.domain.updates.manga.interactor.GetMangaUpdates
 import tachiyomi.domain.updates.manga.model.MangaUpdatesWithRelations
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.time.Instant
 import java.time.ZonedDateTime
 
 class MangaUpdatesScreenModel(
@@ -56,6 +64,7 @@ class MangaUpdatesScreenModel(
     private val getUpdates: GetMangaUpdates = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val getChapter: GetChapter = Injekt.get(),
+    private val getCategories: GetMangaCategories = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<MangaUpdatesScreenModel.State>(State()) {
@@ -64,6 +73,15 @@ class MangaUpdatesScreenModel(
     val events: Flow<Event> = _events.receiveAsFlow()
 
     val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(screenModelScope)
+
+    val categories: StateFlow<List<Category>> = getCategories.subscribe()
+        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val includedCategoriesPref = libraryPreferences.filterMangaUpdatesCategories()
+    private val excludedCategoriesPref = libraryPreferences.filterMangaUpdatesCategoriesExclude()
+
+    val includedCategories by includedCategoriesPref.asState(screenModelScope)
+    val excludedCategories by excludedCategoriesPref.asState(screenModelScope)
 
     // First and last selected index in list
     private val selectedPositions: Array<Int> = arrayOf(-1, -1)
@@ -75,7 +93,7 @@ class MangaUpdatesScreenModel(
             val limit = ZonedDateTime.now().minusMonths(3).toInstant()
 
             combine(
-                getUpdates.subscribe(limit).distinctUntilChanged(),
+                categoryFilterFlow(limit).distinctUntilChanged(),
                 downloadCache.changes,
                 downloadManager.queueState,
             ) { updates, _, _ -> updates }
@@ -97,6 +115,33 @@ class MangaUpdatesScreenModel(
             merge(downloadManager.statusFlow(), downloadManager.progressFlow())
                 .catch { logcat(LogPriority.ERROR, it) }
                 .collect(this@MangaUpdatesScreenModel::updateDownloadState)
+        }
+    }
+
+    private fun categoryFilterFlow(limit: Instant): Flow<List<MangaUpdatesWithRelations>> {
+        return combine(
+            includedCategoriesPref.changes(),
+            excludedCategoriesPref.changes(),
+        ) { included, excluded -> included to excluded }
+            .distinctUntilChanged()
+            .flatMapLatest { (included, excluded) ->
+                getUpdates.subscribe(
+                    limit,
+                    included.mapNotNull { it.toLongOrNull() },
+                    excluded.mapNotNull { it.toLongOrNull() },
+                )
+            }
+    }
+
+    fun cycleCategory(category: Category) {
+        val categoryId = category.id.toString()
+        when (categoryId) {
+            in includedCategoriesPref.get() -> {
+                includedCategoriesPref.getAndSet { it - categoryId }
+                excludedCategoriesPref.getAndSet { it + categoryId }
+            }
+            in excludedCategoriesPref.get() -> excludedCategoriesPref.getAndSet { it - categoryId }
+            else -> includedCategoriesPref.getAndSet { it + categoryId }
         }
     }
 
@@ -390,6 +435,7 @@ class MangaUpdatesScreenModel(
 
     sealed interface Dialog {
         data class DeleteConfirmation(val toDelete: List<MangaUpdatesItem>) : Dialog
+        data object Filter : Dialog
     }
 
     sealed interface Event {

@@ -21,12 +21,21 @@ class AnimeUpdatesRepositoryImpl(
         }
     }
 
-    override fun subscribeAllAnimeUpdates(after: Long, limit: Long): Flow<List<AnimeUpdatesWithRelations>> {
+    override fun subscribeAllAnimeUpdatesWithCategoryFilter(
+        after: Long,
+        limit: Long,
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<AnimeUpdatesWithRelations>> {
         return databaseHandler.subscribeToList {
-            animeupdatesViewQueries.getRecentAnimeUpdates(
-                after,
-                limit,
-                ::mapUpdatesWithRelations,
+            animeupdatesViewQueries.getRecentAnimeUpdatesWithCategoryFilter(
+                after = after,
+                limit = limit,
+                includedEmpty = includedCategories.isEmpty(),
+                includedCategories = includedCategories,
+                excludedEmpty = excludedCategories.isEmpty(),
+                excludedCategories = excludedCategories,
+                mapper = ::mapUpdatesWithRelations,
             )
         }
     }

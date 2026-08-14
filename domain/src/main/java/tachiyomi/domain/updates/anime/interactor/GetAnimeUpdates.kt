@@ -13,8 +13,17 @@ class GetAnimeUpdates(
         return repository.awaitWithSeen(seen, after, limit = 500)
     }
 
-    fun subscribe(instant: Instant): Flow<List<AnimeUpdatesWithRelations>> {
-        return repository.subscribeAllAnimeUpdates(instant.toEpochMilli(), limit = 500)
+    fun subscribe(
+        instant: Instant,
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<AnimeUpdatesWithRelations>> {
+        return repository.subscribeAllAnimeUpdatesWithCategoryFilter(
+            after = instant.toEpochMilli(),
+            limit = 500,
+            includedCategories = includedCategories,
+            excludedCategories = excludedCategories,
+        )
     }
 
     fun subscribe(seen: Boolean, after: Long): Flow<List<AnimeUpdatesWithRelations>> {

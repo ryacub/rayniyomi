@@ -22,10 +22,35 @@ WHERE favorite = 1
 AND date_fetch > date_added
 ORDER BY date_fetch DESC;
 
-getRecentAnimeUpdates:
+getRecentAnimeUpdatesWithCategoryFilter:
 SELECT *
 FROM animeupdatesView
 WHERE dateUpload > :after
+AND (
+    :includedEmpty
+    OR EXISTS (
+        SELECT 1 FROM animes_categories
+        WHERE animes_categories.anime_id = animeId
+        AND animes_categories.category_id IN :includedCategories
+    )
+    OR (0 IN :includedCategories AND NOT EXISTS (
+        SELECT 1 FROM animes_categories ac WHERE ac.anime_id = animeId)
+    )
+)
+AND (
+    :excludedEmpty
+    OR (
+        NOT EXISTS (
+            SELECT 1 FROM animes_categories
+            WHERE animes_categories.anime_id = animeId
+            AND animes_categories.category_id IN :excludedCategories
+        )
+        AND (
+            0 NOT IN :excludedCategories
+            OR EXISTS (SELECT 1 FROM animes_categories WHERE animes_categories.anime_id = animeId)
+        )
+    )
+)
 LIMIT :limit;
 
 getUpdatesBySeenStatus:

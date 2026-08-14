@@ -172,6 +172,18 @@ class LibraryPreferences(
     fun mangaUpdateCategoriesExclude() =
         preferenceStore.getStringSet(LIBRARY_UPDATE_MANGA_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
 
+    fun filterMangaUpdatesCategories() =
+        preferenceStore.getStringSet(FILTER_MANGA_UPDATES_CATEGORIES_PREF_KEY, emptySet())
+
+    fun filterMangaUpdatesCategoriesExclude() =
+        preferenceStore.getStringSet(FILTER_MANGA_UPDATES_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
+
+    fun filterAnimeUpdatesCategories() =
+        preferenceStore.getStringSet(FILTER_ANIME_UPDATES_CATEGORIES_PREF_KEY, emptySet())
+
+    fun filterAnimeUpdatesCategoriesExclude() =
+        preferenceStore.getStringSet(FILTER_ANIME_UPDATES_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
+
     // Mixture Item
 
     fun filterEpisodeBySeen() =
@@ -420,6 +432,12 @@ class LibraryPreferences(
         private const val LIBRARY_UPDATE_ANIME_CATEGORIES_PREF_KEY = "animelib_update_categories"
         private const val LIBRARY_UPDATE_MANGA_CATEGORIES_EXCLUDE_PREF_KEY = "library_update_categories_exclude"
         private const val LIBRARY_UPDATE_ANIME_CATEGORIES_EXCLUDE_PREF_KEY = "animelib_update_categories_exclude"
+        private const val FILTER_MANGA_UPDATES_CATEGORIES_PREF_KEY = "pref_filter_manga_updates_included_categories"
+        private const val FILTER_MANGA_UPDATES_CATEGORIES_EXCLUDE_PREF_KEY =
+            "pref_filter_manga_updates_excluded_categories"
+        private const val FILTER_ANIME_UPDATES_CATEGORIES_PREF_KEY = "pref_filter_anime_updates_included_categories"
+        private const val FILTER_ANIME_UPDATES_CATEGORIES_EXCLUDE_PREF_KEY =
+            "pref_filter_anime_updates_excluded_categories"
         val categoryPreferenceKeys = setOf(
             DEFAULT_MANGA_CATEGORY_PREF_KEY,
             DEFAULT_ANIME_CATEGORY_PREF_KEY,

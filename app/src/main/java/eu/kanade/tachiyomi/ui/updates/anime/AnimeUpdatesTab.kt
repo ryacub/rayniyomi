@@ -3,9 +3,11 @@ package eu.kanade.tachiyomi.ui.updates.anime
 import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +22,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.presentation.entries.anime.EpisodeOptionsDialogScreen
+import eu.kanade.presentation.updates.UpdatesCategoryFilterDialog
 import eu.kanade.presentation.updates.UpdatesDeleteConfirmationDialog
 import eu.kanade.presentation.updates.anime.AnimeUpdateScreen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
@@ -35,6 +38,7 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.theme.active
 import uy.kohesive.injekt.injectLazy
 
 @Composable
@@ -46,6 +50,9 @@ fun Screen.animeUpdatesTab(
     val screenModel = rememberScreenModel { AnimeUpdatesScreenModel() }
     val scope = rememberCoroutineScope()
     val state by screenModel.state.collectAsStateWithLifecycle()
+
+    val hasActiveFilters = screenModel.includedCategories.isNotEmpty() ||
+        screenModel.excludedCategories.isNotEmpty()
 
     val navigateUp: (() -> Unit)? = if (fromMore) {
         {
@@ -74,6 +81,7 @@ fun Screen.animeUpdatesTab(
                 state = state,
                 snackbarHostState = screenModel.snackbarHostState,
                 lastUpdated = screenModel.lastUpdated,
+                hasActiveFilters = hasActiveFilters,
                 onClickCover = { item -> navigator.push(AnimeScreen(item.update.animeId)) },
                 onSelectAll = screenModel::toggleAllSelection,
                 onInvertSelection = screenModel::invertSelection,
@@ -111,6 +119,16 @@ fun Screen.animeUpdatesTab(
                             animeId = dialog.animeId,
                             sourceId = dialog.sourceId,
                         ),
+                        onDismissRequest = onDismissDialog,
+                    )
+                }
+                AnimeUpdatesScreenModel.Dialog.Filter -> {
+                    UpdatesCategoryFilterDialog(
+                        categories = screenModel.categories.collectAsStateWithLifecycle().value,
+                        included = screenModel.includedCategories,
+                        excluded = screenModel.excludedCategories,
+                        detailsText = context.stringResource(MR.strings.pref_filter_update_categories_details),
+                        onCycleCategory = screenModel::cycleCategory,
                         onDismissRequest = onDismissDialog,
                     )
                 }
@@ -170,6 +188,12 @@ fun Screen.animeUpdatesTab(
             )
         } else {
             persistentListOf(
+                AppBar.Action(
+                    title = stringResource(MR.strings.action_filter),
+                    icon = Icons.Outlined.FilterList,
+                    iconTint = if (hasActiveFilters) MaterialTheme.colorScheme.active else null,
+                    onClick = { screenModel.setDialog(AnimeUpdatesScreenModel.Dialog.Filter) },
+                ),
                 AppBar.Action(
                     title = stringResource(MR.strings.action_view_upcoming),
                     icon = Icons.Outlined.CalendarMonth,

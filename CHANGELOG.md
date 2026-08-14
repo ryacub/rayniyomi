@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- The Manga and Anime Updates screens now filter their lists by category. Updates in excluded categories stay hidden even when those categories are also included.
 
 ### Improved
 

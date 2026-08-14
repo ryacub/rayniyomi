@@ -23,18 +23,25 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
+import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.items.episode.interactor.GetEpisode
@@ -46,6 +53,7 @@ import tachiyomi.domain.updates.anime.interactor.GetAnimeUpdates
 import tachiyomi.domain.updates.anime.model.AnimeUpdatesWithRelations
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.time.Instant
 import java.time.ZonedDateTime
 
 class AnimeUpdatesScreenModel(
@@ -57,6 +65,7 @@ class AnimeUpdatesScreenModel(
     private val getUpdates: GetAnimeUpdates = Injekt.get(),
     private val getAnime: GetAnime = Injekt.get(),
     private val getEpisode: GetEpisode = Injekt.get(),
+    private val getCategories: GetAnimeCategories = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     downloadPreferences: DownloadPreferences = Injekt.get(),
@@ -66,6 +75,15 @@ class AnimeUpdatesScreenModel(
     val events: Flow<Event> = _events.receiveAsFlow()
 
     val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(screenModelScope)
+
+    val categories: StateFlow<List<Category>> = getCategories.subscribe()
+        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val includedCategoriesPref = libraryPreferences.filterAnimeUpdatesCategories()
+    private val excludedCategoriesPref = libraryPreferences.filterAnimeUpdatesCategoriesExclude()
+
+    val includedCategories by includedCategoriesPref.asState(screenModelScope)
+    val excludedCategories by excludedCategoriesPref.asState(screenModelScope)
 
     val useExternalDownloader = downloadPreferences.useExternalDownloader().get()
 
@@ -79,7 +97,7 @@ class AnimeUpdatesScreenModel(
 
             val limit = ZonedDateTime.now().minusMonths(3).toInstant()
             combine(
-                getUpdates.subscribe(limit).distinctUntilChanged(),
+                categoryFilterFlow(limit).distinctUntilChanged(),
                 downloadCache.changes,
                 downloadManager.queueState,
             ) { updates, _, _ -> updates }
@@ -101,6 +119,33 @@ class AnimeUpdatesScreenModel(
             merge(downloadManager.statusFlow(), downloadManager.progressFlow())
                 .catch { logcat(LogPriority.ERROR, it) }
                 .collect(this@AnimeUpdatesScreenModel::updateDownloadState)
+        }
+    }
+
+    private fun categoryFilterFlow(limit: Instant): Flow<List<AnimeUpdatesWithRelations>> {
+        return combine(
+            includedCategoriesPref.changes(),
+            excludedCategoriesPref.changes(),
+        ) { included, excluded -> included to excluded }
+            .distinctUntilChanged()
+            .flatMapLatest { (included, excluded) ->
+                getUpdates.subscribe(
+                    limit,
+                    included.mapNotNull { it.toLongOrNull() },
+                    excluded.mapNotNull { it.toLongOrNull() },
+                )
+            }
+    }
+
+    fun cycleCategory(category: Category) {
+        val categoryId = category.id.toString()
+        when (categoryId) {
+            in includedCategoriesPref.get() -> {
+                includedCategoriesPref.getAndSet { it - categoryId }
+                excludedCategoriesPref.getAndSet { it + categoryId }
+            }
+            in excludedCategoriesPref.get() -> excludedCategoriesPref.getAndSet { it - categoryId }
+            else -> includedCategoriesPref.getAndSet { it + categoryId }
         }
     }
 
@@ -419,6 +464,7 @@ class AnimeUpdatesScreenModel(
 
     sealed interface Dialog {
         data class DeleteConfirmation(val toDelete: List<AnimeUpdatesItem>) : Dialog
+        data object Filter : Dialog
         data class ShowQualities(
             val episodeTitle: String,
             val episodeId: Long,
