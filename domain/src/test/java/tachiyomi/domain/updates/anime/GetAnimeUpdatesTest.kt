@@ -39,16 +39,4 @@ class GetAnimeUpdatesTest {
             )
         }
     }
-
-    @Test
-    fun `old subscribe overload still delegates unchanged`() {
-        val instant = Instant.ofEpochMilli(2_345_678L)
-        every { repository.subscribeAllAnimeUpdates(after = 2_345_678L, limit = 500L) } returns emptyFlow()
-
-        interactor.subscribe(instant)
-
-        verify(exactly = 1) {
-            repository.subscribeAllAnimeUpdates(after = 2_345_678L, limit = 500L)
-        }
-    }
 }

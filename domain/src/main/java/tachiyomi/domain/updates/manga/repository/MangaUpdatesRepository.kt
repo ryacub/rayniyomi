@@ -7,8 +7,6 @@ interface MangaUpdatesRepository {
 
     suspend fun awaitWithRead(read: Boolean, after: Long, limit: Long): List<MangaUpdatesWithRelations>
 
-    fun subscribeAllMangaUpdates(after: Long, limit: Long): Flow<List<MangaUpdatesWithRelations>>
-
     fun subscribeAllMangaUpdatesWithCategoryFilter(
         after: Long,
         limit: Long,

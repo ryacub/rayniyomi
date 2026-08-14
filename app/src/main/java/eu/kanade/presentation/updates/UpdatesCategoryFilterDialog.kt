@@ -59,9 +59,10 @@ fun UpdatesCategoryFilterDialog(
                     in excluded -> TriState.ENABLED_NOT
                     else -> TriState.DISABLED
                 }
+                val stateLabel = state.stateLabel()
                 Box(
                     modifier = Modifier.semantics(mergeDescendants = true) {
-                        contentDescription = "$label, ${state.stateLabel()}"
+                        contentDescription = "$label, $stateLabel"
                     },
                 ) {
                     TriStateItem(
@@ -75,10 +76,11 @@ fun UpdatesCategoryFilterDialog(
     }
 }
 
+@Composable
 private fun TriState.stateLabel(): String = when (this) {
-    TriState.ENABLED_IS -> "Included"
-    TriState.ENABLED_NOT -> "Excluded"
-    TriState.DISABLED -> "Not filtered"
+    TriState.ENABLED_IS -> stringResource(MR.strings.filter_included)
+    TriState.ENABLED_NOT -> stringResource(MR.strings.filter_excluded)
+    TriState.DISABLED -> stringResource(MR.strings.filter_not_filtered)
 }
 
 @PreviewLightDark

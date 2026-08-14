@@ -38,6 +38,7 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.updates.anime.interactor.GetAnimeUpdates
 import tachiyomi.domain.updates.anime.model.AnimeUpdatesWithRelations
+import java.util.concurrent.CopyOnWriteArrayList
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimeUpdatesScreenModelTest {
@@ -168,8 +169,10 @@ class AnimeUpdatesScreenModelTest {
             )
         }
 
-        fun stubInteractor(result: Flow<List<AnimeUpdatesWithRelations>>): MutableList<Pair<List<Long>, List<Long>>> {
-            val calls = mutableListOf<Pair<List<Long>, List<Long>>>()
+        fun stubInteractor(
+            result: Flow<List<AnimeUpdatesWithRelations>>,
+        ): CopyOnWriteArrayList<Pair<List<Long>, List<Long>>> {
+            val calls = CopyOnWriteArrayList<Pair<List<Long>, List<Long>>>()
             every { getUpdates.subscribe(any(), any(), any()) } answers {
                 val included = secondArg<List<Long>>()
                 val excluded = thirdArg<List<Long>>()

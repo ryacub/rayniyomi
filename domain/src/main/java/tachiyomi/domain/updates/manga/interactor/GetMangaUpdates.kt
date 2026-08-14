@@ -13,10 +13,6 @@ class GetMangaUpdates(
         return repository.awaitWithRead(read, after, limit = 500)
     }
 
-    fun subscribe(instant: Instant): Flow<List<MangaUpdatesWithRelations>> {
-        return repository.subscribeAllMangaUpdates(instant.toEpochMilli(), limit = 500)
-    }
-
     fun subscribe(
         instant: Instant,
         includedCategories: List<Long>,

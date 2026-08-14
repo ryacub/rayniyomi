@@ -75,7 +75,7 @@ class MangaUpdatesScreenModel(
     val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(screenModelScope)
 
     val categories: StateFlow<List<Category>> = getVisibleCategories.subscribe()
-        .stateIn(screenModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val includedCategoriesPref = libraryPreferences.filterMangaUpdatesCategories()
     private val excludedCategoriesPref = libraryPreferences.filterMangaUpdatesCategoriesExclude()
@@ -125,7 +125,11 @@ class MangaUpdatesScreenModel(
         ) { included, excluded -> included to excluded }
             .distinctUntilChanged()
             .flatMapLatest { (included, excluded) ->
-                getUpdates.subscribe(limit, included.map { it.toLong() }, excluded.map { it.toLong() })
+                getUpdates.subscribe(
+                    limit,
+                    included.mapNotNull { it.toLongOrNull() },
+                    excluded.mapNotNull { it.toLongOrNull() },
+                )
             }
     }
 

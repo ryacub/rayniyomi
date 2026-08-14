@@ -21,12 +21,6 @@ class MangaUpdatesRepositoryImpl(
         }
     }
 
-    override fun subscribeAllMangaUpdates(after: Long, limit: Long): Flow<List<MangaUpdatesWithRelations>> {
-        return databaseHandler.subscribeToList {
-            updatesViewQueries.getRecentUpdates(after, limit, ::mapUpdatesWithRelations)
-        }
-    }
-
     override fun subscribeAllMangaUpdatesWithCategoryFilter(
         after: Long,
         limit: Long,

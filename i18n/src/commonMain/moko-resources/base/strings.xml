@@ -559,7 +559,6 @@
     <string name="pref_remove_after_read">After reading automatically delete</string>
     <string name="pref_remove_bookmarked_chapters">Allow deleting bookmarked chapters</string>
     <string name="pref_remove_exclude_categories">Excluded categories</string>
-    <string name="pref_filter_update_categories_details">Updates in excluded categories will not be shown even if they are also in any included categories.</string>
     <string name="no_location_set">No storage location set</string>
     <string name="invalid_location">Invalid location: %s</string>
     <string name="disabled">Disabled</string>
@@ -930,6 +929,10 @@
     <string name="updates_last_update_info_just_now">Just now</string>
     <string name="relative_time_span_never">Never</string>
     <string name="action_view_upcoming">View Upcoming Updates</string>
+    <string name="pref_filter_update_categories_details">Updates in excluded categories will not be shown even if they are also in any included categories.</string>
+    <string name="filter_included">Included</string>
+    <string name="filter_excluded">Excluded</string>
+    <string name="filter_not_filtered">Not filtered</string>
 
     <!-- Upcoming -->
     <string name="upcoming_guide">Upcoming Guide</string>
