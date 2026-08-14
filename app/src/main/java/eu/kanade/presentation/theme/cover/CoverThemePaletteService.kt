@@ -7,6 +7,7 @@ import coil3.imageLoader
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.size.Size
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +56,7 @@ object CoverThemePaletteService {
             val request = ImageRequest.Builder(context)
                 .data(data)
                 .size(Size(128, 128))
+                .allowHardware(false)
                 .build()
             when (val result = context.imageLoader.execute(request)) {
                 is SuccessResult -> {
@@ -69,8 +71,9 @@ object CoverThemePaletteService {
     }
 
     private fun extractDominantColor(bitmap: Bitmap): androidx.compose.ui.graphics.Color? {
-        val width = bitmap.width.coerceAtLeast(1)
-        val height = bitmap.height.coerceAtLeast(1)
+        val source = bitmap.asSoftwareBitmap() ?: return null
+        val width = source.width.coerceAtLeast(1)
+        val height = source.height.coerceAtLeast(1)
         val stepX = (width / 24).coerceAtLeast(1)
         val stepY = (height / 24).coerceAtLeast(1)
 
@@ -83,7 +86,7 @@ object CoverThemePaletteService {
         while (x < width) {
             var y = 0
             while (y < height) {
-                val pixel = bitmap.getPixel(x, y)
+                val pixel = source.getPixel(x, y)
                 val alpha = android.graphics.Color.alpha(pixel)
                 if (alpha >= 128) {
                     sumR += android.graphics.Color.red(pixel)
@@ -103,4 +106,9 @@ object CoverThemePaletteService {
         val b = (sumB / count).toInt().coerceIn(0, 255)
         return androidx.compose.ui.graphics.Color(android.graphics.Color.rgb(r, g, b))
     }
+}
+
+internal fun Bitmap.asSoftwareBitmap(): Bitmap? {
+    if (config != Bitmap.Config.HARDWARE) return this
+    return copy(Bitmap.Config.ARGB_8888, false)
 }
