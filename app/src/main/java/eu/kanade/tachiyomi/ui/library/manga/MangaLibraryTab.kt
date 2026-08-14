@@ -33,6 +33,7 @@ import eu.kanade.domain.ui.model.NavStyle
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.entries.components.LibraryBottomActionMenu
 import eu.kanade.presentation.library.DeleteLibraryEntryDialog
+import eu.kanade.presentation.library.components.LibrarySearchHelpDialog
 import eu.kanade.presentation.library.components.LibraryToolbar
 import eu.kanade.presentation.library.manga.MangaLibraryContent
 import eu.kanade.presentation.library.manga.MangaLibrarySettingsDialog
@@ -152,6 +153,7 @@ data object MangaLibraryTab : Tab {
                         )
                     },
                     onClickFilter = screenModel::showSettingsDialog,
+                    onClickSearchHelp = screenModel::showSearchHelp,
                     onClickRefresh = {
                         onClickRefresh(
                             state.categories[screenModel.activeCategoryIndex],
@@ -272,6 +274,12 @@ data object MangaLibraryTab : Tab {
                     onDismissRequest = onDismissRequest,
                     screenModel = settingsScreenModel,
                     category = category,
+                )
+            }
+            is MangaLibraryScreenModel.Dialog.SearchHelp -> {
+                LibrarySearchHelpDialog(
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = onDismissRequest,
                 )
             }
             is MangaLibraryScreenModel.Dialog.ChangeCategory -> {
