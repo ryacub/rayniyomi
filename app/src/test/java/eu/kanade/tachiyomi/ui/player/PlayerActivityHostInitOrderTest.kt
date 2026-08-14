@@ -82,6 +82,50 @@ class PlayerActivityHostInitOrderTest {
         assertTrue(!source.contains("activity.changeEpisode("))
     }
 
+    /**
+     * The player makes ~190 MPVLib calls and none of them check that mpv is running. That is only
+     * safe while mpv starts inline in onCreate, which is what upstream aniyomi does. Moving the
+     * startup onto a background scope reopens a window in which onNewIntent,
+     * onConfigurationChanged or composition reaches mpv first, and the process aborts on a null
+     * jmethodID rather than reporting anything useful.
+     */
+    @Test
+    fun `mpv starts inline in onCreate rather than on a background scope`() {
+        val source = loadPlayerActivitySource()
+        val setupIdx = source.indexOf("private fun setupPlayerMPV()")
+        assertTrue(setupIdx >= 0, "Expected setupPlayerMPV to exist")
+
+        // Stop at the next declaration, whether or not it is private, so a neighbouring function
+        // that legitimately uses a coroutine scope cannot be read as part of this one.
+        val bodyEnd = listOf("\n    private fun ", "\n    fun ")
+            .mapNotNull { source.indexOf(it, startIndex = setupIdx + 1).takeIf { i -> i >= 0 } }
+            .min()
+        val body = source.substring(setupIdx, bodyEnd)
+
+        assertTrue(body.contains("player.initialize("), "Expected setupPlayerMPV to initialize the player")
+        assertTrue(
+            !body.contains("launchIO") && !body.contains("lifecycleScope") && !body.contains("withUIContext"),
+            "setupPlayerMPV must start mpv inline; a background scope lets callers reach mpv first",
+        )
+    }
+
+    @Test
+    fun `mpv file preparation stays blocking so the caller cannot outrun it`() {
+        val source = loadPlayerSource("PlayerMpvInitializer.kt")
+        val initIdx = source.indexOf("fun initialize(")
+        val body = source.substring(initIdx, source.indexOf("private fun copyUserFiles"))
+
+        assertTrue(initIdx >= 0, "Expected PlayerMpvInitializer.initialize to exist")
+        assertTrue(
+            !source.substring(0, initIdx).endsWith("suspend "),
+            "initialize must not be suspend; onCreate cannot await it",
+        )
+        assertTrue(
+            !body.contains("withContext"),
+            "initialize must not hand its work to another dispatcher",
+        )
+    }
+
     private fun loadPlayerActivitySource(): String {
         return loadPlayerSource("PlayerActivity.kt")
     }

@@ -56,13 +56,17 @@ internal class PlayerMpvInitializer(
 
     /**
      * Initialize MPV configuration and file structure.
-     * Must be called on a background thread/scope.
+     *
+     * Blocking on purpose. mpv must be running before PlayerActivity is reachable, because every
+     * MPVLib call in the player assumes a live handle and no entry point checks. Upstream aniyomi
+     * gets that by doing this work inline in onCreate; doing it off the main thread reopens a
+     * window in which onNewIntent, onConfigurationChanged or composition can reach mpv first.
      */
-    suspend fun initialize(
+    fun initialize(
         mpvConf: String,
         mpvInput: String,
         mpvUserFilesEnabled: Boolean,
-    ): String = withContext(Dispatchers.IO) {
+    ): String {
         val filesDir = checkNotNull(UniFile.fromFile(context.filesDir)) {
             "Failed to access app files directory"
         }
@@ -83,7 +87,7 @@ internal class PlayerMpvInitializer(
         copyAssets(mpvDir)
         syncFontsDirectory(mpvDir)
 
-        return@withContext checkNotNull(mpvDir.filePath) {
+        return checkNotNull(mpvDir.filePath) {
             "MPV directory path unavailable after successful creation"
         }
     }

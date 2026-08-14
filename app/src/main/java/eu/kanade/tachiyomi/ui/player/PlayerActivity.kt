@@ -447,33 +447,28 @@ class PlayerActivity : BaseActivity() {
     private fun setupPlayerMPV() {
         val logLevel = if (networkPreferences.verboseLogging().get()) "info" else "warn"
 
-        lifecycleScope.launchIO {
-            try {
-                val configDir = mpvInitializer.initialize(
-                    mpvConf = advancedPlayerPreferences.mpvConf().get(),
-                    mpvInput = advancedPlayerPreferences.mpvInput().get(),
-                    mpvUserFilesEnabled = advancedPlayerPreferences.mpvUserFiles().get(),
-                )
+        // Inline, as upstream does it. Every MPVLib call in the player assumes a live handle and
+        // none of them check, so mpv has to be up before onCreate returns and lets onNewIntent,
+        // onConfigurationChanged or composition run.
+        try {
+            val configDir = mpvInitializer.initialize(
+                mpvConf = advancedPlayerPreferences.mpvConf().get(),
+                mpvInput = advancedPlayerPreferences.mpvInput().get(),
+                mpvUserFilesEnabled = advancedPlayerPreferences.mpvUserFiles().get(),
+            )
 
-                withUIContext {
-                    MPVLib.setOptionString("sub-ass-force-margins", "yes")
-                    MPVLib.setOptionString("sub-use-margins", "yes")
+            MPVLib.setOptionString("sub-ass-force-margins", "yes")
+            MPVLib.setOptionString("sub-use-margins", "yes")
 
-                    player.initialize(
-                        configDir = configDir,
-                        cacheDir = applicationContext.cacheDir.path,
-                        logLvl = logLevel,
-                    )
-                    MPVLib.addLogObserver(playerObserver)
-                    MPVLib.addObserver(playerObserver)
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                withUIContext {
-                    setInitialEpisodeError(error)
-                }
-            }
+            player.initialize(
+                configDir = configDir,
+                cacheDir = applicationContext.cacheDir.path,
+                logLvl = logLevel,
+            )
+            MPVLib.addLogObserver(playerObserver)
+            MPVLib.addObserver(playerObserver)
+        } catch (error: Exception) {
+            setInitialEpisodeError(error)
         }
     }
 
