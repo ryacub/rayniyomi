@@ -29,3 +29,7 @@ logs/
 # Git worktrees
 .worktrees/
 # app/google-services.json — Now tracked (fork-owned Firebase project)
+
+# Python bytecode from the scripts/ gate tests
+__pycache__/
+*.pyc
