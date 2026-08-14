@@ -113,6 +113,14 @@ class MangaDownloadCache(
     @Volatile
     private var isInitialized = false
 
+    /**
+     * Set when [renewCache] is called before the init block finishes. The renewal
+     * is started once initialization completes, so an invalidation that arrives
+     * during startup is not dropped.
+     */
+    @Volatile
+    private var renewalPendingInit = false
+
     init {
         // Attempt to read cache file
         scope.launch {
@@ -131,6 +139,10 @@ class MangaDownloadCache(
                 }
             }
             isInitialized = true
+            if (renewalPendingInit) {
+                renewalPendingInit = false
+                renewCache()
+            }
             notifyChanges()
         }
 
@@ -336,8 +348,12 @@ class MangaDownloadCache(
     }
 
     fun invalidateCache() {
-        lastRenew = 0L
+        // Cancel before resetting lastRenew: the renewal job's completion handler is
+        // registered with onCancelling = true, so it runs inside cancel() and writes
+        // lastRenew. Resetting first would let that write mark the cache fresh again
+        // and make renewCache() below skip the scan for a full renewInterval.
         renewalJob?.cancel()
+        lastRenew = 0L
         diskCacheFile.delete()
         renewCache()
     }
@@ -346,12 +362,17 @@ class MangaDownloadCache(
      * Renews the downloads cache.
      */
     private fun renewCache() {
+        // Defer if the init block hasn't finished loading the disk cache yet, as starting
+        // a filesystem scan would race with it and produce empty results. The init block
+        // starts the renewal once it completes.
+        if (!isInitialized) {
+            renewalPendingInit = true
+            return
+        }
+
         // Avoid renewing cache if in the process nor too often.
-        // Also skip if the init block hasn't finished loading the disk cache yet,
-        // as starting a filesystem scan would race with it and produce empty results.
         if (lastRenew + renewInterval >= System.currentTimeMillis() ||
-            renewalJob?.isActive == true ||
-            !isInitialized
+            renewalJob?.isActive == true
         ) {
             return
         }

@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - A source that reports no language now shows its name instead of a long number, and the app finds the downloads that belong to it. The app treated a missing language as an unknown source.
 - A backup restore no longer drops library entries when two entries contain the same chapter or episode URL. The app now reads the history of each entry inside that entry. Before, the restore failed and lost the entry.
 - A defective extension no longer crashes the app when it loads a source list, plays an episode, or opens its settings. The app now reports the fault and continues. Update or reinstall the extension to use it again.
+- A backup restore now refreshes the manga and anime download caches, so download indicators show the restored library state instead of stale data from before the restore.
 
 ### Changed
 
