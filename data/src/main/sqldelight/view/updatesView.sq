@@ -26,6 +26,37 @@ FROM updatesView
 WHERE dateUpload > :after
 LIMIT :limit;
 
+getRecentUpdatesWithCategoryFilter:
+SELECT *
+FROM updatesView
+WHERE dateUpload > :after
+AND (
+    :includedEmpty
+    OR EXISTS (
+        SELECT 1 FROM mangas_categories
+        WHERE mangas_categories.manga_id = mangaId
+        AND mangas_categories.category_id IN :includedCategories
+    )
+    OR (0 IN :includedCategories AND NOT EXISTS (
+        SELECT 1 FROM mangas_categories mc WHERE mc.manga_id = mangaId)
+    )
+)
+AND (
+    :excludedEmpty
+    OR (
+        NOT EXISTS (
+            SELECT 1 FROM mangas_categories
+            WHERE mangas_categories.manga_id = mangaId
+            AND mangas_categories.category_id IN :excludedCategories
+        )
+        AND (
+            0 NOT IN :excludedCategories
+            OR EXISTS (SELECT 1 FROM mangas_categories WHERE mangas_categories.manga_id = mangaId)
+        )
+    )
+)
+LIMIT :limit;
+
 getUpdatesByReadStatus:
 SELECT *
 FROM updatesView

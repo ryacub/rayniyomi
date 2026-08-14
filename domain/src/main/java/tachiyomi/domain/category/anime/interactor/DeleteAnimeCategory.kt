@@ -18,6 +18,8 @@ class DeleteAnimeCategory(
         categoryPreferences = listOf(
             libraryPreferences.animeUpdateCategories(),
             libraryPreferences.animeUpdateCategoriesExclude(),
+            libraryPreferences.filterAnimeUpdatesCategories(),
+            libraryPreferences.filterAnimeUpdatesCategoriesExclude(),
             downloadPreferences.removeExcludeAnimeCategories(),
             downloadPreferences.downloadNewEpisodeCategories(),
             downloadPreferences.downloadNewEpisodeCategoriesExclude(),

@@ -9,5 +9,12 @@ interface AnimeUpdatesRepository {
 
     fun subscribeAllAnimeUpdates(after: Long, limit: Long): Flow<List<AnimeUpdatesWithRelations>>
 
+    fun subscribeAllAnimeUpdatesWithCategoryFilter(
+        after: Long,
+        limit: Long,
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<AnimeUpdatesWithRelations>>
+
     fun subscribeWithSeen(seen: Boolean, after: Long, limit: Long): Flow<List<AnimeUpdatesWithRelations>>
 }

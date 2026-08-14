@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
+import tachiyomi.domain.category.anime.interactor.DeleteAnimeCategory
 import tachiyomi.domain.category.anime.interactor.HideAnimeCategory
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
 import tachiyomi.domain.category.manga.interactor.DeleteMangaCategory
@@ -315,10 +316,14 @@ class CategoryInteractorOperationsTest {
         libraryPreferences.defaultMangaCategory().set(categoryId.toInt())
         libraryPreferences.mangaUpdateCategories().set(setOf("1", "2"))
         libraryPreferences.mangaUpdateCategoriesExclude().set(setOf("2", "3"))
+        libraryPreferences.filterMangaUpdatesCategories().set(setOf("2", "8"))
+        libraryPreferences.filterMangaUpdatesCategoriesExclude().set(setOf("2", "9"))
         downloadPreferences.removeExcludeCategories().set(setOf("2", "4"))
         downloadPreferences.downloadNewChapterCategories().set(setOf("2", "5"))
         downloadPreferences.downloadNewChapterCategoriesExclude().set(setOf("2", "6"))
         libraryPreferences.animeUpdateCategoriesExclude().set(setOf("2", "7"))
+        libraryPreferences.filterAnimeUpdatesCategories().set(setOf("2", "10"))
+        libraryPreferences.filterAnimeUpdatesCategoriesExclude().set(setOf("2", "11"))
         val repository = FakeMangaCategoryRepository(
             listOf(
                 category(id = 1, name = "Parent", order = 0),
@@ -339,10 +344,61 @@ class CategoryInteractorOperationsTest {
         assertEquals(-1, libraryPreferences.defaultMangaCategory().get())
         assertEquals(setOf("1"), libraryPreferences.mangaUpdateCategories().get())
         assertEquals(setOf("3"), libraryPreferences.mangaUpdateCategoriesExclude().get())
+        assertEquals(setOf("8"), libraryPreferences.filterMangaUpdatesCategories().get())
+        assertEquals(setOf("9"), libraryPreferences.filterMangaUpdatesCategoriesExclude().get())
         assertEquals(setOf("4"), downloadPreferences.removeExcludeCategories().get())
         assertEquals(setOf("5"), downloadPreferences.downloadNewChapterCategories().get())
         assertEquals(setOf("6"), downloadPreferences.downloadNewChapterCategoriesExclude().get())
         assertEquals(setOf("2", "7"), libraryPreferences.animeUpdateCategoriesExclude().get())
+        assertEquals(setOf("2", "10"), libraryPreferences.filterAnimeUpdatesCategories().get())
+        assertEquals(setOf("2", "11"), libraryPreferences.filterAnimeUpdatesCategoriesExclude().get())
+        assertEquals(
+            listOf(
+                CategoryUpdate(id = 1, order = 0, parentId = null, updateParentId = false),
+                CategoryUpdate(id = 3, order = 1, parentId = null, updateParentId = true),
+                CategoryUpdate(id = 4, order = 2, parentId = null, updateParentId = false),
+            ),
+            repository.updates,
+        )
+    }
+
+    @Test
+    fun `anime delete facade removes deleted category from anime preferences only`() = runTest {
+        val categoryId = 2L
+        val preferences = KeyedMutablePreferenceStore()
+        val libraryPreferences = LibraryPreferences(preferences)
+        val downloadPreferences = DownloadPreferences(preferences)
+        libraryPreferences.defaultAnimeCategory().set(categoryId.toInt())
+        libraryPreferences.animeUpdateCategories().set(setOf("1", "2"))
+        libraryPreferences.animeUpdateCategoriesExclude().set(setOf("2", "3"))
+        libraryPreferences.filterAnimeUpdatesCategories().set(setOf("2", "10"))
+        libraryPreferences.filterAnimeUpdatesCategoriesExclude().set(setOf("2", "11"))
+        libraryPreferences.filterMangaUpdatesCategories().set(setOf("2", "8"))
+        libraryPreferences.filterMangaUpdatesCategoriesExclude().set(setOf("2", "9"))
+        val repository = FakeDeletableAnimeCategoryRepository(
+            listOf(
+                category(id = 1, name = "Parent", order = 0),
+                category(id = categoryId, name = "Deleted", order = 1),
+                category(id = 3, name = "Child", order = 2, parentId = categoryId),
+                category(id = 4, name = "Later", order = 3),
+            ),
+        )
+        val deleteAnimeCategory = DeleteAnimeCategory(
+            categoryRepository = repository,
+            libraryPreferences = libraryPreferences,
+            downloadPreferences = downloadPreferences,
+        )
+
+        val result = deleteAnimeCategory.await(categoryId)
+
+        assertEquals(DeleteAnimeCategory.Result.Success, result)
+        assertEquals(-1, libraryPreferences.defaultAnimeCategory().get())
+        assertEquals(setOf("1"), libraryPreferences.animeUpdateCategories().get())
+        assertEquals(setOf("3"), libraryPreferences.animeUpdateCategoriesExclude().get())
+        assertEquals(setOf("10"), libraryPreferences.filterAnimeUpdatesCategories().get())
+        assertEquals(setOf("11"), libraryPreferences.filterAnimeUpdatesCategoriesExclude().get())
+        assertEquals(setOf("2", "8"), libraryPreferences.filterMangaUpdatesCategories().get())
+        assertEquals(setOf("2", "9"), libraryPreferences.filterMangaUpdatesCategoriesExclude().get())
         assertEquals(
             listOf(
                 CategoryUpdate(id = 1, order = 0, parentId = null, updateParentId = false),
@@ -460,6 +516,57 @@ class CategoryInteractorOperationsTest {
         }
 
         fun singleUpdate(): CategoryUpdate = updates.single()
+    }
+
+    private class FakeDeletableAnimeCategoryRepository(
+        initialCategories: List<Category>,
+    ) : AnimeCategoryRepository {
+
+        private val categories = initialCategories.toMutableList()
+        val updates = mutableListOf<CategoryUpdate>()
+
+        override suspend fun getAnimeCategory(id: Long): Category? = categories.find { it.id == id }
+
+        override suspend fun getAllAnimeCategories(): List<Category> = categories.toList()
+
+        override suspend fun getAllVisibleAnimeCategories(): List<Category> =
+            categories.filterNot { it.hidden }
+
+        override fun getAllAnimeCategoriesAsFlow(): Flow<List<Category>> = MutableStateFlow(categories.toList())
+
+        override fun getAllVisibleAnimeCategoriesAsFlow(): Flow<List<Category>> =
+            MutableStateFlow(categories.filterNot { it.hidden })
+
+        override suspend fun getCategoriesByAnimeId(animeId: Long): List<Category> = categories.toList()
+
+        override suspend fun getVisibleCategoriesByAnimeId(animeId: Long): List<Category> =
+            categories.filterNot { it.hidden }
+
+        override fun getCategoriesByAnimeIdAsFlow(animeId: Long): Flow<List<Category>> =
+            MutableStateFlow(categories.toList())
+
+        override fun getVisibleCategoriesByAnimeIdAsFlow(animeId: Long): Flow<List<Category>> =
+            MutableStateFlow(categories.filterNot { it.hidden })
+
+        override suspend fun insertAnimeCategory(category: Category) {
+            throw UnsupportedOperationException("Not needed by this test")
+        }
+
+        override suspend fun updatePartialAnimeCategory(update: CategoryUpdate) {
+            updates += update
+        }
+
+        override suspend fun updatePartialAnimeCategories(updates: List<CategoryUpdate>) {
+            this.updates += updates
+        }
+
+        override suspend fun updateAllAnimeCategoryFlags(flags: Long?) {
+            throw UnsupportedOperationException("Not needed by this test")
+        }
+
+        override suspend fun deleteAnimeCategory(categoryId: Long) {
+            categories.removeAll { it.id == categoryId }
+        }
     }
 
     private class FakeMangaCategoryRepository(

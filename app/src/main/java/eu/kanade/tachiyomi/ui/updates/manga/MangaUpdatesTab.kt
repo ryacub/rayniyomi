@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.updates.manga
 import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
@@ -18,6 +19,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
+import eu.kanade.presentation.updates.UpdatesCategoryFilterDialog
 import eu.kanade.presentation.updates.UpdatesDeleteConfirmationDialog
 import eu.kanade.presentation.updates.manga.MangaUpdateScreen
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
@@ -88,6 +90,16 @@ fun Screen.mangaUpdatesTab(
                         isManga = true,
                     )
                 }
+                MangaUpdatesScreenModel.Dialog.Filter -> {
+                    UpdatesCategoryFilterDialog(
+                        categories = screenModel.categories.collectAsStateWithLifecycle().value,
+                        included = screenModel.includedCategories,
+                        excluded = screenModel.excludedCategories,
+                        detailsText = context.stringResource(MR.strings.pref_filter_update_categories_details),
+                        onCycleCategory = screenModel::cycleCategory,
+                        onDismissRequest = onDismissDialog,
+                    )
+                }
                 null -> {}
             }
 
@@ -144,6 +156,11 @@ fun Screen.mangaUpdatesTab(
             )
         } else {
             persistentListOf(
+                AppBar.Action(
+                    title = stringResource(MR.strings.action_filter),
+                    icon = Icons.Outlined.FilterList,
+                    onClick = { screenModel.setDialog(MangaUpdatesScreenModel.Dialog.Filter) },
+                ),
                 AppBar.Action(
                     title = stringResource(MR.strings.action_view_upcoming),
                     icon = Icons.Outlined.CalendarMonth,

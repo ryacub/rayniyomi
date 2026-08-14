@@ -172,6 +172,18 @@ class LibraryPreferences(
     fun mangaUpdateCategoriesExclude() =
         preferenceStore.getStringSet(LIBRARY_UPDATE_MANGA_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
 
+    fun filterMangaUpdatesCategories() =
+        preferenceStore.getStringSet("pref_filter_manga_updates_included_categories", emptySet())
+
+    fun filterMangaUpdatesCategoriesExclude() =
+        preferenceStore.getStringSet("pref_filter_manga_updates_excluded_categories", emptySet())
+
+    fun filterAnimeUpdatesCategories() =
+        preferenceStore.getStringSet("pref_filter_anime_updates_included_categories", emptySet())
+
+    fun filterAnimeUpdatesCategoriesExclude() =
+        preferenceStore.getStringSet("pref_filter_anime_updates_excluded_categories", emptySet())
+
     // Mixture Item
 
     fun filterEpisodeBySeen() =

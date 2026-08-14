@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.updates.anime
 import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
@@ -20,6 +21,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.presentation.entries.anime.EpisodeOptionsDialogScreen
+import eu.kanade.presentation.updates.UpdatesCategoryFilterDialog
 import eu.kanade.presentation.updates.UpdatesDeleteConfirmationDialog
 import eu.kanade.presentation.updates.anime.AnimeUpdateScreen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
@@ -114,6 +116,16 @@ fun Screen.animeUpdatesTab(
                         onDismissRequest = onDismissDialog,
                     )
                 }
+                AnimeUpdatesScreenModel.Dialog.Filter -> {
+                    UpdatesCategoryFilterDialog(
+                        categories = screenModel.categories.collectAsStateWithLifecycle().value,
+                        included = screenModel.includedCategories,
+                        excluded = screenModel.excludedCategories,
+                        detailsText = context.stringResource(MR.strings.pref_filter_update_categories_details),
+                        onCycleCategory = screenModel::cycleCategory,
+                        onDismissRequest = onDismissDialog,
+                    )
+                }
                 null -> {}
             }
 
@@ -170,6 +182,11 @@ fun Screen.animeUpdatesTab(
             )
         } else {
             persistentListOf(
+                AppBar.Action(
+                    title = stringResource(MR.strings.action_filter),
+                    icon = Icons.Outlined.FilterList,
+                    onClick = { screenModel.setDialog(AnimeUpdatesScreenModel.Dialog.Filter) },
+                ),
                 AppBar.Action(
                     title = stringResource(MR.strings.action_view_upcoming),
                     icon = Icons.Outlined.CalendarMonth,
