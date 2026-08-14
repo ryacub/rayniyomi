@@ -31,6 +31,17 @@ fun AnimeLibraryItem.matchesQuery(query: String): Boolean {
     }
 }
 
+/**
+ * Builds a matcher for one query. It routes and parses the query once per library
+ * emission instead of once per item.
+ */
+fun librarySearchMatcher(query: String?): (AnimeLibraryItem) -> Boolean {
+    if (query == null) return { true }
+    if (isLegacySearchQuery(query)) return { item -> item.matches(query) }
+    val node = parseSearchQuery(query)
+    return { item -> node.matches(item) }
+}
+
 private fun GeneralQueryNode.matches(item: AnimeLibraryItem): Boolean {
     val anime = item.libraryAnime.anime
 

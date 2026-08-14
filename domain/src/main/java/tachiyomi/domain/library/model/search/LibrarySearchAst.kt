@@ -34,8 +34,9 @@ data class OrNode(val children: List<QueryNode>) : QueryNode
 data class NotNode(val child: QueryNode) : QueryNode
 
 /**
- * Matches every item. The parser returns this node for empty or unresolvable input, and the
- * evaluator treats it as a match, so a malformed search can never empty the library.
+ * Matches every item. The parser returns this node for unresolvable input, and parseSearchQuery
+ * uses it as its failure fallback. The evaluator treats it as a match, so a malformed search can
+ * never empty the library.
  */
 object EmptyQueryNode : QueryNode
 

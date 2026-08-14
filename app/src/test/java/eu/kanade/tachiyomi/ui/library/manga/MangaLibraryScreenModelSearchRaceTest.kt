@@ -76,7 +76,42 @@ class MangaLibraryScreenModelSearchRaceTest {
     }
 
     @Test
-    fun `stale search evaluation cannot replace a newer query result`() = runBlocking {
+    fun `search changes inside the debounce window collapse to the newer query`() = runBlocking {
+        val model = createModel()
+
+        // Both searches land inside SEARCH_DEBOUNCE_MILLIS, so the debounce collapses them
+        // into a single evaluation of the newer query. A stale "Alpha" evaluation never exists.
+        model.search("Alpha")
+        model.search("Beta")
+
+        eventually(timeoutMs = 5_000) {
+            val items = model.state.value.library[category()].orEmpty()
+            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Beta" }
+        }
+    }
+
+    @Test
+    fun `a spaced search result replaces the older evaluation`() = runBlocking {
+        val model = createModel()
+
+        model.search("Alpha")
+
+        // Wait past the debounce so the "Alpha" evaluation actually emits first.
+        eventually(timeoutMs = 5_000) {
+            val items = model.state.value.library[category()].orEmpty()
+            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Alpha" }
+        }
+
+        model.search("Beta")
+
+        // The newer query evaluation must replace the older one in the final state.
+        eventually(timeoutMs = 5_000) {
+            val items = model.state.value.library[category()].orEmpty()
+            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Beta" }
+        }
+    }
+
+    private fun createModel(): MangaLibraryScreenModel {
         val mangaA = Manga.create().copy(id = 1L, title = "Alpha")
         val mangaB = Manga.create().copy(id = 2L, title = "Beta")
         val libraryMangas = listOf(
@@ -101,13 +136,12 @@ class MangaLibraryScreenModelSearchRaceTest {
                 lastRead = 0L,
             ),
         )
-        val category = Category(id = 0L, name = "Default", order = 0L, flags = 0L, hidden = false)
 
         val getLibraryManga = mockk<GetLibraryManga>()
         every { getLibraryManga.subscribe(any()) } returns flowOf(libraryMangas)
 
         val getCategories = mockk<GetVisibleMangaCategories>()
-        every { getCategories.subscribe() } returns flowOf(listOf(category))
+        every { getCategories.subscribe() } returns flowOf(listOf(category()))
 
         val getTracksPerManga = mockk<GetTracksPerManga>()
         every { getTracksPerManga.subscribe() } returns flowOf(emptyMap<Long, List<MangaTrack>>())
@@ -125,7 +159,7 @@ class MangaLibraryScreenModelSearchRaceTest {
         every { downloadManager.getDownloadCount(any()) } returns 0
 
         val store = InMemoryPreferenceStore(emptySequence())
-        val model = MangaLibraryScreenModel(
+        return MangaLibraryScreenModel(
             getLibraryManga = getLibraryManga,
             getCategories = getCategories,
             getTracksPerManga = getTracksPerManga,
@@ -142,19 +176,9 @@ class MangaLibraryScreenModelSearchRaceTest {
             downloadCache = downloadCache,
             trackerManager = trackerManager,
         )
-
-        // Both searches land inside the SEARCH_DEBOUNCE_MILLIS window, so the debounce collapses
-        // them into a single evaluation of the newer query. The synchronous filter inside the
-        // combine/collectLatest transformer guarantees no stale "Alpha" evaluation can land after
-        // the "Beta" result.
-        model.search("Alpha")
-        model.search("Beta")
-
-        eventually(timeoutMs = 5_000) {
-            val items = model.state.value.library[category].orEmpty()
-            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Beta" }
-        }
     }
+
+    private fun category() = Category(id = 0L, name = "Default", order = 0L, flags = 0L, hidden = false)
 
     private suspend fun eventually(timeoutMs: Long, condition: () -> Boolean) {
         withTimeout(timeoutMs) {

@@ -122,15 +122,12 @@ class MangaLibraryScreenModel(
                 getTrackingFilterFlow(),
                 downloadCache.changes,
             ) { searchQuery, library, tracks, trackingFilter, _ ->
+                val searchMatcher = librarySearchMatcher(searchQuery)
                 library
                     .applyRemainingFilters(tracks, trackingFilter)
                     .applySort(tracks, trackingFilter.keys)
                     .mapValues { (_, value) ->
-                        if (searchQuery != null) {
-                            value.filter { it.matchesQuery(searchQuery) }
-                        } else {
-                            value
-                        }
+                        if (searchQuery != null) value.filter(searchMatcher) else value
                     }
             }
                 .collectLatest {
