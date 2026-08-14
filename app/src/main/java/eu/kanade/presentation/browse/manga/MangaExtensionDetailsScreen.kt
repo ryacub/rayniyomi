@@ -58,6 +58,7 @@ import eu.kanade.tachiyomi.util.system.LocaleHelper
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -424,7 +425,7 @@ private fun SourceSwitchPreference(
     TextPreferenceWidget(
         modifier = modifier,
         title = if (source.labelAsName) {
-            source.source.toString()
+            MangaSourceGateway.displayName(source.source)
         } else {
             LocaleHelper.getSourceDisplayName(source.source.lang, context)
         },

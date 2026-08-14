@@ -53,6 +53,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetManga
@@ -365,11 +366,11 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         // Update manga metadata if needed
         if (libraryPreferences.autoUpdateMetadata().get()) {
-            val networkManga = source.getMangaDetails(manga.toSManga())
+            val networkManga = MangaSourceGateway.details(source, manga.toSManga())
             updateManga.awaitUpdateFromSource(manga, networkManga, manualFetch = false, coverCache)
         }
 
-        val chapters = source.getChapterList(manga.toSManga())
+        val chapters = MangaSourceGateway.chapters(source, manga.toSManga())
 
         // Get manga from database to account for if it was removed during the update and
         // to get latest data so it doesn't get overwritten later on

@@ -6,11 +6,10 @@ import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.Hoster.Companion.toHosterList
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import kotlinx.coroutines.CancellationException
-import tachiyomi.core.common.util.lang.reportAsSourceFailure
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
@@ -33,17 +32,11 @@ class EpisodeLoader {
          */
         suspend fun getHosters(episode: Episode, anime: Anime, source: AnimeSource): List<Hoster> {
             val isDownloaded = isDownload(episode, anime)
-            return try {
-                when {
-                    isDownloaded -> getHostersOnDownloaded(episode, anime, source)
-                    source is AnimeHttpSource -> getHostersOnHttp(episode, source)
-                    source is LocalAnimeSource -> getHostersOnLocal(episode)
-                    else -> error("source not supported")
-                }
-            } catch (e: LinkageError) {
-                // A defective extension cannot link against the app shared libraries. Report it as
-                // an exception so the callers, which all catch Exception, can show the fault.
-                throw e.reportAsSourceFailure { source.name }
+            return when {
+                isDownloaded -> getHostersOnDownloaded(episode, anime, source)
+                source is AnimeHttpSource -> getHostersOnHttp(episode, source)
+                source is LocalAnimeSource -> getHostersOnLocal(episode)
+                else -> error("source not supported")
             }
         }
 
@@ -64,26 +57,6 @@ class EpisodeLoader {
             )
         }
 
-        private fun checkHasHosters(source: AnimeHttpSource): Boolean {
-            var current: Class<in AnimeHttpSource> = source.javaClass
-            while (true) {
-                if (current == ParsedAnimeHttpSource::class.java ||
-                    current == AnimeHttpSource::class.java ||
-                    current == AnimeSource::class.java
-                ) {
-                    return false
-                }
-                if (current.declaredMethods.any {
-                        it.name in
-                            listOf("getHosterList", "hosterListRequest", "hosterListParse")
-                    }
-                ) {
-                    return true
-                }
-                current = current.superclass ?: return false
-            }
-        }
-
         /**
          * Returns a list of hosters when the [episode] is online.
          *
@@ -92,12 +65,12 @@ class EpisodeLoader {
          */
         private suspend fun getHostersOnHttp(episode: Episode, source: AnimeHttpSource): List<Hoster> {
             // TODO(1.6): Remove else block when dropping support for ext lib <1.6
-            return if (checkHasHosters(source)) {
-                source.getHosterList(episode.toSEpisode())
-                    .let { source.run { it.sortHosters() } }
+            return if (AnimeSourceGateway.hasHosters(source)) {
+                AnimeSourceGateway.hosters(source, episode.toSEpisode())
+                    .let { AnimeSourceGateway.sortHosters(source, it) }
             } else {
-                source.getVideoList(episode.toSEpisode())
-                    .let { source.run { it.sortVideos() } }
+                AnimeSourceGateway.videos(source, episode.toSEpisode())
+                    .let { AnimeSourceGateway.sortVideos(source, it) }
                     .toHosterList()
             }
         }
@@ -166,7 +139,7 @@ class EpisodeLoader {
             }
 
             return if (source is AnimeHttpSource) {
-                source.run { videos.sortVideos() }
+                AnimeSourceGateway.sortVideos(source, videos)
             } else {
                 videos
             }
@@ -179,7 +152,7 @@ class EpisodeLoader {
          * @param hoster the hoster.
          */
         private suspend fun getVideosOnHttp(source: AnimeHttpSource, hoster: Hoster): List<Video> {
-            return source.getVideoList(hoster)
+            return AnimeSourceGateway.videos(source, hoster)
                 .parseVideoUrls(source)
         }
 
@@ -188,7 +161,7 @@ class EpisodeLoader {
             return this.map { video ->
                 if (video.videoUrl != "null") return@map video
 
-                val newVideoUrl = source.getVideoUrl(video)
+                val newVideoUrl = AnimeSourceGateway.videoUrl(source, video)
                 video.copy(videoUrl = newVideoUrl)
             }
         }
@@ -201,10 +174,6 @@ class EpisodeLoader {
             return try {
                 val videos = getVideos(source, hoster)
                 HosterState.Ready(hoster.hosterName, videos, List(videos.size) { Video.State.QUEUE })
-            } catch (e: LinkageError) {
-                // A defective extension cannot link against the app shared libraries.
-                e.reportAsSourceFailure { source.name }
-                HosterState.Error(hoster.hosterName)
             } catch (e: Exception) {
                 if (e is CancellationException) {
                     throw e

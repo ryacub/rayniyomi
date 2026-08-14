@@ -30,6 +30,7 @@ import kotlinx.coroutines.sync.withPermit
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.toAnimeUpdate
@@ -124,7 +125,7 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
                                 ) {
                                     val source = sourceManager.get(anime.source) ?: return@withUpdateNotification
                                     try {
-                                        val networkAnime = source.getAnimeDetails(anime.toSAnime())
+                                        val networkAnime = AnimeSourceGateway.details(source, anime.toSAnime())
                                         val updatedAnime = anime
                                             .prepUpdateCover(coverCache, networkAnime, true)
                                             .prepUpdateBackground(backgroundCache, networkAnime, true)

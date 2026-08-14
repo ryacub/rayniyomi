@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.loader
 
 import aniyomi.util.DataSaver
-import aniyomi.util.DataSaver.Companion.getImage
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
@@ -20,6 +19,7 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
+import tachiyomi.data.source.manga.MangaSourceGateway
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.concurrent.PriorityBlockingQueue
@@ -76,7 +76,7 @@ internal class HttpPageLoader(
             if (e is CancellationException) {
                 throw e
             }
-            source.getPageList(chapter.chapter)
+            MangaSourceGateway.pages(source, chapter.chapter)
         }
         return pages.mapIndexed { index, page ->
             // Don't trust sources and use our own indexing
@@ -187,13 +187,13 @@ internal class HttpPageLoader(
         try {
             if (page.imageUrl.isNullOrEmpty()) {
                 page.status = Page.State.LOAD_PAGE
-                page.imageUrl = source.getImageUrl(page)
+                page.imageUrl = MangaSourceGateway.imageUrl(source, page)
             }
             val imageUrl = page.imageUrl!!
 
             if (!chapterCache.isImageInCache(imageUrl)) {
                 page.status = Page.State.DOWNLOAD_IMAGE
-                val imageResponse = source.getImage(page, dataSaver)
+                val imageResponse = MangaSourceGateway.image(source, page, dataSaver::compress)
                 chapterCache.putImageToCache(imageUrl, imageResponse)
             }
 

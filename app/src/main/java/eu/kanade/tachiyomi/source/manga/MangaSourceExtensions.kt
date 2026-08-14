@@ -4,6 +4,7 @@ import android.graphics.drawable.Drawable
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.source.local.entries.manga.isLocal
 import uy.kohesive.injekt.Injekt
@@ -23,10 +24,10 @@ fun MangaSource.getNameForMangaInfo(): String {
     val isInEnabledLanguages = lang in enabledLanguages
     return when {
         // For edge cases where user disables a source they got manga of in their library.
-        hasOneActiveLanguages && !isInEnabledLanguages -> toString()
+        hasOneActiveLanguages && !isInEnabledLanguages -> MangaSourceGateway.displayName(this)
         // Hide the language tag when only one language is used.
         hasOneActiveLanguages && isInEnabledLanguages -> name
-        else -> toString()
+        else -> MangaSourceGateway.displayName(this)
     }
 }
 

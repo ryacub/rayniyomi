@@ -59,7 +59,12 @@ jobs:
           echo "baseline-prof.txt present ($(wc -l < "$ARTIFACT") lines)"
 
       - name: Check format and run unit tests
-        run: ./gradlew spotlessCheck :app:testDebugUnitTest
+        run: ./gradlew spotlessCheck :app:testDebugUnitTest :data:testDebugUnitTest
+
+      - name: Check extension source gateway
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.tests.test_source_gateway
+          PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_source_gateway.py
 
       - name: Build app
         run: ./gradlew assembleStableRelease -Penable-updater

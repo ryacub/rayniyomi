@@ -11,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.withContext
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import kotlin.coroutines.cancellation.CancellationException
 
 class HosterLoader {
@@ -155,7 +156,7 @@ class HosterLoader {
         suspend fun getResolvedVideo(source: AnimeSource?, video: Video): Video? {
             val resolvedVideo = if (source is AnimeHttpSource && !video.initialized) {
                 try {
-                    source.resolveVideo(video)
+                    AnimeSourceGateway.resolveVideo(source, video)
                 } catch (e: Exception) {
                     if (e is CancellationException) {
                         throw e

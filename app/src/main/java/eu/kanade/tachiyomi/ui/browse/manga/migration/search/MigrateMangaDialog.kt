@@ -36,6 +36,7 @@ import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.manga.interactor.SetMangaCategories
 import tachiyomi.domain.entries.manga.model.Manga
@@ -183,7 +184,7 @@ internal class MigrateMangaDialogScreenModel(
         mutableState.update { it.copy(isMigrating = true) }
 
         try {
-            val chapters = source.getChapterList(newManga.toSManga())
+            val chapters = MangaSourceGateway.chapters(source, newManga.toSManga())
 
             migrateMangaInternal(
                 oldSource = prevSource,

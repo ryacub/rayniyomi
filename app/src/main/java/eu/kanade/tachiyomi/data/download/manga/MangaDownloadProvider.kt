@@ -8,6 +8,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.storage.service.StorageManager
@@ -113,7 +114,7 @@ class MangaDownloadProvider(
      * @param source the source to query.
      */
     fun getSourceDirName(source: MangaSource): String {
-        return DiskUtil.buildValidFilename(source.toString())
+        return DiskUtil.buildValidFilename(MangaSourceGateway.displayName(source))
     }
 
     /**

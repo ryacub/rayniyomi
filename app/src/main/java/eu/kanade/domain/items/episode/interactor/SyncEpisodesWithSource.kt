@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadProvider
 import tachiyomi.data.items.episode.EpisodeSanitizer
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.ShouldUpdateDbEpisode
@@ -87,7 +88,7 @@ class SyncEpisodesWithSource(
             // Update metadata from source if necessary.
             if (source is AnimeHttpSource) {
                 val sEpisode = episode.toSEpisode()
-                source.prepareNewEpisode(sEpisode, anime.toSAnime())
+                AnimeSourceGateway.prepareEpisode(source, sEpisode, anime.toSAnime())
                 episode = episode.copyFromSEpisode(sEpisode)
             }
 

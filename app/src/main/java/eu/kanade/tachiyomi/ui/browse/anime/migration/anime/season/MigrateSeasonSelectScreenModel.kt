@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
@@ -65,7 +66,7 @@ class MigrateSeasonSelectScreenModel(
                 config = PagingConfig(pageSize = 25),
                 pagingSourceFactory = {
                     SeasonListPagingSource {
-                        source.getSeasonList(anime.toSAnime())
+                        AnimeSourceGateway.seasons(source, anime.toSAnime())
                     }
                 },
             ).flow.map { pagingData ->

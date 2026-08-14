@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import eu.kanade.tachiyomi.source.CatalogueSource
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -19,19 +20,14 @@ class MangaSourcePagingSourceGuardTest {
 
     private val refresh = PagingSource.LoadParams.Refresh<Long>(null, 1, false)
 
-    private fun pagingSourceThatFails(source: CatalogueSource) =
-        object : SourcePagingSource(source) {
-            override suspend fun requestNextPage(currentPage: Int): Nothing =
-                throw NoSuchMethodError("runBlockingK\$default")
-        }
-
     @Test
     fun `a LinkageError from the source becomes an error result`() {
         val source = mockk<CatalogueSource>(relaxed = true) {
             every { name } returns "Broken Source"
+            coEvery { getPopularManga(any()) } throws NoSuchMethodError("runBlockingK\$default")
         }
 
-        val result = runBlocking { pagingSourceThatFails(source).load(refresh) }
+        val result = runBlocking { SourcePopularPagingSource(source).load(refresh) }
 
         result.shouldBeInstanceOf<PagingSource.LoadResult.Error<Long, *>>()
         val throwable = result.throwable
@@ -44,9 +40,10 @@ class MangaSourcePagingSourceGuardTest {
     fun `an unreadable source name still yields an error result`() {
         val source = mockk<CatalogueSource>(relaxed = true) {
             every { name } throws NoSuchMethodError("name")
+            coEvery { getPopularManga(any()) } throws NoSuchMethodError("runBlockingK\$default")
         }
 
-        val result = runBlocking { pagingSourceThatFails(source).load(refresh) }
+        val result = runBlocking { SourcePopularPagingSource(source).load(refresh) }
 
         result.shouldBeInstanceOf<PagingSource.LoadResult.Error<Long, *>>()
         val throwable = result.throwable

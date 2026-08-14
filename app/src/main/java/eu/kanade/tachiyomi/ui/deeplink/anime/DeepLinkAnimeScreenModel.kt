@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.animesource.online.ResolvableAnimeSource
 import eu.kanade.tachiyomi.animesource.online.UriType
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
@@ -35,14 +36,16 @@ class DeepLinkAnimeScreenModel(
         screenModelScope.launchIO {
             val source = sourceManager.getCatalogueSources()
                 .filterIsInstance<ResolvableAnimeSource>()
-                .firstOrNull { it.getUriType(query) != UriType.Unknown }
+                .firstOrNull { AnimeSourceGateway.uriType(it, query) != UriType.Unknown }
 
-            val anime = source?.getAnime(query)?.let {
+            val anime = source?.let { AnimeSourceGateway.animeFromUri(it, query) }?.let {
                 getAnimeFromSAnime(it, source.id)
             }
 
-            val episode = if (source?.getUriType(query) == UriType.Episode && anime != null) {
-                source.getEpisode(query)?.let { getEpisodeFromSEpisode(it, anime, source) }
+            val episode = if (source != null && AnimeSourceGateway.uriType(source, query) == UriType.Episode &&
+                anime != null
+            ) {
+                AnimeSourceGateway.episodeFromUri(source, query)?.let { getEpisodeFromSEpisode(it, anime, source) }
             } else {
                 null
             }
@@ -65,7 +68,7 @@ class DeepLinkAnimeScreenModel(
         val localEpisode = getEpisodeByUrlAndAnimeId.await(sEpisode.url, anime.id)
 
         return if (localEpisode == null) {
-            val sourceEpisodes = source.getEpisodeList(anime.toSAnime())
+            val sourceEpisodes = AnimeSourceGateway.episodes(source, anime.toSAnime())
             val newEpisodes = syncEpisodesWithSource.await(sourceEpisodes, anime, source, false)
             newEpisodes.find { it.url == sEpisode.url }
         } else {
