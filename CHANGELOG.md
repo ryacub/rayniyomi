@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The reader and player rotation controls now disable on Android 16 large screens, because the system ignores orientation requests there. The app shows a short explanation, and the stored orientation preference remains available for use on smaller screens.
 
 ### Fixed
+- The app no longer crashes when it extracts the dominant color from a cover that was decoded as a hardware bitmap. The extraction now always reads from a software bitmap.
 
 ### Changed
 
