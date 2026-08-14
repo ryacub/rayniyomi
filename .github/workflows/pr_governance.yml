@@ -14,6 +14,20 @@ permissions:
   pull-requests: read
 
 jobs:
+  changelog-placement:
+    name: changelog-placement
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changelog entries land under Unreleased
+        run: |
+          git fetch --no-tags origin "$GITHUB_BASE_REF"
+          python3 scripts/check_changelog_placement.py --base "origin/$GITHUB_BASE_REF"
+
   validate-pr:
     name: validate-pr
     runs-on: ubuntu-24.04
