@@ -11,6 +11,51 @@ from pathlib import Path
 
 
 ACC_FINAL = 0x10
+ACC_SYNTHETIC = 0x1000
+
+# The members that extensions link against at run time.
+#
+# R8 rewrites the app but does not know that extensions exist, so it can change
+# one of these and nothing fails at build time. A debug build cannot show it,
+# because a debug build does not minify. #817 was exactly that: R8 made
+# AnimeHttpSource.getFilterList() final, every extension override became illegal,
+# and no source registered on release builds only.
+#
+# The curated lists below hold the members that #817 touched. The baseline holds
+# the whole surface, so a member nobody remembered to list is covered as well.
+EXPORTED_PREFIXES = (
+    "Leu/kanade/tachiyomi/source/",
+    "Leu/kanade/tachiyomi/animesource/",
+    "Leu/kanade/tachiyomi/network/",
+    "Leu/kanade/tachiyomi/util/",
+)
+
+FLAG_NAMES = (
+    (0x1, "PUBLIC"),
+    (0x2, "PRIVATE"),
+    (0x4, "PROTECTED"),
+    (0x8, "STATIC"),
+    (0x10, "FINAL"),
+    (0x20, "SYNCHRONIZED"),
+    (0x100, "NATIVE"),
+    (0x400, "ABSTRACT"),
+    (0x1000, "SYNTHETIC"),
+)
+
+BASELINE_HEADER = """\
+# Extension-facing ABI baseline. Generated file, do not edit by hand.
+#
+# Each line is one exported member with its access flags. A difference means an
+# installed extension can break, because extensions were built against the
+# previous surface. Access flags are recorded because #817 was a flag change: a
+# method became final, which made every extension override illegal.
+#
+# Regenerate after an intended ABI change, in the same pull request:
+#   ./gradlew assembleStableRelease
+#   ./scripts/check_release_extension_abi.py \\
+#       app/build/outputs/apk/stable/release/app-stable-arm64-v8a-release-unsigned.apk \\
+#       --baseline app/extension-abi-baseline.txt --write-baseline
+"""
 
 REQUIRED_METHODS = {
     "manga source model": [
@@ -423,7 +468,44 @@ def non_final_method_violations(
     return missing_by_class, final_by_class
 
 
-def check_abi(path: Path) -> int:
+def render_flags(flags: int) -> str:
+    names = [name for bit, name in FLAG_NAMES if flags & bit]
+    return " ".join(names) if names else "NONE"
+
+
+def baseline_rows(method_flags: dict[str, int]) -> list[str]:
+    """Return the exported surface as stable, sorted lines.
+
+    Synthetic members are left out. R8 generates their names, for example
+    `access$fetchChapterList$jd`, so they are not stable between builds and would
+    make the check fail for no reason.
+    """
+    return sorted(
+        f"{signature} [{render_flags(flags)}]"
+        for signature, flags in method_flags.items()
+        if signature.startswith(EXPORTED_PREFIXES) and not flags & ACC_SYNTHETIC
+    )
+
+
+def read_baseline(text: str) -> set[str]:
+    return {
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+
+
+def baseline_differences(
+    rows: list[str],
+    baseline_text: str,
+) -> tuple[list[str], list[str]]:
+    """Return the members that the baseline has and the build lost, then the new ones."""
+    current = set(rows)
+    recorded = read_baseline(baseline_text)
+    return sorted(recorded - current), sorted(current - recorded)
+
+
+def check_abi(path: Path, baseline: Path | None = None) -> int:
     methods = collect_defined_methods(path)
     class_flags, method_flags = collect_access_flags(path)
     missing_by_group = {
@@ -448,12 +530,20 @@ def check_abi(path: Path) -> int:
     ]
     missing_non_final_methods, final_methods = non_final_method_violations(method_flags)
 
+    rows = baseline_rows(method_flags)
+    lost: list[str] = []
+    added: list[str] = []
+    if baseline is not None:
+        lost, added = baseline_differences(rows, baseline.read_text(encoding="utf-8"))
+
     if (
         not missing_by_group
         and not missing_classes
         and not final_classes
         and not missing_non_final_methods
         and not final_methods
+        and not lost
+        and not added
     ):
         required_count = sum(len(methods) for methods in REQUIRED_METHODS.values())
         non_final_count = sum(
@@ -464,6 +554,8 @@ def check_abi(path: Path) -> int:
             f"OK: {path} defines {required_count} required extension ABI methods "
             f"and keeps {non_final_count} extension-open methods non-final.",
         )
+        if baseline is not None:
+            print(f"OK: the exported surface matches {baseline} ({len(rows)} members).")
         return 0
 
     print(f"ERROR: {path} does not preserve the required extension ABI.")
@@ -492,6 +584,19 @@ def check_abi(path: Path) -> int:
             print(f"  {class_name}:")
             for signature in signatures:
                 print(f"    - {signature}")
+    if lost or added:
+        print(
+            "\nThe exported surface no longer matches the baseline. An installed "
+            "extension can break.",
+        )
+        for signature in lost:
+            print(f"  - {signature}")
+        for signature in added:
+            print(f"  + {signature}")
+        print(
+            "\nIf the change is intended, regenerate the baseline in this pull "
+            "request with --write-baseline.",
+        )
     return 1
 
 
@@ -500,14 +605,40 @@ def main() -> int:
         description="Verify required source API methods in an optimized Rayniyomi APK.",
     )
     parser.add_argument("apk", type=Path, help="APK or DEX file to inspect")
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        help="Baseline of the exported surface to compare against",
+    )
+    parser.add_argument(
+        "--write-baseline",
+        action="store_true",
+        help="Write the baseline from this APK instead of checking it",
+    )
     args = parser.parse_args()
 
     if not args.apk.is_file():
         print(f"ERROR: file does not exist: {args.apk}", file=sys.stderr)
         return 2
 
+    if args.write_baseline and args.baseline is None:
+        print("ERROR: --write-baseline needs --baseline", file=sys.stderr)
+        return 2
+    if args.baseline is not None and not args.write_baseline and not args.baseline.is_file():
+        print(f"ERROR: baseline does not exist: {args.baseline}", file=sys.stderr)
+        return 2
+
     try:
-        return check_abi(args.apk)
+        if args.write_baseline:
+            _, method_flags = collect_access_flags(args.apk)
+            rows = baseline_rows(method_flags)
+            args.baseline.write_text(
+                BASELINE_HEADER + "\n".join(rows) + "\n",
+                encoding="utf-8",
+            )
+            print(f"OK: wrote {len(rows)} exported members to {args.baseline}")
+            return 0
+        return check_abi(args.apk, args.baseline)
     except (OSError, ValueError, struct.error, IndexError) as error:
         print(f"ERROR: cannot inspect {args.apk}: {error}", file=sys.stderr)
         return 2
