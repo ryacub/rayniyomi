@@ -1,0 +1,99 @@
+package eu.kanade.tachiyomi.ui.library.anime
+
+import tachiyomi.domain.library.model.search.AndNode
+import tachiyomi.domain.library.model.search.EmptyQueryNode
+import tachiyomi.domain.library.model.search.FieldQueryNode
+import tachiyomi.domain.library.model.search.GeneralQueryNode
+import tachiyomi.domain.library.model.search.LibrarySearchField
+import tachiyomi.domain.library.model.search.NotNode
+import tachiyomi.domain.library.model.search.OrNode
+import tachiyomi.domain.library.model.search.QueryNode
+import tachiyomi.domain.library.model.search.isLegacySearchQuery
+import tachiyomi.domain.library.model.search.parseSearchQuery
+import tachiyomi.source.local.entries.anime.LocalAnimeSource
+
+fun QueryNode.matches(item: AnimeLibraryItem): Boolean {
+    return when (this) {
+        is AndNode -> children.all { it.matches(item) }
+        is OrNode -> children.any { it.matches(item) }
+        is NotNode -> !child.matches(item)
+        is EmptyQueryNode -> true
+        is GeneralQueryNode -> matches(item)
+        is FieldQueryNode -> matches(item)
+    }
+}
+
+fun AnimeLibraryItem.matchesQuery(query: String): Boolean = librarySearchMatcher(query)(this)
+
+/**
+ * Builds a matcher for one query. It routes and parses the query once per library
+ * emission instead of once per item.
+ */
+fun librarySearchMatcher(query: String?): (AnimeLibraryItem) -> Boolean {
+    if (query == null) return { true }
+    if (isLegacySearchQuery(query)) return { item -> item.matches(query) }
+    val node = parseSearchQuery(query)
+    return { item -> node.matches(item) }
+}
+
+private fun GeneralQueryNode.matches(item: AnimeLibraryItem): Boolean {
+    val anime = item.libraryAnime.anime
+
+    val match = LibrarySearchField.entries.any { field ->
+        when (field) {
+            LibrarySearchField.TITLE -> anime.title.contains(value, ignoreCase = true)
+            LibrarySearchField.AUTHOR -> anime.author?.contains(value, ignoreCase = true) ?: false
+            LibrarySearchField.ARTIST -> anime.artist?.contains(value, ignoreCase = true) ?: false
+            LibrarySearchField.DESCRIPTION -> anime.description?.contains(value, ignoreCase = true) ?: false
+            LibrarySearchField.GENRE -> anime.genre?.any { it.contains(value, ignoreCase = true) } ?: false
+            LibrarySearchField.SOURCE -> {
+                item.sourceName.contains(value, ignoreCase = true) ||
+                    (value.equals("local", ignoreCase = true) && anime.source == LocalAnimeSource.ID)
+            }
+        }
+    }
+    return if (negated) !match else match
+}
+
+private fun FieldQueryNode.matches(item: AnimeLibraryItem): Boolean {
+    val anime = item.libraryAnime.anime
+
+    val match = when (field) {
+        LibrarySearchField.GENRE -> {
+            if (value.isEmpty()) {
+                anime.genre.isNullOrEmpty()
+            } else {
+                anime.genre?.any { it.contains(value, ignoreCase = true) } ?: false
+            }
+        }
+
+        LibrarySearchField.SOURCE -> {
+            if (value.isEmpty()) {
+                item.sourceName.isEmpty()
+            } else {
+                item.sourceName.contains(value, ignoreCase = true) ||
+                    (value.equals("local", ignoreCase = true) && anime.source == LocalAnimeSource.ID)
+            }
+        }
+
+        else -> {
+            val text = when (field) {
+                LibrarySearchField.TITLE -> anime.title
+                LibrarySearchField.AUTHOR -> anime.author
+                LibrarySearchField.ARTIST -> anime.artist
+                LibrarySearchField.DESCRIPTION -> anime.description
+
+                // unreachable; added here to make the `when` exhaustive
+                LibrarySearchField.GENRE, LibrarySearchField.SOURCE -> error("unreachable")
+            }
+
+            if (value.isEmpty()) {
+                text.isNullOrEmpty()
+            } else {
+                text?.contains(value, ignoreCase = true) ?: false
+            }
+        }
+    }
+
+    return if (negated) !match else match
+}

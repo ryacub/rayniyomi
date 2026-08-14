@@ -31,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 - The launcher icon now supports themed icons on Android 13 and later, so it takes the colors of your wallpaper theme when themed icons are enabled.
+- Library search now supports the operators `&&` (AND), `||` (OR), and `-` (NOT), grouped expressions with parentheses, and double-quoted values. Field filters search by `title`, `author`, `artist`, `description` (or `desc`), `genre` (or `tag`), and `source` (or `src`); the `source:local` value matches local entries. Queries without these markers keep the old behavior, including comma lists, a leading minus, and the `id:` prefix. The new Search help item in the library menu explains the syntax.
 
 ### Improved
 

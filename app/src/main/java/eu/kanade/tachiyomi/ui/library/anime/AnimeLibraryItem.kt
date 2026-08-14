@@ -14,6 +14,8 @@ data class AnimeLibraryItem(
     var sourceLanguage: String = "",
     private val sourceManager: AnimeSourceManager = Injekt.get(),
 ) {
+    val sourceName by lazy { sourceManager.getOrStub(libraryAnime.anime.source).getNameForAnimeInfo() }
+
     /**
      * Checks if a query matches the anime
      *
@@ -21,7 +23,6 @@ data class AnimeLibraryItem(
      * @return true if the anime matches the query, false otherwise.
      */
     fun matches(constraint: String): Boolean {
-        val sourceName by lazy { sourceManager.getOrStub(libraryAnime.anime.source).getNameForAnimeInfo() }
         if (constraint.startsWith("id:", true)) {
             val id = constraint.substringAfter("id:").toLongOrNull()
             return libraryAnime.id == id

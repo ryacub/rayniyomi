@@ -48,6 +48,33 @@ class ExtensionAbiBaselineTest(unittest.TestCase):
 
         self.assertEqual(rows, [])
 
+    def test_ignores_members_of_r8_synthesized_classes(self) -> None:
+        """The class is R8's, so the index moves when unrelated code changes.
+
+        The method itself is an ordinary public interface method and carries no
+        ACC_SYNTHETIC, so only the class name identifies it.
+        """
+        rows = baseline_rows(
+            {
+                "Leu/kanade/tachiyomi/util/system/LocaleHelper$$ExternalSyntheticLambda0;"
+                "->invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;": (
+                    ACC_PUBLIC | ACC_FINAL
+                ),
+            },
+        )
+
+        self.assertEqual(rows, [])
+
+    def test_keeps_kotlin_compiler_generated_classes(self) -> None:
+        """`$$serializer` and `$$inlined` names come from the source, so they are stable."""
+        serializer = (
+            "Leu/kanade/tachiyomi/source/model/Page$$serializer;"
+            "->serialize(Lkotlinx/serialization/encoding/Encoder;)V"
+        )
+        rows = baseline_rows({serializer: ACC_PUBLIC})
+
+        self.assertEqual(rows, [f"{serializer} [PUBLIC]"])
+
     def test_a_matching_build_reports_no_difference(self) -> None:
         rows = baseline_rows({GET_FILTER_LIST: ACC_PUBLIC})
 

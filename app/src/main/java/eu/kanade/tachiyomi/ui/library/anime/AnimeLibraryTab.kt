@@ -34,6 +34,7 @@ import eu.kanade.presentation.entries.components.LibraryBottomActionMenu
 import eu.kanade.presentation.library.DeleteLibraryEntryDialog
 import eu.kanade.presentation.library.anime.AnimeLibraryContent
 import eu.kanade.presentation.library.anime.AnimeLibrarySettingsDialog
+import eu.kanade.presentation.library.components.LibrarySearchHelpDialog
 import eu.kanade.presentation.library.components.LibraryToolbar
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
@@ -144,6 +145,7 @@ data object AnimeLibraryTab : Tab {
                         )
                     },
                     onClickFilter = screenModel::showSettingsDialog,
+                    onClickSearchHelp = screenModel::showSearchHelp,
                     onClickRefresh = {
                         onClickRefresh(
                             state.categories[screenModel.activeCategoryIndex],
@@ -251,6 +253,12 @@ data object AnimeLibraryTab : Tab {
                     onDismissRequest = onDismissRequest,
                     screenModel = settingsScreenModel,
                     category = category,
+                )
+            }
+            is AnimeLibraryScreenModel.Dialog.SearchHelp -> {
+                LibrarySearchHelpDialog(
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = onDismissRequest,
                 )
             }
             is AnimeLibraryScreenModel.Dialog.ChangeCategory -> {
