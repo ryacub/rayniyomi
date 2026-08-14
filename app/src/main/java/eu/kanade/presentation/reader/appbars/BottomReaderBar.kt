@@ -14,6 +14,11 @@ import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +39,7 @@ fun BottomReaderBar(
     onClickReadingMode: () -> Unit,
     orientation: ReaderOrientation,
     onClickOrientation: () -> Unit,
+    orientationControlEnabled: Boolean,
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
     hasTranslation: Boolean,
@@ -60,11 +66,33 @@ fun BottomReaderBar(
             )
         }
 
-        IconButton(onClick = onClickOrientation) {
-            Icon(
-                imageVector = orientation.icon,
-                contentDescription = stringResource(MR.strings.rotation_type),
-            )
+        if (orientationControlEnabled) {
+            IconButton(onClick = onClickOrientation) {
+                Icon(
+                    imageVector = orientation.icon,
+                    contentDescription = stringResource(MR.strings.rotation_type),
+                )
+            }
+        } else {
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    PlainTooltip {
+                        Text(text = stringResource(MR.strings.rotation_not_available_large_screen))
+                    }
+                },
+                state = rememberTooltipState(),
+            ) {
+                IconButton(
+                    onClick = onClickOrientation,
+                    enabled = false,
+                ) {
+                    Icon(
+                        imageVector = orientation.icon,
+                        contentDescription = stringResource(MR.strings.rotation_type),
+                    )
+                }
+            }
         }
 
         IconButton(onClick = onClickCropBorder) {

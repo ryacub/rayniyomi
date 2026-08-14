@@ -529,6 +529,7 @@
     <string name="double_tap_anim_speed_fast">Fast</string>
     <string name="pref_rotation_type">Default rotation</string>
     <string name="rotation_type">Rotation</string>
+    <string name="rotation_not_available_large_screen">Screen rotation is not available on this screen size.</string>
     <string name="rotation_free">Free</string>
     <string name="rotation_portrait">Portrait</string>
     <string name="rotation_reverse_portrait">Reverse portrait</string>

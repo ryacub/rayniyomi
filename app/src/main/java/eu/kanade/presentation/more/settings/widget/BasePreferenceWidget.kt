@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.more.settings.LocalPreferenceHighlighted
 import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
 import kotlinx.coroutines.delay
+import tachiyomi.presentation.core.util.secondaryItemAlpha
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
@@ -43,6 +44,7 @@ internal fun BasePreferenceWidget(
     icon: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     widget: @Composable (() -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     val highlighted = LocalPreferenceHighlighted.current
     val minHeight = LocalPreferenceMinHeight.current
@@ -67,7 +69,11 @@ internal fun BasePreferenceWidget(
         ) {
             if (!title.isNullOrBlank()) {
                 Text(
-                    modifier = Modifier.padding(horizontal = PrefsHorizontalPadding),
+                    modifier = if (enabled) {
+                        Modifier.padding(horizontal = PrefsHorizontalPadding)
+                    } else {
+                        Modifier.padding(horizontal = PrefsHorizontalPadding).secondaryItemAlpha()
+                    },
                     text = title,
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 2,

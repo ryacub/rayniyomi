@@ -25,6 +25,7 @@ fun TextPreferenceWidget(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     widget: @Composable (() -> Unit)? = null,
     onPreferenceClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     BasePreferenceWidget(
         modifier = modifier,
@@ -54,8 +55,9 @@ fun TextPreferenceWidget(
         } else {
             null
         },
-        onClick = onPreferenceClick,
+        onClick = if (enabled) onPreferenceClick else null,
         widget = widget,
+        enabled = enabled,
     )
 }
 
@@ -75,6 +77,12 @@ private fun TextPreferenceWidgetPreview() {
                     title = "Text preference",
                     subtitle = "Text preference summary",
                     onPreferenceClick = {},
+                )
+                TextPreferenceWidget(
+                    title = "Disabled text preference",
+                    subtitle = "Text preference summary",
+                    onPreferenceClick = {},
+                    enabled = false,
                 )
             }
         }

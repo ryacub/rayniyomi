@@ -25,6 +25,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,6 +39,7 @@ import eu.kanade.tachiyomi.ui.player.Sheets
 import eu.kanade.tachiyomi.ui.player.controls.components.ControlsButton
 import eu.kanade.tachiyomi.ui.player.controls.components.CurrentChapter
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import uy.kohesive.injekt.Injekt
@@ -45,6 +51,7 @@ fun BottomLeftPlayerControls(
     currentChapter: Segment?,
     onLockControls: () -> Unit,
     onCycleRotation: () -> Unit,
+    orientationControlEnabled: Boolean,
     onPlaybackSpeedChange: (Float) -> Unit,
     onOpenSheet: (Sheets) -> Unit,
     modifier: Modifier = Modifier,
@@ -59,10 +66,28 @@ fun BottomLeftPlayerControls(
             Icons.Default.LockOpen,
             onClick = onLockControls,
         )
-        ControlsButton(
-            icon = Icons.Default.ScreenRotation,
-            onClick = onCycleRotation,
-        )
+        if (orientationControlEnabled) {
+            ControlsButton(
+                icon = Icons.Default.ScreenRotation,
+                onClick = onCycleRotation,
+            )
+        } else {
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    PlainTooltip {
+                        Text(text = stringResource(MR.strings.rotation_not_available_large_screen))
+                    }
+                },
+                state = rememberTooltipState(),
+            ) {
+                ControlsButton(
+                    icon = Icons.Default.ScreenRotation,
+                    onClick = onCycleRotation,
+                    enabled = false,
+                )
+            }
+        }
         ControlsButton(
             text = stringResource(AYMR.strings.player_speed, playbackSpeed),
             onClick = {
