@@ -58,13 +58,15 @@ class PlayerActivityHostInitOrderTest {
     @Test
     fun `mpv setup failures route through the local initial episode error path`() {
         val source = loadPlayerActivitySource()
-        val setupMpvIdx = source.indexOf("private fun setupPlayerMPV()")
+        val setupMpvIdx = source.indexOf("private suspend fun setupPlayerMPV(): Boolean")
         val catchIdx = source.indexOf("catch (error: Exception)", startIndex = setupMpvIdx)
         val errorPathIdx = source.indexOf("setInitialEpisodeError(error)", startIndex = catchIdx)
+        val falseResultIdx = source.indexOf("return false", startIndex = errorPathIdx)
 
         assertTrue(setupMpvIdx >= 0, "Expected setupPlayerMPV to exist")
         assertTrue(catchIdx > setupMpvIdx, "Expected setupPlayerMPV to catch startup failures locally")
         assertTrue(errorPathIdx > catchIdx, "Expected MPV startup failures to use setInitialEpisodeError")
+        assertTrue(falseResultIdx > errorPathIdx, "Expected MPV startup failures to stop player startup")
     }
 
     @Test
@@ -83,46 +85,138 @@ class PlayerActivityHostInitOrderTest {
     }
 
     /**
-     * The player makes ~190 MPVLib calls and none of them check that mpv is running. That is only
-     * safe while mpv starts inline in onCreate, which is what upstream aniyomi does. Moving the
-     * startup onto a background scope reopens a window in which onNewIntent,
-     * onConfigurationChanged or composition reaches mpv first, and the process aborts on a null
-     * jmethodID rather than reporting anything useful.
+     * The player makes many MPVLib calls that assume a live handle. File preparation can stay on
+     * IO, but the remaining player startup cannot run until mpv is initialized.
      */
     @Test
-    fun `mpv starts inline in onCreate rather than on a background scope`() {
+    fun `player startup continues only after mpv setup succeeds`() {
         val source = loadPlayerActivitySource()
-        val setupIdx = source.indexOf("private fun setupPlayerMPV()")
-        assertTrue(setupIdx >= 0, "Expected setupPlayerMPV to exist")
+        val onCreateIdx = source.indexOf("override fun onCreate")
+        val startupIdx = source.indexOf("private fun startPlayerAfterMpvReady()")
 
-        // Stop at the next declaration, whether or not it is private, so a neighbouring function
-        // that legitimately uses a coroutine scope cannot be read as part of this one.
-        val bodyEnd = listOf("\n    private fun ", "\n    fun ")
-            .mapNotNull { source.indexOf(it, startIndex = setupIdx + 1).takeIf { i -> i >= 0 } }
-            .min()
-        val body = source.substring(setupIdx, bodyEnd)
+        assertTrue(onCreateIdx >= 0, "Expected onCreate to exist")
+        assertTrue(startupIdx > onCreateIdx, "Expected deferred startup helper to exist after onCreate")
 
-        assertTrue(body.contains("player.initialize("), "Expected setupPlayerMPV to initialize the player")
+        val onCreateBody = source.substring(onCreateIdx, startupIdx)
+        val setupIdx = onCreateBody.indexOf("if (!setupPlayerMPV())")
+        val returnIdx = onCreateBody.indexOf("return@launch", startIndex = setupIdx)
+        val continueIdx = onCreateBody.indexOf("startPlayerAfterMpvReady()", startIndex = returnIdx)
+
+        assertTrue(setupIdx >= 0, "onCreate must branch on MPV setup failure")
+        assertTrue(returnIdx > setupIdx, "onCreate must stop startup when MPV setup fails")
         assertTrue(
-            !body.contains("launchIO") && !body.contains("lifecycleScope") && !body.contains("withUIContext"),
-            "setupPlayerMPV must start mpv inline; a background scope lets callers reach mpv first",
+            continueIdx > returnIdx,
+            "player setup and initial intent handling must wait until MPV setup succeeds",
         )
     }
 
     @Test
-    fun `mpv file preparation stays blocking so the caller cannot outrun it`() {
-        val source = loadPlayerSource("PlayerMpvInitializer.kt")
-        val initIdx = source.indexOf("fun initialize(")
-        val body = source.substring(initIdx, source.indexOf("private fun copyUserFiles"))
+    fun `mpv file preparation stays on io and is awaited before player initialize`() {
+        val initializerSource = loadPlayerSource("PlayerMpvInitializer.kt")
+        val initIdx = initializerSource.indexOf("suspend fun initialize(")
+        val initBody = initializerSource.substring(initIdx, initializerSource.indexOf("private fun copyUserFiles"))
 
         assertTrue(initIdx >= 0, "Expected PlayerMpvInitializer.initialize to exist")
+        assertTrue(initBody.contains("withContext(Dispatchers.IO)"), "file preparation must stay off the main thread")
+
+        val activitySource = loadPlayerActivitySource()
+        val setupIdx = activitySource.indexOf("private suspend fun setupPlayerMPV()")
+        val setupBody = activitySource.substring(setupIdx, activitySource.indexOf("fun setupCustomButtons"))
+        val prepareIdx = setupBody.indexOf("mpvInitializer.initialize(")
+        val playerInitIdx = setupBody.indexOf("player.initialize(")
+
+        assertTrue(setupIdx >= 0, "Expected suspend setupPlayerMPV to exist")
+        assertTrue(prepareIdx >= 0, "Expected MPV file preparation in setupPlayerMPV")
+        assertTrue(playerInitIdx > prepareIdx, "player.initialize must run only after file preparation returns")
         assertTrue(
-            !source.substring(0, initIdx).endsWith("suspend "),
-            "initialize must not be suspend; onCreate cannot await it",
+            !setupBody.contains("launchIO") && !setupBody.contains("withUIContext"),
+            "setupPlayerMPV must await preparation directly instead of starting another player race",
+        )
+    }
+
+    @Test
+    fun `setup player mpv does not call mpv lib before player initialize`() {
+        val activitySource = loadPlayerActivitySource()
+        val setupIdx = activitySource.indexOf("private suspend fun setupPlayerMPV()")
+        val setupBody = activitySource.substring(setupIdx, activitySource.indexOf("fun setupCustomButtons"))
+        val playerInitIdx = setupBody.indexOf("player.initialize(")
+        val preInitBody = setupBody.substring(0, playerInitIdx)
+
+        assertTrue(setupIdx >= 0, "Expected setupPlayerMPV to exist")
+        assertTrue(playerInitIdx >= 0, "Expected player.initialize to exist")
+        assertTrue(
+            !preInitBody.contains("MPVLib."),
+            "setupPlayerMPV must not call MPVLib before player.initialize creates the mpv handle",
+        )
+    }
+
+    @Test
+    fun `key events do not touch player state before mpv is ready`() {
+        val source = loadPlayerActivitySource()
+        val keyDownBody = source.functionBody("override fun onKeyDown")
+        val keyUpBody = source.functionBody("override fun onKeyUp")
+
+        assertTrue(
+            keyDownBody.contains("if (!mpvReady)") &&
+                keyDownBody.indexOf("return super.onKeyDown") < keyDownBody.indexOf("viewModel.changeVolumeBy"),
+            "onKeyDown must return before ViewModel or MPV access when mpv is not ready",
         )
         assertTrue(
-            !body.contains("withContext"),
-            "initialize must not hand its work to another dispatcher",
+            keyUpBody.contains("if (!mpvReady || event == null)") &&
+                keyUpBody.indexOf("return super.onKeyUp") < keyUpBody.indexOf("player.onKey(event)"),
+            "onKeyUp must return before player key handling when mpv is not ready",
+        )
+    }
+
+    @Test
+    fun `custom button script setup waits until mpv is ready`() {
+        val source = loadPlayerActivitySource()
+        val setupBody = source.functionBody("fun setupCustomButtons")
+
+        assertTrue(setupBody.contains("pendingCustomButtons = buttons"), "buttons must be queued before mpv is ready")
+        assertTrue(
+            setupBody.indexOf("if (!mpvReady)") < setupBody.indexOf("viewModel.primaryButton"),
+            "setupCustomButtons must not create the ViewModel before mpv is ready",
+        )
+    }
+
+    @Test
+    fun `stop and save state do not create view model before mpv is ready`() {
+        val source = loadPlayerActivitySource()
+        val stopBody = source.functionBody("override fun onStop")
+        val saveBody = source.functionBody("override fun onSaveInstanceState")
+
+        assertTrue(
+            stopBody.contains("if (!mpvReady)") &&
+                stopBody.indexOf("return") < stopBody.indexOf("playerPreferences"),
+            "onStop must return before preference access creates the ViewModel",
+        )
+        assertTrue(
+            saveBody.contains("if (mpvReady && !isChangingConfigurations)"),
+            "onSaveInstanceState must not create the ViewModel before mpv is ready",
+        )
+    }
+
+    @Test
+    fun `player view model construction does not read mpv state`() {
+        val source = loadPlayerViewModelSource()
+        val constructorIdx = source.indexOf("class PlayerViewModel")
+        val stateInitEnd = source.indexOf("// Pair(startingPosition, seekAmount)")
+        val propertyInitializers = source.substring(constructorIdx, stateInitEnd)
+
+        assertTrue(constructorIdx >= 0, "Expected PlayerViewModel to exist")
+        assertTrue(stateInitEnd > constructorIdx, "Expected player state initializer block to exist")
+        assertTrue(
+            !propertyInitializers.contains("MPVLib.getPropertyString(\"hwdec\")"),
+            "PlayerViewModel construction must not read hwdec from MPVLib",
+        )
+        assertTrue(
+            !propertyInitializers.contains("MPVLib.getPropertyInt(\"volume\")"),
+            "PlayerViewModel construction must not read volume from MPVLib",
+        )
+        assertTrue(
+            !propertyInitializers.contains("MPVLib.getPropertyInt(\"volume-max\")"),
+            "PlayerViewModel construction must not read volume-max from MPVLib",
         )
     }
 
@@ -149,5 +243,25 @@ class PlayerActivityHostInitOrderTest {
             )
         }
         return String(Files.readAllBytes(sourcePath), UTF_8)
+    }
+
+    private fun String.functionBody(signature: String): String {
+        val start = indexOf(signature)
+        assertTrue(start >= 0, "Expected function signature to exist: $signature")
+
+        val bodyStart = indexOf("{", startIndex = start)
+        assertTrue(bodyStart >= 0, "Expected function body to exist: $signature")
+
+        var depth = 0
+        for (index in bodyStart until length) {
+            when (this[index]) {
+                '{' -> depth += 1
+                '}' -> {
+                    depth -= 1
+                    if (depth == 0) return substring(bodyStart, index + 1)
+                }
+            }
+        }
+        throw IllegalArgumentException("Function body not closed: $signature")
     }
 }

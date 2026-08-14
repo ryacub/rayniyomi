@@ -136,7 +136,7 @@ class PlayerMpvInitializerTest {
             mpvUserFilesEnabled = false,
         )
 
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
         // Verify that openOutputStream was called (which is used internally by writeText)
         verify { mockConfFile.openOutputStream() }
         verify { mockInputFile.openOutputStream() }
@@ -166,7 +166,7 @@ class PlayerMpvInitializerTest {
         every { mockAssets.open(any(), any()) } answers { ByteArrayInputStream(ByteArray(0)) }
 
         val result = initializer.initialize("", "", false)
-        assertEquals(expectedPath, result)
+        assertEquals(expectedPath, result.configDir)
     }
 
     @Test
@@ -262,7 +262,7 @@ class PlayerMpvInitializerTest {
             { ByteArrayInputStream(ByteArray(0)) }
 
         val result = initializer.initialize("", "", mpvUserFilesEnabled = true)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
     }
 
     @Test
@@ -306,7 +306,7 @@ class PlayerMpvInitializerTest {
             { ByteArrayInputStream(ByteArray(0)) }
 
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
         verify { mockScriptsDir.delete() }
         verify { mockScriptOptsDir.delete() }
         verify { mockShadersDir.delete() }
@@ -394,7 +394,7 @@ class PlayerMpvInitializerTest {
         every { storageManager.getShadersDirectory() } returns null
 
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
     }
 
     @Test
@@ -438,7 +438,7 @@ class PlayerMpvInitializerTest {
         every { storageManager.getShadersDirectory() } returns null
 
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
     }
 
     @Test
@@ -476,7 +476,7 @@ class PlayerMpvInitializerTest {
 
         // Should not throw, should handle gracefully
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
     }
 
     @Test
@@ -517,7 +517,7 @@ class PlayerMpvInitializerTest {
 
         // Should not crash, should skip subfont.ttf and continue to process cacert.pem
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
 
         // Verify that cacert.pem was still processed (openOutputStream was called on it)
         verify { mockCacertFile.openOutputStream() }
@@ -526,7 +526,7 @@ class PlayerMpvInitializerTest {
     // ==================== Font Sync Integration Tests ====================
 
     @Test
-    fun `syncFontsDirectory sets MPV font properties via proxy`() = runTest {
+    fun `initialize returns font directory path without setting MPV font properties`() = runTest {
         val mockFilesDir = createMockUniFile("/data/files", isFile = false)
         val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
         val mockConfFile = createMockUniFile("/data/files/mpv/mpv.conf")
@@ -560,7 +560,16 @@ class PlayerMpvInitializerTest {
         every { mockAssets.open("cacert.pem", AssetManager.ACCESS_STREAMING) } answers
             { ByteArrayInputStream(ByteArray(0)) }
 
-        initializer.initialize("", "", mpvUserFilesEnabled = false)
+        val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
+
+        assertEquals("/data/files/mpv", result.configDir)
+        assertEquals("/data/files/mpv/fonts", result.fontsDir)
+        verify(exactly = 0) { mpvLibProxy.setPropertyString(any(), any()) }
+    }
+
+    @Test
+    fun `applyFontsDirectory sets MPV font properties via proxy`() {
+        initializer.applyFontsDirectory("/data/files/mpv/fonts")
 
         verify {
             mpvLibProxy.setPropertyString("sub-fonts-dir", "/data/files/mpv/fonts")
@@ -650,7 +659,7 @@ class PlayerMpvInitializerTest {
 
         // Should not throw or fail, just skip stale deletion
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
     }
 
     // ==================== Feature 1: Safe UniFile Operations in initialize ====================
@@ -763,7 +772,8 @@ class PlayerMpvInitializerTest {
 
         // Should not crash when fontsDirectory is null; should not call setPropertyString
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
+        assertEquals(null, result.fontsDir)
 
         verify(exactly = 0) { mpvLibProxy.setPropertyString(any(), any()) }
     }
@@ -806,13 +816,14 @@ class PlayerMpvInitializerTest {
 
         // Should not crash when filePath is null; should not call setPropertyString
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
+        assertEquals(null, result.fontsDir)
 
         verify(exactly = 0) { mpvLibProxy.setPropertyString(any(), any()) }
     }
 
     @Test
-    fun `syncFontsDirectory_validFontsDirectory_setsPropertyStrings`() = runTest {
+    fun `syncFontsDirectory_validFontsDirectory_returnsFontPath`() = runTest {
         val mockFilesDir = createMockUniFile("/data/files", isFile = false)
         val mockMpvDir = createMockUniFile("/data/files/mpv", isFile = false)
         val mockConfFile = createMockUniFile("/data/files/mpv/mpv.conf")
@@ -848,12 +859,10 @@ class PlayerMpvInitializerTest {
 
         // Happy path: fonts dir is valid, filePath is non-null
         val result = initializer.initialize("", "", mpvUserFilesEnabled = false)
-        assertEquals("/data/files/mpv", result)
+        assertEquals("/data/files/mpv", result.configDir)
+        assertEquals("/data/files/mpv/fonts", result.fontsDir)
 
-        verify {
-            mpvLibProxy.setPropertyString("sub-fonts-dir", "/data/files/mpv/fonts")
-            mpvLibProxy.setPropertyString("osd-fonts-dir", "/data/files/mpv/fonts")
-        }
+        verify(exactly = 0) { mpvLibProxy.setPropertyString(any(), any()) }
     }
 
     // ==================== Custom Buttons Tests ====================

@@ -194,7 +194,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
     private val _isLoadingEpisode = MutableStateFlow(false)
     val isLoadingEpisode = _isLoadingEpisode.asStateFlow()
 
-    private val _currentDecoder = MutableStateFlow(getDecoderFromValue(MPVLib.getPropertyString("hwdec")))
+    private val _currentDecoder = MutableStateFlow(Decoder.SW)
     val currentDecoder = _currentDecoder.asStateFlow()
 
     val mediaTitle = MutableStateFlow("")
@@ -292,8 +292,8 @@ class PlayerViewModel @JvmOverloads internal constructor(
         }.getOrElse { 0f },
     )
     val currentVolume = MutableStateFlow(activity.audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
-    val currentMPVVolume = MutableStateFlow(MPVLib.getPropertyInt("volume"))
-    var volumeBoostCap: Int = MPVLib.getPropertyInt("volume-max")
+    val currentMPVVolume = MutableStateFlow(100)
+    var volumeBoostCap: Int = 0
 
     // Pair(startingPosition, seekAmount)
     val gestureSeekAmount = MutableStateFlow<Pair<Int, Int>?>(null)

@@ -152,6 +152,9 @@ class PlayerActivity : BaseActivity() {
 
     private var audioFocusRequest: AudioFocusRequestCompat? = null
     private var restoreAudioFocus: () -> Unit = {}
+    private var mpvReady = false
+    private var pendingPlayerIntent: Intent? = null
+    private var pendingCustomButtons: List<CustomButton>? = null
 
     private var pipRect: Rect? = null
     val isPipSupportedAndEnabled by lazy {
@@ -193,7 +196,16 @@ class PlayerActivity : BaseActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (!mpvReady) {
+            pendingPlayerIntent = intent
+            setIntent(intent)
+            return
+        }
 
+        handlePlayerIntent(intent)
+    }
+
+    private fun handlePlayerIntent(intent: Intent) {
         val animeId = intent.extras?.getLong("animeId") ?: -1
         val episodeId = intent.extras?.getLong("episodeId") ?: -1
         val hostList = intent.extras?.getString("hostList") ?: ""
@@ -249,6 +261,16 @@ class PlayerActivity : BaseActivity() {
         castManager.resetForNewActivity()
         super.onCreate(savedInstanceState)
         playerView = LayoutInflater.from(this).inflate(R.layout.player_surface, null, false) as AniyomiMPVView
+
+        lifecycleScope.launch {
+            if (!setupPlayerMPV()) {
+                return@launch
+            }
+            startPlayerAfterMpvReady()
+        }
+    }
+
+    private fun startPlayerAfterMpvReady() {
         setContent {
             PlayerHostContent(
                 playerView = playerView,
@@ -269,7 +291,7 @@ class PlayerActivity : BaseActivity() {
         }
         rootView = findViewById(android.R.id.content)
 
-        setupPlayerMPV()
+        applyPlayerWindowState()
         setupPlayerAudio()
         setupMediaSession()
         setupPlayerOrientation()
@@ -330,11 +352,14 @@ class PlayerActivity : BaseActivity() {
             }
             .launchIn(lifecycleScope)
 
-        onNewIntent(this.intent)
+        handlePlayerIntent(pendingPlayerIntent ?: this.intent)
+        pendingPlayerIntent = null
     }
 
     override fun onDestroy() {
-        player.isExiting = true
+        if (::playerView.isInitialized) {
+            player.isExiting = true
+        }
 
         audioFocusRequest?.let {
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, it)
@@ -351,9 +376,11 @@ class PlayerActivity : BaseActivity() {
             noisyReceiver.initialized = false
         }
 
-        MPVLib.removeLogObserver(playerObserver)
-        MPVLib.removeObserver(playerObserver)
-        player.destroy()
+        if (mpvReady) {
+            MPVLib.removeLogObserver(playerObserver)
+            MPVLib.removeObserver(playerObserver)
+            player.destroy()
+        }
 
         castManager.cleanup()
 
@@ -361,6 +388,11 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onPause() {
+        if (!mpvReady) {
+            super.onPause()
+            return
+        }
+
         viewModel.saveCurrentEpisodeWatchingProgress()
 
         if (isInPictureInPictureMode) {
@@ -380,13 +412,18 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onStop() {
+        if (!mpvReady) {
+            super.onStop()
+            return
+        }
+
         window.attributes.screenBrightness.let {
             if (playerPreferences.rememberPlayerBrightness().get() && it != -1f) {
                 playerPreferences.playerBrightnessValue().set(it)
             }
         }
 
-        if (isInPictureInPictureMode && powerManager.isInteractive) {
+        if (mpvReady && isInPictureInPictureMode && powerManager.isInteractive) {
             viewModel.deletePendingEpisodes()
         }
 
@@ -397,6 +434,8 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onUserLeaveHint() {
+        if (!mpvReady) return
+
         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
             enterPictureInPictureMode()
         }
@@ -405,6 +444,12 @@ class PlayerActivity : BaseActivity() {
 
     override fun onStart() {
         super.onStart()
+        if (!mpvReady || !::rootView.isInitialized) return
+
+        applyPlayerWindowState()
+    }
+
+    private fun applyPlayerWindowState() {
         castManager.registerActivity()
         castManager.getRemoteMediaClient()?.registerCallback(castClientCallback)
         setPictureInPictureParams(createPipParams())
@@ -439,40 +484,49 @@ class PlayerActivity : BaseActivity() {
     }
 
     private fun executeMPVCommand(commands: Array<String>) {
-        if (!player.isExiting) {
+        if (mpvReady && !player.isExiting) {
             MPVLib.command(commands)
         }
     }
 
-    private fun setupPlayerMPV() {
+    private suspend fun setupPlayerMPV(): Boolean {
         val logLevel = if (networkPreferences.verboseLogging().get()) "info" else "warn"
 
-        // Inline, as upstream does it. Every MPVLib call in the player assumes a live handle and
-        // none of them check, so mpv has to be up before onCreate returns and lets onNewIntent,
-        // onConfigurationChanged or composition run.
         try {
-            val configDir = mpvInitializer.initialize(
+            val setup = mpvInitializer.initialize(
                 mpvConf = advancedPlayerPreferences.mpvConf().get(),
                 mpvInput = advancedPlayerPreferences.mpvInput().get(),
                 mpvUserFilesEnabled = advancedPlayerPreferences.mpvUserFiles().get(),
             )
 
-            MPVLib.setOptionString("sub-ass-force-margins", "yes")
-            MPVLib.setOptionString("sub-use-margins", "yes")
-
             player.initialize(
-                configDir = configDir,
+                configDir = setup.configDir,
                 cacheDir = applicationContext.cacheDir.path,
                 logLvl = logLevel,
             )
+            mpvReady = true
+            setup.fontsDir?.let { mpvInitializer.applyFontsDirectory(it) }
             MPVLib.addLogObserver(playerObserver)
             MPVLib.addObserver(playerObserver)
+            pendingCustomButtons?.let { buttons ->
+                pendingCustomButtons = null
+                setupCustomButtons(buttons)
+            }
+            return true
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             setInitialEpisodeError(error)
+            return false
         }
     }
 
     fun setupCustomButtons(buttons: List<CustomButton>) {
+        if (!mpvReady) {
+            pendingCustomButtons = buttons
+            return
+        }
+
         lifecycleScope.launchIO {
             val primaryButtonId = viewModel.primaryButton.value?.id ?: 0L
             mpvInitializer.setupCustomButtons(buttons, primaryButtonId)
@@ -530,6 +584,11 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onResume() {
+        if (!mpvReady) {
+            super.onResume()
+            return
+        }
+
         if (!player.isExiting) {
             super.onResume()
             return
@@ -546,6 +605,11 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
+        if (!mpvReady) {
+            super.onConfigurationChanged(newConfig)
+            return
+        }
+
         if (!isInPictureInPictureMode) {
             viewModel.changeVideoAspect(playerPreferences.aspectState().get())
         } else {
@@ -666,6 +730,9 @@ class PlayerActivity : BaseActivity() {
 
     fun createPipParams(): PictureInPictureParams {
         val builder = PictureInPictureParams.Builder()
+        if (!mpvReady) {
+            return builder.build()
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val anime = viewModel.currentAnime.value
             val episode = viewModel.currentEpisode.value
@@ -700,6 +767,11 @@ class PlayerActivity : BaseActivity() {
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        if (!mpvReady) {
+            super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+            return
+        }
+
         if (!isInPictureInPictureMode) {
             pipReceiver?.let {
                 unregisterReceiver(pipReceiver)
@@ -742,6 +814,10 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (!mpvReady) {
+            return super.onKeyDown(keyCode, event)
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 viewModel.changeVolumeBy(1)
@@ -769,7 +845,11 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
-        if (player.onKey(event!!)) return true
+        if (!mpvReady || event == null) {
+            return super.onKeyUp(keyCode, event)
+        }
+
+        if (player.onKey(event)) return true
         return super.onKeyUp(keyCode, event)
     }
 
@@ -896,7 +976,7 @@ class PlayerActivity : BaseActivity() {
     // ==== END MPVKT ====
 
     override fun onSaveInstanceState(outState: Bundle) {
-        if (!isChangingConfigurations) {
+        if (mpvReady && !isChangingConfigurations) {
             viewModel.onSaveInstanceStateNonConfigurationChange()
         }
         super.onSaveInstanceState(outState)

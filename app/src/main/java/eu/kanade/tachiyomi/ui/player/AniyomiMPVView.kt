@@ -127,6 +127,9 @@ class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(c
         }
         MPVLib.setOptionString("msg-level", "all=" + if (networkPreferences.verboseLogging().get()) "v" else "warn")
 
+        MPVLib.setOptionString("sub-ass-force-margins", "yes")
+        MPVLib.setOptionString("sub-use-margins", "yes")
+
         MPVLib.setPropertyBoolean("keep-open", true)
         MPVLib.setPropertyBoolean("input-default-bindings", true)
 
