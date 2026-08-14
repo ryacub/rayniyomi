@@ -86,6 +86,7 @@ import eu.kanade.tachiyomi.util.lang.byteSize
 import eu.kanade.tachiyomi.util.lang.takeBytes
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.cacheImageDir
+import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import eu.kanade.tachiyomi.util.system.toast
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.Utils
@@ -691,6 +692,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
     }
 
     fun cycleScreenRotations() {
+        if (!honorsOrientationRequests(activity.resources.configuration)) return
         activity.requestedOrientation = when (activity.requestedOrientation) {
             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
