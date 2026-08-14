@@ -55,7 +55,9 @@ class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
                 advance()
             }
 
-            if (negated) {
+            // Negating an empty group would match nothing and blank the library, which happens
+            // while a user is still typing "-(". An empty group stays matches-all either way.
+            if (negated && subTree !is EmptyQueryNode) {
                 return NotNode(subTree)
             }
             return subTree
@@ -64,7 +66,7 @@ class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
         return when (val nextToken = advance()) {
             is LibrarySearchLexer.Token.General -> GeneralQueryNode(nextToken.value, negated)
             is LibrarySearchLexer.Token.Field -> {
-                MangaField.fromString(nextToken.field)?.let {
+                LibrarySearchField.fromString(nextToken.field)?.let {
                     FieldQueryNode(it, nextToken.value, negated)
                 } ?: GeneralQueryNode("${nextToken.field}:${nextToken.value}", negated)
             }

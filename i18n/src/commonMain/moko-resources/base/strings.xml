@@ -89,7 +89,7 @@
     <string name="action_delete">Delete</string>
     <string name="action_update_library">Update library</string>
     <string name="library_search_help">Library search help</string>
-    <string name="library_search_help_text">Use these operators to build a query:\n- &amp;&amp; means AND\n- || means OR\n- - means NOT\n- ( ) groups a query\n- " " keeps a value with spaces together\n- Put spaces around &amp;&amp; and ||\n\nFields:\n- title:\n- author:\n- artist:\n- description: or desc:\n- genre: or tag:\n- source: or src:\n\nExamples: genre:action &amp;&amp; -desc:ecchi\n\nA query without operators keeps the old behavior. Comma lists and a leading minus still search source and genre. A query that starts with id: matches the exact entry id.</string>
+    <string name="library_search_help_text">Use these operators to build a query:\n- &amp;&amp; means AND\n- || means OR\n- - means NOT\n- ( ) groups a query\n- \" \" keeps a value with spaces together\n- Put spaces around &amp;&amp; and ||\n\nFields:\n- title:\n- author:\n- artist:\n- description: or desc:\n- genre: or tag:\n- source: or src:\n\nExamples: genre:action &amp;&amp; -desc:ecchi\n\nA query without operators keeps the old behavior. Comma lists and a leading minus still search source and genre. A query that starts with id: matches the exact entry id.</string>
     <string name="action_enable_all">Enable all</string>
     <string name="action_disable_all">Disable all</string>
     <string name="action_edit">Edit</string>

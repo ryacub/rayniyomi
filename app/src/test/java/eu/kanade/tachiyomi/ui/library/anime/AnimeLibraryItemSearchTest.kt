@@ -223,6 +223,14 @@ class AnimeLibraryItemSearchTest {
         assertTrue(item.matchesQuery("((((&&"))
     }
 
+    @Test
+    fun `a half-typed negated group does not blank the library`() {
+        val item = item(anime(title = "Naruto"))
+        assertTrue(item.matchesQuery("title:naruto && -("))
+        assertTrue(item.matchesQuery("title:naruto && -()"))
+        assertFalse(item.matchesQuery("title:naruto && -(naruto"))
+    }
+
     private fun anime(
         title: String = "Naruto",
         author: String? = "Masashi Kishimoto",

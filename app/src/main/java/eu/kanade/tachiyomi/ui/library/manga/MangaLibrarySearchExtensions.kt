@@ -4,7 +4,7 @@ import tachiyomi.domain.library.model.search.AndNode
 import tachiyomi.domain.library.model.search.EmptyQueryNode
 import tachiyomi.domain.library.model.search.FieldQueryNode
 import tachiyomi.domain.library.model.search.GeneralQueryNode
-import tachiyomi.domain.library.model.search.MangaField
+import tachiyomi.domain.library.model.search.LibrarySearchField
 import tachiyomi.domain.library.model.search.NotNode
 import tachiyomi.domain.library.model.search.OrNode
 import tachiyomi.domain.library.model.search.QueryNode
@@ -23,13 +23,7 @@ fun QueryNode.matches(item: MangaLibraryItem): Boolean {
     }
 }
 
-fun MangaLibraryItem.matchesQuery(query: String): Boolean {
-    return if (isLegacySearchQuery(query)) {
-        matches(query)
-    } else {
-        parseSearchQuery(query).matches(this)
-    }
-}
+fun MangaLibraryItem.matchesQuery(query: String): Boolean = librarySearchMatcher(query)(this)
 
 /**
  * Builds a matcher for one query. It routes and parses the query once per library
@@ -45,14 +39,14 @@ fun librarySearchMatcher(query: String?): (MangaLibraryItem) -> Boolean {
 private fun GeneralQueryNode.matches(item: MangaLibraryItem): Boolean {
     val manga = item.libraryManga.manga
 
-    val match = MangaField.entries.any { field ->
+    val match = LibrarySearchField.entries.any { field ->
         when (field) {
-            MangaField.TITLE -> manga.title.contains(value, ignoreCase = true)
-            MangaField.AUTHOR -> manga.author?.contains(value, ignoreCase = true) ?: false
-            MangaField.ARTIST -> manga.artist?.contains(value, ignoreCase = true) ?: false
-            MangaField.DESCRIPTION -> manga.description?.contains(value, ignoreCase = true) ?: false
-            MangaField.GENRE -> manga.genre?.any { it.contains(value, ignoreCase = true) } ?: false
-            MangaField.SOURCE -> {
+            LibrarySearchField.TITLE -> manga.title.contains(value, ignoreCase = true)
+            LibrarySearchField.AUTHOR -> manga.author?.contains(value, ignoreCase = true) ?: false
+            LibrarySearchField.ARTIST -> manga.artist?.contains(value, ignoreCase = true) ?: false
+            LibrarySearchField.DESCRIPTION -> manga.description?.contains(value, ignoreCase = true) ?: false
+            LibrarySearchField.GENRE -> manga.genre?.any { it.contains(value, ignoreCase = true) } ?: false
+            LibrarySearchField.SOURCE -> {
                 item.sourceName.contains(value, ignoreCase = true) ||
                     (value.equals("local", ignoreCase = true) && manga.source == LocalMangaSource.ID)
             }
@@ -65,7 +59,7 @@ private fun FieldQueryNode.matches(item: MangaLibraryItem): Boolean {
     val manga = item.libraryManga.manga
 
     val match = when (field) {
-        MangaField.GENRE -> {
+        LibrarySearchField.GENRE -> {
             if (value.isEmpty()) {
                 manga.genre.isNullOrEmpty()
             } else {
@@ -73,7 +67,7 @@ private fun FieldQueryNode.matches(item: MangaLibraryItem): Boolean {
             }
         }
 
-        MangaField.SOURCE -> {
+        LibrarySearchField.SOURCE -> {
             if (value.isEmpty()) {
                 item.sourceName.isEmpty()
             } else {
@@ -84,13 +78,13 @@ private fun FieldQueryNode.matches(item: MangaLibraryItem): Boolean {
 
         else -> {
             val text = when (field) {
-                MangaField.TITLE -> manga.title
-                MangaField.AUTHOR -> manga.author
-                MangaField.ARTIST -> manga.artist
-                MangaField.DESCRIPTION -> manga.description
+                LibrarySearchField.TITLE -> manga.title
+                LibrarySearchField.AUTHOR -> manga.author
+                LibrarySearchField.ARTIST -> manga.artist
+                LibrarySearchField.DESCRIPTION -> manga.description
 
                 // unreachable; added here to make the `when` exhaustive
-                MangaField.GENRE, MangaField.SOURCE -> error("unreachable")
+                LibrarySearchField.GENRE, LibrarySearchField.SOURCE -> error("unreachable")
             }
 
             if (value.isEmpty()) {

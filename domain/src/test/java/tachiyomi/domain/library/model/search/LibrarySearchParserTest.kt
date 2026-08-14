@@ -52,18 +52,28 @@ class LibrarySearchParserTest {
         // NotNode wraps only parenthesized groups.
         QueryNode.from("-a") shouldBe GeneralQueryNode("a", true)
         QueryNode.from("--a") shouldBe GeneralQueryNode("a", false)
-        QueryNode.from("-genre:comedy") shouldBe FieldQueryNode(MangaField.GENRE, "comedy", true)
+        QueryNode.from("-genre:comedy") shouldBe FieldQueryNode(LibrarySearchField.GENRE, "comedy", true)
         QueryNode.from("-(a || b)") shouldBe NotNode(
             OrNode(listOf(GeneralQueryNode("a", false), GeneralQueryNode("b", false))),
         )
     }
 
     @Test
+    fun `a negated empty group stays matches-all`() {
+        // A NotNode over an empty group would match nothing and blank the library while the
+        // user is still typing "-(".
+        QueryNode.from("-(") shouldBe EmptyQueryNode
+        QueryNode.from("-()") shouldBe EmptyQueryNode
+        QueryNode.from("title:a && -(") shouldBe FieldQueryNode(LibrarySearchField.TITLE, "a", false)
+        QueryNode.from("title:a && -()") shouldBe FieldQueryNode(LibrarySearchField.TITLE, "a", false)
+    }
+
+    @Test
     fun `known field prefixes become field nodes`() {
-        QueryNode.from("genre:action") shouldBe FieldQueryNode(MangaField.GENRE, "action", false)
-        QueryNode.from("tag:action") shouldBe FieldQueryNode(MangaField.GENRE, "action", false)
-        QueryNode.from("desc:foo") shouldBe FieldQueryNode(MangaField.DESCRIPTION, "foo", false)
-        QueryNode.from("title:\"one piece\"") shouldBe FieldQueryNode(MangaField.TITLE, "one piece", false)
+        QueryNode.from("genre:action") shouldBe FieldQueryNode(LibrarySearchField.GENRE, "action", false)
+        QueryNode.from("tag:action") shouldBe FieldQueryNode(LibrarySearchField.GENRE, "action", false)
+        QueryNode.from("desc:foo") shouldBe FieldQueryNode(LibrarySearchField.DESCRIPTION, "foo", false)
+        QueryNode.from("title:\"one piece\"") shouldBe FieldQueryNode(LibrarySearchField.TITLE, "one piece", false)
     }
 
     @Test

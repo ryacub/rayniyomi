@@ -1,6 +1,6 @@
 package tachiyomi.domain.library.model.search
 
-enum class MangaField(vararg val aliases: String) {
+enum class LibrarySearchField(vararg val aliases: String) {
     TITLE("title"),
     AUTHOR("author"),
     ARTIST("artist"),
@@ -14,7 +14,7 @@ enum class MangaField(vararg val aliases: String) {
             field.aliases.map { it.lowercase() to field }
         }.toMap()
 
-        fun fromString(value: String): MangaField? = lookup[value.lowercase()]
+        fun fromString(value: String): LibrarySearchField? = lookup[value.lowercase()]
     }
 }
 
@@ -42,4 +42,4 @@ object EmptyQueryNode : QueryNode
 
 data class GeneralQueryNode(val value: String, val negated: Boolean) : QueryNode
 
-data class FieldQueryNode(val field: MangaField, val value: String, val negated: Boolean) : QueryNode
+data class FieldQueryNode(val field: LibrarySearchField, val value: String, val negated: Boolean) : QueryNode
