@@ -473,17 +473,36 @@ def render_flags(flags: int) -> str:
     return " ".join(names) if names else "NONE"
 
 
+def is_synthetic_signature(signature: str, flags: int) -> bool:
+    """Report whether a member is a compiler artifact rather than exported API.
+
+    Two forms exist and only one carries ACC_SYNTHETIC. R8 also emits whole
+    classes, such as `LocaleHelper$$ExternalSyntheticLambda0`, whose members are
+    ordinary public interface methods with no synthetic flag. Those class names
+    hold an index that R8 assigns per class, so an unrelated change elsewhere
+    renumbers or drops one and fails the check for no reason. Match them by name.
+
+    Kotlin's own `$$serializer` and `$$inlined` classes are named by the compiler
+    from the source, so they stay stable and remain part of the surface.
+    """
+    if flags & ACC_SYNTHETIC:
+        return True
+    class_name = signature.split(";->", 1)[0]
+    return "$$ExternalSynthetic" in class_name
+
+
 def baseline_rows(method_flags: dict[str, int]) -> list[str]:
     """Return the exported surface as stable, sorted lines.
 
     Synthetic members are left out. R8 generates their names, for example
     `access$fetchChapterList$jd`, so they are not stable between builds and would
-    make the check fail for no reason.
+    make the check fail for no reason. See [is_synthetic_signature].
     """
     return sorted(
         f"{signature} [{render_flags(flags)}]"
         for signature, flags in method_flags.items()
-        if signature.startswith(EXPORTED_PREFIXES) and not flags & ACC_SYNTHETIC
+        if signature.startswith(EXPORTED_PREFIXES)
+        and not is_synthetic_signature(signature, flags)
     )
 
 
