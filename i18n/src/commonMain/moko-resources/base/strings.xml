@@ -930,9 +930,9 @@
     <string name="relative_time_span_never">Never</string>
     <string name="action_view_upcoming">View Upcoming Updates</string>
     <string name="pref_filter_update_categories_details">Updates in excluded categories will not be shown even if they are also in any included categories.</string>
-    <string name="filter_included">Included</string>
-    <string name="filter_excluded">Excluded</string>
-    <string name="filter_not_filtered">Not filtered</string>
+    <string name="updates_filter_state_included">Included</string>
+    <string name="updates_filter_state_excluded">Excluded</string>
+    <string name="updates_filter_state_not_filtered">Not filtered</string>
 
     <!-- Upcoming -->
     <string name="upcoming_guide">Upcoming Guide</string>

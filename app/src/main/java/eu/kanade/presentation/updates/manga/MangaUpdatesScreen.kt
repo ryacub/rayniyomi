@@ -35,6 +35,7 @@ fun MangaUpdateScreen(
     state: MangaUpdatesScreenModel.State,
     snackbarHostState: SnackbarHostState,
     lastUpdated: Long,
+    hasActiveFilters: Boolean,
     onClickCover: (MangaUpdatesItem) -> Unit,
     onSelectAll: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
@@ -63,7 +64,7 @@ fun MangaUpdateScreen(
         when {
             state.isLoading -> LoadingScreen(Modifier.padding(contentPadding))
             state.items.isEmpty() -> EmptyScreen(
-                stringRes = MR.strings.information_no_recent,
+                stringRes = if (hasActiveFilters) MR.strings.error_no_match else MR.strings.information_no_recent,
                 modifier = Modifier.padding(contentPadding),
             )
             else -> {

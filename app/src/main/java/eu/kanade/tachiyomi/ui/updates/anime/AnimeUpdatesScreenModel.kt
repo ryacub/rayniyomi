@@ -40,7 +40,7 @@ import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.category.anime.interactor.GetVisibleAnimeCategories
+import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.GetAnime
@@ -65,7 +65,7 @@ class AnimeUpdatesScreenModel(
     private val getUpdates: GetAnimeUpdates = Injekt.get(),
     private val getAnime: GetAnime = Injekt.get(),
     private val getEpisode: GetEpisode = Injekt.get(),
-    private val getVisibleCategories: GetVisibleAnimeCategories = Injekt.get(),
+    private val getCategories: GetAnimeCategories = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     downloadPreferences: DownloadPreferences = Injekt.get(),
@@ -76,7 +76,7 @@ class AnimeUpdatesScreenModel(
 
     val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(screenModelScope)
 
-    val categories: StateFlow<List<Category>> = getVisibleCategories.subscribe()
+    val categories: StateFlow<List<Category>> = getCategories.subscribe()
         .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val includedCategoriesPref = libraryPreferences.filterAnimeUpdatesCategories()

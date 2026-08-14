@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +38,7 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.theme.active
 import uy.kohesive.injekt.injectLazy
 
 @Composable
@@ -48,6 +50,9 @@ fun Screen.animeUpdatesTab(
     val screenModel = rememberScreenModel { AnimeUpdatesScreenModel() }
     val scope = rememberCoroutineScope()
     val state by screenModel.state.collectAsStateWithLifecycle()
+
+    val hasActiveFilters = screenModel.includedCategories.isNotEmpty() ||
+        screenModel.excludedCategories.isNotEmpty()
 
     val navigateUp: (() -> Unit)? = if (fromMore) {
         {
@@ -76,6 +81,7 @@ fun Screen.animeUpdatesTab(
                 state = state,
                 snackbarHostState = screenModel.snackbarHostState,
                 lastUpdated = screenModel.lastUpdated,
+                hasActiveFilters = hasActiveFilters,
                 onClickCover = { item -> navigator.push(AnimeScreen(item.update.animeId)) },
                 onSelectAll = screenModel::toggleAllSelection,
                 onInvertSelection = screenModel::invertSelection,
@@ -185,6 +191,7 @@ fun Screen.animeUpdatesTab(
                 AppBar.Action(
                     title = stringResource(MR.strings.action_filter),
                     icon = Icons.Outlined.FilterList,
+                    iconTint = if (hasActiveFilters) MaterialTheme.colorScheme.active else null,
                     onClick = { screenModel.setDialog(AnimeUpdatesScreenModel.Dialog.Filter) },
                 ),
                 AppBar.Action(

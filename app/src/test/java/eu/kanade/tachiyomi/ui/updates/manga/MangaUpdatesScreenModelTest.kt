@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
+import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.MangaCover
@@ -151,7 +151,7 @@ class MangaUpdatesScreenModelTest {
         val preferences = InMemoryPreferenceStore()
         val libraryPreferences = LibraryPreferences(preferences)
         val getUpdates = mockk<GetMangaUpdates>()
-        val getVisibleCategories = mockk<GetVisibleMangaCategories>()
+        val getCategories = mockk<GetMangaCategories>()
         val downloadCache = mockk<MangaDownloadCache>()
         val downloadManager = mockk<MangaDownloadManager>()
 
@@ -162,7 +162,7 @@ class MangaUpdatesScreenModelTest {
             every { downloadManager.progressFlow() } returns emptyFlow()
             every { downloadManager.getQueuedDownloadOrNull(any()) } returns null
             every { downloadManager.isChapterDownloaded(any(), any(), any(), any()) } returns false
-            every { getVisibleCategories.subscribe() } returns MutableStateFlow(
+            every { getCategories.subscribe() } returns MutableStateFlow(
                 listOf(category(id = 0, name = "")),
             )
         }
@@ -190,7 +190,7 @@ class MangaUpdatesScreenModelTest {
                 getUpdates = getUpdates,
                 getManga = mockk<GetManga>(relaxed = true),
                 getChapter = mockk<GetChapter>(relaxed = true),
-                getVisibleCategories = getVisibleCategories,
+                getCategories = getCategories,
                 libraryPreferences = libraryPreferences,
             )
         }

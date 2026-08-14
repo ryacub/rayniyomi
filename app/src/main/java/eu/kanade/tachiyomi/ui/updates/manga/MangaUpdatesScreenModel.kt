@@ -40,7 +40,7 @@ import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
+import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.items.chapter.interactor.GetChapter
@@ -64,7 +64,7 @@ class MangaUpdatesScreenModel(
     private val getUpdates: GetMangaUpdates = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val getChapter: GetChapter = Injekt.get(),
-    private val getVisibleCategories: GetVisibleMangaCategories = Injekt.get(),
+    private val getCategories: GetMangaCategories = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<MangaUpdatesScreenModel.State>(State()) {
@@ -74,7 +74,7 @@ class MangaUpdatesScreenModel(
 
     val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(screenModelScope)
 
-    val categories: StateFlow<List<Category>> = getVisibleCategories.subscribe()
+    val categories: StateFlow<List<Category>> = getCategories.subscribe()
         .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val includedCategoriesPref = libraryPreferences.filterMangaUpdatesCategories()

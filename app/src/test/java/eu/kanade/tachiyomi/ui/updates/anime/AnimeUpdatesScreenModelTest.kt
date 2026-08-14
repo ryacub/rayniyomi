@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import tachiyomi.domain.category.anime.interactor.GetVisibleAnimeCategories
+import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.GetAnime
@@ -153,7 +153,7 @@ class AnimeUpdatesScreenModelTest {
         val libraryPreferences = LibraryPreferences(preferences)
         val downloadPreferences = DownloadPreferences(preferences)
         val getUpdates = mockk<GetAnimeUpdates>()
-        val getVisibleCategories = mockk<GetVisibleAnimeCategories>()
+        val getCategories = mockk<GetAnimeCategories>()
         val downloadCache = mockk<AnimeDownloadCache>()
         val downloadManager = mockk<AnimeDownloadManager>()
 
@@ -164,7 +164,7 @@ class AnimeUpdatesScreenModelTest {
             every { downloadManager.progressFlow() } returns emptyFlow()
             every { downloadManager.getQueuedDownloadOrNull(any()) } returns null
             every { downloadManager.isEpisodeDownloaded(any(), any(), any(), any()) } returns false
-            every { getVisibleCategories.subscribe() } returns MutableStateFlow(
+            every { getCategories.subscribe() } returns MutableStateFlow(
                 listOf(category(id = 0, name = "")),
             )
         }
@@ -194,7 +194,7 @@ class AnimeUpdatesScreenModelTest {
                 getEpisode = mockk<GetEpisode>(relaxed = true),
                 libraryPreferences = libraryPreferences,
                 downloadPreferences = downloadPreferences,
-                getVisibleCategories = getVisibleCategories,
+                getCategories = getCategories,
             )
         }
     }

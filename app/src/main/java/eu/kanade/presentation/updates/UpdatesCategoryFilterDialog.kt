@@ -78,9 +78,9 @@ fun UpdatesCategoryFilterDialog(
 
 @Composable
 private fun TriState.stateLabel(): String = when (this) {
-    TriState.ENABLED_IS -> stringResource(MR.strings.filter_included)
-    TriState.ENABLED_NOT -> stringResource(MR.strings.filter_excluded)
-    TriState.DISABLED -> stringResource(MR.strings.filter_not_filtered)
+    TriState.ENABLED_IS -> stringResource(MR.strings.updates_filter_state_included)
+    TriState.ENABLED_NOT -> stringResource(MR.strings.updates_filter_state_excluded)
+    TriState.DISABLED -> stringResource(MR.strings.updates_filter_state_not_filtered)
 }
 
 @PreviewLightDark
