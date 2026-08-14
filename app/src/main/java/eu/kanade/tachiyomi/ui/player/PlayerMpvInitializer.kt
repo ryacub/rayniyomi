@@ -55,14 +55,13 @@ internal class PlayerMpvInitializer(
     }
 
     /**
-     * Initialize MPV configuration and file structure.
-     * Must be called on a background thread/scope.
+     * Prepare MPV configuration and file structure on IO.
      */
     suspend fun initialize(
         mpvConf: String,
         mpvInput: String,
         mpvUserFilesEnabled: Boolean,
-    ): String = withContext(Dispatchers.IO) {
+    ): PlayerMpvInitializationResult = withContext(Dispatchers.IO) {
         val filesDir = checkNotNull(UniFile.fromFile(context.filesDir)) {
             "Failed to access app files directory"
         }
@@ -81,11 +80,18 @@ internal class PlayerMpvInitializer(
 
         copyUserFiles(mpvDir, mpvUserFilesEnabled)
         copyAssets(mpvDir)
-        syncFontsDirectory(mpvDir)
+        val fontsDir = syncFontsDirectory(mpvDir)
 
-        return@withContext checkNotNull(mpvDir.filePath) {
+        val configDir = checkNotNull(mpvDir.filePath) {
             "MPV directory path unavailable after successful creation"
         }
+        return@withContext PlayerMpvInitializationResult(configDir, fontsDir)
+    }
+
+    fun applyFontsDirectory(fontsDir: String) {
+        mpvLibProxy.setPropertyString("sub-fonts-dir", fontsDir)
+        mpvLibProxy.setPropertyString("osd-fonts-dir", fontsDir)
+        logcat(LogPriority.VERBOSE) { "Applied MPV font directories: $fontsDir" }
     }
 
     private fun copyUserFiles(mpvDir: UniFile, enabled: Boolean) {
@@ -165,11 +171,11 @@ internal class PlayerMpvInitializer(
      * SAF-backed source directory, because MPV/libass expects a stable filesystem path.
      */
     @VisibleForTesting
-    internal fun syncFontsDirectory(mpvDir: UniFile) {
+    internal fun syncFontsDirectory(mpvDir: UniFile): String? {
         val fontsDirectory = mpvDir.createDirectory(MPV_FONTS_DIR)
         if (fontsDirectory == null) {
             logcat(LogPriority.ERROR) { "Failed to create MPV fonts directory" }
-            return
+            return null
         }
         val sourceFontsDir = storageManager.getFontsDirectory()
         val sourceFiles = sourceFontsDir?.listFiles()
@@ -227,11 +233,11 @@ internal class PlayerMpvInitializer(
             logcat(LogPriority.VERBOSE) { "Skipped unchanged MPV font: $fontName" }
         }
 
-        fontsDirectory.filePath?.let { fontPath ->
-            mpvLibProxy.setPropertyString("sub-fonts-dir", fontPath)
-            mpvLibProxy.setPropertyString("osd-fonts-dir", fontPath)
-            logcat(LogPriority.VERBOSE) { "Applied MPV font directories: $fontPath" }
-        } ?: logcat(LogPriority.WARN) { "Font directory path unavailable; skipping MPV font configuration" }
+        return fontsDirectory.filePath
+            ?: run {
+                logcat(LogPriority.WARN) { "Font directory path unavailable; skipping MPV font configuration" }
+                null
+            }
     }
 
     /**
@@ -286,6 +292,11 @@ internal class PlayerMpvInitializer(
         }
     }
 }
+
+internal data class PlayerMpvInitializationResult(
+    val configDir: String,
+    val fontsDir: String?,
+)
 
 internal data class FontFileDescriptor(
     val name: String,
