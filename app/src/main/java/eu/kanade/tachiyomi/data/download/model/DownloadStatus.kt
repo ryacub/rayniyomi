@@ -32,7 +32,10 @@ enum class DownloadBlockedReason {
 }
 
 /**
- * Minimal read-only status contract consumed by shared UI/status logic.
+ * Minimal status contract consumed by shared download logic.
+ *
+ * The download monitors mutate the progress fields, so the interface exposes
+ * them as writable.
  */
 interface DownloadStatusSnapshot {
     /**
@@ -43,17 +46,17 @@ interface DownloadStatusSnapshot {
     /**
      * Current user-facing status.
      */
-    val displayStatus: DownloadDisplayStatus
+    var displayStatus: DownloadDisplayStatus
 
     /**
      * Wall-clock timestamp (ms) for last observed byte progress.
      */
-    val lastProgressAt: Long
+    var lastProgressAt: Long
 
     /**
      * Current retry attempt count for the active request.
      */
-    val retryAttempt: Int
+    var retryAttempt: Int
 
     /**
      * Last human-readable failure reason if one is available.

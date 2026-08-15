@@ -9,8 +9,8 @@ import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
  */
 data class PluginDownloadStatusSnapshot(
     override val isRunningTransfer: Boolean,
-    override val displayStatus: DownloadDisplayStatus,
-    override val lastProgressAt: Long = 0L,
-    override val retryAttempt: Int = 0,
+    override var displayStatus: DownloadDisplayStatus,
+    override var lastProgressAt: Long = 0L,
+    override var retryAttempt: Int = 0,
     override val lastErrorReason: String? = null,
 ) : DownloadStatusSnapshot

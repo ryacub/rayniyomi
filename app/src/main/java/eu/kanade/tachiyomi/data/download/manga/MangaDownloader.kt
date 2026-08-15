@@ -7,12 +7,12 @@ import eu.kanade.domain.entries.manga.model.getComicInfo
 import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
+import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
-import eu.kanade.tachiyomi.data.download.model.DownloadStatusTracker
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.source.UnmeteredSource
@@ -498,29 +498,13 @@ class MangaDownloader(
             // Start downloading images, consider we can have downloaded images already
             // Concurrency is configurable via preferences (default: 4, range: 1-6)
             val concurrency = downloadPreferences.pageDownloadConcurrency().get()
-            val progressMonitor: suspend () -> Unit = {
-                download.progressFlow.collect {
-                    if (download.status == MangaDownload.State.DOWNLOADING) {
-                        download.lastProgressAt = System.currentTimeMillis()
-                        download.retryAttempt = 0
-                        download.displayStatus = DownloadDisplayStatus.DOWNLOADING
-                        notifier.onProgressChange(download)
-                    }
-                }
-            }
-            val stallMonitor: suspend () -> Unit = {
-                while (download.status == MangaDownload.State.DOWNLOADING) {
-                    delay(1_000)
-                    val now = System.currentTimeMillis()
-                    if (DownloadStatusTracker.shouldMarkStalled(download, now)) {
-                        download.displayStatus = DownloadDisplayStatus.STALLED
-                        notifier.onProgressChange(download)
-                    }
-                }
-            }
 
             // Stall reporting stops before progress collection, to avoid a stale state update.
-            DownloadMonitors.withMonitors(listOf(progressMonitor, stallMonitor)) {
+            DownloadMonitors.withMonitors(
+                DownloadMonitorBuilders.monitors(download, download.progressFlow) {
+                    notifier.onProgressChange(it)
+                },
+            ) {
                 pageList.asFlow()
                     .flatMapMerge(concurrency = concurrency) { page ->
                         flow {
