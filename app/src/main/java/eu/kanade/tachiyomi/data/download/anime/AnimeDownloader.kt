@@ -26,11 +26,11 @@ import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidat
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
+import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
-import eu.kanade.tachiyomi.data.download.model.DownloadStatusTracker
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -564,30 +564,12 @@ class AnimeDownloader(
 
                     // If videoFile is not existing then download it
                     if (preferences.useExternalDownloader().get() == download.changeDownloader) {
-                        val progressMonitor: suspend () -> Unit = {
-                            download.progressFlow
-                                .collect {
-                                    if (download.status == AnimeDownload.State.DOWNLOADING) {
-                                        download.lastProgressAt = System.currentTimeMillis()
-                                        download.retryAttempt = 0
-                                        download.displayStatus = DownloadDisplayStatus.DOWNLOADING
-                                        notifier.onProgressChange(download)
-                                    }
-                                }
-                        }
-                        val stallMonitor: suspend () -> Unit = {
-                            while (download.status == AnimeDownload.State.DOWNLOADING) {
-                                delay(1_000)
-                                val now = System.currentTimeMillis()
-                                if (DownloadStatusTracker.shouldMarkStalled(download, now)) {
-                                    download.displayStatus = DownloadDisplayStatus.STALLED
-                                    notifier.onProgressChange(download)
-                                }
-                            }
-                        }
-
                         // Stall reporting stops before progress collection, to avoid a stale state update.
-                        DownloadMonitors.withMonitors(listOf(progressMonitor, stallMonitor)) {
+                        DownloadMonitors.withMonitors(
+                            DownloadMonitorBuilders.monitors(download, download.progressFlow) {
+                                notifier.onProgressChange(it)
+                            },
+                        ) {
                             downloadVideo(download, tmpDir, filename)
                         }
                     } else {
