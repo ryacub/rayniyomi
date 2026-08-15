@@ -7,6 +7,7 @@ import eu.kanade.domain.entries.manga.model.getComicInfo
 import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
+import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
@@ -24,10 +25,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asFlow
@@ -44,7 +43,6 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.core.archive.ZipWriter
 import nl.adaptivity.xmlutil.serialization.XML
@@ -500,56 +498,47 @@ class MangaDownloader(
             // Start downloading images, consider we can have downloaded images already
             // Concurrency is configurable via preferences (default: 4, range: 1-6)
             val concurrency = downloadPreferences.pageDownloadConcurrency().get()
-            var progressJob: Job? = null
-            var stallMonitorJob: Job? = null
-            try {
-                coroutineScope {
-                    progressJob = launch {
-                        download.progressFlow.collect {
-                            if (download.status != MangaDownload.State.DOWNLOADING) return@collect
-                            download.lastProgressAt = System.currentTimeMillis()
-                            download.retryAttempt = 0
-                            download.displayStatus = DownloadDisplayStatus.DOWNLOADING
-                            notifier.onProgressChange(download)
-                        }
+            val progressMonitor: suspend () -> Unit = {
+                download.progressFlow.collect {
+                    if (download.status == MangaDownload.State.DOWNLOADING) {
+                        download.lastProgressAt = System.currentTimeMillis()
+                        download.retryAttempt = 0
+                        download.displayStatus = DownloadDisplayStatus.DOWNLOADING
+                        notifier.onProgressChange(download)
                     }
-                    stallMonitorJob = launch {
-                        while (download.status == MangaDownload.State.DOWNLOADING) {
-                            delay(1_000)
-                            val now = System.currentTimeMillis()
-                            if (DownloadStatusTracker.shouldMarkStalled(download, now)) {
-                                download.displayStatus = DownloadDisplayStatus.STALLED
-                                notifier.onProgressChange(download)
-                            }
-                        }
+                }
+            }
+            val stallMonitor: suspend () -> Unit = {
+                while (download.status == MangaDownload.State.DOWNLOADING) {
+                    delay(1_000)
+                    val now = System.currentTimeMillis()
+                    if (DownloadStatusTracker.shouldMarkStalled(download, now)) {
+                        download.displayStatus = DownloadDisplayStatus.STALLED
+                        notifier.onProgressChange(download)
                     }
+                }
+            }
 
-                    pageList.asFlow()
-                        .flatMapMerge(concurrency = concurrency) { page ->
-                            flow {
-                                // Fetch image URL if necessary
-                                if (page.imageUrl.isNullOrEmpty()) {
-                                    page.status = Page.State.LOAD_PAGE
-                                    try {
-                                        page.imageUrl = MangaSourceGateway.imageUrl(download.source, page)
-                                    } catch (e: Throwable) {
-                                        page.status = Page.State.ERROR
-                                    }
+            // Stall reporting stops before progress collection, to avoid a stale state update.
+            DownloadMonitors.withMonitors(listOf(progressMonitor, stallMonitor)) {
+                pageList.asFlow()
+                    .flatMapMerge(concurrency = concurrency) { page ->
+                        flow {
+                            // Fetch image URL if necessary
+                            if (page.imageUrl.isNullOrEmpty()) {
+                                page.status = Page.State.LOAD_PAGE
+                                try {
+                                    page.imageUrl = MangaSourceGateway.imageUrl(download.source, page)
+                                } catch (e: Throwable) {
+                                    page.status = Page.State.ERROR
                                 }
+                            }
 
-                                withIOContext { getOrDownloadImage(page, download, tmpDir, dataSaver) }
-                                emit(page)
-                            }.flowOn(Dispatchers.IO)
-                        }
-                        .collect { }
-                }
-            } finally {
-                withContext(NonCancellable) {
-                    stallMonitorJob?.cancel()
-                    stallMonitorJob?.join()
-                    progressJob?.cancel()
-                    progressJob?.join()
-                }
+                            withIOContext { getOrDownloadImage(page, download, tmpDir, dataSaver) }
+                            emit(page)
+                        }.flowOn(Dispatchers.IO)
+                    }
+                    .collect { }
             }
 
             // Do after download completes
