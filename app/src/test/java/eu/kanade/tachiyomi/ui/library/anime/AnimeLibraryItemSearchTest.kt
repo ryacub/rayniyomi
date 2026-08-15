@@ -4,7 +4,6 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import io.mockk.every
 import io.mockk.mockk
-import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -18,6 +17,7 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
+import java.time.Instant
 
 class AnimeLibraryItemSearchTest {
 
@@ -355,7 +355,11 @@ class AnimeLibraryItemSearchTest {
         )
     }
 
-    private fun item(anime: Anime, sourceName: String = "Crunchyroll", sourceLanguage: String = "en"): AnimeLibraryItem {
+    private fun item(
+        anime: Anime,
+        sourceName: String = "Crunchyroll",
+        sourceLanguage: String = "en",
+    ): AnimeLibraryItem {
         val source = mockk<AnimeSource>()
         every { source.name } returns sourceName
         every { source.lang } returns sourceLanguage
