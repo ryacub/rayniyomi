@@ -11,7 +11,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -79,7 +79,7 @@ class DownloadMonitorBuildersTest {
         val download = TestStatusSnapshot(
             isRunningTransfer = true,
             displayStatus = DownloadDisplayStatus.DOWNLOADING,
-            lastProgressAt = 1L,
+            lastProgressAt = System.currentTimeMillis() - DownloadStatusTracker.STALL_THRESHOLD_MS - 1,
         )
         val stalled = CompletableDeferred<Unit>()
 
@@ -144,15 +144,42 @@ class DownloadMonitorBuildersTest {
     }
 
     @Test
-    fun `monitors returns progress and stall monitors`() = runTest {
-        val download = TestStatusSnapshot(isRunningTransfer = true)
+    fun `monitors returns the progress monitor first and the stall monitor second`() = runTest {
+        // withMonitors cancels in reverse list order, so the order here is the contract.
+        val progressTarget = TestStatusSnapshot(isRunningTransfer = true, retryAttempt = 3)
+        val progressMonitors = DownloadMonitorBuilders.monitors(progressTarget, MutableStateFlow(0)) { }
+        assertEquals(2, progressMonitors.size)
 
-        val monitors = DownloadMonitorBuilders.monitors(download, flowOf(0)) { }
-
-        assertEquals(2, monitors.size)
         withTimeoutOrNull(TIMEOUT_MS) {
-            DownloadMonitors.withMonitors(monitors) { }
+            DownloadMonitors.withMonitors(listOf(progressMonitors.first())) {
+                delay(100)
+            }
         }
+
+        assertEquals(DownloadDisplayStatus.DOWNLOADING, progressTarget.displayStatus)
+        assertTrue(progressTarget.lastProgressAt > 0)
+        assertEquals(0, progressTarget.retryAttempt)
+
+        val stallTarget = TestStatusSnapshot(
+            isRunningTransfer = true,
+            displayStatus = DownloadDisplayStatus.DOWNLOADING,
+            lastProgressAt = System.currentTimeMillis() - DownloadStatusTracker.STALL_THRESHOLD_MS - 1,
+        )
+        // An empty flow leaves a progress monitor with nothing to do, so only a stall monitor reports.
+        val stallMonitors = DownloadMonitorBuilders.monitors(stallTarget, emptyFlow<Int>()) { }
+        val stalled = CompletableDeferred<Unit>()
+
+        withTimeoutOrNull(TIMEOUT_MS) {
+            DownloadMonitors.withMonitors(listOf(stallMonitors.last())) {
+                while (stallTarget.displayStatus != DownloadDisplayStatus.STALLED) {
+                    delay(100)
+                }
+                stalled.complete(Unit)
+            }
+        }
+
+        assertEquals(DownloadDisplayStatus.STALLED, stallTarget.displayStatus)
+        assertTrue(stalled.isCompleted)
     }
 
     @Test
@@ -217,7 +244,7 @@ class DownloadMonitorBuildersTest {
         val download = MangaDownload(source, manga, chapter).apply {
             status = MangaDownload.State.DOWNLOADING
             displayStatus = DownloadDisplayStatus.DOWNLOADING
-            lastProgressAt = 1L
+            lastProgressAt = System.currentTimeMillis() - DownloadStatusTracker.STALL_THRESHOLD_MS - 1
             retryAttempt = 2
         }
         val stalled = CompletableDeferred<Unit>()
@@ -242,7 +269,7 @@ class DownloadMonitorBuildersTest {
         val download = AnimeDownload(source, anime, episode).apply {
             status = AnimeDownload.State.DOWNLOADING
             displayStatus = DownloadDisplayStatus.DOWNLOADING
-            lastProgressAt = 1L
+            lastProgressAt = System.currentTimeMillis() - DownloadStatusTracker.STALL_THRESHOLD_MS - 1
             retryAttempt = 2
         }
         val stalled = CompletableDeferred<Unit>()
