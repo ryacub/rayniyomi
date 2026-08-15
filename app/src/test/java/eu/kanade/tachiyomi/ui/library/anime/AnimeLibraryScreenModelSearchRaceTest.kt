@@ -1,15 +1,16 @@
-package eu.kanade.tachiyomi.ui.library.manga
+package eu.kanade.tachiyomi.ui.library.anime
 
 import android.content.Context
 import eu.kanade.domain.base.BasePreferences
-import eu.kanade.domain.entries.manga.interactor.UpdateManga
-import eu.kanade.domain.items.chapter.interactor.SetReadStatus
+import eu.kanade.domain.entries.anime.interactor.UpdateAnime
+import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.data.cache.MangaCoverCache
-import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
-import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
+import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
+import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
+import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.source.MangaSource
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -26,29 +27,29 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
-import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
-import tachiyomi.domain.category.manga.interactor.SetMangaCategories
+import tachiyomi.domain.category.anime.interactor.GetVisibleAnimeCategories
+import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
 import tachiyomi.domain.category.model.Category
-import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
-import tachiyomi.domain.entries.manga.model.Manga
-import tachiyomi.domain.history.manga.interactor.GetNextChapters
-import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
-import tachiyomi.domain.library.manga.LibraryManga
+import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
+import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.history.anime.interactor.GetNextEpisodes
+import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.library.service.LibraryPreferences
-import tachiyomi.domain.source.manga.service.MangaSourceManager
-import tachiyomi.domain.track.manga.interactor.GetTracksPerManga
-import tachiyomi.domain.track.manga.model.MangaTrack
+import tachiyomi.domain.source.anime.service.AnimeSourceManager
+import tachiyomi.domain.track.anime.interactor.GetTracksPerAnime
+import tachiyomi.domain.track.anime.model.AnimeTrack
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class MangaLibraryScreenModelSearchRaceTest {
+class AnimeLibraryScreenModelSearchRaceTest {
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         // The library item constructor resolves its sourceManager through Injekt, and the
-        // real getNameForMangaInfo() extension resolves SourcePreferences through Injekt.
+        // real getNameForAnimeInfo() extension resolves SourcePreferences through Injekt.
         Injekt.addSingleton(
             SourcePreferences(
                 InMemoryPreferenceStore(
@@ -62,10 +63,10 @@ class MangaLibraryScreenModelSearchRaceTest {
                 ),
             ),
         )
-        val source = mockk<MangaSource>()
+        val source = mockk<AnimeSource>()
         every { source.name } returns "TestSource"
         every { source.lang } returns "en"
-        val sourceManager = mockk<MangaSourceManager>()
+        val sourceManager = mockk<AnimeSourceManager>()
         every { sourceManager.getOrStub(any()) } returns source
         Injekt.addSingleton(sourceManager)
     }
@@ -86,7 +87,7 @@ class MangaLibraryScreenModelSearchRaceTest {
 
         eventually(timeoutMs = 5_000) {
             val items = model.state.value.library[category()].orEmpty()
-            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Beta" }
+            items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Beta" }
         }
     }
 
@@ -99,7 +100,7 @@ class MangaLibraryScreenModelSearchRaceTest {
         // Wait past the debounce so the "Alpha" evaluation actually emits first.
         eventually(timeoutMs = 5_000) {
             val items = model.state.value.library[category()].orEmpty()
-            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Alpha" }
+            items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Alpha" }
         }
 
         model.search("Beta")
@@ -107,7 +108,7 @@ class MangaLibraryScreenModelSearchRaceTest {
         // The newer query evaluation must replace the older one in the final state.
         eventually(timeoutMs = 5_000) {
             val items = model.state.value.library[category()].orEmpty()
-            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Beta" }
+            items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Beta" }
         }
     }
 
@@ -119,80 +120,83 @@ class MangaLibraryScreenModelSearchRaceTest {
 
         eventually(timeoutMs = 5_000) {
             val items = model.state.value.library[category()].orEmpty()
-            items.isNotEmpty() && items.all { it.libraryManga.manga.title == "Alpha" }
+            items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Alpha" }
         }
 
         model.search("total>=1")
 
-        // Both entries have 10 chapters, so the comparison matches them both. The older
+        // Both entries have 10 episodes, so the comparison matches them both. The older
         // "Alpha" evaluation could never produce the Beta entry in the final state.
         eventually(timeoutMs = 5_000) {
             val items = model.state.value.library[category()].orEmpty()
-            items.size == 2 && items.any { it.libraryManga.manga.title == "Beta" }
+            items.size == 2 && items.any { it.libraryAnime.anime.title == "Beta" }
         }
     }
 
-    private fun createModel(): MangaLibraryScreenModel {
-        val mangaA = Manga.create().copy(id = 1L, title = "Alpha")
-        val mangaB = Manga.create().copy(id = 2L, title = "Beta")
-        val libraryMangas = listOf(
-            LibraryManga(
-                manga = mangaA,
+    private fun createModel(): AnimeLibraryScreenModel {
+        val animeA = Anime.create().copy(id = 1L, title = "Alpha")
+        val animeB = Anime.create().copy(id = 2L, title = "Beta")
+        val libraryAnimes = listOf(
+            LibraryAnime(
+                anime = animeA,
                 category = 0L,
-                totalChapters = 10L,
-                readCount = 0L,
+                totalCount = 10L,
+                seenCount = 0L,
                 bookmarkCount = 0L,
+                fillermarkCount = 0L,
                 latestUpload = 0L,
-                chapterFetchedAt = 0L,
-                lastRead = 0L,
+                episodeFetchedAt = 0L,
+                lastSeen = 0L,
             ),
-            LibraryManga(
-                manga = mangaB,
+            LibraryAnime(
+                anime = animeB,
                 category = 0L,
-                totalChapters = 10L,
-                readCount = 0L,
+                totalCount = 10L,
+                seenCount = 0L,
                 bookmarkCount = 0L,
+                fillermarkCount = 0L,
                 latestUpload = 0L,
-                chapterFetchedAt = 0L,
-                lastRead = 0L,
+                episodeFetchedAt = 0L,
+                lastSeen = 0L,
             ),
         )
 
-        val getLibraryManga = mockk<GetLibraryManga>()
-        every { getLibraryManga.subscribe(any()) } returns flowOf(libraryMangas)
+        val getLibraryAnime = mockk<GetLibraryAnime>()
+        every { getLibraryAnime.subscribe(any()) } returns flowOf(libraryAnimes)
 
-        val getCategories = mockk<GetVisibleMangaCategories>()
+        val getCategories = mockk<GetVisibleAnimeCategories>()
         every { getCategories.subscribe() } returns flowOf(listOf(category()))
 
-        val getTracksPerManga = mockk<GetTracksPerManga>()
-        every { getTracksPerManga.subscribe() } returns flowOf(emptyMap<Long, List<MangaTrack>>())
+        val getTracksPerAnime = mockk<GetTracksPerAnime>()
+        every { getTracksPerAnime.subscribe() } returns flowOf(emptyMap<Long, List<AnimeTrack>>())
 
         val trackerManager = mockk<TrackerManager>()
         every { trackerManager.loggedInTrackersFlow() } returns flowOf(emptyList())
         every { trackerManager.getAll(any()) } returns emptyList()
 
-        val downloadCache = mockk<MangaDownloadCache>()
+        val downloadCache = mockk<AnimeDownloadCache>()
         val downloadChanges = MutableSharedFlow<Unit>(replay = 1)
         downloadChanges.tryEmit(Unit)
         every { downloadCache.changes } returns downloadChanges
 
-        val downloadManager = mockk<MangaDownloadManager>()
+        val downloadManager = mockk<AnimeDownloadManager>()
         every { downloadManager.getDownloadCount(any()) } returns 0
 
         val store = InMemoryPreferenceStore(emptySequence())
-        return MangaLibraryScreenModel(
-            getLibraryManga = getLibraryManga,
+        return AnimeLibraryScreenModel(
+            getLibraryAnime = getLibraryAnime,
             getCategories = getCategories,
-            getTracksPerManga = getTracksPerManga,
-            getNextChapters = mockk<GetNextChapters>(relaxed = true),
-            getChaptersByMangaId = mockk<GetChaptersByMangaId>(relaxed = true),
-            setReadStatus = mockk<SetReadStatus>(relaxed = true),
-            updateManga = mockk<UpdateManga>(relaxed = true),
-            setMangaCategories = mockk<SetMangaCategories>(relaxed = true),
+            getTracksPerAnime = getTracksPerAnime,
+            getNextEpisodes = mockk<GetNextEpisodes>(relaxed = true),
+            getEpisodesByAnimeId = mockk<GetEpisodesByAnimeId>(relaxed = true),
+            setSeenStatus = mockk<SetSeenStatus>(relaxed = true),
+            updateAnime = mockk<UpdateAnime>(relaxed = true),
+            setAnimeCategories = mockk<SetAnimeCategories>(relaxed = true),
             preferences = BasePreferences(mockk<Context>(relaxed = true), store),
             libraryPreferences = LibraryPreferences(store),
-            coverCache = mockk<MangaCoverCache>(relaxed = true),
-            sourceManager = mockk<MangaSourceManager>(relaxed = true),
+            coverCache = mockk<AnimeCoverCache>(relaxed = true),
+            backgroundCache = mockk<AnimeBackgroundCache>(relaxed = true),
+            sourceManager = mockk<AnimeSourceManager>(relaxed = true),
             downloadManager = downloadManager,
             downloadCache = downloadCache,
             trackerManager = trackerManager,

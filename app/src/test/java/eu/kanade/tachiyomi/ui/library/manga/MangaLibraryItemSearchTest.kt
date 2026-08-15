@@ -17,6 +17,7 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
+import java.time.Instant
 
 class MangaLibraryItemSearchTest {
 
@@ -231,6 +232,103 @@ class MangaLibraryItemSearchTest {
         assertFalse(item.matchesQuery("title:naruto && -(naruto"))
     }
 
+    @Test
+    fun `language field matches source language`() {
+        val en = item(manga(), sourceLanguage = "en")
+        val ja = item(manga(), sourceLanguage = "ja")
+        assertTrue(en.matchesQuery("language:en"))
+        assertTrue(en.matchesQuery("lang:en"))
+        assertTrue(ja.matchesQuery("language:ja"))
+        assertFalse(ja.matchesQuery("language:en"))
+        assertFalse(en.matchesQuery("language:ja"))
+    }
+
+    @Test
+    fun `empty language value checks empty source language`() {
+        val empty = item(manga(), sourceLanguage = "")
+        val en = item(manga(), sourceLanguage = "en")
+        assertTrue(empty.matchesQuery("language:\"\""))
+        assertFalse(en.matchesQuery("language:\"\""))
+    }
+
+    @Test
+    fun `notes field never matches text and empty value matches everything`() {
+        val item = item(manga())
+        assertFalse(item.matchesQuery("notes:foo"))
+        assertFalse(item.matchesQuery("note:foo"))
+        assertTrue(item.matchesQuery("notes:\"\""))
+    }
+
+    @Test
+    fun `date comparisons use the entry timestamps`() {
+        val item = item(
+            manga(
+                dateAdded = Instant.parse("2024-06-15T12:00:00Z").toEpochMilli(),
+                nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli(),
+            ),
+        )
+        assertTrue(item.matchesQuery("added>=2024-01-01"))
+        assertTrue(item.matchesQuery("added>2024-01-01"))
+        assertFalse(item.matchesQuery("added<2024-01-01"))
+        assertFalse(item.matchesQuery("added>2024-12-31"))
+        assertFalse(item.matchesQuery("nu<2027-01-01"))
+        assertTrue(item.matchesQuery("nu>2027-12-31"))
+        assertTrue(item.matchesQuery("nu>=2027-01-01"))
+    }
+
+    @Test
+    fun `fetch interval comparisons use the absolute interval`() {
+        val positive = item(manga(fetchInterval = 7))
+        val negative = item(manga(fetchInterval = -7))
+        val small = item(manga(fetchInterval = 3))
+        assertTrue(positive.matchesQuery("fi=7"))
+        assertTrue(negative.matchesQuery("fi=7"))
+        assertTrue(positive.matchesQuery("fetchinterval>5"))
+        assertFalse(small.matchesQuery("fi=7"))
+        assertTrue(small.matchesQuery("fi<5"))
+    }
+
+    @Test
+    fun `id and count comparisons use the library values`() {
+        val item = item(manga(id = 42L))
+        assertTrue(item.matchesQuery("id=42"))
+        assertFalse(item.matchesQuery("id=43"))
+        assertTrue(item.matchesQuery("unread>=1"))
+        assertFalse(item.matchesQuery("unread>7"))
+        assertTrue(item.matchesQuery("read=3"))
+        assertFalse(item.matchesQuery("read=4"))
+        assertTrue(item.matchesQuery("total>5"))
+        assertFalse(item.matchesQuery("total>10"))
+    }
+
+    @Test
+    fun `unread comparison uses the computed count not the badge value`() {
+        val item = item(manga())
+        assertEquals(-1L, item.unreadCount)
+        assertTrue(item.matchesQuery("unread>=1"))
+    }
+
+    @Test
+    fun `malformed comparison values never match and negation flips them`() {
+        val item = item(manga())
+        assertFalse(item.matchesQuery("id>abc"))
+        assertTrue(item.matchesQuery("-id>abc"))
+        assertFalse(item.matchesQuery("added>notadate"))
+        assertTrue(item.matchesQuery("-added>notadate"))
+    }
+
+    @Test
+    fun `comparisons evaluate inside operator trees`() {
+        val item = item(manga(title = "Naruto", id = 42L))
+        assertTrue(item.matchesQuery("unread>=1 && total>5"))
+        assertFalse(item.matchesQuery("unread>7 && total>5"))
+        assertTrue(item.matchesQuery("unread>=1 || read=0"))
+        assertTrue(item.matchesQuery("id=42 && -genre:comedy"))
+        assertFalse(item.matchesQuery("id=43 && -genre:comedy"))
+        assertTrue(item.matchesQuery("(total>=100 || read=3) && genre:action"))
+        assertFalse(item.matchesQuery("-(unread>=1 || total>5)"))
+    }
+
     private fun manga(
         title: String = "Naruto",
         author: String? = "Masashi Kishimoto",
@@ -239,6 +337,9 @@ class MangaLibraryItemSearchTest {
         genre: List<String>? = listOf("Action", "Adventure"),
         source: Long = 5L,
         id: Long = 42L,
+        dateAdded: Long = 0L,
+        fetchInterval: Int = 0,
+        nextUpdate: Long = 0L,
     ): Manga {
         return Manga.create().copy(
             id = id,
@@ -248,13 +349,16 @@ class MangaLibraryItemSearchTest {
             description = description,
             genre = genre,
             source = source,
+            dateAdded = dateAdded,
+            fetchInterval = fetchInterval,
+            nextUpdate = nextUpdate,
         )
     }
 
-    private fun item(manga: Manga, sourceName: String = "MangaDex"): MangaLibraryItem {
+    private fun item(manga: Manga, sourceName: String = "MangaDex", sourceLanguage: String = "en"): MangaLibraryItem {
         val source = mockk<MangaSource>()
         every { source.name } returns sourceName
-        every { source.lang } returns "en"
+        every { source.lang } returns sourceLanguage
         val sourceManager = mockk<MangaSourceManager>()
         every { sourceManager.getOrStub(any()) } returns source
         return MangaLibraryItem(
@@ -269,6 +373,7 @@ class MangaLibraryItemSearchTest {
                 lastRead = 0L,
             ),
             sourceManager = sourceManager,
+            sourceLanguage = sourceLanguage,
         )
     }
 }
