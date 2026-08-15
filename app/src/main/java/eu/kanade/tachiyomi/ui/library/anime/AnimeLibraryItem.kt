@@ -15,6 +15,7 @@ data class AnimeLibraryItem(
     private val sourceManager: AnimeSourceManager = Injekt.get(),
 ) {
     val sourceName by lazy { sourceManager.getOrStub(libraryAnime.anime.source).getNameForAnimeInfo() }
+    internal val sourceLang by lazy { sourceManager.getOrStub(libraryAnime.anime.source).lang }
 
     /**
      * Checks if a query matches the anime

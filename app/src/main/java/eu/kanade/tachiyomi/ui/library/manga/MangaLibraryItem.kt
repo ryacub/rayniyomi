@@ -15,6 +15,7 @@ class MangaLibraryItem(
     private val sourceManager: MangaSourceManager = Injekt.get(),
 ) {
     val sourceName by lazy { sourceManager.getOrStub(libraryManga.manga.source).getNameForMangaInfo() }
+    internal val sourceLang by lazy { sourceManager.getOrStub(libraryManga.manga.source).lang }
 
     /**
      * Checks if a query matches the manga
