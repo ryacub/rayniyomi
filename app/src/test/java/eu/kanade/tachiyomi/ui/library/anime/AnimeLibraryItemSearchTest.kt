@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.library.anime
 
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.animesource.model.SAnime
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -13,11 +14,13 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.library.anime.LibraryAnime
+import tachiyomi.domain.library.model.search.parseSearchQuery
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
 import java.time.Instant
+import java.time.ZoneId
 
 class AnimeLibraryItemSearchTest {
 
@@ -277,6 +280,29 @@ class AnimeLibraryItemSearchTest {
     }
 
     @Test
+    fun `next update comparison excludes completed entries`() {
+        val completed = item(
+            anime(
+                nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli(),
+                status = SAnime.COMPLETED.toLong(),
+            ),
+        )
+        assertFalse(completed.matchesQuery("nu<2027-01-01"))
+        assertFalse(completed.matchesQuery("nu>=2027-01-01"))
+        assertTrue(completed.matchesQuery("-nu<2027-01-01"))
+        val ongoing = item(anime(nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli()))
+        assertTrue(ongoing.matchesQuery("nu>2027-12-31"))
+    }
+
+    @Test
+    fun `date comparisons respect the evaluation zone`() {
+        val item = item(anime(dateAdded = Instant.parse("2019-12-31T23:00:00Z").toEpochMilli()))
+        val node = parseSearchQuery("added>=2020-01-01")
+        assertTrue(node.matches(item, ZoneId.of("Pacific/Kiritimati")))
+        assertFalse(node.matches(item, ZoneId.of("Pacific/Niue")))
+    }
+
+    @Test
     fun `fetch interval comparisons use the absolute interval`() {
         val positive = item(anime(fetchInterval = 7))
         val negative = item(anime(fetchInterval = -7))
@@ -340,6 +366,7 @@ class AnimeLibraryItemSearchTest {
         dateAdded: Long = 0L,
         fetchInterval: Int = 0,
         nextUpdate: Long = 0L,
+        status: Long = 0L,
     ): Anime {
         return Anime.create().copy(
             id = id,
@@ -352,9 +379,12 @@ class AnimeLibraryItemSearchTest {
             dateAdded = dateAdded,
             fetchInterval = fetchInterval,
             nextUpdate = nextUpdate,
+            status = status,
         )
     }
 
+    // The badge-gated sourceLanguage var stays at its default: language search must work
+    // through resolvedSourceLang regardless of the badge setting.
     private fun item(
         anime: Anime,
         sourceName: String = "Crunchyroll",
@@ -378,7 +408,6 @@ class AnimeLibraryItemSearchTest {
                 lastSeen = 0L,
             ),
             sourceManager = sourceManager,
-            sourceLanguage = sourceLanguage,
         )
     }
 }

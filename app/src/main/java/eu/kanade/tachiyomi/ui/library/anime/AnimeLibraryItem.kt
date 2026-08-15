@@ -15,7 +15,13 @@ data class AnimeLibraryItem(
     private val sourceManager: AnimeSourceManager = Injekt.get(),
 ) {
     val sourceName by lazy { sourceManager.getOrStub(libraryAnime.anime.source).getNameForAnimeInfo() }
-    internal val sourceLang by lazy { sourceManager.getOrStub(libraryAnime.anime.source).lang }
+
+    /**
+     * The source language for search, always resolved from the source. Unlike
+     * [sourceLanguage], it does not depend on the language-badge setting, so
+     * `language:` search works when the badge is disabled.
+     */
+    internal val resolvedSourceLang by lazy { sourceManager.getOrStub(libraryAnime.anime.source).lang }
 
     /**
      * Checks if a query matches the anime

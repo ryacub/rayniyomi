@@ -10,15 +10,14 @@ import tachiyomi.domain.library.model.search.LibrarySearchField
 import tachiyomi.domain.library.model.search.NotNode
 import tachiyomi.domain.library.model.search.OrNode
 import tachiyomi.domain.library.model.search.QueryNode
+import tachiyomi.domain.library.model.search.epochMillisToLocalDate
 import tachiyomi.domain.library.model.search.isLegacySearchQuery
 import tachiyomi.domain.library.model.search.parseSearchQuery
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
-import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.abs
 
-fun QueryNode.matches(item: AnimeLibraryItem, zone: ZoneId = ZoneId.systemDefault()): Boolean {
+fun QueryNode.matches(item: AnimeLibraryItem, zone: ZoneId): Boolean {
     return when (this) {
         is AndNode -> children.all { it.matches(item, zone) }
         is OrNode -> children.any { it.matches(item, zone) }
@@ -89,25 +88,25 @@ private fun FieldQueryNode.matches(item: AnimeLibraryItem): Boolean {
 
         LibrarySearchField.LANGUAGE -> {
             if (value.isEmpty()) {
-                item.sourceLang.isEmpty()
+                item.resolvedSourceLang.isEmpty()
             } else {
-                item.sourceLang.contains(value, ignoreCase = true)
+                item.resolvedSourceLang.contains(value, ignoreCase = true)
             }
         }
 
         LibrarySearchField.NOTES -> value.isEmpty()
 
-        else -> {
+        LibrarySearchField.TITLE,
+        LibrarySearchField.AUTHOR,
+        LibrarySearchField.ARTIST,
+        LibrarySearchField.DESCRIPTION,
+        -> {
             val text = when (field) {
                 LibrarySearchField.TITLE -> anime.title
                 LibrarySearchField.AUTHOR -> anime.author
                 LibrarySearchField.ARTIST -> anime.artist
                 LibrarySearchField.DESCRIPTION -> anime.description
-
-                // unreachable; added here to make the `when` exhaustive
-                LibrarySearchField.GENRE, LibrarySearchField.SOURCE,
-                LibrarySearchField.LANGUAGE, LibrarySearchField.NOTES,
-                -> error("unreachable")
+                else -> error("unreachable")
             }
 
             if (value.isEmpty()) {
@@ -127,17 +126,17 @@ private fun ComparisonQueryNode.matches(item: AnimeLibraryItem, zone: ZoneId): B
 
     val match = when (field) {
         ComparisonField.ID -> compareLong(anime.id)
-        ComparisonField.DATE_ADDED -> compareDate(toLocalDate(anime.dateAdded, zone))
+        ComparisonField.DATE_ADDED -> compareDate(epochMillisToLocalDate(anime.dateAdded, zone))
         ComparisonField.FETCH_INTERVAL -> compareLong(abs(anime.fetchInterval).toLong())
-        ComparisonField.NEXT_UPDATE -> compareDate(toLocalDate(anime.nextUpdate, zone))
+        // Completed and never-scheduled entries have no next update. The accessor returns null
+        // for them, so they match neither direction of the comparison.
+        ComparisonField.NEXT_UPDATE ->
+            anime.expectedNextUpdate
+                ?.let { compareDate(it.atZone(zone).toLocalDate()) }
         ComparisonField.UNREAD -> compareLong(libraryAnime.unseenCount)
         ComparisonField.READ -> compareLong(libraryAnime.seenCount)
         ComparisonField.TOTAL -> compareLong(libraryAnime.totalCount)
     }
 
     return if (negated) match != true else match == true
-}
-
-private fun toLocalDate(epochMillis: Long, zone: ZoneId): LocalDate {
-    return Instant.ofEpochMilli(epochMillis).atZone(zone).toLocalDate()
 }

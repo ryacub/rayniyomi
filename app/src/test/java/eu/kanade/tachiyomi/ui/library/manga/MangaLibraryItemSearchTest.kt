@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.library.manga
 
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.model.SManga
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -13,11 +14,13 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.library.manga.LibraryManga
+import tachiyomi.domain.library.model.search.parseSearchQuery
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
 import java.time.Instant
+import java.time.ZoneId
 
 class MangaLibraryItemSearchTest {
 
@@ -277,6 +280,29 @@ class MangaLibraryItemSearchTest {
     }
 
     @Test
+    fun `next update comparison excludes completed entries`() {
+        val completed = item(
+            manga(
+                nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli(),
+                status = SManga.COMPLETED.toLong(),
+            ),
+        )
+        assertFalse(completed.matchesQuery("nu<2027-01-01"))
+        assertFalse(completed.matchesQuery("nu>=2027-01-01"))
+        assertTrue(completed.matchesQuery("-nu<2027-01-01"))
+        val ongoing = item(manga(nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli()))
+        assertTrue(ongoing.matchesQuery("nu>2027-12-31"))
+    }
+
+    @Test
+    fun `date comparisons respect the evaluation zone`() {
+        val item = item(manga(dateAdded = Instant.parse("2019-12-31T23:00:00Z").toEpochMilli()))
+        val node = parseSearchQuery("added>=2020-01-01")
+        assertTrue(node.matches(item, ZoneId.of("Pacific/Kiritimati")))
+        assertFalse(node.matches(item, ZoneId.of("Pacific/Niue")))
+    }
+
+    @Test
     fun `fetch interval comparisons use the absolute interval`() {
         val positive = item(manga(fetchInterval = 7))
         val negative = item(manga(fetchInterval = -7))
@@ -340,6 +366,7 @@ class MangaLibraryItemSearchTest {
         dateAdded: Long = 0L,
         fetchInterval: Int = 0,
         nextUpdate: Long = 0L,
+        status: Long = 0L,
     ): Manga {
         return Manga.create().copy(
             id = id,
@@ -352,9 +379,12 @@ class MangaLibraryItemSearchTest {
             dateAdded = dateAdded,
             fetchInterval = fetchInterval,
             nextUpdate = nextUpdate,
+            status = status,
         )
     }
 
+    // The badge-gated sourceLanguage var stays at its default: language search must work
+    // through resolvedSourceLang regardless of the badge setting.
     private fun item(manga: Manga, sourceName: String = "MangaDex", sourceLanguage: String = "en"): MangaLibraryItem {
         val source = mockk<MangaSource>()
         every { source.name } returns sourceName
@@ -373,7 +403,6 @@ class MangaLibraryItemSearchTest {
                 lastRead = 0L,
             ),
             sourceManager = sourceManager,
-            sourceLanguage = sourceLanguage,
         )
     }
 }

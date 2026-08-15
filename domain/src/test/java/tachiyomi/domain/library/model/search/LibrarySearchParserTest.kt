@@ -84,25 +84,25 @@ class LibrarySearchParserTest {
     @Test
     fun `known comparison fields become comparison nodes`() {
         QueryNode.from("unread>5") shouldBe
-            ComparisonQueryNode(ComparisonField.UNREAD, "5", Comparator.GT, false)
+            ComparisonQueryNode(ComparisonField.UNREAD, "5", ComparisonOperator.GT, false)
         QueryNode.from("added>=2024-01-01") shouldBe
-            ComparisonQueryNode(ComparisonField.DATE_ADDED, "2024-01-01", Comparator.GTE, false)
+            ComparisonQueryNode(ComparisonField.DATE_ADDED, "2024-01-01", ComparisonOperator.GTE, false)
         QueryNode.from("fi=7") shouldBe
-            ComparisonQueryNode(ComparisonField.FETCH_INTERVAL, "7", Comparator.EQ, false)
+            ComparisonQueryNode(ComparisonField.FETCH_INTERVAL, "7", ComparisonOperator.EQ, false)
         QueryNode.from("nu<2027-01-01") shouldBe
-            ComparisonQueryNode(ComparisonField.NEXT_UPDATE, "2027-01-01", Comparator.LT, false)
+            ComparisonQueryNode(ComparisonField.NEXT_UPDATE, "2027-01-01", ComparisonOperator.LT, false)
         QueryNode.from("id=42") shouldBe
-            ComparisonQueryNode(ComparisonField.ID, "42", Comparator.EQ, false)
+            ComparisonQueryNode(ComparisonField.ID, "42", ComparisonOperator.EQ, false)
         QueryNode.from("total>=100") shouldBe
-            ComparisonQueryNode(ComparisonField.TOTAL, "100", Comparator.GTE, false)
+            ComparisonQueryNode(ComparisonField.TOTAL, "100", ComparisonOperator.GTE, false)
         QueryNode.from("read<=3") shouldBe
-            ComparisonQueryNode(ComparisonField.READ, "3", Comparator.LTE, false)
+            ComparisonQueryNode(ComparisonField.READ, "3", ComparisonOperator.LTE, false)
     }
 
     @Test
     fun `leading minus negates a comparison`() {
         QueryNode.from("-unread>5") shouldBe
-            ComparisonQueryNode(ComparisonField.UNREAD, "5", Comparator.GT, true)
+            ComparisonQueryNode(ComparisonField.UNREAD, "5", ComparisonOperator.GT, true)
     }
 
     @Test
@@ -115,8 +115,8 @@ class LibrarySearchParserTest {
         QueryNode.from("unread>=1 || id=5") shouldBe
             OrNode(
                 listOf(
-                    ComparisonQueryNode(ComparisonField.UNREAD, "1", Comparator.GTE, false),
-                    ComparisonQueryNode(ComparisonField.ID, "5", Comparator.EQ, false),
+                    ComparisonQueryNode(ComparisonField.UNREAD, "1", ComparisonOperator.GTE, false),
+                    ComparisonQueryNode(ComparisonField.ID, "5", ComparisonOperator.EQ, false),
                 ),
             )
         QueryNode.from("(unread>5 || id=5) && genre:action") shouldBe
@@ -124,8 +124,8 @@ class LibrarySearchParserTest {
                 listOf(
                     OrNode(
                         listOf(
-                            ComparisonQueryNode(ComparisonField.UNREAD, "5", Comparator.GT, false),
-                            ComparisonQueryNode(ComparisonField.ID, "5", Comparator.EQ, false),
+                            ComparisonQueryNode(ComparisonField.UNREAD, "5", ComparisonOperator.GT, false),
+                            ComparisonQueryNode(ComparisonField.ID, "5", ComparisonOperator.EQ, false),
                         ),
                     ),
                     FieldQueryNode(LibrarySearchField.GENRE, "action", false),

@@ -1,6 +1,9 @@
 package tachiyomi.domain.library.model.search
 
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeParseException
 
 enum class LibrarySearchField(vararg val aliases: String, val fieldOnly: Boolean = false) {
     TITLE("title"),
@@ -41,7 +44,7 @@ enum class ComparisonField(vararg val aliases: String) {
     }
 }
 
-enum class Comparator(val symbol: String) {
+enum class ComparisonOperator(val symbol: String) {
     GTE(">="),
     LTE("<="),
     GT(">"),
@@ -50,7 +53,7 @@ enum class Comparator(val symbol: String) {
     ;
 
     companion object {
-        fun fromString(value: String): Comparator? = entries.firstOrNull { it.symbol == value }
+        fun fromString(value: String): ComparisonOperator? = entries.firstOrNull { it.symbol == value }
     }
 }
 
@@ -89,11 +92,17 @@ data class FieldQueryNode(val field: LibrarySearchField, val value: String, val 
 data class ComparisonQueryNode(
     val field: ComparisonField,
     val value: String,
-    val comparator: Comparator,
+    val comparator: ComparisonOperator,
     val negated: Boolean,
 ) : QueryNode {
     private val parsedLong: Long? by lazy { value.toLongOrNull() }
-    private val parsedDate: LocalDate? by lazy { runCatching { LocalDate.parse(value) }.getOrNull() }
+    private val parsedDate: LocalDate? by lazy {
+        try {
+            LocalDate.parse(value)
+        } catch (_: DateTimeParseException) {
+            null
+        }
+    }
 
     /**
      * Applies the comparator to an actual numeric value. Returns null when the query value
@@ -101,11 +110,11 @@ data class ComparisonQueryNode(
      */
     fun compareLong(actual: Long): Boolean? = parsedLong?.let { expected ->
         when (comparator) {
-            Comparator.GTE -> actual >= expected
-            Comparator.LTE -> actual <= expected
-            Comparator.GT -> actual > expected
-            Comparator.LT -> actual < expected
-            Comparator.EQ -> actual == expected
+            ComparisonOperator.GTE -> actual >= expected
+            ComparisonOperator.LTE -> actual <= expected
+            ComparisonOperator.GT -> actual > expected
+            ComparisonOperator.LT -> actual < expected
+            ComparisonOperator.EQ -> actual == expected
         }
     }
 
@@ -115,11 +124,19 @@ data class ComparisonQueryNode(
      */
     fun compareDate(actual: LocalDate): Boolean? = parsedDate?.let { expected ->
         when (comparator) {
-            Comparator.GTE -> !actual.isBefore(expected)
-            Comparator.LTE -> !actual.isAfter(expected)
-            Comparator.GT -> actual.isAfter(expected)
-            Comparator.LT -> actual.isBefore(expected)
-            Comparator.EQ -> actual == expected
+            ComparisonOperator.GTE -> !actual.isBefore(expected)
+            ComparisonOperator.LTE -> !actual.isAfter(expected)
+            ComparisonOperator.GT -> actual.isAfter(expected)
+            ComparisonOperator.LT -> actual.isBefore(expected)
+            ComparisonOperator.EQ -> actual == expected
         }
     }
+}
+
+/**
+ * Converts epoch milliseconds to a local date in the given zone. The zone is captured once
+ * per evaluation and shared by every item so the conversion never re-resolves the system zone.
+ */
+fun epochMillisToLocalDate(epochMillis: Long, zone: ZoneId): LocalDate {
+    return Instant.ofEpochMilli(epochMillis).atZone(zone).toLocalDate()
 }

@@ -70,11 +70,11 @@ class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
                     ComparisonQueryNode(
                         field = field,
                         value = nextToken.value,
-                        comparator = Comparator.fromString(nextToken.comparator)!!,
+                        comparator = nextToken.comparator,
                         negated = negated,
                     )
                 } ?: GeneralQueryNode(
-                    "${nextToken.field}${nextToken.comparator}${nextToken.value}",
+                    "${nextToken.field}${nextToken.comparator.symbol}${nextToken.value}",
                     negated,
                 )
             }

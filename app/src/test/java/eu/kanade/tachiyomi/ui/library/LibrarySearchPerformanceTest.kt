@@ -78,13 +78,15 @@ class LibrarySearchPerformanceTest {
     }
 
     private fun evaluateBattery(queries: List<String>) {
-        countMatches("naruto")
+        // Warm the JIT with a query that is not in the timed battery.
+        countMatches("genre:action")
         var totalNanos = 0L
         for (query in queries) {
             val start = System.nanoTime()
             val count = countMatches(query)
-            val elapsedMs = (System.nanoTime() - start) / 1_000_000
-            totalNanos += System.nanoTime() - start
+            val elapsed = System.nanoTime() - start
+            val elapsedMs = elapsed / 1_000_000
+            totalNanos += elapsed
             println("LibrarySearchPerformance: $query -> $count matches in ${elapsedMs}ms")
             assertEquals(expected(query), count, query)
         }
@@ -102,7 +104,6 @@ class LibrarySearchPerformanceTest {
 
     private fun expected(query: String): Int = when (query) {
         "naruto" -> 200
-        "genre:action" -> 6668
         "genre:action && -desc:ecchi" -> 5714
         "language:en" -> 10_000
         "notes:\"\"" -> 20_000
