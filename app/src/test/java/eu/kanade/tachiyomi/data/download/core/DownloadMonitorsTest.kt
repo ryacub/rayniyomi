@@ -3,11 +3,10 @@ package eu.kanade.tachiyomi.data.download.core
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -24,7 +23,6 @@ class DownloadMonitorsTest {
             )
         }
 
-        assertNotNull(result, "withMonitors must return while an endless monitor runs")
         assertEquals("done", result)
     }
 
@@ -151,21 +149,85 @@ class DownloadMonitorsTest {
     }
 
     @Test
-    fun `stops a monitor that ignores cancellation of its children`() = runTest {
-        var blockReturned = false
+    fun `cancels the monitors in reverse list order`() = runTest {
+        val order = mutableListOf<String>()
+        val firstStarted = CompletableDeferred<Unit>()
+        val secondStarted = CompletableDeferred<Unit>()
 
-        val result = withTimeoutOrNull(TIMEOUT_MS) {
+        withTimeoutOrNull(TIMEOUT_MS) {
             DownloadMonitors.withMonitors(
-                monitors = listOf({ MutableStateFlow(0).collect { } }),
+                monitors = listOf(
+                    {
+                        try {
+                            firstStarted.complete(Unit)
+                            awaitForever()
+                        } finally {
+                            order += "first"
+                        }
+                    },
+                    {
+                        try {
+                            secondStarted.complete(Unit)
+                            awaitForever()
+                        } finally {
+                            order += "second"
+                        }
+                    },
+                ),
                 block = {
-                    blockReturned = true
-                    "done"
+                    firstStarted.await()
+                    secondStarted.await()
                 },
             )
         }
 
-        assertTrue(blockReturned)
-        assertFalse(result == null, "withMonitors must not hang after the block returns")
+        assertEquals(listOf("second", "first"), order)
+    }
+
+    @Test
+    fun `propagates the exception when a monitor throws`() = runTest {
+        var thrown: Throwable? = null
+
+        withTimeoutOrNull(TIMEOUT_MS) {
+            try {
+                DownloadMonitors.withMonitors(
+                    monitors = listOf({
+                        throw IllegalStateException("monitor boom")
+                    }),
+                    block = { awaitForever() },
+                )
+            } catch (e: IllegalStateException) {
+                thrown = e
+            }
+        }
+
+        assertEquals("monitor boom", thrown?.message)
+    }
+
+    @Test
+    fun `cancels every monitor when the caller is cancelled`() = runTest {
+        var cancelled = false
+        val started = CompletableDeferred<Unit>()
+
+        val job = launch {
+            DownloadMonitors.withMonitors(
+                monitors = listOf({
+                    try {
+                        started.complete(Unit)
+                        awaitForever()
+                    } finally {
+                        cancelled = true
+                    }
+                }),
+                block = { awaitForever() },
+            )
+        }
+
+        started.await()
+        job.cancel()
+        job.join()
+
+        assertTrue(cancelled, "the monitor must be cancelled when the caller is cancelled")
     }
 
     private suspend fun awaitForever() {

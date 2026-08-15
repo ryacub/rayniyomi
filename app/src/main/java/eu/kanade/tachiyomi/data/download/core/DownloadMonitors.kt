@@ -17,6 +17,10 @@ object DownloadMonitors {
      * `coroutineScope` returns only after every child job ends, so the cancellation must happen
      * inside the same scope that started the monitors. A `finally` block placed after the scope
      * never runs, because the scope waits for the monitors it is meant to stop.
+     *
+     * Monitors are cancelled in reverse list order: the last-listed monitor is cancelled first.
+     * Pass monitors in start order (e.g., progress monitor then stall monitor) so they stop in
+     * the desired order (stall stops first, then progress).
      */
     suspend fun <T> withMonitors(
         monitors: List<suspend () -> Unit>,
