@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidat
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
+import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
@@ -43,9 +44,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,7 +60,6 @@ import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -541,9 +539,6 @@ class AnimeDownloader(
 
         video.status = Video.State.LOAD_VIDEO
 
-        var progressJob: Job? = null
-        var stallMonitorJob: Job? = null
-
         // Get filename from download info
         val filename = DiskUtil.buildValidFilename(download.episode.name)
 
@@ -569,28 +564,30 @@ class AnimeDownloader(
 
                     // If videoFile is not existing then download it
                     if (preferences.useExternalDownloader().get() == download.changeDownloader) {
-                        coroutineScope {
-                            progressJob = launch {
-                                download.progressFlow
-                                    .collect {
-                                        if (download.status != AnimeDownload.State.DOWNLOADING) return@collect
+                        val progressMonitor: suspend () -> Unit = {
+                            download.progressFlow
+                                .collect {
+                                    if (download.status == AnimeDownload.State.DOWNLOADING) {
                                         download.lastProgressAt = System.currentTimeMillis()
                                         download.retryAttempt = 0
                                         download.displayStatus = DownloadDisplayStatus.DOWNLOADING
                                         notifier.onProgressChange(download)
                                     }
-                            }
-                            stallMonitorJob = launch {
-                                while (download.status == AnimeDownload.State.DOWNLOADING) {
-                                    delay(1_000)
-                                    val now = System.currentTimeMillis()
-                                    if (DownloadStatusTracker.shouldMarkStalled(download, now)) {
-                                        download.displayStatus = DownloadDisplayStatus.STALLED
-                                        notifier.onProgressChange(download)
-                                    }
+                                }
+                        }
+                        val stallMonitor: suspend () -> Unit = {
+                            while (download.status == AnimeDownload.State.DOWNLOADING) {
+                                delay(1_000)
+                                val now = System.currentTimeMillis()
+                                if (DownloadStatusTracker.shouldMarkStalled(download, now)) {
+                                    download.displayStatus = DownloadDisplayStatus.STALLED
+                                    notifier.onProgressChange(download)
                                 }
                             }
+                        }
 
+                        // Stall reporting stops before progress collection, to avoid a stale state update.
+                        DownloadMonitors.withMonitors(listOf(progressMonitor, stallMonitor)) {
                             downloadVideo(download, tmpDir, filename)
                         }
                     } else {
@@ -617,14 +614,6 @@ class AnimeDownloader(
             download.lastErrorReason = e.message
             notifier.onError(e.message, download.episode.name, download.anime.title, download.anime.id)
             return VideoFetchResult.Failed
-        } finally {
-            withContext(NonCancellable) {
-                // Stop stall reporting before progress collection to avoid stale state updates.
-                stallMonitorJob?.cancel()
-                stallMonitorJob?.join()
-                progressJob?.cancel()
-                progressJob?.join()
-            }
         }
     }
 
