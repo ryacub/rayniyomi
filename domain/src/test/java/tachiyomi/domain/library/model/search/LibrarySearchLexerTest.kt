@@ -103,6 +103,14 @@ class LibrarySearchLexerTest {
     }
 
     @Test
+    fun `unspaced comparison value swallows the following operator`() {
+        LibrarySearchLexer.tokenize("id=42&&total>5") shouldBe
+            listOf(CompField("id", "=", "42&&total>5"))
+        LibrarySearchLexer.tokenize("unread>=1&&total>5") shouldBe
+            listOf(CompField("unread", ">=", "1&&total>5"))
+    }
+
+    @Test
     fun `single quote is not a quote character`() {
         LibrarySearchLexer.tokenize("Gintama'") shouldBe listOf(General("Gintama'"))
     }
