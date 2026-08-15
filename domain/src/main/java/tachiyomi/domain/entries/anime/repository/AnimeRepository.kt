@@ -40,7 +40,11 @@ interface AnimeRepository {
 
     suspend fun mergeEntries(keepId: Long, deleteId: Long)
 
-    suspend fun getUpcomingAnime(statuses: Set<Long>): Flow<List<Anime>>
+    suspend fun getUpcomingAnime(
+        statuses: Set<Long>,
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<Anime>>
 
     suspend fun resetAnimeViewerFlags(): Boolean
 

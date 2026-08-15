@@ -20,6 +20,8 @@ class DeleteMangaCategory(
             libraryPreferences.mangaUpdateCategoriesExclude(),
             libraryPreferences.filterMangaUpdatesCategories(),
             libraryPreferences.filterMangaUpdatesCategoriesExclude(),
+            libraryPreferences.filterMangaUpcomingCategories(),
+            libraryPreferences.filterMangaUpcomingCategoriesExclude(),
             downloadPreferences.removeExcludeCategories(),
             downloadPreferences.downloadNewChapterCategories(),
             downloadPreferences.downloadNewChapterCategoriesExclude(),

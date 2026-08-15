@@ -144,10 +144,22 @@ class MangaRepositoryImpl(
         }
     }
 
-    override suspend fun getUpcomingManga(statuses: Set<Long>): Flow<List<Manga>> {
+    override suspend fun getUpcomingManga(
+        statuses: Set<Long>,
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<Manga>> {
         val epochMillis = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
         return handler.subscribeToList {
-            mangasQueries.getUpcomingManga(epochMillis, statuses, MangaMapper::mapManga)
+            mangasQueries.getUpcomingManga(
+                startOfDay = epochMillis,
+                statuses = statuses,
+                includedEmpty = includedCategories.isEmpty(),
+                includedCategories = includedCategories,
+                excludedEmpty = excludedCategories.isEmpty(),
+                excludedCategories = excludedCategories,
+                mapper = MangaMapper::mapManga,
+            )
         }
     }
 

@@ -14,7 +14,10 @@ class GetUpcomingManga(
         SManga.PUBLISHING_FINISHED.toLong(),
     )
 
-    suspend fun subscribe(): Flow<List<Manga>> {
-        return mangaRepository.getUpcomingManga(includedStatuses)
+    suspend fun subscribe(
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<Manga>> {
+        return mangaRepository.getUpcomingManga(includedStatuses, includedCategories, excludedCategories)
     }
 }
