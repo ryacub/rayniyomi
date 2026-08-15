@@ -43,8 +43,26 @@ class LibrarySearchCompatTest {
             "genre:action,adventure",
             "desc:foo || genre:bar",
             "-genre:comedy",
+            "notes:foo",
+            "lang:en",
+            "unread>5",
+            "id>5",
+            "UNREAD>5",
+            "ID>5",
+            "added>=2024-01-01",
+            "fi=7",
         ).forEach { query ->
             isLegacySearchQuery(query) shouldBe false
+        }
+    }
+
+    @Test
+    fun `plain text and unknown comparison syntax stay legacy`() {
+        listOf(
+            "title>5",
+            "unreadable>1",
+        ).forEach { query ->
+            isLegacySearchQuery(query) shouldBe true
         }
     }
 

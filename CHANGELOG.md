@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- Library search now supports the comparison fields `id`, `added`, `fetchinterval` (or `fi`), `nextupdate` (or `nu`), `unread`, `read`, and `total` with the operators `>=`, `<=`, `>`, `<`, and `=`; dates use the `yyyy-MM-dd` format. The `language:` (or `lang:`) field filters by source language, and the `notes:` (or `note:`) field is not supported. For anime, `unread` means unseen, `read` means seen, and `total` means total episodes.
 - Library search now supports the operators `&&` (AND), `||` (OR), and `-` (NOT), grouped expressions with parentheses, and double-quoted values. Field filters search by `title`, `author`, `artist`, `description` (or `desc`), `genre` (or `tag`), and `source` (or `src`); the `source:local` value matches local entries. Queries without these markers keep the old behavior, including comma lists, a leading minus, and the `id:` prefix. The new Search help item in the library menu explains the syntax.
 - The Manga and Anime Updates screens now filter their lists by category. Updates in excluded categories stay hidden even when those categories are also included.
 - The Manga and Anime Upcoming screens now filter their calendar entries by category. Entries in excluded categories stay hidden even when those categories are also included.

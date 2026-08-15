@@ -3,6 +3,7 @@ package tachiyomi.domain.library.model.search
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.library.model.search.LibrarySearchLexer.Token.And
+import tachiyomi.domain.library.model.search.LibrarySearchLexer.Token.CompField
 import tachiyomi.domain.library.model.search.LibrarySearchLexer.Token.Field
 import tachiyomi.domain.library.model.search.LibrarySearchLexer.Token.General
 import tachiyomi.domain.library.model.search.LibrarySearchLexer.Token.LParen
@@ -67,8 +68,46 @@ class LibrarySearchLexerTest {
     }
 
     @Test
-    fun `id equals syntax has no comparison token and becomes a general term`() {
-        LibrarySearchLexer.tokenize("id=5") shouldBe listOf(General("id=5"))
+    fun `id equals syntax becomes a comparison token`() {
+        LibrarySearchLexer.tokenize("id=5") shouldBe listOf(CompField("id", ComparisonOperator.EQ, "5"))
+    }
+
+    @Test
+    fun `comparison tokens cover all operators`() {
+        LibrarySearchLexer.tokenize("unread>5") shouldBe listOf(CompField("unread", ComparisonOperator.GT, "5"))
+        LibrarySearchLexer.tokenize("added>=2024-01-01") shouldBe
+            listOf(CompField("added", ComparisonOperator.GTE, "2024-01-01"))
+        LibrarySearchLexer.tokenize("read<=3") shouldBe listOf(CompField("read", ComparisonOperator.LTE, "3"))
+        LibrarySearchLexer.tokenize("total<10") shouldBe listOf(CompField("total", ComparisonOperator.LT, "10"))
+        LibrarySearchLexer.tokenize("fi=7") shouldBe listOf(CompField("fi", ComparisonOperator.EQ, "7"))
+    }
+
+    @Test
+    fun `comparison values can be quoted or negative`() {
+        LibrarySearchLexer.tokenize("id>\"5\"") shouldBe listOf(CompField("id", ComparisonOperator.GT, "5"))
+        LibrarySearchLexer.tokenize("id>-5") shouldBe listOf(CompField("id", ComparisonOperator.GT, "-5"))
+    }
+
+    @Test
+    fun `comparison tokens join compound queries`() {
+        LibrarySearchLexer.tokenize("genre:action && id=5") shouldBe
+            listOf(Field("genre", "action"), And, CompField("id", ComparisonOperator.EQ, "5"))
+        LibrarySearchLexer.tokenize("unread>=1 || total>5") shouldBe
+            listOf(CompField("unread", ComparisonOperator.GTE, "1"), Or, CompField("total", ComparisonOperator.GT, "5"))
+    }
+
+    @Test
+    fun `comparison without a value is not a comparison token`() {
+        LibrarySearchLexer.tokenize("id>") shouldBe listOf(General("id>"))
+        LibrarySearchLexer.tokenize("id") shouldBe listOf(General("id"))
+    }
+
+    @Test
+    fun `unspaced comparison value swallows the following operator`() {
+        LibrarySearchLexer.tokenize("id=42&&total>5") shouldBe
+            listOf(CompField("id", ComparisonOperator.EQ, "42&&total>5"))
+        LibrarySearchLexer.tokenize("unread>=1&&total>5") shouldBe
+            listOf(CompField("unread", ComparisonOperator.GTE, "1&&total>5"))
     }
 
     @Test

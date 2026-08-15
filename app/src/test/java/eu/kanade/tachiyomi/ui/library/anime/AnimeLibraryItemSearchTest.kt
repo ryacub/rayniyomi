@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.library.anime
 
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.animesource.model.SAnime
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -13,10 +14,13 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.library.anime.LibraryAnime
+import tachiyomi.domain.library.model.search.parseSearchQuery
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
+import java.time.Instant
+import java.time.ZoneId
 
 class AnimeLibraryItemSearchTest {
 
@@ -231,6 +235,126 @@ class AnimeLibraryItemSearchTest {
         assertFalse(item.matchesQuery("title:naruto && -(naruto"))
     }
 
+    @Test
+    fun `language field matches source language`() {
+        val en = item(anime(), sourceLanguage = "en")
+        val ja = item(anime(), sourceLanguage = "ja")
+        assertTrue(en.matchesQuery("language:en"))
+        assertTrue(en.matchesQuery("lang:en"))
+        assertTrue(ja.matchesQuery("language:ja"))
+        assertFalse(ja.matchesQuery("language:en"))
+        assertFalse(en.matchesQuery("language:ja"))
+    }
+
+    @Test
+    fun `empty language value checks empty source language`() {
+        val empty = item(anime(), sourceLanguage = "")
+        val en = item(anime(), sourceLanguage = "en")
+        assertTrue(empty.matchesQuery("language:\"\""))
+        assertFalse(en.matchesQuery("language:\"\""))
+    }
+
+    @Test
+    fun `notes field never matches text and empty value matches everything`() {
+        val item = item(anime())
+        assertFalse(item.matchesQuery("notes:foo"))
+        assertFalse(item.matchesQuery("note:foo"))
+        assertTrue(item.matchesQuery("notes:\"\""))
+    }
+
+    @Test
+    fun `date comparisons use the entry timestamps`() {
+        val item = item(
+            anime(
+                dateAdded = Instant.parse("2024-06-15T12:00:00Z").toEpochMilli(),
+                nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli(),
+            ),
+        )
+        assertTrue(item.matchesQuery("added>=2024-01-01"))
+        assertTrue(item.matchesQuery("added>2024-01-01"))
+        assertFalse(item.matchesQuery("added<2024-01-01"))
+        assertFalse(item.matchesQuery("added>2024-12-31"))
+        assertFalse(item.matchesQuery("nu<2027-01-01"))
+        assertTrue(item.matchesQuery("nu>2027-12-31"))
+        assertTrue(item.matchesQuery("nu>=2027-01-01"))
+    }
+
+    @Test
+    fun `next update comparison excludes completed entries`() {
+        val completed = item(
+            anime(
+                nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli(),
+                status = SAnime.COMPLETED.toLong(),
+            ),
+        )
+        assertFalse(completed.matchesQuery("nu<2027-01-01"))
+        assertFalse(completed.matchesQuery("nu>=2027-01-01"))
+        assertTrue(completed.matchesQuery("-nu<2027-01-01"))
+        val ongoing = item(anime(nextUpdate = Instant.parse("2028-03-01T12:00:00Z").toEpochMilli()))
+        assertTrue(ongoing.matchesQuery("nu>2027-12-31"))
+    }
+
+    @Test
+    fun `date comparisons respect the evaluation zone`() {
+        val item = item(anime(dateAdded = Instant.parse("2019-12-31T23:00:00Z").toEpochMilli()))
+        val node = parseSearchQuery("added>=2020-01-01")
+        assertTrue(node.matches(item, ZoneId.of("Pacific/Kiritimati")))
+        assertFalse(node.matches(item, ZoneId.of("Pacific/Niue")))
+    }
+
+    @Test
+    fun `fetch interval comparisons use the absolute interval`() {
+        val positive = item(anime(fetchInterval = 7))
+        val negative = item(anime(fetchInterval = -7))
+        val small = item(anime(fetchInterval = 3))
+        assertTrue(positive.matchesQuery("fi=7"))
+        assertTrue(negative.matchesQuery("fi=7"))
+        assertTrue(positive.matchesQuery("fetchinterval>5"))
+        assertFalse(small.matchesQuery("fi=7"))
+        assertTrue(small.matchesQuery("fi<5"))
+    }
+
+    @Test
+    fun `id and count comparisons use the library values`() {
+        val item = item(anime(id = 42L))
+        assertTrue(item.matchesQuery("id=42"))
+        assertFalse(item.matchesQuery("id=43"))
+        assertTrue(item.matchesQuery("unread>=1"))
+        assertFalse(item.matchesQuery("unread>7"))
+        assertTrue(item.matchesQuery("read=3"))
+        assertFalse(item.matchesQuery("read=4"))
+        assertTrue(item.matchesQuery("total>5"))
+        assertFalse(item.matchesQuery("total>10"))
+    }
+
+    @Test
+    fun `unread comparison uses the computed unseen count not the badge value`() {
+        val item = item(anime())
+        assertEquals(-1L, item.unseenCount)
+        assertTrue(item.matchesQuery("unread>=1"))
+    }
+
+    @Test
+    fun `malformed comparison values never match and negation flips them`() {
+        val item = item(anime())
+        assertFalse(item.matchesQuery("id>abc"))
+        assertTrue(item.matchesQuery("-id>abc"))
+        assertFalse(item.matchesQuery("added>notadate"))
+        assertTrue(item.matchesQuery("-added>notadate"))
+    }
+
+    @Test
+    fun `comparisons evaluate inside operator trees`() {
+        val item = item(anime(title = "Naruto", id = 42L))
+        assertTrue(item.matchesQuery("unread>=1 && total>5"))
+        assertFalse(item.matchesQuery("unread>7 && total>5"))
+        assertTrue(item.matchesQuery("unread>=1 || read=0"))
+        assertTrue(item.matchesQuery("id=42 && -genre:comedy"))
+        assertFalse(item.matchesQuery("id=43 && -genre:comedy"))
+        assertTrue(item.matchesQuery("(total>=100 || read=3) && genre:action"))
+        assertFalse(item.matchesQuery("-(unread>=1 || total>5)"))
+    }
+
     private fun anime(
         title: String = "Naruto",
         author: String? = "Masashi Kishimoto",
@@ -239,6 +363,10 @@ class AnimeLibraryItemSearchTest {
         genre: List<String>? = listOf("Action", "Adventure"),
         source: Long = 5L,
         id: Long = 42L,
+        dateAdded: Long = 0L,
+        fetchInterval: Int = 0,
+        nextUpdate: Long = 0L,
+        status: Long = 0L,
     ): Anime {
         return Anime.create().copy(
             id = id,
@@ -248,13 +376,23 @@ class AnimeLibraryItemSearchTest {
             description = description,
             genre = genre,
             source = source,
+            dateAdded = dateAdded,
+            fetchInterval = fetchInterval,
+            nextUpdate = nextUpdate,
+            status = status,
         )
     }
 
-    private fun item(anime: Anime, sourceName: String = "Crunchyroll"): AnimeLibraryItem {
+    // The badge-gated sourceLanguage var stays at its default: language search must work
+    // through resolvedSourceLang regardless of the badge setting.
+    private fun item(
+        anime: Anime,
+        sourceName: String = "Crunchyroll",
+        sourceLanguage: String = "en",
+    ): AnimeLibraryItem {
         val source = mockk<AnimeSource>()
         every { source.name } returns sourceName
-        every { source.lang } returns "en"
+        every { source.lang } returns sourceLanguage
         val sourceManager = mockk<AnimeSourceManager>()
         every { sourceManager.getOrStub(any()) } returns source
         return AnimeLibraryItem(

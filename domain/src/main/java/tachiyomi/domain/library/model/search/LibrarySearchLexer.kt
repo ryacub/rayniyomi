@@ -13,6 +13,10 @@ object LibrarySearchLexer {
             (?<OR> \|\| )|
             (?<AND> && )|
 
+            # Comparison fields: name operator value
+            (?<CompField> [a-zA-Z_][a-zA-Z0-9_]* ) (?<Comparator> >=|<=|>|<|= )
+            (?: \s* " (?<CompValQuoted> [^"]* ) " \s* | (?<CompVal> [^\s,()]+ ))|
+
             # Key-Value fields
             (?<Field> [a-zA-Z_][a-zA-Z0-9_]* ) :
             (?: " (?<FieldValQuoted> [^"]* ) " | (?<FieldVal> [^\s,()]+ ))|
@@ -32,6 +36,7 @@ object LibrarySearchLexer {
         data object And : Token
         data object Or : Token
         data object Not : Token
+        data class CompField(val field: String, val comparator: ComparisonOperator, val value: String) : Token
         data class Field(val field: String, val value: String) : Token
         data class General(val value: String) : Token
     }
@@ -49,6 +54,26 @@ object LibrarySearchLexer {
                 groups["NOT"] != null -> tokens.add(Token.Not)
                 groups["LParen"] != null -> tokens.add(Token.LParen)
                 groups["RParen"] != null -> tokens.add(Token.RParen)
+                groups["CompField"] != null -> {
+                    val comparator = ComparisonOperator.fromString(groups["Comparator"]!!.value)
+                    val value = groups["CompValQuoted"]?.value
+                        ?: groups["CompVal"]!!.value
+                    if (comparator != null) {
+                        tokens.add(
+                            Token.CompField(
+                                field = groups["CompField"]!!.value,
+                                comparator = comparator,
+                                value = value,
+                            ),
+                        )
+                    } else {
+                        tokens.add(
+                            Token.General(
+                                "${groups["CompField"]!!.value}${groups["Comparator"]!!.value}$value",
+                            ),
+                        )
+                    }
+                }
                 groups["Field"] != null -> {
                     tokens.add(
                         Token.Field(

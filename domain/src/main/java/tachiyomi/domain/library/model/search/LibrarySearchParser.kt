@@ -65,6 +65,19 @@ class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
 
         return when (val nextToken = advance()) {
             is LibrarySearchLexer.Token.General -> GeneralQueryNode(nextToken.value, negated)
+            is LibrarySearchLexer.Token.CompField -> {
+                ComparisonField.fromString(nextToken.field)?.let { field ->
+                    ComparisonQueryNode(
+                        field = field,
+                        value = nextToken.value,
+                        comparator = nextToken.comparator,
+                        negated = negated,
+                    )
+                } ?: GeneralQueryNode(
+                    "${nextToken.field}${nextToken.comparator.symbol}${nextToken.value}",
+                    negated,
+                )
+            }
             is LibrarySearchLexer.Token.Field -> {
                 LibrarySearchField.fromString(nextToken.field)?.let {
                     FieldQueryNode(it, nextToken.value, negated)
