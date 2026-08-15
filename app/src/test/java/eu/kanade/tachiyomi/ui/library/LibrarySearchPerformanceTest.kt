@@ -93,7 +93,9 @@ class LibrarySearchPerformanceTest {
         val totalMs = totalNanos / 1_000_000
         val itemCount = mangaItems.size + animeItems.size
         println("LibrarySearchPerformance: total ${totalMs}ms for ${queries.size} queries over $itemCount items")
-        assertTrue(totalMs < 3_000, "battery took ${totalMs}ms, ceiling is 3000ms")
+        // The ceiling guards pathological regressions, such as a parse per item. It is not a
+        // timing benchmark: a loaded CI runner can take several times the local measurement.
+        assertTrue(totalMs < 10_000, "battery took ${totalMs}ms, ceiling is 10000ms")
     }
 
     private fun countMatches(query: String): Int {
