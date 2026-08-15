@@ -38,7 +38,11 @@ interface MangaRepository {
 
     suspend fun mergeEntries(keepId: Long, deleteId: Long)
 
-    suspend fun getUpcomingManga(statuses: Set<Long>): Flow<List<Manga>>
+    suspend fun getUpcomingManga(
+        statuses: Set<Long>,
+        includedCategories: List<Long>,
+        excludedCategories: List<Long>,
+    ): Flow<List<Manga>>
 
     suspend fun resetMangaViewerFlags(): Boolean
 

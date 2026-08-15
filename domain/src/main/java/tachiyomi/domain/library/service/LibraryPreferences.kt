@@ -184,6 +184,18 @@ class LibraryPreferences(
     fun filterAnimeUpdatesCategoriesExclude() =
         preferenceStore.getStringSet(FILTER_ANIME_UPDATES_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
 
+    fun filterMangaUpcomingCategories() =
+        preferenceStore.getStringSet(FILTER_MANGA_UPCOMING_CATEGORIES_PREF_KEY, emptySet())
+
+    fun filterMangaUpcomingCategoriesExclude() =
+        preferenceStore.getStringSet(FILTER_MANGA_UPCOMING_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
+
+    fun filterAnimeUpcomingCategories() =
+        preferenceStore.getStringSet(FILTER_ANIME_UPCOMING_CATEGORIES_PREF_KEY, emptySet())
+
+    fun filterAnimeUpcomingCategoriesExclude() =
+        preferenceStore.getStringSet(FILTER_ANIME_UPCOMING_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
+
     // Mixture Item
 
     fun filterEpisodeBySeen() =
@@ -438,6 +450,12 @@ class LibraryPreferences(
         private const val FILTER_ANIME_UPDATES_CATEGORIES_PREF_KEY = "pref_filter_anime_updates_included_categories"
         private const val FILTER_ANIME_UPDATES_CATEGORIES_EXCLUDE_PREF_KEY =
             "pref_filter_anime_updates_excluded_categories"
+        private const val FILTER_MANGA_UPCOMING_CATEGORIES_PREF_KEY = "pref_filter_manga_upcoming_included_categories"
+        private const val FILTER_MANGA_UPCOMING_CATEGORIES_EXCLUDE_PREF_KEY =
+            "pref_filter_manga_upcoming_excluded_categories"
+        private const val FILTER_ANIME_UPCOMING_CATEGORIES_PREF_KEY = "pref_filter_anime_upcoming_included_categories"
+        private const val FILTER_ANIME_UPCOMING_CATEGORIES_EXCLUDE_PREF_KEY =
+            "pref_filter_anime_upcoming_excluded_categories"
         val categoryPreferenceKeys = setOf(
             DEFAULT_MANGA_CATEGORY_PREF_KEY,
             DEFAULT_ANIME_CATEGORY_PREF_KEY,

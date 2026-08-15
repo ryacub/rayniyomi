@@ -409,6 +409,88 @@ class CategoryInteractorOperationsTest {
         )
     }
 
+    @Test
+    fun `manga delete facade prunes upcoming prefs and leaves anime upcoming prefs untouched`() = runTest {
+        val categoryId = 2L
+        val preferences = KeyedMutablePreferenceStore()
+        val libraryPreferences = LibraryPreferences(preferences)
+        val downloadPreferences = DownloadPreferences(preferences)
+        libraryPreferences.filterMangaUpcomingCategories().set(setOf("2", "8"))
+        libraryPreferences.filterMangaUpcomingCategoriesExclude().set(setOf("2", "9"))
+        libraryPreferences.filterAnimeUpcomingCategories().set(setOf("2", "10"))
+        libraryPreferences.filterAnimeUpcomingCategoriesExclude().set(setOf("2", "11"))
+        val repository = FakeMangaCategoryRepository(
+            listOf(
+                category(id = 1, name = "Parent", order = 0),
+                category(id = categoryId, name = "Deleted", order = 1),
+                category(id = 3, name = "Child", order = 2, parentId = categoryId),
+                category(id = 4, name = "Later", order = 3),
+            ),
+        )
+        val deleteMangaCategory = DeleteMangaCategory(
+            categoryRepository = repository,
+            libraryPreferences = libraryPreferences,
+            downloadPreferences = downloadPreferences,
+        )
+
+        val result = deleteMangaCategory.await(categoryId)
+
+        assertEquals(DeleteMangaCategory.Result.Success, result)
+        assertEquals(setOf("8"), libraryPreferences.filterMangaUpcomingCategories().get())
+        assertEquals(setOf("9"), libraryPreferences.filterMangaUpcomingCategoriesExclude().get())
+        assertEquals(setOf("2", "10"), libraryPreferences.filterAnimeUpcomingCategories().get())
+        assertEquals(setOf("2", "11"), libraryPreferences.filterAnimeUpcomingCategoriesExclude().get())
+        assertEquals(
+            listOf(
+                CategoryUpdate(id = 1, order = 0, parentId = null, updateParentId = false),
+                CategoryUpdate(id = 3, order = 1, parentId = null, updateParentId = true),
+                CategoryUpdate(id = 4, order = 2, parentId = null, updateParentId = false),
+            ),
+            repository.updates,
+        )
+    }
+
+    @Test
+    fun `anime delete facade prunes upcoming prefs and leaves manga upcoming prefs untouched`() = runTest {
+        val categoryId = 2L
+        val preferences = KeyedMutablePreferenceStore()
+        val libraryPreferences = LibraryPreferences(preferences)
+        val downloadPreferences = DownloadPreferences(preferences)
+        libraryPreferences.filterAnimeUpcomingCategories().set(setOf("2", "10"))
+        libraryPreferences.filterAnimeUpcomingCategoriesExclude().set(setOf("2", "11"))
+        libraryPreferences.filterMangaUpcomingCategories().set(setOf("2", "8"))
+        libraryPreferences.filterMangaUpcomingCategoriesExclude().set(setOf("2", "9"))
+        val repository = FakeDeletableAnimeCategoryRepository(
+            listOf(
+                category(id = 1, name = "Parent", order = 0),
+                category(id = categoryId, name = "Deleted", order = 1),
+                category(id = 3, name = "Child", order = 2, parentId = categoryId),
+                category(id = 4, name = "Later", order = 3),
+            ),
+        )
+        val deleteAnimeCategory = DeleteAnimeCategory(
+            categoryRepository = repository,
+            libraryPreferences = libraryPreferences,
+            downloadPreferences = downloadPreferences,
+        )
+
+        val result = deleteAnimeCategory.await(categoryId)
+
+        assertEquals(DeleteAnimeCategory.Result.Success, result)
+        assertEquals(setOf("10"), libraryPreferences.filterAnimeUpcomingCategories().get())
+        assertEquals(setOf("11"), libraryPreferences.filterAnimeUpcomingCategoriesExclude().get())
+        assertEquals(setOf("2", "8"), libraryPreferences.filterMangaUpcomingCategories().get())
+        assertEquals(setOf("2", "9"), libraryPreferences.filterMangaUpcomingCategoriesExclude().get())
+        assertEquals(
+            listOf(
+                CategoryUpdate(id = 1, order = 0, parentId = null, updateParentId = false),
+                CategoryUpdate(id = 3, order = 1, parentId = null, updateParentId = true),
+                CategoryUpdate(id = 4, order = 2, parentId = null, updateParentId = false),
+            ),
+            repository.updates,
+        )
+    }
+
     private class FakeCategoryRepositoryOps(
         initialCategories: List<Category>,
     ) : CategoryRepositoryOps {

@@ -9,9 +9,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,14 +41,18 @@ import tachiyomi.presentation.core.components.TwoPanelBox
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.EmptyScreen
+import tachiyomi.presentation.core.theme.active
 import java.time.LocalDate
 import java.time.YearMonth
 
 @Composable
 fun UpcomingMangaScreenContent(
     state: UpcomingMangaScreenModel.State,
+    hasActiveFilters: Boolean,
     setSelectedYearMonth: (YearMonth) -> Unit,
     onClickUpcoming: (manga: Manga) -> Unit,
+    onShowFilterDialog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -59,10 +65,15 @@ fun UpcomingMangaScreenContent(
         }
     }
     Scaffold(
-        topBar = { UpcomingToolbar() },
+        topBar = { UpcomingToolbar(hasActiveFilters = hasActiveFilters, onShowFilterDialog = onShowFilterDialog) },
         modifier = modifier,
     ) { paddingValues ->
-        if (isTabletUi()) {
+        if (state.items.isEmpty() && hasActiveFilters) {
+            EmptyScreen(
+                stringRes = MR.strings.error_no_match,
+                modifier = Modifier.padding(paddingValues),
+            )
+        } else if (isTabletUi()) {
             UpcomingMangaScreenLargeImpl(
                 listState = listState,
                 items = state.items,
@@ -89,7 +100,10 @@ fun UpcomingMangaScreenContent(
 }
 
 @Composable
-private fun UpcomingToolbar() {
+private fun UpcomingToolbar(
+    hasActiveFilters: Boolean,
+    onShowFilterDialog: () -> Unit,
+) {
     val navigator = LocalNavigator.currentOrThrow
     val uriHandler = LocalUriHandler.current
 
@@ -97,6 +111,13 @@ private fun UpcomingToolbar() {
         title = stringResource(MR.strings.label_upcoming),
         navigateUp = navigator::pop,
         actions = {
+            IconButton(onClick = onShowFilterDialog) {
+                Icon(
+                    imageVector = Icons.Outlined.FilterList,
+                    contentDescription = stringResource(MR.strings.action_filter),
+                    tint = if (hasActiveFilters) MaterialTheme.colorScheme.active else LocalContentColor.current,
+                )
+            }
             IconButton(onClick = { uriHandler.openUri(Constants.URL_HELP_UPCOMING) }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
