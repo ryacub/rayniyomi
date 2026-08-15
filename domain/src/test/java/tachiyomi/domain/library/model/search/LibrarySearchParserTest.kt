@@ -82,6 +82,58 @@ class LibrarySearchParserTest {
     }
 
     @Test
+    fun `known comparison fields become comparison nodes`() {
+        QueryNode.from("unread>5") shouldBe
+            ComparisonQueryNode(ComparisonField.UNREAD, "5", Comparator.GT, false)
+        QueryNode.from("added>=2024-01-01") shouldBe
+            ComparisonQueryNode(ComparisonField.DATE_ADDED, "2024-01-01", Comparator.GTE, false)
+        QueryNode.from("fi=7") shouldBe
+            ComparisonQueryNode(ComparisonField.FETCH_INTERVAL, "7", Comparator.EQ, false)
+        QueryNode.from("nu<2027-01-01") shouldBe
+            ComparisonQueryNode(ComparisonField.NEXT_UPDATE, "2027-01-01", Comparator.LT, false)
+        QueryNode.from("id=42") shouldBe
+            ComparisonQueryNode(ComparisonField.ID, "42", Comparator.EQ, false)
+        QueryNode.from("total>=100") shouldBe
+            ComparisonQueryNode(ComparisonField.TOTAL, "100", Comparator.GTE, false)
+        QueryNode.from("read<=3") shouldBe
+            ComparisonQueryNode(ComparisonField.READ, "3", Comparator.LTE, false)
+    }
+
+    @Test
+    fun `leading minus negates a comparison`() {
+        QueryNode.from("-unread>5") shouldBe
+            ComparisonQueryNode(ComparisonField.UNREAD, "5", Comparator.GT, true)
+    }
+
+    @Test
+    fun `unknown comparison field stays a general term`() {
+        QueryNode.from("foo>5") shouldBe GeneralQueryNode("foo>5", false)
+    }
+
+    @Test
+    fun `comparison nodes join compound queries`() {
+        QueryNode.from("unread>=1 || id=5") shouldBe
+            OrNode(
+                listOf(
+                    ComparisonQueryNode(ComparisonField.UNREAD, "1", Comparator.GTE, false),
+                    ComparisonQueryNode(ComparisonField.ID, "5", Comparator.EQ, false),
+                ),
+            )
+        QueryNode.from("(unread>5 || id=5) && genre:action") shouldBe
+            AndNode(
+                listOf(
+                    OrNode(
+                        listOf(
+                            ComparisonQueryNode(ComparisonField.UNREAD, "5", Comparator.GT, false),
+                            ComparisonQueryNode(ComparisonField.ID, "5", Comparator.EQ, false),
+                        ),
+                    ),
+                    FieldQueryNode(LibrarySearchField.GENRE, "action", false),
+                ),
+            )
+    }
+
+    @Test
     fun `quoted general terms keep their value`() {
         QueryNode.from("\"one piece\"") shouldBe GeneralQueryNode("one piece", false)
     }

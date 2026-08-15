@@ -4,7 +4,12 @@ package tachiyomi.domain.library.model.search
  * Compiled once: the routing check runs for every item on every library emission.
  */
 private val FIELD_PREFIX_REGEX = Regex(
-    "(?<![a-zA-Z0-9_])(title|author|artist|description|desc|genre|tag|source|src):",
+    "(?<![a-zA-Z0-9_])(title|author|artist|description|desc|genre|tag|source|src|notes|note|language|lang|source_id|sourceid|src_id|srcid):",
+    RegexOption.IGNORE_CASE,
+)
+
+private val COMPARISON_REGEX = Regex(
+    "(?<![a-zA-Z0-9_])(id|added|fetchinterval|fi|nextupdate|nu|unread|read|total)(>=|<=|>|<|=)",
     RegexOption.IGNORE_CASE,
 )
 
@@ -12,16 +17,17 @@ private val FIELD_PREFIX_REGEX = Regex(
  * Routes a library search query to the legacy matcher or the parsed grammar.
  *
  * A query stays legacy unless it starts with "id:" (case-insensitive) or uses an operator
- * (`&&`, `||`), a double quote, or a known field prefix. Single quotes and parentheses do not
- * route to the new grammar, so queries such as "Gintama'" or "(G)I-DLE" keep their legacy
- * behavior.
+ * (`&&`, `||`), a double quote, a known field prefix, or a known comparison field. Single
+ * quotes and parentheses do not route to the new grammar, so queries such as "Gintama'" or
+ * "(G)I-DLE" keep their legacy behavior.
  */
 fun isLegacySearchQuery(query: String): Boolean {
     if (query.startsWith("id:", true)) return true
     val usesNewGrammar = query.contains("&&") ||
         query.contains("||") ||
         query.contains("\"") ||
-        FIELD_PREFIX_REGEX.containsMatchIn(query)
+        FIELD_PREFIX_REGEX.containsMatchIn(query) ||
+        COMPARISON_REGEX.containsMatchIn(query)
     return !usesNewGrammar
 }
 
