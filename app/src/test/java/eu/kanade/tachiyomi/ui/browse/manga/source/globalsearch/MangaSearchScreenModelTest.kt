@@ -80,7 +80,7 @@ class MangaSearchScreenModelTest {
 
         val sourceManager = object : MangaSourceManager {
             override val isInitialized: StateFlow<Boolean> = MutableStateFlow(true)
-            override val catalogueSources: Flow<List<CatalogueSource>> = flowOf(listOf(source))
+            override val sources: Flow<List<MangaSource>> = flowOf(listOf(source))
 
             override fun get(sourceKey: Long): MangaSource? = null
 
@@ -88,9 +88,9 @@ class MangaSearchScreenModelTest {
                 error("Not used in this test")
             }
 
-            override fun getOnlineSources(): List<HttpSource> = emptyList()
+            override fun getAll(): List<MangaSource> = listOf(source)
 
-            override fun getCatalogueSources(): List<CatalogueSource> = listOf(source)
+            override fun getOnlineSources(): List<HttpSource> = emptyList()
 
             override fun getStubSources(): List<StubMangaSource> = emptyList()
         }

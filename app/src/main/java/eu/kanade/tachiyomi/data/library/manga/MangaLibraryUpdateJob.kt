@@ -18,10 +18,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkQuery
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import eu.kanade.domain.entries.manga.interactor.UpdateManga
-import eu.kanade.domain.entries.manga.model.toSManga
-import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
-import eu.kanade.tachiyomi.data.cache.MangaCoverCache
+import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
@@ -53,7 +50,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetManga
@@ -84,13 +80,11 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private val sourceManager: MangaSourceManager = Injekt.get()
     private val libraryPreferences: LibraryPreferences = Injekt.get()
     private val downloadManager: MangaDownloadManager = Injekt.get()
-    private val coverCache: MangaCoverCache = Injekt.get()
     private val getLibraryManga: GetLibraryManga = Injekt.get()
     private val getManga: GetManga = Injekt.get()
-    private val updateManga: UpdateManga = Injekt.get()
-    private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get()
     private val mangaFetchInterval: MangaFetchInterval = Injekt.get()
     private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get()
+    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get()
 
     private val notifier = MangaLibraryUpdateNotifier(context)
 
@@ -364,19 +358,17 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private suspend fun updateManga(manga: Manga, fetchWindow: Pair<Long, Long>): List<Chapter> {
         val source = sourceManager.getOrStub(manga.source)
 
-        // Update manga metadata if needed
-        if (libraryPreferences.autoUpdateMetadata().get()) {
-            val networkManga = MangaSourceGateway.details(source, manga.toSManga())
-            updateManga.awaitUpdateFromSource(manga, networkManga, manualFetch = false, coverCache)
-        }
+        val update = updateMangaFromRemote(
+            source = source,
+            manga = manga,
+            fetchDetails = libraryPreferences.autoUpdateMetadata().get(),
+            fetchChapters = true,
+            manualFetch = false,
+            fetchWindow = fetchWindow,
+        )
+            .getOrThrow()
 
-        val chapters = MangaSourceGateway.chapters(source, manga.toSManga())
-
-        // Get manga from database to account for if it was removed during the update and
-        // to get latest data so it doesn't get overwritten later on
-        val dbManga = getManga.await(manga.id)?.takeIf { it.favorite } ?: return emptyList()
-
-        return syncChaptersWithSource.await(chapters, dbManga, source, false, fetchWindow)
+        return if (update.manga.favorite) update.newChapters else emptyList()
     }
 
     private suspend fun withUpdateNotification(

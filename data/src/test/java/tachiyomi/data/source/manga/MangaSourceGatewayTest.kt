@@ -5,9 +5,11 @@ import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.source.online.ResolvableSource
 import io.kotest.assertions.throwables.shouldThrow
@@ -51,14 +53,6 @@ class MangaSourceGatewayTest {
             failingCall<CatalogueSource>("latest") {
                 coEvery { getLatestUpdates(any()) } throws linkageError()
                 MangaSourceGateway.latest(this, 1)
-            },
-            failingCall<MangaSource>("details") {
-                coEvery { getMangaDetails(any()) } throws linkageError()
-                MangaSourceGateway.details(this, manga)
-            },
-            failingCall<MangaSource>("chapters") {
-                coEvery { getChapterList(any()) } throws linkageError()
-                MangaSourceGateway.chapters(this, manga)
             },
             failingCall<MangaSource>("pages") {
                 coEvery { getPageList(any()) } throws linkageError()
@@ -122,6 +116,19 @@ class MangaSourceGatewayTest {
         val source = object : MangaSource {
             override val id = 1L
             override val name = "Broken Manga Source"
+            override val supportsLatest = false
+
+            override suspend fun getPopularManga(page: Int): MangasPage = throw UnsupportedOperationException()
+            override suspend fun getLatestUpdates(page: Int): MangasPage = throw UnsupportedOperationException()
+            override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage =
+                throw UnsupportedOperationException()
+            override suspend fun getMangaUpdate(
+                manga: SManga,
+                chapters: List<SChapter>,
+                fetchDetails: Boolean,
+                fetchChapters: Boolean,
+            ): SMangaUpdate = throw UnsupportedOperationException()
+            override suspend fun getPageList(chapter: SChapter): List<Page> = throw UnsupportedOperationException()
 
             override fun toString(): String = throw linkageError()
         }
@@ -137,13 +144,13 @@ class MangaSourceGatewayTest {
     fun `cancellation leaves the gateway without a report`() {
         val source = mockk<MangaSource> {
             every { name } returns "Example"
-            coEvery { getChapterList(any()) } throws CancellationException("cancelled")
+            coEvery { getPageList(any()) } throws CancellationException("cancelled")
         }
         val reported = mutableListOf<SourceLinkageException>()
         SourceLinkageReporter.onFailure = { reported += it }
 
         shouldThrow<CancellationException> {
-            runBlocking { MangaSourceGateway.chapters(source, SManga.create()) }
+            runBlocking { MangaSourceGateway.pages(source, SChapter.create()) }
         }
 
         reported shouldBe emptyList()

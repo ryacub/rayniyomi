@@ -43,7 +43,7 @@ class PreferenceBackupCreator(
                 )
             }
             .filter { it.prefs.isNotEmpty() }
-        val mangaPreferences = mangaSourceManager.getCatalogueSources()
+        val mangaPreferences = mangaSourceManager.getAll()
             .filterIsInstance<ConfigurableSource>()
             .map {
                 BackupSourcePreferences(

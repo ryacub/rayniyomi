@@ -1,7 +1,6 @@
 package tachiyomi.data.source.manga
 
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -19,25 +18,19 @@ import tachiyomi.core.common.util.lang.reportAsSourceFailure
 
 object MangaSourceGateway {
 
-    suspend fun popular(source: CatalogueSource, page: Int): MangasPage =
+    suspend fun popular(source: MangaSource, page: Int): MangasPage =
         guard(source) { source.getPopularManga(page) }
 
-    suspend fun search(source: CatalogueSource, page: Int, query: String, filters: FilterList): MangasPage =
+    suspend fun search(source: MangaSource, page: Int, query: String, filters: FilterList): MangasPage =
         guard(source) { source.getSearchManga(page, query, filters) }
 
-    suspend fun latest(source: CatalogueSource, page: Int): MangasPage =
+    suspend fun latest(source: MangaSource, page: Int): MangasPage =
         guard(source) { source.getLatestUpdates(page) }
-
-    suspend fun details(source: MangaSource, manga: SManga): SManga =
-        guard(source) { source.getMangaDetails(manga) }
-
-    suspend fun chapters(source: MangaSource, manga: SManga): List<SChapter> =
-        guard(source) { source.getChapterList(manga) }
 
     suspend fun pages(source: MangaSource, chapter: SChapter): List<Page> =
         guard(source) { source.getPageList(chapter) }
 
-    fun filters(source: CatalogueSource): FilterList = guard(source) { source.getFilterList() }
+    fun filters(source: MangaSource): FilterList = guard(source) { source.getFilterList() }
 
     suspend fun imageUrl(source: HttpSource, page: Page): String = guard(source) { source.getImageUrl(page) }
 

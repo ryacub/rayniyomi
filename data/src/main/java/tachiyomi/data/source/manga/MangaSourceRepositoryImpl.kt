@@ -1,6 +1,5 @@
 package tachiyomi.data.source.manga
 
-import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -23,7 +22,7 @@ class MangaSourceRepositoryImpl(
 ) : MangaSourceRepository {
 
     override fun getMangaSources(): Flow<List<DomainSource>> {
-        return sourceManager.catalogueSources.map { sources ->
+        return sourceManager.sources.map { sources ->
             sources.forEach { stubSourceRepository.upsertStubMangaSource(it.id, it.lang, it.name) }
             sources.map {
                 mapSourceToDomainSource(it).copy(
@@ -34,7 +33,7 @@ class MangaSourceRepositoryImpl(
     }
 
     override fun getOnlineMangaSources(): Flow<List<DomainSource>> {
-        return sourceManager.catalogueSources.map { sources ->
+        return sourceManager.sources.map { sources ->
             sources.forEach { stubSourceRepository.upsertStubMangaSource(it.id, it.lang, it.name) }
             sources
                 .filterIsInstance<HttpSource>()
@@ -45,7 +44,7 @@ class MangaSourceRepositoryImpl(
     override fun getMangaSourcesWithFavoriteCount(): Flow<List<Pair<DomainSource, Long>>> {
         return combine(
             handler.subscribeToList { mangasQueries.getSourceIdWithFavoriteCount() },
-            sourceManager.catalogueSources,
+            sourceManager.sources,
         ) { sourceIdWithFavoriteCount, _ -> sourceIdWithFavoriteCount }
             .map {
                 it.map { (sourceId, count) ->
@@ -83,18 +82,15 @@ class MangaSourceRepositoryImpl(
         query: String,
         filterList: FilterList,
     ): SourcePagingSourceType {
-        val source = sourceManager.get(sourceId) as CatalogueSource
-        return SourceSearchPagingSource(source, query, filterList)
+        return SourceSearchPagingSource(sourceManager.getOrStub(sourceId), query, filterList)
     }
 
     override fun getPopularManga(sourceId: Long): SourcePagingSourceType {
-        val source = sourceManager.get(sourceId) as CatalogueSource
-        return SourcePopularPagingSource(source)
+        return SourcePopularPagingSource(sourceManager.getOrStub(sourceId))
     }
 
     override fun getLatestManga(sourceId: Long): SourcePagingSourceType {
-        val source = sourceManager.get(sourceId) as CatalogueSource
-        return SourceLatestPagingSource(source)
+        return SourceLatestPagingSource(sourceManager.getOrStub(sourceId))
     }
 
     private fun mapSourceToDomainSource(source: MangaSource): DomainSource = DomainSource(

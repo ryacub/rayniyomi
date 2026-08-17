@@ -22,21 +22,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.StateScreenModel
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.hasCustomCover
-import eu.kanade.domain.entries.manga.model.toSManga
-import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
+import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.ui.browse.manga.migration.MangaMigrationFlags
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
-import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.manga.interactor.SetMangaCategories
 import tachiyomi.domain.entries.manga.model.Manga
@@ -153,7 +150,7 @@ internal class MigrateMangaDialogScreenModel(
     private val downloadManager: MangaDownloadManager = Injekt.get(),
     private val updateManga: UpdateManga = Injekt.get(),
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get(),
+    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
     private val updateChapter: UpdateChapter = Injekt.get(),
     private val getCategories: GetMangaCategories = Injekt.get(),
     private val setMangaCategories: SetMangaCategories = Injekt.get(),
@@ -184,14 +181,13 @@ internal class MigrateMangaDialogScreenModel(
         mutableState.update { it.copy(isMigrating = true) }
 
         try {
-            val chapters = MangaSourceGateway.chapters(source, newManga.toSManga())
+            updateMangaFromRemote(newManga, fetchChapters = true).getOrThrow()
 
             migrateMangaInternal(
                 oldSource = prevSource,
                 newSource = source,
                 oldManga = oldManga,
                 newManga = newManga,
-                sourceChapters = chapters,
                 replace = replace,
                 flags = flags,
             )
@@ -207,7 +203,6 @@ internal class MigrateMangaDialogScreenModel(
         newSource: MangaSource,
         oldManga: Manga,
         newManga: Manga,
-        sourceChapters: List<SChapter>,
         replace: Boolean,
         flags: Int,
     ) {
@@ -215,12 +210,6 @@ internal class MigrateMangaDialogScreenModel(
         val migrateCategories = MangaMigrationFlags.hasCategories(flags)
         val migrateCustomCover = MangaMigrationFlags.hasCustomCover(flags)
         val deleteDownloaded = MangaMigrationFlags.hasDeleteDownloaded(flags)
-
-        try {
-            syncChaptersWithSource.await(sourceChapters, newManga, newSource)
-        } catch (_: Exception) {
-            // Worst case, chapters won't be synced
-        }
 
         // Update chapters read, bookmark and dateFetch
         if (migrateChapters) {

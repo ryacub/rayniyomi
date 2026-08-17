@@ -1,7 +1,7 @@
 package tachiyomi.data.source.manga
 
 import androidx.paging.PagingState
-import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.SManga
@@ -10,7 +10,7 @@ import tachiyomi.domain.items.chapter.model.NoChaptersException
 import tachiyomi.domain.source.manga.repository.SourcePagingSourceType
 
 class SourceSearchPagingSource(
-    source: CatalogueSource,
+    source: MangaSource,
     val query: String,
     val filters: FilterList,
 ) :
@@ -22,20 +22,20 @@ class SourceSearchPagingSource(
     }
 }
 
-class SourcePopularPagingSource(source: CatalogueSource) : SourcePagingSource(source) {
+class SourcePopularPagingSource(source: MangaSource) : SourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): MangasPage {
         return MangaSourceGateway.popular(source, currentPage)
     }
 }
 
-class SourceLatestPagingSource(source: CatalogueSource) : SourcePagingSource(source) {
+class SourceLatestPagingSource(source: MangaSource) : SourcePagingSource(source) {
     override suspend fun requestNextPage(currentPage: Int): MangasPage {
         return MangaSourceGateway.latest(source, currentPage)
     }
 }
 
 abstract class SourcePagingSource(
-    protected val source: CatalogueSource,
+    protected val source: MangaSource,
 ) : SourcePagingSourceType() {
 
     abstract suspend fun requestNextPage(currentPage: Int): MangasPage

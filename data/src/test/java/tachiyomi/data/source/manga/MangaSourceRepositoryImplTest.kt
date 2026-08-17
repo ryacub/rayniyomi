@@ -1,6 +1,7 @@
 package tachiyomi.data.source.manga
 
 import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -90,18 +91,18 @@ class MangaSourceRepositoryImplTest {
     }
 
     private class TestMangaSourceManager(
-        private val sources: List<CatalogueSource>,
+        private val mangaSources: List<MangaSource>,
     ) : MangaSourceManager {
         override val isInitialized = MutableStateFlow(true)
-        override val catalogueSources: Flow<List<CatalogueSource>> = flowOf(sources)
+        override val sources: Flow<List<MangaSource>> = flowOf(mangaSources)
 
-        override fun get(sourceKey: Long) = sources.firstOrNull { it.id == sourceKey }
+        override fun get(sourceKey: Long) = mangaSources.firstOrNull { it.id == sourceKey }
 
         override fun getOrStub(sourceKey: Long) = get(sourceKey) ?: error("Unknown source id: $sourceKey")
 
-        override fun getOnlineSources(): List<HttpSource> = sources.filterIsInstance<HttpSource>()
+        override fun getAll(): List<MangaSource> = mangaSources
 
-        override fun getCatalogueSources(): List<CatalogueSource> = sources
+        override fun getOnlineSources(): List<HttpSource> = mangaSources.filterIsInstance<HttpSource>()
 
         override fun getStubSources(): List<StubMangaSource> = emptyList()
     }
