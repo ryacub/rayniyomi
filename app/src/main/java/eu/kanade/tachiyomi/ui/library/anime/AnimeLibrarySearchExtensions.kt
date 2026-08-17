@@ -58,7 +58,9 @@ private fun GeneralQueryNode.matches(item: AnimeLibraryItem): Boolean {
                     (value.equals("local", ignoreCase = true) && anime.source == LocalAnimeSource.ID)
             }
 
-            // fieldOnly fields are unavailable in general text search
+            // Language and notes match only through their explicit field prefix,
+            // never through general text search. This exhaustive `when` is the
+            // single source of truth for which fields general search covers.
             LibrarySearchField.LANGUAGE, LibrarySearchField.NOTES -> false
         }
     }

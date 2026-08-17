@@ -255,6 +255,20 @@ class AnimeLibraryItemSearchTest {
     }
 
     @Test
+    fun `language and notes do not leak into general text search`() {
+        // A plain-text term whose value equals a language or notes value must only
+        // match through the explicit `field:` prefix, never through general search.
+        // The default fixture has no "fr" in title, author, genre or source name.
+        // A bare term routes to the legacy matcher, so it is evaluated directly
+        // as a GeneralQueryNode rather than through matchesQuery.
+        val fr = item(anime(), sourceLanguage = "fr")
+        val general = parseSearchQuery("fr")
+        assertFalse(general.matches(fr, ZoneId.systemDefault()))
+        assertTrue(fr.matchesQuery("language:fr"))
+        assertFalse(fr.matchesQuery("language:en"))
+    }
+
+    @Test
     fun `notes field never matches text and empty value matches everything`() {
         val item = item(anime())
         assertFalse(item.matchesQuery("notes:foo"))

@@ -5,15 +5,15 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
 
-enum class LibrarySearchField(vararg val aliases: String, val fieldOnly: Boolean = false) {
+enum class LibrarySearchField(vararg val aliases: String) {
     TITLE("title"),
     AUTHOR("author"),
     ARTIST("artist"),
     DESCRIPTION("description", "desc"),
     GENRE("genre", "tag"),
     SOURCE("source", "src"),
-    LANGUAGE("language", "lang", fieldOnly = true),
-    NOTES("notes", "note", fieldOnly = true),
+    LANGUAGE("language", "lang"),
+    NOTES("notes", "note"),
     ;
 
     companion object {
