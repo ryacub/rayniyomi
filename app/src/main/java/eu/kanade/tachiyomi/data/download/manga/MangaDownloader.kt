@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import aniyomi.util.DataSaver
 import com.hippo.unifile.UniFile
 import eu.kanade.domain.entries.manga.model.getComicInfo
@@ -434,7 +435,8 @@ class MangaDownloader(
      *
      * @param download the chapter to be downloaded.
      */
-    private suspend fun downloadChapter(download: MangaDownload) {
+    @VisibleForTesting
+    internal suspend fun downloadChapter(download: MangaDownload) {
         download.displayStatus = DownloadDisplayStatus.PREPARING
         download.blockedReason = DownloadBlockedReason.PREPARING
         val mangaDir = provider.getMangaDir(download.manga.title, download.source)
@@ -514,6 +516,7 @@ class MangaDownloader(
                                 try {
                                     page.imageUrl = MangaSourceGateway.imageUrl(download.source, page)
                                 } catch (e: Throwable) {
+                                    if (e is CancellationException) throw e
                                     page.status = Page.State.ERROR
                                 }
                             }
