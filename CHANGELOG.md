@@ -30,6 +30,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- The pull request build now runs the full gate script test suite, so a change
+  to a gate script or its tests fails the check instead of shipping unverified.
 
 ### Other
 

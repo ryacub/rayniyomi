@@ -41,6 +41,14 @@ class CiWorkflowTieringTest(unittest.TestCase):
         self.assertIn("docs/**|.github/**|scripts/tests/**|*.md", workflow)
         self.assertIn("if: needs.classify_pr_changes.outputs.android_changed == 'true'", workflow)
 
+    def test_pr_build_runs_gate_script_suite(self) -> None:
+        workflow = read_workflow("build_pull_request.yml")
+
+        self.assertIn(
+            "python3 -m unittest discover -s scripts/tests -p 'test_*.py'",
+            workflow,
+        )
+
     def test_ci_tiering_decisions_are_documented(self) -> None:
         doc = ROOT / "docs" / "ci-tiering.md"
 
