@@ -40,6 +40,9 @@ dependencies {
     implementation(projects.domain)
     implementation(projects.core.common)
 
+    implementation(kotlinx.serialization.json)
+    implementation(kotlinx.serialization.protobuf)
+
     api(libs.bundles.sqldelight)
 
     testImplementation(platform(libs.junit.bom))
