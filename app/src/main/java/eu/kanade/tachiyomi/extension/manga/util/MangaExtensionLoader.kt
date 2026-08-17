@@ -55,8 +55,7 @@ internal object MangaExtensionLoader {
     private const val METADATA_NAME = "tachiyomix.name"
     private const val METADATA_EXTENSION_LIB = "tachiyomix.extensionLib"
     private const val METADATA_CONTENT_WARNING = "tachiyomix.contentWarning"
-    const val LIB_VERSION_MIN = 1.4
-    const val LIB_VERSION_MAX = 1.5
+    val SUPPORTED_LIB_VERSIONS = listOf(1.4, 1.6)
 
     @Suppress("DEPRECATION")
     private val PACKAGE_FLAGS = PackageManager.GET_CONFIGURATIONS or
@@ -74,7 +73,7 @@ internal object MangaExtensionLoader {
      * The declared value converts through its string form. A direct
      * `toDouble()` widens the Float and keeps its binary error, for example
      * `1.4f.toDouble()` is `1.399999976158142`. The string conversion keeps
-     * the decimal value, so a lib-1.4 extension passes the minimum bound.
+     * the decimal value, so the value matches the supported set exactly.
      */
     internal fun resolveLibVersion(declaredLibVersion: Float, versionName: String): Double? =
         if (declaredLibVersion > 0f) {
@@ -82,6 +81,9 @@ internal object MangaExtensionLoader {
         } else {
             versionName.substringBeforeLast('.').toDoubleOrNull()
         }
+
+    internal fun isSupportedLibVersion(libVersion: Double?): Boolean =
+        libVersion != null && libVersion in SUPPORTED_LIB_VERSIONS
 
     internal fun resolveIsNsfw(contentWarning: Int, nsfwFlag: Int): Boolean =
         contentWarning > 0 || nsfwFlag == 1
@@ -288,10 +290,10 @@ internal object MangaExtensionLoader {
 
         // Validate lib version
         val libVersion = resolveLibVersion(appInfo.metaData?.getFloat(METADATA_EXTENSION_LIB) ?: 0f, versionName)
-        if (libVersion == null || libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
+        if (libVersion == null || !isSupportedLibVersion(libVersion)) {
             logcat(LogPriority.WARN) {
-                "Lib version is $libVersion, while only versions " +
-                    "$LIB_VERSION_MIN to $LIB_VERSION_MAX are allowed"
+                "Lib version is $libVersion, while only version(s) " +
+                    "${SUPPORTED_LIB_VERSIONS.joinToString()} are supported"
             }
             return MangaLoadResult.Error
         }
