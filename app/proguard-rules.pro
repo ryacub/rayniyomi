@@ -13,6 +13,9 @@
 -keep,allowoptimization class kotlinx.coroutines.** { public protected *; }
 -keep,allowoptimization class kotlinx.serialization.** { public protected *; }
 -keep,allowoptimization class okhttp3.** { public protected *; }
+# okhttp3.zstd delegates to this package. Only extensions call it, so R8 sees no
+# reference from the app and removes it, which crashes the process at link time.
+-keep,allowoptimization class com.squareup.zstd.** { public protected *; }
 -keep,allowoptimization class okio.** { public protected *; }
 -keep,allowoptimization class org.jsoup.** { public protected *; }
 -keep,allowoptimization class rx.** { public protected *; }
