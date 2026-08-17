@@ -45,6 +45,7 @@ sealed class MangaExtension {
         val iconUrl: String,
         val repoUrl: String,
         val signingKeyFingerprint: String, // SHA-256 of repo signing key; matches Installed.signatureHash
+        val apkUrl: String? = null, // Absolute URL (new store format); overrides apkName in getApkUrl
     ) : MangaExtension() {
 
         data class MangaSource(
