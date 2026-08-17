@@ -32,7 +32,7 @@ sealed interface LibraryDisplayMode {
 
     companion object {
         val values by lazy { setOf(CompactGrid, ComfortableGrid, List, CoverOnlyGrid) }
-        val default = CompactGrid
+        val default: LibraryDisplayMode get() = CompactGrid
 
         fun fromPreferenceKey(preferenceKey: String): LibraryDisplayMode {
             return values.find { it.preferenceKey == preferenceKey } ?: default

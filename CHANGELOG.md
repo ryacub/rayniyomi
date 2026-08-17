@@ -29,6 +29,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The app no longer crashes when it extracts the dominant color from a cover that was decoded as a hardware bitmap. The extraction now always reads from a software bitmap.
 - Chapter and episode downloads now complete instead of stopping at 100% with a `Download stalled` message. The progress and stall monitors held the download open after the last page or video, which also kept the item in the queue, blocked the next download from the same source, and hid the `translate` action on the chapter list.
 - Cancellation (pause, stop, queue change) during a chapter download now stops the download instead of marking the affected page as a download error.
+- The app no longer crashes when it opens a Browse source screen. The default library display mode could initialize to null through a class initialization order problem, and the Browse toolbar rejected the null value.
 
 ### Changed
 
