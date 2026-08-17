@@ -1,16 +1,26 @@
 package eu.kanade.tachiyomi.data.download.manga
 
+import android.app.Notification
+import android.content.Context
+import androidx.core.app.NotificationCompat
 import com.hippo.unifile.UniFile
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
+import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.storage.DiskUtil
+import eu.kanade.tachiyomi.util.system.notificationBuilder
+import eu.kanade.tachiyomi.util.system.notify
 import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
+import io.mockk.runs
 import io.mockk.unmockkObject
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,6 +33,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
@@ -56,11 +67,21 @@ class MangaDownloaderTest {
         mockkObject(DiskUtil)
         every { DiskUtil.getAvailableStorageSpace(any<UniFile>()) } returns 1_000_000_000L
 
+        mockkStatic("tachiyomi.core.common.i18n.LocalizeKt")
+        mockkStatic("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt")
         mockkObject(NotificationHandler)
         every { NotificationHandler.openDownloadManagerPendingActivity(any()) } returns mockk(relaxed = true)
+        mockkObject(NotificationReceiver.Companion)
+        every { NotificationReceiver.openMangaEntryPendingActivity(any(), any()) } returns mockk(relaxed = true)
+
+        val context = mockk<Context>(relaxed = true)
+        val notificationBuilder = mockk<NotificationCompat.Builder>(relaxed = true)
+        every { context.notificationBuilder(any(), any()) } returns notificationBuilder
+        every { context.notify(any<Int>(), any<Notification>()) } just runs
+        every { context.stringResource(any()) } returns "mocked"
 
         downloader = MangaDownloader(
-            context = mockk(relaxed = true),
+            context = context,
             provider = mockk(relaxed = true),
             cache = mockk(relaxed = true),
             sourceManager = mockk(relaxed = true),
@@ -75,7 +96,10 @@ class MangaDownloaderTest {
 
     @AfterEach
     fun tearDown() {
+        unmockkStatic("tachiyomi.core.common.i18n.LocalizeKt")
+        unmockkStatic("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt")
         unmockkObject(NotificationHandler)
+        unmockkObject(NotificationReceiver.Companion)
         unmockkObject(DiskUtil)
         unmockkObject(MangaSourceGateway)
         Dispatchers.resetMain()
@@ -104,7 +128,7 @@ class MangaDownloaderTest {
 
         imageUrlStarted.await()
         downloadJob.cancel()
-        imageUrlDeferred.complete("unused")
+        imageUrlDeferred.cancel()
         downloadJob.join()
 
         assertEquals(Page.State.LOAD_PAGE, page.status)
