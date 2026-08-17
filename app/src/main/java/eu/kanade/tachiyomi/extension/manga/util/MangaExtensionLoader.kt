@@ -52,6 +52,9 @@ internal object MangaExtensionLoader {
     private const val METADATA_SOURCE_CLASS = "tachiyomi.extension.class"
     private const val METADATA_SOURCE_FACTORY = "tachiyomi.extension.factory"
     private const val METADATA_NSFW = "tachiyomi.extension.nsfw"
+    private const val METADATA_NAME = "tachiyomix.name"
+    private const val METADATA_EXTENSION_LIB = "tachiyomix.extensionLib"
+    private const val METADATA_CONTENT_WARNING = "tachiyomix.contentWarning"
     const val LIB_VERSION_MIN = 1.4
     const val LIB_VERSION_MAX = 1.5
 
@@ -62,6 +65,26 @@ internal object MangaExtensionLoader {
         (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0)
 
     private const val PRIVATE_EXTENSION_EXTENSION = "ext"
+
+    /**
+     * The declared value wins when present. A missing or non-numeric
+     * `tachiyomix.extensionLib` reads back as 0f, which falls back to the
+     * version-name convention used by extensions that predate the key.
+     *
+     * The declared value converts through its string form. A direct
+     * `toDouble()` widens the Float and keeps its binary error, for example
+     * `1.4f.toDouble()` is `1.399999976158142`. The string conversion keeps
+     * the decimal value, so a lib-1.4 extension passes the minimum bound.
+     */
+    internal fun resolveLibVersion(declaredLibVersion: Float, versionName: String): Double? =
+        if (declaredLibVersion > 0f) {
+            declaredLibVersion.toString().toDoubleOrNull()
+        } else {
+            versionName.substringBeforeLast('.').toDoubleOrNull()
+        }
+
+    internal fun resolveIsNsfw(contentWarning: Int, nsfwFlag: Int): Boolean =
+        contentWarning > 0 || nsfwFlag == 1
 
     private fun getPrivateExtensionDir(context: Context) = File(context.filesDir, "exts")
 
@@ -247,9 +270,14 @@ internal object MangaExtensionLoader {
         val appInfo = pkgInfo.applicationInfo!!
         val pkgName = pkgInfo.packageName
 
-        val extName = pkgManager.getApplicationLabel(appInfo).toString().substringAfter(
-            "Tachiyomi: ",
-        )
+        val metadataName = appInfo.metaData?.getString(METADATA_NAME)
+        val extName = if (!metadataName.isNullOrBlank()) {
+            metadataName
+        } else {
+            pkgManager.getApplicationLabel(appInfo).toString().substringAfter(
+                "Tachiyomi: ",
+            )
+        }
         val versionName = pkgInfo.versionName
         val versionCode = PackageInfoCompat.getLongVersionCode(pkgInfo)
 
@@ -259,7 +287,7 @@ internal object MangaExtensionLoader {
         }
 
         // Validate lib version
-        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
+        val libVersion = resolveLibVersion(appInfo.metaData?.getFloat(METADATA_EXTENSION_LIB) ?: 0f, versionName)
         if (libVersion == null || libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
             logcat(LogPriority.WARN) {
                 "Lib version is $libVersion, while only versions " +
@@ -287,7 +315,10 @@ internal object MangaExtensionLoader {
             return MangaLoadResult.Untrusted(extension)
         }
 
-        val isNsfw = appInfo.metaData.getInt(METADATA_NSFW) == 1
+        val isNsfw = resolveIsNsfw(
+            appInfo.metaData.getInt(METADATA_CONTENT_WARNING),
+            appInfo.metaData.getInt(METADATA_NSFW),
+        )
         if (!loadNsfwSource && isNsfw) {
             logcat(LogPriority.WARN) { "NSFW extension $pkgName not allowed" }
             return MangaLoadResult.Error
