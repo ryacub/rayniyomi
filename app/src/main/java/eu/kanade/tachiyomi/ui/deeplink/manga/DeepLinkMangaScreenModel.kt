@@ -4,8 +4,7 @@ import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
-import eu.kanade.domain.entries.manga.model.toSManga
-import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
+import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -29,12 +28,12 @@ class DeepLinkMangaScreenModel(
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
     private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = Injekt.get(),
     private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
-    private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get(),
+    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
 ) : StateScreenModel<DeepLinkMangaScreenModel.State>(State.Loading) {
 
     init {
         screenModelScope.launchIO {
-            val source = sourceManager.getCatalogueSources()
+            val source = sourceManager.getAll()
                 .filterIsInstance<ResolvableSource>()
                 .firstOrNull { MangaSourceGateway.uriType(it, query) != UriType.Unknown }
 
@@ -67,13 +66,11 @@ class DeepLinkMangaScreenModel(
     private suspend fun getChapterFromSChapter(sChapter: SChapter, manga: Manga, source: MangaSource): Chapter? {
         val localChapter = getChapterByUrlAndMangaId.await(sChapter.url, manga.id)
 
-        return if (localChapter == null) {
-            val sourceChapters = MangaSourceGateway.chapters(source, manga.toSManga())
-            val newChapters = syncChaptersWithSource.await(sourceChapters, manga, source, false)
-            newChapters.find { it.url == sChapter.url }
-        } else {
-            localChapter
-        }
+        return localChapter
+            ?: updateMangaFromRemote(manga, fetchChapters = true)
+                .getOrElse { return null }
+                .newChapters
+                .find { it.url == sChapter.url }
     }
 
     private suspend fun getMangaFromSManga(sManga: SManga, sourceId: Long): Manga {

@@ -159,7 +159,7 @@ object SettingsTrackingScreen : SearchableSettings {
             .filter { it is EnhancedMangaTracker }
             .partition { service ->
                 val acceptedMangaSources = (service as EnhancedMangaTracker).getAcceptedSources()
-                mangaSourceManager.getCatalogueSources().any { it::class.qualifiedName in acceptedMangaSources }
+                mangaSourceManager.getAll().any { it::class.qualifiedName in acceptedMangaSources }
             }
         val enhancedAnimeTrackers = trackerManager.trackers
             .filter { it is EnhancedAnimeTracker }

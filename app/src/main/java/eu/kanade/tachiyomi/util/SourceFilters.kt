@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi.util
 
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
-import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import kotlinx.coroutines.CancellationException
 import logcat.LogPriority
@@ -18,7 +18,7 @@ import tachiyomi.data.source.manga.MangaSourceGateway
  * `kotlinx.coroutines.BuildersKt` resolve from the app APK, and the extension's own copy can
  * disagree about their members.
  */
-fun CatalogueSource.getFilterListOrNull(): FilterList? =
+fun MangaSource.getFilterListOrNull(): FilterList? =
     runSourceFilterCatching({ name }) { MangaSourceGateway.filters(this) }
 
 fun AnimeCatalogueSource.getFilterListOrNull(): AnimeFilterList? =

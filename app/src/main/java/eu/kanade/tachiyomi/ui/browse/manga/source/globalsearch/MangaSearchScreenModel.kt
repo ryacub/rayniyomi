@@ -8,7 +8,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
-import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.mutate
@@ -57,8 +57,8 @@ abstract class MangaSearchScreenModel(
 
     protected var extensionFilter: String? = null
 
-    private val sortComparator = { map: Map<CatalogueSource, MangaSearchItemResult> ->
-        compareBy<CatalogueSource>(
+    private val sortComparator = { map: Map<MangaSource, MangaSearchItemResult> ->
+        compareBy<MangaSource>(
             { (map[it] as? MangaSearchItemResult.Success)?.isEmpty ?: true },
             { "${it.id}" !in pinnedSources },
             { "${it.name.lowercase()} (${it.lang})" },
@@ -84,8 +84,8 @@ abstract class MangaSearchScreenModel(
         }
     }
 
-    open fun getEnabledSources(): List<CatalogueSource> {
-        return sourceManager.getCatalogueSources()
+    open fun getEnabledSources(): List<MangaSource> {
+        return sourceManager.getAll()
             .filter { it.lang in enabledLanguages && "${it.id}" !in disabledSources }
             .sortedWith(
                 compareBy(
@@ -95,7 +95,7 @@ abstract class MangaSearchScreenModel(
             )
     }
 
-    private fun getSelectedSources(): List<CatalogueSource> {
+    private fun getSelectedSources(): List<MangaSource> {
         val enabledSources = getEnabledSources()
 
         val filter = extensionFilter
@@ -106,7 +106,7 @@ abstract class MangaSearchScreenModel(
         return extensionManager.installedExtensionsFlow.value
             .filter { it.pkgName == filter }
             .flatMap { it.sources }
-            .filterIsInstance<CatalogueSource>()
+            .filterIsInstance<MangaSource>()
             .filter { it in enabledSources }
     }
 
@@ -187,7 +187,7 @@ abstract class MangaSearchScreenModel(
         }
     }
 
-    private fun updateItems(items: PersistentMap<CatalogueSource, MangaSearchItemResult>) {
+    private fun updateItems(items: PersistentMap<MangaSource, MangaSearchItemResult>) {
         mutableState.update {
             it.copy(
                 items = items
@@ -197,7 +197,7 @@ abstract class MangaSearchScreenModel(
         }
     }
 
-    private fun updateItem(source: CatalogueSource, result: MangaSearchItemResult) {
+    private fun updateItem(source: MangaSource, result: MangaSearchItemResult) {
         val newItems = state.value.items.mutate {
             it[source] = result
         }
@@ -210,7 +210,7 @@ abstract class MangaSearchScreenModel(
         val searchQuery: String? = null,
         val sourceFilter: MangaSourceFilter = MangaSourceFilter.PinnedOnly,
         val onlyShowHasResults: Boolean = false,
-        val items: PersistentMap<CatalogueSource, MangaSearchItemResult> = persistentMapOf(),
+        val items: PersistentMap<MangaSource, MangaSearchItemResult> = persistentMapOf(),
     ) {
         val progress: Int = items.count { it.value !is MangaSearchItemResult.Loading }
         val total: Int = items.size

@@ -1,6 +1,5 @@
 package tachiyomi.domain.source.manga.service
 
-import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.Flow
@@ -11,15 +10,15 @@ interface MangaSourceManager {
 
     val isInitialized: StateFlow<Boolean>
 
-    val catalogueSources: Flow<List<CatalogueSource>>
+    val sources: Flow<List<MangaSource>>
 
     fun get(sourceKey: Long): MangaSource?
 
     fun getOrStub(sourceKey: Long): MangaSource
 
-    fun getOnlineSources(): List<HttpSource>
+    fun getAll(): List<MangaSource>
 
-    fun getCatalogueSources(): List<CatalogueSource>
+    fun getOnlineSources(): List<HttpSource>
 
     fun getStubSources(): List<StubMangaSource>
 }
