@@ -40,13 +40,33 @@ class MangaExtensionLoaderTest {
     }
 
     @Test
-    fun `declared lib version 1 point 4 passes the minimum bound`() {
-        val libVersion = MangaExtensionLoader.resolveLibVersion(
-            declaredLibVersion = 1.4f,
-            versionName = "1.4.10",
-        )
+    fun `lib version 1 point 4 is supported`() {
+        MangaExtensionLoader.isSupportedLibVersion(1.4) shouldBe true
+    }
 
-        (libVersion!! >= MangaExtensionLoader.LIB_VERSION_MIN) shouldBe true
+    @Test
+    fun `lib version 1 point 6 is supported`() {
+        MangaExtensionLoader.isSupportedLibVersion(1.6) shouldBe true
+    }
+
+    @Test
+    fun `lib version 1 point 5 is rejected`() {
+        MangaExtensionLoader.isSupportedLibVersion(1.5) shouldBe false
+    }
+
+    @Test
+    fun `null lib version is rejected`() {
+        MangaExtensionLoader.isSupportedLibVersion(null) shouldBe false
+    }
+
+    @Test
+    fun `declared lib version 1 point 6 survives conversion and is accepted`() {
+        MangaExtensionLoader.isSupportedLibVersion(
+            MangaExtensionLoader.resolveLibVersion(
+                declaredLibVersion = 1.6f,
+                versionName = "1.6.0",
+            ),
+        ) shouldBe true
     }
 
     @Test

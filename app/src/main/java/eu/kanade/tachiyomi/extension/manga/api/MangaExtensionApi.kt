@@ -206,10 +206,7 @@ internal class MangaExtensionApi {
         signingKeyFingerprint: String,
     ): List<MangaExtension.Available> {
         return this
-            .filter {
-                val libVersion = it.extractLibVersion()
-                libVersion >= MangaExtensionLoader.LIB_VERSION_MIN && libVersion <= MangaExtensionLoader.LIB_VERSION_MAX
-            }
+            .filter { MangaExtensionLoader.isSupportedLibVersion(it.extractLibVersion()) }
             .map {
                 MangaExtension.Available(
                     name = it.name.substringAfter("Tachiyomi: "),
@@ -234,11 +231,7 @@ internal class MangaExtensionApi {
     ): List<MangaExtension.Available> {
         return this.mapNotNull { extension ->
             val libVersion = extension.extensionLib.toDoubleOrNull()
-            if (
-                libVersion == null ||
-                libVersion < MangaExtensionLoader.LIB_VERSION_MIN ||
-                libVersion > MangaExtensionLoader.LIB_VERSION_MAX
-            ) {
+            if (libVersion == null || !MangaExtensionLoader.isSupportedLibVersion(libVersion)) {
                 return@mapNotNull null
             }
             if (extension.name.isBlank() || extension.packageName.isBlank()) {

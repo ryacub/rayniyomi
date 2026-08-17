@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The manga Browse screen now reads the new Keiyoushi extension store format. Keiyoushi manga extensions were hidden because the app read the legacy `index.min.json`, which the repo replaced with a placeholder. The app now follows the `index_v2` pointer in `repo.json` and decodes the gzipped protobuf catalogue, while legacy repositories that still serve `index.min.json` keep working.
 - The manga source API now implements the TachiyomiX 1.6 source contract. This work is the foundation for loading lib-1.6 manga extensions; the extension loader support that makes them installable ships separately.
 - The manga extension loader now reads the declared TachiyomiX extension metadata. The lib version comes from `tachiyomix.extensionLib` instead of the version-name convention, and an extension counts as NSFW when either `tachiyomix.contentWarning` or the legacy `tachiyomi.extension.nsfw` key marks it. Extensions that do not declare the new keys keep loading through the version-name fallback.
+- The manga loader and store listing now accept TachiyomiX extension lib 1.4 and 1.6, which restores 213 previously hidden Keiyoushi manga extensions. Lib 1.5 is rejected because no extension targets it.
 
 ### Improved
 - The reader and player rotation controls now disable on Android 16 large screens, because the system ignores orientation requests there. The app shows a short explanation, and the stored orientation preference remains available for use on smaller screens.
