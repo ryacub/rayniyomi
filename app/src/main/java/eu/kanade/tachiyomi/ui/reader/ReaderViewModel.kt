@@ -14,6 +14,7 @@ import eu.kanade.domain.entries.manga.model.readingMode
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.presentation.util.ReaderFoldState
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
@@ -218,6 +219,10 @@ class ReaderViewModel @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    fun setFoldState(foldState: ReaderFoldState?) {
+        mutableState.update { it.copy(foldState = foldState) }
     }
 
     /**
@@ -967,6 +972,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val assistUrl: String? = null,
         val showTranslatedPages: Boolean = false,
         val hasTranslation: Boolean = false,
+        val foldState: ReaderFoldState? = null,
     ) {
         val currentChapter: ReaderChapter?
             get() = viewerChapters?.currChapter

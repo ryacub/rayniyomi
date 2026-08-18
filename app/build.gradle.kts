@@ -277,6 +277,7 @@ dependencies {
 
     implementation(androidx.interpolator)
     implementation(androidx.windowcore)
+    implementation(androidx.window)
 
     implementation(androidx.paging.runtime)
     implementation(androidx.paging.compose)
