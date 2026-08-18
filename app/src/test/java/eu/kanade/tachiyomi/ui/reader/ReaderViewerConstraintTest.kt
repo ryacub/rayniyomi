@@ -135,6 +135,40 @@ class ReaderViewerConstraintTest {
         verticalHingeInsets(fold, windowWidth = 1440) shouldBe HingeInsets(left = 0, right = 0)
     }
 
+    @Test
+    fun `places the page in the left region when both regions are equal`() {
+        val fold = verticalHingeFold(left = 700, right = 740)
+
+        verticalViewerMargins(fold, windowWidth = 1440) shouldBe ViewerMargins(left = 0, right = 740)
+    }
+
+    @Test
+    fun `places the page in the right region when it is the larger one`() {
+        val fold = verticalHingeFold(left = 400, right = 440)
+
+        verticalViewerMargins(fold, windowWidth = 1440) shouldBe ViewerMargins(left = 440, right = 0)
+    }
+
+    @Test
+    fun `places the page in the left region when it is the larger one`() {
+        val fold = verticalHingeFold(left = 1000, right = 1040)
+
+        verticalViewerMargins(fold, windowWidth = 1440) shouldBe ViewerMargins(left = 0, right = 440)
+    }
+
+    @Test
+    fun `returns null for the viewer margins when the fold does not occlude`() {
+        verticalViewerMargins(
+            verticalHingeFold().copy(occlusionType = FoldOcclusionType.None),
+            windowWidth = 1440,
+        ).shouldBeNull()
+    }
+
+    @Test
+    fun `returns null for the viewer margins when there is no fold`() {
+        verticalViewerMargins(null, windowWidth = 1440).shouldBeNull()
+    }
+
     private fun tabletopFold(top: Int = 720): ReaderFoldState = ReaderFoldState(
         orientation = FoldOrientation.Horizontal,
         state = FoldState.HalfOpen,
