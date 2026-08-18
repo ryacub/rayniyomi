@@ -220,6 +220,41 @@ class PlayerActivityHostInitOrderTest {
         )
     }
 
+    /**
+     * The activity handles orientation and window-size configuration changes itself, so a
+     * bounds change delivered while the player is backgrounded (for example, exiting
+     * split-screen) never re-measures the player view. The resume path must force a layout
+     * pass after the window is visible again so the mpv surface picks up the new bounds.
+     */
+    @Test
+    fun `resume forces a player view layout pass after a backgrounded window resize`() {
+        val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
+        val isExitingClearIdx = resumeBody.indexOf("player.isExiting = false")
+        val resumeSuperIdx = resumeBody.indexOf("super.onResume()", startIndex = isExitingClearIdx)
+        val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
+        val requestLayoutIdx = resumeBody.indexOf("playerView.requestLayout()")
+        val volumeIdx = resumeBody.indexOf("viewModel.currentVolume.update")
+
+        assertTrue(isExitingClearIdx >= 0, "Expected onResume to clear player.isExiting")
+        assertTrue(forceLayoutIdx > isExitingClearIdx, "Layout pass must run only when returning from background")
+        assertTrue(requestLayoutIdx > isExitingClearIdx, "Layout pass must force a measure and layout request")
+        assertTrue(resumeSuperIdx >= 0, "Expected resume to continue after clearing player.isExiting")
+        assertTrue(forceLayoutIdx > resumeSuperIdx, "Layout pass must run after the window becomes visible again")
+        assertTrue(forceLayoutIdx < volumeIdx, "Layout pass must stay grouped with the returning-from-background work")
+    }
+
+    @Test
+    fun `resume does not force a layout pass on a normal resume`() {
+        val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
+        val notExitingGuardIdx = resumeBody.indexOf("if (!player.isExiting)")
+        val guardReturnIdx = resumeBody.indexOf("return", startIndex = notExitingGuardIdx)
+        val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
+
+        assertTrue(notExitingGuardIdx >= 0, "Expected onResume to guard on player.isExiting")
+        assertTrue(guardReturnIdx > notExitingGuardIdx, "Expected the not-exiting branch to return early")
+        assertTrue(guardReturnIdx < forceLayoutIdx, "Layout pass must not run on a normal resume")
+    }
+
     private fun loadPlayerActivitySource(): String {
         return loadPlayerSource("PlayerActivity.kt")
     }

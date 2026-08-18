@@ -598,6 +598,14 @@ class PlayerActivity : BaseActivity() {
         player.isExiting = false
         super.onResume()
 
+        // A resize delivered while backgrounded (for example, exiting split-screen) never
+        // re-measures the player view, because PlayerActivity handles config changes itself
+        // (see AndroidManifest configChanges) and onConfigurationChanged can run before the
+        // window is visible again. Force a layout pass now that the window is guaranteed
+        // visible, so the mpv surface picks up the new bounds.
+        playerView.forceLayout()
+        playerView.requestLayout()
+
         viewModel.currentVolume.update {
             audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).also {
                 if (it < viewModel.maxVolume) viewModel.changeMPVVolumeTo(100)
