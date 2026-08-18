@@ -100,6 +100,16 @@ class LibrarySearchParserTest {
     }
 
     @Test
+    fun `undeclared comparison aliases stay general terms`() {
+        QueryNode.from("date_added>=2024-01-01") shouldBe
+            GeneralQueryNode("date_added>=2024-01-01", false)
+        QueryNode.from("fetch_interval=7") shouldBe
+            GeneralQueryNode("fetch_interval=7", false)
+        QueryNode.from("next_update<2027-01-01") shouldBe
+            GeneralQueryNode("next_update<2027-01-01", false)
+    }
+
+    @Test
     fun `leading minus negates a comparison`() {
         QueryNode.from("-unread>5") shouldBe
             ComparisonQueryNode(ComparisonField.UNREAD, "5", ComparisonOperator.GT, true)
