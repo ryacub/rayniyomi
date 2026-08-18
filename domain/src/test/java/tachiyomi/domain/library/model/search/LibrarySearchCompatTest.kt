@@ -67,6 +67,20 @@ class LibrarySearchCompatTest {
     }
 
     @Test
+    fun `source id aliases route to the legacy matcher`() {
+        val aliases = listOf(
+            "source_id:5", "sourceid:5", "src_id:5", "srcid:5",
+            "SOURCE_ID:5", "SOURCEID:5", "SRC_ID:5", "SRCID:5",
+            "Source_Id:5", "SrcId:5",
+            "naruto srcid:5", "srcid:5,action", "-src_id:5", "srcid:",
+        )
+        aliases.map { it to isLegacySearchQuery(it) } shouldBe aliases.map { it to true }
+
+        val supported = listOf("source:5", "src:5", "SRC:5")
+        supported.map { it to isLegacySearchQuery(it) } shouldBe supported.map { it to false }
+    }
+
+    @Test
     fun `id prefix always routes legacy even when uppercase`() {
         // Preserved quirk: "ID:" matches the startsWith check case-insensitively, so it routes
         // legacy, but the legacy substringAfter("id:") lookup is case-sensitive and never finds
