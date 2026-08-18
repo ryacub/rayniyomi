@@ -129,7 +129,7 @@ private fun ComparisonQueryNode.matches(item: AnimeLibraryItem, zone: ZoneId): B
     val match = when (field) {
         ComparisonField.ID -> compareLong(anime.id)
         ComparisonField.DATE_ADDED -> compareDate(epochMillisToLocalDate(anime.dateAdded, zone))
-        ComparisonField.FETCH_INTERVAL -> compareLong(abs(anime.fetchInterval).toLong())
+        ComparisonField.FETCH_INTERVAL -> compareLong(abs(anime.fetchInterval.toLong()))
         // Completed and never-scheduled entries have no next update. The accessor returns null
         // for them, so they match neither direction of the comparison.
         ComparisonField.NEXT_UPDATE ->
