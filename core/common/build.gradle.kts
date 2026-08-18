@@ -27,7 +27,6 @@ dependencies {
     api(libs.okhttp.core)
     api(libs.okhttp.logging)
     api(libs.okhttp.brotli)
-    // The TachiyomiX 1.6 extension library links against okhttp3.zstd.Zstd.
     api(libs.okhttp.zstd)
     api(libs.okhttp.dnsoverhttps)
     api(libs.okio)
