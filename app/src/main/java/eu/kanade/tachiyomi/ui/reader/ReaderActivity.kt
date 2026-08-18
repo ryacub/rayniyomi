@@ -1039,3 +1039,47 @@ internal fun tabletopViewerHeight(
     if (foldState == null || !isInTabletopPosture(foldState)) return null
     return (foldState.bounds.top - statusBarInset).coerceAtLeast(0)
 }
+
+/**
+ * Returns true when the device is in book posture with an occluding hinge.
+ *
+ * Book posture requires a vertical, half-open fold that occludes the
+ * middle of the window fully.
+ */
+internal fun isInBookPostureWithOccludingHinge(foldState: ReaderFoldState?): Boolean {
+    return foldState != null &&
+        foldState.orientation == FoldOrientation.Vertical &&
+        foldState.state == FoldState.HalfOpen &&
+        foldState.occlusionType == FoldOcclusionType.Full
+}
+
+/**
+ * The horizontal insets in pixels that keep content clear of the hinge.
+ *
+ * [left] is the usable region to the left of the fold. [right] is the usable
+ * region to the right of the fold. The values live in window pixels.
+ */
+internal data class HingeInsets(
+    val left: Int,
+    val right: Int,
+)
+
+/**
+ * Computes the horizontal insets in window pixels for an occluding hinge.
+ *
+ * Returns null when the device is not in book posture with an occluding
+ * hinge, so the caller applies no insets. In book posture it returns the
+ * regions on both sides of the fold, extended to the window edges. The
+ * results never go below zero.
+ */
+internal fun verticalHingeInsets(
+    foldState: ReaderFoldState?,
+    windowWidth: Int,
+): HingeInsets? {
+    if (foldState == null || !isInBookPostureWithOccludingHinge(foldState)) return null
+    val bounds = foldState.bounds
+    return HingeInsets(
+        left = bounds.left.coerceAtLeast(0),
+        right = (windowWidth - bounds.right).coerceAtLeast(0),
+    )
+}
