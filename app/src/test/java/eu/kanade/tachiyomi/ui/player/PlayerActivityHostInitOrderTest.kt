@@ -225,37 +225,40 @@ class PlayerActivityHostInitOrderTest {
      * bounds change delivered while the player is backgrounded (for example, exiting
      * split-screen) never re-measures the player view. onResume() itself runs in the same
      * transition frame as onConfigurationChanged/onStart, before Compose has recomposed the
-     * player view against the new window bounds, so the resume path must wait for a real
-     * layout pass that reports the current window width before forcing the surface to
-     * recreate.
+     * player view against the new window bounds. The resume path must therefore either act
+     * immediately when the view already reports the current width, or wait for a real
+     * layout pass that reports the current window width, before forcing mpv to receive a
+     * fresh SurfaceHolder.Callback#surfaceChanged via setFixedSize/setSizeFromLayout. It
+     * must never toggle View.visibility, which was confirmed (via dumpsys window windows)
+     * to hang the window's own post-resize draw synchronization.
      */
     @Test
-    fun `resume registers a layout listener to re-measure the player view after a backgrounded window resize`() {
+    fun `resume recreates the player surface immediately when the view already shows the current size`() {
         val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
         val isExitingClearIdx = resumeBody.indexOf("player.isExiting = false")
         val resumeSuperIdx = resumeBody.indexOf("super.onResume()", startIndex = isExitingClearIdx)
-        val addListenerIdx = resumeBody.indexOf("playerView.viewTreeObserver.addOnGlobalLayoutListener")
-        val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
-        val requestLayoutIdx = resumeBody.indexOf("playerView.requestLayout()")
-        val volumeIdx = resumeBody.indexOf("viewModel.currentVolume.update")
+        val immediateBranch = resumeBody.section(
+            "if (playerView.width == windowWidth) {",
+            "} else {",
+        )
+        val recreateCallIdx = immediateBranch.indexOf("recreatePlayerSurfaceAtCurrentSize()")
+        val defineIdx = resumeBody.indexOf("fun recreatePlayerSurfaceAtCurrentSize()")
+        val addListenerIdx = resumeBody.indexOf("addOnGlobalLayoutListener")
 
         assertTrue(isExitingClearIdx >= 0, "Expected onResume to clear player.isExiting")
         assertTrue(resumeSuperIdx >= 0, "Expected resume to continue after clearing player.isExiting")
+        assertTrue(recreateCallIdx >= 0, "Expected the immediate branch to recreate the player surface")
         assertTrue(
-            addListenerIdx > resumeSuperIdx,
-            "Layout listener must be registered only when returning from background",
+            resumeBody.contains("holder.setFixedSize(1, 1)"),
+            "Expected the recreation to pin the surface buffer size",
         )
         assertTrue(
-            forceLayoutIdx > addListenerIdx,
-            "Layout pass must run inside the layout listener, not synchronously in onResume",
+            resumeBody.contains("holder.setSizeFromLayout()"),
+            "Expected the recreation to release the pinned size and force a surfaceChanged callback",
         )
         assertTrue(
-            requestLayoutIdx > forceLayoutIdx,
-            "Layout pass must force a measure and layout request",
-        )
-        assertTrue(
-            addListenerIdx < volumeIdx,
-            "Layout listener registration must stay grouped with the returning-from-background work",
+            defineIdx in 0..addListenerIdx,
+            "Immediate recreation must not be gated behind a layout listener registration",
         )
     }
 
@@ -275,31 +278,40 @@ class PlayerActivityHostInitOrderTest {
     }
 
     /**
-     * The layout pass alone does not make mpv reattach its surface: Android redelivers
-     * SurfaceHolder.Callback#surfaceCreated only when the SurfaceView's own visibility
-     * changes, not merely when the window becomes visible again at new bounds. The resume
-     * path must toggle the player view's visibility, posted after the layout pass reports
-     * the current window width inside the listener fires.
+     * The layout pass alone does not make mpv reattach its surface; it only re-asserts
+     * whatever size the View is currently measured at. When that size is still stale
+     * (Compose has not yet recomposed against the new window bounds), the resume path must
+     * register a layout listener, wait for a real layout pass that reports the current
+     * window width, and then force a fresh surfaceChanged callback via
+     * setFixedSize/setSizeFromLayout — never by toggling View.visibility.
      */
     @Test
-    fun `resume toggles player view visibility only after the layout listener reports the current size`() {
+    fun `resume waits for a layout pass before recreating the player surface when the size is stale`() {
         val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
-        val addListenerIdx = resumeBody.indexOf("playerView.viewTreeObserver.addOnGlobalLayoutListener")
+        val addListenerIdx = resumeBody.indexOf("addOnGlobalLayoutListener")
+        val deferredBranch = resumeBody.section("} else {", "viewModel.currentVolume.update")
+        val recreateInCallbackIdx = deferredBranch.lastIndexOf("recreatePlayerSurfaceAtCurrentSize()")
         val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
-        val postIdx = resumeBody.indexOf("playerView.post")
-        val goneIdx = resumeBody.indexOf("playerView.visibility = View.GONE")
-        val visibleIdx = resumeBody.indexOf("playerView.visibility = View.VISIBLE")
+        val requestLayoutIdx = resumeBody.indexOf("playerView.requestLayout()")
+        val fixedSizeIdx = resumeBody.indexOf("holder.setFixedSize(1, 1)")
+        val sizeFromLayoutIdx = resumeBody.indexOf("holder.setSizeFromLayout()")
         val volumeIdx = resumeBody.indexOf("viewModel.currentVolume.update")
 
-        assertTrue(addListenerIdx >= 0, "Expected onResume to register an on-global-layout listener")
-        assertTrue(forceLayoutIdx > addListenerIdx, "Layout pass must run inside the layout listener")
-        assertTrue(postIdx > addListenerIdx, "Visibility toggle must run inside the layout listener")
-        assertTrue(postIdx > forceLayoutIdx, "Visibility toggle must be posted after the layout pass")
-        assertTrue(goneIdx > postIdx, "Expected a posted visibility toggle to GONE")
-        assertTrue(visibleIdx > goneIdx, "Expected the visibility toggle to restore VISIBLE")
+        assertTrue(addListenerIdx >= 0, "Expected onResume to register a layout listener when the size is stale")
+        assertTrue(recreateInCallbackIdx >= 0, "Expected the layout listener to recreate the player surface")
         assertTrue(
-            visibleIdx < volumeIdx,
-            "Visibility toggle must stay grouped with the returning-from-background work",
+            resumeBody.contains("MAX_RESUME_LAYOUT_ATTEMPTS"),
+            "Expected a bounded retry so a window stuck mid-transition cannot spin",
+        )
+        assertTrue(
+            forceLayoutIdx < requestLayoutIdx &&
+                requestLayoutIdx < fixedSizeIdx &&
+                fixedSizeIdx < sizeFromLayoutIdx,
+            "Recreation must force a layout pass, pin the surface size, then release it in order",
+        )
+        assertTrue(
+            volumeIdx > sizeFromLayoutIdx && volumeIdx > recreateInCallbackIdx,
+            "volume update must follow the surface recreation work",
         )
     }
 
@@ -326,6 +338,14 @@ class PlayerActivityHostInitOrderTest {
             )
         }
         return String(Files.readAllBytes(sourcePath), UTF_8)
+    }
+
+    private fun String.section(startAnchor: String, endAnchor: String): String {
+        val start = indexOf(startAnchor)
+        assertTrue(start >= 0, "Expected start anchor to exist: $startAnchor")
+        val end = indexOf(endAnchor, startIndex = start + startAnchor.length)
+        assertTrue(end > start, "Expected end anchor to exist after: $startAnchor")
+        return substring(start, end)
     }
 
     private fun String.functionBody(signature: String): String {

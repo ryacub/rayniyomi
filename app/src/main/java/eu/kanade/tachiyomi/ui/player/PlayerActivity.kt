@@ -602,39 +602,50 @@ class PlayerActivity : BaseActivity() {
         super.onResume()
 
         // A resize delivered while backgrounded (for example, exiting split-screen) leaves
-        // mpv's SurfaceView holding a surface at the stale pane size. Forcing a layout pass
-        // and toggling visibility synchronously (or on a single post) in onResume is too
-        // early: onResume runs in the same transition frame as onConfigurationChanged and
-        // onStart, before Compose has recomposed this view against the new window bounds, so
-        // both operations re-assert the OLD size and the recreated surface is still wrong.
-        // Wait for a real layout pass that reports the current window width before forcing
-        // the surface to recreate, with a bounded retry count so a window stuck mid
-        // transition cannot spin forever. The listener must remove itself once it fires to
-        // avoid leaking and re-running on every later layout pass.
-        playerView.viewTreeObserver.addOnGlobalLayoutListener(
-            object : ViewTreeObserver.OnGlobalLayoutListener {
-                private var attempts = 0
+        // mpv's SurfaceView holding a surface at the stale pane size. forceLayout()/
+        // requestLayout() alone only re-assert whatever size the View is CURRENTLY measured
+        // at — if that is still the stale size (Compose has not yet recomposed against the
+        // new window bounds), it is a no-op resize and mpv never gets a new surface.
+        // Toggling View.visibility to force a recreation was tried and confirmed (via
+        // dumpsys window windows) to hang the window's own post-resize draw
+        // synchronization. Use SurfaceHolder#setFixedSize/setSizeFromLayout — not
+        // View.visibility — to force mpv to receive a fresh surfaceChanged callback at the
+        // correct size.
+        fun recreatePlayerSurfaceAtCurrentSize() {
+            playerView.forceLayout()
+            playerView.requestLayout()
+            val holder = playerView.holder
+            holder.setFixedSize(1, 1)
+            playerView.post {
+                holder.setSizeFromLayout()
+            }
+        }
 
-                override fun onGlobalLayout() {
-                    attempts++
-                    val windowWidth = window.decorView.width
-                    val sizeIsCurrent = playerView.width == windowWidth
-                    if (sizeIsCurrent || attempts >= MAX_RESUME_LAYOUT_ATTEMPTS) {
-                        playerView.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                        playerView.forceLayout()
-                        playerView.requestLayout()
-                        // Toggling visibility forces Android to tear down and recreate the
-                        // native surface at the current (correct) bounds, which is what
-                        // actually makes mpv attach its surface again. Post it so the toggle
-                        // runs after the layout pass above settles.
-                        playerView.post {
-                            playerView.visibility = View.GONE
-                            playerView.visibility = View.VISIBLE
+        val windowWidth = window.decorView.width
+        if (playerView.width == windowWidth) {
+            // Already at the correct size (Compose recomposed before onResume ran). There
+            // will be no further layout pass to wait for, so act immediately.
+            recreatePlayerSurfaceAtCurrentSize()
+        } else {
+            // Wait for a real layout pass that reports the current window width, with a
+            // bounded retry count so a window stuck mid-transition cannot spin forever. The
+            // listener must remove itself once it fires to avoid leaking and re-running on
+            // every later layout pass.
+            playerView.viewTreeObserver.addOnGlobalLayoutListener(
+                object : ViewTreeObserver.OnGlobalLayoutListener {
+                    private var attempts = 0
+
+                    override fun onGlobalLayout() {
+                        attempts++
+                        val sizeIsCurrent = playerView.width == window.decorView.width
+                        if (sizeIsCurrent || attempts >= MAX_RESUME_LAYOUT_ATTEMPTS) {
+                            playerView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                            recreatePlayerSurfaceAtCurrentSize()
                         }
                     }
-                }
-            },
-        )
+                },
+            )
+        }
 
         viewModel.currentVolume.update {
             audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).also {
