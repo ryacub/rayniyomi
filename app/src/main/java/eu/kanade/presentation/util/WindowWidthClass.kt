@@ -35,6 +35,21 @@ fun homeNavigationLayoutFor(windowWidthClass: WindowWidthClass): HomeNavigationL
     WindowWidthClass.Expanded -> HomeNavigationLayout.Drawer
 }
 
+/** The navigation layout that Settings uses for a [WindowWidthClass]. */
+enum class SettingsNavigationLayout {
+    SinglePane,
+    TwoPane,
+}
+
+fun settingsNavigationLayoutFor(
+    windowWidthClass: WindowWidthClass,
+): SettingsNavigationLayout = when (windowWidthClass) {
+    WindowWidthClass.Compact,
+    WindowWidthClass.Medium,
+    -> SettingsNavigationLayout.SinglePane
+    WindowWidthClass.Expanded -> SettingsNavigationLayout.TwoPane
+}
+
 /** Lower bound of [WindowWidthClass.Medium], in dp. */
 const val MEDIUM_WIDTH_BREAKPOINT_DP = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
 

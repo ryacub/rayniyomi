@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 - The reader and player rotation controls now disable on Android 16 large screens, because the system ignores orientation requests there. The app shows a short explanation, and the stored orientation preference remains available for use on smaller screens.
 - Home navigation now uses a bottom bar at Compact width, a navigation rail at Medium width, and a permanent drawer at Expanded width.
+- Settings and player settings now use one-pane navigation at Compact and Medium widths and two-pane navigation at Expanded width, while retaining the selected destination when the window changes size.
 
 ### Fixed
 - Backup restore now prunes deleted-category IDs from Updates and Upcoming category filter preferences.
