@@ -17,7 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.PermanentDrawerSheet
+import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -37,8 +40,11 @@ import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.domain.ui.model.NavStyle
+import eu.kanade.presentation.util.HomeNavigationLayout
 import eu.kanade.presentation.util.Screen
-import eu.kanade.presentation.util.isTabletUi
+import eu.kanade.presentation.util.currentWindowWidthClass
+import eu.kanade.presentation.util.homeNavigationLayoutFor
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
 import eu.kanade.tachiyomi.ui.download.DownloadsTab
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
@@ -82,6 +88,7 @@ object HomeScreen : Screen() {
     @Composable
     override fun Content() {
         val navStyle by uiPreferences.navStyle().collectAsStateWithLifecycle()
+        val navigationLayout = homeNavigationLayoutFor(currentWindowWidthClass())
         val navigator = LocalNavigator.currentOrThrow
         TabNavigator(
             tab = defaultTab,
@@ -89,58 +96,10 @@ object HomeScreen : Screen() {
         ) { tabNavigator ->
             // Provide usable navigator to content screen
             CompositionLocalProvider(LocalNavigator provides navigator) {
-                Scaffold(
-                    startBar = {
-                        if (isTabletUi()) {
-                            NavigationRail {
-                                navStyle.tabs.fastForEach {
-                                    NavigationRailItem(it)
-                                }
-                            }
-                        }
-                    },
-                    bottomBar = {
-                        if (!isTabletUi()) {
-                            val bottomNavVisible by produceState(initialValue = true) {
-                                showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
-                            }
-                            AnimatedVisibility(
-                                visible = bottomNavVisible && tabNavigator.current != navStyle.moreTab,
-                                enter = expandVertically(),
-                                exit = shrinkVertically(),
-                            ) {
-                                NavigationBar {
-                                    navStyle.tabs.fastForEach {
-                                        NavigationBarItem(it)
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    contentWindowInsets = WindowInsets(0),
-                ) { contentPadding ->
-                    Box(
-                        modifier = Modifier
-                            .padding(contentPadding)
-                            .consumeWindowInsets(contentPadding),
-                    ) {
-                        AnimatedContent(
-                            targetState = tabNavigator.current,
-                            transitionSpec = {
-                                materialFadeThroughIn(
-                                    initialScale = 1f,
-                                    durationMillis = TAB_FADE_DURATION,
-                                ) togetherWith
-                                    materialFadeThroughOut(durationMillis = TAB_FADE_DURATION)
-                            },
-                            label = "tabContent",
-                        ) {
-                            tabNavigator.saveableState(key = "currentTab", it) {
-                                it.Content()
-                            }
-                        }
-                    }
-                }
+                HomeNavigation(
+                    navStyle = navStyle,
+                    navigationLayout = navigationLayout,
+                )
             }
 
             val goToStartScreen = {
@@ -203,6 +162,88 @@ object HomeScreen : Screen() {
     }
 
     @Composable
+    private fun HomeNavigation(
+        navStyle: NavStyle,
+        navigationLayout: HomeNavigationLayout,
+    ) {
+        if (navigationLayout == HomeNavigationLayout.Drawer) {
+            PermanentNavigationDrawer(
+                drawerContent = {
+                    PermanentDrawerSheet {
+                        navStyle.tabs.fastForEach {
+                            NavigationDrawerItem(it)
+                        }
+                    }
+                },
+            ) {
+                HomeScaffold(navStyle = navStyle, navigationLayout = navigationLayout)
+            }
+        } else {
+            HomeScaffold(navStyle = navStyle, navigationLayout = navigationLayout)
+        }
+    }
+
+    @Composable
+    private fun HomeScaffold(
+        navStyle: NavStyle,
+        navigationLayout: HomeNavigationLayout,
+    ) {
+        val tabNavigator = LocalTabNavigator.current
+        Scaffold(
+            startBar = {
+                if (navigationLayout == HomeNavigationLayout.Rail) {
+                    NavigationRail {
+                        navStyle.tabs.fastForEach {
+                            NavigationRailItem(it)
+                        }
+                    }
+                }
+            },
+            bottomBar = {
+                if (navigationLayout == HomeNavigationLayout.BottomBar) {
+                    val bottomNavVisible by produceState(initialValue = true) {
+                        showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
+                    }
+                    AnimatedVisibility(
+                        visible = bottomNavVisible && tabNavigator.current != navStyle.moreTab,
+                        enter = expandVertically(),
+                        exit = shrinkVertically(),
+                    ) {
+                        NavigationBar {
+                            navStyle.tabs.fastForEach {
+                                NavigationBarItem(it)
+                            }
+                        }
+                    }
+                }
+            },
+            contentWindowInsets = WindowInsets(0),
+        ) { contentPadding ->
+            Box(
+                modifier = Modifier
+                    .padding(contentPadding)
+                    .consumeWindowInsets(contentPadding),
+            ) {
+                AnimatedContent(
+                    targetState = tabNavigator.current,
+                    transitionSpec = {
+                        materialFadeThroughIn(
+                            initialScale = 1f,
+                            durationMillis = TAB_FADE_DURATION,
+                        ) togetherWith
+                            materialFadeThroughOut(durationMillis = TAB_FADE_DURATION)
+                    },
+                    label = "tabContent",
+                ) {
+                    tabNavigator.saveableState(key = "currentTab", it) {
+                        it.Content()
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
     private fun RowScope.NavigationBarItem(tab: eu.kanade.presentation.util.Tab) {
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.currentOrThrow
@@ -255,6 +296,33 @@ object HomeScreen : Screen() {
                 )
             },
             alwaysShowLabel = true,
+        )
+    }
+
+    @Composable
+    private fun NavigationDrawerItem(tab: eu.kanade.presentation.util.Tab) {
+        val tabNavigator = LocalTabNavigator.current
+        val navigator = LocalNavigator.currentOrThrow
+        val scope = rememberCoroutineScope()
+        val selected = tabNavigator.current::class == tab::class
+        NavigationDrawerItem(
+            selected = selected,
+            onClick = {
+                if (!selected) {
+                    tabNavigator.current = tab
+                } else {
+                    scope.launch { tab.onReselect(navigator) }
+                }
+            },
+            icon = { NavigationIconItem(tab) },
+            label = {
+                Text(
+                    text = tab.options.title,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
         )
     }
 

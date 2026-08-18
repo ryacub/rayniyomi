@@ -22,6 +22,19 @@ enum class WindowWidthClass {
     Expanded,
 }
 
+/** The navigation chrome that Home uses for a [WindowWidthClass]. */
+enum class HomeNavigationLayout {
+    BottomBar,
+    Rail,
+    Drawer,
+}
+
+fun homeNavigationLayoutFor(windowWidthClass: WindowWidthClass): HomeNavigationLayout = when (windowWidthClass) {
+    WindowWidthClass.Compact -> HomeNavigationLayout.BottomBar
+    WindowWidthClass.Medium -> HomeNavigationLayout.Rail
+    WindowWidthClass.Expanded -> HomeNavigationLayout.Drawer
+}
+
 /** Lower bound of [WindowWidthClass.Medium], in dp. */
 const val MEDIUM_WIDTH_BREAKPOINT_DP = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
 

@@ -62,4 +62,23 @@ class WindowWidthClassTest {
     ) {
         windowWidthClassFor(widthDp, isLandscape, tabletUiMode) shouldBe expected
     }
+
+    @ParameterizedTest
+    @CsvSource(
+        "400, false, AUTOMATIC, BottomBar",
+        "400, false, ALWAYS, Rail",
+        "400, true, LANDSCAPE, Rail",
+        "1000, false, AUTOMATIC, Drawer",
+        "1000, true, NEVER, BottomBar",
+    )
+    fun `maps the window width class to Home navigation layout`(
+        widthDp: Int,
+        isLandscape: Boolean,
+        tabletUiMode: TabletUiMode,
+        expected: HomeNavigationLayout,
+    ) {
+        homeNavigationLayoutFor(
+            windowWidthClassFor(widthDp, isLandscape, tabletUiMode),
+        ) shouldBe expected
+    }
 }
