@@ -646,7 +646,6 @@ Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->intercept(Lokht
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->resolveWithWebView(Lokhttp3/Request;Lokhttp3/Cookie;)V [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->shouldIntercept(Lokhttp3/Response;)Z [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptorKt;-><clinit>()V [STATIC]
-Leu/kanade/tachiyomi/network/interceptor/IgnoreGzipInterceptor;->intercept(Lokhttp3/Interceptor$Chain;)Lokhttp3/Response; [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/RateLimitInterceptor;-><init>(Ljava/lang/String;IJ)V [PUBLIC]
 Leu/kanade/tachiyomi/network/interceptor/RateLimitInterceptor;->intercept(Lokhttp3/Interceptor$Chain;)Lokhttp3/Response; [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/RateLimitInterceptorKt;->rateLimit(Lokhttp3/OkHttpClient$Builder;IJLjava/util/concurrent/TimeUnit;)Lokhttp3/OkHttpClient$Builder; [PUBLIC STATIC FINAL]

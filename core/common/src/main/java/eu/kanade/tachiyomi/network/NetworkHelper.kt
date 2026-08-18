@@ -2,12 +2,10 @@ package eu.kanade.tachiyomi.network
 
 import android.content.Context
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
-import eu.kanade.tachiyomi.network.interceptor.IgnoreGzipInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
 import okhttp3.Cache
 import okhttp3.OkHttpClient
-import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -31,10 +29,11 @@ class NetworkHelper(
                     maxSize = 50L * 1024 * 1024, // 50 MiB
                 ),
             )
+            // The TachiyomiX 1.6 extension library refuses to run when the default client
+            // strips gzip. Brotli needs that strip to work as a network interceptor, so the
+            // pair must stay off this client. OkHttp handles gzip transparently instead.
             .addInterceptor(UncaughtExceptionInterceptor())
             .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
-            .addNetworkInterceptor(IgnoreGzipInterceptor())
-            .addNetworkInterceptor(BrotliInterceptor)
 
         if (preferences.verboseLogging().get()) {
             val httpLoggingInterceptor = HttpLoggingInterceptor().apply {
