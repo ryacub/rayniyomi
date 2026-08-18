@@ -606,6 +606,18 @@ class PlayerActivity : BaseActivity() {
         playerView.forceLayout()
         playerView.requestLayout()
 
+        // A resize delivered while backgrounded leaves mpv's SurfaceView holding a surface
+        // at the stale pane size: Android does not reliably redeliver
+        // SurfaceHolder.Callback#surfaceCreated just because the window becomes visible
+        // again at new bounds, only when the SurfaceView's own visibility changes. Toggling
+        // visibility forces Android to tear down and recreate the native surface at the
+        // current (correct) bounds, which is what actually makes mpv attach its surface
+        // again. Post it so the toggle runs after the layout pass above settles.
+        playerView.post {
+            playerView.visibility = View.GONE
+            playerView.visibility = View.VISIBLE
+        }
+
         viewModel.currentVolume.update {
             audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).also {
                 if (it < viewModel.maxVolume) viewModel.changeMPVVolumeTo(100)

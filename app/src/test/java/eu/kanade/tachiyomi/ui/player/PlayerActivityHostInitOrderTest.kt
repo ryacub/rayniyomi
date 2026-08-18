@@ -255,6 +255,36 @@ class PlayerActivityHostInitOrderTest {
         assertTrue(guardReturnIdx < forceLayoutIdx, "Layout pass must not run on a normal resume")
     }
 
+    /**
+     * The layout pass alone does not make mpv reattach its surface: Android redelivers
+     * SurfaceHolder.Callback#surfaceCreated only when the SurfaceView's own visibility
+     * changes, not merely when the window becomes visible again at new bounds. The resume
+     * path must toggle the player view's visibility, posted after the layout pass settles.
+     */
+    @Test
+    fun `resume toggles player view visibility to reattach the mpv surface`() {
+        val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
+        val notExitingGuardIdx = resumeBody.indexOf("if (!player.isExiting)")
+        val guardReturnIdx = resumeBody.indexOf("return", startIndex = notExitingGuardIdx)
+        val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
+        val postIdx = resumeBody.indexOf("playerView.post")
+        val goneIdx = resumeBody.indexOf("playerView.visibility = View.GONE")
+        val visibleIdx = resumeBody.indexOf("playerView.visibility = View.VISIBLE")
+        val volumeIdx = resumeBody.indexOf("viewModel.currentVolume.update")
+
+        assertTrue(notExitingGuardIdx >= 0, "Expected onResume to guard on player.isExiting")
+        assertTrue(guardReturnIdx > notExitingGuardIdx, "Expected the not-exiting branch to return early")
+        assertTrue(guardReturnIdx < goneIdx, "Visibility toggle must not run on a normal resume")
+        assertTrue(forceLayoutIdx >= 0, "Expected onResume to force a layout pass")
+        assertTrue(postIdx > forceLayoutIdx, "Visibility toggle must be posted after the layout pass")
+        assertTrue(goneIdx > postIdx, "Expected a posted visibility toggle to GONE")
+        assertTrue(visibleIdx > goneIdx, "Expected the visibility toggle to restore VISIBLE")
+        assertTrue(
+            visibleIdx < volumeIdx,
+            "Visibility toggle must stay grouped with the returning-from-background work",
+        )
+    }
+
     private fun loadPlayerActivitySource(): String {
         return loadPlayerSource("PlayerActivity.kt")
     }
