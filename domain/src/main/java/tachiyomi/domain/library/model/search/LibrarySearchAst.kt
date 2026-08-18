@@ -26,18 +26,18 @@ enum class LibrarySearchField(vararg val aliases: String) {
 }
 
 enum class ComparisonField(vararg val aliases: String) {
-    ID(),
+    ID("id"),
     DATE_ADDED("added"),
     FETCH_INTERVAL("fetchinterval", "fi"),
     NEXT_UPDATE("nextupdate", "nu"),
-    UNREAD(),
-    READ(),
-    TOTAL(),
+    UNREAD("unread"),
+    READ("read"),
+    TOTAL("total"),
     ;
 
     companion object {
         private val lookup = entries.flatMap { field ->
-            (listOf(field.name) + field.aliases).map { it.lowercase() to field }
+            field.aliases.map { it.lowercase() to field }
         }.toMap()
 
         fun fromString(value: String): ComparisonField? = lookup[value.lowercase()]
