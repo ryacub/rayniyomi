@@ -67,6 +67,16 @@ class LibrarySearchCompatTest {
     }
 
     @Test
+    fun `comparison syntax at token boundaries routes to the parsed matcher`() {
+        listOf(
+            "plain read=foo",
+            "plain added>foo",
+        ).forEach { query ->
+            isLegacySearchQuery(query) shouldBe false
+        }
+    }
+
+    @Test
     fun `source id aliases route to the legacy matcher`() {
         val aliases = listOf(
             "source_id:5", "sourceid:5", "src_id:5", "srcid:5",
