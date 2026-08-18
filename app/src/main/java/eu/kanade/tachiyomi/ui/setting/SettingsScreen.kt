@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
@@ -20,7 +25,11 @@ import eu.kanade.presentation.more.settings.screen.about.AboutScreen
 import eu.kanade.presentation.util.DefaultNavigatorScreenTransition
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
-import eu.kanade.presentation.util.isTabletUi
+import eu.kanade.presentation.util.SettingsNavigationLayout
+import eu.kanade.presentation.util.currentWindowWidthClass
+import eu.kanade.presentation.util.settingsNavigationLayoutFor
+import eu.kanade.presentation.util.settingsStackForSinglePane
+import eu.kanade.presentation.util.settingsStackForTwoPane
 import tachiyomi.presentation.core.components.TwoPanelBox
 
 class SettingsScreen(
@@ -32,36 +41,43 @@ class SettingsScreen(
     @Composable
     override fun Content() {
         val parentNavigator = LocalNavigator.currentOrThrow
-        if (!isTabletUi()) {
-            Navigator(
-                screen = when (destination) {
-                    Destination.About.id -> AboutScreen
-                    Destination.DataAndStorage.id -> SettingsDataScreen
-                    Destination.Tracking.id -> SettingsTrackingScreen
-                    else -> SettingsMainScreen
-                },
-                content = {
-                    val pop: () -> Unit = {
-                        if (it.canPop) {
-                            it.pop()
-                        } else {
-                            parentNavigator.pop()
-                        }
+        val navigationLayout = settingsNavigationLayoutFor(currentWindowWidthClass())
+        val twoPane = navigationLayout == SettingsNavigationLayout.TwoPane
+        var previousNavigationLayout by remember { mutableStateOf<SettingsNavigationLayout?>(null) }
+        Navigator(
+            screen = when (destination) {
+                Destination.About.id -> AboutScreen
+                Destination.DataAndStorage.id -> SettingsDataScreen
+                Destination.Tracking.id -> SettingsTrackingScreen
+                else -> if (twoPane) SettingsAppearanceScreen else SettingsMainScreen
+            },
+        ) { navigator ->
+            LaunchedEffect(navigationLayout) {
+                val previousLayout = previousNavigationLayout
+                if (twoPane && previousLayout != SettingsNavigationLayout.TwoPane) {
+                    val screens = settingsStackForTwoPane(
+                        screens = navigator.items,
+                        isMainScreen = { it::class == SettingsMainScreen::class },
+                        defaultScreen = SettingsAppearanceScreen,
+                    )
+                    if (screens != navigator.items) {
+                        navigator.replaceAll(screens)
                     }
-                    CompositionLocalProvider(LocalBackPress provides pop) {
-                        DefaultNavigatorScreenTransition(navigator = it)
+                } else if (!twoPane && destination == null &&
+                    (previousLayout == null || previousLayout == SettingsNavigationLayout.TwoPane)
+                ) {
+                    val screens = settingsStackForSinglePane(
+                        screens = navigator.items,
+                        isMainScreen = { it::class == SettingsMainScreen::class },
+                        mainScreen = SettingsMainScreen,
+                    )
+                    if (screens != navigator.items) {
+                        navigator.replaceAll(screens)
                     }
-                },
-            )
-        } else {
-            Navigator(
-                screen = when (destination) {
-                    Destination.About.id -> AboutScreen
-                    Destination.DataAndStorage.id -> SettingsDataScreen
-                    Destination.Tracking.id -> SettingsTrackingScreen
-                    else -> SettingsAppearanceScreen
-                },
-            ) {
+                }
+                previousNavigationLayout = navigationLayout
+            }
+            if (twoPane) {
                 val insets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                 TwoPanelBox(
                     modifier = Modifier
@@ -72,8 +88,19 @@ class SettingsScreen(
                             SettingsMainScreen.Content(twoPane = true)
                         }
                     },
-                    endContent = { DefaultNavigatorScreenTransition(navigator = it) },
+                    endContent = { DefaultNavigatorScreenTransition(navigator = navigator) },
                 )
+            } else {
+                val pop: () -> Unit = {
+                    if (navigator.canPop) {
+                        navigator.pop()
+                    } else {
+                        parentNavigator.pop()
+                    }
+                }
+                CompositionLocalProvider(LocalBackPress provides pop) {
+                    DefaultNavigatorScreenTransition(navigator = navigator)
+                }
             }
         }
     }

@@ -109,19 +109,29 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
             containerColor = containerColor,
             content = { contentPadding ->
                 val state = rememberLazyListState()
-                val indexSelected = if (twoPane) {
-                    items.indexOfFirst { it.screen::class == navigator.items.first()::class }
-                        .also {
-                            LaunchedEffect(Unit) {
-                                state.animateScrollToItem(it)
-                                if (it > 0) {
-                                    // Lift scroll
-                                    topBarState.contentOffset = topBarState.heightOffsetLimit
-                                }
-                            }
+                val selectedScreenClass = if (twoPane) {
+                    navigator.items.asReversed()
+                        .asSequence()
+                        .map { it::class }
+                        .firstOrNull { screenClass ->
+                            items.any { it.screen::class == screenClass }
                         }
                 } else {
                     null
+                }
+                val indexSelected = if (twoPane) {
+                    items.indexOfFirst { it.screen::class == selectedScreenClass }
+                } else {
+                    null
+                }
+                if (indexSelected != null && indexSelected >= 0) {
+                    LaunchedEffect(selectedScreenClass) {
+                        state.animateScrollToItem(indexSelected)
+                        if (indexSelected > 0) {
+                            // Lift scroll
+                            topBarState.contentOffset = topBarState.heightOffsetLimit
+                        }
+                    }
                 }
 
                 LazyColumn(

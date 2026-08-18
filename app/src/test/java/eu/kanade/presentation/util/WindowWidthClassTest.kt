@@ -81,4 +81,25 @@ class WindowWidthClassTest {
             windowWidthClassFor(widthDp, isLandscape, tabletUiMode),
         ) shouldBe expected
     }
+
+    @ParameterizedTest
+    @CsvSource(
+        "400, false, AUTOMATIC, SinglePane",
+        "700, false, AUTOMATIC, SinglePane",
+        "1000, false, AUTOMATIC, TwoPane",
+        "400, false, ALWAYS, SinglePane",
+        "400, true, LANDSCAPE, SinglePane",
+        "1000, true, LANDSCAPE, TwoPane",
+        "1000, false, NEVER, SinglePane",
+    )
+    fun `maps the window width class to Settings navigation layout`(
+        widthDp: Int,
+        isLandscape: Boolean,
+        tabletUiMode: TabletUiMode,
+        expected: SettingsNavigationLayout,
+    ) {
+        settingsNavigationLayoutFor(
+            windowWidthClassFor(widthDp, isLandscape, tabletUiMode),
+        ) shouldBe expected
+    }
 }
