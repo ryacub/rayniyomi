@@ -329,6 +329,22 @@ class MangaLibraryItemSearchTest {
     }
 
     @Test
+    fun `fetch interval comparisons match the zero default sentinel`() {
+        val defaultInterval = item(manga(fetchInterval = 0))
+        val customInterval = item(manga(fetchInterval = -7))
+        assertTrue(defaultInterval.matchesQuery("fi=0"))
+        assertFalse(customInterval.matchesQuery("fi=0"))
+    }
+
+    @Test
+    fun `fetch interval comparisons handle the minimum integer`() {
+        val minimumInterval = item(manga(fetchInterval = Int.MIN_VALUE))
+        assertTrue(minimumInterval.matchesQuery("fi=2147483648"))
+        assertTrue(minimumInterval.matchesQuery("fi>2147483647"))
+        assertFalse(minimumInterval.matchesQuery("fi=2147483647"))
+    }
+
+    @Test
     fun `id and count comparisons use the library values`() {
         val item = item(manga(id = 42L))
         assertTrue(item.matchesQuery("id=42"))

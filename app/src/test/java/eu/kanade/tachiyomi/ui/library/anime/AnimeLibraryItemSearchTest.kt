@@ -329,6 +329,22 @@ class AnimeLibraryItemSearchTest {
     }
 
     @Test
+    fun `fetch interval comparisons match the zero default sentinel`() {
+        val defaultInterval = item(anime(fetchInterval = 0))
+        val customInterval = item(anime(fetchInterval = -7))
+        assertTrue(defaultInterval.matchesQuery("fi=0"))
+        assertFalse(customInterval.matchesQuery("fi=0"))
+    }
+
+    @Test
+    fun `fetch interval comparisons handle the minimum integer`() {
+        val minimumInterval = item(anime(fetchInterval = Int.MIN_VALUE))
+        assertTrue(minimumInterval.matchesQuery("fi=2147483648"))
+        assertTrue(minimumInterval.matchesQuery("fi>2147483647"))
+        assertFalse(minimumInterval.matchesQuery("fi=2147483647"))
+    }
+
+    @Test
     fun `id and count comparisons use the library values`() {
         val item = item(anime(id = 42L))
         assertTrue(item.matchesQuery("id=42"))

@@ -28,6 +28,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Manga extensions that declare TachiyomiX lib 1.6 can now browse and read. The extensions installed and registered their sources, but every network call failed. The app no longer adds the gzip and Brotli network interceptors, which the TachiyomiX 1.6 library refuses, so OkHttp handles gzip transparently. The app also supplies `okhttp-zstd`, which the library links against, and keeps the `com.squareup.zstd` classes that the release build previously removed. Lib 1.4 extensions are unaffected.
+- Library search fetch interval comparisons now handle the minimum integer interval, and the help text explains absolute interval semantics.
 - The app no longer crashes when it extracts the dominant color from a cover that was decoded as a hardware bitmap. The extraction now always reads from a software bitmap.
 - Chapter and episode downloads now complete instead of stopping at 100% with a `Download stalled` message. The progress and stall monitors held the download open after the last page or video, which also kept the item in the queue, blocked the next download from the same source, and hid the `translate` action on the chapter list.
 - Cancellation (pause, stop, queue change) during a chapter download now stops the download instead of marking the affected page as a download error.
