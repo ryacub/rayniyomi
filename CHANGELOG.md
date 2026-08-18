@@ -27,6 +27,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The reader and player rotation controls now disable on Android 16 large screens, because the system ignores orientation requests there. The app shows a short explanation, and the stored orientation preference remains available for use on smaller screens.
 
 ### Fixed
+- Backup restore now prunes deleted-category IDs from Updates and Upcoming category filter preferences.
 - Manga extensions that declare TachiyomiX lib 1.6 can now browse and read. The extensions installed and registered their sources, but every network call failed. The app no longer adds the gzip and Brotli network interceptors, which the TachiyomiX 1.6 library refuses, so OkHttp handles gzip transparently. The app also supplies `okhttp-zstd`, which the library links against, and keeps the `com.squareup.zstd` classes that the release build previously removed. Lib 1.4 extensions are unaffected.
 - Library search fetch interval comparisons now handle the minimum integer interval, and the help text explains absolute interval semantics.
 - The app no longer crashes when it extracts the dominant color from a cover that was decoded as a hardware bitmap. The extraction now always reads from a software bitmap.
