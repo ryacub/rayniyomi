@@ -34,6 +34,7 @@ import androidx.core.content.getSystemService
 import androidx.core.graphics.ColorUtils
 import androidx.core.net.toUri
 import androidx.core.transition.doOnEnd
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -55,6 +56,10 @@ import eu.kanade.presentation.reader.ReaderPageActionsDialog
 import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
+import eu.kanade.presentation.util.FoldOcclusionType
+import eu.kanade.presentation.util.FoldOrientation
+import eu.kanade.presentation.util.FoldState
+import eu.kanade.presentation.util.ReaderFoldState
 import eu.kanade.presentation.util.readerFoldStateFrom
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
@@ -282,6 +287,18 @@ class ReaderActivity : BaseActivity() {
                     .collect(viewModel::setFoldState)
             }
         }
+
+        // Single source of truth for the tabletop upper-region constraint.
+        // updateViewer() replaces the viewer on the main thread, and the next
+        // fold-state emission applies the constraint to the current viewer.
+        viewModel.state
+            .map { it.foldState }
+            .distinctUntilChanged()
+            .onEach(::updateViewerForTabletopPosture)
+            .launchIn(lifecycleScope)
+
+        // Close the startup gap before the observer's first emission.
+        updateViewerForTabletopPosture(viewModel.state.value.foldState)
     }
 
     /**
@@ -888,6 +905,27 @@ class ReaderActivity : BaseActivity() {
     }
 
     /**
+     * Constrains the viewer height for the tabletop upper region.
+     *
+     * It runs on the fold state that the [ReaderViewModel.State.foldState]
+     * observer emits. It reads the status bar inset from the viewer view so
+     * the height is measured in content coordinates.
+     */
+    private fun updateViewerForTabletopPosture(foldState: ReaderFoldState?) {
+        val view = viewModel.state.value.viewer?.getView() ?: return
+        val statusBarInset = ViewCompat.getRootWindowInsets(view)
+            ?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+        val tabletopHeight = tabletopViewerHeight(foldState, statusBarInset)
+        val params = view.layoutParams as? FrameLayout.LayoutParams
+            ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+        params.height = tabletopHeight ?: FrameLayout.LayoutParams.MATCH_PARENT
+        view.layoutParams = params
+    }
+
+    /**
      * Class that observes ReaderConfigManager and applies config to Android Window/Views.
      */
     private inner class ReaderConfig {
@@ -971,4 +1009,33 @@ class ReaderActivity : BaseActivity() {
             viewModel.setBrightnessOverlayValue(value)
         }
     }
+}
+
+/**
+ * Returns true when the device is in tabletop posture.
+ *
+ * Tabletop posture requires a horizontal, half-open fold that occludes the
+ * middle of the window fully.
+ */
+internal fun isInTabletopPosture(foldState: ReaderFoldState?): Boolean {
+    return foldState != null &&
+        foldState.orientation == FoldOrientation.Horizontal &&
+        foldState.state == FoldState.HalfOpen &&
+        foldState.occlusionType == FoldOcclusionType.Full
+}
+
+/**
+ * Computes the viewer height in pixels for the tabletop upper region.
+ *
+ * Returns null when the device is not in tabletop posture, so the caller uses
+ * MATCH_PARENT. In tabletop posture it returns the height above the fold,
+ * reduced by [statusBarInset] because the fold bounds live in window pixels.
+ * The result never goes below zero.
+ */
+internal fun tabletopViewerHeight(
+    foldState: ReaderFoldState?,
+    statusBarInset: Int,
+): Int? {
+    if (foldState == null || !isInTabletopPosture(foldState)) return null
+    return (foldState.bounds.top - statusBarInset).coerceAtLeast(0)
 }
