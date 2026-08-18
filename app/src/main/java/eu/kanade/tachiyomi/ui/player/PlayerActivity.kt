@@ -41,6 +41,7 @@ import android.util.Rational
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -176,6 +177,8 @@ class PlayerActivity : BaseActivity() {
     }
 
     companion object {
+        private const val MAX_RESUME_LAYOUT_ATTEMPTS = 5
+
         fun newIntent(
             context: Context,
             animeId: Long?,
@@ -598,25 +601,40 @@ class PlayerActivity : BaseActivity() {
         player.isExiting = false
         super.onResume()
 
-        // A resize delivered while backgrounded (for example, exiting split-screen) never
-        // re-measures the player view, because PlayerActivity handles config changes itself
-        // (see AndroidManifest configChanges) and onConfigurationChanged can run before the
-        // window is visible again. Force a layout pass now that the window is guaranteed
-        // visible, so the mpv surface picks up the new bounds.
-        playerView.forceLayout()
-        playerView.requestLayout()
+        // A resize delivered while backgrounded (for example, exiting split-screen) leaves
+        // mpv's SurfaceView holding a surface at the stale pane size. Forcing a layout pass
+        // and toggling visibility synchronously (or on a single post) in onResume is too
+        // early: onResume runs in the same transition frame as onConfigurationChanged and
+        // onStart, before Compose has recomposed this view against the new window bounds, so
+        // both operations re-assert the OLD size and the recreated surface is still wrong.
+        // Wait for a real layout pass that reports the current window width before forcing
+        // the surface to recreate, with a bounded retry count so a window stuck mid
+        // transition cannot spin forever. The listener must remove itself once it fires to
+        // avoid leaking and re-running on every later layout pass.
+        playerView.viewTreeObserver.addOnGlobalLayoutListener(
+            object : ViewTreeObserver.OnGlobalLayoutListener {
+                private var attempts = 0
 
-        // A resize delivered while backgrounded leaves mpv's SurfaceView holding a surface
-        // at the stale pane size: Android does not reliably redeliver
-        // SurfaceHolder.Callback#surfaceCreated just because the window becomes visible
-        // again at new bounds, only when the SurfaceView's own visibility changes. Toggling
-        // visibility forces Android to tear down and recreate the native surface at the
-        // current (correct) bounds, which is what actually makes mpv attach its surface
-        // again. Post it so the toggle runs after the layout pass above settles.
-        playerView.post {
-            playerView.visibility = View.GONE
-            playerView.visibility = View.VISIBLE
-        }
+                override fun onGlobalLayout() {
+                    attempts++
+                    val windowWidth = window.decorView.width
+                    val sizeIsCurrent = playerView.width == windowWidth
+                    if (sizeIsCurrent || attempts >= MAX_RESUME_LAYOUT_ATTEMPTS) {
+                        playerView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                        playerView.forceLayout()
+                        playerView.requestLayout()
+                        // Toggling visibility forces Android to tear down and recreate the
+                        // native surface at the current (correct) bounds, which is what
+                        // actually makes mpv attach its surface again. Post it so the toggle
+                        // runs after the layout pass above settles.
+                        playerView.post {
+                            playerView.visibility = View.GONE
+                            playerView.visibility = View.VISIBLE
+                        }
+                    }
+                }
+            },
+        )
 
         viewModel.currentVolume.update {
             audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).also {

@@ -223,59 +223,77 @@ class PlayerActivityHostInitOrderTest {
     /**
      * The activity handles orientation and window-size configuration changes itself, so a
      * bounds change delivered while the player is backgrounded (for example, exiting
-     * split-screen) never re-measures the player view. The resume path must force a layout
-     * pass after the window is visible again so the mpv surface picks up the new bounds.
+     * split-screen) never re-measures the player view. onResume() itself runs in the same
+     * transition frame as onConfigurationChanged/onStart, before Compose has recomposed the
+     * player view against the new window bounds, so the resume path must wait for a real
+     * layout pass that reports the current window width before forcing the surface to
+     * recreate.
      */
     @Test
-    fun `resume forces a player view layout pass after a backgrounded window resize`() {
+    fun `resume registers a layout listener to re-measure the player view after a backgrounded window resize`() {
         val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
         val isExitingClearIdx = resumeBody.indexOf("player.isExiting = false")
         val resumeSuperIdx = resumeBody.indexOf("super.onResume()", startIndex = isExitingClearIdx)
+        val addListenerIdx = resumeBody.indexOf("playerView.viewTreeObserver.addOnGlobalLayoutListener")
         val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
         val requestLayoutIdx = resumeBody.indexOf("playerView.requestLayout()")
         val volumeIdx = resumeBody.indexOf("viewModel.currentVolume.update")
 
         assertTrue(isExitingClearIdx >= 0, "Expected onResume to clear player.isExiting")
-        assertTrue(forceLayoutIdx > isExitingClearIdx, "Layout pass must run only when returning from background")
-        assertTrue(requestLayoutIdx > isExitingClearIdx, "Layout pass must force a measure and layout request")
         assertTrue(resumeSuperIdx >= 0, "Expected resume to continue after clearing player.isExiting")
-        assertTrue(forceLayoutIdx > resumeSuperIdx, "Layout pass must run after the window becomes visible again")
-        assertTrue(forceLayoutIdx < volumeIdx, "Layout pass must stay grouped with the returning-from-background work")
+        assertTrue(
+            addListenerIdx > resumeSuperIdx,
+            "Layout listener must be registered only when returning from background",
+        )
+        assertTrue(
+            forceLayoutIdx > addListenerIdx,
+            "Layout pass must run inside the layout listener, not synchronously in onResume",
+        )
+        assertTrue(
+            requestLayoutIdx > forceLayoutIdx,
+            "Layout pass must force a measure and layout request",
+        )
+        assertTrue(
+            addListenerIdx < volumeIdx,
+            "Layout listener registration must stay grouped with the returning-from-background work",
+        )
     }
 
     @Test
-    fun `resume does not force a layout pass on a normal resume`() {
+    fun `resume does not register a layout listener on a normal resume`() {
         val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
         val notExitingGuardIdx = resumeBody.indexOf("if (!player.isExiting)")
         val guardReturnIdx = resumeBody.indexOf("return", startIndex = notExitingGuardIdx)
-        val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
+        val addListenerIdx = resumeBody.indexOf("playerView.viewTreeObserver.addOnGlobalLayoutListener")
 
         assertTrue(notExitingGuardIdx >= 0, "Expected onResume to guard on player.isExiting")
         assertTrue(guardReturnIdx > notExitingGuardIdx, "Expected the not-exiting branch to return early")
-        assertTrue(guardReturnIdx < forceLayoutIdx, "Layout pass must not run on a normal resume")
+        assertTrue(
+            guardReturnIdx < addListenerIdx,
+            "Layout listener must not be registered on a normal resume",
+        )
     }
 
     /**
      * The layout pass alone does not make mpv reattach its surface: Android redelivers
      * SurfaceHolder.Callback#surfaceCreated only when the SurfaceView's own visibility
      * changes, not merely when the window becomes visible again at new bounds. The resume
-     * path must toggle the player view's visibility, posted after the layout pass settles.
+     * path must toggle the player view's visibility, posted after the layout pass reports
+     * the current window width inside the listener fires.
      */
     @Test
-    fun `resume toggles player view visibility to reattach the mpv surface`() {
+    fun `resume toggles player view visibility only after the layout listener reports the current size`() {
         val resumeBody = loadPlayerActivitySource().functionBody("override fun onResume")
-        val notExitingGuardIdx = resumeBody.indexOf("if (!player.isExiting)")
-        val guardReturnIdx = resumeBody.indexOf("return", startIndex = notExitingGuardIdx)
+        val addListenerIdx = resumeBody.indexOf("playerView.viewTreeObserver.addOnGlobalLayoutListener")
         val forceLayoutIdx = resumeBody.indexOf("playerView.forceLayout()")
         val postIdx = resumeBody.indexOf("playerView.post")
         val goneIdx = resumeBody.indexOf("playerView.visibility = View.GONE")
         val visibleIdx = resumeBody.indexOf("playerView.visibility = View.VISIBLE")
         val volumeIdx = resumeBody.indexOf("viewModel.currentVolume.update")
 
-        assertTrue(notExitingGuardIdx >= 0, "Expected onResume to guard on player.isExiting")
-        assertTrue(guardReturnIdx > notExitingGuardIdx, "Expected the not-exiting branch to return early")
-        assertTrue(guardReturnIdx < goneIdx, "Visibility toggle must not run on a normal resume")
-        assertTrue(forceLayoutIdx >= 0, "Expected onResume to force a layout pass")
+        assertTrue(addListenerIdx >= 0, "Expected onResume to register an on-global-layout listener")
+        assertTrue(forceLayoutIdx > addListenerIdx, "Layout pass must run inside the layout listener")
+        assertTrue(postIdx > addListenerIdx, "Visibility toggle must run inside the layout listener")
         assertTrue(postIdx > forceLayoutIdx, "Visibility toggle must be posted after the layout pass")
         assertTrue(goneIdx > postIdx, "Expected a posted visibility toggle to GONE")
         assertTrue(visibleIdx > goneIdx, "Expected the visibility toggle to restore VISIBLE")
