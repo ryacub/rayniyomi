@@ -4,7 +4,7 @@ package tachiyomi.domain.library.model.search
  * Compiled once: the routing check runs for every item on every library emission.
  */
 private val FIELD_PREFIX_REGEX = Regex(
-    "(?<![a-zA-Z0-9_])(title|author|artist|description|desc|genre|tag|source|src|notes|note|language|lang|source_id|sourceid|src_id|srcid):",
+    "(?<![a-zA-Z0-9_])(title|author|artist|description|desc|genre|tag|source|src|notes|note|language|lang):",
     RegexOption.IGNORE_CASE,
 )
 
