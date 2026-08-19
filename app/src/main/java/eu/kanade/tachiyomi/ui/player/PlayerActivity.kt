@@ -41,6 +41,7 @@ import android.util.Rational
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -176,6 +177,8 @@ class PlayerActivity : BaseActivity() {
     }
 
     companion object {
+        private const val MAX_RESUME_LAYOUT_ATTEMPTS = 5
+
         fun newIntent(
             context: Context,
             animeId: Long?,
@@ -597,6 +600,41 @@ class PlayerActivity : BaseActivity() {
 
         player.isExiting = false
         super.onResume()
+
+        // A backgrounded resize (e.g. exiting split-screen) leaves mpv's surface at the
+        // stale size. setFixedSize/setSizeFromLayout forces a fresh surfaceChanged at the
+        // current size; toggling View.visibility instead hangs the window's draw sync.
+        fun recreatePlayerSurfaceAtCurrentSize() {
+            playerView.forceLayout()
+            playerView.requestLayout()
+            val holder = playerView.holder
+            holder.setFixedSize(1, 1)
+            playerView.post {
+                holder.setSizeFromLayout()
+            }
+        }
+
+        val windowWidth = window.decorView.width
+        if (playerView.width == windowWidth) {
+            // Already correct (Compose recomposed before onResume ran) — no layout pass to wait for.
+            recreatePlayerSurfaceAtCurrentSize()
+        } else {
+            // Wait for a layout pass reporting the current width; bounded so a stuck window can't spin forever.
+            playerView.viewTreeObserver.addOnGlobalLayoutListener(
+                object : ViewTreeObserver.OnGlobalLayoutListener {
+                    private var attempts = 0
+
+                    override fun onGlobalLayout() {
+                        attempts++
+                        val sizeIsCurrent = playerView.width == window.decorView.width
+                        if (sizeIsCurrent || attempts >= MAX_RESUME_LAYOUT_ATTEMPTS) {
+                            playerView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                            recreatePlayerSurfaceAtCurrentSize()
+                        }
+                    }
+                },
+            )
+        }
 
         viewModel.currentVolume.update {
             audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).also {
