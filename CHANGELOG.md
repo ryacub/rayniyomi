@@ -13,6 +13,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.267] - 2026-08-19
+
+### Added
 - The reader keeps page content and controls clear of an occluding vertical hinge in book posture. The reader restores the normal layout when the device leaves book posture.
 - The reader keeps content in the upper region during tabletop posture. The reader restores the normal layout when the device leaves tabletop posture.
 - The reader places transient controls in the lower region during tabletop posture and keeps every interactive control clear of the occluding hinge. The reader restores normal control placement when the device leaves tabletop posture.
