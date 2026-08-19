@@ -601,16 +601,9 @@ class PlayerActivity : BaseActivity() {
         player.isExiting = false
         super.onResume()
 
-        // A resize delivered while backgrounded (for example, exiting split-screen) leaves
-        // mpv's SurfaceView holding a surface at the stale pane size. forceLayout()/
-        // requestLayout() alone only re-assert whatever size the View is CURRENTLY measured
-        // at — if that is still the stale size (Compose has not yet recomposed against the
-        // new window bounds), it is a no-op resize and mpv never gets a new surface.
-        // Toggling View.visibility to force a recreation was tried and confirmed (via
-        // dumpsys window windows) to hang the window's own post-resize draw
-        // synchronization. Use SurfaceHolder#setFixedSize/setSizeFromLayout — not
-        // View.visibility — to force mpv to receive a fresh surfaceChanged callback at the
-        // correct size.
+        // A backgrounded resize (e.g. exiting split-screen) leaves mpv's surface at the
+        // stale size. setFixedSize/setSizeFromLayout forces a fresh surfaceChanged at the
+        // current size; toggling View.visibility instead hangs the window's draw sync.
         fun recreatePlayerSurfaceAtCurrentSize() {
             playerView.forceLayout()
             playerView.requestLayout()
@@ -623,14 +616,10 @@ class PlayerActivity : BaseActivity() {
 
         val windowWidth = window.decorView.width
         if (playerView.width == windowWidth) {
-            // Already at the correct size (Compose recomposed before onResume ran). There
-            // will be no further layout pass to wait for, so act immediately.
+            // Already correct (Compose recomposed before onResume ran) — no layout pass to wait for.
             recreatePlayerSurfaceAtCurrentSize()
         } else {
-            // Wait for a real layout pass that reports the current window width, with a
-            // bounded retry count so a window stuck mid-transition cannot spin forever. The
-            // listener must remove itself once it fires to avoid leaking and re-running on
-            // every later layout pass.
+            // Wait for a layout pass reporting the current width; bounded so a stuck window can't spin forever.
             playerView.viewTreeObserver.addOnGlobalLayoutListener(
                 object : ViewTreeObserver.OnGlobalLayoutListener {
                     private var attempts = 0
