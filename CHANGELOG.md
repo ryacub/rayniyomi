@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- The reader keeps page content and controls clear of an occluding vertical hinge in book posture. The reader restores the normal layout when the device leaves book posture.
 - The reader keeps content in the upper region during tabletop posture. The reader restores the normal layout when the device leaves tabletop posture.
 - Library search comparison parsing now uses only documented aliases. The help explains that malformed comparison values never match and that negating one matches every entry.
 - Library search now supports the comparison fields `id`, `added`, `fetchinterval` (or `fi`), `nextupdate` (or `nu`), `unread`, `read`, and `total` with the operators `>=`, `<=`, `>`, `<`, and `=`; dates use the `yyyy-MM-dd` format. The `language:` (or `lang:`) field filters by source language, and the `notes:` (or `note:`) field is not supported. For anime, `unread` means unseen, `read` means seen, and `total` means total episodes.

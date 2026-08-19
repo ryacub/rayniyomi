@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bookmark
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.reader.components.ChapterNavigator
+import eu.kanade.tachiyomi.ui.reader.DpHingeInsets
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
@@ -38,6 +40,7 @@ private val animationSpec = tween<IntOffset>(200)
 fun ReaderAppBars(
     visible: Boolean,
     fullscreen: Boolean,
+    hingeInsets: DpHingeInsets? = null,
 
     mangaTitle: String?,
     chapterTitle: String?,
@@ -87,6 +90,12 @@ fun ReaderAppBars(
         Modifier.systemBarsPadding()
     } else {
         Modifier
+    }.let { m ->
+        if (hingeInsets != null) {
+            m.padding(start = hingeInsets.left, end = hingeInsets.right)
+        } else {
+            m
+        }
     }
 
     Column(

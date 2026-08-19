@@ -62,10 +62,128 @@ class ReaderViewerConstraintTest {
         tabletopViewerHeight(fold, statusBarInset = 120) shouldBe 0
     }
 
+    @Test
+    fun `is in book posture with occluding hinge when vertical half-open fully occluding`() {
+        isInBookPostureWithOccludingHinge(verticalHingeFold()) shouldBe true
+    }
+
+    @Test
+    fun `is not in book posture with occluding hinge when the fold is horizontal`() {
+        val fold = verticalHingeFold().copy(orientation = FoldOrientation.Horizontal)
+
+        isInBookPostureWithOccludingHinge(fold) shouldBe false
+    }
+
+    @Test
+    fun `is not in book posture with occluding hinge when the device is flat`() {
+        val fold = verticalHingeFold().copy(state = FoldState.Flat)
+
+        isInBookPostureWithOccludingHinge(fold) shouldBe false
+    }
+
+    @Test
+    fun `is not in book posture with occluding hinge when the fold does not occlude`() {
+        val fold = verticalHingeFold().copy(occlusionType = FoldOcclusionType.None)
+
+        isInBookPostureWithOccludingHinge(fold) shouldBe false
+    }
+
+    @Test
+    fun `is not in book posture with occluding hinge when there is no fold`() {
+        isInBookPostureWithOccludingHinge(null) shouldBe false
+    }
+
+    @Test
+    fun `insets to the regions on both sides of a mid-screen vertical hinge`() {
+        val fold = verticalHingeFold(left = 700, right = 740)
+
+        verticalHingeInsets(fold, windowWidth = 1440) shouldBe HingeInsets(left = 700, right = 700)
+    }
+
+    @Test
+    fun `insets to the regions when the hinge is off-center`() {
+        val fold = verticalHingeFold(left = 400, right = 440)
+
+        verticalHingeInsets(fold, windowWidth = 1440) shouldBe HingeInsets(left = 400, right = 1000)
+    }
+
+    @Test
+    fun `returns null when not in book posture with occluding hinge`() {
+        verticalHingeInsets(
+            verticalHingeFold().copy(occlusionType = FoldOcclusionType.None),
+            windowWidth = 1440,
+        ).shouldBeNull()
+    }
+
+    @Test
+    fun `returns null for a flat vertical fold so no blank space is added`() {
+        verticalHingeInsets(
+            verticalHingeFold().copy(state = FoldState.Flat),
+            windowWidth = 1440,
+        ).shouldBeNull()
+    }
+
+    @Test
+    fun `returns null when there is no fold`() {
+        verticalHingeInsets(null, windowWidth = 1440).shouldBeNull()
+    }
+
+    @Test
+    fun `coerces negative raw values to zero at both window edges`() {
+        val fold = verticalHingeFold(left = -50, right = 1490)
+
+        verticalHingeInsets(fold, windowWidth = 1440) shouldBe HingeInsets(left = 0, right = 0)
+    }
+
+    @Test
+    fun `places the page in the left region when both regions are equal`() {
+        val fold = verticalHingeFold(left = 700, right = 740)
+
+        verticalViewerMargins(fold, windowWidth = 1440) shouldBe ViewerMargins(left = 0, right = 740)
+    }
+
+    @Test
+    fun `places the page in the right region when it is the larger one`() {
+        val fold = verticalHingeFold(left = 400, right = 440)
+
+        verticalViewerMargins(fold, windowWidth = 1440) shouldBe ViewerMargins(left = 440, right = 0)
+    }
+
+    @Test
+    fun `places the page in the left region when it is the larger one`() {
+        val fold = verticalHingeFold(left = 1000, right = 1040)
+
+        verticalViewerMargins(fold, windowWidth = 1440) shouldBe ViewerMargins(left = 0, right = 440)
+    }
+
+    @Test
+    fun `returns null for the viewer margins when the fold does not occlude`() {
+        verticalViewerMargins(
+            verticalHingeFold().copy(occlusionType = FoldOcclusionType.None),
+            windowWidth = 1440,
+        ).shouldBeNull()
+    }
+
+    @Test
+    fun `returns null for the viewer margins when there is no fold`() {
+        verticalViewerMargins(null, windowWidth = 1440).shouldBeNull()
+    }
+
     private fun tabletopFold(top: Int = 720): ReaderFoldState = ReaderFoldState(
         orientation = FoldOrientation.Horizontal,
         state = FoldState.HalfOpen,
         occlusionType = FoldOcclusionType.Full,
         bounds = FoldBounds(left = 0, top = top, right = 1440, bottom = top + 10),
+    )
+
+    private fun verticalHingeFold(
+        left: Int = 700,
+        right: Int = 740,
+        state: FoldState = FoldState.HalfOpen,
+    ): ReaderFoldState = ReaderFoldState(
+        orientation = FoldOrientation.Vertical,
+        state = state,
+        occlusionType = FoldOcclusionType.Full,
+        bounds = FoldBounds(left = left, top = 0, right = right, bottom = 1440),
     )
 }

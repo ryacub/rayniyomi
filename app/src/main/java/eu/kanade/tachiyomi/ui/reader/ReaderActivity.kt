@@ -18,17 +18,25 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.core.graphics.ColorUtils
@@ -299,6 +307,18 @@ class ReaderActivity : BaseActivity() {
 
         // Close the startup gap before the observer's first emission.
         updateViewerForTabletopPosture(viewModel.state.value.foldState)
+
+        // Single source of truth for the vertical-hinge inset constraint.
+        // updateViewer() replaces the viewer on the main thread, so it
+        // reapplies the insets to the new viewer right after adding it.
+        viewModel.state
+            .map { it.foldState }
+            .distinctUntilChanged()
+            .onEach(::updateViewerForVerticalHinge)
+            .launchIn(lifecycleScope)
+
+        // Close the startup gap before the observer's first emission.
+        updateViewerForVerticalHinge(viewModel.state.value.foldState)
     }
 
     /**
@@ -406,10 +426,21 @@ class ReaderActivity : BaseActivity() {
             val showPageNumber by viewModel.readerPreferences.showPageNumber().collectAsStateWithLifecycle()
 
             if (!state.menuVisible && showPageNumber) {
-                PageIndicatorText(
-                    currentPage = state.currentPage,
-                    totalPages = state.totalPages,
-                )
+                val hingeInsets = hingeInsetsDp(state.foldState)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = hingeInsets?.left ?: 0.dp,
+                            end = hingeInsets?.right ?: 0.dp,
+                        ),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    PageIndicatorText(
+                        currentPage = state.currentPage,
+                        totalPages = state.totalPages,
+                    )
+                }
             }
         }
 
@@ -455,7 +486,7 @@ class ReaderActivity : BaseActivity() {
             ReaderAppBars(
                 visible = state.menuVisible,
                 fullscreen = isFullscreen,
-
+                hingeInsets = hingeInsetsDp(state.foldState),
                 mangaTitle = state.manga?.title,
                 chapterTitle = state.currentChapter?.chapter?.name,
                 navigateUp = onBackPressedDispatcher::onBackPressed,
@@ -643,6 +674,7 @@ class ReaderActivity : BaseActivity() {
         }
         updateViewerInset(readerPreferences.fullscreen().get())
         viewerContainer.addView(newViewer.getView())
+        updateViewerForVerticalHinge(viewModel.state.value.foldState)
 
         if (readerPreferences.showReadingMode().get()) {
             showReadingModeToast(viewModel.getMangaReadingMode())
@@ -926,6 +958,28 @@ class ReaderActivity : BaseActivity() {
     }
 
     /**
+     * Keeps the viewer clear of an occluding vertical hinge.
+     *
+     * It runs on the fold state that the [ReaderViewModel.State.foldState]
+     * observer emits and after the viewer is replaced. It reads the window
+     * width from display metrics so the margins are measured in window
+     * pixels.
+     */
+    private fun updateViewerForVerticalHinge(foldState: ReaderFoldState?) {
+        val view = viewModel.state.value.viewer?.getView() ?: return
+        val windowWidth = resources.displayMetrics.widthPixels
+        val margins = verticalViewerMargins(foldState, windowWidth)
+        val params = view.layoutParams as? FrameLayout.LayoutParams
+            ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+        params.leftMargin = margins?.left ?: 0
+        params.rightMargin = margins?.right ?: 0
+        view.layoutParams = params
+    }
+
+    /**
      * Class that observes ReaderConfigManager and applies config to Android Window/Views.
      */
     private inner class ReaderConfig {
@@ -1038,4 +1092,123 @@ internal fun tabletopViewerHeight(
 ): Int? {
     if (foldState == null || !isInTabletopPosture(foldState)) return null
     return (foldState.bounds.top - statusBarInset).coerceAtLeast(0)
+}
+
+/**
+ * Returns true when the device is in book posture with an occluding hinge.
+ *
+ * Book posture requires a vertical, half-open fold that occludes the
+ * middle of the window fully.
+ */
+internal fun isInBookPostureWithOccludingHinge(foldState: ReaderFoldState?): Boolean {
+    return foldState != null &&
+        foldState.orientation == FoldOrientation.Vertical &&
+        foldState.state == FoldState.HalfOpen &&
+        foldState.occlusionType == FoldOcclusionType.Full
+}
+
+/**
+ * The horizontal insets in pixels that keep content clear of the hinge.
+ *
+ * [left] is the usable region to the left of the fold. [right] is the usable
+ * region to the right of the fold. The values live in window pixels.
+ */
+internal data class HingeInsets(
+    val left: Int,
+    val right: Int,
+)
+
+/**
+ * Computes the horizontal insets in window pixels for an occluding hinge.
+ *
+ * Returns null when the device is not in book posture with an occluding
+ * hinge, so the caller applies no insets. In book posture it returns the
+ * regions on both sides of the fold, extended to the window edges. The
+ * results never go below zero.
+ */
+internal fun verticalHingeInsets(
+    foldState: ReaderFoldState?,
+    windowWidth: Int,
+): HingeInsets? {
+    if (foldState == null || !isInBookPostureWithOccludingHinge(foldState)) return null
+    val bounds = foldState.bounds
+    return HingeInsets(
+        left = bounds.left.coerceAtLeast(0),
+        right = (windowWidth - bounds.right).coerceAtLeast(0),
+    )
+}
+
+/**
+ * The horizontal margins in pixels that place the viewer on one side of the
+ * hinge.
+ *
+ * The values apply to the viewer's layout params as [ViewerMargins.left] and
+ * [ViewerMargins.right].
+ */
+internal data class ViewerMargins(
+    val left: Int,
+    val right: Int,
+)
+
+/**
+ * Computes the viewer margins that keep the page clear of an occluding hinge.
+ *
+ * Returns null when the device is not in book posture with an occluding
+ * hinge, so the caller resets the margins to zero. In book posture it fits
+ * the page in the larger region on one side of the fold, left on a tie. The
+ * results never go below zero.
+ */
+internal fun verticalViewerMargins(
+    foldState: ReaderFoldState?,
+    windowWidth: Int,
+): ViewerMargins? {
+    if (foldState == null || !isInBookPostureWithOccludingHinge(foldState)) return null
+    val bounds = foldState.bounds
+    val leftUsable = bounds.left.coerceAtLeast(0)
+    val rightUsable = (windowWidth - bounds.right).coerceAtLeast(0)
+    return if (leftUsable >= rightUsable) {
+        ViewerMargins(
+            left = 0,
+            right = (windowWidth - bounds.left).coerceAtLeast(0),
+        )
+    } else {
+        ViewerMargins(
+            left = bounds.right.coerceAtLeast(0),
+            right = 0,
+        )
+    }
+}
+
+/**
+ * The horizontal insets in Dp that keep controls clear of the hinge.
+ *
+ * It is the Dp equivalent of [HingeInsets], converted with the composition
+ * density so a composable layout does no pixel math itself.
+ */
+data class DpHingeInsets(
+    val left: Dp,
+    val right: Dp,
+)
+
+/**
+ * Computes the vertical-hinge insets in Dp for the overlay composables.
+ *
+ * It reads the window width from the composition configuration and converts
+ * the pixel insets with the composition density. Call it inside a composition
+ * so it reacts to configuration changes.
+ */
+@Composable
+private fun hingeInsetsDp(foldState: ReaderFoldState?): DpHingeInsets? {
+    val density = LocalDensity.current
+    val windowWidthPx = with(density) {
+        LocalConfiguration.current.screenWidthDp.dp.roundToPx()
+    }
+    return verticalHingeInsets(foldState, windowWidthPx)?.let {
+        with(density) {
+            DpHingeInsets(
+                left = it.left.toDp(),
+                right = it.right.toDp(),
+            )
+        }
+    }
 }
