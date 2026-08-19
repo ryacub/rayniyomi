@@ -63,6 +63,49 @@ class ReaderViewerConstraintTest {
     }
 
     @Test
+    fun `heights to the lower region below the fold minus the bottom inset`() {
+        val fold = tabletopFold(top = 720)
+
+        tabletopControlsMaxHeight(fold, windowHeightPx = 1600, bottomInsetPx = 120) shouldBe 750
+    }
+
+    @Test
+    fun `returns null for the controls height when not in tabletop posture`() {
+        tabletopControlsMaxHeight(
+            tabletopFold().copy(state = FoldState.Flat),
+            windowHeightPx = 1600,
+            bottomInsetPx = 120,
+        ).shouldBeNull()
+    }
+
+    @Test
+    fun `returns null for the controls height when there is no fold`() {
+        tabletopControlsMaxHeight(null, windowHeightPx = 1600, bottomInsetPx = 120).shouldBeNull()
+    }
+
+    @Test
+    fun `coerces a negative controls height to zero when the lower region is small`() {
+        val fold = tabletopFold(top = 1580)
+
+        tabletopControlsMaxHeight(fold, windowHeightPx = 1600, bottomInsetPx = 120) shouldBe 0
+    }
+
+    @Test
+    fun `offsets the controls below the fold bottom minus the status bar`() {
+        val fold = tabletopFold(top = 720)
+
+        tabletopControlsTopOffset(fold, statusBarInset = 120) shouldBe 610
+    }
+
+    @Test
+    fun `returns null for the controls offset when not in tabletop posture`() {
+        tabletopControlsTopOffset(
+            tabletopFold().copy(state = FoldState.Flat),
+            statusBarInset = 120,
+        ).shouldBeNull()
+    }
+
+    @Test
     fun `is in book posture with occluding hinge when vertical half-open fully occluding`() {
         isInBookPostureWithOccludingHinge(verticalHingeFold()) shouldBe true
     }

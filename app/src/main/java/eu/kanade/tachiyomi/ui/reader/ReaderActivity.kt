@@ -35,7 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
@@ -51,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.window.layout.WindowInfoTracker
+import androidx.window.layout.WindowMetricsCalculator
 import com.google.android.material.elevation.SurfaceColors
 import com.google.android.material.transition.platform.MaterialContainerTransform
 import dev.chrisbanes.insetter.applyInsetter
@@ -487,6 +490,7 @@ class ReaderActivity : BaseActivity() {
                 visible = state.menuVisible,
                 fullscreen = isFullscreen,
                 hingeInsets = hingeInsetsDp(state.foldState),
+                tabletopConstraints = tabletopControlsConstraintsDp(state.foldState),
                 mangaTitle = state.manga?.title,
                 chapterTitle = state.currentChapter?.chapter?.name,
                 navigateUp = onBackPressedDispatcher::onBackPressed,
@@ -1095,6 +1099,42 @@ internal fun tabletopViewerHeight(
 }
 
 /**
+ * Computes the position of the tabletop lower region top in pixels.
+ *
+ * Returns null when the device is not in tabletop posture, so the caller
+ * keeps the controls in their normal top position. In tabletop posture it
+ * returns the fold bottom, reduced by [statusBarInset] because the fold
+ * bounds live in window pixels. The result never goes below zero. It mirrors
+ * [tabletopViewerHeight] with the fold bottom instead of the fold top.
+ */
+internal fun tabletopControlsTopOffset(
+    foldState: ReaderFoldState?,
+    statusBarInset: Int,
+): Int? {
+    if (foldState == null || !isInTabletopPosture(foldState)) return null
+    return (foldState.bounds.bottom - statusBarInset).coerceAtLeast(0)
+}
+
+/**
+ * Computes the height in pixels for the tabletop lower-region controls.
+ *
+ * Returns null when the device is not in tabletop posture, so the caller
+ * leaves the controls at their normal height. In tabletop posture it returns
+ * the height below the fold: from [foldState].bounds.bottom to the window
+ * bottom, reduced by [bottomInsetPx]. The result never goes below zero. It
+ * mirrors [tabletopViewerHeight]'s coordinate-space contract: fold bounds and
+ * window height are both in window pixels.
+ */
+internal fun tabletopControlsMaxHeight(
+    foldState: ReaderFoldState?,
+    windowHeightPx: Int,
+    bottomInsetPx: Int,
+): Int? {
+    if (foldState == null || !isInTabletopPosture(foldState)) return null
+    return (windowHeightPx - foldState.bounds.bottom - bottomInsetPx).coerceAtLeast(0)
+}
+
+/**
  * Returns true when the device is in book posture with an occluding hinge.
  *
  * Book posture requires a vertical, half-open fold that occludes the
@@ -1191,6 +1231,19 @@ data class DpHingeInsets(
 )
 
 /**
+ * The Dp constraints that place the reader controls in the tabletop lower
+ * region.
+ *
+ * [topOffset] is the top of the lower region in the overlay's coordinates.
+ * [maxHeight] is the largest height the controls may use. Both are null-when-
+ * not-tabletop values converted to Dp.
+ */
+data class TabletopControlsConstraints(
+    val topOffset: Dp,
+    val maxHeight: Dp,
+)
+
+/**
  * Computes the vertical-hinge insets in Dp for the overlay composables.
  *
  * It reads the window width from the composition configuration and converts
@@ -1209,6 +1262,42 @@ private fun hingeInsetsDp(foldState: ReaderFoldState?): DpHingeInsets? {
                 left = it.left.toDp(),
                 right = it.right.toDp(),
             )
+        }
+    }
+}
+
+/**
+ * Computes the Dp constraints that place the reader controls in the tabletop
+ * lower region.
+ *
+ * Returns null when the device is not in tabletop posture, so the overlay
+ * keeps its normal layout. It reads the status bar and navigation bar insets
+ * from the overlay view so the values are measured in the overlay's content
+ * coordinates, matching [tabletopControlsMaxHeight]'s coordinate-space
+ * contract. Call it inside a composition so it reacts to configuration
+ * changes.
+ */
+@Composable
+private fun tabletopControlsConstraintsDp(foldState: ReaderFoldState?): TabletopControlsConstraints? {
+    val density = LocalDensity.current
+    val view = LocalView.current
+    val rootInsets = ViewCompat.getRootWindowInsets(view)
+    val statusBarInsetPx = rootInsets
+        ?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+    val navigationBarInsetPx = rootInsets
+        ?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+    val windowHeightPx = WindowMetricsCalculator.getOrCreate()
+        .computeCurrentWindowMetrics(LocalContext.current)
+        .bounds
+        .height()
+    return tabletopControlsTopOffset(foldState, statusBarInsetPx)?.let { topOffsetPx ->
+        tabletopControlsMaxHeight(foldState, windowHeightPx, navigationBarInsetPx)?.let { maxHeightPx ->
+            with(density) {
+                TabletopControlsConstraints(
+                    topOffset = topOffsetPx.toDp(),
+                    maxHeight = maxHeightPx.toDp(),
+                )
+            }
         }
     }
 }
