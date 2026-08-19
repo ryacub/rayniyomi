@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.online.ResolvableAnimeSource
 import eu.kanade.tachiyomi.animesource.online.UriType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.data.source.anime.AnimeSourceGateway
@@ -34,32 +35,38 @@ class DeepLinkAnimeScreenModel(
 
     init {
         screenModelScope.launchIO {
-            val source = sourceManager.getCatalogueSources()
-                .filterIsInstance<ResolvableAnimeSource>()
-                .firstOrNull { AnimeSourceGateway.uriType(it, query) != UriType.Unknown }
+            try {
+                val source = sourceManager.getCatalogueSources()
+                    .filterIsInstance<ResolvableAnimeSource>()
+                    .firstOrNull { AnimeSourceGateway.uriType(it, query) != UriType.Unknown }
 
-            val anime = source?.let { AnimeSourceGateway.animeFromUri(it, query) }?.let {
-                getAnimeFromSAnime(it, source.id)
-            }
+                val anime = source?.let { AnimeSourceGateway.animeFromUri(it, query) }?.let {
+                    getAnimeFromSAnime(it, source.id)
+                }
 
-            val episode = if (source != null && AnimeSourceGateway.uriType(source, query) == UriType.Episode &&
-                anime != null
-            ) {
-                AnimeSourceGateway.episodeFromUri(source, query)?.let { getEpisodeFromSEpisode(it, anime, source) }
-            } else {
-                null
-            }
-
-            mutableState.update {
-                if (anime == null) {
-                    State.NoResults
+                val episode = if (source != null && AnimeSourceGateway.uriType(source, query) == UriType.Episode &&
+                    anime != null
+                ) {
+                    AnimeSourceGateway.episodeFromUri(source, query)?.let { getEpisodeFromSEpisode(it, anime, source) }
                 } else {
-                    if (episode == null) {
-                        State.Result(anime)
+                    null
+                }
+
+                mutableState.update {
+                    if (anime == null) {
+                        State.NoResults
                     } else {
-                        State.Result(anime, episode.id)
+                        if (episode == null) {
+                            State.Result(anime)
+                        } else {
+                            State.Result(anime, episode.id)
+                        }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                mutableState.update { State.Error(e) }
             }
         }
     }
@@ -87,6 +94,9 @@ class DeepLinkAnimeScreenModel(
 
         @Immutable
         data object NoResults : State
+
+        @Immutable
+        data class Error(val error: Throwable) : State
 
         @Immutable
         data class Result(val anime: Anime, val episodeId: Long? = null) : State

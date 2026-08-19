@@ -11,12 +11,14 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearchScreen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
 import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 
 class DeepLinkAnimeScreen(
@@ -47,6 +49,13 @@ class DeepLinkAnimeScreen(
                 }
                 is DeepLinkAnimeScreenModel.State.NoResults -> {
                     navigator.replace(GlobalAnimeSearchScreen(query))
+                }
+                is DeepLinkAnimeScreenModel.State.Error -> {
+                    val errorState = state as DeepLinkAnimeScreenModel.State.Error
+                    EmptyScreen(
+                        message = with(context) { errorState.error.formattedMessage },
+                        modifier = Modifier.padding(contentPadding),
+                    )
                 }
                 is DeepLinkAnimeScreenModel.State.Result -> {
                     val resultState = state as DeepLinkAnimeScreenModel.State.Result
