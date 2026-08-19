@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.
 
 ### Changed
 

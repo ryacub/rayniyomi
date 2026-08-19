@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ResolvableSource
 import eu.kanade.tachiyomi.source.online.UriType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.data.source.manga.MangaSourceGateway
@@ -33,32 +34,38 @@ class DeepLinkMangaScreenModel(
 
     init {
         screenModelScope.launchIO {
-            val source = sourceManager.getAll()
-                .filterIsInstance<ResolvableSource>()
-                .firstOrNull { MangaSourceGateway.uriType(it, query) != UriType.Unknown }
+            try {
+                val source = sourceManager.getAll()
+                    .filterIsInstance<ResolvableSource>()
+                    .firstOrNull { MangaSourceGateway.uriType(it, query) != UriType.Unknown }
 
-            val manga = source?.let { MangaSourceGateway.mangaFromUri(it, query) }?.let {
-                getMangaFromSManga(it, source.id)
-            }
+                val manga = source?.let { MangaSourceGateway.mangaFromUri(it, query) }?.let {
+                    getMangaFromSManga(it, source.id)
+                }
 
-            val chapter = if (source != null && MangaSourceGateway.uriType(source, query) == UriType.Chapter &&
-                manga != null
-            ) {
-                MangaSourceGateway.chapterFromUri(source, query)?.let { getChapterFromSChapter(it, manga, source) }
-            } else {
-                null
-            }
-
-            mutableState.update {
-                if (manga == null) {
-                    State.NoResults
+                val chapter = if (source != null && MangaSourceGateway.uriType(source, query) == UriType.Chapter &&
+                    manga != null
+                ) {
+                    MangaSourceGateway.chapterFromUri(source, query)?.let { getChapterFromSChapter(it, manga, source) }
                 } else {
-                    if (chapter == null) {
-                        State.Result(manga)
+                    null
+                }
+
+                mutableState.update {
+                    if (manga == null) {
+                        State.NoResults
                     } else {
-                        State.Result(manga, chapter.id)
+                        if (chapter == null) {
+                            State.Result(manga)
+                        } else {
+                            State.Result(manga, chapter.id)
+                        }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                mutableState.update { State.Error(e) }
             }
         }
     }
@@ -87,5 +94,8 @@ class DeepLinkMangaScreenModel(
 
         @Immutable
         data class Result(val manga: Manga, val chapterId: Long? = null) : State
+
+        @Immutable
+        data class Error(val error: Throwable) : State
     }
 }

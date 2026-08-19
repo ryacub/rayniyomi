@@ -11,12 +11,14 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 
 class DeepLinkMangaScreen(
@@ -44,6 +46,14 @@ class DeepLinkMangaScreen(
             when (state) {
                 is DeepLinkMangaScreenModel.State.Loading -> {
                     LoadingScreen(Modifier.padding(contentPadding))
+                }
+                is DeepLinkMangaScreenModel.State.Error -> {
+                    val errorState = state as DeepLinkMangaScreenModel.State.Error
+                    val error = errorState.error
+                    EmptyScreen(
+                        message = with(context) { error.formattedMessage },
+                        modifier = Modifier.padding(contentPadding),
+                    )
                 }
                 is DeepLinkMangaScreenModel.State.NoResults -> {
                     navigator.replace(GlobalMangaSearchScreen(query))
