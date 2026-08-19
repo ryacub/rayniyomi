@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.reader.components.ChapterNavigator
 import eu.kanade.tachiyomi.ui.reader.DpHingeInsets
+import eu.kanade.tachiyomi.ui.reader.TabletopControlsConstraints
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
@@ -41,6 +43,7 @@ fun ReaderAppBars(
     visible: Boolean,
     fullscreen: Boolean,
     hingeInsets: DpHingeInsets? = null,
+    tabletopConstraints: TabletopControlsConstraints? = null,
 
     mangaTitle: String?,
     chapterTitle: String?,
@@ -98,8 +101,22 @@ fun ReaderAppBars(
         }
     }
 
+    val tabletopHeightLimit = if (tabletopConstraints != null) {
+        Modifier.heightIn(max = tabletopConstraints.maxHeight)
+    } else {
+        Modifier
+    }
+
     Column(
-        modifier = Modifier.fillMaxHeight(),
+        modifier = Modifier
+            .fillMaxHeight()
+            .let { m ->
+                if (tabletopConstraints != null) {
+                    m.padding(top = tabletopConstraints.topOffset)
+                } else {
+                    m
+                }
+            },
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         AnimatedVisibility(
@@ -186,7 +203,7 @@ fun ReaderAppBars(
             ),
         ) {
             Column(
-                modifier = modifierWithInsetsPadding,
+                modifier = tabletopHeightLimit.then(modifierWithInsetsPadding),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
             ) {
                 ChapterNavigator(
