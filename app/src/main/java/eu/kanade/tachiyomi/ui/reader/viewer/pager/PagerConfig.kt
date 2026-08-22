@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
+import android.content.Context
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerConfig
@@ -9,6 +10,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.navigation.EdgeNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.KindlishNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.LNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.RightAndLeftNavigation
+import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
@@ -149,4 +151,24 @@ class PagerConfig(
         }
         navigationModeChangedListener?.invoke()
     }
+
+    /**
+     * The transition style to use now. The system animation setting can
+     * override the preference.
+     */
+    fun effectiveTransitionStyle(context: Context): ReaderPreferences.PageTransitionStyle =
+        effectiveTransitionStyle(pageTransitionStyle, context.animatorDurationScale)
 }
+
+/**
+ * Downgrade CURL to SLIDE when the device has animations turned off.
+ */
+internal fun effectiveTransitionStyle(
+    style: ReaderPreferences.PageTransitionStyle,
+    animatorDurationScale: Float,
+): ReaderPreferences.PageTransitionStyle =
+    if (style == ReaderPreferences.PageTransitionStyle.CURL && animatorDurationScale == 0f) {
+        ReaderPreferences.PageTransitionStyle.SLIDE
+    } else {
+        style
+    }
