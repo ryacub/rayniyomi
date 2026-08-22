@@ -15,6 +15,9 @@ class ReaderPreferences(
 
     fun pageTransitions() = preferenceStore.getBoolean("pref_enable_transitions_key", true)
 
+    fun pageTransitionStyle() =
+        preferenceStore.getEnum("pref_page_transition_style", PageTransitionStyle.SLIDE)
+
     fun flashOnPageChange() = preferenceStore.getBoolean("pref_reader_flash", false)
 
     fun flashDurationMillis() = preferenceStore.getInt("pref_reader_flash_duration", MILLI_CONVERSION)
@@ -181,6 +184,12 @@ class ReaderPreferences(
     )
 
     // endregion
+
+    enum class PageTransitionStyle {
+        NONE,
+        SLIDE,
+        CURL,
+    }
 
     enum class FlashColor {
         BLACK,
