@@ -47,9 +47,16 @@ class PageCurlOverlayViewTest {
         val source = mockk<View>(relaxed = true)
         // A relaxed mock returns 0 for width and height.
 
+        mockkStatic(Bitmap::class)
+        every { Bitmap.createBitmap(any<Int>(), any<Int>(), Bitmap.Config.ARGB_8888) } returns
+            mockk<Bitmap>(relaxed = true)
+
         val result = overlay.captureBitmap(source)
 
         result shouldBe null
+        io.mockk.verify(exactly = 0) {
+            Bitmap.createBitmap(any<Int>(), any<Int>(), Bitmap.Config.ARGB_8888)
+        }
     }
 
     @Test

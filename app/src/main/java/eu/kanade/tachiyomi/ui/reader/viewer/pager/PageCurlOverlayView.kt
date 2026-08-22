@@ -96,6 +96,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
         fromBitmap = from
         toBitmap = to
         this.curlFromRight = curlFromRight
+        progress = 0f
         isVisible = true
 
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -119,6 +120,8 @@ class PageCurlOverlayView(context: Context) : View(context) {
     fun cancelCurl() {
         animator?.cancel()
         animator = null
+        fromBitmap = null
+        toBitmap = null
     }
 
     override fun onDraw(canvas: Canvas) {
