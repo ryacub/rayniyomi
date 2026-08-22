@@ -15,6 +15,7 @@ import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.presentation.util.ReaderFoldState
+import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
@@ -47,6 +48,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
@@ -189,6 +191,24 @@ class ReaderViewModel @JvmOverloads constructor(
                 }
             }
             .launchIn(viewModelScope)
+
+        // Recompute translation state when the target language changes
+        viewModelScope.launchIO {
+            translationPreferences.targetLanguage().changes()
+                .distinctUntilChanged()
+                .drop(1)
+                .collect {
+                    val currChapters = mutableState.value.viewerChapters ?: return@collect
+                    val currChapter = currChapters.currChapter
+                    mutableState.update {
+                        it.copy(hasTranslation = computeHasTranslation(currChapter.chapter))
+                    }
+                    if (mutableState.value.showTranslatedPages) {
+                        currChapter.requestedPage = currChapter.chapter.last_page_read
+                        eventChannel.send(Event.ReloadViewerChapters)
+                    }
+                }
+        }
     }
 
     /**
@@ -300,19 +320,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
         // Check translation status on IO thread before switching to UI context
         val dbChapter = newChapters.currChapter.chapter
-        val currentManga = mutableState.value.manga
-        val currentSource = currentManga?.let { m -> sourceManager.getOrStub(m.source) }
-        val hasTranslation = if (currentManga != null && currentSource != null) {
-            translationStorageManager.isChapterTranslated(
-                dbChapter.name,
-                dbChapter.scanlator,
-                currentManga.title,
-                currentSource,
-                translationPreferences.targetLanguage().get(),
-            )
-        } else {
-            false
-        }
+        val hasTranslation = computeHasTranslation(dbChapter)
 
         withUIContext {
             mutableState.update {
@@ -330,6 +338,21 @@ class ReaderViewModel @JvmOverloads constructor(
             }
         }
         return newChapters
+    }
+
+    /**
+     * Checks whether the chapter has a stored translation for the current target language.
+     */
+    private fun computeHasTranslation(chapter: Chapter): Boolean {
+        val currentManga = mutableState.value.manga ?: return false
+        val currentSource = sourceManager.getOrStub(currentManga.source)
+        return translationStorageManager.isChapterTranslated(
+            chapter.name,
+            chapter.scanlator,
+            currentManga.title,
+            currentSource,
+            translationPreferences.targetLanguage().get(),
+        )
     }
 
     /**

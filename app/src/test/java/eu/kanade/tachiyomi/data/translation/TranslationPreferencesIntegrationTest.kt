@@ -106,4 +106,23 @@ class TranslationPreferencesIntegrationTest {
         targetLanguage.get() shouldBe "ja"
         RayniyomiSecurePrefs.translationApiKey shouldBe null
     }
+
+    @Test
+    fun `target language keeps its preference key`() {
+        translationPreferences.targetLanguage().key() shouldBe "translation_target_language"
+    }
+
+    @Test
+    fun `default target language is English`() {
+        translationPreferences.targetLanguage().get() shouldBe "en"
+    }
+
+    @Test
+    fun `custom bcp47 value survives set and get`() {
+        val targetLanguage = translationPreferences.targetLanguage()
+
+        targetLanguage.set("pt-BR")
+
+        targetLanguage.get() shouldBe "pt-BR"
+    }
 }
