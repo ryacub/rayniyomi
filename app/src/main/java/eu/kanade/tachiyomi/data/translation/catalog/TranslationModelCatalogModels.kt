@@ -18,8 +18,8 @@ data class TranslationModelCapabilities(
         spatialBounds &&
         normalizedCoordinates &&
         originalAndTranslatedFields &&
-        (minimumOutputTokens == null || minimumOutputTokens >= MINIMUM_OUTPUT_TOKENS) &&
-        structuredJsonOutput
+        minimumOutputTokens != null &&
+        minimumOutputTokens >= MINIMUM_OUTPUT_TOKENS
 
     companion object {
         const val MINIMUM_OUTPUT_TOKENS = 4_096
@@ -73,8 +73,4 @@ data class TranslationModelCatalog(
     val provider: TranslationProvider,
     val fetchedAtEpochMilliseconds: Long,
     val models: List<TranslationModelEntry>,
-) {
-    fun compatibleModels(): List<TranslationModelEntry> = models.filter { model ->
-        model.capabilities.supportsTranslationRequirements() && model.cost != TranslationModelCost.PAID
-    }
-}
+)

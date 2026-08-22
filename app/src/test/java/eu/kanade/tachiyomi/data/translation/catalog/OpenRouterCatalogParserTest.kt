@@ -11,10 +11,11 @@ class OpenRouterCatalogParserTest {
     fun `parses compatible free OpenRouter model`() {
         val body = """
             {"data":[{
-              "id":"example/free-vision",
+              "id":"google/gemma-4-26b-a4b-it:free",
               "name":"Example Free Vision",
               "context_length":8192,
               "architecture":{"input_modalities":["text","image"],"output_modalities":["text"]},
+              "top_provider":{"max_completion_tokens":8192},
               "supported_parameters":["response_format"],
               "pricing":{"prompt":"0","completion":"0"}
             }]}
@@ -25,9 +26,13 @@ class OpenRouterCatalogParserTest {
         catalog.provider shouldBe TranslationProvider.OPENROUTER
         catalog.fetchedAtEpochMilliseconds shouldBe 1_000
         val model = catalog.models.single()
-        model.id shouldBe "example/free-vision"
+        model.id shouldBe "google/gemma-4-26b-a4b-it:free"
         model.capabilities.imageInput shouldBe true
         model.capabilities.textOutput shouldBe true
+        model.capabilities.multilingualOcrAndTranslation shouldBe true
+        model.capabilities.spatialBounds shouldBe true
+        model.capabilities.normalizedCoordinates shouldBe true
+        model.capabilities.originalAndTranslatedFields shouldBe true
         model.capabilities.minimumOutputTokens shouldBe 8_192
         model.cost shouldBe TranslationModelCost.FREE
     }
@@ -40,7 +45,7 @@ class OpenRouterCatalogParserTest {
 
         val catalog = OpenRouterCatalogParser.parse(body, 1_000)
 
-        catalog.compatibleModels() shouldBe emptyList()
+        TranslationModelCatalogFilter.filter(catalog.models) shouldBe emptyList()
         catalog.models.single().id shouldBe "example/text-only"
     }
 

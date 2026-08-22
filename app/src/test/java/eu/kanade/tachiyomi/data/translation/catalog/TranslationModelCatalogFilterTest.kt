@@ -18,13 +18,13 @@ class TranslationModelCatalogFilterTest {
 
     @Test
     fun `keeps only models with every required capability`() {
-        val missingBounds = compatibleCapabilities.copy(spatialBounds = false)
+        val missingImageInput = compatibleCapabilities.copy(imageInput = false)
         val belowTokenLimit = compatibleCapabilities.copy(minimumOutputTokens = 1_024)
 
         val result = TranslationModelCatalogFilter.filter(
             listOf(
                 entry("compatible", compatibleCapabilities),
-                entry("missing-bounds", missingBounds),
+                entry("missing-image-input", missingImageInput),
                 entry("below-limit", belowTokenLimit),
             ),
         )
@@ -33,12 +33,11 @@ class TranslationModelCatalogFilterTest {
     }
 
     @Test
-    fun `rejects paid model and accepts free or unknown cost`() {
+    fun `keeps only free models`() {
         val paid = entry("paid", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
-        val unknown = entry("unknown", compatibleCapabilities)
+        val unknown = entry("unknown", compatibleCapabilities).copy(cost = TranslationModelCost.UNKNOWN)
 
-        TranslationModelCatalogFilter.filter(listOf(paid, unknown)).map { it.id } shouldBe
-            listOf("unknown")
+        TranslationModelCatalogFilter.filter(listOf(paid, unknown)) shouldBe emptyList()
     }
 
     private fun entry(id: String, capabilities: TranslationModelCapabilities) =

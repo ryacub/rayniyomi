@@ -16,8 +16,15 @@ class TranslationEngineFactory(
         val apiKey = translationPreferences.translationApiKey(provider).get()
         if (apiKey.isBlank()) return null
 
-        val model = translationPreferences.translationModel(provider).get()
-        if (model.isBlank()) return null
+        val model = translationPreferences.translationModel(provider).get().ifBlank {
+            when (provider) {
+                TranslationProvider.CLAUDE -> ClaudeTranslationEngine.DEFAULT_MODEL
+                TranslationProvider.OPENAI -> OpenAITranslationEngine.DEFAULT_MODEL
+                TranslationProvider.OPENROUTER -> return null
+                TranslationProvider.GOOGLE -> GoogleTranslationEngine.DEFAULT_MODEL
+                TranslationProvider.NONE -> return null
+            }
+        }
 
         return when (provider) {
             TranslationProvider.CLAUDE -> ClaudeTranslationEngine(

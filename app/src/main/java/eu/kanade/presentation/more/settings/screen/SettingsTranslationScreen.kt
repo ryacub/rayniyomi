@@ -1,22 +1,22 @@
 package eu.kanade.presentation.more.settings.screen
 
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
-import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
-import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR

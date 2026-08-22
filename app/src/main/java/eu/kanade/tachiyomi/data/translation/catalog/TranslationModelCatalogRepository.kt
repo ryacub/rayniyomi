@@ -1,11 +1,12 @@
 package eu.kanade.tachiyomi.data.translation.catalog
 
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.IOException
 
 sealed class TranslationCatalogResult {
@@ -24,9 +25,11 @@ class TranslationModelCatalogRepository(
     private val client: OkHttpClient = OkHttpClient(),
     private val catalogEndpoint: String = "https://openrouter.ai/api/v1/models",
     private val nowEpochMilliseconds: () -> Long = System::currentTimeMillis,
+    private val executeRequest: (Request) -> Response = { request ->
+        client.newCall(request).execute()
+    },
 ) {
 
-    private val json = Json { ignoreUnknownKeys = true }
     private val cacheByProvider = mutableMapOf<TranslationProvider, TranslationModelCatalog>()
 
     fun snapshot(provider: TranslationProvider): TranslationModelCatalog? = cacheByProvider[provider]
@@ -49,16 +52,18 @@ class TranslationModelCatalogRepository(
 
     private fun fetchAndCache(provider: TranslationProvider, now: Long): TranslationCatalogResult {
         return try {
-            val responseBody = client.newCall(catalogRequest(provider)).execute().use { response ->
-                val body = response.body?.string()
-                if (!response.isSuccessful || body == null) {
+            val responseBody = executeRequest(catalogRequest()).use { response ->
+                val body = response.body.string()
+                if (!response.isSuccessful) {
                     throw IOException("Provider returned HTTP ${response.code}")
                 }
                 body
             }
             val parsedCatalog = when (provider) {
                 TranslationProvider.OPENROUTER -> OpenRouterCatalogParser.parse(responseBody, now)
-                else -> throw UnsupportedOperationException("Catalog endpoint is not configured for ${provider.displayName}")
+                else -> throw UnsupportedOperationException(
+                    "Catalog endpoint is not configured for ${provider.displayName}",
+                )
             }
             val compatibleModels = TranslationModelCatalogFilter.filter(parsedCatalog.models)
             if (compatibleModels.isEmpty()) {
@@ -67,6 +72,8 @@ class TranslationModelCatalogRepository(
             val catalog = parsedCatalog.copy(models = compatibleModels)
             cacheByProvider[provider] = catalog
             TranslationCatalogResult.Success(catalog, fromCache = false)
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             val cachedModels = cacheByProvider[provider]?.models.orEmpty()
             TranslationCatalogResult.Failure(
@@ -76,7 +83,7 @@ class TranslationModelCatalogRepository(
         }
     }
 
-    private fun catalogRequest(provider: TranslationProvider): Request = Request.Builder()
+    private fun catalogRequest(): Request = Request.Builder()
         .url(catalogEndpoint)
         .get()
         .build()

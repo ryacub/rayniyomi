@@ -2,10 +2,10 @@ package eu.kanade.tachiyomi.data.translation.catalog
 
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,10 +18,11 @@ class TranslationModelCatalogRepositoryTest {
 
     private val compatibleCatalogJson = """
         {"data":[{
-          "id":"example/free-vision",
+          "id":"google/gemma-4-26b-a4b-it:free",
           "name":"Example Free Vision",
           "context_length":4096,
           "architecture":{"input_modalities":["text","image"],"output_modalities":["text"]},
+          "top_provider":{"max_completion_tokens":4096},
           "supported_parameters":["response_format"],
           "pricing":{"prompt":"0","completion":"0"}
         }]}
@@ -32,7 +33,6 @@ class TranslationModelCatalogRepositoryTest {
         server = MockWebServer()
         server.start()
         repository = TranslationModelCatalogRepository(
-            client = server.publicClient(),
             catalogEndpoint = server.url("/api/v1/models").toString(),
             nowEpochMilliseconds = { currentTime },
         )
@@ -51,7 +51,7 @@ class TranslationModelCatalogRepositoryTest {
         currentTime += 23 * 60 * 60 * 1_000L
         val result = repository.load(TranslationProvider.OPENROUTER, forceRefresh = false)
 
-        assertThat((result as TranslationCatalogResult.Success).fromCache).isTrue
+        (result as TranslationCatalogResult.Success).fromCache shouldBe true
         server.requestCount shouldBe 1
     }
 
@@ -63,7 +63,7 @@ class TranslationModelCatalogRepositoryTest {
         enqueueCompatibleCatalog()
         val refreshed = repository.load(TranslationProvider.OPENROUTER, forceRefresh = true)
 
-        assertThat((refreshed as TranslationCatalogResult.Success).fromCache).isFalse
+        (refreshed as TranslationCatalogResult.Success).fromCache shouldBe false
         server.requestCount shouldBe 2
     }
 
@@ -81,6 +81,22 @@ class TranslationModelCatalogRepositoryTest {
         )
     }
 
+    @Test
+    fun `rethrows cancellation instead of returning a failure`() = runTest {
+        val cancellation = CancellationException("cancelled")
+        val cancellingRepository = TranslationModelCatalogRepository(
+            executeRequest = { throw cancellation },
+        )
+
+        var thrown: CancellationException? = null
+        try {
+            cancellingRepository.load(TranslationProvider.OPENROUTER, forceRefresh = true)
+        } catch (error: CancellationException) {
+            thrown = error
+        }
+        thrown shouldBe cancellation
+    }
+
     private fun enqueueCompatibleCatalog() {
         server.enqueue(
             MockResponse().setBody(compatibleCatalogJson),
@@ -88,15 +104,15 @@ class TranslationModelCatalogRepositoryTest {
     }
 
     private fun expectedCompatibleModel() = TranslationModelEntry(
-        id = "example/free-vision",
+        id = "google/gemma-4-26b-a4b-it:free",
         displayName = "Example Free Vision",
         capabilities = TranslationModelCapabilities(
             imageInput = true,
             textOutput = true,
-            multilingualOcrAndTranslation = false,
-            spatialBounds = false,
-            normalizedCoordinates = false,
-            originalAndTranslatedFields = false,
+            multilingualOcrAndTranslation = true,
+            spatialBounds = true,
+            normalizedCoordinates = true,
+            originalAndTranslatedFields = true,
             minimumOutputTokens = 4_096,
             structuredJsonOutput = true,
         ),
@@ -105,6 +121,4 @@ class TranslationModelCatalogRepositoryTest {
         stability = TranslationModelStability.UNKNOWN,
         dataTerms = null,
     )
-
-    private fun okhttp3.OkHttpClient.publicClient(): okhttp3.OkHttpClient = newBuilder().build()
 }

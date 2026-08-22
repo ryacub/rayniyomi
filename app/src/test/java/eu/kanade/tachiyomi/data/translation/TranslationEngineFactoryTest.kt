@@ -52,9 +52,9 @@ class TranslationEngineFactoryTest {
 
     @Test
     fun `returns null when model is blank`() {
-        mockProvider(TranslationProvider.CLAUDE)
-        mockApiKey(TranslationProvider.CLAUDE, "test-api-key")
-        mockModel(TranslationProvider.CLAUDE, "")
+        mockProvider(TranslationProvider.OPENROUTER)
+        mockApiKey(TranslationProvider.OPENROUTER, "test-api-key")
+        mockModel(TranslationProvider.OPENROUTER, "")
 
         val factory = TranslationEngineFactory(prefs)
         assertNull(factory.create())
@@ -95,7 +95,7 @@ class TranslationEngineFactoryTest {
     fun `returns OpenRouterTranslationEngine for OPENROUTER provider`() {
         mockProvider(TranslationProvider.OPENROUTER)
         mockApiKey(TranslationProvider.OPENROUTER, "test-api-key")
-        mockModel(TranslationProvider.OPENROUTER, "")
+        mockModel(TranslationProvider.OPENROUTER, "example/free-vision")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()

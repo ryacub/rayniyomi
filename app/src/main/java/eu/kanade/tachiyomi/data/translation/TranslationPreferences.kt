@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.data.translation
 
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
+import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
 
@@ -20,10 +22,11 @@ class TranslationPreferences(
     fun translationModel(provider: TranslationProvider) =
         preferenceStore.getString("translation_model_${provider.preferenceId}", "")
 
-    fun translationModelChoiceType(provider: TranslationProvider) = preferenceStore.getEnum(
-        "translation_model_choice_type_${provider.preferenceId}",
-        TranslationModelChoiceType.AUTOMATIC,
-    )
+    fun translationModelChoiceType(provider: TranslationProvider): Preference<TranslationModelChoiceType> =
+        preferenceStore.getEnum(
+            "translation_model_choice_type_${provider.preferenceId}",
+            TranslationModelChoiceType.AUTOMATIC,
+        )
 }
 
 enum class TranslationProvider(
