@@ -13,6 +13,7 @@ internal class InMemoryPreferenceStore(
 ) : PreferenceStore {
 
     private val values = initialValues.toMutableMap()
+    private val preferences = mutableMapOf<String, Preference<*>>()
 
     override fun getString(key: String, defaultValue: String): Preference<String> =
         getPreference(key, defaultValue)
@@ -41,8 +42,9 @@ internal class InMemoryPreferenceStore(
 
     override fun getAll(): Map<String, *> = values.toMap()
 
+    @Suppress("UNCHECKED_CAST")
     private fun <T> getPreference(key: String, defaultValue: T): Preference<T> {
-        return KeyedPreference(key, defaultValue, values)
+        return preferences.getOrPut(key) { KeyedPreference(key, defaultValue, values) } as Preference<T>
     }
 }
 
