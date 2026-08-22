@@ -18,7 +18,7 @@ abstract class ViewerConfig(readerPreferences: ReaderPreferences, private val sc
 
     var tappingInverted = ReaderPreferences.TappingInvertMode.NONE
     var longTapEnabled = true
-    var usePageTransitions = false
+    var pageTransitionStyle = ReaderPreferences.PageTransitionStyle.SLIDE
     var doubleTapAnimDuration = 500
     var volumeKeysEnabled = false
     var volumeKeysInverted = false
@@ -49,8 +49,8 @@ abstract class ViewerConfig(readerPreferences: ReaderPreferences, private val sc
         readerPreferences.readWithLongTap()
             .register({ longTapEnabled = it })
 
-        readerPreferences.pageTransitions()
-            .register({ usePageTransitions = it })
+        readerPreferences.pageTransitionStyle()
+            .register({ pageTransitionStyle = it })
 
         readerPreferences.doubleTapAnimSpeed()
             .register({ doubleTapAnimDuration = it })
