@@ -416,10 +416,17 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
      */
     private fun attemptCurlThenAdvance(targetPosition: Int, curlFromRight: Boolean) {
         val nowMs = SystemClock.uptimeMillis()
+        val preference = config.pageTransitionStyle
         val withinRapidNavigationWindow = nowMs - lastNavigationAtMs < RAPID_NAVIGATION_WINDOW_MS
         lastNavigationAtMs = nowMs
 
-        val style = config.effectiveTransitionStyle(activity)
+        // effectiveTransitionStyle reads the system animator scale through a
+        // ContentResolver. Consult it only for CURL because other styles ignore it.
+        val style = if (preference == ReaderPreferences.PageTransitionStyle.CURL) {
+            config.effectiveTransitionStyle(activity)
+        } else {
+            preference
+        }
         val useAnimation = style != ReaderPreferences.PageTransitionStyle.NONE
         val overlay = curlOverlay
         val sourceHolder = (currentPage as? ReaderPage)?.let(::getPageHolder)
