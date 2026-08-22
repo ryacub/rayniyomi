@@ -6,6 +6,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,8 +23,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.password
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
@@ -62,6 +62,7 @@ fun EditTextPreferenceWidget(
         var textFieldValue by remember(value, isSecret) {
             mutableStateOf(TextFieldValue(if (isSecret) "" else value))
         }
+        var isSecretHidden by remember { mutableStateOf(true) }
         AlertDialog(
             onDismissRequest = onDismissRequest,
             title = {
@@ -77,13 +78,34 @@ fun EditTextPreferenceWidget(
                     value = textFieldValue,
                     onValueChange = { textFieldValue = it },
                     trailingIcon = {
-                        if ((textFieldValue.text.isBlank() && !canBeBlank) || !validate(textFieldValue.text)) {
+                        if (isSecret) {
+                            IconButton(onClick = { isSecretHidden = !isSecretHidden }) {
+                                Icon(
+                                    imageVector = if (isSecretHidden) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = stringResource(
+                                        if (isSecretHidden) {
+                                            MR.strings.action_show_text
+                                        } else {
+                                            MR.strings.action_hide_text
+                                        },
+                                    ),
+                                )
+                            }
+                        } else if ((textFieldValue.text.isBlank() && !canBeBlank) ||
+                            !validate(textFieldValue.text)
+                        ) {
                             Icon(imageVector = Icons.Filled.Error, contentDescription = null)
                         } else {
                             IconButton(onClick = { textFieldValue = TextFieldValue("") }) {
                                 Icon(
                                     imageVector = Icons.Filled.Cancel,
-                                    contentDescription = stringResource(MR.strings.pref_source_preference_clear_text),
+                                    contentDescription = stringResource(
+                                        MR.strings.pref_source_preference_clear_text,
+                                    ),
                                 )
                             }
                         }
@@ -95,17 +117,19 @@ fun EditTextPreferenceWidget(
                     },
                     isError = (textFieldValue.text.isBlank() && !canBeBlank) || !validate(textFieldValue.text),
                     singleLine = singleLine,
-                    visualTransformation = if (isSecret) {
+                    visualTransformation = if (isSecret && isSecretHidden) {
                         PasswordVisualTransformation()
                     } else {
                         VisualTransformation.None
                     },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = if (isSecret) KeyboardType.Password else KeyboardType.Text,
+                        keyboardType = if (isSecret) {
+                            KeyboardType.Password
+                        } else {
+                            KeyboardType.Text
+                        },
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (isSecret) Modifier.semantics { password() } else Modifier),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             },
             properties = DialogProperties(
