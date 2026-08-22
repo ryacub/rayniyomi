@@ -89,6 +89,9 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
     /** Pending target-holder poll. Cleared in [destroy]. */
     private var curlTargetReadyRunnable: Runnable? = null
 
+    /** Pending gesture re-enable callback. Cleared in [destroy]. */
+    private var curlGestureReenableRunnable: Runnable? = null
+
     /** Pending layout poll. Cleared in [destroy]. */
     private var curlLayoutCheckRunnable: Runnable? = null
 
@@ -201,6 +204,8 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
         curlTargetReadyRunnable = null
         curlLayoutCheckRunnable?.let(pager::removeCallbacks)
         curlLayoutCheckRunnable = null
+        curlGestureReenableRunnable?.let(pager::removeCallbacks)
+        curlGestureReenableRunnable = null
         curlOverlay?.cancelCurl()
         scope.cancel()
     }
@@ -537,7 +542,9 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
                 fromBitmap.recycle()
                 toBitmap.recycle()
 
-                pager.postDelayed({ pager.setGestureDetectorEnabled(true) }, GESTURE_REENABLE_DELAY_MS)
+                val reenable = Runnable { pager.setGestureDetectorEnabled(true) }
+                curlGestureReenableRunnable = reenable
+                pager.postDelayed(reenable, GESTURE_REENABLE_DELAY_MS)
             } else {
                 layoutCheckAttempts++
                 val pending = curlLayoutCheckRunnable
