@@ -21,23 +21,21 @@ class TranslationEngineFactoryTest {
         every { prefs.translationProvider() } returns pref
     }
 
-    private fun mockApiKey(key: String) {
+    private fun mockApiKey(provider: TranslationProvider, key: String) {
         val pref = mockk<Preference<String>>()
         every { pref.get() } returns key
-        every { prefs.translationApiKey() } returns pref
+        every { prefs.translationApiKey(provider) } returns pref
     }
 
-    private fun mockModel(model: String) {
+    private fun mockModel(provider: TranslationProvider, model: String) {
         val pref = mockk<Preference<String>>()
         every { pref.get() } returns model
-        every { prefs.translationModel() } returns pref
+        every { prefs.translationModel(provider) } returns pref
     }
 
     @Test
     fun `returns null when provider is NONE`() {
         mockProvider(TranslationProvider.NONE)
-        mockApiKey("some-key")
-        mockModel("")
 
         val factory = TranslationEngineFactory(prefs)
         assertNull(factory.create())
@@ -46,8 +44,7 @@ class TranslationEngineFactoryTest {
     @Test
     fun `returns null when API key is blank`() {
         mockProvider(TranslationProvider.CLAUDE)
-        mockApiKey("")
-        mockModel("")
+        mockApiKey(TranslationProvider.CLAUDE, "")
 
         val factory = TranslationEngineFactory(prefs)
         assertNull(factory.create())
@@ -56,8 +53,7 @@ class TranslationEngineFactoryTest {
     @Test
     fun `returns null when API key is whitespace only`() {
         mockProvider(TranslationProvider.OPENAI)
-        mockApiKey("   ")
-        mockModel("")
+        mockApiKey(TranslationProvider.OPENAI, "   ")
 
         val factory = TranslationEngineFactory(prefs)
         assertNull(factory.create())
@@ -66,8 +62,8 @@ class TranslationEngineFactoryTest {
     @Test
     fun `returns ClaudeTranslationEngine for CLAUDE provider`() {
         mockProvider(TranslationProvider.CLAUDE)
-        mockApiKey("test-api-key")
-        mockModel("")
+        mockApiKey(TranslationProvider.CLAUDE, "test-api-key")
+        mockModel(TranslationProvider.CLAUDE, "")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()
@@ -77,8 +73,8 @@ class TranslationEngineFactoryTest {
     @Test
     fun `returns OpenAITranslationEngine for OPENAI provider`() {
         mockProvider(TranslationProvider.OPENAI)
-        mockApiKey("test-api-key")
-        mockModel("")
+        mockApiKey(TranslationProvider.OPENAI, "test-api-key")
+        mockModel(TranslationProvider.OPENAI, "")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()
@@ -88,8 +84,8 @@ class TranslationEngineFactoryTest {
     @Test
     fun `returns OpenRouterTranslationEngine for OPENROUTER provider`() {
         mockProvider(TranslationProvider.OPENROUTER)
-        mockApiKey("test-api-key")
-        mockModel("")
+        mockApiKey(TranslationProvider.OPENROUTER, "test-api-key")
+        mockModel(TranslationProvider.OPENROUTER, "")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()
@@ -99,8 +95,8 @@ class TranslationEngineFactoryTest {
     @Test
     fun `returns GoogleTranslationEngine for GOOGLE provider`() {
         mockProvider(TranslationProvider.GOOGLE)
-        mockApiKey("test-api-key")
-        mockModel("")
+        mockApiKey(TranslationProvider.GOOGLE, "test-api-key")
+        mockModel(TranslationProvider.GOOGLE, "")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()

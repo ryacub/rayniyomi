@@ -611,11 +611,20 @@
 
     <!-- Translation settings -->
     <string name="pref_category_translation">Translation</string>
-    <string name="pref_translation_summary">LLM-powered manga page translation</string>
+    <string name="pref_category_translation_byok">Bring your own key (BYOK)</string>
+    <string name="pref_translation_summary">Configure your API keys for manga page translation</string>
     <string name="pref_translation_provider">Translation provider</string>
-    <string name="pref_translation_api_key">API key</string>
+    <string name="pref_translation_api_key_byok">Bring your own key (BYOK)</string>
     <string name="pref_translation_api_key_set">API key is set</string>
     <string name="pref_translation_api_key_not_set">No API key configured</string>
+    <string name="pref_translation_byok_notice">You supply and own each API key. Rayniyomi does not provide a key or API usage. Provider quotas, charges, and data terms apply.</string>
+    <string name="pref_translation_clear_key">Clear %s key</string>
+    <string name="pref_translation_clear_key_title">Clear the %s key?</string>
+    <string name="pref_translation_clear_key_message">Rayniyomi cannot recover this key after you clear it.</string>
+    <string name="pref_translation_provider_key_link">%s key setup</string>
+    <string name="pref_translation_provider_usage_link">%s usage</string>
+    <string name="pref_translation_provider_billing_link">%s billing</string>
+    <string name="pref_translation_provider_revoke_link">%s key revocation</string>
     <string name="pref_translation_target_language">Target language</string>
     <string name="pref_translation_model">Model</string>
     <string name="pref_translation_model_summary">Leave blank for default</string>

@@ -22,36 +22,67 @@ class TranslationPreferencesIntegrationTest {
     }
 
     @Test
-    fun `translationApiKey get returns empty string when not set`() {
-        translationPreferences.translationApiKey().get() shouldBe ""
+    fun `fresh install has no provider api keys`() {
+        translationPreferences.translationProvider().get() shouldBe TranslationProvider.NONE
+        TranslationProvider.entries
+            .filterNot { it == TranslationProvider.NONE }
+            .forEach { provider ->
+                translationPreferences.translationApiKey(provider).get() shouldBe ""
+                translationPreferences.translationModel(provider).get() shouldBe ""
+            }
     }
 
     @Test
-    fun `translationApiKey set stores value in RayniyomiSecurePrefs`() {
-        translationPreferences.translationApiKey().set("provider-key")
+    fun `provider api keys are isolated`() {
+        translationPreferences.translationApiKey(TranslationProvider.CLAUDE).set("claude-key")
+        translationPreferences.translationApiKey(TranslationProvider.OPENAI).set("openai-key")
 
-        RayniyomiSecurePrefs.translationApiKey shouldBe "provider-key"
+        translationPreferences.translationApiKey(TranslationProvider.CLAUDE).get() shouldBe "claude-key"
+        translationPreferences.translationApiKey(TranslationProvider.OPENAI).get() shouldBe "openai-key"
+        translationPreferences.translationApiKey(TranslationProvider.GOOGLE).get() shouldBe ""
     }
 
     @Test
-    fun `translationApiKey get reads from RayniyomiSecurePrefs`() {
-        RayniyomiSecurePrefs.translationApiKey = "stored-provider-key"
+    fun `provider models are isolated`() {
+        val claudeModel = translationPreferences.translationModel(TranslationProvider.CLAUDE)
+        val openAiModel = translationPreferences.translationModel(TranslationProvider.OPENAI)
+        val googleModel = translationPreferences.translationModel(TranslationProvider.GOOGLE)
+        claudeModel.set("claude-model")
+        openAiModel.set("openai-model")
 
-        translationPreferences.translationApiKey().get() shouldBe "stored-provider-key"
+        claudeModel.get() shouldBe "claude-model"
+        openAiModel.get() shouldBe "openai-model"
+        googleModel.get() shouldBe ""
     }
 
     @Test
-    fun `translationApiKey delete clears from RayniyomiSecurePrefs`() {
-        RayniyomiSecurePrefs.translationApiKey = "existing-provider-key"
+    fun `deleting one provider api key keeps other provider keys`() {
+        translationPreferences.translationApiKey(TranslationProvider.CLAUDE).set("claude-key")
+        translationPreferences.translationApiKey(TranslationProvider.OPENAI).set("openai-key")
 
-        translationPreferences.translationApiKey().delete()
+        translationPreferences.translationApiKey(TranslationProvider.CLAUDE).delete()
 
-        RayniyomiSecurePrefs.translationApiKey shouldBe null
+        translationPreferences.translationApiKey(TranslationProvider.CLAUDE).get() shouldBe ""
+        translationPreferences.translationApiKey(TranslationProvider.OPENAI).get() shouldBe "openai-key"
     }
 
     @Test
-    fun `translationApiKey key returns translation_api_key`() {
-        translationPreferences.translationApiKey().key() shouldBe "translation_api_key"
+    fun `provider preference keys use stable provider ids`() {
+        translationPreferences.translationApiKey(TranslationProvider.CLAUDE).key() shouldBe
+            "translation_api_key_claude"
+        translationPreferences.translationModel(TranslationProvider.GOOGLE).key() shouldBe
+            "translation_model_google"
+    }
+
+    @Test
+    fun `each provider has official HTTPS account links`() {
+        TranslationProvider.entries
+            .filterNot { it == TranslationProvider.NONE }
+            .forEach { provider ->
+                val links = requireNotNull(provider.links)
+                listOf(links.key, links.usage, links.billing, links.revocation)
+                    .forEach { link -> link.startsWith("https://") shouldBe true }
+            }
     }
 
     @Test

@@ -19,6 +19,7 @@ object RayniyomiSecurePrefs {
     private const val PIN_SALT_KEY = "pin_salt"
     private const val TRACKER_TOKEN_PREFIX = "track_token_"
     private const val TRANSLATION_API_KEY = "translation_api_key"
+    private const val TRANSLATION_PROVIDER_API_KEY_PREFIX = "translation_api_key_"
 
     private lateinit var storage: SecureStorage
 
@@ -61,4 +62,18 @@ object RayniyomiSecurePrefs {
     var translationApiKey: String?
         get() = storage.getString(TRANSLATION_API_KEY)
         set(value) = storage.putString(TRANSLATION_API_KEY, value)
+
+    /** Retrieve one translation provider API key. */
+    fun getTranslationApiKey(providerId: String): String? =
+        storage.getString("$TRANSLATION_PROVIDER_API_KEY_PREFIX$providerId")
+
+    /** Store or clear one translation provider API key. */
+    fun setTranslationApiKey(providerId: String, apiKey: String?) =
+        storage.putString("$TRANSLATION_PROVIDER_API_KEY_PREFIX$providerId", apiKey)
+
+    internal fun setTranslationApiKeySynchronously(providerId: String, apiKey: String?): Boolean =
+        storage.putStringSynchronously("$TRANSLATION_PROVIDER_API_KEY_PREFIX$providerId", apiKey)
+
+    internal fun setLegacyTranslationApiKeySynchronously(apiKey: String?): Boolean =
+        storage.putStringSynchronously(TRANSLATION_API_KEY, apiKey)
 }

@@ -2,9 +2,12 @@ package eu.kanade.presentation.more.settings.widget
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -17,11 +20,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
@@ -34,6 +39,7 @@ fun EditTextPreferenceWidget(
     dialogSubtitle: String? = null,
     icon: ImageVector?,
     value: String,
+    isSecret: Boolean = false,
     onConfirm: suspend (String) -> Boolean,
     singleLine: Boolean = true,
     canBeBlank: Boolean = false,
@@ -53,9 +59,10 @@ fun EditTextPreferenceWidget(
     if (isDialogShown) {
         val scope = rememberCoroutineScope()
         val onDismissRequest = { isDialogShown = false }
-        var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-            mutableStateOf(TextFieldValue(value))
+        var textFieldValue by remember(value, isSecret) {
+            mutableStateOf(TextFieldValue(if (isSecret) "" else value))
         }
+        var isSecretHidden by remember { mutableStateOf(true) }
         AlertDialog(
             onDismissRequest = onDismissRequest,
             title = {
@@ -71,11 +78,35 @@ fun EditTextPreferenceWidget(
                     value = textFieldValue,
                     onValueChange = { textFieldValue = it },
                     trailingIcon = {
-                        if ((textFieldValue.text.isBlank() && !canBeBlank) || !validate(textFieldValue.text)) {
+                        if (isSecret) {
+                            IconButton(onClick = { isSecretHidden = !isSecretHidden }) {
+                                Icon(
+                                    imageVector = if (isSecretHidden) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = stringResource(
+                                        if (isSecretHidden) {
+                                            MR.strings.action_show_text
+                                        } else {
+                                            MR.strings.action_hide_text
+                                        },
+                                    ),
+                                )
+                            }
+                        } else if ((textFieldValue.text.isBlank() && !canBeBlank) ||
+                            !validate(textFieldValue.text)
+                        ) {
                             Icon(imageVector = Icons.Filled.Error, contentDescription = null)
                         } else {
                             IconButton(onClick = { textFieldValue = TextFieldValue("") }) {
-                                Icon(imageVector = Icons.Filled.Cancel, contentDescription = null)
+                                Icon(
+                                    imageVector = Icons.Filled.Cancel,
+                                    contentDescription = stringResource(
+                                        MR.strings.pref_source_preference_clear_text,
+                                    ),
+                                )
                             }
                         }
                     },
@@ -86,6 +117,18 @@ fun EditTextPreferenceWidget(
                     },
                     isError = (textFieldValue.text.isBlank() && !canBeBlank) || !validate(textFieldValue.text),
                     singleLine = singleLine,
+                    visualTransformation = if (isSecret && isSecretHidden) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (isSecret) {
+                            KeyboardType.Password
+                        } else {
+                            KeyboardType.Text
+                        },
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 )
             },
