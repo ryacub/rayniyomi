@@ -51,12 +51,6 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
     val config = PagerConfig(this, scope)
 
     /**
-     * Whether page changes play an animated transition.
-     */
-    private val useAnimatedTransition
-        get() = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
-
-    /**
      * Adapter of the pager.
      */
     private val adapter = PagerViewerAdapter(this)
