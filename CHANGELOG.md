@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 - Translation settings now store an encrypted BYOK API key and a model for each provider. The settings also link to provider account controls.
 - OpenRouter translation now offers a compatible free-model picker. It caches the list for 24 hours and shows a clear failure before retry.
+- The left-to-right and right-to-left reading modes now play a page curl animation when the page transition style is set to Curl. The reader falls back to the slide animation at chapter boundaries, on zoomed pages, and during rapid page turns.
 
 ### Improved
 
