@@ -8,12 +8,15 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -37,6 +40,13 @@ object SettingsTranslationScreen : SearchableSettings {
         val apiKeyPreference = remember(provider) { translationPreferences.translationApiKey(provider) }
         val modelPreference = remember(provider) { translationPreferences.translationModel(provider) }
         val apiKey by apiKeyPreference.collectAsStateWithLifecycle()
+        val model by modelPreference.collectAsStateWithLifecycle()
+        val modelChoiceTypePreference = remember(provider) {
+            translationPreferences.translationModelChoiceType(provider)
+        }
+        val modelChoiceType by modelChoiceTypePreference.collectAsStateWithLifecycle()
+        var showModelPicker by remember { mutableStateOf(false) }
+        val catalogRepository = remember { TranslationModelCatalogRepository() }
         var showClearConfirmation by remember { mutableStateOf(false) }
 
         if (showClearConfirmation) {
@@ -97,13 +107,30 @@ object SettingsTranslationScreen : SearchableSettings {
                 subtitle = translationPreferences.targetLanguage().get(),
                 enabled = provider != TranslationProvider.NONE,
             ),
-            Preference.PreferenceItem.EditTextPreference(
-                preference = modelPreference,
+            Preference.PreferenceItem.TextPreference(
                 title = stringResource(AYMR.strings.pref_translation_model),
-                subtitle = stringResource(AYMR.strings.pref_translation_model_summary),
-                enabled = provider != TranslationProvider.NONE,
+                subtitle = when (modelChoiceType) {
+                    TranslationModelChoiceType.AUTOMATIC ->
+                        stringResource(AYMR.strings.pref_translation_model_automatic)
+                    TranslationModelChoiceType.PINNED -> if (model.isBlank()) {
+                        stringResource(AYMR.strings.pref_translation_model_none)
+                    } else {
+                        model
+                    }
+                },
+                enabled = provider == TranslationProvider.OPENROUTER && apiKey.isNotBlank(),
+                onClick = { showModelPicker = true },
             ),
         )
+
+        if (showModelPicker) {
+            TranslationModelPickerDialog(
+                repository = catalogRepository,
+                modelPreference = modelPreference,
+                modelChoiceTypePreference = modelChoiceTypePreference,
+                onDismiss = { showModelPicker = false },
+            )
+        }
 
         provider.links?.let { links ->
             preferences += Preference.PreferenceItem.TextPreference(

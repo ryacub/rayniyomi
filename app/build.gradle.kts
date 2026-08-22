@@ -360,6 +360,7 @@ dependencies {
 
     // Tests
     testImplementation(platform(libs.junit.bom))
+    testImplementation("com.squareup.okhttp3:mockwebserver")
     testImplementation(libs.bundles.test)
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
     testImplementation(libs.sqldelight.sqlite.driver)
