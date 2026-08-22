@@ -10,6 +10,7 @@ import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
@@ -54,7 +55,7 @@ class PageCurlOverlayViewTest {
         val result = overlay.captureBitmap(source)
 
         result shouldBe null
-        io.mockk.verify(exactly = 0) {
+        verify(exactly = 0) {
             Bitmap.createBitmap(any<Int>(), any<Int>(), Bitmap.Config.ARGB_8888)
         }
     }
