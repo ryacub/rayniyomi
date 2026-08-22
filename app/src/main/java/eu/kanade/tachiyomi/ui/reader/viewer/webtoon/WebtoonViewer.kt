@@ -63,9 +63,11 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
     val config = WebtoonConfig(scope)
 
     /**
-     * Whether page changes play an animated transition.
+     * Whether a scroll step animates. This viewer scrolls a continuous strip
+     * and never turns a page, so the transition preference selects
+     * smoothScrollBy over scrollBy here.
      */
-    private val useAnimatedTransition
+    private val useAnimatedScroll
         get() = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
 
     /**
@@ -326,7 +328,7 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
      * Scrolls up by [scrollDistance].
      */
     private fun scrollUp() {
-        if (useAnimatedTransition) {
+        if (useAnimatedScroll) {
             recycler.smoothScrollBy(0, -scrollDistance)
         } else {
             recycler.scrollBy(0, -scrollDistance)
@@ -337,7 +339,7 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
      * Scrolls down by [scrollDistance].
      */
     private fun scrollDown() {
-        if (useAnimatedTransition) {
+        if (useAnimatedScroll) {
             recycler.smoothScrollBy(0, scrollDistance)
         } else {
             recycler.scrollBy(0, scrollDistance)
