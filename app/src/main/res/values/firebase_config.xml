@@ -7,7 +7,6 @@
   - Firebase Crashlytics: ENABLED (monitors app crashes)
 
   This fork uses its own Firebase project (rayniyomi) to prevent upstream data pollution.
-  See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
 -->
 <resources>
     <!-- Enable Firebase Analytics collection -->
