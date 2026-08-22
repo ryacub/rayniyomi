@@ -51,6 +51,16 @@ class TranslationEngineFactoryTest {
     }
 
     @Test
+    fun `returns null when model is blank`() {
+        mockProvider(TranslationProvider.CLAUDE)
+        mockApiKey(TranslationProvider.CLAUDE, "test-api-key")
+        mockModel(TranslationProvider.CLAUDE, "")
+
+        val factory = TranslationEngineFactory(prefs)
+        assertNull(factory.create())
+    }
+
+    @Test
     fun `returns null when API key is whitespace only`() {
         mockProvider(TranslationProvider.OPENAI)
         mockApiKey(TranslationProvider.OPENAI, "   ")

@@ -19,6 +19,11 @@ class TranslationPreferences(
 
     fun translationModel(provider: TranslationProvider) =
         preferenceStore.getString("translation_model_${provider.preferenceId}", "")
+
+    fun translationModelChoiceType(provider: TranslationProvider) = preferenceStore.getEnum(
+        "translation_model_choice_type_${provider.preferenceId}",
+        TranslationModelChoiceType.AUTOMATIC,
+    )
 }
 
 enum class TranslationProvider(

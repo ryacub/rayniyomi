@@ -17,22 +17,24 @@ class TranslationEngineFactory(
         if (apiKey.isBlank()) return null
 
         val model = translationPreferences.translationModel(provider).get()
+        if (model.isBlank()) return null
+
         return when (provider) {
             TranslationProvider.CLAUDE -> ClaudeTranslationEngine(
                 apiKey = apiKey,
-                model = model.ifBlank { ClaudeTranslationEngine.DEFAULT_MODEL },
+                model = model,
             )
             TranslationProvider.OPENAI -> OpenAITranslationEngine(
                 apiKey = apiKey,
-                model = model.ifBlank { OpenAITranslationEngine.DEFAULT_MODEL },
+                model = model,
             )
             TranslationProvider.OPENROUTER -> OpenRouterTranslationEngine(
                 apiKey = apiKey,
-                model = model.ifBlank { OpenRouterTranslationEngine.DEFAULT_MODEL },
+                model = model,
             )
             TranslationProvider.GOOGLE -> GoogleTranslationEngine(
                 apiKey = apiKey,
-                model = model.ifBlank { GoogleTranslationEngine.DEFAULT_MODEL },
+                model = model,
             )
             TranslationProvider.NONE -> null
         }
