@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import kotlinx.coroutines.MainScope
@@ -45,6 +46,12 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
      * Configuration used by the pager, like allow taps, scale mode on images, page transitions...
      */
     val config = PagerConfig(this, scope)
+
+    /**
+     * Whether page changes play an animated transition.
+     */
+    private val useAnimatedTransition
+        get() = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
 
     /**
      * Adapter of the pager.
@@ -330,7 +337,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             if (holder != null && config.navigateToPan && holder.canPanRight()) {
                 holder.panRight()
             } else {
-                pager.setCurrentItem(pager.currentItem + 1, config.usePageTransitions)
+                pager.setCurrentItem(pager.currentItem + 1, useAnimatedTransition)
             }
         }
     }
@@ -344,7 +351,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             if (holder != null && config.navigateToPan && holder.canPanLeft()) {
                 holder.panLeft()
             } else {
-                pager.setCurrentItem(pager.currentItem - 1, config.usePageTransitions)
+                pager.setCurrentItem(pager.currentItem - 1, useAnimatedTransition)
             }
         }
     }
