@@ -454,4 +454,24 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
     private fun cleanupPageSplit() {
         adapter.cleanupPageSplit()
     }
+
+    companion object {
+        /**
+         * Returns whether a page turn should attempt the curl animation.
+         * The function has no side effects, so tests run it without a view hierarchy.
+         */
+        fun shouldAttemptCurl(
+            style: ReaderPreferences.PageTransitionStyle,
+            targetIsChapterTransition: Boolean,
+            sourceAtMinimumZoom: Boolean,
+            targetAtMinimumZoom: Boolean,
+            withinRapidNavigationWindow: Boolean,
+        ): Boolean {
+            if (style != ReaderPreferences.PageTransitionStyle.CURL) return false
+            if (targetIsChapterTransition) return false
+            if (!sourceAtMinimumZoom || !targetAtMinimumZoom) return false
+            if (withinRapidNavigationWindow) return false
+            return true
+        }
+    }
 }
