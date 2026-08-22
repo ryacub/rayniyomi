@@ -57,12 +57,15 @@ class TranslationManager(
     }
 
     /**
-     * Cancel all in-flight translations and clear in-memory states.
-     * Cancel runs first so a finishing job cannot repopulate cleared state.
+     * Cancel all in-flight translations, wait for their termination, then clear
+     * in-memory states. Join runs before the clear so a job finishing its
+     * non-suspending tail cannot repopulate stale old-language state.
      */
-    private fun onTargetLanguageChanged() {
-        activeJobs.values.toList().forEach { it.cancel() }
+    private suspend fun onTargetLanguageChanged() {
+        val jobs = activeJobs.values.toList()
+        jobs.forEach { it.cancel() }
         activeJobs.clear()
+        jobs.forEach { it.join() }
         _translationStates.value = emptyMap()
     }
 

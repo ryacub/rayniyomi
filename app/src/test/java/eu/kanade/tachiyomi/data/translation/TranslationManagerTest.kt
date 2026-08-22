@@ -11,6 +11,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -525,6 +527,49 @@ class TranslationManagerTest {
         advanceUntilIdle()
 
         assertTrue(manager.translationStates.value.containsKey(chapter.id))
+    }
+
+    @Test
+    fun `language change does not leave stale state when a cancelled job finishes late`() {
+        // Real IO scope so the job tail and the observer race across threads,
+        // mirroring the production Dispatchers.IO window.
+        createManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        val uri = mockk<Uri>()
+        val page = Page(0, uri = uri).apply { status = Page.State.READY }
+
+        every { translationEngineFactory.create() } returns engine
+        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
+        mockContentResolver(uri, imageBytes)
+        coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
+            // Simulate the production race window: the old-language job holds its
+            // last resumption past cancellation and finishes its non-suspending
+            // tail after the observer cleared the state map.
+            withContext(NonCancellable) {
+                val deadline = System.currentTimeMillis() + 2_000
+                while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
+                    kotlinx.coroutines.delay(10)
+                }
+            }
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        manager.translateChapter(manga, chapter, source)
+
+        // Give the job time to reach the engine, then change the language
+        Thread.sleep(200)
+        targetLanguageFlow.value = "it"
+
+        // The observer must clear the map only after the terminated job's final write
+        val deadline = System.currentTimeMillis() + 5_000
+        while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
+
+        assertFalse(manager.translationStates.value.containsKey(chapter.id))
+        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
     }
 
     // -----------------------------------------------------------------------
