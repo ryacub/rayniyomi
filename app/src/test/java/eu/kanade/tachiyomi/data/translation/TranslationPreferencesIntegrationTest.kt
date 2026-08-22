@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.translation
 
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.security.InMemorySecureStorage
 import eu.kanade.tachiyomi.security.RayniyomiSecurePrefs
 import eu.kanade.tachiyomi.security.SecurePreferenceStore
@@ -53,6 +54,17 @@ class TranslationPreferencesIntegrationTest {
         claudeModel.get() shouldBe "claude-model"
         openAiModel.get() shouldBe "openai-model"
         googleModel.get() shouldBe ""
+    }
+
+    @Test
+    fun `model choice types are isolated`() {
+        val claudeChoice = translationPreferences.translationModelChoiceType(TranslationProvider.CLAUDE)
+        val openAiChoice = translationPreferences.translationModelChoiceType(TranslationProvider.OPENAI)
+
+        claudeChoice.set(TranslationModelChoiceType.PINNED)
+
+        claudeChoice.get() shouldBe TranslationModelChoiceType.PINNED
+        openAiChoice.get() shouldBe TranslationModelChoiceType.AUTOMATIC
     }
 
     @Test
