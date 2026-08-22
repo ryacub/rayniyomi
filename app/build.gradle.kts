@@ -54,21 +54,7 @@ android {
         // R37/R38: This fork uses its own Firebase project for Analytics and Crashlytics
         // (see firebase_config.xml), while ACRA crash reporting remains disabled.
         // This keeps fork telemetry isolated from upstream services.
-        // See: docs/adr/0002-fork-isolation-updates-and-telemetry.md
         // See: app/src/main/res/values/firebase_config.xml
-        // See: app/src/main/res/values/acra_disabled.xml
-        //
-        // If you want to enable ACRA for your own fork, uncomment and configure:
-        // val acraProperties = Properties()
-        // rootProject.file("acra.properties")
-        //     .takeIf { it.exists() }
-        //     ?.let { acraProperties.load(FileInputStream(it)) }
-        // val acraUri = acraProperties.getProperty("ACRA_URI", "")
-        // val acraLogin = acraProperties.getProperty("ACRA_LOGIN", "")
-        // val acraPassword = acraProperties.getProperty("ACRA_PASSWORD", "")
-        // buildConfigField("String", "ACRA_URI", ""$acraUri"")
-        // buildConfigField("String", "ACRA_LOGIN", ""$acraLogin"")
-        // buildConfigField("String", "ACRA_PASSWORD", ""$acraPassword"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
