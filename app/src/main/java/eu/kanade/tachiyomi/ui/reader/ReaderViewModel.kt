@@ -205,6 +205,9 @@ class ReaderViewModel @JvmOverloads constructor(
                     }
                     if (mutableState.value.showTranslatedPages) {
                         currChapter.requestedPage = currChapter.chapter.last_page_read
+                        // Force ChapterLoader to rebuild the page list with the new language;
+                        // a Loaded chapter would keep its old-language pages otherwise.
+                        currChapter.state = ReaderChapter.State.Wait
                         eventChannel.send(Event.ReloadViewerChapters)
                     }
                 }
