@@ -8,6 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 
 sealed class TranslationCatalogResult {
     data class Success(
@@ -30,7 +31,7 @@ class TranslationModelCatalogRepository(
     },
 ) {
 
-    private val cacheByProvider = mutableMapOf<TranslationProvider, TranslationModelCatalog>()
+    private val cacheByProvider = ConcurrentHashMap<TranslationProvider, TranslationModelCatalog>()
 
     fun snapshot(provider: TranslationProvider): TranslationModelCatalog? = cacheByProvider[provider]
 

@@ -51,6 +51,8 @@ fun TranslationModelPickerDialog(
         )
         if (resolution is TranslationModelResolution.Selected) {
             modelPreference.set(resolution.model.id)
+        } else {
+            modelPreference.set("")
         }
     }
 
@@ -87,6 +89,18 @@ fun TranslationModelPickerDialog(
                     Text(stringResource(AYMR.strings.pref_translation_model_refresh_failed))
                 }
                 LazyColumn {
+                    item {
+                        TextButton(
+                            onClick = {
+                                modelChoiceTypePreference.set(TranslationModelChoiceType.AUTOMATIC)
+                                resolveAutomaticModel(models)
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(AYMR.strings.pref_translation_model_automatic))
+                        }
+                    }
                     items(models) { model ->
                         TextButton(
                             onClick = {
@@ -117,6 +131,7 @@ fun TranslationModelPickerDialog(
                 onClick = {
                     coroutineScope.launch { loadModels(forceRefresh = true) }
                 },
+                enabled = !isLoading,
             ) {
                 Text(stringResource(AYMR.strings.pref_translation_model_refresh))
             }
