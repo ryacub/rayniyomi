@@ -479,6 +479,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
                 }
             }
         }
+        curlTargetReadyRunnable?.let(pager::removeCallbacks)
         curlTargetReadyRunnable = checkTargetReady
         pager.post(checkTargetReady)
     }
@@ -553,6 +554,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
                 }
             }
         }
+        curlLayoutCheckRunnable?.let(pager::removeCallbacks)
         curlLayoutCheckRunnable = checkLayout
         pager.post(checkLayout)
     }
