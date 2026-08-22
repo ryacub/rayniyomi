@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- Translation settings now store an encrypted BYOK API key and a model for each provider. The settings also link to provider account controls.
 
 ### Improved
 

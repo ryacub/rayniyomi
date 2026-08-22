@@ -11,7 +11,7 @@ import tachiyomi.core.common.preference.PreferenceStore
  * Secure keys handled:
  * - `pin_hash` / `pin_salt` — PIN lock credentials
  * - `__PRIVATE_track_token_<id>` — rayniyomi tracker API tokens
- * - `translation_api_key` — translation provider API key
+ * - `translation_api_key_<provider>` — translation provider API keys
  *
  * Used by [eu.kanade.tachiyomi.di.PreferenceModule] to construct [SecurityPreferences],
  * [eu.kanade.domain.track.service.TrackPreferences], and
@@ -32,11 +32,19 @@ class SecurePreferenceStore(
             getter = { RayniyomiSecurePrefs.pinSalt },
             setter = { RayniyomiSecurePrefs.pinSalt = it },
         )
-        key == TRANSLATION_API_KEY -> SecureStringPreference(
-            key = key,
-            getter = { RayniyomiSecurePrefs.translationApiKey },
-            setter = { RayniyomiSecurePrefs.translationApiKey = it },
+        key.startsWith(TRANSLATION_API_KEY_PREFIX) -> LockedPreference(
+            SecureStringPreference(
+                key = key,
+                getter = { RayniyomiSecurePrefs.getTranslationApiKey(key.removePrefix(TRANSLATION_API_KEY_PREFIX)) },
+                setter = {
+                    RayniyomiSecurePrefs.setTranslationApiKey(
+                        key.removePrefix(TRANSLATION_API_KEY_PREFIX),
+                        it,
+                    )
+                },
+            ),
         )
+        key.startsWith(TRANSLATION_MODEL_PREFIX) -> LockedPreference(delegate.getString(key, defaultValue))
         key.startsWith(TRACKER_TOKEN_PREFIX) -> {
             val trackerId = key.removePrefix(TRACKER_TOKEN_PREFIX).toLongOrNull()
             if (trackerId != null) {
@@ -54,6 +62,7 @@ class SecurePreferenceStore(
 
     private companion object {
         const val TRACKER_TOKEN_PREFIX = "__PRIVATE_track_token_"
-        const val TRANSLATION_API_KEY = "translation_api_key"
+        const val TRANSLATION_API_KEY_PREFIX = "translation_api_key_"
+        const val TRANSLATION_MODEL_PREFIX = "translation_model_"
     }
 }

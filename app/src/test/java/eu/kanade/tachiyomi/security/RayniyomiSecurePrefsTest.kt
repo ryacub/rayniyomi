@@ -241,6 +241,26 @@ class RayniyomiSecurePrefsTest {
     }
 
     @Test
+    fun `provider translation api keys use isolated storage keys`() {
+        RayniyomiSecurePrefs.setTranslationApiKey("claude", "claude-key")
+        RayniyomiSecurePrefs.setTranslationApiKey("openai", "openai-key")
+
+        storage.getString("translation_api_key_claude") shouldBe "claude-key"
+        storage.getString("translation_api_key_openai") shouldBe "openai-key"
+    }
+
+    @Test
+    fun `clearing one provider translation api key keeps another key`() {
+        RayniyomiSecurePrefs.setTranslationApiKey("claude", "claude-key")
+        RayniyomiSecurePrefs.setTranslationApiKey("openai", "openai-key")
+
+        RayniyomiSecurePrefs.setTranslationApiKey("claude", null)
+
+        RayniyomiSecurePrefs.getTranslationApiKey("claude").shouldBeNull()
+        RayniyomiSecurePrefs.getTranslationApiKey("openai") shouldBe "openai-key"
+    }
+
+    @Test
     fun `tracker token keys are unique per trackerId`() {
         RayniyomiSecurePrefs.setTrackerToken(1L, "token1")
         RayniyomiSecurePrefs.setTrackerToken(2L, "token2")

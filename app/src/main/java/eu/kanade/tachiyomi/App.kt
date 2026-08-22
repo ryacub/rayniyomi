@@ -155,9 +155,12 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         RayniyomiSecurePrefs.init(this)
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val translationProviderAtStartup = TranslationApiKeyMigration.selectedProvider(defaultPrefs)
         PinHashMigration.migrate(defaultPrefs)
         TrackerTokenMigration.migrate(defaultPrefs)
-        TranslationApiKeyMigration.migrate(defaultPrefs)
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+            TranslationApiKeyMigration.migrate(defaultPrefs, translationProviderAtStartup)
+        }
 
         patchInjekt()
 

@@ -8,4 +8,9 @@ package eu.kanade.tachiyomi.security
 internal interface SecureStorage {
     fun getString(key: String): String?
     fun putString(key: String, value: String?)
+
+    fun putStringSynchronously(key: String, value: String?): Boolean {
+        putString(key, value)
+        return getString(key) == value
+    }
 }

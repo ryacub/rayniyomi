@@ -233,7 +233,7 @@ object SettingsMainScreen : Screen() {
                     screen = SettingsDownloadScreen,
                 ),
                 Item(
-                    titleRes = AYMR.strings.pref_category_translation,
+                    titleRes = AYMR.strings.pref_category_translation_byok,
                     subtitleRes = AYMR.strings.pref_translation_summary,
                     icon = Icons.Outlined.Translate,
                     screen = SettingsTranslationScreen,

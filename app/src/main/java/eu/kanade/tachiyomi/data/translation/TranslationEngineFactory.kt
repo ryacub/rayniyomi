@@ -11,10 +11,12 @@ class TranslationEngineFactory(
 
     fun create(): TranslationEngine? {
         val provider = translationPreferences.translationProvider().get()
-        val apiKey = translationPreferences.translationApiKey().get()
-        if (provider == TranslationProvider.NONE || apiKey.isBlank()) return null
+        if (provider == TranslationProvider.NONE) return null
 
-        val model = translationPreferences.translationModel().get()
+        val apiKey = translationPreferences.translationApiKey(provider).get()
+        if (apiKey.isBlank()) return null
+
+        val model = translationPreferences.translationModel(provider).get()
         return when (provider) {
             TranslationProvider.CLAUDE -> ClaudeTranslationEngine(
                 apiKey = apiKey,

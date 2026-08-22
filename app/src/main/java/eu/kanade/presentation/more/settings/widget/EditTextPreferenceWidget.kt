@@ -2,6 +2,7 @@ package eu.kanade.presentation.more.settings.widget
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Error
@@ -17,11 +18,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.password
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
@@ -34,6 +39,7 @@ fun EditTextPreferenceWidget(
     dialogSubtitle: String? = null,
     icon: ImageVector?,
     value: String,
+    isSecret: Boolean = false,
     onConfirm: suspend (String) -> Boolean,
     singleLine: Boolean = true,
     canBeBlank: Boolean = false,
@@ -53,8 +59,8 @@ fun EditTextPreferenceWidget(
     if (isDialogShown) {
         val scope = rememberCoroutineScope()
         val onDismissRequest = { isDialogShown = false }
-        var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-            mutableStateOf(TextFieldValue(value))
+        var textFieldValue by remember(value, isSecret) {
+            mutableStateOf(TextFieldValue(if (isSecret) "" else value))
         }
         AlertDialog(
             onDismissRequest = onDismissRequest,
@@ -75,7 +81,10 @@ fun EditTextPreferenceWidget(
                             Icon(imageVector = Icons.Filled.Error, contentDescription = null)
                         } else {
                             IconButton(onClick = { textFieldValue = TextFieldValue("") }) {
-                                Icon(imageVector = Icons.Filled.Cancel, contentDescription = null)
+                                Icon(
+                                    imageVector = Icons.Filled.Cancel,
+                                    contentDescription = stringResource(MR.strings.pref_source_preference_clear_text),
+                                )
                             }
                         }
                     },
@@ -86,7 +95,17 @@ fun EditTextPreferenceWidget(
                     },
                     isError = (textFieldValue.text.isBlank() && !canBeBlank) || !validate(textFieldValue.text),
                     singleLine = singleLine,
-                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (isSecret) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (isSecret) KeyboardType.Password else KeyboardType.Text,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (isSecret) Modifier.semantics { password() } else Modifier),
                 )
             },
             properties = DialogProperties(

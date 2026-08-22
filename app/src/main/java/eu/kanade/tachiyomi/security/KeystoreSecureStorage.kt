@@ -71,9 +71,19 @@ internal class KeystoreSecureStorage(
     }
 
     override fun putString(key: String, value: String?) {
+        putString(key, value, synchronous = false)
+    }
+
+    override fun putStringSynchronously(key: String, value: String?): Boolean {
+        return putString(key, value, synchronous = true)
+    }
+
+    private fun putString(key: String, value: String?, synchronous: Boolean): Boolean {
         if (value == null) {
-            prefs.edit().remove(key).apply()
-            return
+            val editor = prefs.edit().remove(key)
+            if (synchronous) return editor.commit()
+            editor.apply()
+            return true
         }
 
         val cipher = Cipher.getInstance(CIPHER_TRANSFORMATION)
@@ -81,6 +91,9 @@ internal class KeystoreSecureStorage(
         val iv = Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
         val ciphertext = Base64.encodeToString(cipher.doFinal(value.toByteArray()), Base64.NO_WRAP)
 
-        prefs.edit().putString(key, "$iv:$ciphertext").apply()
+        val editor = prefs.edit().putString(key, "$iv:$ciphertext")
+        if (synchronous) return editor.commit()
+        editor.apply()
+        return true
     }
 }
