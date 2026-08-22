@@ -13,7 +13,7 @@ class OpenRouterCatalogParserTest {
             {"data":[{
               "id":"google/gemma-4-26b-a4b-it:free",
               "name":"Example Free Vision",
-              "context_length":8192,
+              "context_length":16384,
               "architecture":{"input_modalities":["text","image"],"output_modalities":["text"]},
               "top_provider":{"max_completion_tokens":8192},
               "supported_parameters":["response_format"],
