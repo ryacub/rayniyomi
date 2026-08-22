@@ -13,6 +13,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
@@ -44,6 +46,25 @@ class TranslationManager(
     val translationStates: StateFlow<Map<Long, TranslationState>> = _translationStates.asStateFlow()
 
     private val activeJobs = ConcurrentHashMap<Long, Job>()
+
+    init {
+        this.scope.launch {
+            translationPreferences.targetLanguage().changes()
+                .distinctUntilChanged()
+                .drop(1) // ignore initial emission from changes()
+                .collect { onTargetLanguageChanged() }
+        }
+    }
+
+    /**
+     * Cancel all in-flight translations and clear in-memory states.
+     * Cancel runs first so a finishing job cannot repopulate cleared state.
+     */
+    private fun onTargetLanguageChanged() {
+        activeJobs.values.toList().forEach { it.cancel() }
+        activeJobs.clear()
+        _translationStates.value = emptyMap()
+    }
 
     /**
      * Start translating a chapter. Each page is processed sequentially.
