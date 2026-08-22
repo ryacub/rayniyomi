@@ -510,6 +510,11 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             onEnd = {
                 if (generationId == curlGenerationId) {
                     waitForLayoutThenHideCurl(overlay, fromBitmap, toBitmap)
+                } else {
+                    // A newer curl owns the overlay and the gesture state, so this
+                    // stale callback recycles only its own bitmaps.
+                    fromBitmap.recycle()
+                    toBitmap.recycle()
                 }
             },
         )
