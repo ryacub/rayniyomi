@@ -202,6 +202,16 @@ open class ReaderPageImageView @JvmOverloads constructor(
     fun canPanRight(): Boolean = canPan { it.right }
 
     /**
+     * Check if the image is at its minimum zoom level.
+     * A page that is not a [SubsamplingScaleImageView] reports true, because it
+     * cannot zoom.
+     */
+    fun isAtMinimumZoom(): Boolean {
+        val view = pageView as? SubsamplingScaleImageView ?: return true
+        return isAtMinimumZoom(scale = view.scale, minScale = view.minScale)
+    }
+
+    /**
      * Check whether the image can be panned.
      * @param fn a function that returns the direction to check for
      */
@@ -470,3 +480,17 @@ open class ReaderPageImageView @JvmOverloads constructor(
 private const val MAX_ZOOM_SCALE = 5F
 private const val SSIV_SOURCE_ANALYSIS_CACHE_SIZE = 200
 private val ssivSourceAnalysisCache = LruCache<String, ImageUtil.ImageAnalysis>(SSIV_SOURCE_ANALYSIS_CACHE_SIZE)
+
+/**
+ * The largest relative scale difference that still counts as no zoom. It
+ * absorbs the float rounding that SubsamplingScaleImageView leaves after a
+ * reset. The tolerance is relative because minScale changes with the image
+ * size, so a fixed offset is too loose for a small minScale.
+ */
+private const val MIN_ZOOM_TOLERANCE = 1.01f
+
+/**
+ * Compare a page scale against its minimum scale.
+ */
+internal fun isAtMinimumZoom(scale: Float, minScale: Float): Boolean =
+    scale <= minScale * MIN_ZOOM_TOLERANCE
