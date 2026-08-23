@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionInstaller
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,7 @@ import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The manager of extensions installed as another apk which extend the available sources. It handles
@@ -47,6 +49,7 @@ class MangaExtensionManager(
     private val context: Context,
     private val preferences: SourcePreferences = Injekt.get(),
     private val trustExtension: TrustMangaExtension = Injekt.get(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -79,11 +82,19 @@ class MangaExtensionManager(
     private val untrustedExtensionsMapFlow = MutableStateFlow(emptyMap<String, MangaExtension.Untrusted>())
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
 
+    private val installReceiver = MangaExtensionInstallReceiver(InstallationListener())
+
     init {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
+            runCatching { installReceiver.register(context) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    logcat(LogPriority.WARN, it) {
+                        "Failed to register manga extension install receiver"
+                    }
+                }
             initExtensions()
         }
-        MangaExtensionInstallReceiver(InstallationListener()).register(context)
     }
 
     private var subLanguagesEnabledOnFirstRun = preferences.enabledLanguages().isSet()

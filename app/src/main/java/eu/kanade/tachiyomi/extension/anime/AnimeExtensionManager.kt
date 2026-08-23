@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionInstaller
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,7 @@ import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The manager of anime extensions installed as another apk which extend the available sources. It handles
@@ -50,6 +52,7 @@ class AnimeExtensionManager(
     private val context: Context,
     private val preferences: SourcePreferences = Injekt.get(),
     private val trustExtension: TrustAnimeExtension = Injekt.get(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -82,11 +85,19 @@ class AnimeExtensionManager(
     private val untrustedExtensionsMapFlow = MutableStateFlow(emptyMap<String, AnimeExtension.Untrusted>())
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
 
+    private val installReceiver = AnimeExtensionInstallReceiver(AnimeInstallationListener())
+
     init {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
+            runCatching { installReceiver.register(context) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    logcat(LogPriority.WARN, it) {
+                        "Failed to register anime extension install receiver"
+                    }
+                }
             initAnimeExtensions()
         }
-        AnimeExtensionInstallReceiver(AnimeInstallationListener()).register(context)
     }
 
     private var subLanguagesEnabledOnFirstRun = preferences.enabledLanguages().isSet()
