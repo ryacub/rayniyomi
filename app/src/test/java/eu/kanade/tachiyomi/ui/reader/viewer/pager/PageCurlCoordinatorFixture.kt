@@ -33,7 +33,8 @@ internal class PageCurlCoordinatorFixture(
         storedTransitionStyle = { PageTransitionStyle.CURL },
         effectiveTransitionStyle = { PageTransitionStyle.CURL },
         sourceHolder = { sourceHolder },
-        itemAt = { pages.getOrNull(it) },
+        readerItemAt = { pages.getOrNull(it) },
+        transitionItemAt = { false },
         holderFor = { targetHolder },
         nowMs = { nowMs },
     )

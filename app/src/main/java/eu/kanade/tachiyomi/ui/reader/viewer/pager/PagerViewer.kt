@@ -73,7 +73,8 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
                 storedTransitionStyle = { config.pageTransitionStyle },
                 effectiveTransitionStyle = { config.effectiveTransitionStyle(activity) },
                 sourceHolder = { (currentPage as? ReaderPage)?.let(::getPageHolder) },
-                itemAt = { adapter.items.getOrNull(it) },
+                readerItemAt = { position -> adapter.items.getOrNull(position) as? ReaderPage },
+                transitionItemAt = { position -> adapter.items.getOrNull(position) is ChapterTransition },
                 holderFor = ::getPageHolder,
             )
         } else {

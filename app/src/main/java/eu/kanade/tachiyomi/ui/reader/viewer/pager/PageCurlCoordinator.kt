@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.core.view.isVisible
-import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 
@@ -16,7 +15,8 @@ internal class PageCurlCoordinator(
     private val storedTransitionStyle: () -> PageTransitionStyle,
     private val effectiveTransitionStyle: () -> PageTransitionStyle,
     private val sourceHolder: () -> PagerPageHolder?,
-    private val itemAt: (Int) -> Any?,
+    private val readerItemAt: (Int) -> ReaderPage?,
+    private val transitionItemAt: (Int) -> Boolean,
     private val holderFor: (ReaderPage) -> PagerPageHolder?,
     private val nowMs: () -> Long = SystemClock::uptimeMillis,
 ) {
@@ -58,13 +58,12 @@ internal class PageCurlCoordinator(
         }
         val useAnimation = style != PageTransitionStyle.NONE
         val source = sourceHolder()
-        val targetItem = itemAt(targetPosition)
-        val targetHolder = (targetItem as? ReaderPage)?.let(holderFor)
+        val targetHolder = readerItemAt(targetPosition)?.let(holderFor)
 
         val canAttemptCurl = source != null &&
             shouldAttemptCurl(
                 style = style,
-                targetIsChapterTransition = targetItem is ChapterTransition,
+                targetIsChapterTransition = transitionItemAt(targetPosition),
                 sourceAtMinimumZoom = source.isAtMinimumZoom(),
                 targetAtMinimumZoom = targetHolder?.isAtMinimumZoom() ?: true,
                 withinRapidNavigationWindow = withinRapidNavigationWindow,
@@ -147,7 +146,7 @@ internal class PageCurlCoordinator(
         checkTargetReady = Runnable {
             if (released || targetReadyRunnable !== checkTargetReady) return@Runnable
 
-            val readyHolder = (itemAt(targetPosition) as? ReaderPage)?.let(holderFor) ?: initialTargetHolder
+            val readyHolder = readerItemAt(targetPosition)?.let(holderFor) ?: initialTargetHolder
             if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
                 targetReadyRunnable = null
                 if (pendingFromBitmap === fromBitmap) pendingFromBitmap = null
@@ -200,7 +199,7 @@ internal class PageCurlCoordinator(
         checkLayout = Runnable {
             if (released || layoutCheckRunnable !== checkLayout) return@Runnable
 
-            val currentHolder = (itemAt(pager.currentItem) as? ReaderPage)?.let(holderFor)
+            val currentHolder = readerItemAt(pager.currentItem)?.let(holderFor)
             if (currentHolder?.isLaidOut == true || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
                 layoutCheckRunnable = null
                 // Normal completion bypasses cancelCurrentCurl; clear the tracked target here.
