@@ -37,18 +37,14 @@ object LocaleHelper {
         }
     }
 
-    /**
-     * Maps legacy Chinese region tags onto script tags, so display names read
-     * "Chinese (Simplified)" rather than "Chinese (China)".
-     */
-    fun normalize(lang: String): String = when (lang) {
-        "zh-CN" -> "zh-Hans"
-        "zh-TW" -> "zh-Hant"
-        else -> lang
-    }
-
     fun getDisplayName(lang: String): String {
-        return Locale.forLanguageTag(normalize(lang)).displayName
+        val normalizedLang = when (lang) {
+            "zh-CN" -> "zh-Hans"
+            "zh-TW" -> "zh-Hant"
+            else -> lang
+        }
+
+        return Locale.forLanguageTag(normalizedLang).displayName
     }
 
     /**
@@ -63,7 +59,9 @@ object LocaleHelper {
 
         val locale = when (lang) {
             "" -> LocaleListCompat.getAdjustedDefault()[0]
-            else -> Locale.forLanguageTag(normalize(lang))
+            "zh-CN" -> Locale.forLanguageTag("zh-Hans")
+            "zh-TW" -> Locale.forLanguageTag("zh-Hant")
+            else -> Locale.forLanguageTag(lang)
         }
         return locale!!.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) }
     }
