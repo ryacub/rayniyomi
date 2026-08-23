@@ -15,6 +15,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -86,11 +88,7 @@ class TranslationManagerTest {
         ).also { manager = it }
     }
 
-    /**
-     * Manager whose coroutines start eagerly and share the test scheduler's virtual time.
-     * The scope is not a child of [TestScope], so the eternal language observer
-     * does not block runTest completion.
-     */
+    /** Not a child of [TestScope], so the endless language observer cannot block runTest. */
     private fun TestScope.createEagerManager(): TranslationManager =
         createManager(CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
 
@@ -451,7 +449,7 @@ class TranslationManagerTest {
     @Test
     fun `changing target language resets in-memory chapter states`() = runTest {
         createEagerManager()
-        advanceUntilIdle() // let the language observer subscribe while value is "en"
+        advanceUntilIdle() // subscribe the observer before the value changes
         every { translationEngineFactory.create() } returns null
         manager.translateChapter(manga, chapter, source)
         assertTrue(manager.translationStates.value.containsKey(chapter.id))
@@ -466,7 +464,7 @@ class TranslationManagerTest {
     @Test
     fun `changing target language cancels an in-flight translation`() = runTest {
         createEagerManager()
-        advanceUntilIdle() // let the language observer subscribe while value is "en"
+        advanceUntilIdle() // subscribe the observer before the value changes
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         val uri = mockk<Uri>()
         val page = Page(0, uri = uri).apply { status = Page.State.READY }
@@ -492,7 +490,7 @@ class TranslationManagerTest {
     @Test
     fun `chapter translation uses one target language even if preference changes mid-run`() = runTest {
         createEagerManager()
-        advanceUntilIdle() // let the language observer subscribe while value is "en"
+        advanceUntilIdle() // subscribe the observer before the value changes
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         val uri = mockk<Uri>()
         val page = Page(0, uri = uri).apply { status = Page.State.READY }
@@ -519,7 +517,7 @@ class TranslationManagerTest {
     @Test
     fun `initial preference emission does not reset chapter states`() = runTest {
         createEagerManager()
-        advanceUntilIdle() // let the language observer subscribe while value is "en"
+        advanceUntilIdle() // subscribe the observer before the value changes
         every { translationEngineFactory.create() } returns null
         manager.translateChapter(manga, chapter, source)
         assertTrue(manager.translationStates.value.containsKey(chapter.id))
@@ -531,8 +529,7 @@ class TranslationManagerTest {
 
     @Test
     fun `language change does not leave stale state when a cancelled job finishes late`() {
-        // Real IO scope so the job tail and the observer race across threads,
-        // mirroring the production Dispatchers.IO window.
+        // Real IO scope so the job tail and the observer race across threads.
         createManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         val uri = mockk<Uri>()
@@ -542,9 +539,7 @@ class TranslationManagerTest {
         every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
         mockContentResolver(uri, imageBytes)
         coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
-            // Simulate the production race window: the old-language job holds its
-            // last resumption past cancellation and finishes its non-suspending
-            // tail after the observer cleared the state map.
+            // Hold the last resumption past cancellation so the tail runs after the clear.
             withContext(NonCancellable) {
                 val deadline = System.currentTimeMillis() + 2_000
                 while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
@@ -558,11 +553,10 @@ class TranslationManagerTest {
 
         manager.translateChapter(manga, chapter, source)
 
-        // Give the job time to reach the engine, then change the language
+        // Let the job reach the engine before changing the language.
         Thread.sleep(200)
         targetLanguageFlow.value = "it"
 
-        // The observer must clear the map only after the terminated job's final write
         val deadline = System.currentTimeMillis() + 5_000
         while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
             Thread.sleep(20)
@@ -578,6 +572,71 @@ class TranslationManagerTest {
 
     private fun mockTargetLanguage(lang: String) {
         targetLanguageFlow.value = lang
+    }
+
+    // -----------------------------------------------------------------------
+    // languageGeneration
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `languageGeneration does not advance on construction`() = runTest {
+        createEagerManager()
+        advanceUntilIdle()
+
+        assertEquals(0, manager.languageGeneration.value)
+    }
+
+    @Test
+    fun `languageGeneration advances once per target language change`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+        assertEquals(1, manager.languageGeneration.value)
+
+        targetLanguageFlow.value = "fr"
+        advanceUntilIdle()
+        assertEquals(2, manager.languageGeneration.value)
+    }
+
+    @Test
+    fun `languageGeneration does not advance when the language is set to its current value`() = runTest {
+        createEagerManager()
+        advanceUntilIdle()
+
+        targetLanguageFlow.value = "en"
+        advanceUntilIdle()
+
+        assertEquals(0, manager.languageGeneration.value)
+    }
+
+    /**
+     * Collectors of [TranslationManager.languageGeneration] resume only after
+     * onTargetLanguageChanged returns, so they never observe a half-applied change.
+     */
+    @Test
+    fun `a languageGeneration observer never sees leftover chapter states`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        every { translationEngineFactory.create() } returns null
+        manager.translateChapter(manga, chapter, source)
+        assertTrue(manager.translationStates.value.isNotEmpty())
+
+        val statesAtBump = mutableListOf<Map<Long, TranslationState>>()
+        // Unconfined so the observer subscribes now; a lazy one would see the post-bump
+        // value as its initial emission and drop it.
+        val observer = launch(UnconfinedTestDispatcher(testScheduler)) {
+            manager.languageGeneration.drop(1).collect {
+                statesAtBump += manager.translationStates.value
+            }
+        }
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+        observer.cancel()
+
+        assertEquals(listOf(emptyMap<Long, TranslationState>()), statesAtBump)
     }
 
     private fun mockTranslationProvider(provider: TranslationProvider) {

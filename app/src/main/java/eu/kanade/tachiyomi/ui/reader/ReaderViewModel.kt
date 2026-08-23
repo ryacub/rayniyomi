@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
+import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.model.Page
@@ -106,6 +107,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val translationStorageManager: TranslationStorageManager = Injekt.get(),
     private val translationPreferences: TranslationPreferences = Injekt.get(),
+    private val translationManager: TranslationManager = Injekt.get(),
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(State())
@@ -192,22 +194,15 @@ class ReaderViewModel @JvmOverloads constructor(
             }
             .launchIn(viewModelScope)
 
-        // Recompute translation state when the target language changes
         viewModelScope.launchIO {
-            translationPreferences.targetLanguage().changes()
-                .distinctUntilChanged()
+            translationManager.languageGeneration
                 .drop(1)
                 .collect {
-                    val currChapters = mutableState.value.viewerChapters ?: return@collect
-                    val currChapter = currChapters.currChapter
+                    val currChapter = mutableState.value.viewerChapters?.currChapter ?: return@collect
                     mutableState.update {
                         it.copy(hasTranslation = computeHasTranslation(currChapter.chapter))
                     }
-                    if (mutableState.value.showTranslatedPages) {
-                        currChapter.requestedPage = currChapter.chapter.last_page_read
-                        // Force ChapterLoader to rebuild the page list with the new language;
-                        // a Loaded chapter would keep its old-language pages otherwise.
-                        currChapter.state = ReaderChapter.State.Wait
+                    if (prepareTranslationReload(currChapter, mutableState.value.showTranslatedPages)) {
                         eventChannel.send(Event.ReloadViewerChapters)
                     }
                 }
@@ -343,9 +338,6 @@ class ReaderViewModel @JvmOverloads constructor(
         return newChapters
     }
 
-    /**
-     * Checks whether the chapter has a stored translation for the current target language.
-     */
     private fun computeHasTranslation(chapter: Chapter): Boolean {
         val currentManga = mutableState.value.manga ?: return false
         val currentSource = sourceManager.getOrStub(currentManga.source)

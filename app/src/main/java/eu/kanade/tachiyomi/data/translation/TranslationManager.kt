@@ -47,6 +47,14 @@ class TranslationManager(
 
     private val activeJobs = ConcurrentHashMap<Long, Job>()
 
+    private val _languageGeneration = MutableStateFlow(0)
+
+    /**
+     * Bumps once the target language change has fully settled. Observers that need to run
+     * after stale state is gone should collect this instead of the preference itself.
+     */
+    val languageGeneration: StateFlow<Int> = _languageGeneration.asStateFlow()
+
     init {
         this.scope.launch {
             translationPreferences.targetLanguage().changes()
@@ -57,9 +65,8 @@ class TranslationManager(
     }
 
     /**
-     * Cancel all in-flight translations, wait for their termination, then clear
-     * in-memory states. Join runs before the clear so a job finishing its
-     * non-suspending tail cannot repopulate stale old-language state.
+     * Joins before clearing so a cancelled job finishing its non-suspending tail
+     * cannot repopulate stale old-language state.
      */
     private suspend fun onTargetLanguageChanged() {
         val jobs = activeJobs.values.toList()
@@ -67,6 +74,7 @@ class TranslationManager(
         activeJobs.clear()
         jobs.forEach { it.join() }
         _translationStates.value = emptyMap()
+        _languageGeneration.update { it + 1 }
     }
 
     /**
