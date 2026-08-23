@@ -2,10 +2,21 @@ package eu.kanade.tachiyomi.ui.player.loader
 
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.Video
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -16,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HosterOrchestratorTest {
@@ -26,7 +38,7 @@ class HosterOrchestratorTest {
     @BeforeEach
     fun setup() {
         testScope = TestScope()
-        orchestrator = HosterOrchestrator(testScope)
+        orchestrator = HosterOrchestrator(testScope, onNoVideosAvailable = {})
     }
 
     @Test
@@ -173,6 +185,166 @@ class HosterOrchestratorTest {
         assertEquals(Pair(0, 0), orchestrator.selectedHosterVideoIndex.value)
     }
 
+    @Test
+    fun `loadHosters reports no available videos without an uncaught exception`() {
+        val uncaughtExceptions = mutableListOf<Throwable>()
+        val scope = CoroutineScope(
+            SupervisorJob() + CoroutineExceptionHandler { _, error ->
+                synchronized(uncaughtExceptions) {
+                    uncaughtExceptions += error
+                }
+            },
+        )
+        val errorCount = AtomicInteger()
+        val errorLatch = CountDownLatch(1)
+        val allowErrorCallbackToReturn = CompletableDeferred<Unit>()
+        val localOrchestrator = HosterOrchestrator(
+            scope = scope,
+            onNoVideosAvailable = {
+                errorCount.incrementAndGet()
+                errorLatch.countDown()
+                allowErrorCallbackToReturn.await()
+            },
+        )
+
+        try {
+            localOrchestrator.loadHosters(
+                source = mockk(),
+                hosterList = listOf(
+                    Hoster(hosterName = "failed", videoList = null),
+                    Hoster(hosterName = "empty", videoList = emptyList()),
+                ),
+                hosterIndex = -1,
+                videoIndex = -1,
+            )
+
+            assertEquals(true, errorLatch.await(5, TimeUnit.SECONDS))
+            val loadJob = scope.coroutineContext[Job]?.children?.single()
+            allowErrorCallbackToReturn.complete(Unit)
+            runBlocking { loadJob?.join() }
+            assertEquals(1, errorCount.get())
+            assertEquals(Pair(-1, -1), localOrchestrator.selectedHosterVideoIndex.value)
+            assertNull(localOrchestrator.currentVideo.value)
+            synchronized(uncaughtExceptions) {
+                assertEquals(emptyList<Throwable>(), uncaughtExceptions)
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `onVideoClicked reports failure when the last video does not resolve`() {
+        val uncaughtExceptions = mutableListOf<Throwable>()
+        val completionLatch = CountDownLatch(1)
+        val scope = CoroutineScope(
+            SupervisorJob() + CoroutineExceptionHandler { _, error ->
+                synchronized(uncaughtExceptions) {
+                    uncaughtExceptions += error
+                }
+                completionLatch.countDown()
+            },
+        )
+        val failureCount = AtomicInteger()
+        val localOrchestrator = HosterOrchestrator(scope, onNoVideosAvailable = {})
+        localOrchestrator.setHosterStateForTest(
+            listOf(
+                HosterState.Ready(
+                    name = "hoster",
+                    videoList = listOf(Video(videoUrl = "", videoTitle = "unavailable")),
+                    videoState = listOf(Video.State.QUEUE),
+                ),
+            ),
+        )
+
+        try {
+            localOrchestrator.onVideoClicked(
+                hosterIndex = 0,
+                videoIndex = 0,
+                currentSource = mockk(),
+                onSuccess = {},
+                onFailure = {
+                    failureCount.incrementAndGet()
+                    completionLatch.countDown()
+                },
+            )
+
+            assertEquals(true, completionLatch.await(5, TimeUnit.SECONDS))
+            assertEquals(1, failureCount.get())
+            synchronized(uncaughtExceptions) {
+                assertEquals(emptyList<Throwable>(), uncaughtExceptions)
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `loadHosters keeps first viable video order`() {
+        val firstVideo = Video(videoUrl = "https://example.invalid/first", videoTitle = "first")
+        val secondVideo = Video(videoUrl = "https://example.invalid/second", videoTitle = "second")
+        val readyLatch = CountDownLatch(1)
+        var readyVideo: Video? = null
+        orchestrator.onVideoReady = { video ->
+            readyVideo = video
+            readyLatch.countDown()
+        }
+
+        orchestrator.loadHosters(
+            source = mockk(),
+            hosterList = listOf(
+                Hoster(hosterName = "first", videoList = listOf(firstVideo)),
+                Hoster(hosterName = "second", videoList = listOf(secondVideo)),
+            ),
+            hosterIndex = -1,
+            videoIndex = -1,
+        )
+
+        assertEquals(true, readyLatch.await(5, TimeUnit.SECONDS))
+        assertEquals(firstVideo.copy(initialized = true), readyVideo)
+        assertEquals(Pair(0, 0), orchestrator.selectedHosterVideoIndex.value)
+    }
+
+    @Test
+    fun `loadHosters tries the next video before reporting a terminal error`() {
+        val unavailableVideo = Video(videoUrl = "https://example.invalid/unavailable", videoTitle = "unavailable")
+        val availableVideo = Video(videoUrl = "https://example.invalid/available", videoTitle = "available")
+        val videos = listOf(unavailableVideo, availableVideo)
+        val source = mockk<AnimeHttpSource>()
+        every { with(source) { videos.sortVideos() } } returns videos
+        coEvery { source.resolveVideo(unavailableVideo) } returns null
+        coEvery { source.resolveVideo(availableVideo) } returns availableVideo
+        val completionLatch = CountDownLatch(1)
+        val errorCount = AtomicInteger()
+        var readyVideo: Video? = null
+        val localOrchestrator = HosterOrchestrator(
+            scope = testScope,
+            onNoVideosAvailable = {
+                errorCount.incrementAndGet()
+                completionLatch.countDown()
+            },
+        )
+        localOrchestrator.onVideoReady = { video ->
+            readyVideo = video
+            completionLatch.countDown()
+        }
+        localOrchestrator.setCurrentVideoForTest(
+            Video(videoUrl = "https://example.invalid/previous", videoTitle = "previous"),
+        )
+
+        localOrchestrator.loadHosters(
+            source = source,
+            hosterList = listOf(Hoster(hosterName = "hoster", videoList = videos)),
+            hosterIndex = -1,
+            videoIndex = -1,
+        )
+
+        assertEquals(true, completionLatch.await(5, TimeUnit.SECONDS))
+        assertEquals(0, errorCount.get())
+        assertEquals(availableVideo.copy(initialized = true), readyVideo)
+        assertEquals(Pair(0, 1), localOrchestrator.selectedHosterVideoIndex.value)
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun HosterOrchestrator.setHosterListForTest(value: List<Hoster>) {
         val field = HosterOrchestrator::class.java.getDeclaredField("_hosterList")
@@ -192,5 +364,12 @@ class HosterOrchestratorTest {
         val field = HosterOrchestrator::class.java.getDeclaredField("_hosterExpandedList")
         field.isAccessible = true
         (field.get(this) as MutableStateFlow<List<Boolean>>).value = value
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun HosterOrchestrator.setCurrentVideoForTest(value: Video) {
+        val field = HosterOrchestrator::class.java.getDeclaredField("_currentVideo")
+        field.isAccessible = true
+        (field.get(this) as MutableStateFlow<Video?>).value = value
     }
 }

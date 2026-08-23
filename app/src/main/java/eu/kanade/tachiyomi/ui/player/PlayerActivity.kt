@@ -1086,7 +1086,7 @@ class PlayerActivity : BaseActivity() {
      * Called from the presenter if the initial load couldn't load the videos of the episode. In
      * this case the activity is closed and a toast is shown to the user.
      */
-    private fun setInitialEpisodeError(error: Throwable) {
+    internal fun setInitialEpisodeError(error: Throwable) {
         if (error is PlayerViewModel.ExceptionWithStringResource) {
             toast(error.stringResource)
         } else {
