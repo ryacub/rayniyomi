@@ -82,6 +82,7 @@ internal class PageCurlCoordinator(
             advance(useAnimation)
             return
         }
+        cancelCurrentCurl()
         pendingFromBitmap = fromBitmap
         // Set after cancelCurrentCurl() so it does not clear the new target, and before
         // advance(false) so the synchronous onPageSelected callback sees a match.

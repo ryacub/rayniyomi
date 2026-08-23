@@ -249,6 +249,46 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.inputEnabled shouldBe true
     }
 
+    @Test
+    fun `stale callbacks from a superseded curl cannot affect a newer curl`() {
+        val fixture = Fixture()
+        val firstFrom = fixture.bitmap()
+        val firstTo = fixture.bitmap()
+        val secondFrom = fixture.bitmap()
+        val secondTo = fixture.bitmap()
+        every { fixture.overlay.captureBitmap(any()) } returnsMany
+            listOf(firstFrom, firstTo, secondFrom, secondTo)
+
+        fixture.startCurl()
+        fixture.endCallbacks.first().invoke()
+        val staleLayoutCallback = fixture.nextPostedCallback()
+
+        fixture.nowMs += 1_000L
+        fixture.coordinator.runOrFallback(
+            targetPosition = TARGET_POSITION + 1,
+            curlFromRight = true,
+            advance = {},
+        )
+        fixture.runNewestPostedCallback()
+
+        staleLayoutCallback.run()
+        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.isVisible = false }
+        fixture.delayedCallbacks.size shouldBe 0
+        verify(exactly = 0) { secondFrom.recycle() }
+        verify(exactly = 0) { secondTo.recycle() }
+
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
+        verify(exactly = 2) { fixture.overlay.cancelCurl() }
+        verify(exactly = 2) { fixture.overlay.isVisible = false }
+        verify(exactly = 1) { secondFrom.recycle() }
+        verify(exactly = 1) { secondTo.recycle() }
+        verify(exactly = 1) {
+            fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
+        }
+        fixture.inputEnabled shouldBe true
+    }
+
     private class Fixture {
         val pager = mockk<Pager>(relaxed = true)
         val overlay = mockk<PageCurlOverlayView>(relaxed = true)
@@ -289,6 +329,7 @@ class PageCurlCoordinatorLifecycleTest {
                 delayedCallbacks += firstArg<Runnable>()
                 true
             }
+
             every { pager.removeCallbacks(any()) } answers {
                 val runnable = firstArg<Runnable>()
                 postedCallbacks.remove(runnable) || delayedCallbacks.remove(runnable)
@@ -313,6 +354,10 @@ class PageCurlCoordinatorLifecycleTest {
                 advance = {},
             )
             runNextPostedCallback()
+        }
+
+        fun runNewestPostedCallback() {
+            postedCallbacks.removeLast().run()
         }
 
         fun simulateTap(targetPosition: Int) {
