@@ -50,6 +50,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
+import tachiyomi.core.common.util.system.NonFatalReporter
 import tachiyomi.presentation.core.components.Scroller.STICKY_HEADER_KEY_PREFIX
 import kotlin.math.abs
 import kotlin.math.max
@@ -74,6 +75,14 @@ fun VerticalFastScroller(
     content: @Composable () -> Unit,
 ) {
     SubcomposeLayout(modifier = modifier) { constraints ->
+        if (constraints.maxHeight == Constraints.Infinity) {
+            NonFatalReporter.reportOnce(
+                "vertical_fast_scroller.unbounded_height",
+                IllegalStateException("VerticalFastScroller received unbounded height constraints"),
+                "constraints=$constraints",
+            )
+            return@SubcomposeLayout layout(0, 0) {}
+        }
         val contentPlaceable = subcompose("content", content).map { it.measure(constraints) }
         val contentHeight = contentPlaceable.fastMaxBy { it.height }?.height ?: 0
         val contentWidth = contentPlaceable.fastMaxBy { it.width }?.width ?: 0
@@ -245,6 +254,14 @@ fun VerticalGridFastScroller(
     )
 
     SubcomposeLayout(modifier = modifier) { constraints ->
+        if (constraints.maxHeight == Constraints.Infinity) {
+            NonFatalReporter.reportOnce(
+                "vertical_grid_fast_scroller.unbounded_height",
+                IllegalStateException("VerticalGridFastScroller received unbounded height constraints"),
+                "constraints=$constraints",
+            )
+            return@SubcomposeLayout layout(0, 0) {}
+        }
         val contentPlaceable = subcompose("content", content).map { it.measure(constraints) }
         val contentHeight = contentPlaceable.fastMaxBy { it.height }?.height ?: 0
         val contentWidth = contentPlaceable.fastMaxBy { it.width }?.width ?: 0
