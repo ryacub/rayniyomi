@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class HosterOrchestrator(
     private val scope: CoroutineScope,
+    private val onNoVideosAvailable: suspend () -> Unit,
 ) {
     private companion object {
         const val HOSTER_LOAD_PARALLELISM = 4
@@ -141,13 +142,8 @@ class HosterOrchestrator(
                     }.awaitAll()
 
                     if (hasFoundPreferredVideo.compareAndSet(false, true)) {
-                        val (hosterIdx, videoIdx) = HosterLoader.selectBestVideo(hosterState.value)
-                        if (hosterIdx == -1) {
-                            throw Exception("No available videos")
-                        }
-
-                        readyVideoAt(hosterIdx, videoIdx)?.let { video ->
-                            loadVideo(source, video, hosterIdx, videoIdx)
+                        if (!loadBestAvailableVideo(source)) {
+                            onNoVideosAvailable()
                         }
                     }
                 }
@@ -158,6 +154,16 @@ class HosterOrchestrator(
 
                 throw e
             }
+        }
+    }
+
+    private suspend fun loadBestAvailableVideo(source: AnimeSource): Boolean {
+        while (true) {
+            val (hosterIndex, videoIndex) = HosterLoader.selectBestVideo(hosterState.value)
+            if (hosterIndex == -1) return false
+
+            val video = readyVideoAt(hosterIndex, videoIndex) ?: return false
+            if (loadVideo(source, video, hosterIndex, videoIndex)) return true
         }
     }
 
@@ -203,10 +209,8 @@ class HosterOrchestrator(
                     if (newHosterIdx == -1) {
                         if (_hosterState.value.any { it is HosterState.Loading }) {
                             _selectedHosterVideoIndex.update { Pair(-1, -1) }
-                            return false
-                        } else {
-                            throw Exception("No available videos")
                         }
+                        return false
                     }
 
                     val newVideo = readyVideoAt(newHosterIdx, newVideoIdx)

@@ -204,7 +204,16 @@ class PlayerViewModel @JvmOverloads internal constructor(
     val isLoading = MutableStateFlow(true)
     val playbackSpeed = MutableStateFlow(playerPreferences.playerSpeed().get())
 
-    private val hosterOrchestrator = HosterOrchestrator(viewModelScope).apply {
+    private val hosterOrchestrator = HosterOrchestrator(
+        scope = viewModelScope,
+        onNoVideosAvailable = {
+            withUIContext {
+                activity.setInitialEpisodeError(
+                    ExceptionWithStringResource("No available videos", AYMR.strings.no_hosters),
+                )
+            }
+        },
+    ).apply {
         onVideoReady = { video ->
             // Update quality index for SavedState persistence
             qualityIndex = selectedHosterVideoIndex.value

@@ -21,6 +21,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.
+- The player now shows the standard playback error when no hoster provides a video.
 
 ### Changed
 
