@@ -23,6 +23,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.
 - The player now shows the standard playback error when no hoster provides a video.
 - Fixed a startup freeze caused by registering extension install receivers on the main thread.
+- Fixed a potential startup freeze (ANR) when many anime extensions are installed.
 
 ### Changed
 - The target language setting in Translation now uses a picker with readable language names instead of a free-text field. A language change now clears stale translation progress and results for chapters, and the reader reloads translated pages in the new language.
