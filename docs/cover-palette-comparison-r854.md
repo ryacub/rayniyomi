@@ -44,7 +44,7 @@ Tie or mixed result keeps the current sampler.
 
 ## Results
 
-50 covers (25 anime, 25 light novels). No cover excluded; both algorithms
+50 covers (28 anime, 22 light novels). No cover excluded; both algorithms
 produced a seed for every cover. A second full run produced a byte-identical
 CSV, so the measurements are deterministic.
 
