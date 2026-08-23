@@ -2,6 +2,7 @@
 
 package eu.kanade.tachiyomi.source.model
 
+import kotlinx.serialization.json.JsonObject
 import java.io.Serializable
 
 interface SManga : Serializable {
@@ -30,6 +31,15 @@ interface SManga : Serializable {
         if (genre.isNullOrBlank()) return null
         return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
     }
+
+    /**
+     * Returns the memo object that newer extension builds expect.
+     *
+     * This app version stores no memo, so it returns an empty object. The member
+     * exists so an extension compiled against a newer SManga keeps working
+     * instead of failing with a missing-member error.
+     */
+    fun getMemo(): JsonObject = JsonObject(emptyMap())
 
     fun copy() = create().also {
         it.url = url
