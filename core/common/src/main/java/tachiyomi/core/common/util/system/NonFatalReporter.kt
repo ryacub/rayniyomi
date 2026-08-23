@@ -2,7 +2,6 @@ package tachiyomi.core.common.util.system
 
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
-
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 

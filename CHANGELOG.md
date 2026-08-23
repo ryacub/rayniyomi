@@ -22,6 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.
 - The player now shows the standard playback error when no hoster provides a video.
+- The app no longer crashes when a fast scroller is measured inside a scrollable container that gives it unbounded height. The scroller now reports the fault as a non-fatal and lays out with zero size.
 
 ### Changed
 
