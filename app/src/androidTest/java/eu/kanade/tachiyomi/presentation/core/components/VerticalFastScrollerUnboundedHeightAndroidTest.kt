@@ -3,8 +3,12 @@ package eu.kanade.tachiyomi.presentation.core.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,11 +27,16 @@ import tachiyomi.presentation.core.components.VerticalGridFastScroller
 
 /**
  * A scrollable column hands its children unbounded height constraints. The fast scrollers used to
- * measure their content with those constraints, and the inner lazy layouts threw. These tests hold
- * the guard that keeps composition alive instead.
+ * measure their content with those constraints, and the inner lazy layouts threw
+ * IllegalStateException. These tests hold the guard that keeps composition alive instead. The
+ * content must be a real lazy layout: a plain Text measures fine under unbounded height and would
+ * not catch a lost guard.
  */
 @RunWith(AndroidJUnit4::class)
 class VerticalFastScrollerUnboundedHeightAndroidTest {
+
+    private val listItems = (0 until 50).map { "item $it" }
+    private val gridItems = (0 until 50).map { "cell $it" }
 
     @get:Rule
     val composeRule = createComposeRule()
@@ -38,8 +47,11 @@ class VerticalFastScrollerUnboundedHeightAndroidTest {
             MaterialTheme {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text("outside")
-                    VerticalFastScroller(listState = rememberLazyListState()) {
-                        Text("list content")
+                    val listState = rememberLazyListState()
+                    VerticalFastScroller(listState = listState) {
+                        LazyColumn(state = listState) {
+                            items(listItems) { Text(it) }
+                        }
                     }
                 }
             }
@@ -56,13 +68,21 @@ class VerticalFastScrollerUnboundedHeightAndroidTest {
             MaterialTheme {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text("outside")
+                    val gridState = rememberLazyGridState()
                     VerticalGridFastScroller(
-                        state = rememberLazyGridState(),
+                        state = gridState,
                         columns = GridCells.Fixed(2),
                         arrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(8.dp),
                     ) {
-                        Text("grid content")
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(2),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(8.dp),
+                        ) {
+                            items(gridItems) { Text(it) }
+                        }
                     }
                 }
             }
