@@ -64,9 +64,12 @@ object SettingsReaderScreen : SearchableSettings {
                 title = stringResource(MR.strings.pref_show_navigation_mode),
                 subtitle = stringResource(MR.strings.pref_show_navigation_mode_summary),
             ),
-            Preference.PreferenceItem.SwitchPreference(
-                preference = readerPref.pageTransitions(),
-                title = stringResource(MR.strings.pref_page_transitions),
+            Preference.PreferenceItem.ListPreference(
+                preference = readerPref.pageTransitionStyle(),
+                entries = ReaderPreferences.PageTransitionStyle.entries
+                    .associateWith { stringResource(it.labelRes()) }
+                    .toImmutableMap(),
+                title = stringResource(MR.strings.pref_page_transition_style),
             ),
             getDisplayGroup(readerPreferences = readerPref),
             getEInkGroup(readerPreferences = readerPref),
@@ -475,4 +478,10 @@ object SettingsReaderScreen : SearchableSettings {
             ),
         )
     }
+}
+
+private fun ReaderPreferences.PageTransitionStyle.labelRes() = when (this) {
+    ReaderPreferences.PageTransitionStyle.NONE -> MR.strings.pref_page_transition_style_none
+    ReaderPreferences.PageTransitionStyle.SLIDE -> MR.strings.pref_page_transition_style_slide
+    ReaderPreferences.PageTransitionStyle.CURL -> MR.strings.pref_page_transition_style_curl
 }

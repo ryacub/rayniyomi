@@ -13,8 +13,6 @@ class ReaderPreferences(
 
     // region General
 
-    fun pageTransitions() = preferenceStore.getBoolean("pref_enable_transitions_key", true)
-
     fun pageTransitionStyle() =
         preferenceStore.getEnum("pref_page_transition_style", PageTransitionStyle.SLIDE)
 
