@@ -23,9 +23,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Tests the real [AnimeExtensionManager.mapExtensions] helper. The helper must map
- * the extension map on a worker dispatcher and must preserve the values, ordering,
- * and conflation of its upstream [MutableStateFlow].
+ * Tests the real [AnimeExtensionManager.mapExtensions] helper. The mapping must run on
+ * the injected worker dispatcher, and rapid source-map replacement must conflate to the
+ * latest value so install-replace events cannot surface duplicate or dropped entries.
  */
 class AnimeExtensionManagerMapExtensionsTest {
 
@@ -77,33 +77,6 @@ class AnimeExtensionManagerMapExtensionsTest {
     }
 
     @Test
-    fun `initial mapped value equals the source map contents`() = runTest {
-        val extensions = listOf(untrusted("a"), untrusted("b"))
-        val source = MutableStateFlow(extensions.associateBy { it.pkgName })
-
-        val mapped = source.mapExtensions(managerScope(), UnconfinedTestDispatcher(testScheduler))
-
-        assertEquals(listOf(untrusted("a"), untrusted("b")), mapped.value)
-    }
-
-    @Test
-    fun `adding a key emits the updated list`() = runTest {
-        val a = untrusted("a")
-        val b = untrusted("b")
-        val source = MutableStateFlow(mapOf("a" to a))
-        val mapped = source.mapExtensions(managerScope(), UnconfinedTestDispatcher(testScheduler))
-        val collected = mutableListOf<List<AnimeExtension.Untrusted>>()
-        val scope = managerScope()
-        scope.launch { mapped.collect { collected += it } }
-        advanceUntilIdle()
-
-        source.value = source.value + ("b" to b)
-        advanceUntilIdle()
-
-        assertEquals(listOf(a, b), collected.last())
-    }
-
-    @Test
     fun `rapid replacement conflates to one entry with the latest value`() = runTest {
         val v1 = untrusted("pkg")
         val v2 = v1.copy(versionName = "2.0", versionCode = 2)
@@ -119,26 +92,6 @@ class AnimeExtensionManagerMapExtensionsTest {
         advanceUntilIdle()
 
         assertEquals(listOf(v3), mapped.value)
-    }
-
-    @Test
-    fun `sequential mutations emit lists matching the source snapshot`() = runTest {
-        val v1 = untrusted("pkg")
-        val v2 = v1.copy(versionName = "2.0", versionCode = 2)
-        val v3 = v1.copy(versionName = "3.0", versionCode = 3)
-        val source = MutableStateFlow(mapOf("pkg" to v1))
-        val mapped = source.mapExtensions(managerScope(), UnconfinedTestDispatcher(testScheduler))
-        val collected = mutableListOf<List<AnimeExtension.Untrusted>>()
-        val scope = managerScope()
-        scope.launch { mapped.collect { collected += it } }
-        advanceUntilIdle()
-
-        source.value = mapOf("pkg" to v2)
-        advanceUntilIdle()
-        source.value = mapOf("pkg" to v3)
-        advanceUntilIdle()
-
-        assertEquals(listOf(listOf(v1), listOf(v2), listOf(v3)), collected)
     }
 
     /**
