@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import android.graphics.Bitmap
 import android.graphics.PointF
-import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -67,33 +65,20 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
      */
     private val container = FrameLayout(activity)
 
-    /**
-     * Curl overlay for horizontal pagers. Vertical paging has no page-turn direction,
-     * so vertical pagers leave this null and always fall back to slide or snap.
-     */
-    private val curlOverlay: PageCurlOverlayView? =
-        if (this is L2RPagerViewer || this is R2LPagerViewer) PageCurlOverlayView(activity) else null
-
-    /**
-     * Monotonic id of the running curl. Stale end callbacks compare their captured id
-     * against this field and ignore themselves when the ids differ.
-     */
-    private var curlGenerationId = 0L
-
-    /**
-     * Uptime timestamp of the previous page navigation. Turns inside the rapid
-     * navigation window skip the curl and avoid queued animations.
-     */
-    private var lastNavigationAtMs = 0L
-
-    /** Pending target-holder poll. Cleared in [destroy]. */
-    private var curlTargetReadyRunnable: Runnable? = null
-
-    /** Pending gesture re-enable callback. Cleared in [destroy]. */
-    private var curlGestureReenableRunnable: Runnable? = null
-
-    /** Pending layout poll. Cleared in [destroy]. */
-    private var curlLayoutCheckRunnable: Runnable? = null
+    private val curlCoordinator =
+        if (this is L2RPagerViewer || this is R2LPagerViewer) {
+            PageCurlCoordinator(
+                overlay = PageCurlOverlayView(activity),
+                pager = pager,
+                storedTransitionStyle = { config.pageTransitionStyle },
+                effectiveTransitionStyle = { config.effectiveTransitionStyle(activity) },
+                sourceHolder = { (currentPage as? ReaderPage)?.let(::getPageHolder) },
+                itemAt = { adapter.items.getOrNull(it) },
+                holderFor = ::getPageHolder,
+            )
+        } else {
+            null
+        }
 
     /**
      * Viewer chapters to set when the pager enters idle mode. Otherwise, if the view was settling
@@ -133,7 +118,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             pager,
             FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
         )
-        curlOverlay?.let { overlay ->
+        curlCoordinator?.overlay?.let { overlay ->
             container.addView(
                 overlay,
                 FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
@@ -200,13 +185,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
 
     override fun destroy() {
         super.destroy()
-        curlTargetReadyRunnable?.let(pager::removeCallbacks)
-        curlTargetReadyRunnable = null
-        curlLayoutCheckRunnable?.let(pager::removeCallbacks)
-        curlLayoutCheckRunnable = null
-        curlGestureReenableRunnable?.let(pager::removeCallbacks)
-        curlGestureReenableRunnable = null
-        curlOverlay?.cancelCurl()
+        curlCoordinator?.release()
         scope.cancel()
     }
 
@@ -390,7 +369,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             if (holder != null && config.navigateToPan && holder.canPanRight()) {
                 holder.panRight()
             } else {
-                attemptCurlThenAdvance(targetPosition = pager.currentItem + 1, curlFromRight = true)
+                advanceToPage(targetPosition = pager.currentItem + 1, curlFromRight = true)
             }
         }
     }
@@ -404,159 +383,21 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             if (holder != null && config.navigateToPan && holder.canPanLeft()) {
                 holder.panLeft()
             } else {
-                attemptCurlThenAdvance(targetPosition = pager.currentItem - 1, curlFromRight = false)
+                advanceToPage(targetPosition = pager.currentItem - 1, curlFromRight = false)
             }
         }
     }
 
-    /**
-     * Attempts to play the curl animation before advancing to [targetPosition]. Falls
-     * back to slide or snap when any curl precondition fails or the capture fails.
-     */
-    private fun attemptCurlThenAdvance(targetPosition: Int, curlFromRight: Boolean) {
-        val nowMs = SystemClock.uptimeMillis()
-        val preference = config.pageTransitionStyle
-        val withinRapidNavigationWindow = nowMs - lastNavigationAtMs < RAPID_NAVIGATION_WINDOW_MS
-        lastNavigationAtMs = nowMs
-
-        // effectiveTransitionStyle reads the system animator scale through a
-        // ContentResolver. Consult it only for CURL because other styles ignore it.
-        val style = if (preference == ReaderPreferences.PageTransitionStyle.CURL) {
-            config.effectiveTransitionStyle(activity)
-        } else {
-            preference
-        }
-        val useAnimation = style != ReaderPreferences.PageTransitionStyle.NONE
-        val overlay = curlOverlay
-        val sourceHolder = (currentPage as? ReaderPage)?.let(::getPageHolder)
-        val targetItem = adapter.items.getOrNull(targetPosition)
-
-        // ViewPager keeps the adjacent holder alive (offscreenPageLimit = 1), so an
-        // existing holder reports its real zoom state. A holder ViewPager has not
-        // created yet cannot be mid-zoom, so absence means at-minimum zoom.
-        val targetHolder = (targetItem as? ReaderPage)?.let(::getPageHolder)
-
-        val canAttemptCurl = overlay != null &&
-            sourceHolder != null &&
-            shouldAttemptCurl(
-                style = style,
-                targetIsChapterTransition = targetItem is ChapterTransition,
-                sourceAtMinimumZoom = sourceHolder.isAtMinimumZoom(),
-                targetAtMinimumZoom = targetHolder?.isAtMinimumZoom() ?: true,
-                withinRapidNavigationWindow = withinRapidNavigationWindow,
-            )
-
-        if (!canAttemptCurl) {
-            pager.setCurrentItem(targetPosition, useAnimation)
+    private fun advanceToPage(targetPosition: Int, curlFromRight: Boolean) {
+        val coordinator = curlCoordinator
+        if (coordinator == null) {
+            val animate = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
+            pager.setCurrentItem(targetPosition, animate)
             return
         }
-
-        val fromBitmap = overlay.captureBitmap(sourceHolder)
-        if (fromBitmap == null) {
-            pager.setCurrentItem(targetPosition, useAnimation)
-            return
+        coordinator.runOrFallback(targetPosition, curlFromRight) { animate ->
+            pager.setCurrentItem(targetPosition, animate)
         }
-
-        // Snap now so ViewPager creates the target view under the overlay.
-        pager.setCurrentItem(targetPosition, false)
-        pager.setGestureDetectorEnabled(false)
-
-        var waitAttempts = 0
-        val checkTargetReady = Runnable {
-            val item = adapter.items.getOrNull(targetPosition)
-            // Reuse the holder found before the snap. The poll only covers the rare
-            // case where ViewPager had not created the holder yet.
-            val readyHolder = (item as? ReaderPage)?.let(::getPageHolder) ?: targetHolder
-
-            if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
-                curlTargetReadyRunnable = null
-                playAndHideCurl(fromBitmap, readyHolder, overlay, curlFromRight)
-            } else {
-                waitAttempts++
-                val pending = curlTargetReadyRunnable
-                if (pending != null) {
-                    pager.postDelayed(pending, TARGET_POLL_INTERVAL_MS)
-                }
-            }
-        }
-        curlTargetReadyRunnable?.let(pager::removeCallbacks)
-        curlTargetReadyRunnable = checkTargetReady
-        pager.post(checkTargetReady)
-    }
-
-    /**
-     * Plays the curl animation from [fromBitmap] to a capture of [targetHolder]. The
-     * generation id lets stale end callbacks detect that another curl replaced them.
-     */
-    private fun playAndHideCurl(
-        fromBitmap: Bitmap,
-        targetHolder: PagerPageHolder?,
-        overlay: PageCurlOverlayView,
-        curlFromRight: Boolean,
-    ) {
-        val toBitmap = targetHolder?.let { overlay.captureBitmap(it) }
-        if (toBitmap == null) {
-            fromBitmap.recycle()
-            pager.setGestureDetectorEnabled(true)
-            return
-        }
-
-        val generationId = ++curlGenerationId
-        overlay.playCurl(
-            from = fromBitmap,
-            to = toBitmap,
-            curlFromRight = curlFromRight,
-            durationMs = CURL_DURATION_MS,
-            onEnd = {
-                if (generationId == curlGenerationId) {
-                    waitForLayoutThenHideCurl(overlay, fromBitmap, toBitmap)
-                } else {
-                    // A newer curl owns the overlay and the gesture state, so this
-                    // stale callback recycles only its own bitmaps.
-                    fromBitmap.recycle()
-                    toBitmap.recycle()
-                }
-            },
-        )
-    }
-
-    /**
-     * Waits until the current page holder is laid out, then hides the overlay and
-     * recycles the bitmaps. The attempt cap bounds the wait as a fail-safe.
-     */
-    private fun waitForLayoutThenHideCurl(
-        overlay: PageCurlOverlayView,
-        fromBitmap: Bitmap,
-        toBitmap: Bitmap,
-    ) {
-        var layoutCheckAttempts = 0
-        val checkLayout = Runnable {
-            val item = adapter.items.getOrNull(pager.currentItem)
-            val isLaidOut = (item as? ReaderPage)?.let(::getPageHolder)?.isLaidOut == true
-
-            if (isLaidOut || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
-                curlLayoutCheckRunnable = null
-                // Clear the bitmap references before recycling so a later draw pass
-                // cannot touch recycled bitmaps.
-                overlay.isVisible = false
-                overlay.cancelCurl()
-                fromBitmap.recycle()
-                toBitmap.recycle()
-
-                val reenable = Runnable { pager.setGestureDetectorEnabled(true) }
-                curlGestureReenableRunnable = reenable
-                pager.postDelayed(reenable, GESTURE_REENABLE_DELAY_MS)
-            } else {
-                layoutCheckAttempts++
-                val pending = curlLayoutCheckRunnable
-                if (pending != null) {
-                    pager.postDelayed(pending, TARGET_POLL_INTERVAL_MS)
-                }
-            }
-        }
-        curlLayoutCheckRunnable?.let(pager::removeCallbacks)
-        curlLayoutCheckRunnable = checkLayout
-        pager.post(checkLayout)
     }
 
     /**
@@ -656,32 +497,5 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
 
     private fun cleanupPageSplit() {
         adapter.cleanupPageSplit()
-    }
-
-    companion object {
-        private const val CURL_DURATION_MS = 300L
-        private const val RAPID_NAVIGATION_WINDOW_MS = 500L
-        private const val TARGET_POLL_INTERVAL_MS = 10L
-        private const val TARGET_WAIT_MAX_ATTEMPTS = 10
-        private const val LAYOUT_WAIT_MAX_ATTEMPTS = 50
-        private const val GESTURE_REENABLE_DELAY_MS = 50L
-
-        /**
-         * Returns whether a page turn should attempt the curl animation.
-         * The function has no side effects, so tests run it without a view hierarchy.
-         */
-        fun shouldAttemptCurl(
-            style: ReaderPreferences.PageTransitionStyle,
-            targetIsChapterTransition: Boolean,
-            sourceAtMinimumZoom: Boolean,
-            targetAtMinimumZoom: Boolean,
-            withinRapidNavigationWindow: Boolean,
-        ): Boolean {
-            if (style != ReaderPreferences.PageTransitionStyle.CURL) return false
-            if (targetIsChapterTransition) return false
-            if (!sourceAtMinimumZoom || !targetAtMinimumZoom) return false
-            if (withinRapidNavigationWindow) return false
-            return true
-        }
     }
 }
