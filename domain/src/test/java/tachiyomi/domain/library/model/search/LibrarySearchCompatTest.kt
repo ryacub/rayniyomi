@@ -116,4 +116,13 @@ class LibrarySearchCompatTest {
             (parseSearchQuery("((((") is QueryNode) shouldBe true
         }
     }
+
+    @Test
+    fun `field prefix routes every search field alias to the new grammar`() {
+        LibrarySearchField.entries
+            .flatMap { field -> field.aliases.toList() }
+            .forEach { alias ->
+                isLegacySearchQuery("$alias:Frieren") shouldBe false
+            }
+    }
 }
