@@ -79,6 +79,7 @@ import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.SourceLinkageGuard
 import tachiyomi.core.common.util.lang.SourceLinkageReporter
 import tachiyomi.core.common.util.system.ImageUtil
+import tachiyomi.core.common.util.system.NonFatalReporter
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.widget.entries.anime.AnimeWidgetManager
@@ -119,6 +120,18 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         SourceLinkageGuard.install()
         SourceLinkageReporter.onFailure = { failure ->
             CrashlyticLogger.logException(failure, "extension_linkage")
+        }
+
+        // Contained faults reach the crash service through this one door. NonFatalReporter
+        // swallows a handler fault, and CrashlyticLogger tolerates a missing Crashlytics,
+        // so an early report can never break start-up. Only exceptions fit the logger contract;
+        // other throwables go to logcat instead.
+        NonFatalReporter.install { throwable, context ->
+            if (throwable is Exception) {
+                CrashlyticLogger.logException(throwable, context ?: "")
+            } else {
+                logcat(LogPriority.ERROR, throwable) { "Non-fatal error reported" }
+            }
         }
 
         // Secondary processes (e.g. :error_handler for crash UI) only need the above.
