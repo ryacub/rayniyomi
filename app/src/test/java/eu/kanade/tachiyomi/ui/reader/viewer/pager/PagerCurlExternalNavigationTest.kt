@@ -25,7 +25,7 @@ class PagerCurlExternalNavigationTest {
         verify(exactly = 1) { fixture.overlay.isVisible = false }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
@@ -39,7 +39,7 @@ class PagerCurlExternalNavigationTest {
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION)
 
         verify(exactly = 0) { fixture.overlay.cancelCurl() }
-        verify(exactly = 0) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 0) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test

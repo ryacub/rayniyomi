@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import com.google.android.material.button.MaterialButton
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.Pager.GestureInputMode
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
 
 /**
@@ -20,9 +21,9 @@ class ReaderButton @JvmOverloads constructor(
     var viewer: PagerViewer? = null
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        viewer?.pager?.setGestureDetectorEnabled(false)
+        viewer?.pager?.setGestureInputMode(GestureInputMode.DISABLED)
         if (event.actionMasked == MotionEvent.ACTION_UP) {
-            viewer?.pager?.setGestureDetectorEnabled(true)
+            viewer?.pager?.setGestureInputMode(GestureInputMode.ENABLED)
         }
         return super.onTouchEvent(event)
     }

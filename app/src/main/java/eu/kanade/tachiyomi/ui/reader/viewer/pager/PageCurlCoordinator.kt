@@ -87,7 +87,7 @@ internal class PageCurlCoordinator(
         // advance(false) so the synchronous onPageSelected callback sees a match.
         curlTargetPosition = targetPosition
         advance(false)
-        pager.setGestureDetectorEnabled(false)
+        pager.setGestureInputMode(Pager.GestureInputMode.SUPPRESS_CHROME)
         waitForTarget(targetPosition, targetHolder, fromBitmap, curlFromRight)
     }
 
@@ -132,7 +132,7 @@ internal class PageCurlCoordinator(
         recycle(pendingFrom)
         recycle(activeFrom)
         recycle(activeTo)
-        if (restoreInput) pager.setGestureDetectorEnabled(true)
+        if (restoreInput) pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
     }
 
     private fun waitForTarget(
@@ -170,7 +170,7 @@ internal class PageCurlCoordinator(
             // This exit bypasses cancelCurrentCurl because no curl state remains.
             curlTargetPosition = null
             recycle(fromBitmap)
-            pager.setGestureDetectorEnabled(true)
+            pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
             return
         }
 
@@ -211,7 +211,7 @@ internal class PageCurlCoordinator(
                 recycle(toBitmap)
 
                 val reenable = Runnable {
-                    if (!released) pager.setGestureDetectorEnabled(true)
+                    if (!released) pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
                 }
                 gestureReenableRunnable = reenable
                 pager.postDelayed(reenable, GESTURE_REENABLE_DELAY_MS)

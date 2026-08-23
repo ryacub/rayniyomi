@@ -26,7 +26,7 @@ class PageCurlCoordinatorLifecycleTest {
         )
 
         fallbacks.shouldContainExactly(true)
-        verify(exactly = 0) { fixture.pager.setGestureDetectorEnabled(false) }
+        verify(exactly = 0) { fixture.pager.setGestureInputMode(any()) }
     }
 
     @Test
@@ -39,7 +39,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
 
         verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
@@ -60,7 +60,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.delayedCallbacks.size shouldBe 1
 
         fixture.delayedCallbacks.single().run()
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
@@ -106,7 +106,7 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 1) { fixture.overlay.cancelCurl() }
         verify(exactly = 0) { secondFrom.recycle() }
         verify(exactly = 0) { secondTo.recycle() }
-        verify(exactly = 0) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 0) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
@@ -125,7 +125,7 @@ class PageCurlCoordinatorLifecycleTest {
         )
 
         fallbacks.shouldContainExactly(true)
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
     }
@@ -245,7 +245,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.runNextPostedCallback()
         fixture.delayedCallbacks.single().run()
 
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
         fixture.inputEnabled shouldBe true
     }
 
@@ -278,8 +278,8 @@ class PageCurlCoordinatorLifecycleTest {
             every { targetHolder.isAtMinimumZoom() } returns true
             every { targetHolder.isLaidOut } returns true
             every { pager.currentItem } answers { currentItemIndex }
-            every { pager.setGestureDetectorEnabled(any()) } answers {
-                inputEnabled = firstArg()
+            every { pager.setGestureInputMode(any()) } answers {
+                inputEnabled = firstArg<Pager.GestureInputMode>() == Pager.GestureInputMode.ENABLED
             }
             every { pager.post(any()) } answers {
                 postedCallbacks.addLast(firstArg<Runnable>())

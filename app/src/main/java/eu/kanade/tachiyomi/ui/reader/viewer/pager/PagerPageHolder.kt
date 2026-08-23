@@ -74,7 +74,7 @@ class PagerPageHolder(
     @SuppressLint("ClickableViewAccessibility")
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        viewer.pager.setGestureDetectorEnabled(true)
+        viewer.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
         loadJob?.cancel()
         loadJob = null
         scope.cancel()
@@ -323,7 +323,9 @@ class PagerPageHolder(
                         }
                     },
                     onActionPressChanged = { isPressed ->
-                        viewer.pager.setGestureDetectorEnabled(!isPressed)
+                        viewer.pager.setGestureInputMode(
+                            if (isPressed) Pager.GestureInputMode.DISABLED else Pager.GestureInputMode.ENABLED,
+                        )
                     },
                 ),
             )
