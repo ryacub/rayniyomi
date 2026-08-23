@@ -2,9 +2,14 @@ package tachiyomi.domain.library.model.search
 
 /**
  * Compiled once: the routing check runs for every item on every library emission.
+ * The alias set comes from [LibrarySearchField], which is the source of truth, so
+ * a new alias routes without a matching edit here.
  */
 private val FIELD_PREFIX_REGEX = Regex(
-    "(?<![a-zA-Z0-9_])(title|author|artist|description|desc|genre|tag|source|src|notes|note|language|lang):",
+    "(?<![a-zA-Z0-9_])(" +
+        LibrarySearchField.entries.flatMap { field -> field.aliases.toList() }
+            .joinToString("|") +
+        "):",
     RegexOption.IGNORE_CASE,
 )
 
