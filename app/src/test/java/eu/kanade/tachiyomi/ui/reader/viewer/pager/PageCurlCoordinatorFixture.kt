@@ -1,0 +1,123 @@
+package eu.kanade.tachiyomi.ui.reader.viewer.pager
+
+import android.graphics.Bitmap
+import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import io.mockk.every
+import io.mockk.mockk
+
+/**
+ * Shared test fixture for [PageCurlCoordinator]. It records posted and delayed
+ * callbacks, tracks the current item and gesture input state, and exposes a
+ * mutable clock.
+ */
+internal class PageCurlCoordinatorFixture(
+    pageCount: Int = DEFAULT_PAGE_COUNT,
+    initialItemIndex: Int = TARGET_POSITION,
+) {
+    val pager = mockk<Pager>(relaxed = true)
+    val overlay = mockk<PageCurlOverlayView>(relaxed = true)
+    val sourceHolder = mockk<PagerPageHolder>(relaxed = true)
+    val targetHolder = mockk<PagerPageHolder>(relaxed = true)
+    private val pages = List(pageCount) { ReaderPage(it) }
+    val endCallbacks = mutableListOf<() -> Unit>()
+    val delayedCallbacks = mutableListOf<Runnable>()
+    private val postedCallbacks = ArrayDeque<Runnable>()
+    var nowMs = 1_000L
+    var currentItemIndex = initialItemIndex
+    var inputEnabled = true
+
+    val coordinator = PageCurlCoordinator(
+        overlay = overlay,
+        pager = pager,
+        storedTransitionStyle = { PageTransitionStyle.CURL },
+        effectiveTransitionStyle = { PageTransitionStyle.CURL },
+        sourceHolder = { sourceHolder },
+        itemAt = { pages.getOrNull(it) },
+        holderFor = { targetHolder },
+        nowMs = { nowMs },
+    )
+
+    init {
+        every { sourceHolder.isAtMinimumZoom() } returns true
+        every { targetHolder.isAtMinimumZoom() } returns true
+        every { targetHolder.isLaidOut } returns true
+        every { pager.currentItem } answers { currentItemIndex }
+        every { pager.setGestureInputMode(any()) } answers {
+            inputEnabled = firstArg<Pager.GestureInputMode>() == Pager.GestureInputMode.ENABLED
+        }
+        every { pager.post(any()) } answers {
+            postedCallbacks.addLast(firstArg<Runnable>())
+            true
+        }
+        every { pager.postDelayed(any(), any()) } answers {
+            delayedCallbacks += firstArg<Runnable>()
+            true
+        }
+
+        every { pager.removeCallbacks(any()) } answers {
+            val runnable = firstArg<Runnable>()
+            postedCallbacks.remove(runnable) || delayedCallbacks.remove(runnable)
+        }
+        every {
+            overlay.playCurl(
+                from = any(),
+                to = any(),
+                curlFromRight = any(),
+                durationMs = any(),
+                onEnd = any(),
+            )
+        } answers {
+            endCallbacks += arg<() -> Unit>(4)
+        }
+    }
+
+    fun startCurl() {
+        coordinator.runOrFallback(
+            targetPosition = TARGET_POSITION,
+            curlFromRight = true,
+            advance = {},
+        )
+        runNextPostedCallback()
+    }
+
+    /**
+     * Runs a tap through the coordinator and drains all callbacks that the run
+     * posted, so each tap starts from a settled state.
+     */
+    fun simulateTap(targetPosition: Int) {
+        coordinator.runOrFallback(
+            targetPosition = targetPosition,
+            curlFromRight = true,
+            advance = { _ -> currentItemIndex = targetPosition },
+        )
+        while (postedCallbacks.isNotEmpty()) {
+            postedCallbacks.removeFirst().run()
+        }
+    }
+
+    fun runNewestPostedCallback() {
+        postedCallbacks.removeLast().run()
+    }
+
+    fun runNextPostedCallback() {
+        postedCallbacks.removeFirst().run()
+    }
+
+    fun nextPostedCallback(): Runnable {
+        return postedCallbacks.first()
+    }
+
+    fun bitmap(): Bitmap {
+        var recycled = false
+        return mockk {
+            every { isRecycled } answers { recycled }
+            every { recycle() } answers { recycled = true }
+        }
+    }
+
+    private companion object {
+        const val TARGET_POSITION = 1
+        const val DEFAULT_PAGE_COUNT = TARGET_POSITION + 4
+    }
+}
