@@ -8,7 +8,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `does not attempt curl when style is NONE`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.NONE,
             targetIsChapterTransition = false,
             sourceAtMinimumZoom = true,
@@ -19,7 +19,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `does not attempt curl when style is SLIDE`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.SLIDE,
             targetIsChapterTransition = false,
             sourceAtMinimumZoom = true,
@@ -30,7 +30,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `does not attempt curl for a chapter transition target`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.CURL,
             targetIsChapterTransition = true,
             sourceAtMinimumZoom = true,
@@ -41,7 +41,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `does not attempt curl when source page is zoomed`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.CURL,
             targetIsChapterTransition = false,
             sourceAtMinimumZoom = false,
@@ -52,7 +52,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `does not attempt curl when target page is zoomed`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.CURL,
             targetIsChapterTransition = false,
             sourceAtMinimumZoom = true,
@@ -63,7 +63,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `does not attempt curl during rapid navigation`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.CURL,
             targetIsChapterTransition = false,
             sourceAtMinimumZoom = true,
@@ -74,7 +74,7 @@ class PagerViewerCurlGatingTest {
 
     @Test
     fun `attempts curl when style is CURL and all preconditions hold`() {
-        PagerViewer.shouldAttemptCurl(
+        PageCurlCoordinator.shouldAttemptCurl(
             style = PageTransitionStyle.CURL,
             targetIsChapterTransition = false,
             sourceAtMinimumZoom = true,
