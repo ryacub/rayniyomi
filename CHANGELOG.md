@@ -24,6 +24,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Changed
 - The target language setting in Translation now uses a picker with readable language names instead of a free-text field. A language change now clears stale translation progress and results for chapters, and the reader reloads translated pages in the new language.
+- Translation requests now name the target language in full, so a model is asked for "Brazilian Portuguese" instead of "pt-BR".
 
 ### Removed
 

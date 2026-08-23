@@ -17,7 +17,7 @@ class TranslationPreferences(
     fun translationApiKey(provider: TranslationProvider) =
         preferenceStore.getString("translation_api_key_${provider.preferenceId}", "")
 
-    fun targetLanguage() = preferenceStore.getString("translation_target_language", "en")
+    fun targetLanguage() = preferenceStore.getString("translation_target_language", TargetLanguages.DEFAULT)
 
     fun translationModel(provider: TranslationProvider) =
         preferenceStore.getString("translation_model_${provider.preferenceId}", "")

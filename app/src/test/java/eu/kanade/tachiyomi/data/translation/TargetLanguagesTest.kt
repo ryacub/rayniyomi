@@ -60,6 +60,35 @@ class TargetLanguagesTest {
     }
 
     @Test
+    fun `prompt name is the English language name, not the raw tag`() {
+        TargetLanguages.promptName("en") shouldBe "English"
+        TargetLanguages.promptName("it") shouldBe "Italian"
+        TargetLanguages.promptName("pt-BR") shouldBe "Portuguese (Brazil)"
+    }
+
+    @Test
+    fun `prompt name resolves legacy Chinese tags to their script name`() {
+        TargetLanguages.promptName("zh-CN") shouldBe "Chinese (Simplified)"
+    }
+
+    @Test
+    fun `prompt name falls back to the code when the tag is malformed`() {
+        TargetLanguages.promptName("!!!") shouldBe "!!!"
+    }
+
+    @Test
+    fun `prompt name for a well-formed but unknown tag is never blank`() {
+        TargetLanguages.promptName("xx-YY").isNotBlank() shouldBe true
+    }
+
+    @Test
+    fun `every fixed code has an English prompt name`() {
+        TargetLanguages.supported.forEach { code ->
+            TargetLanguages.promptName(code) shouldNotBe code
+        }
+    }
+
+    @Test
     fun `blank current code adds no extra entry`() {
         val base = TargetLanguages.entries("en")
         TargetLanguages.entries("").keys shouldContainExactly base.keys
