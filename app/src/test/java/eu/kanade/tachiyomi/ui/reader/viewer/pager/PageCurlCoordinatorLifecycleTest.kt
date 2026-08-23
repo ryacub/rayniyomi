@@ -205,16 +205,62 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 2) { fixture.overlay.cancelCurl() }
     }
 
+    @Test
+    fun `four rapid taps inside one second advance four pages`() {
+        val fixture = Fixture()
+
+        fixture.simulateTap(TARGET_POSITION)
+        repeat(3) { index ->
+            fixture.nowMs += 100L
+            fixture.simulateTap(TARGET_POSITION + index + 1)
+        }
+
+        fixture.currentItemIndex shouldBe TARGET_POSITION + 3
+        verify(exactly = 1) {
+            fixture.overlay.playCurl(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `snap taps keep input enabled between turns`() {
+        val fixture = Fixture()
+
+        fixture.simulateTap(TARGET_POSITION)
+        repeat(3) { index ->
+            fixture.nowMs += 100L
+            fixture.simulateTap(TARGET_POSITION + index + 1)
+            fixture.inputEnabled shouldBe true
+        }
+    }
+
+    @Test
+    fun `normal completion restores input once through the delayed callback`() {
+        val fixture = Fixture()
+        val fromBitmap = fixture.bitmap()
+        val toBitmap = fixture.bitmap()
+        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+
+        fixture.startCurl()
+        fixture.endCallbacks.single().invoke()
+        fixture.runNextPostedCallback()
+        fixture.delayedCallbacks.single().run()
+
+        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        fixture.inputEnabled shouldBe true
+    }
+
     private class Fixture {
         val pager = mockk<Pager>(relaxed = true)
         val overlay = mockk<PageCurlOverlayView>(relaxed = true)
         val sourceHolder = mockk<PagerPageHolder>(relaxed = true)
         val targetHolder = mockk<PagerPageHolder>(relaxed = true)
-        private val targetPage = ReaderPage(TARGET_POSITION)
+        private val pages = List(TARGET_POSITION + 4) { ReaderPage(it) }
         val endCallbacks = mutableListOf<() -> Unit>()
         val delayedCallbacks = mutableListOf<Runnable>()
         private val postedCallbacks = ArrayDeque<Runnable>()
         var nowMs = 1_000L
+        var currentItemIndex = TARGET_POSITION
+        var inputEnabled = true
 
         val coordinator = PageCurlCoordinator(
             overlay = overlay,
@@ -222,7 +268,7 @@ class PageCurlCoordinatorLifecycleTest {
             storedTransitionStyle = { PageTransitionStyle.CURL },
             effectiveTransitionStyle = { PageTransitionStyle.CURL },
             sourceHolder = { sourceHolder },
-            itemAt = { targetPage },
+            itemAt = { pages.getOrNull(it) },
             holderFor = { targetHolder },
             nowMs = { nowMs },
         )
@@ -231,7 +277,10 @@ class PageCurlCoordinatorLifecycleTest {
             every { sourceHolder.isAtMinimumZoom() } returns true
             every { targetHolder.isAtMinimumZoom() } returns true
             every { targetHolder.isLaidOut } returns true
-            every { pager.currentItem } returns TARGET_POSITION
+            every { pager.currentItem } answers { currentItemIndex }
+            every { pager.setGestureDetectorEnabled(any()) } answers {
+                inputEnabled = firstArg()
+            }
             every { pager.post(any()) } answers {
                 postedCallbacks.addLast(firstArg<Runnable>())
                 true
@@ -264,6 +313,17 @@ class PageCurlCoordinatorLifecycleTest {
                 advance = {},
             )
             runNextPostedCallback()
+        }
+
+        fun simulateTap(targetPosition: Int) {
+            coordinator.runOrFallback(
+                targetPosition = targetPosition,
+                curlFromRight = true,
+                advance = { _ -> currentItemIndex = targetPosition },
+            )
+            while (postedCallbacks.isNotEmpty()) {
+                postedCallbacks.removeFirst().run()
+            }
         }
 
         fun runNextPostedCallback() {

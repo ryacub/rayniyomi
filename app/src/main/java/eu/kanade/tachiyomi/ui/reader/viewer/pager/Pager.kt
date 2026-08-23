@@ -37,6 +37,7 @@ open class Pager(
         }
 
         override fun onLongTapConfirmed(ev: MotionEvent) {
+            if (!isGestureDetectorEnabled) return
             val listener = longTapListener
             if (listener != null && listener.invoke(ev)) {
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -55,13 +56,20 @@ open class Pager(
     private var isGestureDetectorEnabled = true
 
     /**
+     * Whether non-navigation gestures (long tap, menu tap) are suppressed.
+     */
+    internal val isGestureInputSuppressed: Boolean
+        get() = !isGestureDetectorEnabled
+
+    /**
      * Dispatches a touch event.
      */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val handled = super.dispatchTouchEvent(ev)
-        if (isGestureDetectorEnabled) {
-            gestureDetector.onTouchEvent(ev)
-        }
+        // Taps must reach the listener even while a curl owns the screen. Inside the rapid
+        // window the coordinator snaps instead of stacking a curl; outside it a fresh curl
+        // replaces the old one. No turn is dropped.
+        gestureDetector.onTouchEvent(ev)
         return handled
     }
 
