@@ -13,8 +13,24 @@ private val FIELD_PREFIX_REGEX = Regex(
     RegexOption.IGNORE_CASE,
 )
 
+/**
+ * Compiled once: the routing check runs for every item on every library emission.
+ * The alias and symbol sets come from [ComparisonField] and [ComparisonOperator],
+ * which are the sources of truth, so a new alias or symbol routes without a
+ * matching edit here. Symbols are sorted longest-first so two-character operators
+ * match before their one-character prefixes.
+ */
 private val COMPARISON_REGEX = Regex(
-    "(?<![a-zA-Z0-9_])(id|added|fetchinterval|fi|nextupdate|nu|unread|read|total)(>=|<=|>|<|=)",
+    "(?<![a-zA-Z0-9_])(" +
+        ComparisonField.entries.flatMap { field -> field.aliases.toList() }
+            .joinToString("|") +
+        ")" +
+        "(" +
+        ComparisonOperator.entries
+            .map { it.symbol }
+            .sortedByDescending { it.length }
+            .joinToString("|") +
+        ")",
     RegexOption.IGNORE_CASE,
 )
 

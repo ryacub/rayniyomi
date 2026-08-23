@@ -120,4 +120,12 @@ class LibrarySearchCompatTest {
             .map { alias -> "$alias:Frieren" }
         queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to false }
     }
+
+    @Test
+    fun `comparison alias and operator pair routes to the new grammar`() {
+        val queries = ComparisonField.entries
+            .flatMap { field -> field.aliases.toList() }
+            .flatMap { alias -> ComparisonOperator.entries.map { operator -> "$alias${operator.symbol}" } }
+        queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to false }
+    }
 }
