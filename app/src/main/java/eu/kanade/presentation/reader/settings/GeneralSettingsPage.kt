@@ -29,6 +29,12 @@ private val flashColors = listOf(
     MR.strings.pref_flash_style_white_black to ReaderPreferences.FlashColor.WHITE_BLACK,
 )
 
+private val pageTransitionStyles = listOf(
+    MR.strings.pref_page_transition_style_none to ReaderPreferences.PageTransitionStyle.NONE,
+    MR.strings.pref_page_transition_style_slide to ReaderPreferences.PageTransitionStyle.SLIDE,
+    MR.strings.pref_page_transition_style_curl to ReaderPreferences.PageTransitionStyle.CURL,
+)
+
 @Composable
 internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
     val readerTheme by screenModel.preferences.readerTheme().collectAsState()
@@ -43,6 +49,9 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
 
     val flashColorPref = screenModel.preferences.flashColor()
     val flashColor by flashColorPref.collectAsState()
+
+    val pageTransitionStylePref = screenModel.preferences.pageTransitionStyle()
+    val pageTransitionStyle by pageTransitionStylePref.collectAsState()
 
     SettingsChipRow(MR.strings.pref_reader_theme) {
         themes.map { (labelRes, value) ->
@@ -86,10 +95,15 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
         pref = screenModel.preferences.alwaysShowChapterTransition(),
     )
 
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_page_transitions),
-        pref = screenModel.preferences.pageTransitions(),
-    )
+    SettingsChipRow(MR.strings.pref_page_transition_style) {
+        pageTransitionStyles.map { (labelRes, value) ->
+            FilterChip(
+                selected = pageTransitionStyle == value,
+                onClick = { pageTransitionStylePref.set(value) },
+                label = { Text(stringResource(labelRes)) },
+            )
+        }
+    }
 
     CheckboxItem(
         label = stringResource(MR.strings.pref_flash_page),
