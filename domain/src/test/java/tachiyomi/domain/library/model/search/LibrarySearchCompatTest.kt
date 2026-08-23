@@ -8,7 +8,7 @@ class LibrarySearchCompatTest {
 
     @Test
     fun `legacy queries route to the legacy matcher`() {
-        listOf(
+        val queries = listOf(
             "naruto",
             "naruto shipuden",
             "manga, action",
@@ -25,14 +25,13 @@ class LibrarySearchCompatTest {
             "Sousou no Frieren (TV)",
             "Knockin' on Heaven's Door",
             "xgenre:action",
-        ).forEach { query ->
-            isLegacySearchQuery(query) shouldBe true
-        }
+        )
+        queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to true }
     }
 
     @Test
     fun `new grammar queries route to the parsed matcher`() {
-        listOf(
+        val queries = listOf(
             "a && b",
             "a || b",
             "(a || b)",
@@ -51,29 +50,26 @@ class LibrarySearchCompatTest {
             "ID>5",
             "added>=2024-01-01",
             "fi=7",
-        ).forEach { query ->
-            isLegacySearchQuery(query) shouldBe false
-        }
+        )
+        queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to false }
     }
 
     @Test
     fun `plain text and unknown comparison syntax stay legacy`() {
-        listOf(
+        val queries = listOf(
             "title>5",
             "unreadable>1",
-        ).forEach { query ->
-            isLegacySearchQuery(query) shouldBe true
-        }
+        )
+        queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to true }
     }
 
     @Test
     fun `comparison syntax at token boundaries routes to the parsed matcher`() {
-        listOf(
+        val queries = listOf(
             "plain read=foo",
             "plain added>foo",
-        ).forEach { query ->
-            isLegacySearchQuery(query) shouldBe false
-        }
+        )
+        queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to false }
     }
 
     @Test
@@ -119,10 +115,9 @@ class LibrarySearchCompatTest {
 
     @Test
     fun `field prefix routes every search field alias to the new grammar`() {
-        LibrarySearchField.entries
+        val queries = LibrarySearchField.entries
             .flatMap { field -> field.aliases.toList() }
-            .forEach { alias ->
-                isLegacySearchQuery("$alias:Frieren") shouldBe false
-            }
+            .map { alias -> "$alias:Frieren" }
+        queries.map { it to isLegacySearchQuery(it) } shouldBe queries.map { it to false }
     }
 }
