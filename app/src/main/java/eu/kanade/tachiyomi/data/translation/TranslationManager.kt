@@ -13,6 +13,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
@@ -44,6 +46,36 @@ class TranslationManager(
     val translationStates: StateFlow<Map<Long, TranslationState>> = _translationStates.asStateFlow()
 
     private val activeJobs = ConcurrentHashMap<Long, Job>()
+
+    private val _languageGeneration = MutableStateFlow(0)
+
+    /**
+     * Bumps once the target language change has fully settled. Observers that need to run
+     * after stale state is gone should collect this instead of the preference itself.
+     */
+    val languageGeneration: StateFlow<Int> = _languageGeneration.asStateFlow()
+
+    init {
+        this.scope.launch {
+            translationPreferences.targetLanguage().changes()
+                .distinctUntilChanged()
+                .drop(1) // ignore initial emission from changes()
+                .collect { onTargetLanguageChanged() }
+        }
+    }
+
+    /**
+     * Joins before clearing so a cancelled job finishing its non-suspending tail
+     * cannot repopulate stale old-language state.
+     */
+    private suspend fun onTargetLanguageChanged() {
+        val jobs = activeJobs.values.toList()
+        jobs.forEach { it.cancel() }
+        activeJobs.clear()
+        jobs.forEach { it.join() }
+        _translationStates.value = emptyMap()
+        _languageGeneration.update { it + 1 }
+    }
 
     /**
      * Start translating a chapter. Each page is processed sequentially.

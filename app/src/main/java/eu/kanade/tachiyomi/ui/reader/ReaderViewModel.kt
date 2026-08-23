@@ -15,6 +15,7 @@ import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.presentation.util.ReaderFoldState
+import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
@@ -22,6 +23,7 @@ import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
+import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.model.Page
@@ -47,6 +49,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
@@ -104,6 +107,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val translationStorageManager: TranslationStorageManager = Injekt.get(),
     private val translationPreferences: TranslationPreferences = Injekt.get(),
+    private val translationManager: TranslationManager = Injekt.get(),
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(State())
@@ -189,6 +193,20 @@ class ReaderViewModel @JvmOverloads constructor(
                 }
             }
             .launchIn(viewModelScope)
+
+        viewModelScope.launchIO {
+            translationManager.languageGeneration
+                .drop(1)
+                .collect {
+                    val currChapter = mutableState.value.viewerChapters?.currChapter ?: return@collect
+                    mutableState.update {
+                        it.copy(hasTranslation = computeHasTranslation(currChapter.chapter))
+                    }
+                    if (prepareTranslationReload(currChapter, mutableState.value.showTranslatedPages)) {
+                        eventChannel.send(Event.ReloadViewerChapters)
+                    }
+                }
+        }
     }
 
     /**
@@ -300,19 +318,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
         // Check translation status on IO thread before switching to UI context
         val dbChapter = newChapters.currChapter.chapter
-        val currentManga = mutableState.value.manga
-        val currentSource = currentManga?.let { m -> sourceManager.getOrStub(m.source) }
-        val hasTranslation = if (currentManga != null && currentSource != null) {
-            translationStorageManager.isChapterTranslated(
-                dbChapter.name,
-                dbChapter.scanlator,
-                currentManga.title,
-                currentSource,
-                translationPreferences.targetLanguage().get(),
-            )
-        } else {
-            false
-        }
+        val hasTranslation = computeHasTranslation(dbChapter)
 
         withUIContext {
             mutableState.update {
@@ -330,6 +336,18 @@ class ReaderViewModel @JvmOverloads constructor(
             }
         }
         return newChapters
+    }
+
+    private fun computeHasTranslation(chapter: Chapter): Boolean {
+        val currentManga = mutableState.value.manga ?: return false
+        val currentSource = sourceManager.getOrStub(currentManga.source)
+        return translationStorageManager.isChapterTranslated(
+            chapter.name,
+            chapter.scanlator,
+            currentManga.title,
+            currentSource,
+            translationPreferences.targetLanguage().get(),
+        )
     }
 
     /**

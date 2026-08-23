@@ -7,13 +7,21 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.Page
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -35,6 +43,12 @@ class TranslationManagerTest {
 
     private val source = mockk<MangaSource>()
     private val engine = mockk<TranslationEngine>()
+
+    private val targetLanguageFlow = MutableStateFlow(TargetLanguages.DEFAULT)
+    private val targetLanguagePref = mockk<Preference<String>> {
+        every { get() } answers { targetLanguageFlow.value }
+        every { changes() } returns targetLanguageFlow
+    }
 
     private val manga = Manga.create().copy(id = 1L, title = "Test Manga")
     private val chapter = Chapter(
@@ -58,6 +72,7 @@ class TranslationManagerTest {
 
     @BeforeEach
     fun setUp() {
+        every { translationPreferences.targetLanguage() } returns targetLanguagePref
         mockTargetLanguage("en")
         mockTranslationProvider(TranslationProvider.CLAUDE)
     }
@@ -73,13 +88,17 @@ class TranslationManagerTest {
         ).also { manager = it }
     }
 
+    /** Not a child of [TestScope], so the endless language observer cannot block runTest. */
+    private fun TestScope.createEagerManager(): TranslationManager =
+        createManager(CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+
     // -----------------------------------------------------------------------
     // State transition: IDLE -> TRANSLATING -> TRANSLATED (success path)
     // -----------------------------------------------------------------------
 
     @Test
     fun `translateChapter transitions from IDLE to TRANSLATING to TRANSLATED on success`() = runTest {
-        createManager(this)
+        createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00) // JPEG header
         val uri = mockk<Uri>()
         val page = Page(0, uri = uri).apply { status = Page.State.READY }
@@ -108,7 +127,7 @@ class TranslationManagerTest {
 
     @Test
     fun `translateChapter transitions to ERROR when engine throws exception`() = runTest {
-        createManager(this)
+        createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         val uri = mockk<Uri>()
         val page = Page(0, uri = uri).apply { status = Page.State.READY }
@@ -128,7 +147,7 @@ class TranslationManagerTest {
 
     @Test
     fun `translateChapter transitions to ERROR when no pages found`() = runTest {
-        createManager(this)
+        createEagerManager()
         every { translationEngineFactory.create() } returns engine
         every { downloadManager.buildPageList(source, manga, chapter) } returns emptyList()
 
@@ -158,7 +177,7 @@ class TranslationManagerTest {
 
     @Test
     fun `cancelTranslation sets state back to IDLE`() = runTest {
-        createManager(this)
+        createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         val uri = mockk<Uri>()
         val page = Page(0, uri = uri).apply { status = Page.State.READY }
@@ -200,7 +219,7 @@ class TranslationManagerTest {
 
     @Test
     fun `getState returns correct state for each chapter independently`() = runTest {
-        createManager(this)
+        createEagerManager()
         val chapter2 = chapter.copy(id = 200L, name = "Chapter 2")
 
         // Set up chapter 1 to fail
@@ -296,7 +315,7 @@ class TranslationManagerTest {
 
     @Test
     fun `deleteTranslation resets state to IDLE`() = runTest {
-        createManager(this)
+        createEagerManager()
         // First put the chapter into an error state
         every { translationEngineFactory.create() } returns null
         manager.translateChapter(manga, chapter, source)
@@ -361,7 +380,7 @@ class TranslationManagerTest {
 
     @Test
     fun `translationStates flow emits state updates`() = runTest {
-        createManager(this)
+        createEagerManager()
         // Initial state should be empty map
         assertTrue(manager.translationStates.value.isEmpty())
 
@@ -377,7 +396,7 @@ class TranslationManagerTest {
 
     @Test
     fun `translationStates removes entry when state returns to IDLE`() = runTest {
-        createManager(this)
+        createEagerManager()
         // Trigger an error state first
         every { translationEngineFactory.create() } returns null
         manager.translateChapter(manga, chapter, source)
@@ -396,7 +415,7 @@ class TranslationManagerTest {
 
     @Test
     fun `translateChapter writes metadata on successful translation`() = runTest {
-        createManager(this)
+        createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         val uri = mockk<Uri>()
         val page = Page(0, uri = uri).apply { status = Page.State.READY }
@@ -424,13 +443,200 @@ class TranslationManagerTest {
     }
 
     // -----------------------------------------------------------------------
+    // Target language change handling
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `changing target language resets in-memory chapter states`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        every { translationEngineFactory.create() } returns null
+        manager.translateChapter(manga, chapter, source)
+        assertTrue(manager.translationStates.value.containsKey(chapter.id))
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+
+        assertFalse(manager.translationStates.value.containsKey(chapter.id))
+        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+    }
+
+    @Test
+    fun `changing target language cancels an in-flight translation`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        val uri = mockk<Uri>()
+        val page = Page(0, uri = uri).apply { status = Page.State.READY }
+
+        every { translationEngineFactory.create() } returns engine
+        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
+        mockContentResolver(uri, imageBytes)
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } coAnswers {
+            kotlinx.coroutines.delay(10_000)
+            TranslationResult(emptyList())
+        }
+
+        manager.translateChapter(manga, chapter, source)
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+
+        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
+        coVerify(exactly = 0) { engine.detectAndTranslate(any(), "it") }
+    }
+
+    @Test
+    fun `chapter translation uses one target language even if preference changes mid-run`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        val uri = mockk<Uri>()
+        val page = Page(0, uri = uri).apply { status = Page.State.READY }
+        val usedLanguages = mutableListOf<String>()
+
+        every { translationEngineFactory.create() } returns engine
+        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
+        mockContentResolver(uri, imageBytes)
+        coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
+            usedLanguages += secondArg<String>()
+            targetLanguageFlow.value = "it"
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        assertTrue(usedLanguages.isNotEmpty())
+        assertTrue(usedLanguages.all { it == "en" })
+    }
+
+    @Test
+    fun `initial preference emission does not reset chapter states`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        every { translationEngineFactory.create() } returns null
+        manager.translateChapter(manga, chapter, source)
+        assertTrue(manager.translationStates.value.containsKey(chapter.id))
+
+        advanceUntilIdle()
+
+        assertTrue(manager.translationStates.value.containsKey(chapter.id))
+    }
+
+    @Test
+    fun `language change does not leave stale state when a cancelled job finishes late`() {
+        // Real IO scope so the job tail and the observer race across threads.
+        createManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        val uri = mockk<Uri>()
+        val page = Page(0, uri = uri).apply { status = Page.State.READY }
+
+        every { translationEngineFactory.create() } returns engine
+        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
+        mockContentResolver(uri, imageBytes)
+        coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
+            // Hold the last resumption past cancellation so the tail runs after the clear.
+            withContext(NonCancellable) {
+                val deadline = System.currentTimeMillis() + 2_000
+                while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
+                    kotlinx.coroutines.delay(10)
+                }
+            }
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        manager.translateChapter(manga, chapter, source)
+
+        // Let the job reach the engine before changing the language.
+        Thread.sleep(200)
+        targetLanguageFlow.value = "it"
+
+        val deadline = System.currentTimeMillis() + 5_000
+        while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
+
+        assertFalse(manager.translationStates.value.containsKey(chapter.id))
+        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
     private fun mockTargetLanguage(lang: String) {
-        val pref = mockk<Preference<String>>()
-        every { pref.get() } returns lang
-        every { translationPreferences.targetLanguage() } returns pref
+        targetLanguageFlow.value = lang
+    }
+
+    // -----------------------------------------------------------------------
+    // languageGeneration
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `languageGeneration does not advance on construction`() = runTest {
+        createEagerManager()
+        advanceUntilIdle()
+
+        assertEquals(0, manager.languageGeneration.value)
+    }
+
+    @Test
+    fun `languageGeneration advances once per target language change`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+        assertEquals(1, manager.languageGeneration.value)
+
+        targetLanguageFlow.value = "fr"
+        advanceUntilIdle()
+        assertEquals(2, manager.languageGeneration.value)
+    }
+
+    @Test
+    fun `languageGeneration does not advance when the language is set to its current value`() = runTest {
+        createEagerManager()
+        advanceUntilIdle()
+
+        targetLanguageFlow.value = "en"
+        advanceUntilIdle()
+
+        assertEquals(0, manager.languageGeneration.value)
+    }
+
+    /**
+     * Collectors of [TranslationManager.languageGeneration] resume only after
+     * onTargetLanguageChanged returns, so they never observe a half-applied change.
+     */
+    @Test
+    fun `a languageGeneration observer never sees leftover chapter states`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        every { translationEngineFactory.create() } returns null
+        manager.translateChapter(manga, chapter, source)
+        assertTrue(manager.translationStates.value.isNotEmpty())
+
+        val statesAtBump = mutableListOf<Map<Long, TranslationState>>()
+        // Unconfined so the observer subscribes now; a lazy one would see the post-bump
+        // value as its initial emission and drop it.
+        val observer = launch(UnconfinedTestDispatcher(testScheduler)) {
+            manager.languageGeneration.drop(1).collect {
+                statesAtBump += manager.translationStates.value
+            }
+        }
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+        observer.cancel()
+
+        assertEquals(listOf(emptyMap<Long, TranslationState>()), statesAtBump)
     }
 
     private fun mockTranslationProvider(provider: TranslationProvider) {

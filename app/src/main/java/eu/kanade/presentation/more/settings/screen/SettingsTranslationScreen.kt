@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.tachiyomi.data.translation.TargetLanguages
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
@@ -37,6 +38,7 @@ object SettingsTranslationScreen : SearchableSettings {
         val uriHandler = LocalUriHandler.current
 
         val provider by translationPreferences.translationProvider().collectAsStateWithLifecycle()
+        val targetLanguage by translationPreferences.targetLanguage().collectAsStateWithLifecycle()
         val apiKeyPreference = remember(provider) { translationPreferences.translationApiKey(provider) }
         val modelPreference = remember(provider) { translationPreferences.translationModel(provider) }
         val apiKey by apiKeyPreference.collectAsStateWithLifecycle()
@@ -101,10 +103,12 @@ object SettingsTranslationScreen : SearchableSettings {
                 enabled = provider != TranslationProvider.NONE && apiKey.isNotBlank(),
                 onClick = { showClearConfirmation = true },
             ),
-            Preference.PreferenceItem.EditTextPreference(
+            Preference.PreferenceItem.ListPreference(
                 preference = translationPreferences.targetLanguage(),
+                entries = remember(targetLanguage) {
+                    TargetLanguages.entries(targetLanguage).toImmutableMap()
+                },
                 title = stringResource(AYMR.strings.pref_translation_target_language),
-                subtitle = translationPreferences.targetLanguage().get(),
                 enabled = provider != TranslationProvider.NONE,
             ),
             Preference.PreferenceItem.TextPreference(
