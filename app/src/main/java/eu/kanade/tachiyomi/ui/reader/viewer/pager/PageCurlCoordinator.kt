@@ -23,6 +23,12 @@ internal class PageCurlCoordinator(
 
     private var generationId = 0L
     private var lastNavigationAtMs = 0L
+
+    /**
+     * Position the active curl navigated to; null when no curl is tracked.
+     */
+    private var curlTargetPosition: Int? = null
+
     private var released = false
 
     private var targetReadyRunnable: Runnable? = null
@@ -76,9 +82,10 @@ internal class PageCurlCoordinator(
             advance(useAnimation)
             return
         }
-
-        cancelCurrentCurl()
         pendingFromBitmap = fromBitmap
+        // Set after cancelCurrentCurl() so it does not clear the new target, and before
+        // advance(false) so the synchronous onPageSelected callback sees a match.
+        curlTargetPosition = targetPosition
         advance(false)
         pager.setGestureDetectorEnabled(false)
         waitForTarget(targetPosition, targetHolder, fromBitmap, curlFromRight)
@@ -89,6 +96,18 @@ internal class PageCurlCoordinator(
 
         released = true
         cancelCurrentCurl()
+    }
+
+    /**
+     * Notifies the coordinator that the page changed outside [runOrFallback],
+     * for example by a swipe. Cancels the active curl when the new position
+     * differs from the curl target.
+     */
+    fun onPageChangedExternally(position: Int) {
+        if (released) return
+        if (curlTargetPosition != null && position != curlTargetPosition) {
+            cancelCurrentCurl(restoreInput = true)
+        }
     }
 
     private fun cancelCurrentCurl(restoreInput: Boolean = false) {
@@ -102,7 +121,7 @@ internal class PageCurlCoordinator(
 
         generationId++
         removeCallbacks()
-
+        curlTargetPosition = null
         val pendingFrom = pendingFromBitmap.also { pendingFromBitmap = null }
         val activeFrom = activeFromBitmap.also { activeFromBitmap = null }
         val activeTo = activeToBitmap.also { activeToBitmap = null }
@@ -148,6 +167,8 @@ internal class PageCurlCoordinator(
     ) {
         val toBitmap = targetHolder?.let(overlay::captureBitmap)
         if (toBitmap == null) {
+            // This exit bypasses cancelCurrentCurl because no curl state remains.
+            curlTargetPosition = null
             recycle(fromBitmap)
             pager.setGestureDetectorEnabled(true)
             return
@@ -181,6 +202,8 @@ internal class PageCurlCoordinator(
             val currentHolder = (itemAt(pager.currentItem) as? ReaderPage)?.let(holderFor)
             if (currentHolder?.isLaidOut == true || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
                 layoutCheckRunnable = null
+                // Normal completion bypasses cancelCurrentCurl; clear the tracked target here.
+                curlTargetPosition = null
                 clearActiveBitmaps(fromBitmap, toBitmap)
                 overlay.isVisible = false
                 overlay.cancelCurl()

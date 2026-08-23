@@ -128,6 +128,9 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
         pager.addOnPageChangeListener(
             object : ViewPager.SimpleOnPageChangeListener() {
                 override fun onPageSelected(position: Int) {
+                    // A swipe or slider jump that lands on a different position than the
+                    // active curl target cancels the curl so it never animates a stale page.
+                    curlCoordinator?.onPageChangedExternally(position)
                     if (!activity.isScrollingThroughPages) {
                         activity.hideMenu()
                     }
@@ -149,7 +152,8 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
                 (event.rawY - viewPosition[1] + viewPositionRelativeToWindow[1]) / pager.height,
             )
             when (config.navigator.getAction(pos)) {
-                NavigationRegion.MENU -> activity.toggleMenu()
+                NavigationRegion.MENU ->
+                    if (!pager.isGestureInputSuppressed) activity.toggleMenu()
                 NavigationRegion.NEXT -> moveToNext()
                 NavigationRegion.PREV -> moveToPrevious()
                 NavigationRegion.RIGHT -> moveRight()
