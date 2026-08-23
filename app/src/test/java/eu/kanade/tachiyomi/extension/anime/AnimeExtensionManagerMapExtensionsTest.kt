@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit
 class AnimeExtensionManagerMapExtensionsTest {
 
     private val mapThreadName = "r895-map-worker"
+    private val scopes = mutableListOf<CoroutineScope>()
     private lateinit var mapDispatcher: ExecutorCoroutineDispatcher
 
     @BeforeEach
@@ -39,6 +41,8 @@ class AnimeExtensionManagerMapExtensionsTest {
 
     @AfterEach
     fun tearDown() {
+        scopes.forEach { it.cancel() }
+        scopes.clear()
         mapDispatcher.close()
     }
 
@@ -141,11 +145,13 @@ class AnimeExtensionManagerMapExtensionsTest {
      * A scope shaped like [AnimeExtensionManager.scope]: a supervisor job over a
      * standard test dispatcher, with no interceptor of its own beyond the dispatcher.
      */
-    private fun TestScope.managerScope(): CoroutineScope = CoroutineScope(
-        SupervisorJob() +
-            StandardTestDispatcher(testScheduler) +
-            CoroutineExceptionHandler { _, _ -> },
-    )
+    private fun TestScope.managerScope(): CoroutineScope {
+        return CoroutineScope(
+            SupervisorJob() +
+                StandardTestDispatcher(testScheduler) +
+                CoroutineExceptionHandler { _, _ -> },
+        ).also { scopes += it }
+    }
 
     private fun recordingMap(
         delegate: Map<String, AnimeExtension.Untrusted>,
