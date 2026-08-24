@@ -1,148 +1,53 @@
 package eu.kanade.tachiyomi.extension.anime.util
 
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
+import eu.kanade.tachiyomi.extension.util.BaseExtensionInstallReceiver
+import eu.kanade.tachiyomi.extension.util.NotifyActions
+import eu.kanade.tachiyomi.extension.util.notify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import logcat.LogPriority
-import tachiyomi.core.common.util.system.logcat
 
 /**
  * Broadcast receiver that listens for the system's packages installed, updated or removed, and only
- * notifies the given [listener] when the package is an extension.
+ * notifies the given [listener] when the package is an anime extension.
  *
  * @param listener The listener that should be notified of extension installation events.
  * @param scope The scope that owns the receiver's background work. [unregister] provides
  * best-effort quiescence: it prevents future deliveries and cancels pending work at suspension
  * points, but does not synchronously stop an already-running callback past a suspension point.
- * `goAsync()` is not used because its PendingResult bookkeeping adds complexity while async work
- * already escapes `onReceive` today.
  */
 internal class AnimeExtensionInstallReceiver(
-    private val listener: Listener,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-) : BroadcastReceiver() {
+    listener: Listener,
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+) : BaseExtensionInstallReceiver<AnimeExtensionInstallReceiver.Listener, AnimeLoadResult>(
+    listener,
+    scope,
+    ACTIONS,
+) {
 
-    fun register(context: Context) {
-        ContextCompat.registerReceiver(context, this, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    override fun isError(result: AnimeLoadResult): Boolean = result is AnimeLoadResult.Error
+
+    override suspend fun load(context: Context, pkgName: String?): AnimeLoadResult =
+        pkgName?.let { AnimeExtensionLoader.loadExtensionFromPkgName(context, it) } ?: AnimeLoadResult.Error
+
+    override fun dispatchInstalled(listener: Listener, result: AnimeLoadResult) {
+        if (result is AnimeLoadResult.Success) listener.onExtensionInstalled(result.extension)
     }
 
-    /**
-     * Unregisters this receiver and cancels its pending work.
-     */
-    fun unregister(context: Context) {
-        runCatching { context.unregisterReceiver(this) }
-        scope.cancel()
+    override fun dispatchUpdated(listener: Listener, result: AnimeLoadResult) {
+        if (result is AnimeLoadResult.Success) listener.onExtensionUpdated(result.extension)
     }
 
-    private val filter = IntentFilter().apply {
-        addAction(Intent.ACTION_PACKAGE_ADDED)
-        addAction(Intent.ACTION_PACKAGE_REPLACED)
-        addAction(Intent.ACTION_PACKAGE_REMOVED)
-        addAction(ACTION_EXTENSION_ADDED)
-        addAction(ACTION_EXTENSION_REPLACED)
-        addAction(ACTION_EXTENSION_REMOVED)
-        addDataScheme("package")
+    override fun dispatchUntrusted(listener: Listener, result: AnimeLoadResult) {
+        if (result is AnimeLoadResult.Untrusted) listener.onExtensionUntrusted(result.extension)
     }
 
-    /**
-     * Called when one of the events of the [filter] is received. When the package is an extension,
-     * it's loaded in background and it notifies the [listener] when finished.
-     */
-    override fun onReceive(context: Context, intent: Intent?) {
-        if (intent == null) return
-
-        when (intent.action) {
-            Intent.ACTION_PACKAGE_ADDED, ACTION_EXTENSION_ADDED -> {
-                if (isReplacing(intent)) return
-
-                scope.launch {
-                    when (val result = getExtensionFromIntent(context, intent)) {
-                        is AnimeLoadResult.Success -> listener.onExtensionInstalled(result.extension)
-                        is AnimeLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        else -> {}
-                    }
-                }
-            }
-            Intent.ACTION_PACKAGE_REPLACED, ACTION_EXTENSION_REPLACED -> {
-                scope.launch {
-                    when (val result = loadWithRetryOnReplace(context, intent)) {
-                        is AnimeLoadResult.Success -> listener.onExtensionUpdated(result.extension)
-                        is AnimeLoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        else -> {}
-                    }
-                }
-            }
-            Intent.ACTION_PACKAGE_REMOVED, ACTION_EXTENSION_REMOVED -> {
-                if (isReplacing(intent)) return
-
-                val pkgName = getPackageNameFromIntent(intent)
-                if (pkgName != null) {
-                    listener.onPackageUninstalled(pkgName)
-                }
-            }
-        }
-    }
-
-    /**
-     * Returns true if this package is performing an update.
-     *
-     * @param intent The intent that triggered the event.
-     */
-    private fun isReplacing(intent: Intent): Boolean {
-        return intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
-    }
-
-    /**
-     * Loads an extension for a PACKAGE_REPLACED event, retrying on transient PackageManager
-     * unavailability. Android's ActivityThread can report the package as REMOVED mid-replace
-     * because app info isn't committed to the process cache yet; retrying after a short delay
-     * lets PM settle before we give up.
-     */
-    private suspend fun loadWithRetryOnReplace(context: Context, intent: Intent?): AnimeLoadResult {
-        repeat(REPLACE_RETRY_COUNT) { attempt ->
-            val result = getExtensionFromIntent(context, intent)
-            if (result !is AnimeLoadResult.Error) return result
-            val pkgName = getPackageNameFromIntent(intent) ?: return result
-            logcat(LogPriority.WARN) {
-                "Extension $pkgName not found after replace (attempt ${attempt + 1}/$REPLACE_RETRY_COUNT), retrying..."
-            }
-            delay(REPLACE_RETRY_DELAY_MS)
-        }
-        return getExtensionFromIntent(context, intent)
-    }
-
-    /**
-     * Returns the extension triggered by the given intent.
-     *
-     * @param context The application context.
-     * @param intent The intent containing the package name of the extension.
-     */
-    private suspend fun getExtensionFromIntent(context: Context, intent: Intent?): AnimeLoadResult {
-        val pkgName = getPackageNameFromIntent(intent)
-        if (pkgName == null) {
-            logcat(LogPriority.WARN) { "Package name not found" }
-            return AnimeLoadResult.Error
-        }
-        return AnimeExtensionLoader.loadExtensionFromPkgName(context, pkgName)
-    }
-
-    /**
-     * Returns the package name of the installed, updated or removed application.
-     */
-    private fun getPackageNameFromIntent(intent: Intent?): String? {
-        return intent?.data?.encodedSchemeSpecificPart ?: return null
+    override fun dispatchRemoved(listener: Listener, pkgName: String) {
+        listener.onPackageUninstalled(pkgName)
     }
 
     /**
@@ -156,8 +61,11 @@ internal class AnimeExtensionInstallReceiver(
     }
 
     companion object {
-        private const val REPLACE_RETRY_COUNT = 3
-        private const val REPLACE_RETRY_DELAY_MS = 500L
+        private val ACTIONS = NotifyActions(
+            added = ACTION_EXTENSION_ADDED,
+            replaced = ACTION_EXTENSION_REPLACED,
+            removed = ACTION_EXTENSION_REMOVED,
+        )
 
         private const val ACTION_EXTENSION_ADDED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_ADDED"
         private const val ACTION_EXTENSION_REPLACED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REPLACED"
@@ -173,14 +81,6 @@ internal class AnimeExtensionInstallReceiver(
 
         fun notifyRemoved(context: Context, pkgName: String) {
             notify(context, pkgName, ACTION_EXTENSION_REMOVED)
-        }
-
-        private fun notify(context: Context, pkgName: String, action: String) {
-            Intent(action).apply {
-                data = "package:$pkgName".toUri()
-                `package` = context.packageName
-                context.sendBroadcast(this)
-            }
         }
     }
 }
