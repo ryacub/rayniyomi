@@ -1,7 +1,9 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -34,6 +36,24 @@ internal object PageCurlRollMath {
 
     fun newVerts(): FloatArray = FloatArray(vertCount())
 
+    fun colorCount(): Int = (MESH_COLS + 1) * (MESH_ROWS + 1)
+
+    fun newColors(): IntArray = IntArray(colorCount())
+
+    // Unit vector from the surface toward the light. Frontal key light by
+    // default; normals lie in the x-z plane, so only x and z contribute.
+    const val LIGHT_DIRECTION_X = 0f
+    const val LIGHT_DIRECTION_Y = 0f
+    const val LIGHT_DIRECTION_Z = -1f
+
+    // Darkest allowed vertex tint as a fraction of full brightness.
+    const val SHADING_MIN_BRIGHTNESS = 0.25f
+
+    // Cast shadow on the incoming page: band width as a fraction of the page
+    // width and peak black alpha at lift-off.
+    const val CAST_SHADOW_WIDTH_FRACTION = 0.06f
+    const val CAST_SHADOW_MAX_ALPHA = 51
+
     /** Cylinder radius as a fraction of the page width at [progress]. */
     fun radius(progress: Float): Float =
         ROLL_RADIUS_START + (ROLL_RADIUS_END - ROLL_RADIUS_START) * progress
@@ -56,6 +76,47 @@ internal object PageCurlRollMath {
         val theta = min((x0 - tangent) / r, MAX_ROLL_ANGLE)
         return tangent - r * sin(theta)
     }
+
+    /** Roll angle for original [x0]: 0 while flat, clamped to [MAX_ROLL_ANGLE]. */
+    fun rollTheta(x0: Float, pageWidth: Float, progress: Float): Float {
+        val tangent = tangentX(pageWidth, progress)
+        if (x0 <= tangent) return 0f
+        return min((x0 - tangent) / (radius(progress) * pageWidth), MAX_ROLL_ANGLE)
+    }
+
+    /**
+     * Lambert brightness of the outer surface at [theta], remapped into
+     * [SHADING_MIN_BRIGHTNESS, 1].
+     */
+    fun shadeFraction(theta: Float): Float {
+        val nx = -sin(theta)
+        val nz = -cos(theta)
+        val lambert = (nx * LIGHT_DIRECTION_X + nz * LIGHT_DIRECTION_Z).coerceIn(0f, 1f)
+        return SHADING_MIN_BRIGHTNESS + (1f - SHADING_MIN_BRIGHTNESS) * lambert
+    }
+
+    /** Opaque gray modulation color for original [x0] at [progress]. */
+    fun shadedColor(x0: Float, pageWidth: Float, progress: Float): Int {
+        val b = (shadeFraction(rollTheta(x0, pageWidth, progress)) * 255f)
+            .roundToInt()
+            .coerceIn(0, 255)
+        return (255 shl 24) or (b shl 16) or (b shl 8) or b
+    }
+
+    /** Fills [colors] row-major, matching buildVerts vertex order. */
+    fun buildColors(pageWidth: Float, progress: Float, colors: IntArray) {
+        var i = 0
+        for (row in 0..MESH_ROWS) {
+            for (col in 0..MESH_COLS) {
+                colors[i++] =
+                    shadedColor(pageWidth * col / MESH_COLS, pageWidth, progress)
+            }
+        }
+    }
+
+    /** Black alpha (0..255) of the cast shadow at [progress]. */
+    fun castShadowAlpha(progress: Float): Int =
+        (CAST_SHADOW_MAX_ALPHA * (1f - progress)).roundToInt().coerceIn(0, CAST_SHADOW_MAX_ALPHA)
 
     /**
      * Screen-space span of the folded-back strip at [progress], in the
