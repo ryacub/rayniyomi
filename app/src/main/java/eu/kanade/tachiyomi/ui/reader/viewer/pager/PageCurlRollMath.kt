@@ -7,10 +7,11 @@ import kotlin.math.sin
 /**
  * Pure vertex math for the orthographic cylinder roll behind the page curl.
  *
- * The page wraps around a horizontal cylinder that rolls off the curling
- * edge. The canonical frame curls from the right edge; [buildVerts] mirrors
- * the result for a left curl. The projection is orthographic, so the roll
- * depth never affects the output: only x moves, and y stays on its row line.
+ * The page wraps around a cylinder whose axis is parallel to the page's
+ * vertical edge. The cylinder rolls off the curling edge. The canonical
+ * frame curls from the right edge; [buildVerts] mirrors the result for a
+ * left curl. The projection is orthographic, so the roll depth never
+ * affects the output: only x moves, and y stays on its row line.
  */
 internal object PageCurlRollMath {
 
