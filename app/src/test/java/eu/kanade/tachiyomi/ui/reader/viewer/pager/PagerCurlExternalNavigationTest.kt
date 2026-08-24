@@ -14,7 +14,7 @@ class PagerCurlExternalNavigationTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
@@ -31,7 +31,7 @@ class PagerCurlExternalNavigationTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION)
@@ -44,7 +44,7 @@ class PagerCurlExternalNavigationTest {
     fun `external change after release is ignored`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
+        every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
