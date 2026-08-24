@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import kotlin.coroutines.ContinuationInterceptor
 
 class MangaExtensionManagerInitTest {
 
@@ -77,6 +78,34 @@ class MangaExtensionManagerInitTest {
 
         coVerify(exactly = 1) { MangaExtensionLoader.loadMangaExtensions(any()) }
         manager.isInitialized.value shouldBe true
+    }
+
+    @Test
+    fun `scope carries the injected dispatcher`() = runTest {
+        val events = mutableListOf<String>()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scopeDispatcher = StandardTestDispatcher(testScheduler)
+
+        mockkStatic(ContextCompat::class)
+        every { ContextCompat.registerReceiver(any(), any(), any(), any<Int>()) } answers {
+            events += "registered"
+            mockk(relaxed = true)
+        }
+        mockkObject(MangaExtensionLoader)
+        coEvery { MangaExtensionLoader.loadMangaExtensions(any()) } answers {
+            events += "scan-started"
+            emptyList()
+        }
+
+        val manager = MangaExtensionManager(
+            context = mockk(relaxed = true),
+            preferences = SourcePreferences(InMemoryPreferenceStore()),
+            trustExtension = mockk(relaxed = true),
+            ioDispatcher = dispatcher,
+            scopeDispatcher = scopeDispatcher,
+        )
+
+        manager.scope.coroutineContext[ContinuationInterceptor] shouldBe scopeDispatcher
     }
 
     private fun createManager(
