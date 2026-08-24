@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import android.graphics.Bitmap
 import android.os.SystemClock
-import androidx.core.view.isVisible
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 
@@ -193,8 +192,7 @@ internal class PageCurlCoordinator(
         state.clearRunnables(pager)
         state.targetPosition = null
         val (pendingFrom, activeFrom, activeTo) = state.takeBitmaps()
-        overlay.cancelCurl()
-        overlay.isVisible = false
+        overlay.abortAndHide()
         recycle(pendingFrom)
         recycle(activeFrom)
         recycle(activeTo)

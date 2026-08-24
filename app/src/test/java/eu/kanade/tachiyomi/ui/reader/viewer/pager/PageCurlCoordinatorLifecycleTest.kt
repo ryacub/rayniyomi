@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import androidx.core.view.isVisible
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -27,8 +26,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.inputEnabled shouldBe true
         // No curl state existed before this run, so the fallback must not
         // touch the overlay.
-        verify(exactly = 0) { fixture.overlay.cancelCurl() }
-        verify(exactly = 0) { fixture.overlay.isVisible = false }
+        verify(exactly = 0) { fixture.overlay.abortAndHide() }
     }
 
     @Test
@@ -45,8 +43,7 @@ class PageCurlCoordinatorLifecycleTest {
         // GREEN only after R918 hoists activeFromBitmap before the target
         // capture; without that hoist the state is empty and the shared
         // teardown early-outs without touching the overlay.
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
-        verify(exactly = 1) { fixture.overlay.isVisible = false }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
     }
 
     @Test
@@ -73,8 +70,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.endCallbacks.single().invoke()
         fixture.runNextPostedCallback()
 
-        verify(exactly = 1) { fixture.overlay.isVisible = false }
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
         fixture.delayedCallbacks.size shouldBe 1
@@ -125,7 +121,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
         staleLayoutCallback.run()
 
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
         verify(exactly = 0) { secondFrom.recycle() }
         verify(exactly = 0) { secondTo.recycle() }
         fixture.inputEnabled shouldBe false
@@ -160,13 +156,13 @@ class PageCurlCoordinatorLifecycleTest {
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
-        every { fixture.overlay.cancelCurl() } answers {
+        every { fixture.overlay.abortAndHide() } answers {
             fixture.endCallbacks.single().invoke()
         }
 
         fixture.coordinator.release()
 
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
         verify(exactly = 1) { fixture.pager.post(any()) }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
@@ -204,7 +200,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.coordinator.release()
 
         verify(exactly = 1) { fixture.pager.removeCallbacks(layoutCallback) }
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
     }
@@ -224,7 +220,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.coordinator.release()
 
         verify(exactly = 1) { fixture.pager.removeCallbacks(gestureCallback) }
-        verify(exactly = 2) { fixture.overlay.cancelCurl() }
+        verify(exactly = 2) { fixture.overlay.abortAndHide() }
     }
 
     @Test
@@ -293,15 +289,13 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.runNewestPostedCallback()
 
         staleLayoutCallback.run()
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
-        verify(exactly = 1) { fixture.overlay.isVisible = false }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
         fixture.delayedCallbacks.size shouldBe 0
         verify(exactly = 0) { secondFrom.recycle() }
         verify(exactly = 0) { secondTo.recycle() }
 
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
-        verify(exactly = 2) { fixture.overlay.cancelCurl() }
-        verify(exactly = 2) { fixture.overlay.isVisible = false }
+        verify(exactly = 2) { fixture.overlay.abortAndHide() }
         verify(exactly = 1) { secondFrom.recycle() }
         verify(exactly = 1) { secondTo.recycle() }
         fixture.inputEnabled shouldBe true
