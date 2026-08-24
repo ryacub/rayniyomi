@@ -35,8 +35,8 @@ class PageCurlCoordinatorLifecycleTest {
     fun `target capture failure routes through the shared teardown`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
-        every { fixture.overlay.captureBitmap(fixture.targetHolder) } returns null
+        every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
+        every { fixture.capture.capture(fixture.targetHolder) } returns null
 
         fixture.startCurl()
 
