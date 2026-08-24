@@ -199,7 +199,6 @@ internal object PageCurlFrameRenderer {
             0,
             null,
         )
-
     }
 
     /** Contact shadow on the incoming page beside the fold line. */
