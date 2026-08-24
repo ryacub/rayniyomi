@@ -92,7 +92,10 @@ class TranslationManager(
 
         val engine = translationEngineFactory.create()
         if (engine == null) {
-            updateState(chapterId, TranslationState.Error("No translation model is selected. Choose a model in Settings > Translation."))
+            updateState(
+                chapterId,
+                TranslationState.Error("No translation model is selected. Choose a model in Settings > Translation."),
+            )
             return
         }
 
