@@ -28,7 +28,7 @@ class ReaderTranslationCoordinator(
     private val sourceManager: MangaSourceManager,
     private val readerPreferences: ReaderPreferences,
     private val scope: CoroutineScope,
-    private val getManga: () -> Manga?,
+    private val currentManga: () -> Manga?,
     private val getCurrChapter: () -> ReaderChapter?,
     private val getShowTranslatedPages: () -> Boolean,
     private val onHasTranslationChange: (hasTranslation: Boolean) -> Unit,
@@ -55,12 +55,12 @@ class ReaderTranslationCoordinator(
     }
 
     fun computeHasTranslation(chapter: Chapter): Boolean {
-        val currentManga = getManga() ?: return false
-        val currentSource = sourceManager.getOrStub(currentManga.source)
+        val manga = currentManga() ?: return false
+        val currentSource = sourceManager.getOrStub(manga.source)
         return translationStorageManager.isChapterTranslated(
             chapter.name,
             chapter.scanlator,
-            currentManga.title,
+            manga.title,
             currentSource,
             translationPreferences.targetLanguage().get(),
         )

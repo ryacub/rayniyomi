@@ -170,7 +170,7 @@ class ReaderViewModel @JvmOverloads constructor(
             imageSaver = imageSaver,
             readerPreferences = readerPreferences,
             scope = viewModelScope,
-            getManga = { manga },
+            currentManga = { manga },
             getPage = { (state.value.dialog as? Dialog.PageActions)?.page },
             onEvent = { event -> eventChannel.send(event) },
         )
@@ -186,7 +186,7 @@ class ReaderViewModel @JvmOverloads constructor(
         sourceManager = sourceManager,
         readerPreferences = readerPreferences,
         scope = viewModelScope,
-        getManga = { manga },
+        currentManga = { manga },
         getCurrChapter = { state.value.viewerChapters?.currChapter },
         getShowTranslatedPages = { state.value.showTranslatedPages },
         onHasTranslationChange = { hasTranslation ->

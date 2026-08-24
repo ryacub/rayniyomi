@@ -33,7 +33,7 @@ class ReaderPageExportController(
     private val imageSaver: ImageSaver,
     private val readerPreferences: ReaderPreferences,
     private val scope: CoroutineScope,
-    private val getManga: () -> Manga?,
+    private val currentManga: () -> Manga?,
     private val getPage: () -> ReaderPage?,
     private val onEvent: suspend (Event) -> Unit,
 ) {
@@ -61,7 +61,7 @@ class ReaderPageExportController(
     fun saveImage() {
         val page = getPage()
         if (page?.status != Page.State.READY) return
-        val manga = getManga() ?: return
+        val manga = currentManga() ?: return
 
         val context = Injekt.get<Application>()
         val notifier = SaveImageNotifier(context)
@@ -109,7 +109,7 @@ class ReaderPageExportController(
     fun shareImage(copyToClipboard: Boolean) {
         val page = getPage()
         if (page?.status != Page.State.READY) return
-        val manga = getManga() ?: return
+        val manga = currentManga() ?: return
 
         val context = Injekt.get<Application>()
         val destDir = context.cacheImageDir
@@ -145,7 +145,7 @@ class ReaderPageExportController(
     fun setAsCover() {
         val page = getPage()
         if (page?.status != Page.State.READY) return
-        val manga = getManga() ?: return
+        val manga = currentManga() ?: return
         val stream = page.stream ?: return
 
         scope.launchNonCancellable {
