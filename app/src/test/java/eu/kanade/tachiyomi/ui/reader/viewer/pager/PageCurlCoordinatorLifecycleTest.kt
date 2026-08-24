@@ -25,7 +25,29 @@ class PageCurlCoordinatorLifecycleTest {
 
         fallbacks.shouldContainExactly(true)
         fixture.inputEnabled shouldBe true
+        // No curl state existed before this run, so the fallback must not
+        // touch the overlay.
+        verify(exactly = 0) { fixture.overlay.cancelCurl() }
+        verify(exactly = 0) { fixture.overlay.isVisible = false }
     }
+
+    @Test
+    fun `target capture failure routes through the shared teardown`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val fromBitmap = fixture.bitmap()
+        every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
+        every { fixture.overlay.captureBitmap(fixture.targetHolder) } returns null
+
+        fixture.startCurl()
+
+        verify(exactly = 1) { fromBitmap.recycle() }
+        fixture.inputEnabled shouldBe true
+        // GREEN only after R918 hoists activeFromBitmap before the target
+        // capture; without that hoist the state is empty and the shared
+        // teardown early-outs without touching the overlay.
+        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.isVisible = false }
+     }
 
     @Test
     fun `target capture failure recycles the source and restores input`() {
