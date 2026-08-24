@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The player now shows the standard playback error when no hoster provides a video.
 - Fixed a startup freeze caused by registering extension install receivers on the main thread.
 - Fixed a potential startup freeze (ANR) when many anime extensions are installed.
+- Fixed a potential startup freeze (ANR) when many manga extensions are installed.
 - Manga extensions built for a newer app version failed every details fetch with a compatibility error. The extensions can read the manga `memo` field again.
 - Rapid taps during a page curl no longer lose page turns. Each tap inside a running curl now turns one page, and the curl yields to the new turn.
 - A tap on a reader button or an error action no longer re-enables the reader chrome while a page curl is still running.
