@@ -79,9 +79,9 @@ import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.main.MainActivity
-import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.AddToLibraryFirst
-import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.Error
-import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.Success
+import eu.kanade.tachiyomi.ui.reader.SetAsCoverResult.AddToLibraryFirst
+import eu.kanade.tachiyomi.ui.reader.SetAsCoverResult.Error
+import eu.kanade.tachiyomi.ui.reader.SetAsCoverResult.Success
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
@@ -891,12 +891,12 @@ class ReaderActivity : BaseActivity() {
      * Called from the presenter when a page is saved or fails. It shows a message or logs the
      * event depending on the [result].
      */
-    private fun onSaveImageResult(result: ReaderViewModel.SaveImageResult) {
+    private fun onSaveImageResult(result: SaveImageResult) {
         when (result) {
-            is ReaderViewModel.SaveImageResult.Success -> {
+            is SaveImageResult.Success -> {
                 toast(MR.strings.picture_saved)
             }
-            is ReaderViewModel.SaveImageResult.Error -> {
+            is SaveImageResult.Error -> {
                 logcat(LogPriority.ERROR, result.error)
             }
         }
@@ -906,7 +906,7 @@ class ReaderActivity : BaseActivity() {
      * Called from the presenter when a page is set as cover or fails. It shows a different message
      * depending on the [result].
      */
-    private fun onSetAsCoverResult(result: ReaderViewModel.SetAsCoverResult) {
+    private fun onSetAsCoverResult(result: SetAsCoverResult) {
         toast(
             when (result) {
                 Success -> MR.strings.cover_updated
