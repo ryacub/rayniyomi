@@ -2,6 +2,8 @@ package eu.kanade.presentation.theme.cover
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.annotation.VisibleForTesting
+import androidx.compose.ui.graphics.Color
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ErrorResult
@@ -16,6 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import android.graphics.Color as AndroidGraphicsColor
 
 object CoverThemePaletteService {
     private val cacheMutex = Mutex()
@@ -70,8 +73,13 @@ object CoverThemePaletteService {
         }
     }
 
-    private fun extractDominantColor(bitmap: Bitmap): androidx.compose.ui.graphics.Color? {
+    private fun extractDominantColor(bitmap: Bitmap): Color? {
         val source = bitmap.asSoftwareBitmap() ?: return null
+        return averageOpaqueGridColor(source)
+    }
+
+    @VisibleForTesting
+    internal fun averageOpaqueGridColor(source: Bitmap): Color? {
         val width = source.width.coerceAtLeast(1)
         val height = source.height.coerceAtLeast(1)
         val stepX = (width / 24).coerceAtLeast(1)
@@ -87,11 +95,11 @@ object CoverThemePaletteService {
             var y = 0
             while (y < height) {
                 val pixel = source.getPixel(x, y)
-                val alpha = android.graphics.Color.alpha(pixel)
+                val alpha = AndroidGraphicsColor.alpha(pixel)
                 if (alpha >= 128) {
-                    sumR += android.graphics.Color.red(pixel)
-                    sumG += android.graphics.Color.green(pixel)
-                    sumB += android.graphics.Color.blue(pixel)
+                    sumR += AndroidGraphicsColor.red(pixel)
+                    sumG += AndroidGraphicsColor.green(pixel)
+                    sumB += AndroidGraphicsColor.blue(pixel)
                     count++
                 }
                 y += stepY
@@ -104,7 +112,7 @@ object CoverThemePaletteService {
         val r = (sumR / count).toInt().coerceIn(0, 255)
         val g = (sumG / count).toInt().coerceIn(0, 255)
         val b = (sumB / count).toInt().coerceIn(0, 255)
-        return androidx.compose.ui.graphics.Color(android.graphics.Color.rgb(r, g, b))
+        return Color(AndroidGraphicsColor.rgb(r, g, b))
     }
 }
 
