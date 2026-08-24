@@ -11,11 +11,13 @@ kotlin {
         optimization {
             consumerKeepRules.files("consumer-proguard.pro")
         }
+
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        withHostTest { }
     }
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(kotlinx.serialization.json)
                 api(libs.injekt)
                 api(libs.rxjava)
                 api(libs.jsoup)
@@ -32,6 +34,13 @@ kotlin {
                 // Workaround for https://youtrack.jetbrains.com/issue/KT-57605
                 implementation(kotlinx.coroutines.android)
                 implementation(project.dependencies.platform(kotlinx.coroutines.bom))
+            }
+        }
+        getByName("androidHostTest") {
+            dependencies {
+                implementation(project.dependencies.platform(libs.junit.bom))
+                implementation(libs.bundles.test)
+                runtimeOnly(libs.junit.platform.launcher)
             }
         }
     }

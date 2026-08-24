@@ -45,6 +45,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
   required-methods list, so removing the member fails the gate with a named reason.
 
 ### Other
+- The `source-api` module now hosts its own JVM unit tests. The extension ABI
+  test for `SManga.getMemo` moved there from the app module, and the PR unit
+  test job runs the new task.
 
 
 ## [0.18.1.267] - 2026-08-19
