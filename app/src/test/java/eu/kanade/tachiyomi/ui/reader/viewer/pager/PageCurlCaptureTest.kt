@@ -31,13 +31,12 @@ class PageCurlCaptureTest {
         val captured = mockk<Bitmap>(relaxed = true)
         every { captured.width } returns 320
         every { captured.height } returns 480
-        // A relaxed mock samples as fully transparent, which the blank guard rejects.
-        every { captured.getPixel(any(), any()) } returns Color.WHITE
 
         mockkStatic(Bitmap::class)
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
+        val capture = PageCurlCapture { _, _, _ -> Color.WHITE }
         val result = capture.capture(source)
 
         result shouldBe captured
@@ -51,12 +50,12 @@ class PageCurlCaptureTest {
         every { source.width } returns 320
         every { source.height } returns 480
         val captured = mockk<Bitmap>(relaxed = true)
-        every { captured.getPixel(any(), any()) } returns Color.TRANSPARENT
 
         mockkStatic(Bitmap::class)
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
+        val capture = PageCurlCapture { _, _, _ -> Color.TRANSPARENT }
         val result = capture.capture(source)
 
         result shouldBe null
@@ -68,16 +67,15 @@ class PageCurlCaptureTest {
         every { source.width } returns 320
         every { source.height } returns 480
         val captured = mockk<Bitmap>(relaxed = true)
-        // First sample point transparent, everything after it opaque.
-        var sampleIndex = 0
-        every { captured.getPixel(any(), any()) } answers {
-            if (sampleIndex++ == 0) Color.TRANSPARENT else Color.WHITE
-        }
 
         mockkStatic(Bitmap::class)
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
+        var sampleIndex = 0
+        val capture = PageCurlCapture { _, _, _ ->
+            if (sampleIndex++ == 0) Color.TRANSPARENT else Color.WHITE
+        }
         val result = capture.capture(source)
 
         result shouldBe captured

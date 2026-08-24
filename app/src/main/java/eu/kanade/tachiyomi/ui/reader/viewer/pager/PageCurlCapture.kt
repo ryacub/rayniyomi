@@ -10,7 +10,9 @@ import tachiyomi.core.common.util.system.logcat
 /**
  * Captures page views into bitmaps for the curl transition.
  */
-internal class PageCurlCapture {
+internal class PageCurlCapture(
+    private val samplePixel: (Bitmap, Int, Int) -> Int = Bitmap::getPixel,
+) {
 
     private companion object {
         // The size of one side of the pixel grid sampled to detect a blank
@@ -65,7 +67,7 @@ internal class PageCurlCapture {
             val y = row * lastY / (BLANK_SAMPLE_GRID - 1)
             for (column in 0 until BLANK_SAMPLE_GRID) {
                 val x = column * lastX / (BLANK_SAMPLE_GRID - 1)
-                if (bitmap.getPixel(x, y) != Color.TRANSPARENT) return true
+                if (samplePixel(bitmap, x, y) != Color.TRANSPARENT) return true
             }
         }
         return false
