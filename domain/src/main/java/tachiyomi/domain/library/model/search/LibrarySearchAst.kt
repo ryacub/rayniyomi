@@ -5,6 +5,17 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
 
+/**
+ * Builds a case-insensitive alias-to-entry lookup map for an enum with a vararg `aliases`
+ * property. Shared by every field-like enum so the mapping pattern exists once.
+ */
+private fun <E : Enum<E>> aliasLookup(
+    entries: List<E>,
+    aliases: (E) -> Array<out String>,
+): Map<String, E> = entries.flatMap { entry ->
+    aliases(entry).map { it.lowercase() to entry }
+}.toMap()
+
 enum class LibrarySearchField(vararg val aliases: String) {
     TITLE("title"),
     AUTHOR("author"),
@@ -17,9 +28,7 @@ enum class LibrarySearchField(vararg val aliases: String) {
     ;
 
     companion object {
-        private val lookup = entries.flatMap { field ->
-            field.aliases.map { it.lowercase() to field }
-        }.toMap()
+        private val lookup = aliasLookup(entries) { it.aliases }
 
         fun fromString(value: String): LibrarySearchField? = lookup[value.lowercase()]
     }
@@ -36,9 +45,7 @@ enum class ComparisonField(vararg val aliases: String) {
     ;
 
     companion object {
-        private val lookup = entries.flatMap { field ->
-            field.aliases.map { it.lowercase() to field }
-        }.toMap()
+        private val lookup = aliasLookup(entries) { it.aliases }
 
         fun fromString(value: String): ComparisonField? = lookup[value.lowercase()]
     }
