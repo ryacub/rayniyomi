@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 class ClaudeTranslationEngine(
     private val apiKey: String,
-    private val model: String = DEFAULT_MODEL,
+    private val model: String,
 ) : TranslationEngine {
 
     private val client = OkHttpClient.Builder()
@@ -104,7 +104,6 @@ class ClaudeTranslationEngine(
     )
 
     companion object {
-        const val DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
         private const val API_URL = "https://api.anthropic.com/v1/messages"
     }
 }

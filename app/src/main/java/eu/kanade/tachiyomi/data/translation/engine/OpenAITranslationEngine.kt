@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 
 class OpenAITranslationEngine(
     private val apiKey: String,
-    private val model: String = DEFAULT_MODEL,
+    private val model: String,
 ) : TranslationEngine {
 
     private val client = OkHttpClient.Builder()
@@ -89,7 +89,6 @@ class OpenAITranslationEngine(
     }
 
     companion object {
-        const val DEFAULT_MODEL = "gpt-4o"
         private const val API_URL = "https://api.openai.com/v1/chat/completions"
     }
 }

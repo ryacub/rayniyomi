@@ -51,13 +51,20 @@ class TranslationEngineFactoryTest {
     }
 
     @Test
-    fun `returns null when model is blank`() {
-        mockProvider(TranslationProvider.OPENROUTER)
-        mockApiKey(TranslationProvider.OPENROUTER, "test-api-key")
-        mockModel(TranslationProvider.OPENROUTER, "")
-
+    fun `returns null when model is blank for every provider`() {
         val factory = TranslationEngineFactory(prefs)
-        assertNull(factory.create())
+
+        for (provider in listOf(
+            TranslationProvider.CLAUDE,
+            TranslationProvider.OPENAI,
+            TranslationProvider.OPENROUTER,
+            TranslationProvider.GOOGLE,
+        )) {
+            mockProvider(provider)
+            mockApiKey(provider, "test-api-key")
+            mockModel(provider, "")
+            assertNull(factory.create(), "Expected null for $provider with a blank model")
+        }
     }
 
     @Test
@@ -73,7 +80,7 @@ class TranslationEngineFactoryTest {
     fun `returns ClaudeTranslationEngine for CLAUDE provider`() {
         mockProvider(TranslationProvider.CLAUDE)
         mockApiKey(TranslationProvider.CLAUDE, "test-api-key")
-        mockModel(TranslationProvider.CLAUDE, "")
+        mockModel(TranslationProvider.CLAUDE, "test-model")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()
@@ -84,7 +91,7 @@ class TranslationEngineFactoryTest {
     fun `returns OpenAITranslationEngine for OPENAI provider`() {
         mockProvider(TranslationProvider.OPENAI)
         mockApiKey(TranslationProvider.OPENAI, "test-api-key")
-        mockModel(TranslationProvider.OPENAI, "")
+        mockModel(TranslationProvider.OPENAI, "test-model")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()
@@ -106,7 +113,7 @@ class TranslationEngineFactoryTest {
     fun `returns GoogleTranslationEngine for GOOGLE provider`() {
         mockProvider(TranslationProvider.GOOGLE)
         mockApiKey(TranslationProvider.GOOGLE, "test-api-key")
-        mockModel(TranslationProvider.GOOGLE, "")
+        mockModel(TranslationProvider.GOOGLE, "test-model")
 
         val factory = TranslationEngineFactory(prefs)
         val engine = factory.create()
