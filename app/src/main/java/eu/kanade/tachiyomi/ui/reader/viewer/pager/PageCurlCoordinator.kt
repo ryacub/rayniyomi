@@ -31,6 +31,12 @@ internal class PageCurlCoordinator(
     private var curlState = CurlState()
 
     /**
+     * Current curl lifecycle phase. Exposed so invariant tests detect drift;
+     * nothing in production reads it.
+     */
+    internal val phase: Phase get() = curlState.phase
+
+    /**
      * Navigation-cadence timestamp for the rapid-navigation window. It tracks
      * navigation rate, not one curl, so it survives across curls while
      * [CurlState] returns to [Phase.IDLE].
@@ -40,7 +46,7 @@ internal class PageCurlCoordinator(
     /** Coordinator-lifetime flag; outlives any single [CurlState] cycle. */
     private var released = false
 
-    private enum class Phase {
+    internal enum class Phase {
         /** No curl tracked. */
         IDLE,
 

@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCoordinator.Phase
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -336,6 +336,71 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 1) { fixture.pager.post(any()) } // target poll only
         fixture.delayedCallbacks.size shouldBe 0 // stays 0 under both orders
         fixture.inputEnabled shouldBe true // finish completed
+    }
+
+    @Test
+    fun `normal run pins every transition`() {
+        val fixture = PageCurlCoordinatorFixture()
+        every { fixture.capture.capture(any()) } returnsMany
+            listOf(fixture.bitmap(), fixture.bitmap())
+
+        fixture.startCurl()
+
+        fixture.coordinator.phase shouldBe Phase.ANIMATING
+
+        fixture.endCallbacks.first().invoke()
+
+        fixture.coordinator.phase shouldBe Phase.WAITING_LAYOUT
+
+        fixture.runNextPostedCallback()
+
+        fixture.coordinator.phase shouldBe Phase.IDLE
+    }
+
+    @Test
+    fun `intermediate waiting state is observable`() {
+        val fixture = PageCurlCoordinatorFixture()
+
+        fixture.coordinator.runOrFallback(
+            targetPosition = TARGET_POSITION,
+            curlFromRight = true,
+            advance = {},
+        )
+
+        fixture.coordinator.phase shouldBe Phase.WAITING_FOR_TARGET
+
+        fixture.runNextPostedCallback()
+        fixture.endCallbacks.single().invoke()
+        fixture.runNextPostedCallback()
+
+        fixture.coordinator.phase shouldBe Phase.IDLE
+    }
+
+    @Test
+    fun `source capture failure leaves the idle phase`() {
+        val fixture = PageCurlCoordinatorFixture()
+        every { fixture.capture.capture(fixture.sourceHolder) } returns null
+
+        fixture.coordinator.runOrFallback(
+            targetPosition = TARGET_POSITION,
+            curlFromRight = true,
+            advance = {},
+        )
+
+        fixture.coordinator.phase shouldBe Phase.IDLE
+    }
+
+    @Test
+    fun `release during an active curl leaves the idle phase`() {
+        val fixture = PageCurlCoordinatorFixture()
+
+        fixture.startCurl()
+
+        fixture.coordinator.phase shouldBe Phase.ANIMATING
+
+        fixture.coordinator.release()
+
+        fixture.coordinator.phase shouldBe Phase.IDLE
     }
 
     private companion object {
