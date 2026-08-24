@@ -34,6 +34,16 @@ class PageCurlRollMathTest {
 
     private fun originalY(row: Int) = height * row / rows
 
+
+    private fun colorIndex(row: Int, col: Int) = row * (cols + 1) + col
+
+    private fun buildColors(progress: Float): IntArray {
+        val colors = PageCurlRollMath.newColors()
+        PageCurlRollMath.buildColors(width, progress, colors)
+        return colors
+    }
+
+    private fun brightnessByte(color: Int) = color and 0xFF
     /** Counts direction changes along one row, ignoring exact plateaus. */
     private fun directionChanges(xs: List<Float>): Int {
         var changes = 0
@@ -330,11 +340,139 @@ class PageCurlRollMathTest {
         }
     }
 
+    // Shading ------------------------------------------------------------------
+
+    @Test
+    fun `color buffer size matches the mesh density`() {
+        val expected = (cols + 1) * (rows + 1)
+        PageCurlRollMath.colorCount() shouldBe expected
+        PageCurlRollMath.newColors().size shouldBe expected
+    }
+
+    @Test
+    fun `mesh colors are unshaded at zero progress`() {
+        val colors = buildColors(0f)
+        for (row in 0..rows) {
+            for (col in 0..cols) {
+                colors[colorIndex(row, col)] shouldBe UNSHADED
+            }
+        }
+    }
+
+    @Test
+    fun `flat columns stay unshaded at sampled progress`() {
+        for (progress in listOf(0.05f, 0.25f, 0.5f, 0.75f)) {
+            val colors = buildColors(progress)
+            val tangent = PageCurlRollMath.tangentX(width, progress)
+            for (row in 0..rows) {
+                for (col in 0..cols) {
+                    if (originalX(col) <= tangent) {
+                        colors[colorIndex(row, col)] shouldBe UNSHADED
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `wrapped brightness decreases up to the floor`() {
+        val progress = 0.5f
+        val colors = buildColors(progress)
+        val tangent = PageCurlRollMath.tangentX(width, progress)
+        val r = PageCurlRollMath.radius(progress) * width
+        val quarterTheta = PI.toFloat() / 2f
+
+        val wrappedCols = (0..cols).filter { originalX(it) > tangent }
+        val firstFloorCol =
+            wrappedCols.first { (originalX(it) - tangent) / r >= quarterTheta }
+        val floorColor =
+            PageCurlRollMath.shadedColor(tangent + 100f * r, width, progress)
+
+        var previous = brightnessByte(colors[colorIndex(0, wrappedCols.first())])
+        for (col in wrappedCols.drop(1)) {
+            if (col >= firstFloorCol) continue
+            val current = brightnessByte(colors[colorIndex(0, col)])
+            ;(current < previous) shouldBe true
+            previous = current
+        }
+        for (col in wrappedCols.filter { it >= firstFloorCol }) {
+            colors[colorIndex(0, col)] shouldBe floorColor
+            brightnessByte(colors[colorIndex(0, col)]) shouldBe FLOOR_BRIGHTNESS
+        }
+    }
+
+    @Test
+    fun `shading is brightest near the fold and darkest where the surface turns away`() {
+        val progress = 0.5f
+        val colors = buildColors(progress)
+        val tangent = PageCurlRollMath.tangentX(width, progress)
+        val wrappedCols = (0..cols).filter { originalX(it) > tangent }
+
+        val first = brightnessByte(colors[colorIndex(0, wrappedCols.first())])
+        val mid = brightnessByte(colors[colorIndex(0, wrappedCols[wrappedCols.size / 2])])
+        val last = colors[colorIndex(0, wrappedCols.last())]
+        ;(first > mid) shouldBe true
+        last shouldBe PageCurlRollMath.shadedColor(tangent + 100f * PageCurlRollMath.radius(progress) * width, width, progress)
+    }
+
+    @Test
+    fun `vertex colors stay opaque`() {
+        for (progress in listOf(0.25f, 0.5f, 1f)) {
+            val colors = buildColors(progress)
+            for (color in colors) {
+                ((color ushr 24) and 0xFF) shouldBe 0xFF
+            }
+        }
+    }
+
+    @Test
+    fun `roll theta is zero before the tangent and clamps at max roll`() {
+        val progress = 0.4f
+        val tangent = PageCurlRollMath.tangentX(width, progress)
+        val r = PageCurlRollMath.radius(progress) * width
+        PageCurlRollMath.rollTheta(tangent - 10f, width, progress) shouldBe 0f
+        PageCurlRollMath.rollTheta(tangent, width, progress) shouldBe 0f
+        PageCurlRollMath.rollTheta(tangent + r, width, progress) shouldBe 1f
+        PageCurlRollMath.rollTheta(tangent + 10f * r, width, progress) shouldBe
+            PageCurlRollMath.MAX_ROLL_ANGLE
+    }
+
+    @Test
+    fun `color rows follow the original column layout`() {
+        val progress = 0.5f
+        val colors = buildColors(progress)
+        val row = rows / 2
+        for (col in 0..cols) {
+            colors[colorIndex(row, col)] shouldBe
+                PageCurlRollMath.shadedColor(originalX(col), width, progress)
+        }
+    }
+
+    // Cast shadow --------------------------------------------------------------
+
+    @Test
+    fun `cast shadow fades as the fold lifts`() {
+        PageCurlRollMath.castShadowAlpha(0f) shouldBe PageCurlRollMath.CAST_SHADOW_MAX_ALPHA
+        var previous = PageCurlRollMath.castShadowAlpha(0f)
+        var progress = 0.05f
+        while (progress < 1f) {
+            val alpha = PageCurlRollMath.castShadowAlpha(progress)
+            ;(alpha <= previous) shouldBe true
+            previous = alpha
+            progress += 0.05f
+        }
+        PageCurlRollMath.castShadowAlpha(1f) shouldBe 0
+    }
     companion object {
         private const val PLATEAU_EPSILON = 1e-3f
         private const val MOTION_EPSILON = 1e-3f
         private const val RADIUS_EPSILON = 1e-6f
         private const val SPAN_EPSILON = 1e-3f
         private const val ONSET_EPSILON = 1e-4f
+
+        private const val UNSHADED = 0xFFFFFFFF.toInt()
+
+        // round(SHADING_MIN_BRIGHTNESS * 255).
+        private const val FLOOR_BRIGHTNESS = 64
     }
 }
