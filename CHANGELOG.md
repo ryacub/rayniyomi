@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - The page curl now rolls the page around a cylinder instead of sliding and lifting it. The roll keeps the flat part of the page still until the fold line reaches it.
+- The page curl now shows the softened back of the folding page.
 
 ### Fixed
 - Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.

@@ -290,6 +290,7 @@ class PageCurlRollMathTest {
         ;(span != null) shouldBe true
         ;(span!!.endInclusive <= 0f) shouldBe true
     }
+
     // A7: the roll stays single valued under the theta clamp. The flat run
     // folds back once at the tangent line; the wrapped segment then reverses
     // direction once across the quarter turn. At p = 1 the whole sheet lies

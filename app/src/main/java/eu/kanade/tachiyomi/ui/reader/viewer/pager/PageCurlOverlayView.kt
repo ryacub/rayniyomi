@@ -26,6 +26,10 @@ class PageCurlOverlayView(context: Context) : View(context) {
         private const val SHADOW_WIDTH_FRACTION = 0.08f
 
         private val SHADOW_DARK = Color.argb(51, 0, 0, 0)
+
+        // Near-white wash over the mirrored strip so the back reads as paper
+        // rather than as a mirrored copy of the front.
+        private val BACK_SOFTEN_COLOR = Color.argb(90, 255, 255, 255)
     }
 
     private var animator: ValueAnimator? = null
@@ -36,6 +40,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
 
     private val verts = FloatArray(PageCurlRollMath.vertCount())
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val backSoftenPaint = Paint()
 
     init {
         isVisible = false
@@ -110,6 +115,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
             null,
         )
 
+        drawFoldBack(canvas, from.width.toFloat(), from.height.toFloat())
         drawFoldShadow(canvas, from.width.toFloat(), from.height.toFloat())
     }
 
@@ -123,6 +129,39 @@ class PageCurlOverlayView(context: Context) : View(context) {
      */
     private fun buildCurlMesh(bitmapWidth: Float, bitmapHeight: Float) {
         PageCurlRollMath.buildVerts(bitmapWidth, bitmapHeight, progress, curlFromRight, verts)
+    }
+
+    /**
+     * Draws the softened back of the folded-over sheet inside the projected
+     * strip.
+     *
+     * The back is the outgoing bitmap reflected about the fold line, washed
+     * with a translucent color so it reads as paper rather than as a
+     * mirrored copy of the front. Outside the strip nothing changes.
+     */
+    private fun drawFoldBack(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
+        val canonical = PageCurlRollMath.foldBackSpan(bitmapWidth, progress) ?: return
+        // Skip when the whole strip has rolled off screen.
+        if (canonical.endInclusive <= 0f || canonical.start >= bitmapWidth) return
+        // Mirror the canonical range about the page's center line for a left
+        // curl, swapping endpoints: (a..b) becomes (w-b)..(w-a).
+        val left = if (curlFromRight) canonical.start else bitmapWidth - canonical.endInclusive
+        val right = if (curlFromRight) canonical.endInclusive else bitmapWidth - canonical.start
+        val foldX = right
+
+        canvas.save()
+        canvas.clipRect(left, 0f, right, bitmapHeight)
+        // Reflect the outgoing bitmap about the fold line so the strip shows
+        // mirrored content, continuous at the crease.
+        canvas.scale(-1f, 1f, foldX, 0f)
+        canvas.drawBitmap(fromBitmap!!, 0f, 0f, null)
+        canvas.restore()
+
+        canvas.save()
+        canvas.clipRect(left, 0f, right, bitmapHeight)
+        backSoftenPaint.color = BACK_SOFTEN_COLOR
+        canvas.drawRect(left, 0f, right, bitmapHeight, backSoftenPaint)
+        canvas.restore()
     }
 
     /**

@@ -86,6 +86,19 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
+    fun `a curl captures exactly the outgoing and incoming bitmaps`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val onlyBitmap = fixture.bitmap()
+        every { fixture.capture.capture(any()) } returnsMany listOf(onlyBitmap)
+
+        fixture.startCurl()
+
+        // One capture for the outgoing page and one for the incoming page.
+        // A third capture would introduce a third tracked bitmap slot.
+        verify(exactly = 2) { fixture.capture.capture(any()) }
+    }
+
+    @Test
     fun `superseded callback recycles only its bitmap pair`() {
         val fixture = PageCurlCoordinatorFixture()
         val firstFrom = fixture.bitmap()
