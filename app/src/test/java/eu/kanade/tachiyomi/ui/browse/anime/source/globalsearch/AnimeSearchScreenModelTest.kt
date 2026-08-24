@@ -8,24 +8,21 @@ import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
+import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -41,20 +38,21 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimeSearchScreenModelTest {
 
+    private val vt = VirtualTime()
+
     @BeforeEach
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        vt.setUpMain()
     }
 
     @AfterEach
     fun tearDown() {
-        Dispatchers.resetMain()
+        vt.tearDownMain()
     }
 
     @Test
-    fun `newer search result wins when older request completes late`() = runBlocking {
+    fun `newer search result wins when older request completes late`() = runTest(vt.scheduler) {
         val source = mockk<AnimeCatalogueSource>()
-        val oldRequestStarted = CompletableDeferred<Unit>()
         val releaseOldRequest = CompletableDeferred<Unit>()
 
         every { source.id } returns 100L
@@ -66,7 +64,6 @@ class AnimeSearchScreenModelTest {
             val query = secondArg<String>()
             when (query) {
                 "old" -> {
-                    oldRequestStarted.complete(Unit)
                     // NonCancellable ensures the old request completes even after being
                     // superseded by a new search. This simulates a slow source that responds
                     // late, which is the race condition this coordinator prevents.
@@ -108,34 +105,27 @@ class AnimeSearchScreenModelTest {
             networkToLocalAnime = networkToLocalAnime,
             getAnime = mockk<GetAnime>(relaxed = true),
             preferences = sourcePreferences,
+            searchDispatcher = vt.io,
         ) {}
 
         model.updateSearchQuery("old")
         model.search()
-        oldRequestStarted.await()
+        advanceUntilIdle()
 
         model.updateSearchQuery("new")
         model.search()
 
-        eventually {
-            val result = model.state.value.items[source] as? AnimeSearchItemResult.Success
-            result?.result?.singleOrNull()?.title == "New title"
+        advanceUntilIdle()
+        awaitAssert({ model.state.value.items[source] }) { result ->
+            (result as? AnimeSearchItemResult.Success)?.result?.singleOrNull()?.title == "New title"
         }
 
         releaseOldRequest.complete(Unit)
-        delay(150)
+        advanceUntilIdle()
 
         val finalResult = model.state.value.items[source]
         val success = assertInstanceOf(AnimeSearchItemResult.Success::class.java, finalResult)
         assertEquals("New title", success.result.single().title)
-    }
-
-    private suspend fun eventually(timeoutMs: Long = 2_000, condition: () -> Boolean) {
-        withTimeout(timeoutMs) {
-            while (!condition()) {
-                delay(10)
-            }
-        }
     }
 
     private fun testSourcePreferences(): SourcePreferences {
