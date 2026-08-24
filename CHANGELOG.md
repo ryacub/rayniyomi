@@ -43,6 +43,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### CI
 - The release extension ABI gate now names `SManga.getMemo` in its curated
   required-methods list, so removing the member fails the gate with a named reason.
+- Screen-model unit tests now drive completion with virtual time instead of
+  wall-clock timeouts, so they no longer fail intermittently when CI runners
+  are loaded.
 
 ### Other
 
