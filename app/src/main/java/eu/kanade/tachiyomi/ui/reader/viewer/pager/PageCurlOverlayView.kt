@@ -12,8 +12,6 @@ import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.animation.doOnEnd
 import androidx.core.view.isVisible
-import kotlin.math.PI
-import kotlin.math.sin
 
 /**
  * Draws the page curl transition on top of the pager.
@@ -24,15 +22,6 @@ import kotlin.math.sin
 class PageCurlOverlayView(context: Context) : View(context) {
 
     private companion object {
-        private const val MESH_COLS = 10
-        private const val MESH_ROWS = 10
-
-        // The fraction of the page that stays flat behind the folding edge.
-        private const val LAG = 0.5f
-
-        // The lift of the folding edge as a fraction of the page height.
-        private const val LIFT_FRACTION = 0.04f
-
         // The width of the shadow band as a fraction of the page width.
         private const val SHADOW_WIDTH_FRACTION = 0.08f
 
@@ -45,7 +34,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
     private var curlFromRight = true
     private var progress = 0f
 
-    private val verts = FloatArray((MESH_COLS + 1) * (MESH_ROWS + 1) * 2)
+    private val verts = FloatArray(PageCurlRollMath.vertCount())
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
@@ -110,42 +99,30 @@ class PageCurlOverlayView(context: Context) : View(context) {
         canvas.drawBitmap(to, 0f, 0f, null)
 
         buildCurlMesh(from.width.toFloat(), from.height.toFloat())
-        canvas.drawBitmapMesh(from, MESH_COLS, MESH_ROWS, verts, 0, null, 0, null)
+        canvas.drawBitmapMesh(
+            from,
+            PageCurlRollMath.MESH_COLS,
+            PageCurlRollMath.MESH_ROWS,
+            verts,
+            0,
+            null,
+            0,
+            null,
+        )
 
         drawFoldShadow(canvas, from.width.toFloat(), from.height.toFloat())
     }
 
     /**
-     * Warps the mesh grid so the curling edge lifts and folds toward the
-     * center as [progress] advances from 0 to 1.
+     * Fills the mesh buffer with the cylinder roll positions for the current
+     * progress. The math lives in [PageCurlRollMath] so unit tests can run
+     * without a device.
      *
      * The curling edge is the right edge when [curlFromRight] is true and the
      * left edge otherwise.
      */
     private fun buildCurlMesh(bitmapWidth: Float, bitmapHeight: Float) {
-        val direction = if (curlFromRight) -1f else 1f
-        var index = 0
-        for (row in 0..MESH_ROWS) {
-            for (col in 0..MESH_COLS) {
-                val xFraction = col.toFloat() / MESH_COLS
-
-                // The distance from the curling edge, 0 at the edge.
-                val distance = if (curlFromRight) 1f - xFraction else xFraction
-
-                // Progress lags behind by LAG per unit of distance, so the edge
-                // advances before the far side starts to move. The denominator
-                // is at least 0.5, so it never divides by zero.
-                val localProgress =
-                    ((progress - distance * LAG) / (1f - distance * LAG)).coerceIn(0f, 1f)
-
-                verts[index] =
-                    bitmapWidth * xFraction + bitmapWidth * localProgress * direction
-                verts[index + 1] =
-                    bitmapHeight * row / MESH_ROWS -
-                    bitmapHeight * LIFT_FRACTION * sin(localProgress * PI).toFloat()
-                index += 2
-            }
-        }
+        PageCurlRollMath.buildVerts(bitmapWidth, bitmapHeight, progress, curlFromRight, verts)
     }
 
     /**
@@ -154,9 +131,10 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * The shadow is darkest at the fold and fades away from it.
      */
     private fun drawFoldShadow(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
-        // The fold reaches the far edge when the progress reaches LAG.
-        val travel = (progress / LAG).coerceIn(0f, 1f)
-        val foldX = if (curlFromRight) bitmapWidth * (1f - travel) else bitmapWidth * travel
+        // The shadow tracks the tangent line of the roll. It falls on the
+        // flat part of the outgoing page.
+        val canonicalFoldX = PageCurlRollMath.tangentX(bitmapWidth, progress)
+        val foldX = if (curlFromRight) canonicalFoldX else bitmapWidth - canonicalFoldX
         val shadowWidth = bitmapWidth * SHADOW_WIDTH_FRACTION
 
         // The shadow falls on the flat part of the outgoing page.
