@@ -20,9 +20,7 @@ import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
-import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
-import eu.kanade.tachiyomi.data.saver.Location
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
@@ -39,11 +37,6 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
-import eu.kanade.tachiyomi.util.editCover
-import eu.kanade.tachiyomi.util.lang.byteSize
-import eu.kanade.tachiyomi.util.lang.takeBytes
-import eu.kanade.tachiyomi.util.storage.DiskUtil
-import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,7 +70,6 @@ import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import tachiyomi.source.local.entries.manga.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.Instant
@@ -171,6 +163,20 @@ class ReaderViewModel @JvmOverloads constructor(
 
     private val incognitoMode: Boolean by lazy { getIncognitoState.await(manga?.source) }
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading().get()
+
+    /**
+     * Handles saving, sharing, and cover actions for the page in the active [Dialog.PageActions].
+     */
+    private val pageExportController by lazy {
+        ReaderPageExportController(
+            imageSaver = imageSaver,
+            readerPreferences = readerPreferences,
+            scope = viewModelScope,
+            getManga = { manga },
+            getPage = { (state.value.dialog as? Dialog.PageActions)?.page },
+            onEvent = { event -> eventChannel.send(event) },
+        )
+    }
 
     init {
         // To save state
@@ -768,21 +774,6 @@ class ReaderViewModel @JvmOverloads constructor(
         }
     }
 
-    /**
-     * Generate a filename for the given [manga] and [page]
-     */
-    private fun generateFilename(
-        manga: Manga,
-        page: ReaderPage,
-    ): String {
-        val chapter = page.chapter.chapter
-        val filenameSuffix = " - ${page.number}"
-        return DiskUtil.buildValidFilename(
-            "${manga.title} - ${chapter.name}".takeBytes(
-                DiskUtil.MAX_FILE_NAME_BYTES - filenameSuffix.byteSize(),
-            ),
-        ) + filenameSuffix
-    }
 
     fun showMenus(visible: Boolean) {
         mutableState.update { it.copy(menuVisible = visible) }
@@ -816,119 +807,12 @@ class ReaderViewModel @JvmOverloads constructor(
         mutableState.update { it.copy(brightnessOverlayValue = value) }
     }
 
-    /**
-     * Saves the image of this the selected page on the pictures directory and notifies the UI of the result.
-     * There's also a notification to allow sharing the image somewhere else or deleting it.
-     */
-    fun saveImage() {
-        val page = (state.value.dialog as? Dialog.PageActions)?.page
-        if (page?.status != Page.State.READY) return
-        val manga = manga ?: return
+    fun saveImage() = pageExportController.saveImage()
 
-        val context = Injekt.get<Application>()
-        val notifier = SaveImageNotifier(context)
-        notifier.onClear()
+    fun shareImage(copyToClipboard: Boolean) = pageExportController.shareImage(copyToClipboard)
 
-        val filename = generateFilename(manga, page)
+    fun setAsCover() = pageExportController.setAsCover()
 
-        // Pictures directory.
-        val relativePath = if (readerPreferences.folderPerManga().get()) {
-            DiskUtil.buildValidFilename(
-                manga.title,
-            )
-        } else {
-            ""
-        }
-
-        // Copy file in background.
-        viewModelScope.launchNonCancellable {
-            try {
-                val uri = imageSaver.save(
-                    image = Image.Page(
-                        inputStream = page.stream!!,
-                        name = filename,
-                        location = Location.Pictures.create(relativePath),
-                    ),
-                )
-                withUIContext {
-                    notifier.onComplete(uri)
-                    eventChannel.send(Event.SavedImage(SaveImageResult.Success(uri)))
-                }
-            } catch (e: Throwable) {
-                notifier.onError(e.message)
-                eventChannel.send(Event.SavedImage(SaveImageResult.Error(e)))
-            }
-        }
-    }
-
-    /**
-     * Shares the image of this the selected page and notifies the UI with the path of the file to share.
-     * The image must be first copied to the internal partition because there are many possible
-     * formats it can come from, like a zipped chapter, in which case it's not possible to directly
-     * get a path to the file and it has to be decompressed somewhere first. Only the last shared
-     * image will be kept so it won't be taking lots of internal disk space.
-     */
-    fun shareImage(copyToClipboard: Boolean) {
-        val page = (state.value.dialog as? Dialog.PageActions)?.page
-        if (page?.status != Page.State.READY) return
-        val manga = manga ?: return
-
-        val context = Injekt.get<Application>()
-        val destDir = context.cacheImageDir
-
-        val filename = generateFilename(manga, page)
-
-        try {
-            viewModelScope.launchNonCancellable {
-                destDir.deleteRecursively()
-                val uri = imageSaver.save(
-                    image = Image.Page(
-                        inputStream = page.stream!!,
-                        name = filename,
-                        location = Location.Cache,
-                    ),
-                )
-                eventChannel.send(if (copyToClipboard) Event.CopyImage(uri) else Event.ShareImage(uri, page))
-            }
-        } catch (e: Throwable) {
-            logcat(LogPriority.ERROR, e)
-        }
-    }
-
-    /**
-     * Sets the image of this the selected page as cover and notifies the UI of the result.
-     */
-    fun setAsCover() {
-        val page = (state.value.dialog as? Dialog.PageActions)?.page
-        if (page?.status != Page.State.READY) return
-        val manga = manga ?: return
-        val stream = page.stream ?: return
-
-        viewModelScope.launchNonCancellable {
-            val result = try {
-                manga.editCover(Injekt.get(), stream())
-                if (manga.isLocal() || manga.favorite) {
-                    SetAsCoverResult.Success
-                } else {
-                    SetAsCoverResult.AddToLibraryFirst
-                }
-            } catch (e: Exception) {
-                SetAsCoverResult.Error
-            }
-            eventChannel.send(Event.SetCoverResult(result))
-        }
-    }
-
-    enum class SetAsCoverResult {
-        Success,
-        AddToLibraryFirst,
-        Error,
-    }
-
-    sealed interface SaveImageResult {
-        class Success(val uri: Uri) : SaveImageResult
-        class Error(val error: Throwable) : SaveImageResult
-    }
 
     /**
      * Starts the service that updates the last chapter read in sync services. This operation
