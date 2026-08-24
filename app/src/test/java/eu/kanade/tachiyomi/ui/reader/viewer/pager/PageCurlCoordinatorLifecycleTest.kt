@@ -24,7 +24,7 @@ class PageCurlCoordinatorLifecycleTest {
         )
 
         fallbacks.shouldContainExactly(true)
-        verify(exactly = 0) { fixture.pager.setGestureInputMode(any()) }
+        fixture.inputEnabled shouldBe true
     }
 
     @Test
@@ -37,7 +37,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
 
         verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe true
     }
 
     @Test
@@ -57,8 +57,10 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 1) { toBitmap.recycle() }
         fixture.delayedCallbacks.size shouldBe 1
 
+        // The curl claim stays active until the delayed callback releases it.
+        fixture.inputEnabled shouldBe false
         fixture.delayedCallbacks.single().run()
-        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe true
     }
 
     @Test
@@ -104,7 +106,7 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 1) { fixture.overlay.cancelCurl() }
         verify(exactly = 0) { secondFrom.recycle() }
         verify(exactly = 0) { secondTo.recycle() }
-        verify(exactly = 0) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe false
     }
 
     @Test
@@ -123,7 +125,7 @@ class PageCurlCoordinatorLifecycleTest {
         )
 
         fallbacks.shouldContainExactly(true)
-        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe true
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
     }
@@ -241,9 +243,8 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
         fixture.endCallbacks.single().invoke()
         fixture.runNextPostedCallback()
+        fixture.inputEnabled shouldBe false
         fixture.delayedCallbacks.single().run()
-
-        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
         fixture.inputEnabled shouldBe true
     }
 
@@ -281,9 +282,6 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 2) { fixture.overlay.isVisible = false }
         verify(exactly = 1) { secondFrom.recycle() }
         verify(exactly = 1) { secondTo.recycle() }
-        verify(exactly = 1) {
-            fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
-        }
         fixture.inputEnabled shouldBe true
     }
 
