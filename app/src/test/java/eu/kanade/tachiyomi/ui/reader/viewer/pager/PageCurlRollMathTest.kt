@@ -291,6 +291,25 @@ class PageCurlRollMathTest {
         ;(span!!.endInclusive <= 0f) shouldBe true
     }
 
+    // A12: pin for the fold-back sampler in PageCurlOverlayView. Both curl
+    // directions sample the canonical range [tangent, tangent + radius]:
+    // the right curl reflects about the crease, the left curl composes
+    // that reflection with the mesh display mirror into a translation.
+    // Wherever the strip is on screen, the sampled range stays inside
+    // the bitmap.
+    @Test
+    fun `fold back sampler domain stays inside the bitmap wherever the strip is visible`() {
+        var progress = 0.01f
+        while (progress <= 1f) {
+            val span = PageCurlRollMath.foldBackSpan(width, progress)
+            if (span != null && span.endInclusive > 0f && span.start < width) {
+                val r = PageCurlRollMath.radius(progress) * width
+                ;(span.endInclusive + r <= width) shouldBe true
+            }
+            progress += 0.01f
+        }
+    }
+
     // A7: the roll stays single valued under the theta clamp. The flat run
     // folds back once at the tangent line; the wrapped segment then reverses
     // direction once across the quarter turn. At p = 1 the whole sheet lies

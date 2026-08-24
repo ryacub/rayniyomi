@@ -135,9 +135,11 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * Draws the softened back of the folded-over sheet inside the projected
      * strip.
      *
-     * The back is the outgoing bitmap reflected about the fold line, washed
+     * The back shows the outgoing bitmap mirrored about the crease, washed
      * with a translucent color so it reads as paper rather than as a
-     * mirrored copy of the front. Outside the strip nothing changes.
+     * copy of the front. Outside the strip nothing changes. Both curl
+     * directions sample the canonical range [tangent, tangent + radius],
+     * inside the bitmap for every non-null span.
      */
     private fun drawFoldBack(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
         val canonical = PageCurlRollMath.foldBackSpan(bitmapWidth, progress) ?: return
@@ -147,19 +149,20 @@ class PageCurlOverlayView(context: Context) : View(context) {
         // curl, swapping endpoints: (a..b) becomes (w-b)..(w-a).
         val left = if (curlFromRight) canonical.start else bitmapWidth - canonical.endInclusive
         val right = if (curlFromRight) canonical.endInclusive else bitmapWidth - canonical.start
-        val foldX = right
 
         canvas.save()
         canvas.clipRect(left, 0f, right, bitmapHeight)
-        // Reflect the outgoing bitmap about the fold line so the strip shows
-        // mirrored content, continuous at the crease.
-        canvas.scale(-1f, 1f, foldX, 0f)
+        // The right curl reflects the bitmap about the fold line at the
+        // strip's outer edge. The mesh already mirrors the page for a left
+        // curl, so there the same reflection composes into a pure
+        // translation by w - 2t.
+        if (curlFromRight) {
+            canvas.scale(-1f, 1f, right, 0f)
+        } else {
+            canvas.translate(bitmapWidth - 2f * canonical.endInclusive, 0f)
+        }
         canvas.drawBitmap(fromBitmap!!, 0f, 0f, null)
-        canvas.restore()
-
-        canvas.save()
-        canvas.clipRect(left, 0f, right, bitmapHeight)
-        backSoftenPaint.color = BACK_SOFTEN_COLOR
+        // Soften the sampled copy so it reads as paper.
         canvas.drawRect(left, 0f, right, bitmapHeight, backSoftenPaint)
         canvas.restore()
     }
