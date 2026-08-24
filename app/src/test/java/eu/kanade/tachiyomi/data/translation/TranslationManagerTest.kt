@@ -168,7 +168,7 @@ class TranslationManagerTest {
 
         val state = manager.getState(chapter.id)
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
-        assertEquals("No translation provider configured", (state as TranslationState.Error).message)
+        assertEquals("No translation model is selected. Choose a model in Settings > Translation.", (state as TranslationState.Error).message)
     }
 
     // -----------------------------------------------------------------------

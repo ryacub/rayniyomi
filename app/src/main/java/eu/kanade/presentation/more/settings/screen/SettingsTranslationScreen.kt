@@ -122,7 +122,7 @@ object SettingsTranslationScreen : SearchableSettings {
                         model
                     }
                 },
-                enabled = provider == TranslationProvider.OPENROUTER && apiKey.isNotBlank(),
+                enabled = provider != TranslationProvider.NONE && apiKey.isNotBlank(),
                 onClick = { showModelPicker = true },
             ),
         )
@@ -130,6 +130,8 @@ object SettingsTranslationScreen : SearchableSettings {
         if (showModelPicker) {
             TranslationModelPickerDialog(
                 repository = catalogRepository,
+                provider = provider,
+                apiKey = apiKey,
                 modelPreference = modelPreference,
                 modelChoiceTypePreference = modelChoiceTypePreference,
                 onDismiss = { showModelPicker = false },
