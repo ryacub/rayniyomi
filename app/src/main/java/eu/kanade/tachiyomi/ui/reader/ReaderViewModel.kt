@@ -799,7 +799,6 @@ class ReaderViewModel @JvmOverloads constructor(
 
     fun setAsCover() = pageExportController.setAsCover()
 
-
     /**
      * Starts the service that updates the last chapter read in sync services. This operation
      * will run in a background thread and errors are ignored.
