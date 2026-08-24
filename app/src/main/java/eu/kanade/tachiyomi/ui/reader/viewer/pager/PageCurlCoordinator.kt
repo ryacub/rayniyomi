@@ -99,6 +99,25 @@ internal class PageCurlCoordinator(
             gestureReenableRunnable?.let(pager::removeCallbacks)
             gestureReenableRunnable = null
         }
+
+        /**
+         * Tears down tracked callbacks and position, then hands the taken
+         * bitmaps back. Runs [abortOverlay] after bumping the generation, so
+         * a reentrant animation-end callback observes a stale generation.
+         *
+         * Callers must check [isEmpty] first; this member assumes work exists.
+         */
+        fun finish(
+            pager: Pager,
+            abortOverlay: () -> Unit,
+        ): Triple<Bitmap?, Bitmap?, Bitmap?> {
+            generationId++
+            clearRunnables(pager)
+            targetPosition = null
+            val bitmaps = takeBitmaps()
+            abortOverlay()
+            return bitmaps
+        }
     }
 
     fun runOrFallback(
@@ -179,20 +198,13 @@ internal class PageCurlCoordinator(
     /**
      * The single terminal exit. Tears down every tracked resource exactly
      * once and returns [CurlState] to [Phase.IDLE].
-     *
-     * The generation bump precedes [PageCurlOverlayView.cancelCurl]: that
-     * order makes a reentrant animation-end callback (via animator cancel)
-     * take the stale branch instead of tearing down the animating pair twice.
      */
     private fun finish(restoreInput: Boolean) {
         val state = curlState
         if (state.isEmpty()) return
 
-        state.generationId++
-        state.clearRunnables(pager)
-        state.targetPosition = null
-        val (pendingFrom, activeFrom, activeTo) = state.takeBitmaps()
-        overlay.abortAndHide()
+        val (pendingFrom, activeFrom, activeTo) =
+            state.finish(pager) { overlay.abortAndHide() }
         recycle(pendingFrom)
         recycle(activeFrom)
         recycle(activeTo)

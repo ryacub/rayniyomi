@@ -301,6 +301,30 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.inputEnabled shouldBe true
     }
 
+    @Test
+    fun `teardown bumps the generation before the overlay aborts`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val fromBitmap = fixture.bitmap()
+        val toBitmap = fixture.bitmap()
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
+
+        fixture.startCurl()
+        // Reenter through the animation-end callback while the abort runs.
+        // The bump must land first so this callback takes the stale branch.
+        every { fixture.overlay.abortAndHide() } answers {
+            fixture.endCallbacks.single().invoke()
+        }
+
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
+
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
+        verify(exactly = 1) { fromBitmap.recycle() }
+        verify(exactly = 1) { toBitmap.recycle() }
+        verify(exactly = 1) { fixture.pager.post(any()) } // target poll only
+        fixture.delayedCallbacks.size shouldBe 0 // stays 0 under both orders
+        fixture.inputEnabled shouldBe true // finish completed
+    }
+
     private companion object {
         const val TARGET_POSITION = 1
     }
