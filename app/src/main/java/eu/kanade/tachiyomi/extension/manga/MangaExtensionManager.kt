@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -427,10 +428,13 @@ class MangaExtensionManager(
     private fun MangaExtension.Installed.hasSourceId(sourceId: Long): Boolean {
         return sources.any { source -> runCatching { source.id }.getOrNull() == sourceId }
     }
+}
 
-    private fun <T : MangaExtension> StateFlow<Map<String, T>>.mapExtensions(
-        scope: CoroutineScope,
-    ): StateFlow<List<T>> {
-        return map { it.values.toList() }.stateIn(scope, SharingStarted.Lazily, value.values.toList())
-    }
+internal fun <T : MangaExtension> StateFlow<Map<String, T>>.mapExtensions(
+    scope: CoroutineScope,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+): StateFlow<List<T>> {
+    return map { it.values.toList() }
+        .flowOn(dispatcher)
+        .stateIn(scope, SharingStarted.Lazily, value.values.toList())
 }
