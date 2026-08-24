@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import androidx.core.view.isVisible
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -23,7 +24,7 @@ class PagerCurlExternalNavigationTest {
         verify(exactly = 1) { fixture.overlay.isVisible = false }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe true
     }
 
     @Test
@@ -37,7 +38,7 @@ class PagerCurlExternalNavigationTest {
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION)
 
         verify(exactly = 0) { fixture.overlay.cancelCurl() }
-        verify(exactly = 0) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe false
     }
 
     @Test

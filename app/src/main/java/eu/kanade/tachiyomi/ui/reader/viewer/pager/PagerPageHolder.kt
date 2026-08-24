@@ -74,7 +74,9 @@ class PagerPageHolder(
     @SuppressLint("ClickableViewAccessibility")
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        viewer.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
+        // A press can lose its ACTION_UP when the view detaches mid-press. Release this
+        // holder's own claim so the pager gestures do not stay disabled.
+        viewer.pager.releaseGestures(GestureInputGate.Claim.DIALOG_PRESS)
         loadJob?.cancel()
         loadJob = null
         scope.cancel()
@@ -323,9 +325,12 @@ class PagerPageHolder(
                         }
                     },
                     onActionPressChanged = { isPressed ->
-                        viewer.pager.setGestureInputMode(
-                            if (isPressed) Pager.GestureInputMode.DISABLED else Pager.GestureInputMode.ENABLED,
-                        )
+                        val claim = GestureInputGate.Claim.DIALOG_PRESS
+                        if (isPressed) {
+                            viewer.pager.acquireGestures(claim)
+                        } else {
+                            viewer.pager.releaseGestures(claim)
+                        }
                     },
                 ),
             )

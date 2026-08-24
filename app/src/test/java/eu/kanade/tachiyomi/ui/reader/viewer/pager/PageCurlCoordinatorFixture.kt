@@ -25,7 +25,13 @@ internal class PageCurlCoordinatorFixture(
     private val postedCallbacks = ArrayDeque<Runnable>()
     var nowMs = 1_000L
     var currentItemIndex = initialItemIndex
-    var inputEnabled = true
+    val gestureGate = GestureInputGate()
+
+    /**
+     * Mirrors [Pager.gestureInputMode]: true only when no claim constrains gestures.
+     */
+    val inputEnabled: Boolean
+        get() = gestureGate.effectiveMode == Pager.GestureInputMode.ENABLED
 
     val coordinator = PageCurlCoordinator(
         overlay = overlay,
@@ -44,9 +50,8 @@ internal class PageCurlCoordinatorFixture(
         every { targetHolder.isAtMinimumZoom() } returns true
         every { targetHolder.isLaidOut } returns true
         every { pager.currentItem } answers { currentItemIndex }
-        every { pager.setGestureInputMode(any()) } answers {
-            inputEnabled = firstArg<Pager.GestureInputMode>() == Pager.GestureInputMode.ENABLED
-        }
+        every { pager.acquireGestures(any()) } answers { gestureGate.acquire(firstArg()) }
+        every { pager.releaseGestures(any()) } answers { gestureGate.release(firstArg()) }
         every { pager.post(any()) } answers {
             postedCallbacks.addLast(firstArg<Runnable>())
             true

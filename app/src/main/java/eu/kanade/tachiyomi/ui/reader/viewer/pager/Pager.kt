@@ -55,10 +55,16 @@ open class Pager(
     )
 
     /**
-     * Which gestures the pager currently accepts. Child views such as [ReaderButton] use
-     * DISABLED while pressed so their taps do not also trigger pager tap zones.
+     * Arbitrates which gestures the pager accepts. Each owner holds a named claim
+     * while it needs a non-default mode. See [GestureInputGate].
      */
-    private var gestureInputMode = GestureInputMode.ENABLED
+    private val gestureGate = GestureInputGate()
+
+    /**
+     * The strongest active claim's mode.
+     */
+    private val gestureInputMode
+        get() = gestureGate.effectiveMode
 
     /**
      * Whether non-navigation gestures (long tap, menu tap) are suppressed.
@@ -119,11 +125,19 @@ open class Pager(
     }
 
     /**
-     * Sets which gestures the pager accepts. The page curl coordinator uses SUPPRESS_CHROME;
-     * pressed child buttons and error-layout actions use DISABLED; everything else uses ENABLED.
+     * Adds [claim] as an owner of the gesture input mode. Acquiring an active claim
+     * changes nothing.
      */
-    fun setGestureInputMode(mode: GestureInputMode) {
-        gestureInputMode = mode
+    fun acquireGestures(claim: GestureInputGate.Claim) {
+        gestureGate.acquire(claim)
+    }
+
+    /**
+     * Removes [claim] from the gesture input mode owners. Releasing an inactive
+     * claim does nothing. The mode falls back to the strongest remaining claim.
+     */
+    fun releaseGestures(claim: GestureInputGate.Claim) {
+        gestureGate.release(claim)
     }
 
     enum class GestureInputMode {
