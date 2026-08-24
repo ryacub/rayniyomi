@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.translation.catalog
 
+import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 
@@ -38,6 +39,43 @@ class TranslationModelCatalogFilterTest {
         val unknown = entry("unknown", compatibleCapabilities).copy(cost = TranslationModelCost.UNKNOWN)
 
         TranslationModelCatalogFilter.filter(listOf(paid, unknown)) shouldBe emptyList()
+    }
+
+    @Test
+    fun `native filter keeps image capable paid models and drops text only`() {
+        val vision = entry("claude-sonnet-4-5", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
+        val textOnly = entry("text-only", compatibleCapabilities.copy(imageInput = false))
+
+        val result = TranslationModelCatalogFilter.filter(listOf(vision, textOnly), TranslationProvider.CLAUDE)
+
+        result.map { it.id } shouldBe listOf("claude-sonnet-4-5")
+    }
+
+    @Test
+    fun `native filter drops models without text output`() {
+        val noText = entry("no-text", compatibleCapabilities.copy(textOutput = false))
+
+        TranslationModelCatalogFilter.filter(listOf(noText), TranslationProvider.GOOGLE) shouldBe emptyList()
+    }
+
+    @Test
+    fun `openrouter filter keeps strict gating unchanged`() {
+        val strictCompatible = entry("free-vision", compatibleCapabilities)
+        val paidVision = entry("paid-vision", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
+
+        val result = TranslationModelCatalogFilter.filter(
+            listOf(strictCompatible, paidVision),
+            TranslationProvider.OPENROUTER,
+        )
+
+        result.map { it.id } shouldBe listOf("free-vision")
+    }
+
+    @Test
+    fun `single argument filter delegates to openrouter gating`() {
+        val paidVision = entry("paid-vision", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
+
+        TranslationModelCatalogFilter.filter(listOf(paidVision)) shouldBe emptyList()
     }
 
     private fun entry(id: String, capabilities: TranslationModelCapabilities) =
