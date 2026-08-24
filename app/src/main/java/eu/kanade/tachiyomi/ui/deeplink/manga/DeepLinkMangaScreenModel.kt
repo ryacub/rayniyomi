@@ -11,8 +11,10 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ResolvableSource
 import eu.kanade.tachiyomi.source.online.UriType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.lang.launchIO
+import kotlinx.coroutines.launch
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
@@ -30,10 +32,11 @@ class DeepLinkMangaScreenModel(
     private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = Injekt.get(),
     private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
     private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<DeepLinkMangaScreenModel.State>(State.Loading) {
 
     init {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             try {
                 val source = sourceManager.getAll()
                     .filterIsInstance<ResolvableSource>()

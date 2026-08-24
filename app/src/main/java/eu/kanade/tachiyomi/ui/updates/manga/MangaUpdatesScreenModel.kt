@@ -21,6 +21,8 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,7 +39,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.preference.getAndSet
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
@@ -67,6 +68,7 @@ class MangaUpdatesScreenModel(
     private val getCategories: GetMangaCategories = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<MangaUpdatesScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Int.MAX_VALUE)
@@ -88,7 +90,7 @@ class MangaUpdatesScreenModel(
     private val selectedChapterIds: HashSet<Long> = HashSet()
 
     init {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             // Set date limit for recent chapters
             val limit = ZonedDateTime.now().minusMonths(3).toInstant()
 
@@ -111,7 +113,7 @@ class MangaUpdatesScreenModel(
                 }
         }
 
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             merge(downloadManager.statusFlow(), downloadManager.progressFlow())
                 .catch { logcat(LogPriority.ERROR, it) }
                 .collect(this@MangaUpdatesScreenModel::updateDownloadState)
@@ -245,7 +247,7 @@ class MangaUpdatesScreenModel(
      * @param read whether to mark chapters as read or unread.
      */
     fun markUpdatesRead(updates: List<MangaUpdatesItem>, read: Boolean) {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             setReadStatus.await(
                 read = read,
                 chapters = updates
@@ -261,7 +263,7 @@ class MangaUpdatesScreenModel(
      * @param updates the list of chapters to bookmark.
      */
     fun bookmarkUpdates(updates: List<MangaUpdatesItem>, bookmark: Boolean) {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             updates
                 .filterNot { it.update.bookmark == bookmark }
                 .map { ChapterUpdate(id = it.update.chapterId, bookmark = bookmark) }

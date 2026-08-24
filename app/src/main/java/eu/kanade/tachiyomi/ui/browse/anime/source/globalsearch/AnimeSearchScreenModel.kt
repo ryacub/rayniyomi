@@ -154,7 +154,7 @@ abstract class AnimeSearchScreenModel(
             )
         }
 
-        searchJob = screenModelScope.launch(Dispatchers.IO) {
+        searchJob = screenModelScope.launch(searchDispatcher) {
             sources.map { source ->
                 async {
                     if (state.value.items[source] !is AnimeSearchItemResult.Loading) {

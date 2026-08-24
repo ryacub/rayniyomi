@@ -21,6 +21,8 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,7 +39,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.preference.getAndSet
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
@@ -69,6 +70,7 @@ class AnimeUpdatesScreenModel(
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<AnimeUpdatesScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Int.MAX_VALUE)
@@ -92,7 +94,7 @@ class AnimeUpdatesScreenModel(
     private val selectedEpisodeIds: HashSet<Long> = HashSet()
 
     init {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             // Set date limit for recent episodes
 
             val limit = ZonedDateTime.now().minusMonths(3).toInstant()
@@ -115,7 +117,7 @@ class AnimeUpdatesScreenModel(
                 }
         }
 
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             merge(downloadManager.statusFlow(), downloadManager.progressFlow())
                 .catch { logcat(LogPriority.ERROR, it) }
                 .collect(this@AnimeUpdatesScreenModel::updateDownloadState)
@@ -249,7 +251,7 @@ class AnimeUpdatesScreenModel(
      * @param seen whether to mark episodes as seen or unseen.
      */
     fun markUpdatesSeen(updates: List<AnimeUpdatesItem>, seen: Boolean) {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             setSeenStatus.await(
                 seen = seen,
                 episodes = updates
@@ -265,7 +267,7 @@ class AnimeUpdatesScreenModel(
      * @param updates the list of episodes to bookmark.
      */
     fun bookmarkUpdates(updates: List<AnimeUpdatesItem>, bookmark: Boolean) {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             updates
                 .filterNot { it.update.bookmark == bookmark }
                 .map { EpisodeUpdate(id = it.update.episodeId, bookmark = bookmark) }
@@ -279,7 +281,7 @@ class AnimeUpdatesScreenModel(
      * @param updates the list of episodes to fillermark.
      */
     fun fillermarkUpdates(updates: List<AnimeUpdatesItem>, fillermark: Boolean) {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             updates
                 .filterNot { it.update.fillermark == fillermark }
                 .map { EpisodeUpdate(id = it.update.episodeId, fillermark = fillermark) }
