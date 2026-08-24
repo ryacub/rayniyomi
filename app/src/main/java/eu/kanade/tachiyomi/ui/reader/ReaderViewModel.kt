@@ -179,26 +179,24 @@ class ReaderViewModel @JvmOverloads constructor(
     /**
      * Owns the translated-pages reaction: language change watching, reload decision, and toggles.
      */
-    private val translationCoordinator by lazy {
-        ReaderTranslationCoordinator(
-            translationStorageManager = translationStorageManager,
-            translationPreferences = translationPreferences,
-            translationManager = translationManager,
-            sourceManager = sourceManager,
-            readerPreferences = readerPreferences,
-            scope = viewModelScope,
-            getManga = { manga },
-            getCurrChapter = { state.value.viewerChapters?.currChapter },
-            getShowTranslatedPages = { state.value.showTranslatedPages },
-            onHasTranslationChange = { hasTranslation ->
-                mutableState.update { it.copy(hasTranslation = hasTranslation) }
-            },
-            onShowTranslatedPagesChange = { showTranslatedPages ->
-                mutableState.update { it.copy(showTranslatedPages = showTranslatedPages) }
-            },
-            onReload = { eventChannel.send(Event.ReloadViewerChapters) },
-        )
-    }
+    private val translationCoordinator = ReaderTranslationCoordinator(
+        translationStorageManager = translationStorageManager,
+        translationPreferences = translationPreferences,
+        translationManager = translationManager,
+        sourceManager = sourceManager,
+        readerPreferences = readerPreferences,
+        scope = viewModelScope,
+        getManga = { manga },
+        getCurrChapter = { state.value.viewerChapters?.currChapter },
+        getShowTranslatedPages = { state.value.showTranslatedPages },
+        onHasTranslationChange = { hasTranslation ->
+            mutableState.update { it.copy(hasTranslation = hasTranslation) }
+        },
+        onShowTranslatedPagesChange = { showTranslatedPages ->
+            mutableState.update { it.copy(showTranslatedPages = showTranslatedPages) }
+        },
+        onReload = { eventChannel.send(Event.ReloadViewerChapters) },
+    )
 
     init {
         // To save state
