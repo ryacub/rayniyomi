@@ -13,10 +13,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import logcat.LogPriority
-import tachiyomi.core.common.util.system.logcat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 /**
  * Broadcast receiver that listens for the system's packages installed, updated or removed, and only

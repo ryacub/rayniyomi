@@ -10,7 +10,9 @@ import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import logcat.LogPriority
@@ -21,13 +23,27 @@ import tachiyomi.core.common.util.system.logcat
  * notifies the given [listener] when the package is an extension.
  *
  * @param listener The listener that should be notified of extension installation events.
+ * @param scope The scope that owns the receiver's background work. [unregister] provides
+ * best-effort quiescence: it prevents future deliveries and cancels pending work at suspension
+ * points, but does not synchronously stop an already-running callback past a suspension point.
+ * `goAsync()` is not used because its PendingResult bookkeeping adds complexity while async work
+ * already escapes `onReceive` today.
  */
-internal class MangaExtensionInstallReceiver(private val listener: Listener) : BroadcastReceiver() {
-
-    val scope = CoroutineScope(SupervisorJob())
+internal class MangaExtensionInstallReceiver(
+    private val listener: Listener,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+) : BroadcastReceiver() {
 
     fun register(context: Context) {
         ContextCompat.registerReceiver(context, this, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    /**
+     * Unregisters this receiver and cancels its pending work.
+     */
+    fun unregister(context: Context) {
+        runCatching { context.unregisterReceiver(this) }
+        scope.cancel()
     }
 
     private val filter = IntentFilter().apply {
