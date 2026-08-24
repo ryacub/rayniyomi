@@ -54,13 +54,14 @@ class AnimeExtensionManager(
     private val preferences: SourcePreferences = Injekt.get(),
     private val trustExtension: TrustAnimeExtension = Injekt.get(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val scopeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeExtensionManager scope" }
     }
 
-    val scope = CoroutineScope(SupervisorJob() + exceptionHandler)
+    val scope = CoroutineScope(SupervisorJob() + exceptionHandler + scopeDispatcher)
 
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
