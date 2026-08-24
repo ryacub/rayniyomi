@@ -5,6 +5,7 @@ import unittest
 from scripts.check_release_extension_abi import (
     ACC_FINAL,
     ACC_SYNTHETIC,
+    REQUIRED_METHODS,
     baseline_differences,
     baseline_rows,
     render_flags,
@@ -111,6 +112,15 @@ class ExtensionAbiBaselineTest(unittest.TestCase):
         self.assertEqual(render_flags(ACC_FINAL | ACC_PUBLIC), "PUBLIC FINAL")
         self.assertEqual(render_flags(0), "NONE")
 
+    def test_requires_manga_get_memo(self) -> None:
+        """R917: the gate names SManga.getMemo so its removal fails with a reason."""
+        self.assertIn(
+            "Leu/kanade/tachiyomi/source/model/SManga;"
+            "->getMemo()Lkotlinx/serialization/json/JsonObject;",
+            REQUIRED_METHODS["manga source model"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
+

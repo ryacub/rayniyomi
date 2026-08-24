@@ -79,6 +79,7 @@ REQUIRED_METHODS = {
         "Leu/kanade/tachiyomi/source/model/SManga;->setUpdate_strategy(Leu/kanade/tachiyomi/source/model/UpdateStrategy;)V",
         "Leu/kanade/tachiyomi/source/model/SManga;->getInitialized()Z",
         "Leu/kanade/tachiyomi/source/model/SManga;->setInitialized(Z)V",
+        "Leu/kanade/tachiyomi/source/model/SManga;->getMemo()Lkotlinx/serialization/json/JsonObject;",
         "Leu/kanade/tachiyomi/source/model/SManga$Companion;->create()Leu/kanade/tachiyomi/source/model/SManga;",
         "Leu/kanade/tachiyomi/source/model/SChapter;->getUrl()Ljava/lang/String;",
         "Leu/kanade/tachiyomi/source/model/SChapter;->setUrl(Ljava/lang/String;)V",
