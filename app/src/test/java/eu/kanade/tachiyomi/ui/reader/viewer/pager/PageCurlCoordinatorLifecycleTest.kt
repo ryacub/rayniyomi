@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import android.graphics.Bitmap
 import androidx.core.view.isVisible
-import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -15,7 +13,7 @@ class PageCurlCoordinatorLifecycleTest {
 
     @Test
     fun `source capture failure uses the current animated fallback`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns null
         val fallbacks = mutableListOf<Boolean>()
 
@@ -26,12 +24,12 @@ class PageCurlCoordinatorLifecycleTest {
         )
 
         fallbacks.shouldContainExactly(true)
-        verify(exactly = 0) { fixture.pager.setGestureDetectorEnabled(false) }
+        verify(exactly = 0) { fixture.pager.setGestureInputMode(any()) }
     }
 
     @Test
     fun `target capture failure recycles the source and restores input`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
         every { fixture.overlay.captureBitmap(fixture.targetHolder) } returns null
@@ -39,12 +37,12 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
 
         verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
     fun `normal completion hides the overlay and recycles both bitmaps`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
@@ -60,12 +58,12 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.delayedCallbacks.size shouldBe 1
 
         fixture.delayedCallbacks.single().run()
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
     fun `superseded callback recycles only its bitmap pair`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val firstFrom = fixture.bitmap()
         val firstTo = fixture.bitmap()
         val secondFrom = fixture.bitmap()
@@ -87,7 +85,7 @@ class PageCurlCoordinatorLifecycleTest {
 
     @Test
     fun `stale layout callback cannot cancel a newer curl`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val firstFrom = fixture.bitmap()
         val firstTo = fixture.bitmap()
         val secondFrom = fixture.bitmap()
@@ -106,12 +104,12 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 1) { fixture.overlay.cancelCurl() }
         verify(exactly = 0) { secondFrom.recycle() }
         verify(exactly = 0) { secondTo.recycle() }
-        verify(exactly = 0) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 0) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
     }
 
     @Test
     fun `fallback cancellation restores input`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
@@ -125,14 +123,14 @@ class PageCurlCoordinatorLifecycleTest {
         )
 
         fallbacks.shouldContainExactly(true)
-        verify(exactly = 1) { fixture.pager.setGestureDetectorEnabled(true) }
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
     }
 
     @Test
     fun `release during cancellation does not post a callback after teardown`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
@@ -152,7 +150,7 @@ class PageCurlCoordinatorLifecycleTest {
 
     @Test
     fun `release removes a target poll and recycles its pending bitmap`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
 
@@ -170,7 +168,7 @@ class PageCurlCoordinatorLifecycleTest {
 
     @Test
     fun `release removes the pending layout callback`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
@@ -189,7 +187,7 @@ class PageCurlCoordinatorLifecycleTest {
 
     @Test
     fun `release removes the pending gesture callback`() {
-        val fixture = Fixture()
+        val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
         every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
@@ -205,82 +203,88 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 2) { fixture.overlay.cancelCurl() }
     }
 
-    private class Fixture {
-        val pager = mockk<Pager>(relaxed = true)
-        val overlay = mockk<PageCurlOverlayView>(relaxed = true)
-        val sourceHolder = mockk<PagerPageHolder>(relaxed = true)
-        val targetHolder = mockk<PagerPageHolder>(relaxed = true)
-        private val targetPage = ReaderPage(TARGET_POSITION)
-        val endCallbacks = mutableListOf<() -> Unit>()
-        val delayedCallbacks = mutableListOf<Runnable>()
-        private val postedCallbacks = ArrayDeque<Runnable>()
-        var nowMs = 1_000L
+    @Test
+    fun `four rapid taps inside one second advance four pages`() {
+        val fixture = PageCurlCoordinatorFixture()
 
-        val coordinator = PageCurlCoordinator(
-            overlay = overlay,
-            pager = pager,
-            storedTransitionStyle = { PageTransitionStyle.CURL },
-            effectiveTransitionStyle = { PageTransitionStyle.CURL },
-            sourceHolder = { sourceHolder },
-            itemAt = { targetPage },
-            holderFor = { targetHolder },
-            nowMs = { nowMs },
+        fixture.simulateTap(TARGET_POSITION)
+        repeat(3) { index ->
+            fixture.nowMs += 100L
+            fixture.simulateTap(TARGET_POSITION + index + 1)
+        }
+
+        fixture.currentItemIndex shouldBe TARGET_POSITION + 3
+        verify(exactly = 1) {
+            fixture.overlay.playCurl(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `snap taps keep input enabled between turns`() {
+        val fixture = PageCurlCoordinatorFixture()
+
+        fixture.simulateTap(TARGET_POSITION)
+        repeat(3) { index ->
+            fixture.nowMs += 100L
+            fixture.simulateTap(TARGET_POSITION + index + 1)
+            fixture.inputEnabled shouldBe true
+        }
+    }
+
+    @Test
+    fun `normal completion restores input once through the delayed callback`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val fromBitmap = fixture.bitmap()
+        val toBitmap = fixture.bitmap()
+        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+
+        fixture.startCurl()
+        fixture.endCallbacks.single().invoke()
+        fixture.runNextPostedCallback()
+        fixture.delayedCallbacks.single().run()
+
+        verify(exactly = 1) { fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED) }
+        fixture.inputEnabled shouldBe true
+    }
+
+    @Test
+    fun `stale callbacks from a superseded curl cannot affect a newer curl`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val firstFrom = fixture.bitmap()
+        val firstTo = fixture.bitmap()
+        val secondFrom = fixture.bitmap()
+        val secondTo = fixture.bitmap()
+        every { fixture.overlay.captureBitmap(any()) } returnsMany
+            listOf(firstFrom, firstTo, secondFrom, secondTo)
+
+        fixture.startCurl()
+        fixture.endCallbacks.first().invoke()
+        val staleLayoutCallback = fixture.nextPostedCallback()
+
+        fixture.nowMs += 1_000L
+        fixture.coordinator.runOrFallback(
+            targetPosition = TARGET_POSITION + 1,
+            curlFromRight = true,
+            advance = {},
         )
+        fixture.runNewestPostedCallback()
 
-        init {
-            every { sourceHolder.isAtMinimumZoom() } returns true
-            every { targetHolder.isAtMinimumZoom() } returns true
-            every { targetHolder.isLaidOut } returns true
-            every { pager.currentItem } returns TARGET_POSITION
-            every { pager.post(any()) } answers {
-                postedCallbacks.addLast(firstArg<Runnable>())
-                true
-            }
-            every { pager.postDelayed(any(), any()) } answers {
-                delayedCallbacks += firstArg<Runnable>()
-                true
-            }
-            every { pager.removeCallbacks(any()) } answers {
-                val runnable = firstArg<Runnable>()
-                postedCallbacks.remove(runnable) || delayedCallbacks.remove(runnable)
-            }
-            every {
-                overlay.playCurl(
-                    from = any(),
-                    to = any(),
-                    curlFromRight = any(),
-                    durationMs = any(),
-                    onEnd = any(),
-                )
-            } answers {
-                endCallbacks += arg<() -> Unit>(4)
-            }
-        }
+        staleLayoutCallback.run()
+        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.isVisible = false }
+        fixture.delayedCallbacks.size shouldBe 0
+        verify(exactly = 0) { secondFrom.recycle() }
+        verify(exactly = 0) { secondTo.recycle() }
 
-        fun startCurl() {
-            coordinator.runOrFallback(
-                targetPosition = TARGET_POSITION,
-                curlFromRight = true,
-                advance = {},
-            )
-            runNextPostedCallback()
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
+        verify(exactly = 2) { fixture.overlay.cancelCurl() }
+        verify(exactly = 2) { fixture.overlay.isVisible = false }
+        verify(exactly = 1) { secondFrom.recycle() }
+        verify(exactly = 1) { secondTo.recycle() }
+        verify(exactly = 1) {
+            fixture.pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
         }
-
-        fun runNextPostedCallback() {
-            postedCallbacks.removeFirst().run()
-        }
-
-        fun nextPostedCallback(): Runnable {
-            return postedCallbacks.first()
-        }
-
-        fun bitmap(): Bitmap {
-            var recycled = false
-            return mockk {
-                every { isRecycled } answers { recycled }
-                every { recycle() } answers { recycled = true }
-            }
-        }
+        fixture.inputEnabled shouldBe true
     }
 
     private companion object {

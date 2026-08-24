@@ -37,6 +37,7 @@ open class Pager(
         }
 
         override fun onLongTapConfirmed(ev: MotionEvent) {
+            if (!honorsLongTap(gestureInputMode)) return
             val listener = longTapListener
             if (listener != null && listener.invoke(ev)) {
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -50,16 +51,27 @@ open class Pager(
     private val gestureDetector = GestureDetectorWithLongTap(context, gestureListener)
 
     /**
-     * Whether the gesture detector is currently enabled.
+     * Which gestures the pager currently accepts. Child views such as [ReaderButton] use
+     * DISABLED while pressed so their taps do not also trigger pager tap zones.
      */
-    private var isGestureDetectorEnabled = true
+    private var gestureInputMode = GestureInputMode.ENABLED
+
+    /**
+     * Whether non-navigation gestures (long tap, menu tap) are suppressed.
+     */
+    internal val isGestureInputSuppressed: Boolean
+        get() = gestureInputMode != GestureInputMode.ENABLED
 
     /**
      * Dispatches a touch event.
      */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val handled = super.dispatchTouchEvent(ev)
-        if (isGestureDetectorEnabled) {
+        // Taps must reach the listener even while a curl owns the screen. Inside the rapid
+        // window the coordinator snaps instead of stacking a curl; outside it a fresh curl
+        // replaces the old one. No turn is dropped. Child views that press DISABLED keep the
+        // detector silent so their own taps never double-fire pager actions.
+        if (feedsTapDetector(gestureInputMode)) {
             gestureDetector.onTouchEvent(ev)
         }
         return handled
@@ -103,9 +115,36 @@ open class Pager(
     }
 
     /**
-     * Enables or disables the gesture detector.
+     * Sets which gestures the pager accepts. The page curl coordinator uses SUPPRESS_CHROME;
+     * pressed child buttons and error-layout actions use DISABLED; everything else uses ENABLED.
      */
-    fun setGestureDetectorEnabled(enabled: Boolean) {
-        isGestureDetectorEnabled = enabled
+    fun setGestureInputMode(mode: GestureInputMode) {
+        gestureInputMode = mode
+    }
+
+    enum class GestureInputMode {
+        /** All taps, long taps, and menu taps are delivered. */
+        ENABLED,
+
+        /** Navigation taps are delivered; long taps and MENU actions are suppressed. */
+        SUPPRESS_CHROME,
+
+        /** The gesture detector receives no events at all. */
+        DISABLED,
+    }
+
+    companion object {
+        /**
+         * Whether motion events reach the tap gesture detector in [mode]. Actual touch
+         * delivery is covered by the device smoke checklist, not a JVM test.
+         */
+        internal fun feedsTapDetector(mode: GestureInputMode): Boolean =
+            mode != GestureInputMode.DISABLED
+
+        /**
+         * Whether long taps are honored in [mode].
+         */
+        internal fun honorsLongTap(mode: GestureInputMode): Boolean =
+            mode == GestureInputMode.ENABLED
     }
 }

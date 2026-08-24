@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.core.view.isVisible
-import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 
@@ -16,13 +15,20 @@ internal class PageCurlCoordinator(
     private val storedTransitionStyle: () -> PageTransitionStyle,
     private val effectiveTransitionStyle: () -> PageTransitionStyle,
     private val sourceHolder: () -> PagerPageHolder?,
-    private val itemAt: (Int) -> Any?,
+    private val readerItemAt: (Int) -> ReaderPage?,
+    private val transitionItemAt: (Int) -> Boolean,
     private val holderFor: (ReaderPage) -> PagerPageHolder?,
     private val nowMs: () -> Long = SystemClock::uptimeMillis,
 ) {
 
     private var generationId = 0L
     private var lastNavigationAtMs = 0L
+
+    /**
+     * Position the active curl navigated to; null when no curl is tracked.
+     */
+    private var curlTargetPosition: Int? = null
+
     private var released = false
 
     private var targetReadyRunnable: Runnable? = null
@@ -52,13 +58,12 @@ internal class PageCurlCoordinator(
         }
         val useAnimation = style != PageTransitionStyle.NONE
         val source = sourceHolder()
-        val targetItem = itemAt(targetPosition)
-        val targetHolder = (targetItem as? ReaderPage)?.let(holderFor)
+        val targetHolder = readerItemAt(targetPosition)?.let(holderFor)
 
         val canAttemptCurl = source != null &&
             shouldAttemptCurl(
                 style = style,
-                targetIsChapterTransition = targetItem is ChapterTransition,
+                targetIsChapterTransition = transitionItemAt(targetPosition),
                 sourceAtMinimumZoom = source.isAtMinimumZoom(),
                 targetAtMinimumZoom = targetHolder?.isAtMinimumZoom() ?: true,
                 withinRapidNavigationWindow = withinRapidNavigationWindow,
@@ -76,11 +81,13 @@ internal class PageCurlCoordinator(
             advance(useAnimation)
             return
         }
-
         cancelCurrentCurl()
         pendingFromBitmap = fromBitmap
+        // Set after cancelCurrentCurl() so it does not clear the new target, and before
+        // advance(false) so the synchronous onPageSelected callback sees a match.
+        curlTargetPosition = targetPosition
         advance(false)
-        pager.setGestureDetectorEnabled(false)
+        pager.setGestureInputMode(Pager.GestureInputMode.SUPPRESS_CHROME)
         waitForTarget(targetPosition, targetHolder, fromBitmap, curlFromRight)
     }
 
@@ -89,6 +96,18 @@ internal class PageCurlCoordinator(
 
         released = true
         cancelCurrentCurl()
+    }
+
+    /**
+     * Notifies the coordinator that the page changed outside [runOrFallback],
+     * for example by a swipe. Cancels the active curl when the new position
+     * differs from the curl target.
+     */
+    fun onPageChangedExternally(position: Int) {
+        if (released) return
+        if (curlTargetPosition != null && position != curlTargetPosition) {
+            cancelCurrentCurl(restoreInput = true)
+        }
     }
 
     private fun cancelCurrentCurl(restoreInput: Boolean = false) {
@@ -102,7 +121,7 @@ internal class PageCurlCoordinator(
 
         generationId++
         removeCallbacks()
-
+        curlTargetPosition = null
         val pendingFrom = pendingFromBitmap.also { pendingFromBitmap = null }
         val activeFrom = activeFromBitmap.also { activeFromBitmap = null }
         val activeTo = activeToBitmap.also { activeToBitmap = null }
@@ -113,7 +132,7 @@ internal class PageCurlCoordinator(
         recycle(pendingFrom)
         recycle(activeFrom)
         recycle(activeTo)
-        if (restoreInput) pager.setGestureDetectorEnabled(true)
+        if (restoreInput) pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
     }
 
     private fun waitForTarget(
@@ -127,7 +146,7 @@ internal class PageCurlCoordinator(
         checkTargetReady = Runnable {
             if (released || targetReadyRunnable !== checkTargetReady) return@Runnable
 
-            val readyHolder = (itemAt(targetPosition) as? ReaderPage)?.let(holderFor) ?: initialTargetHolder
+            val readyHolder = readerItemAt(targetPosition)?.let(holderFor) ?: initialTargetHolder
             if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
                 targetReadyRunnable = null
                 if (pendingFromBitmap === fromBitmap) pendingFromBitmap = null
@@ -148,8 +167,10 @@ internal class PageCurlCoordinator(
     ) {
         val toBitmap = targetHolder?.let(overlay::captureBitmap)
         if (toBitmap == null) {
+            // This exit bypasses cancelCurrentCurl because no curl state remains.
+            curlTargetPosition = null
             recycle(fromBitmap)
-            pager.setGestureDetectorEnabled(true)
+            pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
             return
         }
 
@@ -178,9 +199,11 @@ internal class PageCurlCoordinator(
         checkLayout = Runnable {
             if (released || layoutCheckRunnable !== checkLayout) return@Runnable
 
-            val currentHolder = (itemAt(pager.currentItem) as? ReaderPage)?.let(holderFor)
+            val currentHolder = readerItemAt(pager.currentItem)?.let(holderFor)
             if (currentHolder?.isLaidOut == true || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
                 layoutCheckRunnable = null
+                // Normal completion bypasses cancelCurrentCurl; clear the tracked target here.
+                curlTargetPosition = null
                 clearActiveBitmaps(fromBitmap, toBitmap)
                 overlay.isVisible = false
                 overlay.cancelCurl()
@@ -188,7 +211,7 @@ internal class PageCurlCoordinator(
                 recycle(toBitmap)
 
                 val reenable = Runnable {
-                    if (!released) pager.setGestureDetectorEnabled(true)
+                    if (!released) pager.setGestureInputMode(Pager.GestureInputMode.ENABLED)
                 }
                 gestureReenableRunnable = reenable
                 pager.postDelayed(reenable, GESTURE_REENABLE_DELAY_MS)
