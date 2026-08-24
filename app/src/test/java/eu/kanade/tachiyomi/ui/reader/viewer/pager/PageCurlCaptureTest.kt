@@ -36,7 +36,6 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        // A trivial sampler reports a visible pixel everywhere.
         val capture = PageCurlCapture { _, _, _ -> Color.WHITE }
         val result = capture.capture(source)
 
@@ -56,7 +55,6 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        // A trivial sampler reports every pixel as transparent.
         val capture = PageCurlCapture { _, _, _ -> Color.TRANSPARENT }
         val result = capture.capture(source)
 
@@ -74,7 +72,6 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        // The first sample point is transparent, everything after it is opaque.
         var sampleIndex = 0
         val capture = PageCurlCapture { _, _, _ ->
             if (sampleIndex++ == 0) Color.TRANSPARENT else Color.WHITE

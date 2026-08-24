@@ -11,8 +11,6 @@ import tachiyomi.core.common.util.system.logcat
  * Captures page views into bitmaps for the curl transition.
  */
 internal class PageCurlCapture(
-    // Samples one pixel of a captured bitmap. Tests replace this with a
-    // trivial sampler so they do not mock Bitmap.getPixel.
     private val samplePixel: (Bitmap, Int, Int) -> Int = Bitmap::getPixel,
 ) {
 
