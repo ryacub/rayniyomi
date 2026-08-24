@@ -47,7 +47,7 @@ class PageCurlCoordinatorLifecycleTest {
         // teardown early-outs without touching the overlay.
         verify(exactly = 1) { fixture.overlay.cancelCurl() }
         verify(exactly = 1) { fixture.overlay.isVisible = false }
-     }
+    }
 
     @Test
     fun `target capture failure recycles the source and restores input`() {
