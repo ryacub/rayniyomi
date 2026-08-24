@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.reader.viewer
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.PointF
 import android.graphics.RectF
 import android.graphics.drawable.Animatable
@@ -327,18 +328,17 @@ open class ReaderPageImageView @JvmOverloads constructor(
             is BufferedSource -> {
                 val analysis = getOrAnalyzeImageForReader(data, config.sourceCacheKey)
 
+                val decodeConfig = readerDecodeConfig(isWebtoon, alwaysDecodeLongStripWithSSIV, analysis)
+
                 if (!isWebtoon || alwaysDecodeLongStripWithSSIV) {
-                    // Use SSIV path without checking if tall.
-                    // Software bitmaps keep the page curl capture drawable;
-                    // webtoon keeps hardware decode.
-                    setHardwareConfig(if (isWebtoon) analysis.canUseHardwareBitmap else false)
+                    setHardwareConfig(decodeConfig == Bitmap.Config.HARDWARE)
                     setImage(ImageSource.inputStream(data.inputStream()))
                     isVisible = true
                     return@apply
                 }
 
                 if (analysis.isTallImage) {
-                    setHardwareConfig(analysis.canUseHardwareBitmap)
+                    setHardwareConfig(decodeConfig == Bitmap.Config.HARDWARE)
                     setImage(ImageSource.inputStream(data.inputStream()))
                     isVisible = true
                     return@apply
@@ -477,6 +477,38 @@ open class ReaderPageImageView @JvmOverloads constructor(
         }
         return analysis
     }
+}
+
+/**
+ * Decide the bitmap config for an SSIV decode from a [BufferedSource].
+ *
+ * Non-webtoon keeps software bitmaps so page curl capture stays drawable.
+ * Webtoon keeps hardware decode when the image allows it.
+ */
+internal fun readerDecodeConfig(
+    isWebtoon: Boolean,
+    alwaysDecodeLongStripWithSSIV: Boolean,
+    analysis: ImageUtil.ImageAnalysis,
+): Bitmap.Config {
+    // Use SSIV path without checking if tall.
+    if (!isWebtoon || alwaysDecodeLongStripWithSSIV) {
+        return if (isWebtoon && analysis.canUseHardwareBitmap) {
+            Bitmap.Config.HARDWARE
+        } else {
+            Bitmap.Config.ARGB_8888
+        }
+    }
+
+    if (analysis.isTallImage) {
+        return if (analysis.canUseHardwareBitmap) {
+            Bitmap.Config.HARDWARE
+        } else {
+            Bitmap.Config.ARGB_8888
+        }
+    }
+
+    // Coil decode path: the caller does not consume this value.
+    return Bitmap.Config.ARGB_8888
 }
 
 private const val MAX_ZOOM_SCALE = 5F
