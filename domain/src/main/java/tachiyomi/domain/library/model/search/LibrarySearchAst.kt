@@ -9,12 +9,19 @@ import java.time.format.DateTimeParseException
  * Builds a case-insensitive alias-to-entry lookup map for an enum with a vararg `aliases`
  * property. Shared by every field-like enum so the mapping pattern exists once.
  */
-private fun <E : Enum<E>> aliasLookup(
+internal fun <E : Enum<E>> aliasLookup(
     entries: List<E>,
     aliases: (E) -> Array<out String>,
-): Map<String, E> = entries.flatMap { entry ->
-    aliases(entry).map { it.lowercase() to entry }
-}.toMap()
+): Map<String, E> {
+    val pairs = entries.flatMap { entry ->
+        aliases(entry).map { it.lowercase() to entry }
+    }
+    val duplicates = pairs.groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }.keys
+    require(duplicates.isEmpty()) {
+        "Duplicate enum aliases: ${duplicates.joinToString()}"
+    }
+    return pairs.toMap()
+}
 
 enum class LibrarySearchField(vararg val aliases: String) {
     TITLE("title"),
