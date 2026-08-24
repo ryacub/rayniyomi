@@ -59,6 +59,7 @@ fun TranslationModelPickerDialog(
     }
 
     suspend fun loadModels(forceRefresh: Boolean) {
+        isLoading = true
         try {
             when (val result = repository.load(provider, apiKey, forceRefresh)) {
                 is TranslationCatalogResult.Success -> {
