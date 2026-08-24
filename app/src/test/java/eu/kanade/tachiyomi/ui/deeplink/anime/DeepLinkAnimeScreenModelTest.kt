@@ -4,27 +4,22 @@ import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.interactor.GetAnimeByUrlAndSourceId
@@ -37,77 +32,63 @@ import java.io.IOException
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeepLinkAnimeScreenModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val vt = VirtualTime()
 
     @BeforeEach
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
+        vt.setUpMain()
     }
 
     @AfterEach
     fun tearDown() {
-        Dispatchers.resetMain()
+        vt.tearDownMain()
     }
 
     @Test
-    fun `parse failures become Error with the same Throwable`() = runTest {
+    fun `parse failures become Error with the same Throwable`() = runTest(vt.scheduler) {
         val failure = IllegalArgumentException("parse failed")
         val model = createModel(failure)
 
-        val state = awaitError(model)
+        awaitAssert({ model.state.value }) { it is DeepLinkAnimeScreenModel.State.Error }
+        val state = model.state.value as DeepLinkAnimeScreenModel.State.Error
 
         assertSame(failure, state.error)
     }
 
     @Test
-    fun `network failures become Error with the same Throwable`() = runTest {
+    fun `network failures become Error with the same Throwable`() = runTest(vt.scheduler) {
         val failure = IOException("network failed")
         val model = createModel(failure)
 
-        val state = awaitError(model)
+        awaitAssert({ model.state.value }) { it is DeepLinkAnimeScreenModel.State.Error }
+        val state = model.state.value as DeepLinkAnimeScreenModel.State.Error
 
         assertSame(failure, state.error)
     }
 
     @Test
-    fun `linkage failures become Error with the same Throwable`() = runTest {
+    fun `linkage failures become Error with the same Throwable`() = runTest(vt.scheduler) {
         val failure = LinkageError("extension linkage failed")
         val model = createModel(failure)
 
-        val state = awaitError(model)
+        awaitAssert({ model.state.value }) { it is DeepLinkAnimeScreenModel.State.Error }
+        val state = model.state.value as DeepLinkAnimeScreenModel.State.Error
 
         assertSame(failure, state.error)
     }
 
     @Test
-    fun `cancellation failures do not become Error`() = runTest {
+    fun `cancellation failures do not become Error`() = runTest(vt.scheduler) {
         val invoked = CompletableDeferred<Unit>()
         val model = createModel(
             failure = CancellationException("resolution cancelled"),
             invoked = invoked,
         )
 
-        withContext(Dispatchers.Default.limitedParallelism(1)) {
-            withTimeout(5_000) { invoked.await() }
-        }
+        advanceUntilIdle()
 
-        val errorState = withContext(Dispatchers.Default.limitedParallelism(1)) {
-            withTimeoutOrNull(1_000) {
-                model.state.first { it is DeepLinkAnimeScreenModel.State.Error }
-            }
-        }
-
-        assertNull(errorState)
+        assertTrue(invoked.isCompleted)
         assertEquals(DeepLinkAnimeScreenModel.State.Loading, model.state.value)
-    }
-
-    private suspend fun awaitError(model: DeepLinkAnimeScreenModel): DeepLinkAnimeScreenModel.State.Error {
-        return withContext(Dispatchers.Default.limitedParallelism(1)) {
-            withTimeout(5_000) {
-                model.state.first { it is DeepLinkAnimeScreenModel.State.Error }
-                    as DeepLinkAnimeScreenModel.State.Error
-            }
-        }
     }
 
     private fun createModel(
@@ -121,6 +102,7 @@ class DeepLinkAnimeScreenModelTest {
             getEpisodeByUrlAndAnimeId = mockk<GetEpisodeByUrlAndAnimeId>(),
             getAnimeByUrlAndSourceId = mockk<GetAnimeByUrlAndSourceId>(),
             syncEpisodesWithSource = mockk<SyncEpisodesWithSource>(),
+            ioDispatcher = vt.io,
         )
     }
 
