@@ -328,8 +328,10 @@ open class ReaderPageImageView @JvmOverloads constructor(
                 val analysis = getOrAnalyzeImageForReader(data, config.sourceCacheKey)
 
                 if (!isWebtoon || alwaysDecodeLongStripWithSSIV) {
-                    // Use SSIV path without checking if tall
-                    setHardwareConfig(analysis.canUseHardwareBitmap)
+                    // Use SSIV path without checking if tall.
+                    // Software bitmaps keep the page curl capture drawable;
+                    // webtoon keeps hardware decode.
+                    setHardwareConfig(if (isWebtoon) analysis.canUseHardwareBitmap else false)
                     setImage(ImageSource.inputStream(data.inputStream()))
                     isVisible = true
                     return@apply
