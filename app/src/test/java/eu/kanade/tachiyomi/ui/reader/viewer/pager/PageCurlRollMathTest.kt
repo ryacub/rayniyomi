@@ -66,8 +66,12 @@ class PageCurlRollMathTest {
             ;(PageCurlRollMath.radius(next) < PageCurlRollMath.radius(progress)) shouldBe true
             progress = next
         }
+        ;(
+            abs(PageCurlRollMath.radius(1f) - PageCurlRollMath.ROLL_RADIUS_END) <
+                RADIUS_EPSILON
+            ) shouldBe true
+
         PageCurlRollMath.radius(0f) shouldBe PageCurlRollMath.ROLL_RADIUS_START
-        PageCurlRollMath.radius(1f) shouldBe PageCurlRollMath.ROLL_RADIUS_END
     }
 
     @Test
@@ -120,12 +124,11 @@ class PageCurlRollMathTest {
 
         for (row in 0..rows) {
             for (col in 0 until cols) {
-                if (originalX(col) > tangent) {
-                    val gap = abs(xAt(verts, row, col + 1) - xAt(verts, row, col))
-                    ;(gap < spacing) shouldBe true
-                } else {
-                    val gap = abs(xAt(verts, row, col + 1) - xAt(verts, row, col))
+                val gap = abs(xAt(verts, row, col + 1) - xAt(verts, row, col))
+                if (originalX(col + 1) <= tangent) {
                     gap shouldBe spacing
+                } else {
+                    ;(gap < spacing) shouldBe true
                 }
             }
         }
@@ -232,15 +235,19 @@ class PageCurlRollMathTest {
         }
     }
 
-    // A7: single reversal per row, well formed under the theta clamp.
-    // At p = 1 the whole row lies past the quarter turn, so it is monotone;
-    // exactly one reversal happens while the quarter turn is on screen.
+    // A7: the roll stays single valued under the theta clamp. The flat run
+    // folds back once at the tangent line; the wrapped segment then reverses
+    // direction once across the quarter turn. At p = 1 the whole sheet lies
+    // past the quarter turn, so the wrapped segment is monotone.
     @Test
-    fun `each row reverses direction at most once`() {
+    fun `wrapped segment reverses direction once at most`() {
         for (progress in listOf(0.2f, 0.5f, 0.8f, 1f)) {
             val verts = buildVerts(progress)
+            val tangent = PageCurlRollMath.tangentX(width, progress)
+            val firstWrapped = (0..cols).first { originalX(it) > tangent }
             for (row in 0..rows) {
-                val changes = directionChanges(rowXs(verts, row))
+                val wrapped = rowXs(verts, row).drop(firstWrapped)
+                val changes = directionChanges(wrapped)
                 ;(changes <= 1) shouldBe true
                 if (progress == 0.5f) changes shouldBe 1
                 if (progress == 1f) changes shouldBe 0
@@ -251,5 +258,6 @@ class PageCurlRollMathTest {
     companion object {
         private const val PLATEAU_EPSILON = 1e-3f
         private const val MOTION_EPSILON = 1e-3f
+        private const val RADIUS_EPSILON = 1e-6f
     }
 }
