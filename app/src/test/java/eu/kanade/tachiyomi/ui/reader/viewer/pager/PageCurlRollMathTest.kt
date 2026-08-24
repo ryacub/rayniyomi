@@ -235,6 +235,61 @@ class PageCurlRollMathTest {
         }
     }
 
+    @Test
+    fun `fold back span is null before any sheet point rolls past vertical`() {
+        PageCurlRollMath.foldBackSpan(width, 0f) shouldBe null
+    }
+
+    // A8: the strip spans the projected cylinder, tangent line down to
+    // tangent minus radius.
+    @Test
+    fun `fold back span bounds match the projected cylinder at half progress`() {
+        val progress = 0.5f
+        val tangent = PageCurlRollMath.tangentX(width, progress)
+        val r = PageCurlRollMath.radius(progress) * width
+
+        val span = PageCurlRollMath.foldBackSpan(width, progress)
+        ;(abs(span!!.start - (tangent - r)) < SPAN_EPSILON) shouldBe true
+        ;(abs(span.endInclusive - tangent) < SPAN_EPSILON) shouldBe true
+    }
+
+    // A9: the strip narrows strictly as the roll tightens.
+    @Test
+    fun `fold back span shrinks strictly with progress past onset`() {
+        var previous = PageCurlRollMath.foldBackSpan(width, 0.35f)!!
+        var progress = 0.4f
+        while (progress <= 0.95f) {
+            val current = PageCurlRollMath.foldBackSpan(width, progress)!!
+            ;(current.endInclusive < previous.endInclusive) shouldBe true
+            ;(current.start < previous.start) shouldBe true
+            ;((current.endInclusive - current.start) < (previous.endInclusive - previous.start)) shouldBe true
+            previous = current
+            progress += 0.05f
+        }
+    }
+
+    // A10: the onset sits where the page edge crosses vertical, derived
+    // from the roll constants.
+    @Test
+    fun `fold back span turns on exactly at the quarter turn of the page edge`() {
+        val onset = ((PI.toFloat() / 2f) * PageCurlRollMath.ROLL_RADIUS_START) /
+            (
+                (1f + PageCurlRollMath.ROLL_CLEARANCE) +
+                    (PI.toFloat() / 2f) *
+                    (PageCurlRollMath.ROLL_RADIUS_START - PageCurlRollMath.ROLL_RADIUS_END)
+                )
+
+        PageCurlRollMath.foldBackSpan(width, onset - ONSET_EPSILON) shouldBe null
+        ;(PageCurlRollMath.foldBackSpan(width, onset + ONSET_EPSILON) != null) shouldBe true
+    }
+
+    // A11: by full progress the whole strip has rolled off screen.
+    @Test
+    fun `fold back span sits fully off screen at full progress`() {
+        val span = PageCurlRollMath.foldBackSpan(width, 1f)
+        ;(span != null) shouldBe true
+        ;(span!!.endInclusive <= 0f) shouldBe true
+    }
     // A7: the roll stays single valued under the theta clamp. The flat run
     // folds back once at the tangent line; the wrapped segment then reverses
     // direction once across the quarter turn. At p = 1 the whole sheet lies
@@ -259,5 +314,7 @@ class PageCurlRollMathTest {
         private const val PLATEAU_EPSILON = 1e-3f
         private const val MOTION_EPSILON = 1e-3f
         private const val RADIUS_EPSILON = 1e-6f
+        private const val SPAN_EPSILON = 1e-3f
+        private const val ONSET_EPSILON = 1e-4f
     }
 }

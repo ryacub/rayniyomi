@@ -58,6 +58,22 @@ internal object PageCurlRollMath {
     }
 
     /**
+     * Screen-space span of the folded-back strip at [progress], in the
+     * canonical right-curl frame, or null while no sheet point has rolled
+     * past vertical. [progress] must lie in [0, 1].
+     *
+     * Sheet points beyond a quarter turn face away from the viewer and
+     * project, orthographically, onto `[tangent - r, tangent]`. The back of
+     * the page is drawn there. Use [start] and [endInclusive] on the result.
+     */
+    fun foldBackSpan(pageWidth: Float, progress: Float): ClosedFloatingPointRange<Float>? {
+        val tangent = tangentX(pageWidth, progress)
+        val r = radius(progress) * pageWidth
+        if (tangent + (MAX_ROLL_ANGLE / 2f) * r >= pageWidth) return null
+        return (tangent - r)..tangent
+    }
+
+    /**
      * Fills [verts] with the mesh positions at [progress] for a page of the
      * given size. The layout matches drawBitmapMesh for [MESH_COLS] by
      * [MESH_ROWS]: row-major, x then y per vertex.
