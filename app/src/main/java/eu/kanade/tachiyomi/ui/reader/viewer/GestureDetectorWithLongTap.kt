@@ -15,7 +15,16 @@ import kotlin.math.abs
 open class GestureDetectorWithLongTap(
     context: Context,
     listener: Listener,
+    detectDoubleTap: Boolean = true,
 ) : GestureDetector(context, listener) {
+
+    init {
+        if (!detectDoubleTap) {
+            // The three argument constructor sets the listener as a double tap listener. Remove
+            // it so single taps fire at once and rapid taps do not count as double taps.
+            setOnDoubleTapListener(null)
+        }
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
