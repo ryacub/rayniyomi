@@ -40,7 +40,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
 
     private val verts = FloatArray(PageCurlRollMath.vertCount())
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val backSoftenPaint = Paint()
+    private val backSoftenPaint = Paint().apply { color = BACK_SOFTEN_COLOR }
 
     init {
         isVisible = false
