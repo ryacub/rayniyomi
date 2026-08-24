@@ -25,6 +25,7 @@ import coil3.dispose
 import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.size.Precision
 import coil3.size.ViewSizeResolver
@@ -423,6 +424,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
             .data(data)
             .memoryCachePolicy(CachePolicy.DISABLED)
             .diskCachePolicy(CachePolicy.DISABLED)
+            .allowHardware(animatedImageAllowHardware(isWebtoon = isWebtoon))
             .target(
                 onSuccess = { result ->
                     val drawable = result.asDrawable(context.resources)
@@ -496,3 +498,5 @@ private const val MIN_ZOOM_TOLERANCE = 1.01f
  */
 internal fun isAtMinimumZoom(scale: Float, minScale: Float): Boolean =
     scale <= minScale * MIN_ZOOM_TOLERANCE
+
+internal fun animatedImageAllowHardware(isWebtoon: Boolean): Boolean = isWebtoon
