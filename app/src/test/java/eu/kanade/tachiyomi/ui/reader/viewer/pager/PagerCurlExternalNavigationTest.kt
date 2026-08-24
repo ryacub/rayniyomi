@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import androidx.core.view.isVisible
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -20,8 +19,7 @@ class PagerCurlExternalNavigationTest {
         fixture.startCurl()
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
 
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
-        verify(exactly = 1) { fixture.overlay.isVisible = false }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
         verify(exactly = 1) { fromBitmap.recycle() }
         verify(exactly = 1) { toBitmap.recycle() }
         fixture.inputEnabled shouldBe true
@@ -37,7 +35,7 @@ class PagerCurlExternalNavigationTest {
         fixture.startCurl()
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION)
 
-        verify(exactly = 0) { fixture.overlay.cancelCurl() }
+        verify(exactly = 0) { fixture.overlay.abortAndHide() }
         fixture.inputEnabled shouldBe false
     }
 
@@ -55,7 +53,7 @@ class PagerCurlExternalNavigationTest {
         fixture.coordinator.release()
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
 
-        verify(exactly = 1) { fixture.overlay.cancelCurl() }
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
     }
 
     private companion object {

@@ -16,8 +16,8 @@ import androidx.core.view.isVisible
 /**
  * Draws the page curl transition on top of the pager.
  *
- * The view draws nothing until [playCurl] runs. The caller decides when it is
- * safe to start the transition and when it is safe to hide the view.
+ * The view draws nothing until [playCurl] runs. The caller starts
+ * transitions with [playCurl] and ends them with [abortAndHide].
  */
 class PageCurlOverlayView(context: Context) : View(context) {
 
@@ -79,11 +79,20 @@ class PageCurlOverlayView(context: Context) : View(context) {
     /**
      * Stops the running curl animator, if any.
      */
-    fun cancelCurl() {
+    private fun cancelCurl() {
         animator?.cancel()
         animator = null
         fromBitmap = null
         toBitmap = null
+    }
+
+    /**
+     * Terminal exit for the curl transition. Stops any running animator and
+     * hides the view. Safe to call when no curl is playing.
+     */
+    fun abortAndHide() {
+        cancelCurl()
+        isVisible = false
     }
 
     override fun onDraw(canvas: Canvas) {
