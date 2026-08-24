@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -15,9 +14,9 @@ import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
-class PageCurlOverlayViewTest {
+class PageCurlCaptureTest {
 
-    private val overlay = PageCurlOverlayView(mockk<Context>(relaxed = true))
+    private val capture = PageCurlCapture()
 
     @AfterEach
     fun tearDown() {
@@ -25,7 +24,7 @@ class PageCurlOverlayViewTest {
     }
 
     @Test
-    fun `captureBitmap returns a bitmap with the source dimensions`() {
+    fun `capture returns a bitmap with the source dimensions`() {
         val source = mockk<View>(relaxed = true)
         every { source.width } returns 320
         every { source.height } returns 480
@@ -39,7 +38,7 @@ class PageCurlOverlayViewTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe captured
         result?.width shouldBe 320
@@ -47,7 +46,7 @@ class PageCurlOverlayViewTest {
     }
 
     @Test
-    fun `captureBitmap returns null when the draw leaves every pixel transparent`() {
+    fun `capture returns null when the draw leaves every pixel transparent`() {
         val source = mockk<View>(relaxed = true)
         every { source.width } returns 320
         every { source.height } returns 480
@@ -58,13 +57,13 @@ class PageCurlOverlayViewTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe null
     }
 
     @Test
-    fun `captureBitmap passes when only some sampled pixels are transparent`() {
+    fun `capture passes when only some sampled pixels are transparent`() {
         val source = mockk<View>(relaxed = true)
         every { source.width } returns 320
         every { source.height } returns 480
@@ -79,13 +78,13 @@ class PageCurlOverlayViewTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe captured
     }
 
     @Test
-    fun `captureBitmap returns null for a zero size source`() {
+    fun `capture returns null for a zero size source`() {
         val source = mockk<View>(relaxed = true)
         // A relaxed mock returns 0 for width and height.
 
@@ -93,7 +92,7 @@ class PageCurlOverlayViewTest {
         every { Bitmap.createBitmap(any<Int>(), any<Int>(), Bitmap.Config.ARGB_8888) } returns
             mockk<Bitmap>(relaxed = true)
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe null
         verify(exactly = 0) {
@@ -102,7 +101,7 @@ class PageCurlOverlayViewTest {
     }
 
     @Test
-    fun `captureBitmap returns null when the bitmap allocation runs out of memory`() {
+    fun `capture returns null when the bitmap allocation runs out of memory`() {
         val source = mockk<View>(relaxed = true)
         every { source.width } returns 320
         every { source.height } returns 480
@@ -112,13 +111,13 @@ class PageCurlOverlayViewTest {
             Bitmap.createBitmap(any<Int>(), any<Int>(), Bitmap.Config.ARGB_8888)
         } throws OutOfMemoryError("no memory")
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe null
     }
 
     @Test
-    fun `captureBitmap returns null when the source draw fails`() {
+    fun `capture returns null when the source draw fails`() {
         val source = mockk<View>(relaxed = true)
         every { source.width } returns 320
         every { source.height } returns 480
@@ -129,13 +128,13 @@ class PageCurlOverlayViewTest {
         mockkConstructor(Canvas::class)
         every { source.draw(any<Canvas>()) } throws IllegalStateException("bitmap is recycled")
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe null
     }
 
     @Test
-    fun `captureBitmap returns null when the source draw throws IllegalArgumentException`() {
+    fun `capture returns null when the source draw throws IllegalArgumentException`() {
         val source = mockk<View>(relaxed = true)
         every { source.width } returns 320
         every { source.height } returns 480
@@ -148,7 +147,7 @@ class PageCurlOverlayViewTest {
             source.draw(any<Canvas>())
         } throws IllegalArgumentException("Software rendering doesn't support hardware bitmaps")
 
-        val result = overlay.captureBitmap(source)
+        val result = capture.capture(source)
 
         result shouldBe null
     }

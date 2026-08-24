@@ -14,7 +14,7 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `source capture failure uses the current animated fallback`() {
         val fixture = PageCurlCoordinatorFixture()
-        every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns null
+        every { fixture.capture.capture(fixture.sourceHolder) } returns null
         val fallbacks = mutableListOf<Boolean>()
 
         fixture.coordinator.runOrFallback(
@@ -31,8 +31,8 @@ class PageCurlCoordinatorLifecycleTest {
     fun `target capture failure recycles the source and restores input`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
-        every { fixture.overlay.captureBitmap(fixture.targetHolder) } returns null
+        every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
+        every { fixture.capture.capture(fixture.targetHolder) } returns null
 
         fixture.startCurl()
 
@@ -45,7 +45,7 @@ class PageCurlCoordinatorLifecycleTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.endCallbacks.single().invoke()
@@ -70,7 +70,7 @@ class PageCurlCoordinatorLifecycleTest {
         val firstTo = fixture.bitmap()
         val secondFrom = fixture.bitmap()
         val secondTo = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany
+        every { fixture.capture.capture(any()) } returnsMany
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
         fixture.startCurl()
@@ -92,7 +92,7 @@ class PageCurlCoordinatorLifecycleTest {
         val firstTo = fixture.bitmap()
         val secondFrom = fixture.bitmap()
         val secondTo = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany
+        every { fixture.capture.capture(any()) } returnsMany
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
         fixture.startCurl()
@@ -114,7 +114,7 @@ class PageCurlCoordinatorLifecycleTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
         val fallbacks = mutableListOf<Boolean>()
 
         fixture.startCurl()
@@ -135,7 +135,7 @@ class PageCurlCoordinatorLifecycleTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         every { fixture.overlay.cancelCurl() } answers {
@@ -154,7 +154,7 @@ class PageCurlCoordinatorLifecycleTest {
     fun `release removes a target poll and recycles its pending bitmap`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(fixture.sourceHolder) } returns fromBitmap
+        every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
@@ -173,7 +173,7 @@ class PageCurlCoordinatorLifecycleTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.endCallbacks.single().invoke()
@@ -192,7 +192,7 @@ class PageCurlCoordinatorLifecycleTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.endCallbacks.single().invoke()
@@ -238,7 +238,7 @@ class PageCurlCoordinatorLifecycleTest {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.bitmap()
         val toBitmap = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany listOf(fromBitmap, toBitmap)
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.endCallbacks.single().invoke()
@@ -255,7 +255,7 @@ class PageCurlCoordinatorLifecycleTest {
         val firstTo = fixture.bitmap()
         val secondFrom = fixture.bitmap()
         val secondTo = fixture.bitmap()
-        every { fixture.overlay.captureBitmap(any()) } returnsMany
+        every { fixture.capture.capture(any()) } returnsMany
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
         fixture.startCurl()

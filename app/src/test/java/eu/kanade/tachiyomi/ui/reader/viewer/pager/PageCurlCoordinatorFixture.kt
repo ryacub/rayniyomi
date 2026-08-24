@@ -17,6 +17,7 @@ internal class PageCurlCoordinatorFixture(
 ) {
     val pager = mockk<Pager>(relaxed = true)
     val overlay = mockk<PageCurlOverlayView>(relaxed = true)
+    val capture = mockk<PageCurlCapture>(relaxed = true)
     val sourceHolder = mockk<PagerPageHolder>(relaxed = true)
     val targetHolder = mockk<PagerPageHolder>(relaxed = true)
     private val pages = List(pageCount) { ReaderPage(it) }
@@ -43,6 +44,7 @@ internal class PageCurlCoordinatorFixture(
         transitionItemAt = { false },
         holderFor = { targetHolder },
         nowMs = { nowMs },
+        capture = capture,
     )
 
     init {

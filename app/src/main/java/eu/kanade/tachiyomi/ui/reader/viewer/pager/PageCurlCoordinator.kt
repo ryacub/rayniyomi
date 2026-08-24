@@ -19,6 +19,7 @@ internal class PageCurlCoordinator(
     private val transitionItemAt: (Int) -> Boolean,
     private val holderFor: (ReaderPage) -> PagerPageHolder?,
     private val nowMs: () -> Long = SystemClock::uptimeMillis,
+    private val capture: PageCurlCapture = PageCurlCapture(),
 ) {
 
     private var generationId = 0L
@@ -75,7 +76,7 @@ internal class PageCurlCoordinator(
             return
         }
 
-        val fromBitmap = overlay.captureBitmap(source)
+        val fromBitmap = capture.capture(source)
         if (fromBitmap == null) {
             cancelCurrentCurl(restoreInput = true)
             advance(useAnimation)
@@ -165,7 +166,7 @@ internal class PageCurlCoordinator(
         targetHolder: PagerPageHolder?,
         curlFromRight: Boolean,
     ) {
-        val toBitmap = targetHolder?.let(overlay::captureBitmap)
+        val toBitmap = targetHolder?.let(capture::capture)
         if (toBitmap == null) {
             // This exit bypasses cancelCurrentCurl because no curl state remains.
             curlTargetPosition = null
