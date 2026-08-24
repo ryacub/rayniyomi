@@ -26,7 +26,6 @@ class PageCurlOverlayView(context: Context) : View(context) {
         // rather than as a mirrored copy of the front.
         private val BACK_SOFTEN_COLOR = Color.argb(90, 255, 255, 255)
     }
-
     private var animator: ValueAnimator? = null
     private var fromBitmap: Bitmap? = null
     private var toBitmap: Bitmap? = null

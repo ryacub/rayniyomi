@@ -34,7 +34,6 @@ class PageCurlRollMathTest {
 
     private fun originalY(row: Int) = height * row / rows
 
-
     private fun colorIndex(row: Int, col: Int) = row * (cols + 1) + col
 
     private fun buildColors(progress: Float): IntArray {
@@ -44,6 +43,7 @@ class PageCurlRollMathTest {
     }
 
     private fun brightnessByte(color: Int) = color and 0xFF
+
     /** Counts direction changes along one row, ignoring exact plateaus. */
     private fun directionChanges(xs: List<Float>): Int {
         var changes = 0
@@ -412,7 +412,8 @@ class PageCurlRollMathTest {
         val mid = brightnessByte(colors[colorIndex(0, wrappedCols[wrappedCols.size / 2])])
         val last = colors[colorIndex(0, wrappedCols.last())]
         ;(first > mid) shouldBe true
-        last shouldBe PageCurlRollMath.shadedColor(tangent + 100f * PageCurlRollMath.radius(progress) * width, width, progress)
+        last shouldBe
+            PageCurlRollMath.shadedColor(tangent + 100f * PageCurlRollMath.radius(progress) * width, width, progress)
     }
 
     @Test
