@@ -87,7 +87,9 @@ class DeepLinkAnimeScreenModelTest {
             invoked = invoked,
         )
 
-        withTimeout(5_000) { invoked.await() }
+        withContext(Dispatchers.Default.limitedParallelism(1)) {
+            withTimeout(5_000) { invoked.await() }
+        }
 
         val errorState = withContext(Dispatchers.Default.limitedParallelism(1)) {
             withTimeoutOrNull(1_000) {
