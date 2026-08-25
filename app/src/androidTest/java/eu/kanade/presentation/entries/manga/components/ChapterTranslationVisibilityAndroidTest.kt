@@ -5,6 +5,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
@@ -60,8 +61,46 @@ class ChapterTranslationVisibilityAndroidTest {
         composeRule.onNodeWithContentDescription(translate).assertDoesNotExist()
     }
 
+    @Test
+    fun translatingChapterShowsThePageCount() {
+        composeRule.setContent {
+            MaterialTheme {
+                Surface {
+                    ChapterRow(
+                        downloadState = MangaDownload.State.DOWNLOADED,
+                        translationState = TranslationState.Translating(currentPage = 7, totalPages = 32),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("7/32").assertExists()
+    }
+
+    @Test
+    fun translatingChapterDescribesTheProgress() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val progress = context.stringResource(AYMR.strings.translation_progress, 7, 32)
+
+        composeRule.setContent {
+            MaterialTheme {
+                Surface {
+                    ChapterRow(
+                        downloadState = MangaDownload.State.DOWNLOADED,
+                        translationState = TranslationState.Translating(currentPage = 7, totalPages = 32),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(progress).assertExists()
+    }
+
     @Composable
-    private fun ChapterRow(downloadState: MangaDownload.State) {
+    private fun ChapterRow(
+        downloadState: MangaDownload.State,
+        translationState: TranslationState = TranslationState.Idle,
+    ) {
         MangaChapterListItem(
             title = "Chapter 1",
             date = "Aug 14, 2026",
@@ -79,7 +118,7 @@ class ChapterTranslationVisibilityAndroidTest {
             onClick = {},
             onDownloadClick = {},
             onChapterSwipe = {},
-            translationStateProvider = { TranslationState.Idle },
+            translationStateProvider = { translationState },
             onTranslationClick = {},
         )
     }
