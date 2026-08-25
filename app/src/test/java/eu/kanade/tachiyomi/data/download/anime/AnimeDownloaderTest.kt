@@ -272,7 +272,6 @@ class AnimeDownloaderTest {
     }
 }
 
-
 /**
  * A cancellation exception that carries a real failure as its cause.
  */
