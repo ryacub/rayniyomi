@@ -146,6 +146,10 @@ class TranslationNotifierTest {
             mapOf(chapterId to TranslationState.Error("API rate limit exceeded")),
             titles(),
         )
+        notifier.onStatesChanged(
+            mapOf(chapterId to TranslationState.Error("API rate limit exceeded")),
+            titles(),
+        )
 
         verify(exactly = 1) {
             context.notify(Notifications.translationErrorId(chapterId), any<Notification>())
