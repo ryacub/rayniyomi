@@ -17,14 +17,18 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class PageCurlCaptureTest {
 
     private val capture = PageCurlCapture()
 
+    private val hardwareBitmaps = mutableSetOf<Bitmap>()
+
     private fun hardwareBitmapDrawable(): BitmapDrawable {
         val bitmap = mockk<Bitmap>(relaxed = true)
+        hardwareBitmaps += bitmap
         return mockk<BitmapDrawable> { every { this@mockk.bitmap } returns bitmap }
     }
 
@@ -33,10 +37,15 @@ class PageCurlCaptureTest {
         every { this@mockk.height } returns 200
     }
 
-    private fun captureTreating(hardware: Set<Bitmap>) = PageCurlCapture(
+    private fun captureTreating() = PageCurlCapture(
         samplePixel = { _, _, _ -> Color.WHITE },
-        isHardwareBitmap = { it in hardware },
+        isHardwareBitmap = { it in hardwareBitmaps },
     )
+
+    @BeforeEach
+    fun setUp() {
+        hardwareBitmaps.clear()
+    }
 
     @AfterEach
     fun tearDown() {
@@ -56,7 +65,7 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val capture = PageCurlCapture { _, _, _ -> Color.WHITE }
+        val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.WHITE })
         val result = capture.capture(source)
 
         result shouldBe captured
@@ -75,7 +84,7 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val capture = PageCurlCapture { _, _, _ -> Color.TRANSPARENT }
+        val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.TRANSPARENT })
         val result = capture.capture(source)
 
         result shouldBe null
@@ -93,9 +102,11 @@ class PageCurlCaptureTest {
         mockkConstructor(Canvas::class)
 
         var sampleIndex = 0
-        val capture = PageCurlCapture { _, _, _ ->
-            if (sampleIndex++ == 0) Color.TRANSPARENT else Color.WHITE
-        }
+        val capture = PageCurlCapture(
+            samplePixel = { _, _, _ ->
+                if (sampleIndex++ == 0) Color.TRANSPARENT else Color.WHITE
+            },
+        )
         val result = capture.capture(source)
 
         result shouldBe captured
@@ -181,7 +192,7 @@ class PageCurlCaptureTest {
 
         mockkStatic(Bitmap::class)
 
-        val result = captureTreating(emptySet()).capture(source)
+        val result = captureTreating().capture(source)
 
         result shouldBe null
         verify(exactly = 0) { source.draw(any<Canvas>()) }
@@ -205,7 +216,7 @@ class PageCurlCaptureTest {
 
         mockkStatic(Bitmap::class)
 
-        val result = captureTreating(emptySet()).capture(source)
+        val result = captureTreating().capture(source)
 
         result shouldBe null
         verify(exactly = 0) { source.draw(any<Canvas>()) }
@@ -219,7 +230,7 @@ class PageCurlCaptureTest {
 
         mockkStatic(Bitmap::class)
 
-        val result = captureTreating(emptySet()).capture(source)
+        val result = captureTreating().capture(source)
 
         result shouldBe null
         verify(exactly = 0) { source.draw(any<Canvas>()) }
@@ -240,7 +251,7 @@ class PageCurlCaptureTest {
 
         mockkStatic(Bitmap::class)
 
-        val result = captureTreating(emptySet()).capture(source)
+        val result = captureTreating().capture(source)
 
         result shouldBe null
         verify(exactly = 0) { source.draw(any<Canvas>()) }
@@ -268,7 +279,7 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val result = captureTreating(emptySet()).capture(source)
+        val result = captureTreating().capture(source)
 
         result shouldBe captured
         verify(exactly = 1) { source.draw(any<Canvas>()) }
@@ -280,7 +291,7 @@ class PageCurlCaptureTest {
         every { hardwareSource.drawable } returns hardwareBitmapDrawable()
         val softwareSource = mockk<ImageView>(relaxed = true)
 
-        val capture = captureTreating(emptySet())
+        val capture = captureTreating()
 
         capture.canCapture(hardwareSource) shouldBe false
         capture.canCapture(softwareSource) shouldBe true
@@ -291,7 +302,7 @@ class PageCurlCaptureTest {
         var logCalls = 0
         val capture = PageCurlCapture(
             samplePixel = { _, _, _ -> Color.WHITE },
-            isHardwareBitmap = { false },
+            isHardwareBitmap = { true },
             logHardwareSkip = { logCalls++ },
         )
         val source = mockk<ImageView>(relaxed = true)
