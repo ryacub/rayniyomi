@@ -6,6 +6,7 @@ import androidx.core.app.NotificationCompat
 import com.hippo.unifile.UniFile
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.source.model.Page
@@ -340,6 +341,29 @@ class MangaDownloaderTest {
                 any(),
                 any(),
             )
+        }
+    }
+
+    @Test
+    fun `pre-flight low storage sends a warning and never an error`() = runTest {
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        )
+
+        every { DiskUtil.getAvailableStorageSpace(any<UniFile>()) } returns 100L * 1024 * 1024
+        every { anyConstructed<MangaDownloadNotifier>().onWarning(any(), any(), any(), any()) } just runs
+
+        downloader.downloadChapter(download)
+
+        assertEquals("LOW_STORAGE", download.lastErrorCode)
+        assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
+        verify(exactly = 0) {
+            anyConstructed<MangaDownloadNotifier>().onError(any(), any(), any(), any())
+        }
+        verify(exactly = 1) {
+            anyConstructed<MangaDownloadNotifier>().onWarning(any(), null, null, 1L)
         }
     }
 }

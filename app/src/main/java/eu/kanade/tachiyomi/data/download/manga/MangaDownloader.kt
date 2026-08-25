@@ -488,11 +488,13 @@ class MangaDownloader(
             download.status = MangaDownload.State.QUEUE
             download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
             download.blockedReason = DownloadBlockedReason.STORAGE
-            download.lastErrorCode = "LOW_STORAGE"
-            download.lastErrorReason = context.stringResource(AYMR.strings.download_insufficient_space)
-            notifier.onWarning(
-                context.stringResource(AYMR.strings.download_insufficient_space),
-                download.manga.id,
+            failureReporter.report(
+                download,
+                DownloadFailure(
+                    kind = DownloadFailureKind.LOW_STORAGE,
+                    message = context.stringResource(AYMR.strings.download_insufficient_space),
+                    cause = null,
+                ),
             )
             return
         }
