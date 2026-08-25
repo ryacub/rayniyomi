@@ -64,6 +64,7 @@ fun ChapterTranslationIndicator(
             modifier = modifier,
             currentPage = state.currentPage,
             totalPages = state.totalPages,
+            retryingPage = state.retryingPage,
             onClick = onClick,
         )
         TranslationState.Translated -> TranslatedIndicator(
@@ -140,6 +141,7 @@ private fun TranslatingIndicator(
     enabled: Boolean,
     currentPage: Int,
     totalPages: Int,
+    retryingPage: Int?,
     onClick: (ChapterTranslationAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -166,13 +168,37 @@ private fun TranslatingIndicator(
             animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
             label = "translation_progress",
         )
-        CircularProgressIndicator(
-            modifier = Modifier.size(TranslatingIndicatorSize).padding(TranslatingIndicatorPadding),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            strokeWidth = IndicatorStrokeWidth,
-            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-            strokeCap = StrokeCap.Round,
-        )
+        // A retrying page turns the ring tertiary and drops it to indeterminate, so the user can
+        // tell a transient failure apart from steady progress and from terminal error. Motion
+        // carries the signal as well as colour, which colour on its own cannot do.
+        val isRetrying = retryingPage != null
+        val tint = if (isRetrying) {
+            MaterialTheme.colorScheme.tertiary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        val ringModifier = Modifier
+            .size(TranslatingIndicatorSize)
+            .padding(TranslatingIndicatorPadding)
+        val ringTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+        if (isRetrying) {
+            CircularProgressIndicator(
+                modifier = ringModifier,
+                color = tint,
+                strokeWidth = IndicatorStrokeWidth,
+                trackColor = ringTrackColor,
+                strokeCap = StrokeCap.Round,
+            )
+        } else {
+            CircularProgressIndicator(
+                progress = { animatedProgress },
+                modifier = ringModifier,
+                color = tint,
+                strokeWidth = IndicatorStrokeWidth,
+                trackColor = ringTrackColor,
+                strokeCap = StrokeCap.Round,
+            )
+        }
         Text(
             text = "$currentPage/$totalPages",
             style = MaterialTheme.typography.labelSmall.copy(
