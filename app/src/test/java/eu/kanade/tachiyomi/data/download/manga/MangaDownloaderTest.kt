@@ -34,6 +34,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
+import okhttp3.Response
+import okhttp3.ResponseBody
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -65,6 +67,7 @@ class MangaDownloaderTest {
 
         val downloadPreferences = mockk<DownloadPreferences>(relaxed = true)
         every { downloadPreferences.pageDownloadConcurrency().get() } returns 2
+        every { downloadPreferences.downloadSpeedLimit().get() } returns 0
 
         val sourcePreferences = mockk<SourcePreferences>(relaxed = true)
         every { sourcePreferences.dataSaverDownloader().get() } returns false
@@ -381,6 +384,39 @@ class MangaDownloaderTest {
         }
         verify(exactly = 1) {
             anyConstructed<MangaDownloadNotifier>().onWarning(any(), null, null, 1L)
+        }
+    }
+
+    @Test
+    fun `mid download low storage warns with the localized text and keeps the raw reason`() = runTest {
+        downloader.retryBackoffMillis = 0L
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        ).apply {
+            pages = listOf(Page(0, url = "url", imageUrl = "image"))
+        }
+
+        val response = mockk<Response>(relaxed = true)
+        val body = mockk<ResponseBody>()
+        every { response.body } returns body
+        every { body.source() } throws IOException("No space left on device")
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.image(any(), any(), any()) } returns response
+        every { anyConstructed<MangaDownloadNotifier>().onWarning(any(), any(), any(), any()) } just runs
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        println("DBG reason=${download.lastErrorReason}")
+        assertEquals("LOW_STORAGE", download.lastErrorCode)
+        assertEquals("No space left on device", download.lastErrorReason)
+        assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
+        verify(exactly = 0) {
+            anyConstructed<MangaDownloadNotifier>().onWarning("No space left on device", any(), any(), any())
+        }
+        verify(exactly = 1) {
+            anyConstructed<MangaDownloadNotifier>().onWarning("mocked", null, null, 1L)
         }
     }
 }
