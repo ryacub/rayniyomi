@@ -1,8 +1,10 @@
 package eu.kanade.tachiyomi.data.translation
 
 import android.content.Context
+import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.source.MangaSource
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -73,6 +75,10 @@ class TranslationManagerTest {
         every { translationPreferences.targetLanguage() } returns targetLanguagePref
         mockTargetLanguage("en")
         mockTranslationProvider(TranslationProvider.CLAUDE)
+        // Relaxed mocks return a non-null file, which would skip every page.
+        every {
+            translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
+        } returns null
     }
 
     private fun createManager(scope: CoroutineScope? = null): TranslationManager {
@@ -163,6 +169,102 @@ class TranslationManagerTest {
             "No translation model is selected. Choose a model in Settings > Translation.",
             (state as TranslationState.Error).message,
         )
+    }
+
+    // -----------------------------------------------------------------------
+    // Transient failure retry
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `translateChapter retries a transient failure and completes`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        var attempts = 0
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } answers {
+            if (attempts++ == 0) throw HttpException(503)
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        coVerify(exactly = 2) { engine.detectAndTranslate(imageBytes, "en") }
+    }
+
+    @Test
+    fun `translateChapter skips pages whose output already exists on disk`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(
+            listOf(
+                DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) },
+                DownloadedChapterPage(1) { ByteArrayInputStream(imageBytes) },
+            ),
+        )
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+        every {
+            translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
+        } answers {
+            if (arg<Int>(5) == 0) mockk<UniFile>() else null
+        }
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
+        verify(exactly = 1) {
+            translationStorageManager.getTranslatedPageFile(
+                chapterName = chapter.name,
+                chapterScanlator = chapter.scanlator,
+                mangaTitle = manga.title,
+                source = source,
+                targetLang = "en",
+                pageIndex = 1,
+            )
+        }
+    }
+
+    @Test
+    fun `translateChapter fails immediately on non-transient error`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } throws HttpException(401)
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        val state = manager.getState(chapter.id)
+        assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
+        assertEquals("HTTP error 401", (state as TranslationState.Error).message)
+        coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
+    }
+
+    @Test
+    fun `translateChapter exhausts retries on persistent transient failures`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } throws HttpException(503)
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        val state = manager.getState(chapter.id)
+        assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
+        assertEquals("HTTP error 503", (state as TranslationState.Error).message)
+        coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
     }
 
     // -----------------------------------------------------------------------

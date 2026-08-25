@@ -4,12 +4,14 @@ import android.content.Context
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.translation.engine.ImageFormatUtil
 import eu.kanade.tachiyomi.data.translation.renderer.TranslationRenderer
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -111,12 +113,28 @@ class TranslationManager(
                         updateState(chapterId, TranslationState.Translating(0, pages.size))
 
                         for ((index, page) in pages.withIndex()) {
+                            // Skip pages already written by an earlier run, including stored originals.
+                            val existing = translationStorageManager.getTranslatedPageFile(
+                                chapter.name,
+                                chapter.scanlator,
+                                manga.title,
+                                source,
+                                targetLang,
+                                index,
+                            )
+                            if (existing != null) {
+                                updateState(chapterId, TranslationState.Translating(index + 1, pages.size))
+                                continue
+                            }
+
                             val imageBytes = page.openStream()?.use {
                                 it.readBytes()
                             } ?: continue
 
                             // Call LLM to detect and translate text
-                            val result = engine.detectAndTranslate(imageBytes, targetLang)
+                            val result = withTransientRetry("chapter \"${chapter.name}\" page ${index + 1}") {
+                                engine.detectAndTranslate(imageBytes, targetLang)
+                            }
 
                             // Render overlay
                             val renderedBytes = if (result.regions.isNotEmpty()) {
@@ -233,5 +251,43 @@ class TranslationManager(
                 }
             }
         }
+    }
+
+    /**
+     * True only for HTTP status codes where a retry can succeed: rate limiting (429)
+     * and server errors (5xx). All other failures are permanent for this page.
+     */
+    private fun Throwable.isTransientHttp(): Boolean {
+        val httpException = this as? HttpException ?: return false
+        return httpException.code == 429 || httpException.code in 500..599
+    }
+
+    /**
+     * Retries the block on transient HTTP failures with exponential backoff.
+     * [label] names the work in the retry log, for example chapter and page.
+     * Rethrows cancellation, permanent failures, and the last error after
+     * [MAX_RETRIES] retries.
+     */
+    private suspend fun <T> withTransientRetry(label: String, block: suspend () -> T): T {
+        // MAX_RETRIES counts retries after the first attempt; total calls = MAX_RETRIES + 1.
+        for (attempt in 0..MAX_RETRIES) {
+            try {
+                return block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (attempt == MAX_RETRIES || !e.isTransientHttp()) throw e
+                logcat(LogPriority.WARN) {
+                    "Transient translation failure for $label (attempt ${attempt + 1}), retrying"
+                }
+                delay(RETRY_DELAY_BASE_MS shl attempt)
+            }
+        }
+        throw IllegalStateException("unreachable")
+    }
+
+    private companion object {
+        const val MAX_RETRIES = 3
+        const val RETRY_DELAY_BASE_MS = 2_000L
     }
 }
