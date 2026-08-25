@@ -28,6 +28,19 @@ internal class PageCurlCoordinator(
     private val capture: PageCurlCapture = PageCurlCapture(),
 ) {
 
+    /** The callback kinds one curl tracks. Each kind holds one runnable. */
+    private enum class TrackedRole {
+
+        /** Polls until the target holder exists. */
+        TARGET_POLL,
+
+        /** Polls until the target holder finishes layout. */
+        LAYOUT_POLL,
+
+        /** Reenables gestures a short delay after teardown. */
+        GESTURE_REENABLE,
+    }
+
     private var curlState = CurlState()
 
     /**
@@ -48,34 +61,50 @@ internal class PageCurlCoordinator(
     private class CurlState {
         var generationId = 0L
         var targetPosition: Int? = null
-        var targetReadyRunnable: Runnable? = null
-        var layoutCheckRunnable: Runnable? = null
-        var gestureReenableRunnable: Runnable? = null
+
+        /** One tracked callback per role. Main-thread only. */
+        private val slots = arrayOfNulls<Runnable>(TrackedRole.entries.size)
+
         var pendingFromPage: CapturedPage? = null
         var activeFromPage: CapturedPage? = null
         var activeToPage: CapturedPage? = null
 
         /**
+         * Stores [runnable] as the current callback for [role] and returns
+         * it, so call sites can post the same instance in one expression.
+         */
+        fun track(role: TrackedRole, runnable: Runnable): Runnable {
+            slots[role.ordinal] = runnable
+            return runnable
+        }
+
+        /** True while [runnable] is still the tracked callback for [role]. */
+        fun isCurrent(role: TrackedRole, runnable: Runnable): Boolean =
+            slots[role.ordinal] === runnable
+
+        /**
+         * Releases [role]'s slot once its runnable has fired. A fired
+         * callback no longer counts as a tracked resource.
+         */
+        fun fire(role: TrackedRole) {
+            slots[role.ordinal] = null
+        }
+
+        /**
          * True when no tracked resource remains. The teardown guard uses only
          * this predicate: no invariant ties resources to other state, so the
-         * guard never skips teardown and never leaks bitmaps or the gesture
+         * guard never skips teardown and never leaks pages or the gesture
          * claim.
          */
         fun isEmpty(): Boolean =
-            targetReadyRunnable == null &&
-                layoutCheckRunnable == null &&
-                gestureReenableRunnable == null &&
+            slots.all { it == null } &&
                 pendingFromPage == null &&
                 activeFromPage == null &&
                 activeToPage == null
 
         fun clearRunnables(pager: Pager) {
-            targetReadyRunnable?.let(pager::removeCallbacks)
-            targetReadyRunnable = null
-            layoutCheckRunnable?.let(pager::removeCallbacks)
-            layoutCheckRunnable = null
-            gestureReenableRunnable?.let(pager::removeCallbacks)
-            gestureReenableRunnable = null
+            for (slot in slots) slot?.let(pager::removeCallbacks)
+            slots.fill(null)
         }
 
         /**
@@ -198,11 +227,13 @@ internal class PageCurlCoordinator(
         var waitAttempts = 0
         lateinit var checkTargetReady: Runnable
         checkTargetReady = Runnable {
-            if (released || curlState.targetReadyRunnable !== checkTargetReady) return@Runnable
+            if (released || !curlState.isCurrent(TrackedRole.TARGET_POLL, checkTargetReady)) {
+                return@Runnable
+            }
 
             val readyHolder = readerItemAt(targetPosition)?.let(holderFor) ?: initialTargetHolder
             if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
-                curlState.targetReadyRunnable = null
+                curlState.fire(TrackedRole.TARGET_POLL)
                 if (curlState.pendingFromPage === fromPage) curlState.pendingFromPage = null
                 playAndHideCurl(fromPage, readyHolder, direction)
             } else {
@@ -210,8 +241,7 @@ internal class PageCurlCoordinator(
                 pager.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
             }
         }
-        curlState.targetReadyRunnable = checkTargetReady
-        pager.post(checkTargetReady)
+        pager.post(curlState.track(TrackedRole.TARGET_POLL, checkTargetReady))
     }
 
     private fun playAndHideCurl(
@@ -250,7 +280,9 @@ internal class PageCurlCoordinator(
         var layoutCheckAttempts = 0
         lateinit var checkLayout: Runnable
         checkLayout = Runnable {
-            if (released || curlState.layoutCheckRunnable !== checkLayout) return@Runnable
+            if (released || !curlState.isCurrent(TrackedRole.LAYOUT_POLL, checkLayout)) {
+                return@Runnable
+            }
 
             val currentHolder = readerItemAt(pager.currentItem)?.let(holderFor)
             if (currentHolder?.isLaidOut == true || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
@@ -258,21 +290,23 @@ internal class PageCurlCoordinator(
 
                 // Hold the claim briefly after the animation ends so a tap
                 // landing on the finished frame does not trigger a turn.
+                // The registration stays after finish(): clearRunnables
+                // must not undo it.
                 val reenable = Runnable {
+                    curlState.fire(TrackedRole.GESTURE_REENABLE)
                     if (!released) pager.releaseGestures(GestureInputGate.Claim.CURL)
                 }
-                curlState.gestureReenableRunnable = reenable
-                pager.postDelayed(reenable, GESTURE_REENABLE_DELAY_MS)
+                pager.postDelayed(
+                    curlState.track(TrackedRole.GESTURE_REENABLE, reenable),
+                    GESTURE_REENABLE_DELAY_MS,
+                )
             } else {
                 layoutCheckAttempts++
                 pager.postDelayed(checkLayout, TARGET_POLL_INTERVAL_MS)
             }
         }
-        curlState.layoutCheckRunnable?.let(pager::removeCallbacks)
-        curlState.layoutCheckRunnable = checkLayout
-        pager.post(checkLayout)
+        pager.post(curlState.track(TrackedRole.LAYOUT_POLL, checkLayout))
     }
-
 
     companion object {
         private const val CURL_DURATION_MS = 500L

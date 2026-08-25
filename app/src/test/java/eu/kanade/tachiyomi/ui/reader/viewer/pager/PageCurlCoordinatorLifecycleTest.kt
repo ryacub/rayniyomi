@@ -236,6 +236,26 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
+    fun `a fired gesture callback releases its slot`() {
+        val fixture = PageCurlCoordinatorFixture()
+        every { fixture.capture.capture(any()) } returnsMany
+            listOf(fixture.page(), fixture.page(), fixture.page(), fixture.page())
+
+        fixture.startCurl()
+        fixture.endCallbacks.first().invoke()
+        fixture.runNextPostedCallback()
+        val gestureCallback = fixture.delayedCallbacks.single()
+        gestureCallback.run()
+
+        // The fired callback released its slot: the next teardown must not
+        // remove it from the pager again.
+        fixture.nowMs += 1_000L
+        fixture.startCurl()
+
+        verify(exactly = 0) { fixture.pager.removeCallbacks(gestureCallback) }
+    }
+
+    @Test
     fun `four rapid taps inside one second advance four pages`() {
         val fixture = PageCurlCoordinatorFixture()
 
