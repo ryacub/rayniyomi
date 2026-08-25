@@ -6,7 +6,9 @@ import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.drop
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.lang.launchIO
@@ -35,6 +37,8 @@ class ReaderTranslationCoordinator(
     private val onShowTranslatedPagesChange: (showTranslatedPages: Boolean) -> Unit,
     private val onReload: suspend () -> Unit,
 ) {
+
+    private var toggleJob: Job? = null
 
     /**
      * Starts watching language generation changes. Call once from the owner's init block;
@@ -67,14 +71,26 @@ class ReaderTranslationCoordinator(
     }
 
     /**
-     * Toggles between showing translated and original pages, then reloads the chapter.
+     * Toggles between showing translated and original pages, rebuilds the current
+     * chapter's page list through its loader, then reloads the viewer. A failed rebuild
+     * reverts the toggle so the icon, the preference, and the displayed pages agree.
      */
     fun toggleTranslatedPages() {
         val newValue = readerPreferences.showTranslatedPages().toggle()
         onShowTranslatedPagesChange(newValue)
-        scope.launchIO {
+        toggleJob?.cancel()
+        toggleJob = scope.launchIO {
             val currChapter = getCurrChapter() ?: return@launchIO
-            currChapter.requestedPage = currChapter.chapter.last_page_read
+            val installed = try {
+                reloadChapterPagesForTranslationToggle(currChapter)
+            } catch (e: CancellationException) {
+                throw e
+            }
+            if (!installed) {
+                readerPreferences.showTranslatedPages().set(!newValue)
+                onShowTranslatedPagesChange(!newValue)
+                return@launchIO
+            }
             onReload()
         }
     }
