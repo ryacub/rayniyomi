@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.manga.model
 
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureTarget
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
@@ -27,7 +28,7 @@ data class MangaDownload(
     val manga: Manga,
     val chapter: Chapter,
     var priority: DownloadPriority = DownloadPriority.NORMAL,
-) : DownloadStatusSnapshot {
+) : DownloadStatusSnapshot, DownloadFailureTarget {
 
     @Transient
     private val pagesStateFlow = MutableStateFlow<List<Page>?>(null)
@@ -84,7 +85,7 @@ data class MangaDownload(
     override var retryAttempt: Int = 0
 
     @Transient
-    var lastErrorCode: String? = null
+    override var lastErrorCode: String? = null
 
     @Transient
     override var lastErrorReason: String? = null

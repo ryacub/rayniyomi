@@ -6,6 +6,7 @@ import androidx.core.app.NotificationCompat
 import com.hippo.unifile.UniFile
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.source.model.Page
@@ -33,6 +34,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
+import okhttp3.Response
+import okhttp3.ResponseBody
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -64,6 +67,7 @@ class MangaDownloaderTest {
 
         val downloadPreferences = mockk<DownloadPreferences>(relaxed = true)
         every { downloadPreferences.pageDownloadConcurrency().get() } returns 2
+        every { downloadPreferences.downloadSpeedLimit().get() } returns 0
 
         val sourcePreferences = mockk<SourcePreferences>(relaxed = true)
         every { sourcePreferences.dataSaverDownloader().get() } returns false
@@ -226,6 +230,48 @@ class MangaDownloaderTest {
     }
 
     @Test
+    fun `cancellation shaped failure while the scope is active reports an error`() = runTest {
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        )
+
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.pages(any(), any()) } throws CancellationException("cancelled inside source")
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(MangaDownload.State.ERROR, download.status)
+        assertEquals("CancellationException", download.lastErrorCode)
+        verify(exactly = 1) {
+            anyConstructed<MangaDownloadNotifier>().onError(
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `cancellation wrapped failure with a null message falls back to the class name`() = runTest {
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        )
+
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.pages(any(), any()) } throws WrappedCancellationException(RuntimeException())
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals("RuntimeException", download.lastErrorCode)
+        assertEquals("RuntimeException", download.lastErrorReason)
+    }
+
+    @Test
     fun `retry exhaustion reason reflects the last exception`() = runTest {
         downloader.retryBackoffMillis = 0L
         val download = MangaDownload(
@@ -315,6 +361,61 @@ class MangaDownloaderTest {
                 any(),
                 any(),
             )
+        }
+    }
+
+    @Test
+    fun `pre-flight low storage sends a warning and never an error`() = runTest {
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        )
+
+        every { DiskUtil.getAvailableStorageSpace(any<UniFile>()) } returns 100L * 1024 * 1024
+        every { anyConstructed<MangaDownloadNotifier>().onWarning(any(), any(), any(), any()) } just runs
+
+        downloader.downloadChapter(download)
+
+        assertEquals("LOW_STORAGE", download.lastErrorCode)
+        assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
+        verify(exactly = 0) {
+            anyConstructed<MangaDownloadNotifier>().onError(any(), any(), any(), any())
+        }
+        verify(exactly = 1) {
+            anyConstructed<MangaDownloadNotifier>().onWarning(any(), null, null, 1L)
+        }
+    }
+
+    @Test
+    fun `mid download low storage warns with the localized text and keeps the raw reason`() = runTest {
+        downloader.retryBackoffMillis = 0L
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        ).apply {
+            pages = listOf(Page(0, url = "url", imageUrl = "image"))
+        }
+
+        val response = mockk<Response>(relaxed = true)
+        val body = mockk<ResponseBody>()
+        every { response.body } returns body
+        every { body.source() } throws IOException("No space left on device")
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.image(any(), any(), any()) } returns response
+        every { anyConstructed<MangaDownloadNotifier>().onWarning(any(), any(), any(), any()) } just runs
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals("LOW_STORAGE", download.lastErrorCode)
+        assertEquals("No space left on device", download.lastErrorReason)
+        assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
+        verify(exactly = 0) {
+            anyConstructed<MangaDownloadNotifier>().onWarning("No space left on device", any(), any(), any())
+        }
+        verify(exactly = 1) {
+            anyConstructed<MangaDownloadNotifier>().onWarning("mocked", null, null, 1L)
         }
     }
 }
