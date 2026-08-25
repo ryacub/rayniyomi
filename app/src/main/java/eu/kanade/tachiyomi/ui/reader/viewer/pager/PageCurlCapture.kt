@@ -40,9 +40,7 @@ internal class PageCurlCapture(
      * hardware bitmap, when the bitmap allocation fails, when the drawing
      * fails, or when the drawing produces no visible pixels.
      *
-     * The proactive hardware check sees background drawables, ImageView
-     * drawables, and LayerDrawable layers only. A view that paints a bitmap
-     * through Canvas.drawBitmap with no Drawable stays undetected. The
+     * See [hasHardwareContent] for what the proactive check covers. The
      * IllegalArgumentException catch remains its backstop.
      */
     fun capture(source: View): Bitmap? {
