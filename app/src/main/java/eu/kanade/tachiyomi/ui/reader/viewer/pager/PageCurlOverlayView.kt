@@ -109,12 +109,11 @@ class PageCurlOverlayView(context: Context) : View(context) {
             shadowPaint.shader = null
         }
     }
-    private var animator: ValueAnimator? = null
-    private var fromBitmap: Bitmap? = null
-    private var toBitmap: Bitmap? = null
-    private var direction = CurlDirection.FROM_RIGHT
-    private var progress = 0f
-    private val playGate = CurlPlayGate()
+
+    private val playback = PageCurlPlayback(
+        newAnimator = { ValueAnimator.ofFloat(0f, 1f) },
+        onUpdate = { invalidate() },
+    )
 
     private val verts = FloatArray(PageCurlRollMath.vertCount())
     private val meshColors = PageCurlRollMath.newColors()
@@ -138,55 +137,24 @@ class PageCurlOverlayView(context: Context) : View(context) {
         durationMs: Long,
         onEnd: () -> Unit,
     ) {
-        val token = playGate.begin()
-        fromBitmap = from
-        toBitmap = to
-        this.direction = direction
-        progress = 0f
         isVisible = true
-
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = durationMs
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { animation ->
-                progress = animation.animatedValue as Float
-                invalidate()
-            }
-            doOnEnd {
-                if (playGate.isCurrent(token)) onEnd()
-            }
-        }
-        this.animator = animator
-        animator.start()
+        playback.play(from, to, direction, durationMs, onEnd)
     }
 
     /**
-     * Stops the running curl animator, if any. Invalidation comes first:
-     * cancelling fires the animator's end callback synchronously, and that
-     * end belongs to a play that no longer runs.
-     */
-    private fun cancelCurl() {
-        playGate.invalidate()
-        animator?.cancel()
-        animator = null
-        fromBitmap = null
-        toBitmap = null
-    }
-
-    /**
-     * Terminal exit for the curl transition. Stops any running animator and
+     * Terminal exit for the curl transition. Stops the running play and
      * hides the view; the aborted play reports no end. Safe to call when no
      * curl is playing.
      */
     fun abortAndHide() {
-        cancelCurl()
+        playback.abort()
         isVisible = false
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val from = fromBitmap ?: return
-        val to = toBitmap ?: return
+        val from = playback.fromBitmap ?: return
+        val to = playback.toBitmap ?: return
         if (from.width <= 0 || from.height <= 0 || to.width <= 0 || to.height <= 0) {
             return
         }
@@ -194,8 +162,8 @@ class PageCurlOverlayView(context: Context) : View(context) {
             canvas,
             from,
             to,
-            progress,
-            direction,
+            playback.progress,
+            playback.direction,
             verts,
             meshColors,
             shadowPaint,
@@ -214,7 +182,11 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * inside the bitmap for every non-null span.
      */
     private fun drawFoldBack(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
-        val span = PageCurlRollMath.foldBackSpan(bitmapWidth, progress, direction) ?: return
+        val span = PageCurlRollMath.foldBackSpan(
+            bitmapWidth,
+            playback.progress,
+            playback.direction,
+        ) ?: return
         // Skip when the whole strip has rolled off screen.
         if (span.endInclusive <= 0f || span.start >= bitmapWidth) return
         val left = span.start
@@ -226,13 +198,13 @@ class PageCurlOverlayView(context: Context) : View(context) {
         // strip's outer edge. The mesh already mirrors the page for a left
         // curl, so there the same reflection composes into a pure
         // translation by w - 2t.
-        if (direction == CurlDirection.FROM_RIGHT) {
+        if (playback.direction == CurlDirection.FROM_RIGHT) {
             canvas.scale(-1f, 1f, right, 0f)
         } else {
-            val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
+            val tangent = PageCurlRollMath.tangentX(bitmapWidth, playback.progress)
             canvas.translate(bitmapWidth - 2f * tangent, 0f)
         }
-        canvas.drawBitmap(fromBitmap!!, 0f, 0f, null)
+        canvas.drawBitmap(playback.fromBitmap!!, 0f, 0f, null)
         // Soften the sampled copy so it reads as paper.
         canvas.drawRect(left, 0f, right, bitmapHeight, backSoftenPaint)
         canvas.restore()

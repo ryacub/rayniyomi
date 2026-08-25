@@ -1,9 +1,12 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
+import android.animation.Animator
+import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.view.animation.DecelerateInterpolator
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -30,8 +33,10 @@ class PageCurlOverlayViewTest {
 
     @BeforeEach
     fun setUp() {
-        // The renderer constructs a gradient per shadowed frame.
+        // The renderer constructs a gradient per shadowed frame; the
+        // playback collaborator constructs an interpolator per play.
         mockkConstructor(LinearGradient::class)
+        mockkConstructor(DecelerateInterpolator::class)
     }
 
     @AfterEach
@@ -197,6 +202,58 @@ class PageCurlOverlayViewTest {
 
         gate.isCurrent(first) shouldBe false
         gate.isCurrent(second) shouldBe true
+    }
+
+    // R948: the playback collaborator owns the terminality sequencing, so a
+    // plain JUnit test drives it with a fake animator. A cancelled animator
+    // fires its end synchronously inside cancel; that end must be suppressed
+    // because invalidation lands first.
+    @Test
+    fun `abort suppresses a synchronous animation end`() {
+        val animator = mockk<ValueAnimator>(relaxed = true)
+        val listeners = mutableListOf<Animator.AnimatorListener>()
+        every { animator.addListener(any()) } answers { listeners.add(firstArg()) }
+        every { animator.cancel() } answers {
+            listeners.forEach { it.onAnimationEnd(animator) }
+        }
+        val playback = PageCurlPlayback(newAnimator = { animator }, onUpdate = {})
+        var ended = false
+
+        playback.play(bitmap(), bitmap(), CurlDirection.FROM_RIGHT, 500L) { ended = true }
+        playback.abort()
+
+        ended shouldBe false
+    }
+
+    @Test
+    fun `a finished play reports its end`() {
+        val animator = mockk<ValueAnimator>(relaxed = true)
+        val listeners = mutableListOf<Animator.AnimatorListener>()
+        every { animator.addListener(any()) } answers { listeners.add(firstArg()) }
+        val playback = PageCurlPlayback(newAnimator = { animator }, onUpdate = {})
+        var ended = false
+
+        playback.play(bitmap(), bitmap(), CurlDirection.FROM_RIGHT, 500L) { ended = true }
+        listeners.single().onAnimationEnd(animator)
+
+        ended shouldBe true
+    }
+
+    @Test
+    fun `a newer play supersedes the older play's end`() {
+        val first = mockk<ValueAnimator>(relaxed = true)
+        val second = mockk<ValueAnimator>(relaxed = true)
+        val firstListeners = mutableListOf<Animator.AnimatorListener>()
+        every { first.addListener(any()) } answers { firstListeners.add(firstArg()) }
+        val queue = ArrayDeque(listOf(first, second))
+        val playback = PageCurlPlayback(newAnimator = { queue.removeFirst() }, onUpdate = {})
+        var ended = false
+
+        playback.play(bitmap(), bitmap(), CurlDirection.FROM_RIGHT, 500L) { ended = true }
+        playback.play(bitmap(), bitmap(), CurlDirection.FROM_RIGHT, 500L) { }
+        firstListeners.forEach { it.onAnimationEnd(first) }
+
+        ended shouldBe false
     }
 
     companion object {
