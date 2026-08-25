@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.data.download.manga
 
-import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import rx.exceptions.OnErrorThrowable
+import java.io.IOException
 
 internal class StoragePermissionException(message: String?, cause: Throwable? = null) :
     Exception(message, cause)
