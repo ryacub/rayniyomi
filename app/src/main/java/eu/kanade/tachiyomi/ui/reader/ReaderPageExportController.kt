@@ -55,13 +55,21 @@ class ReaderPageExportController(
     }
 
     /**
+     * Returns the page and manga for an export action, or null when the page is
+     * missing, not ready, or the manga is not loaded.
+     */
+    private fun readyPageAndManga(): Pair<ReaderPage, Manga>? {
+        val page = getPage()
+        if (page?.status != Page.State.READY) return null
+        return currentManga()?.let { manga -> page to manga }
+    }
+
+    /**
      * Saves the image of this the selected page on the pictures directory and notifies the UI of the result.
      * There's also a notification to allow sharing the image somewhere else or deleting it.
      */
     fun saveImage() {
-        val page = getPage()
-        if (page?.status != Page.State.READY) return
-        val manga = currentManga() ?: return
+        val (page, manga) = readyPageAndManga() ?: return
 
         val context = Injekt.get<Application>()
         val notifier = SaveImageNotifier(context)
@@ -107,9 +115,7 @@ class ReaderPageExportController(
      * image will be kept so it won't be taking lots of internal disk space.
      */
     fun shareImage(copyToClipboard: Boolean) {
-        val page = getPage()
-        if (page?.status != Page.State.READY) return
-        val manga = currentManga() ?: return
+        val (page, manga) = readyPageAndManga() ?: return
 
         val context = Injekt.get<Application>()
         val destDir = context.cacheImageDir
@@ -143,9 +149,7 @@ class ReaderPageExportController(
      * Sets the image of this the selected page as cover and notifies the UI of the result.
      */
     fun setAsCover() {
-        val page = getPage()
-        if (page?.status != Page.State.READY) return
-        val manga = currentManga() ?: return
+        val (page, manga) = readyPageAndManga() ?: return
         val stream = page.stream ?: return
 
         scope.launchNonCancellable {
