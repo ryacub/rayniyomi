@@ -8,9 +8,16 @@ import eu.kanade.domain.entries.manga.model.getComicInfo
 import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
+import eu.kanade.tachiyomi.data.download.core.DownloadFailure
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureClassifier
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureKind
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureReporter
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
+import eu.kanade.tachiyomi.data.download.core.LowStorageException
+import eu.kanade.tachiyomi.data.download.core.RetriesExhaustedException
+import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
@@ -143,6 +150,28 @@ class MangaDownloader(
     private val notifier by lazy { MangaDownloadNotifier(context) }
 
     /**
+     * Single point that applies a failure to a download.
+     */
+    private val failureReporter by lazy {
+        DownloadFailureReporter<MangaDownload>(
+            notifyError = { download, failure ->
+                notifier.onError(
+                    failure.message,
+                    download.chapter.name,
+                    download.manga.title,
+                    download.manga.id,
+                )
+            },
+            notifyWarning = { download, _ ->
+                notifier.onWarning(
+                    context.stringResource(AYMR.strings.download_insufficient_space),
+                    mangaId = download.manga.id,
+                )
+            },
+        )
+    }
+
+    /**
      * The throttler used to control the download speed.
      */
     private val throttler = Throttler()
@@ -186,15 +215,13 @@ class MangaDownloader(
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
             it.blockedReason = DownloadBlockedReason.SLOT
             it.retryAttempt = 0
-            it.lastErrorCode = null
-            it.lastErrorReason = null
+            failureReporter.clear(it)
         }
 
         isPaused = false
 
         launchDownloaderJob()
         notifier.onQueueStatusSummary(queueState.value)
-
         return pending.isNotEmpty()
     }
 
@@ -355,20 +382,13 @@ class MangaDownloader(
                 stop()
             }
         } catch (e: Throwable) {
-            val cause = unwrappedCancellationCause(e)
-            if (cause == null && !currentCoroutineContext().isActive) throw e
-            val reported = cause ?: e // cancellation-shaped while the job is still active is a failure
-            logcat(LogPriority.ERROR, reported)
+            val failure = DownloadFailureClassifier.classify(e)
+            if (failure.kind == DownloadFailureKind.CANCELLATION && !currentCoroutineContext().isActive) throw e
+            // Cancellation-shaped while the job is still active is a failure.
+            logcat(LogPriority.ERROR, failure.cause ?: e)
             download.status = MangaDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            download.lastErrorCode = reported::class.simpleName
-            download.lastErrorReason = reported.message ?: reported::class.simpleName
-            notifier.onError(
-                reported.message,
-                download.chapter.name,
-                download.manga.title,
-                download.manga.id,
-            )
+            failureReporter.report(download, failure, reasonFallback = failure.code)
             stop()
         }
     }
@@ -554,8 +574,14 @@ class MangaDownloader(
             if (!isDownloadSuccessful(download, tmpDir)) {
                 download.status = MangaDownload.State.ERROR
                 download.displayStatus = DownloadDisplayStatus.FAILED
-                download.lastErrorCode = "INCOMPLETE"
-                download.lastErrorReason = "Incomplete chapter output"
+                failureReporter.report(
+                    download,
+                    DownloadFailure(
+                        kind = DownloadFailureKind.INCOMPLETE_OUTPUT,
+                        message = "Incomplete chapter output",
+                        cause = null,
+                    ),
+                )
                 return
             }
             download.displayStatus = DownloadDisplayStatus.VERIFYING
@@ -579,8 +605,7 @@ class MangaDownloader(
 
             download.status = MangaDownload.State.DOWNLOADED
             download.displayStatus = DownloadDisplayStatus.COMPLETED
-            download.lastErrorCode = null
-            download.lastErrorReason = null
+            failureReporter.clear(download)
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             if (error is LowStorageException) {
@@ -590,9 +615,7 @@ class MangaDownloader(
             logcat(LogPriority.ERROR, error)
             download.status = MangaDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            download.lastErrorCode = error::class.simpleName
-            download.lastErrorReason = error.message
-            notifier.onError(error.message, download.chapter.name, download.manga.title, download.manga.id)
+            failureReporter.report(download, DownloadFailureClassifier.classify(error))
         }
     }
 
@@ -658,9 +681,7 @@ class MangaDownloader(
             // Mark this page as error and allow to download the remaining
             page.progress = 0
             page.status = Page.State.ERROR
-            download.lastErrorCode = e::class.simpleName
-            download.lastErrorReason = e.message
-            notifier.onError(e.message, download.chapter.name, download.manga.title, download.manga.id)
+            failureReporter.report(download, DownloadFailureClassifier.classify(e))
         }
     }
 
@@ -697,15 +718,17 @@ class MangaDownloader(
             } catch (e: Exception) {
                 response.close()
                 file.delete()
-                if (isLowStorageFailure(e.message)) {
+                if (DownloadFailureClassifier.isLowStorageFailure(e.message)) {
                     download.status = MangaDownload.State.QUEUE
                     download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
                     download.blockedReason = DownloadBlockedReason.STORAGE
-                    download.lastErrorCode = "LOW_STORAGE"
-                    download.lastErrorReason = e.message
-                    notifier.onWarning(
-                        context.stringResource(AYMR.strings.download_insufficient_space),
-                        mangaId = download.manga.id,
+                    failureReporter.report(
+                        download,
+                        DownloadFailure(
+                            kind = DownloadFailureKind.LOW_STORAGE,
+                            message = e.message,
+                            cause = e,
+                        ),
                     )
                     throw LowStorageException(e.message ?: "Insufficient storage")
                 }
@@ -718,7 +741,7 @@ class MangaDownloader(
                 if (cause is LowStorageException) {
                     return@retryWhen false
                 }
-                if (isPermissionFailure(cause)) {
+                if (DownloadFailureClassifier.isPermissionFailure(cause)) {
                     throw StoragePermissionException(
                         cause.message ?: cause::class.simpleName,
                         cause,
@@ -930,13 +953,3 @@ class MangaDownloader(
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
-
-private class LowStorageException(message: String) : Exception(message)
-
-private fun isLowStorageFailure(message: String?): Boolean {
-    if (message.isNullOrBlank()) return false
-    return message.contains("No space left on device", ignoreCase = true) ||
-        message.contains("ENOSPC", ignoreCase = true) ||
-        message.contains("disk full", ignoreCase = true) ||
-        message.contains("insufficient storage", ignoreCase = true)
-}

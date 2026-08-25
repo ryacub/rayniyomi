@@ -226,6 +226,31 @@ class MangaDownloaderTest {
     }
 
     @Test
+    fun `cancellation shaped failure while the scope is active reports an error`() = runTest {
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        )
+
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.pages(any(), any()) } throws CancellationException("cancelled inside source")
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(MangaDownload.State.ERROR, download.status)
+        assertEquals("CancellationException", download.lastErrorCode)
+        verify(exactly = 1) {
+            anyConstructed<MangaDownloadNotifier>().onError(
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
     fun `retry exhaustion reason reflects the last exception`() = runTest {
         downloader.retryBackoffMillis = 0L
         val download = MangaDownload(
