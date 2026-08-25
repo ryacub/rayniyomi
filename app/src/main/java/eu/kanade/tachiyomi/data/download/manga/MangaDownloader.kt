@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asFlow
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -50,6 +52,7 @@ import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.Response
 import okio.Throttler
 import okio.buffer
+import rx.exceptions.OnErrorThrowable
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.lang.launchIO
@@ -353,13 +356,20 @@ class MangaDownloader(
                 stop()
             }
         } catch (e: Throwable) {
-            if (e is CancellationException) throw e
-            logcat(LogPriority.ERROR, e)
+            val cause = unwrappedCancellationCause(e)
+            if (cause == null && !currentCoroutineContext().isActive) throw e
+            val reported = cause ?: e // cancellation-shaped while the job is still active is a failure
+            logcat(LogPriority.ERROR, reported)
             download.status = MangaDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            download.lastErrorCode = e::class.simpleName
-            download.lastErrorReason = e.message
-            notifier.onError(e.message)
+            download.lastErrorCode = reported::class.simpleName
+            download.lastErrorReason = reported.message ?: reported::class.simpleName
+            notifier.onError(
+                reported.message,
+                download.chapter.name,
+                download.manga.title,
+                download.manga.id,
+            )
             stop()
         }
     }
@@ -920,4 +930,23 @@ private fun isLowStorageFailure(message: String?): Boolean {
         message.contains("ENOSPC", ignoreCase = true) ||
         message.contains("disk full", ignoreCase = true) ||
         message.contains("insufficient storage", ignoreCase = true)
+}
+
+/**
+ * Returns the real cause when [e] only looks like coroutine cancellation,
+ * or null when [e] is a genuine cancellation.
+ */
+private fun unwrappedCancellationCause(e: Throwable): Throwable? {
+    if (e !is CancellationException) return e
+    var cause = e.cause
+    while (cause != null) {
+        if (cause !is CancellationException &&
+            cause !is OnErrorThrowable.OnNextValue &&
+            cause::class.simpleName != "JobCancellationException"
+        ) {
+            return cause
+        }
+        cause = cause.cause
+    }
+    return null
 }
