@@ -3,13 +3,17 @@ package eu.kanade.tachiyomi.ui.reader
 import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.entries.manga.model.Manga
@@ -33,7 +37,9 @@ class ReaderTranslationCoordinator(
     private val currentManga: () -> Manga?,
     private val getCurrChapter: () -> ReaderChapter?,
     private val getShowTranslatedPages: () -> Boolean,
+    private val chapterIdFlow: Flow<Long?>,
     private val onHasTranslationChange: (hasTranslation: Boolean) -> Unit,
+    private val onTranslationStateChange: (TranslationState) -> Unit,
     private val onShowTranslatedPagesChange: (showTranslatedPages: Boolean) -> Unit,
     private val onReload: suspend () -> Unit,
 ) {
@@ -41,8 +47,9 @@ class ReaderTranslationCoordinator(
     private var toggleJob: Job? = null
 
     /**
-     * Starts watching language generation changes. Call once from the owner's init block;
-     * collection runs on the supplied scope and skips the initial emission.
+     * Starts watching language generation changes and the open chapter's translation state.
+     * Call once from the owner's init block; collection runs on the supplied scope.
+     * The language-generation collector skips the initial emission.
      */
     fun start() {
         scope.launchIO {
@@ -55,6 +62,11 @@ class ReaderTranslationCoordinator(
                         onReload()
                     }
                 }
+        }
+        scope.launchIO {
+            translationStateFlow(translationManager.translationStates, chapterIdFlow)
+                .onEach(onTranslationStateChange)
+                .launchIn(this)
         }
     }
 

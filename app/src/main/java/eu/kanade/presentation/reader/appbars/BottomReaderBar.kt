@@ -1,35 +1,47 @@
 package eu.kanade.presentation.reader.appbars
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import eu.kanade.presentation.components.ArrowModifier
+import eu.kanade.presentation.components.IndicatorModifier
+import eu.kanade.presentation.components.IndicatorStrokeWidth
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.presentation.core.components.material.IconButtonTokens
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
@@ -43,6 +55,7 @@ fun BottomReaderBar(
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
     hasTranslation: Boolean,
+    translationState: TranslationState,
     translationEnabled: Boolean,
     onClickTranslation: () -> Unit,
     showWebtoonAutoScrollControls: Boolean,
@@ -102,7 +115,12 @@ fun BottomReaderBar(
             )
         }
 
-        if (hasTranslation) {
+        if (translationState is TranslationState.Translating) {
+            TranslatingReaderIndicator(
+                currentPage = translationState.currentPage,
+                totalPages = translationState.totalPages,
+            )
+        } else if (hasTranslation) {
             IconButton(onClick = onClickTranslation) {
                 Icon(
                     imageVector = Icons.Outlined.Translate,
@@ -149,5 +167,38 @@ fun BottomReaderBar(
                 contentDescription = stringResource(MR.strings.action_settings),
             )
         }
+    }
+}
+
+/**
+ * Mirrors the chapter-list TranslatingIndicator in ChapterTranslationIndicator.kt:
+ * a determinate ring around the translate icon. Not clickable.
+ */
+@Composable
+private fun TranslatingReaderIndicator(currentPage: Int, totalPages: Int) {
+    Box(
+        modifier = Modifier.size(IconButtonTokens.StateLayerSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        val progress = if (totalPages > 0) currentPage.toFloat() / totalPages else 0f
+        val animatedProgress by animateFloatAsState(
+            targetValue = progress,
+            animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+            label = "reader_translation_progress",
+        )
+        CircularProgressIndicator(
+            progress = { animatedProgress },
+            modifier = IndicatorModifier,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            strokeWidth = IndicatorStrokeWidth,
+            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+            strokeCap = StrokeCap.Round,
+        )
+        Icon(
+            imageVector = Icons.Outlined.Translate,
+            contentDescription = null,
+            modifier = ArrowModifier,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

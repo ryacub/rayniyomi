@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -189,6 +190,10 @@ class ReaderViewModel @JvmOverloads constructor(
         currentManga = { manga },
         getCurrChapter = { state.value.viewerChapters?.currChapter },
         getShowTranslatedPages = { state.value.showTranslatedPages },
+        chapterIdFlow = state.map { it.viewerChapters?.currChapter?.chapter?.id },
+        onTranslationStateChange = { translationState ->
+            mutableState.update { it.copy(translationState = translationState) }
+        },
         onHasTranslationChange = { hasTranslation ->
             mutableState.update { it.copy(hasTranslation = hasTranslation) }
         },
@@ -857,6 +862,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val assistUrl: String? = null,
         val showTranslatedPages: Boolean = false,
         val hasTranslation: Boolean = false,
+        val translationState: TranslationState = TranslationState.Idle,
         val foldState: ReaderFoldState? = null,
     ) {
         val currentChapter: ReaderChapter?
