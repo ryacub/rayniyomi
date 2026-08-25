@@ -105,7 +105,12 @@ class TranslationStorageManagerTest {
         cbzChapter()
 
         val result = manager.writeTranslatedPage(
-            chapterName, null, mangaTitle, source, "en", "001.jpg",
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            "001.jpg",
             byteArrayOf(1, 2, 3),
         )
 
@@ -129,7 +134,12 @@ class TranslationStorageManagerTest {
     fun `cbz chapter reports translated after a page is written`() {
         cbzChapter()
         manager.writeTranslatedPage(
-            chapterName, null, mangaTitle, source, "en", "001.jpg",
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            "001.jpg",
             byteArrayOf(1),
         )
 
@@ -140,7 +150,12 @@ class TranslationStorageManagerTest {
     fun `cbz chapter resolves a stored translated page by index`() {
         cbzChapter()
         manager.writeTranslatedPage(
-            chapterName, null, mangaTitle, source, "en", "001.jpg",
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            "001.jpg",
             byteArrayOf(1),
         )
 
@@ -190,7 +205,12 @@ class TranslationStorageManagerTest {
         every { provider.findChapterDir(chapterName, null, mangaTitle, source) } returns null
 
         val result = manager.writeTranslatedPage(
-            chapterName, null, mangaTitle, source, "en", "001.jpg",
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            "001.jpg",
             byteArrayOf(1),
         )
 

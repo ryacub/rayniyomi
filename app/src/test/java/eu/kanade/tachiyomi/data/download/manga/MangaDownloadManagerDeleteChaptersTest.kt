@@ -10,8 +10,8 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -101,7 +101,6 @@ class MangaDownloadManagerDeleteChaptersTest {
         every { provider.findMangaDir(manga.title, source) } returns mangaDir.mock
         every { provider.findSourceDir(source) } returns null
     }
-
 
     @Test
     fun `deleting a translated chapter removes its sidecar before the empty-folder check`() = runTest {

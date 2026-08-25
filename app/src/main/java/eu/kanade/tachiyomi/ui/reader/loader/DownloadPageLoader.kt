@@ -13,9 +13,9 @@ import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import mihon.core.archive.archiveReader
-import java.io.InputStream
 import tachiyomi.domain.entries.manga.model.Manga
 import uy.kohesive.injekt.injectLazy
+import java.io.InputStream
 
 /**
  * Loader used to load a chapter from the downloaded chapters.
@@ -144,7 +144,7 @@ internal fun substituteTranslatedPages(
             } catch (_: Exception) {
                 null
             } ?: originalStream?.invoke()
-            ?: throw IllegalStateException("No content for page ${page.index}")
+                ?: throw IllegalStateException("No content for page ${page.index}")
         }.apply {
             status = Page.State.READY
         }
