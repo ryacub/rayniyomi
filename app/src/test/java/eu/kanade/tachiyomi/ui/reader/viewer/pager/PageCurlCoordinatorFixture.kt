@@ -49,6 +49,7 @@ internal class PageCurlCoordinatorFixture(
         }
     }
     val gestureGate = GestureInputGate()
+
     /** Count of not-yet-run posted callbacks. */
     val pendingPostedCount: Int
         get() = postedCallbacks.size

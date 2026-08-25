@@ -239,8 +239,6 @@ class PageCurlOverlayView(context: Context) : View(context) {
     }
 }
 
-
-
 /**
  * One-shot validity tokens for curl plays. Each [begin] supersedes every
  * earlier token; [invalidate] supersedes the current token without starting

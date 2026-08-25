@@ -53,14 +53,16 @@ class PageCurlOverlayViewTest {
         val verts = PageCurlRollMath.newVerts()
         val colors = PageCurlRollMath.newColors()
 
-        PageCurlOverlayView.drawFrame(canvas,
-        from,
-        to,
-        0.5f,
-        CurlDirection.FROM_RIGHT,
-        verts,
-        colors,
-        shadowPaint,)
+        PageCurlOverlayView.drawFrame(
+            canvas,
+            from,
+            to,
+            0.5f,
+            CurlDirection.FROM_RIGHT,
+            verts,
+            colors,
+            shadowPaint,
+        )
 
         val captured = slot<IntArray>()
         verify {
@@ -84,14 +86,16 @@ class PageCurlOverlayViewTest {
         val from = bitmap()
         val to = bitmap()
 
-        PageCurlOverlayView.drawFrame(canvas,
-        from,
-        to,
-        0.5f,
-        CurlDirection.FROM_RIGHT,
-        PageCurlRollMath.newVerts(),
-        PageCurlRollMath.newColors(),
-        shadowPaint,)
+        PageCurlOverlayView.drawFrame(
+            canvas,
+            from,
+            to,
+            0.5f,
+            CurlDirection.FROM_RIGHT,
+            PageCurlRollMath.newVerts(),
+            PageCurlRollMath.newColors(),
+            shadowPaint,
+        )
 
         verifyOrder {
             canvas.drawBitmap(to, 0f, 0f, null)
@@ -105,14 +109,16 @@ class PageCurlOverlayViewTest {
         val from = bitmap()
         val to = bitmap()
 
-        PageCurlOverlayView.drawFrame(canvas,
-        from,
-        to,
-        0.5f,
-        CurlDirection.FROM_RIGHT,
-        PageCurlRollMath.newVerts(),
-        PageCurlRollMath.newColors(),
-        shadowPaint,)
+        PageCurlOverlayView.drawFrame(
+            canvas,
+            from,
+            to,
+            0.5f,
+            CurlDirection.FROM_RIGHT,
+            PageCurlRollMath.newVerts(),
+            PageCurlRollMath.newColors(),
+            shadowPaint,
+        )
 
         val left = slot<Float>()
         val top = slot<Float>()
@@ -131,14 +137,16 @@ class PageCurlOverlayViewTest {
         val from = bitmap()
         val to = bitmap()
 
-        PageCurlOverlayView.drawFrame(canvas,
-        from,
-        to,
-        0.5f,
-        CurlDirection.FROM_LEFT,
-        PageCurlRollMath.newVerts(),
-        PageCurlRollMath.newColors(),
-        shadowPaint,)
+        PageCurlOverlayView.drawFrame(
+            canvas,
+            from,
+            to,
+            0.5f,
+            CurlDirection.FROM_LEFT,
+            PageCurlRollMath.newVerts(),
+            PageCurlRollMath.newColors(),
+            shadowPaint,
+        )
 
         val left = slot<Float>()
         val right = slot<Float>()
@@ -154,14 +162,16 @@ class PageCurlOverlayViewTest {
         val from = bitmap()
         val to = bitmap()
 
-        PageCurlOverlayView.drawFrame(canvas,
-        from,
-        to,
-        1f,
-        CurlDirection.FROM_RIGHT,
-        PageCurlRollMath.newVerts(),
-        PageCurlRollMath.newColors(),
-        shadowPaint,)
+        PageCurlOverlayView.drawFrame(
+            canvas,
+            from,
+            to,
+            1f,
+            CurlDirection.FROM_RIGHT,
+            PageCurlRollMath.newVerts(),
+            PageCurlRollMath.newColors(),
+            shadowPaint,
+        )
 
         verify(exactly = 0) { canvas.drawRect(any(), any(), any(), any(), any()) }
     }

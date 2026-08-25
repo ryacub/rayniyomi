@@ -2,8 +2,8 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import android.os.SystemClock
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 
 /**
  * Owns the page-curl state and resources for one horizontal pager.
