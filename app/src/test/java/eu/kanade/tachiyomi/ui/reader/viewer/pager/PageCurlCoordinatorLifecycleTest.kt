@@ -18,7 +18,7 @@ class PageCurlCoordinatorLifecycleTest {
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = { fallbacks += it },
         )
 
@@ -151,7 +151,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = { fallbacks += it },
         )
 
@@ -189,7 +189,7 @@ class PageCurlCoordinatorLifecycleTest {
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
         val targetPoll = fixture.nextPostedCallback()
@@ -296,7 +296,7 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.nowMs += 1_000L
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION + 1,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
         fixture.runNewestPostedCallback()
@@ -363,7 +363,7 @@ class PageCurlCoordinatorLifecycleTest {
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
 
@@ -383,7 +383,7 @@ class PageCurlCoordinatorLifecycleTest {
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
 

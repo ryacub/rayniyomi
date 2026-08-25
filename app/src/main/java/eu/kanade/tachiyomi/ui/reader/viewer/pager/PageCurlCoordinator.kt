@@ -128,7 +128,7 @@ internal class PageCurlCoordinator(
 
     fun runOrFallback(
         targetPosition: Int,
-        curlFromRight: Boolean,
+        direction: CurlDirection,
         advance: (animate: Boolean) -> Unit,
     ) {
         if (released) return
@@ -179,7 +179,7 @@ internal class PageCurlCoordinator(
         advance(false)
         pager.acquireGestures(GestureInputGate.Claim.CURL)
         curlState.phase = Phase.WAITING_FOR_TARGET
-        waitForTarget(targetPosition, targetHolder, fromBitmap, curlFromRight)
+        waitForTarget(targetPosition, targetHolder, fromBitmap, direction)
     }
 
     fun release() {
@@ -222,7 +222,7 @@ internal class PageCurlCoordinator(
         targetPosition: Int,
         initialTargetHolder: PagerPageHolder?,
         fromBitmap: Bitmap,
-        curlFromRight: Boolean,
+        direction: CurlDirection,
     ) {
         var waitAttempts = 0
         lateinit var checkTargetReady: Runnable
@@ -233,7 +233,7 @@ internal class PageCurlCoordinator(
             if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
                 curlState.targetReadyRunnable = null
                 if (curlState.pendingFromBitmap === fromBitmap) curlState.pendingFromBitmap = null
-                playAndHideCurl(fromBitmap, readyHolder, curlFromRight)
+                playAndHideCurl(fromBitmap, readyHolder, direction)
             } else {
                 waitAttempts++
                 pager.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
@@ -246,7 +246,7 @@ internal class PageCurlCoordinator(
     private fun playAndHideCurl(
         fromBitmap: Bitmap,
         targetHolder: PagerPageHolder?,
-        curlFromRight: Boolean,
+        direction: CurlDirection,
     ) {
         // Store before the target capture so a capture failure tears down
         // through finish() like every other exit.
@@ -263,7 +263,7 @@ internal class PageCurlCoordinator(
         overlay.playCurl(
             from = fromBitmap,
             to = toBitmap,
-            curlFromRight = curlFromRight,
+            direction = direction,
             durationMs = CURL_DURATION_MS,
             onEnd = {
                 if (animationGenerationId == curlState.generationId) {
@@ -309,7 +309,7 @@ internal class PageCurlCoordinator(
     }
 
     companion object {
-        private const val CURL_DURATION_MS = 300L
+        private const val CURL_DURATION_MS = 500L
         private const val RAPID_NAVIGATION_WINDOW_MS = 500L
         private const val TARGET_POLL_INTERVAL_MS = 10L
         private const val TARGET_WAIT_MAX_ATTEMPTS = 10

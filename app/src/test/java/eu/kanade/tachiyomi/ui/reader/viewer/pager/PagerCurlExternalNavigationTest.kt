@@ -47,7 +47,7 @@ class PagerCurlExternalNavigationTest {
 
         fixture.coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
         fixture.coordinator.release()

@@ -374,7 +374,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             if (holder != null && config.navigateToPan && holder.canPanRight()) {
                 holder.panRight()
             } else {
-                advanceToPage(targetPosition = pager.currentItem + 1, curlFromRight = true)
+                advanceToPage(targetPosition = pager.currentItem + 1, direction = CurlDirection.FROM_RIGHT)
             }
         }
     }
@@ -388,19 +388,19 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             if (holder != null && config.navigateToPan && holder.canPanLeft()) {
                 holder.panLeft()
             } else {
-                advanceToPage(targetPosition = pager.currentItem - 1, curlFromRight = false)
+                advanceToPage(targetPosition = pager.currentItem - 1, direction = CurlDirection.FROM_LEFT)
             }
         }
     }
 
-    private fun advanceToPage(targetPosition: Int, curlFromRight: Boolean) {
+    private fun advanceToPage(targetPosition: Int, direction: CurlDirection) {
         val coordinator = curlCoordinator
         if (coordinator == null) {
             val animate = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
             pager.setCurrentItem(targetPosition, animate)
             return
         }
-        coordinator.runOrFallback(targetPosition, curlFromRight) { animate ->
+        coordinator.runOrFallback(targetPosition, direction) { animate ->
             pager.setCurrentItem(targetPosition, animate)
         }
     }

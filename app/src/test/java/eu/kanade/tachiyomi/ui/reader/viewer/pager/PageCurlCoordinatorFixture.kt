@@ -71,7 +71,7 @@ internal class PageCurlCoordinatorFixture(
             overlay.playCurl(
                 from = any(),
                 to = any(),
-                curlFromRight = any(),
+                direction = any(),
                 durationMs = any(),
                 onEnd = any(),
             )
@@ -83,7 +83,7 @@ internal class PageCurlCoordinatorFixture(
     fun startCurl() {
         coordinator.runOrFallback(
             targetPosition = TARGET_POSITION,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
         runNextPostedCallback()
@@ -96,7 +96,7 @@ internal class PageCurlCoordinatorFixture(
     fun simulateTap(targetPosition: Int) {
         coordinator.runOrFallback(
             targetPosition = targetPosition,
-            curlFromRight = true,
+            direction = CurlDirection.FROM_RIGHT,
             advance = { _ -> currentItemIndex = targetPosition },
         )
         while (postedCallbacks.isNotEmpty()) {

@@ -20,9 +20,9 @@ class PageCurlRollMathTest {
     private val cols = PageCurlRollMath.MESH_COLS
     private val rows = PageCurlRollMath.MESH_ROWS
 
-    private fun buildVerts(progress: Float, curlFromRight: Boolean = true): FloatArray {
+    private fun buildVerts(progress: Float, direction: CurlDirection = CurlDirection.FROM_RIGHT): FloatArray {
         val verts = PageCurlRollMath.newVerts()
-        PageCurlRollMath.buildVerts(width, height, progress, curlFromRight, verts)
+        PageCurlRollMath.buildVerts(width, height, progress, direction, verts)
         return verts
     }
 
@@ -220,12 +220,26 @@ class PageCurlRollMathTest {
     // A5: one expression of the geometry, mirrored at the direction boundary.
     @Test
     fun `left curl mirrors canonical x and keeps y`() {
-        val canonical = buildVerts(0.6f, curlFromRight = true)
-        val mirrored = buildVerts(0.6f, curlFromRight = false)
+        val canonical = buildVerts(0.6f, direction = CurlDirection.FROM_RIGHT)
+        val mirrored = buildVerts(0.6f, direction = CurlDirection.FROM_LEFT)
         for (i in canonical.indices step 2) {
             mirrored[i] shouldBe width - canonical[i]
             mirrored[i + 1] shouldBe canonical[i + 1]
         }
+    }
+
+    @Test
+    fun `mirror x returns x unchanged for a right curl`() {
+        CurlDirection.FROM_RIGHT.mirrorX(0f, width) shouldBe 0f
+        CurlDirection.FROM_RIGHT.mirrorX(432f, width) shouldBe 432f
+        CurlDirection.FROM_RIGHT.mirrorX(width, width) shouldBe width
+    }
+
+    @Test
+    fun `mirror x reflects about the page center for a left curl`() {
+        CurlDirection.FROM_LEFT.mirrorX(400f, width) shouldBe width - 400f
+        CurlDirection.FROM_LEFT.mirrorX(0f, width) shouldBe width
+        CurlDirection.FROM_LEFT.mirrorX(width, width) shouldBe 0f
     }
 
     // A6: the finished roll clears the screen on both directions.
@@ -234,12 +248,12 @@ class PageCurlRollMathTest {
         val tangentEnd = PageCurlRollMath.tangentX(width, 1f)
         ;(tangentEnd < 0f) shouldBe true
 
-        val rightEnd = buildVerts(1f, curlFromRight = true)
+        val rightEnd = buildVerts(1f, direction = CurlDirection.FROM_RIGHT)
         for (i in rightEnd.indices step 2) {
             ;(rightEnd[i] <= tangentEnd) shouldBe true
         }
 
-        val leftEnd = buildVerts(1f, curlFromRight = false)
+        val leftEnd = buildVerts(1f, direction = CurlDirection.FROM_LEFT)
         for (i in leftEnd.indices step 2) {
             ;(leftEnd[i] >= width - tangentEnd) shouldBe true
         }
