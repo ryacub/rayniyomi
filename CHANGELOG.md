@@ -60,6 +60,10 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Screen-model unit tests now drive completion with virtual time instead of
   wall-clock timeouts, so they no longer fail intermittently when CI runners
   are loaded.
+- `docs/coroutine-test-dispatchers.md` now defines the canonical
+  dispatcher-injection pattern for screen models and their coroutine tests.
+  The document records constructor injection of dispatchers, virtual-time
+  test scheduling, and a runnable example with an escape detector.
 
 ### Other
 - The `source-api` module now hosts its own JVM unit tests. The extension ABI
