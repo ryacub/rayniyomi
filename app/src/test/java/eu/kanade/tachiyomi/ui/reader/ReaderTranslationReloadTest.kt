@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.ui.reader
 import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
-import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeSameInstanceAs
@@ -220,9 +220,11 @@ class ReaderTranslationReloadTest {
         next.pageLoader = nextLoader
 
         reloadViewerChaptersForTranslationToggle(
-            currChapter = curr,
-            prevChapter = prev,
-            nextChapter = next,
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
         ) shouldBe true
 
         prevLoader.calls shouldBe 1
@@ -249,9 +251,11 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { emptyList() }
 
         reloadViewerChaptersForTranslationToggle(
-            currChapter = curr,
-            prevChapter = prev,
-            nextChapter = next,
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
         ) shouldBe false
 
         prevLoader.calls shouldBe 0
@@ -275,9 +279,11 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { listOf(readerPage(3)) }
 
         reloadViewerChaptersForTranslationToggle(
-            currChapter = curr,
-            prevChapter = prev,
-            nextChapter = next,
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
         ) shouldBe true
 
         prevLoader.calls shouldBe 0
@@ -297,9 +303,11 @@ class ReaderTranslationReloadTest {
         next.pageLoader = FakeLoader { throw RuntimeException("neighbour broke") }
 
         reloadViewerChaptersForTranslationToggle(
-            currChapter = curr,
-            prevChapter = null,
-            nextChapter = next,
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = null,
+                nextChapter = next,
+            ),
         ) shouldBe true
 
         curr.pages.shouldBeSameInstanceAs(currFresh)
@@ -314,9 +322,11 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { currFresh }
 
         reloadViewerChaptersForTranslationToggle(
-            currChapter = curr,
-            prevChapter = null,
-            nextChapter = null,
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = null,
+                nextChapter = null,
+            ),
         ) shouldBe true
 
         curr.pages.shouldBeSameInstanceAs(currFresh)
@@ -333,12 +343,40 @@ class ReaderTranslationReloadTest {
 
         val result = runCatching {
             reloadViewerChaptersForTranslationToggle(
-                currChapter = curr,
-                prevChapter = prev,
-                nextChapter = null,
+                ViewerChapters(
+                    currChapter = curr,
+                    prevChapter = prev,
+                    nextChapter = null,
+                ),
             )
         }
 
         result.exceptionOrNull().shouldBeInstanceOf<CancellationException>()
+    }
+
+    @Test
+    fun `the current chapter of the viewer chapters is the one rebuilt first`() = runTest {
+        val prev = readerChapter()
+        val curr = readerChapter()
+        val next = readerChapter()
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        prev.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        next.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        val prevLoader = FakeLoader { listOf(readerPage(1)) }
+        val nextLoader = FakeLoader { listOf(readerPage(2)) }
+        prev.pageLoader = prevLoader
+        next.pageLoader = nextLoader
+        curr.pageLoader = FakeLoader { emptyList() }
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
+        ) shouldBe false
+
+        prevLoader.calls shouldBe 0
+        nextLoader.calls shouldBe 0
     }
 }
