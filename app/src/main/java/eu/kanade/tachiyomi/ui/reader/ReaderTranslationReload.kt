@@ -35,7 +35,7 @@ internal fun prepareTranslationReload(
  * no intermediate state is written.
  *
  * @return true when a fresh Loaded list was installed and the caller must send
- *   Event.ReloadViewerChapters; false when nothing changed or a handled failure
+ *   ReaderEvent.ReloadViewerChapters; false when nothing changed or a handled failure
  *   left State.Error installed. Only CancellationException propagates.
  */
 internal suspend fun reloadChapterPagesForTranslationToggle(chapter: ReaderChapter): Boolean {
@@ -74,7 +74,7 @@ internal suspend fun reloadChapterPagesForTranslationToggle(chapter: ReaderChapt
  * return value, because the current chapter is correct and the toggle must stand.
  *
  * @return true when the current chapter got a fresh page list and the caller must send
- *   Event.ReloadViewerChapters.
+ *   ReaderEvent.ReloadViewerChapters.
  */
 internal suspend fun reloadViewerChaptersForTranslationToggle(chapters: ViewerChapters): Boolean {
     if (!reloadChapterPagesForTranslationToggle(chapters.currChapter)) return false
