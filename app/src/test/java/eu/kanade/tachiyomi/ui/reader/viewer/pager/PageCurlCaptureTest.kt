@@ -318,6 +318,26 @@ class PageCurlCaptureTest {
     }
 
     @Test
+    fun `capture skips a hardware source with the default hardware check`() {
+        val bitmap = mockk<Bitmap>(relaxed = true)
+        every { bitmap.config } returns Bitmap.Config.HARDWARE
+        val source = mockk<ImageView>(relaxed = true)
+        every { source.width } returns 100
+        every { source.height } returns 200
+        every {
+            source.drawable
+        } returns mockk<BitmapDrawable> { every { this@mockk.bitmap } returns bitmap }
+
+        mockkStatic(Bitmap::class)
+
+        val result = PageCurlCapture().capture(source)
+
+        result shouldBe null
+        verify(exactly = 0) { source.draw(any<Canvas>()) }
+        verify(exactly = 0) { Bitmap.createBitmap(any<Int>(), any<Int>(), any()) }
+    }
+
+    @Test
     fun `the hardware config constant is distinct from the software config`() {
         Bitmap.Config.HARDWARE shouldNotBe null
         Bitmap.Config.HARDWARE shouldNotBe Bitmap.Config.ARGB_8888
