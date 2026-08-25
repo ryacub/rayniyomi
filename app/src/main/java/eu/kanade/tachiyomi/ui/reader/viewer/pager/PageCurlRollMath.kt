@@ -15,6 +15,20 @@ import kotlin.math.sin
  * left curl. The projection is orthographic, so the roll depth never
  * affects the output: only x moves, and y stays on its row line.
  */
+/**
+ * Direction the page curls from. The math works in a canonical frame that
+ * curls from the right edge; [FROM_LEFT] mirrors it about the center line.
+ */
+enum class CurlDirection {
+    FROM_RIGHT,
+    FROM_LEFT,
+    ;
+
+    /** Mirrors [x] about the page center when this direction is [FROM_LEFT]. */
+    fun mirrorX(x: Float, pageWidth: Float): Float =
+        if (this == FROM_RIGHT) x else pageWidth - x
+}
+
 internal object PageCurlRollMath {
 
     const val MESH_COLS = 48
@@ -143,7 +157,7 @@ internal object PageCurlRollMath {
         pageWidth: Float,
         pageHeight: Float,
         progress: Float,
-        curlFromRight: Boolean,
+        direction: CurlDirection,
         verts: FloatArray,
     ) {
         var index = 0
@@ -151,7 +165,7 @@ internal object PageCurlRollMath {
             val y = pageHeight * row / MESH_ROWS
             for (col in 0..MESH_COLS) {
                 val canonicalX = rollX(pageWidth * col / MESH_COLS, pageWidth, progress)
-                verts[index] = if (curlFromRight) canonicalX else pageWidth - canonicalX
+                verts[index] = direction.mirrorX(canonicalX, pageWidth)
                 verts[index + 1] = y
                 index += 2
             }
