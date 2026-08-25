@@ -74,6 +74,7 @@ import tachiyomi.i18n.aniyomi.AYMR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
+import java.io.IOException
 import java.util.Locale
 
 /**
@@ -649,7 +650,7 @@ class MangaDownloader(
             page.status = Page.State.READY
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
-            if (e is LowStorageException) throw e
+            if (e is LowStorageException || e is StoragePermissionException) throw e
             // Mark this page as error and allow to download the remaining
             page.progress = 0
             page.status = Page.State.ERROR
@@ -712,6 +713,12 @@ class MangaDownloader(
             .retryWhen { cause, attempt ->
                 if (cause is LowStorageException) {
                     return@retryWhen false
+                }
+                if (isPermissionFailure(cause)) {
+                    throw StoragePermissionException(
+                        cause.message ?: cause::class.simpleName,
+                        cause,
+                    )
                 }
                 if (attempt < 3) {
                     download.retryAttempt = attempt.toInt() + 1
@@ -930,6 +937,39 @@ private fun isLowStorageFailure(message: String?): Boolean {
         message.contains("ENOSPC", ignoreCase = true) ||
         message.contains("disk full", ignoreCase = true) ||
         message.contains("insufficient storage", ignoreCase = true)
+}
+
+private class StoragePermissionException(message: String?, cause: Throwable? = null) :
+    Exception(message, cause)
+
+/**
+ * Returns true when [e] is a filesystem failure that reports a permission problem.
+ * An HTTP error body that says "Permission denied" is not a filesystem failure.
+ */
+private fun isPermissionFailure(e: Throwable): Boolean {
+    var t: Throwable? = e
+    var fsShaped = false
+    while (t != null) {
+        if (t is IOException || t::class.simpleName?.contains("Storage", ignoreCase = true) == true) {
+            fsShaped = true
+            break
+        }
+        t = t.cause
+    }
+    if (!fsShaped) return false
+    t = e
+    while (t != null) {
+        val msg = t.message.orEmpty()
+        if (msg.contains("EPERM", true) ||
+            msg.contains("EACCES", true) ||
+            msg.contains("Operation not permitted", true) ||
+            msg.contains("Permission denied", true)
+        ) {
+            return true
+        }
+        t = t.cause
+    }
+    return false
 }
 
 /**
