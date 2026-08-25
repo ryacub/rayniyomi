@@ -10,8 +10,12 @@ import kotlinx.serialization.json.Json
 /**
  * Manages storage of translated manga page images.
  *
- * Uses the convention: `<chapter_dir>/_translated/<lang>/` for storing overlaid images,
- * with a `.translation_meta` JSON file containing metadata.
+ * A chapter that is a folder of images keeps its translations in a child folder:
+ * `<chapter_dir>/_translated/<lang>/`.
+ * A chapter that is a .cbz archive cannot hold children, so its translations go
+ * into a sibling folder next to the archive:
+ * `<manga_dir>/<chapter_file>_translated/<lang>/`.
+ * Both layouts keep a `.translation_meta` JSON file inside the language folder.
  */
 class TranslationStorageManager(
     private val downloadProvider: MangaDownloadProvider,
@@ -29,6 +33,29 @@ class TranslationStorageManager(
         source: MangaSource,
         targetLang: String,
     ): UniFile? {
+        val root = getTranslationRoot(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            create = true,
+        ) ?: return null
+
+        return root.createDirectory(targetLang)
+    }
+
+    /**
+     * Get the folder that holds all translation languages for a chapter.
+     *
+     * @param create true to make the folder if it does not exist.
+     */
+    private fun getTranslationRoot(
+        chapterName: String,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        source: MangaSource,
+        create: Boolean,
+    ): UniFile? {
         val chapterDir = downloadProvider.findChapterDir(
             chapterName,
             chapterScanlator,
@@ -36,8 +63,19 @@ class TranslationStorageManager(
             source,
         ) ?: return null
 
-        return chapterDir.createDirectory(TRANSLATED_DIR)
-            ?.createDirectory(targetLang)
+        if (!chapterDir.isFile) {
+            // A folder of images holds its translations inside itself.
+            return if (create) {
+                chapterDir.createDirectory(TranslationStorageLayout.TRANSLATED_DIR)
+            } else {
+                chapterDir.findFile(TranslationStorageLayout.TRANSLATED_DIR)
+            }
+        }
+
+        // An archive cannot hold children. Use a sibling folder in the manga folder.
+        val mangaDir = downloadProvider.findMangaDir(mangaTitle, source) ?: return null
+        val sidecarName = TranslationStorageLayout.sidecarDirName(chapterDir.name ?: return null)
+        return if (create) mangaDir.createDirectory(sidecarName) else mangaDir.findFile(sidecarName)
     }
 
     /**
@@ -50,15 +88,15 @@ class TranslationStorageManager(
         source: MangaSource,
         targetLang: String,
     ): Boolean {
-        val chapterDir = downloadProvider.findChapterDir(
+        val root = getTranslationRoot(
             chapterName,
             chapterScanlator,
             mangaTitle,
             source,
+            create = false,
         ) ?: return false
 
-        val translatedDir = chapterDir.findFile(TRANSLATED_DIR)
-            ?.findFile(targetLang) ?: return false
+        val translatedDir = root.findFile(targetLang) ?: return false
 
         return translatedDir.listFiles()?.any { it.isFile } == true
     }
@@ -74,15 +112,15 @@ class TranslationStorageManager(
         targetLang: String,
         pageIndex: Int,
     ): UniFile? {
-        val chapterDir = downloadProvider.findChapterDir(
+        val root = getTranslationRoot(
             chapterName,
             chapterScanlator,
             mangaTitle,
             source,
+            create = false,
         ) ?: return null
 
-        val translatedDir = chapterDir.findFile(TRANSLATED_DIR)
-            ?.findFile(targetLang) ?: return null
+        val translatedDir = root.findFile(targetLang) ?: return null
 
         // Match file by page index prefix (e.g., "001.jpg", "001.png")
         val prefix = "%03d.".format(pageIndex + 1)
@@ -156,15 +194,15 @@ class TranslationStorageManager(
         source: MangaSource,
         targetLang: String,
     ): Boolean {
-        val chapterDir = downloadProvider.findChapterDir(
+        val root = getTranslationRoot(
             chapterName,
             chapterScanlator,
             mangaTitle,
             source,
+            create = false,
         ) ?: return false
 
-        val translatedDir = chapterDir.findFile(TRANSLATED_DIR)
-            ?.findFile(targetLang) ?: return false
+        val translatedDir = root.findFile(targetLang) ?: return false
 
         return translatedDir.delete()
     }
@@ -178,15 +216,15 @@ class TranslationStorageManager(
         mangaTitle: String,
         source: MangaSource,
     ): Boolean {
-        val chapterDir = downloadProvider.findChapterDir(
+        val root = getTranslationRoot(
             chapterName,
             chapterScanlator,
             mangaTitle,
             source,
+            create = false,
         ) ?: return false
 
-        val translatedDir = chapterDir.findFile(TRANSLATED_DIR) ?: return false
-        return translatedDir.delete()
+        return root.delete()
     }
 
     @Serializable
@@ -197,7 +235,6 @@ class TranslationStorageManager(
     )
 
     companion object {
-        const val TRANSLATED_DIR = "_translated"
         private const val META_FILE = ".translation_meta"
     }
 }
