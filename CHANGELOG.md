@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The left-to-right and right-to-left reading modes now play a page curl animation when the page transition style is set to Curl. The reader falls back to the slide animation at chapter boundaries, on zoomed pages, and during rapid page turns.
 - Reader settings now offer a page transition style picker with None, Slide, and Page curl. The picker replaces the "Animate page transitions" switch.
 - Chapter translation now shows a progress notification while the app is in the background. A finished job posts a completion notice, and a failed job posts the failure message.
+- The reader now shows a progress ring around the translate button while the open chapter is translating. The ring updates as pages finish and disappears when the job completes or fails.
 
 ### Improved
 - The page curl now rolls the page around a cylinder instead of sliding and lifting it. The roll keeps the flat part of the page still until the fold line reaches it.
