@@ -21,10 +21,93 @@ import androidx.core.view.isVisible
  */
 class PageCurlOverlayView(context: Context) : View(context) {
 
-    private companion object {
+    companion object {
         // Near-white wash over the mirrored strip so the back reads as paper
         // rather than as a mirrored copy of the front.
         private val BACK_SOFTEN_COLOR = Color.argb(90, 255, 255, 255)
+
+        /**
+         * Draws one frame of the page curl. Stateless, so tests and callers
+         * can run it without constructing a View. The caller owns the mesh
+         * buffers and the paint.
+         *
+         * Draw order: the incoming page first, then the cast shadow beside
+         * the fold line on it, then the outgoing sheet as a shaded mesh.
+         */
+        internal fun drawFrame(
+            canvas: Canvas,
+            from: Bitmap,
+            to: Bitmap,
+            progress: Float,
+            direction: CurlDirection,
+            verts: FloatArray,
+            meshColors: IntArray,
+            shadowPaint: Paint,
+        ) {
+            canvas.drawBitmap(to, 0f, 0f, null)
+            drawFoldCastShadow(
+                canvas,
+                from.width.toFloat(),
+                from.height.toFloat(),
+                progress,
+                direction,
+                shadowPaint,
+            )
+            PageCurlRollMath.buildVerts(
+                from.width.toFloat(),
+                from.height.toFloat(),
+                progress,
+                direction,
+                verts,
+            )
+            PageCurlRollMath.buildColors(from.width.toFloat(), progress, meshColors)
+            canvas.drawBitmapMesh(
+                from,
+                PageCurlRollMath.MESH_COLS,
+                PageCurlRollMath.MESH_ROWS,
+                verts,
+                0,
+                meshColors,
+                0,
+                null,
+            )
+        }
+
+        /** Contact shadow on the incoming page beside the fold line. */
+        private fun drawFoldCastShadow(
+            canvas: Canvas,
+            bitmapWidth: Float,
+            bitmapHeight: Float,
+            progress: Float,
+            direction: CurlDirection,
+            shadowPaint: Paint,
+        ) {
+            val alpha = PageCurlRollMath.castShadowAlpha(progress)
+            if (alpha <= 0) return
+
+            // Canonical frame: dark at the tangent line, fading right onto
+            // the exposed incoming side. Mirror for a left curl.
+            val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
+            val shadowWidth = bitmapWidth * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
+            val band = direction.mirrorSpan(
+                tangent..(tangent + shadowWidth),
+                bitmapWidth,
+            )
+            val startX = band.start
+            val endX = band.endInclusive
+
+            shadowPaint.shader = LinearGradient(
+                startX,
+                0f,
+                endX,
+                0f,
+                intArrayOf(Color.argb(alpha, 0, 0, 0), Color.TRANSPARENT),
+                null,
+                Shader.TileMode.CLAMP,
+            )
+            canvas.drawRect(startX, 0f, endX, bitmapHeight, shadowPaint)
+            shadowPaint.shader = null
+        }
     }
     private var animator: ValueAnimator? = null
     private var fromBitmap: Bitmap? = null
@@ -107,8 +190,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
         if (from.width <= 0 || from.height <= 0 || to.width <= 0 || to.height <= 0) {
             return
         }
-
-        PageCurlFrameRenderer.drawFrame(
+        drawFrame(
             canvas,
             from,
             to,
@@ -157,86 +239,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
     }
 }
 
-/**
- * Draws one frame of the page curl. The object holds no state; the view owns
- * the mesh buffers and the paint.
- *
- * Draw order: the incoming page first, then the cast shadow beside the fold
- * line on it, then the outgoing sheet as a shaded mesh.
- */
-internal object PageCurlFrameRenderer {
 
-    fun drawFrame(
-        canvas: Canvas,
-        from: Bitmap,
-        to: Bitmap,
-        progress: Float,
-        direction: CurlDirection,
-        verts: FloatArray,
-        meshColors: IntArray,
-        shadowPaint: Paint,
-    ) {
-        canvas.drawBitmap(to, 0f, 0f, null)
-        drawFoldCastShadow(
-            canvas,
-            from.width.toFloat(),
-            from.height.toFloat(),
-            progress,
-            direction,
-            shadowPaint,
-        )
-        PageCurlRollMath.buildVerts(
-            from.width.toFloat(),
-            from.height.toFloat(),
-            progress,
-            direction,
-            verts,
-        )
-        PageCurlRollMath.buildColors(from.width.toFloat(), progress, meshColors)
-        canvas.drawBitmapMesh(
-            from,
-            PageCurlRollMath.MESH_COLS,
-            PageCurlRollMath.MESH_ROWS,
-            verts,
-            0,
-            meshColors,
-            0,
-            null,
-        )
-    }
-
-    /** Contact shadow on the incoming page beside the fold line. */
-    private fun drawFoldCastShadow(
-        canvas: Canvas,
-        bitmapWidth: Float,
-        bitmapHeight: Float,
-        progress: Float,
-        direction: CurlDirection,
-        shadowPaint: Paint,
-    ) {
-        val alpha = PageCurlRollMath.castShadowAlpha(progress)
-        if (alpha <= 0) return
-
-        // Canonical frame: dark at the tangent line, fading right onto the
-        // exposed incoming side. Mirror for a left curl.
-        val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
-        val shadowWidth = bitmapWidth * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
-        val band = direction.mirrorSpan(tangent..(tangent + shadowWidth), bitmapWidth)
-        val startX = band.start
-        val endX = band.endInclusive
-        shadowPaint.shader = LinearGradient(
-            startX,
-            0f,
-            endX,
-            0f,
-            intArrayOf(Color.argb(alpha, 0, 0, 0), Color.TRANSPARENT),
-            null,
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawRect(startX, 0f, endX, bitmapHeight, shadowPaint)
-        shadowPaint.shader = null
-    }
-}
 
 /**
  * One-shot validity tokens for curl plays. Each [begin] supersedes every
