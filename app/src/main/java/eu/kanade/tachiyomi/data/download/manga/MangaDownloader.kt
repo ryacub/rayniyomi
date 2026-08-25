@@ -649,8 +649,13 @@ class MangaDownloader(
             page.progress = 100
             page.status = Page.State.READY
         } catch (e: Throwable) {
-            if (e is CancellationException) throw e
-            if (e is LowStorageException || e is StoragePermissionException) throw e
+            if (
+                e is LowStorageException ||
+                e is StoragePermissionException ||
+                e is RetriesExhaustedException
+            ) {
+                throw e
+            }
             // Mark this page as error and allow to download the remaining
             page.progress = 0
             page.status = Page.State.ERROR
@@ -726,9 +731,7 @@ class MangaDownloader(
                     delay(retryBackoffMillis shl attempt.toInt())
                     true
                 } else {
-                    download.lastErrorCode = "RETRY_EXHAUSTED"
-                    download.lastErrorReason = "Network retries exhausted"
-                    false
+                    throw RetriesExhaustedException(cause)
                 }
             }
             .flowOn(Dispatchers.IO)
@@ -941,6 +944,17 @@ private fun isLowStorageFailure(message: String?): Boolean {
 
 private class StoragePermissionException(message: String?, cause: Throwable? = null) :
     Exception(message, cause)
+
+/**
+ * Carries the real last failure when all image download retries are spent.
+ */
+private class RetriesExhaustedException(cause: Throwable) : Exception(
+    buildString {
+        append(cause::class.simpleName ?: "Unknown")
+        cause.message?.takeIf { it.isNotBlank() }?.let { append(": ").append(it) }
+    },
+    cause,
+)
 
 /**
  * Returns true when [e] is a filesystem failure that reports a permission problem.
