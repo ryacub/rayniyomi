@@ -27,6 +27,9 @@ internal class PageCurlCoordinatorFixture(
     var nowMs = 1_000L
     var currentItemIndex = initialItemIndex
     val gestureGate = GestureInputGate()
+    /** Count of not-yet-run posted callbacks. */
+    val pendingPostedCount: Int
+        get() = postedCallbacks.size
 
     /**
      * Mirrors [Pager.gestureInputMode]: true only when no claim constrains gestures.

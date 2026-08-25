@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCoordinator.Phase
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -346,15 +345,20 @@ class PageCurlCoordinatorLifecycleTest {
 
         fixture.startCurl()
 
-        fixture.coordinator.phase shouldBe Phase.ANIMATING
+        // Animating: the overlay plays exactly one curl and no poll runs.
+        fixture.endCallbacks.size shouldBe 1
+        fixture.pendingPostedCount shouldBe 0
 
         fixture.endCallbacks.first().invoke()
 
-        fixture.coordinator.phase shouldBe Phase.WAITING_LAYOUT
+        // Waiting for layout: exactly one layout poll is posted.
+        fixture.pendingPostedCount shouldBe 1
 
         fixture.runNextPostedCallback()
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        // Terminal: teardown leaves only the delayed gesture reenable.
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 1
     }
 
     @Test
@@ -367,17 +371,19 @@ class PageCurlCoordinatorLifecycleTest {
             advance = {},
         )
 
-        fixture.coordinator.phase shouldBe Phase.WAITING_FOR_TARGET
+        // Waiting for the target holder: exactly one poll is posted.
+        fixture.pendingPostedCount shouldBe 1
 
         fixture.runNextPostedCallback()
         fixture.endCallbacks.single().invoke()
         fixture.runNextPostedCallback()
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 1
     }
 
     @Test
-    fun `source capture failure leaves the idle phase`() {
+    fun `source capture failure leaves no tracked curl`() {
         val fixture = PageCurlCoordinatorFixture()
         every { fixture.capture.capture(fixture.sourceHolder) } returns null
 
@@ -387,20 +393,28 @@ class PageCurlCoordinatorLifecycleTest {
             advance = {},
         )
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        fixture.pendingPostedCount shouldBe 0
+        fixture.inputEnabled shouldBe true
     }
 
     @Test
-    fun `release during an active curl leaves the idle phase`() {
+    fun `release during an active curl clears tracked state`() {
         val fixture = PageCurlCoordinatorFixture()
+
+        val fromBitmap = fixture.bitmap()
+        val toBitmap = fixture.bitmap()
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
 
-        fixture.coordinator.phase shouldBe Phase.ANIMATING
+        fixture.endCallbacks.size shouldBe 1
 
         fixture.coordinator.release()
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        verify(exactly = 1) { fromBitmap.recycle() }
+        verify(exactly = 1) { toBitmap.recycle() }
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 0
     }
 
     private companion object {

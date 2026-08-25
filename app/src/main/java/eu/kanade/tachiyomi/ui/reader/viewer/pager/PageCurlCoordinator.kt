@@ -8,12 +8,12 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionSty
 /**
  * Owns the page-curl state and resources for one horizontal pager.
  *
- * All mutable curl-lifecycle state lives in one [CurlState] object that moves
- * through the phases [Phase.IDLE], [Phase.WAITING_FOR_TARGET],
- * [Phase.ANIMATING], and [Phase.WAITING_LAYOUT]. Every terminal exit (fallback
- * cancel, capture failure, superseded curl, external navigation cancel,
- * normal completion, release) routes through [finish], the single teardown
- * point for callbacks, bitmaps, the overlay, and the gesture claim.
+ * All mutable curl-lifecycle state lives in one [CurlState] object that tracks
+ * its own resources: pending and active bitmaps, plus the runnables for the
+ * target poll, the layout poll, and the gesture reenable. Every terminal exit
+ * (fallback cancel, capture failure, superseded curl, external navigation
+ * cancel, normal completion, release) routes through [finish], the single
+ * teardown point for callbacks, bitmaps, the overlay, and the gesture claim.
  */
 internal class PageCurlCoordinator(
     val overlay: PageCurlOverlayView,
@@ -31,34 +31,14 @@ internal class PageCurlCoordinator(
     private var curlState = CurlState()
 
     /**
-     * Current curl lifecycle phase. Exposed so invariant tests detect drift;
-     * nothing in production reads it.
-     */
-    internal val phase: Phase get() = curlState.phase
-
-    /**
      * Navigation-cadence timestamp for the rapid-navigation window. It tracks
-     * navigation rate, not one curl, so it survives across curls while
-     * [CurlState] returns to [Phase.IDLE].
+     * navigation rate, not one curl, so it survives while [CurlState] resets
+     * between curls.
      */
     private var lastNavigationAtMs = 0L
 
     /** Coordinator-lifetime flag; outlives any single [CurlState] cycle. */
     private var released = false
-
-    internal enum class Phase {
-        /** No curl tracked. */
-        IDLE,
-
-        /** Source captured; polling for the target holder. */
-        WAITING_FOR_TARGET,
-
-        /** [PageCurlOverlayView.playCurl] running. */
-        ANIMATING,
-
-        /** Animation finished; polling for target layout. */
-        WAITING_LAYOUT,
-    }
 
     /**
      * One curl's tracked runnables and bitmaps. Main-thread only: ViewPager
@@ -66,7 +46,6 @@ internal class PageCurlCoordinator(
      * the fields need no synchronization.
      */
     private class CurlState {
-        var phase = Phase.IDLE
         var generationId = 0L
         var targetPosition: Int? = null
         var targetReadyRunnable: Runnable? = null
@@ -78,9 +57,9 @@ internal class PageCurlCoordinator(
 
         /**
          * True when no tracked resource remains. The teardown guard uses only
-         * this predicate, never [phase]: no invariant enforces that a
-         * non-[Phase.IDLE] phase holds resources, and a phase-based guard
-         * could skip teardown and leak bitmaps or the gesture claim.
+         * this predicate: no invariant ties resources to other state, so the
+         * guard never skips teardown and never leaks bitmaps or the gesture
+         * claim.
          */
         fun isEmpty(): Boolean =
             targetReadyRunnable == null &&
@@ -178,7 +157,6 @@ internal class PageCurlCoordinator(
         curlState.targetPosition = targetPosition
         advance(false)
         pager.acquireGestures(GestureInputGate.Claim.CURL)
-        curlState.phase = Phase.WAITING_FOR_TARGET
         waitForTarget(targetPosition, targetHolder, fromBitmap, direction)
     }
 
@@ -203,7 +181,7 @@ internal class PageCurlCoordinator(
 
     /**
      * The single terminal exit. Tears down every tracked resource exactly
-     * once and returns [CurlState] to [Phase.IDLE].
+     * once and empties [CurlState].
      */
     private fun finish(restoreInput: Boolean) {
         val state = curlState
@@ -215,7 +193,6 @@ internal class PageCurlCoordinator(
         recycle(activeFrom)
         recycle(activeTo)
         if (restoreInput) pager.releaseGestures(GestureInputGate.Claim.CURL)
-        state.phase = Phase.IDLE
     }
 
     private fun waitForTarget(
@@ -257,7 +234,6 @@ internal class PageCurlCoordinator(
             return
         }
 
-        curlState.phase = Phase.ANIMATING
         val animationGenerationId = ++curlState.generationId
         curlState.activeToBitmap = toBitmap
         overlay.playCurl(
@@ -277,7 +253,6 @@ internal class PageCurlCoordinator(
     }
 
     private fun waitForLayout(fromBitmap: Bitmap, toBitmap: Bitmap) {
-        curlState.phase = Phase.WAITING_LAYOUT
         var layoutCheckAttempts = 0
         lateinit var checkLayout: Runnable
         checkLayout = Runnable {
