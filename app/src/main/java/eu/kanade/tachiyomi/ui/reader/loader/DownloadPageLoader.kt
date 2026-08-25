@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import mihon.core.archive.archiveReader
+import java.io.InputStream
 import tachiyomi.domain.entries.manga.model.Manga
 import uy.kohesive.injekt.injectLazy
 
@@ -58,7 +59,24 @@ internal class DownloadPageLoader(
 
     private suspend fun getPagesFromArchive(file: UniFile): List<ReaderPage> {
         val loader = archivePageLoader ?: ArchivePageLoader(file.archiveReader(context)).also { archivePageLoader = it }
-        return loader.getPages()
+        val pages = loader.getPages()
+        val dbChapter = chapter.chapter
+        val targetLang = translationPreferences.targetLanguage().get()
+        return substituteTranslatedPages(
+            pages,
+            readerPreferences.showTranslatedPages().get(),
+            { index ->
+                translationStorageManager.getTranslatedPageFile(
+                    dbChapter.name,
+                    dbChapter.scanlator,
+                    manga.title,
+                    source,
+                    targetLang,
+                    index,
+                )
+            },
+            { translatedFile -> context.contentResolver.openInputStream(translatedFile.uri) },
+        )
     }
 
     private suspend fun getPagesFromDirectory(): List<ReaderPage> {
@@ -98,5 +116,37 @@ internal class DownloadPageLoader(
 
     override suspend fun loadPage(page: ReaderPage) {
         archivePageLoader?.loadPage(page)
+    }
+}
+
+/**
+ * Replace pages of an archive chapter with their stored translated files.
+ *
+ * A page without a stored translation keeps its original stream, so a partly
+ * translated chapter still reads. A translated file that fails to open also
+ * falls back to the original stream.
+ */
+internal fun substituteTranslatedPages(
+    pages: List<ReaderPage>,
+    showTranslated: Boolean,
+    lookup: (Int) -> UniFile?,
+    open: (UniFile) -> InputStream?,
+): List<ReaderPage> {
+    if (!showTranslated) return pages
+
+    return pages.map { page ->
+        val originalStream = page.stream
+        val translatedFile = lookup(page.index) ?: return@map page
+
+        ReaderPage(page.index) {
+            try {
+                open(translatedFile)
+            } catch (_: Exception) {
+                null
+            } ?: originalStream?.invoke()
+            ?: throw IllegalStateException("No content for page ${page.index}")
+        }.apply {
+            status = Page.State.READY
+        }
     }
 }
