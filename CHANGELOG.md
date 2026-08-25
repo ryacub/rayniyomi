@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Reader settings now offer a page transition style picker with None, Slide, and Page curl. The picker replaces the "Animate page transitions" switch.
 - Chapter translation now shows a progress notification while the app is in the background. A finished job posts a completion notice, and a failed job posts the failure message.
 - The reader now shows a progress ring around the translate button while the open chapter is translating. The ring updates as pages finish and disappears when the job completes or fails.
+- The manga screen now shows a translation summary card while chapters translate. The card shows the counts of translating, done, and failed jobs. Expand it to show each chapter's progress.
 
 ### Improved
 - The page curl roll now takes 500 ms instead of 300 ms, so the turn reads more clearly.
