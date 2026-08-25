@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
+import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +35,7 @@ class ReaderTranslationCoordinator(
     private val scope: CoroutineScope,
     private val currentManga: () -> Manga?,
     private val getCurrChapter: () -> ReaderChapter?,
+    private val getViewerChapters: () -> ViewerChapters?,
     private val getShowTranslatedPages: () -> Boolean,
     private val chapterIdFlow: Flow<Long?>,
     private val onHasTranslationChange: (hasTranslation: Boolean) -> Unit,
@@ -80,18 +82,20 @@ class ReaderTranslationCoordinator(
     }
 
     /**
-     * Toggles between showing translated and original pages, rebuilds the current
-     * chapter's page list through its loader, then reloads the viewer. A failed rebuild
-     * reverts the toggle so the icon, the preference, and the displayed pages agree.
+     * Toggles between showing translated and original pages. The function rebuilds the
+     * current chapter's page list through its loader. It also rebuilds the loaded adjacent
+     * chapters, so they show pages that match the new preference before the user swipes.
+     * A failed current-chapter rebuild reverts the toggle so the icon, the preference, and
+     * the displayed pages agree.
      */
     fun toggleTranslatedPages() {
         val newValue = readerPreferences.showTranslatedPages().toggle()
         onShowTranslatedPagesChange(newValue)
         toggleJob?.cancel()
         toggleJob = scope.launchIO {
-            val currChapter = getCurrChapter() ?: return@launchIO
+            val viewerChapters = getViewerChapters() ?: return@launchIO
             val installed = try {
-                reloadChapterPagesForTranslationToggle(currChapter)
+                reloadViewerChaptersForTranslationToggle(viewerChapters)
             } catch (e: CancellationException) {
                 throw e
             }

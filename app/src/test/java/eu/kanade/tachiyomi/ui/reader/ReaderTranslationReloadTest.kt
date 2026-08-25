@@ -4,6 +4,7 @@ import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeSameInstanceAs
@@ -198,5 +199,185 @@ class ReaderTranslationReloadTest {
 
         result.exceptionOrNull().shouldBeInstanceOf<CancellationException>()
         chapter.state shouldBe loaded
+    }
+
+    @Test
+    fun `a toggle rebuilds the current chapter and both loaded neighbours`() = runTest {
+        val prev = readerChapter()
+        val curr = readerChapter()
+        val next = readerChapter()
+        val original = listOf(readerPage(0))
+        val prevFresh = listOf(readerPage(1))
+        val currFresh = listOf(readerPage(2))
+        val nextFresh = listOf(readerPage(3))
+        prev.state = ReaderChapter.State.Loaded(original)
+        curr.state = ReaderChapter.State.Loaded(original)
+        next.state = ReaderChapter.State.Loaded(original)
+        val prevLoader = FakeLoader { prevFresh }
+        val currLoader = FakeLoader { currFresh }
+        val nextLoader = FakeLoader { nextFresh }
+        prev.pageLoader = prevLoader
+        curr.pageLoader = currLoader
+        next.pageLoader = nextLoader
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
+        ) shouldBe true
+
+        prevLoader.calls shouldBe 1
+        currLoader.calls shouldBe 1
+        nextLoader.calls shouldBe 1
+        curr.pages.shouldBeSameInstanceAs(currFresh)
+        prev.pages.shouldBeSameInstanceAs(prevFresh)
+        next.pages.shouldBeSameInstanceAs(nextFresh)
+    }
+
+    @Test
+    fun `a failed current rebuild leaves the neighbours untouched`() = runTest {
+        val original = listOf(readerPage(0))
+        val prev = readerChapter()
+        val curr = readerChapter()
+        val next = readerChapter()
+        curr.state = ReaderChapter.State.Loaded(original)
+        prev.state = ReaderChapter.State.Loaded(original)
+        next.state = ReaderChapter.State.Loaded(original)
+        val prevLoader = FakeLoader { listOf(readerPage(1)) }
+        val nextLoader = FakeLoader { listOf(readerPage(2)) }
+        prev.pageLoader = prevLoader
+        next.pageLoader = nextLoader
+        curr.pageLoader = FakeLoader { emptyList() }
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
+        ) shouldBe false
+
+        prevLoader.calls shouldBe 0
+        nextLoader.calls shouldBe 0
+        prev.pages.shouldBeSameInstanceAs(original)
+        next.pages.shouldBeSameInstanceAs(original)
+    }
+
+    @Test
+    fun `a neighbour that is not loaded is left for ChapterLoader`() = runTest {
+        val curr = readerChapter()
+        val prev = readerChapter()
+        val next = readerChapter()
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        prev.state = ReaderChapter.State.Wait
+        next.state = ReaderChapter.State.Error(mockk())
+        val prevLoader = FakeLoader { listOf(readerPage(1)) }
+        val nextLoader = FakeLoader { listOf(readerPage(2)) }
+        prev.pageLoader = prevLoader
+        next.pageLoader = nextLoader
+        curr.pageLoader = FakeLoader { listOf(readerPage(3)) }
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
+        ) shouldBe true
+
+        prevLoader.calls shouldBe 0
+        nextLoader.calls shouldBe 0
+        prev.state shouldBe ReaderChapter.State.Wait
+        next.state.shouldBeInstanceOf<ReaderChapter.State.Error>()
+    }
+
+    @Test
+    fun `a neighbour rebuild failure does not revert the toggle`() = runTest {
+        val curr = readerChapter()
+        val next = readerChapter()
+        val currFresh = listOf(readerPage(0))
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(9)))
+        next.state = ReaderChapter.State.Loaded(listOf(readerPage(9)))
+        curr.pageLoader = FakeLoader { currFresh }
+        next.pageLoader = FakeLoader { throw RuntimeException("neighbour broke") }
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = null,
+                nextChapter = next,
+            ),
+        ) shouldBe true
+
+        curr.pages.shouldBeSameInstanceAs(currFresh)
+        next.state.shouldBeInstanceOf<ReaderChapter.State.Error>()
+    }
+
+    @Test
+    fun `a toggle with no neighbours rebuilds the current chapter`() = runTest {
+        val curr = readerChapter()
+        val currFresh = listOf(readerPage(0))
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(9)))
+        curr.pageLoader = FakeLoader { currFresh }
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = null,
+                nextChapter = null,
+            ),
+        ) shouldBe true
+
+        curr.pages.shouldBeSameInstanceAs(currFresh)
+    }
+
+    @Test
+    fun `cancellation from a neighbour loader propagates`() = runTest {
+        val curr = readerChapter()
+        val prev = readerChapter()
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        prev.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        curr.pageLoader = FakeLoader { listOf(readerPage(1)) }
+        prev.pageLoader = FakeLoader { throw CancellationException("toggle cancelled") }
+
+        val result = runCatching {
+            reloadViewerChaptersForTranslationToggle(
+                ViewerChapters(
+                    currChapter = curr,
+                    prevChapter = prev,
+                    nextChapter = null,
+                ),
+            )
+        }
+
+        result.exceptionOrNull().shouldBeInstanceOf<CancellationException>()
+    }
+
+    @Test
+    fun `the current chapter of the viewer chapters is the one rebuilt first`() = runTest {
+        val prev = readerChapter()
+        val curr = readerChapter()
+        val next = readerChapter()
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        prev.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        next.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        val prevLoader = FakeLoader { listOf(readerPage(1)) }
+        val nextLoader = FakeLoader { listOf(readerPage(2)) }
+        prev.pageLoader = prevLoader
+        next.pageLoader = nextLoader
+        curr.pageLoader = FakeLoader { emptyList() }
+
+        reloadViewerChaptersForTranslationToggle(
+            ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = next,
+            ),
+        ) shouldBe false
+
+        prevLoader.calls shouldBe 0
+        nextLoader.calls shouldBe 0
     }
 }
