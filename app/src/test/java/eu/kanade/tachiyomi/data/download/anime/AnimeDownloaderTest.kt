@@ -67,6 +67,7 @@ class AnimeDownloaderTest {
         every { downloadPreferences.useExternalDownloader().get() } returns false
         every { downloadPreferences.multiThreadDownloads().get() } returns false
         every { downloadPreferences.numberOfDownloads().get() } returns 1
+        every { downloadPreferences.multiThreadConnections().get() } returns 2
 
         Injekt.addSingleton<DownloadPreferences>(downloadPreferences)
         Injekt.addSingleton<AnimeSourceManager>(mockk(relaxed = true))
@@ -270,6 +271,7 @@ class AnimeDownloaderTest {
         assertTrue(reason.contains("EPERM") || reason.contains("Permission denied", ignoreCase = true))
     }
 }
+
 
 /**
  * A cancellation exception that carries a real failure as its cause.

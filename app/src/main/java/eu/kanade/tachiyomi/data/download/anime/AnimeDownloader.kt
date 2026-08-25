@@ -696,15 +696,19 @@ class AnimeDownloader(
                 if (cause is LowStorageException) {
                     return@retryWhen false
                 }
+                if (DownloadFailureClassifier.isPermissionFailure(cause)) {
+                    throw StoragePermissionException(
+                        cause.message ?: cause::class.simpleName,
+                        cause,
+                    )
+                }
                 if (attempt < 3) {
                     download.retryAttempt = attempt.toInt() + 1
                     download.displayStatus = DownloadDisplayStatus.RETRYING
-                    delay((2L shl attempt.toInt()) * 1000)
+                    delay(retryBackoffMillis shl attempt.toInt())
                     true
                 } else {
-                    download.lastErrorCode = "RETRY_EXHAUSTED"
-                    download.lastErrorReason = "Network retries exhausted"
-                    false
+                    throw RetriesExhaustedException(cause)
                 }
             }
             .flowOn(Dispatchers.IO)
