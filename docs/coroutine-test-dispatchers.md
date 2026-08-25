@@ -6,15 +6,17 @@ all new screen-model tests.
 
 ## The pattern
 
-1. A class that owns its lifecycle scope takes a `CoroutineDispatcher`
-   constructor parameter. Do not inject a `CoroutineScope`. The class builds
-   its own scope from the dispatcher:
+1. A class keeps its lifecycle scope (`screenModelScope`). Do not build a
+   replacement scope and do not inject a `CoroutineScope`. The class takes a
+   `CoroutineDispatcher` constructor parameter:
 
    ```kotlin
    class ExampleScreenModel(
        private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-   ) {
-       private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
+   ) : ScreenModel {
+       init {
+           screenModelScope.launch(ioDispatcher) { ... }
+       }
    }
    ```
 
@@ -24,7 +26,7 @@ all new screen-model tests.
 3. Pass the dispatcher to each launch. Do not launch without it:
 
    ```kotlin
-   scope.launch(ioDispatcher) { ... }
+   screenModelScope.launch(ioDispatcher) { ... }
    ```
 
 4. In tests, inject one `StandardTestDispatcher` that shares the `runTest`
@@ -35,8 +37,10 @@ all new screen-model tests.
    Reuse `vt.io` where a production default of `Dispatchers.IO` needs a
    replacement.
 
-5. Use `UnconfinedTestDispatcher` only for `Dispatchers.Main`, and only when
-   the code under test needs immediate Main behavior.
+5. Prefer `StandardTestDispatcher` when a test needs controlled ordering.
+   `UnconfinedTestDispatcher` is also valid when the test needs eager
+   coroutine entry, such as `Dispatchers.Main` behavior or flow collectors
+   that must start collecting immediately.
 
 6. Run each test with the shared scheduler, and drive work with scheduler
    operations:
@@ -48,6 +52,9 @@ all new screen-model tests.
 
 7. Never use `Thread.sleep`, real-delay polling, or longer wall-clock
    timeouts. Virtual time keeps the suite deterministic.
+
+8. Keep production behavior unchanged. Change behavior only when the ticket
+   names the change and its tests verify it.
 
 ## When you do not need dispatcher injection
 
@@ -65,18 +72,13 @@ The model follows rules 1 to 3:
 ```kotlin
 private class FakeScreenModel(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+) : ScreenModel {
     val started = CompletableDeferred<Unit>()
 
     init {
-        scope.launch(dispatcher) {
+        screenModelScope.launch(dispatcher) {
             started.complete(Unit)
         }
-    }
-
-    fun cancel() {
-        scope.cancel()
     }
 }
 ```
@@ -94,7 +96,6 @@ fun `a launch on the injected scheduler-owned dispatcher completes under advance
 
         assertTrue(model.started.isCompleted)
         model.started.await()
-        model.cancel()
     }
 ```
 
@@ -114,7 +115,6 @@ fun `a launch that escapes to a foreign dispatcher is invisible to the shared sc
 
         assertEquals(1, foreign.dispatchCount.get())
         assertFalse(model.started.isCompleted)
-        model.cancel()
     }
 ```
 

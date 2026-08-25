@@ -1,12 +1,11 @@
 package eu.kanade.tachiyomi.test
 
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -20,9 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The focused example for `docs/coroutine-test-dispatchers.md`. It shows how a screen model that
- * owns its lifecycle scope takes a constructor-injected [CoroutineDispatcher], and why a launch
- * that escapes the injected dispatcher is invisible to the shared virtual-time scheduler.
+ * The focused example for `docs/coroutine-test-dispatchers.md`. It shows how a screen model
+ * keeps its Voyager lifecycle scope, launches on a constructor-injected [CoroutineDispatcher],
+ * and why a launch that escapes the injected dispatcher is invisible to the shared virtual-time
+ * scheduler.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DispatcherInjectionExampleTest {
@@ -40,23 +40,19 @@ class DispatcherInjectionExampleTest {
     }
 
     /**
-     * A minimal fake screen model. It owns its lifecycle scope, takes a [CoroutineDispatcher]
-     * constructor parameter with the production default, and launches exactly once on it.
+     * A minimal fake screen model. It extends Voyager [ScreenModel], keeps its lifecycle scope
+     * (`screenModelScope`), takes a [CoroutineDispatcher] constructor parameter with the
+     * production default, and launches exactly once on it.
      */
     private class FakeScreenModel(
         private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    ) {
-        private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    ) : ScreenModel {
         val started = CompletableDeferred<Unit>()
 
         init {
-            scope.launch(dispatcher) {
+            screenModelScope.launch(dispatcher) {
                 started.complete(Unit)
             }
-        }
-
-        fun cancel() {
-            scope.cancel()
         }
     }
 
@@ -81,7 +77,6 @@ class DispatcherInjectionExampleTest {
 
             assertTrue(model.started.isCompleted)
             model.started.await()
-            model.cancel()
         }
 
     @Test
@@ -96,6 +91,5 @@ class DispatcherInjectionExampleTest {
             // dispatch request. The scheduler cannot drain it, so the deferred never completes.
             assertEquals(1, foreign.dispatchCount.get())
             assertFalse(model.started.isCompleted)
-            model.cancel()
         }
 }
