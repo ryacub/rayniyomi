@@ -338,6 +338,26 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
+    fun `teardown recycles the bitmaps before it aborts the overlay`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val fromBitmap = fixture.bitmap()
+        val toBitmap = fixture.bitmap()
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
+
+        fixture.startCurl()
+        var recycledDuringAbort: Boolean? = null
+        every { fixture.overlay.abortAndHide() } answers {
+            recycledDuringAbort = fromBitmap.isRecycled
+        }
+
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
+
+        recycledDuringAbort shouldBe true
+        verify(exactly = 1) { fromBitmap.recycle() }
+        verify(exactly = 1) { toBitmap.recycle() }
+    }
+
+    @Test
     fun `normal run pins every transition`() {
         val fixture = PageCurlCoordinatorFixture()
         every { fixture.capture.capture(any()) } returnsMany

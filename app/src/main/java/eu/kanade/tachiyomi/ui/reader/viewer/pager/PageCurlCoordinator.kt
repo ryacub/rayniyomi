@@ -69,13 +69,6 @@ internal class PageCurlCoordinator(
                 activeFromBitmap == null &&
                 activeToBitmap == null
 
-        fun takeBitmaps(): Triple<Bitmap?, Bitmap?, Bitmap?> {
-            val pendingFrom = pendingFromBitmap.also { pendingFromBitmap = null }
-            val activeFrom = activeFromBitmap.also { activeFromBitmap = null }
-            val activeTo = activeToBitmap.also { activeToBitmap = null }
-            return Triple(pendingFrom, activeFrom, activeTo)
-        }
-
         fun clearRunnables(pager: Pager) {
             targetReadyRunnable?.let(pager::removeCallbacks)
             targetReadyRunnable = null
@@ -86,22 +79,27 @@ internal class PageCurlCoordinator(
         }
 
         /**
-         * Tears down tracked callbacks and position, then hands the taken
-         * bitmaps back. Runs [abortOverlay] after bumping the generation, so
-         * a reentrant animation-end callback observes a stale generation.
+         * Tears down tracked callbacks and position, recycles every tracked
+         * bitmap, and aborts the overlay. Runs [abortOverlay] after bumping
+         * the generation and after recycling, so a reentrant animation-end
+         * callback observes a stale generation and recycled bitmaps.
          *
          * Callers must check [isEmpty] first; this member assumes work exists.
          */
         fun finish(
             pager: Pager,
             abortOverlay: () -> Unit,
-        ): Triple<Bitmap?, Bitmap?, Bitmap?> {
+        ) {
             generationId++
             clearRunnables(pager)
             targetPosition = null
-            val bitmaps = takeBitmaps()
+            pendingFromBitmap.recycleIfNeeded()
+            pendingFromBitmap = null
+            activeFromBitmap.recycleIfNeeded()
+            activeFromBitmap = null
+            activeToBitmap.recycleIfNeeded()
+            activeToBitmap = null
             abortOverlay()
-            return bitmaps
         }
     }
 
@@ -187,11 +185,7 @@ internal class PageCurlCoordinator(
         val state = curlState
         if (state.isEmpty()) return
 
-        val (pendingFrom, activeFrom, activeTo) =
-            state.finish(pager) { overlay.abortAndHide() }
-        recycle(pendingFrom)
-        recycle(activeFrom)
-        recycle(activeTo)
+        state.finish(pager) { overlay.abortAndHide() }
         if (restoreInput) pager.releaseGestures(GestureInputGate.Claim.CURL)
     }
 
@@ -245,8 +239,8 @@ internal class PageCurlCoordinator(
                 if (animationGenerationId == curlState.generationId) {
                     waitForLayout(fromBitmap, toBitmap)
                 } else {
-                    recycle(fromBitmap)
-                    recycle(toBitmap)
+                    fromBitmap.recycleIfNeeded()
+                    toBitmap.recycleIfNeeded()
                 }
             },
         )
@@ -279,9 +273,6 @@ internal class PageCurlCoordinator(
         pager.post(checkLayout)
     }
 
-    private fun recycle(bitmap: Bitmap?) {
-        if (bitmap != null && !bitmap.isRecycled) bitmap.recycle()
-    }
 
     companion object {
         private const val CURL_DURATION_MS = 500L
