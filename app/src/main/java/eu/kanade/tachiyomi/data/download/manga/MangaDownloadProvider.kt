@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import logcat.LogPriority
@@ -105,6 +106,21 @@ class MangaDownloadProvider(
             getValidChapterDirNames(chapter.name, chapter.scanlator).asSequence()
                 .mapNotNull { mangaDir.findFile(it) }
                 .firstOrNull()
+        }
+    }
+
+    /**
+     * Get the translation folders that sit next to archive chapters.
+     *
+     * @param chapters the chapters to query.
+     * @param manga the manga of the chapters.
+     * @param source the source of the chapters.
+     */
+    fun findTranslationSidecarDirs(chapters: List<Chapter>, manga: Manga, source: MangaSource): List<UniFile> {
+        val mangaDir = findMangaDir(manga.title, source) ?: return emptyList()
+        return chapters.flatMap { chapter ->
+            getValidChapterDirNames(chapter.name, chapter.scanlator)
+                .mapNotNull { mangaDir.findFile(TranslationStorageLayout.sidecarDirName(it)) }
         }
     }
 

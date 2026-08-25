@@ -3,8 +3,10 @@ package eu.kanade.tachiyomi.data.download.manga
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.util.size
@@ -59,6 +61,23 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "MangaDownloadCache"
+
+/**
+ * Get the chapter name for a child of a manga folder, or null if the child is not a chapter.
+ */
+@VisibleForTesting
+internal fun chapterDirNameOrNull(file: UniFile): String? = when {
+    // Ignore incomplete downloads.
+    file.name?.endsWith(MangaDownloader.TMP_DIR_SUFFIX) == true -> null
+    // Ignore translation output that sits next to an archive chapter.
+    TranslationStorageLayout.isSidecarDirName(file.name) -> null
+    // Folder of images.
+    file.isDirectory -> file.name
+    // CBZ files.
+    file.isFile && file.extension == "cbz" -> file.nameWithoutExtension
+    // Anything else is irrelevant.
+    else -> null
+}
 
 /**
  * Cache where we dump the downloads directory from the filesystem. This class is needed because
@@ -425,18 +444,7 @@ class MangaDownloadCache(
                             .associate { it.name!! to MangaDirectory(it) }
                         sourceDir.mangaDirs.values.forEach { mangaDir ->
                             val chapterDirs = mangaDir.dir?.listFiles().orEmpty()
-                                .mapNotNull {
-                                    when {
-                                        // Ignore incomplete downloads
-                                        it.name?.endsWith(MangaDownloader.TMP_DIR_SUFFIX) == true -> null
-                                        // Folder of images
-                                        it.isDirectory -> it.name
-                                        // CBZ files
-                                        it.isFile && it.extension == "cbz" -> it.nameWithoutExtension
-                                        // Anything else is irrelevant
-                                        else -> null
-                                    }
-                                }
+                                .mapNotNull(::chapterDirNameOrNull)
                                 .toMutableSet()
 
                             mangaDir.chapterDirs = chapterDirs

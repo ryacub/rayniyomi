@@ -394,7 +394,10 @@ class MangaDownloadManager(
             removeFromDownloadQueue(filteredChapters)
 
             val (mangaDir, chapterDirs) = provider.findChapterDirs(filteredChapters, manga, source)
+            val sidecarDirs = provider.findTranslationSidecarDirs(filteredChapters, manga, source)
             chapterDirs.forEach { it.delete() }
+            // Delete sidecars first so the empty check below sees the truth.
+            sidecarDirs.forEach { it.delete() }
             cache.removeChapters(filteredChapters, manga)
 
             // Delete manga directory if empty

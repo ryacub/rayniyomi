@@ -42,6 +42,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - A tap on a reader button or an error action no longer re-enables the reader chrome while a page curl is still running.
 - Animated pages (for example GIFs) now animate with the page curl in left-to-right and right-to-left reading modes. They decoded as hardware bitmaps, which the curl could not capture, so those turns fell back to a plain page change.
 - Chapter translation no longer fails with "No pages found" when chapters are downloaded as CBZ archives, which is the default.
+- Translated pages are now stored next to chapters that are downloaded as CBZ archives, and the reader shows them when translated pages are on.
 - A translation no longer fails the whole chapter when one page hits a transient API error. The manager retries rate limits and server errors with backoff, and a retry skips pages that were already written.
 - When a translated manga page retries after a temporary API failure, the chapter list ring turns a different colour and spins until the page succeeds or fails for good. The page count stays visible.
 - The chapter list translation ring showed an endless spin instead of filling up as pages completed. It tracks progress again.
