@@ -1,11 +1,9 @@
 package eu.kanade.tachiyomi.data.translation
 
-import android.content.ContentResolver
 import android.content.Context
-import android.net.Uri
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.source.model.Page
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -100,12 +98,8 @@ class TranslationManagerTest {
     fun `translateChapter transitions from IDLE to TRANSLATING to TRANSLATED on success`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00) // JPEG header
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
-
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
         every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
             mockk()
@@ -129,12 +123,9 @@ class TranslationManagerTest {
     fun `translateChapter transitions to ERROR when engine throws exception`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(imageBytes, "en") } throws RuntimeException("API rate limit exceeded")
 
         manager.translateChapter(manga, chapter, source)
@@ -149,7 +140,7 @@ class TranslationManagerTest {
     fun `translateChapter transitions to ERROR when no pages found`() = runTest {
         createEagerManager()
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns emptyList()
+        mockBuildPageList(emptyList())
 
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
@@ -182,12 +173,9 @@ class TranslationManagerTest {
     fun `cancelTranslation sets state back to IDLE`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         // Simulate a slow engine call so we can cancel mid-flight
         coEvery { engine.detectAndTranslate(imageBytes, "en") } coAnswers {
             kotlinx.coroutines.delay(10_000)
@@ -349,12 +337,9 @@ class TranslationManagerTest {
         // Use a real IO scope so the first translation stays active during the second call
         createManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
             kotlinx.coroutines.delay(60_000)
             TranslationResult(emptyList())
@@ -371,7 +356,7 @@ class TranslationManagerTest {
 
         // buildPageList is called inside the coroutine, so with the second call being a no-op,
         // it should only have been called once
-        verify(exactly = 1) { downloadManager.buildPageList(source, manga, chapter) }
+        coVerify(exactly = 1) { downloadManager.buildPageList<Any>(source, manga, chapter, any()) }
 
         // Clean up
         manager.cancelTranslation(chapter.id)
@@ -420,12 +405,9 @@ class TranslationManagerTest {
     fun `translateChapter writes metadata on successful translation`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
         every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
             mockk()
@@ -469,12 +451,9 @@ class TranslationManagerTest {
         createEagerManager()
         advanceUntilIdle() // subscribe the observer before the value changes
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(imageBytes, "en") } coAnswers {
             kotlinx.coroutines.delay(10_000)
             TranslationResult(emptyList())
@@ -495,13 +474,10 @@ class TranslationManagerTest {
         createEagerManager()
         advanceUntilIdle() // subscribe the observer before the value changes
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
         val usedLanguages = mutableListOf<String>()
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
             usedLanguages += secondArg<String>()
             targetLanguageFlow.value = "it"
@@ -535,12 +511,9 @@ class TranslationManagerTest {
         // Real IO scope so the job tail and the observer race across threads.
         createManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
 
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
             // Hold the last resumption past cancellation so the tail runs after the clear.
             withContext(NonCancellable) {
@@ -648,9 +621,11 @@ class TranslationManagerTest {
         every { translationPreferences.translationProvider() } returns pref
     }
 
-    private fun mockContentResolver(uri: Uri, imageBytes: ByteArray) {
-        val contentResolver = mockk<ContentResolver>()
-        every { context.contentResolver } returns contentResolver
-        every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(imageBytes)
+    private fun mockBuildPageList(pages: List<DownloadedChapterPage>) {
+        coEvery {
+            downloadManager.buildPageList<Unit>(source, manga, chapter, any())
+        } coAnswers {
+            arg<suspend (List<DownloadedChapterPage>) -> Unit>(3).invoke(pages)
+        }
     }
 }

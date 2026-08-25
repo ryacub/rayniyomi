@@ -34,6 +34,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Rapid taps during a page curl no longer lose page turns. Each tap inside a running curl now turns one page, and the curl yields to the new turn.
 - A tap on a reader button or an error action no longer re-enables the reader chrome while a page curl is still running.
 - Animated pages (for example GIFs) now animate with the page curl in left-to-right and right-to-left reading modes. They decoded as hardware bitmaps, which the curl could not capture, so those turns fell back to a plain page change.
+- Chapter translation no longer fails with "No pages found" when chapters are downloaded as CBZ archives, which is the default.
 
 ### Changed
 - The target language setting in Translation now uses a picker with readable language names instead of a free-text field. A language change now clears stale translation progress and results for chapters, and the reader reloads translated pages in the new language.

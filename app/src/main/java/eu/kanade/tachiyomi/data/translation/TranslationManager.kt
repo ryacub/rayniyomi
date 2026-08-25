@@ -104,60 +104,59 @@ class TranslationManager(
 
         val job = scope.launch {
             try {
-                val pages = downloadManager.buildPageList(source, manga, chapter)
-                if (pages.isEmpty()) {
-                    updateState(chapterId, TranslationState.Error("No pages found"))
-                    return@launch
-                }
-
-                updateState(chapterId, TranslationState.Translating(0, pages.size))
-
-                for ((index, page) in pages.withIndex()) {
-                    val uri = page.uri ?: continue
-                    val imageBytes = context.contentResolver.openInputStream(uri)?.use {
-                        it.readBytes()
-                    } ?: continue
-
-                    // Call LLM to detect and translate text
-                    val result = engine.detectAndTranslate(imageBytes, targetLang)
-
-                    // Render overlay
-                    val renderedBytes = if (result.regions.isNotEmpty()) {
-                        TranslationRenderer.render(imageBytes, result)
+                downloadManager.buildPageList(source, manga, chapter) { pages ->
+                    if (pages.isEmpty()) {
+                        updateState(chapterId, TranslationState.Error("No pages found"))
                     } else {
-                        imageBytes // No text found, store original
+                        updateState(chapterId, TranslationState.Translating(0, pages.size))
+
+                        for ((index, page) in pages.withIndex()) {
+                            val imageBytes = page.openStream()?.use {
+                                it.readBytes()
+                            } ?: continue
+
+                            // Call LLM to detect and translate text
+                            val result = engine.detectAndTranslate(imageBytes, targetLang)
+
+                            // Render overlay
+                            val renderedBytes = if (result.regions.isNotEmpty()) {
+                                TranslationRenderer.render(imageBytes, result)
+                            } else {
+                                imageBytes // No text found, store original
+                            }
+
+                            // Determine filename from original page
+                            val extension = ImageFormatUtil.detectExtension(imageBytes)
+                            val fileName = "%03d.%s".format(index + 1, extension)
+
+                            // Write translated page
+                            translationStorageManager.writeTranslatedPage(
+                                chapterName = chapter.name,
+                                chapterScanlator = chapter.scanlator,
+                                mangaTitle = manga.title,
+                                source = source,
+                                targetLang = targetLang,
+                                fileName = fileName,
+                                imageBytes = renderedBytes,
+                            )
+
+                            // Update progress after processing each page
+                            updateState(chapterId, TranslationState.Translating(index + 1, pages.size))
+                        }
+
+                        // Write metadata
+                        translationStorageManager.writeMetadata(
+                            chapterName = chapter.name,
+                            chapterScanlator = chapter.scanlator,
+                            mangaTitle = manga.title,
+                            source = source,
+                            targetLang = targetLang,
+                            provider = provider,
+                        )
+
+                        updateState(chapterId, TranslationState.Translated)
                     }
-
-                    // Determine filename from original page
-                    val extension = ImageFormatUtil.detectExtension(imageBytes)
-                    val fileName = "%03d.%s".format(index + 1, extension)
-
-                    // Write translated page
-                    translationStorageManager.writeTranslatedPage(
-                        chapterName = chapter.name,
-                        chapterScanlator = chapter.scanlator,
-                        mangaTitle = manga.title,
-                        source = source,
-                        targetLang = targetLang,
-                        fileName = fileName,
-                        imageBytes = renderedBytes,
-                    )
-
-                    // Update progress after processing each page
-                    updateState(chapterId, TranslationState.Translating(index + 1, pages.size))
                 }
-
-                // Write metadata
-                translationStorageManager.writeMetadata(
-                    chapterName = chapter.name,
-                    chapterScanlator = chapter.scanlator,
-                    mangaTitle = manga.title,
-                    source = source,
-                    targetLang = targetLang,
-                    provider = provider,
-                )
-
-                updateState(chapterId, TranslationState.Translated)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
