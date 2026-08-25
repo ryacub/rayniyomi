@@ -7,6 +7,7 @@ import androidx.core.app.NotificationManagerCompat.IMPORTANCE_HIGH
 import androidx.core.app.NotificationManagerCompat.IMPORTANCE_LOW
 import eu.kanade.tachiyomi.util.system.buildNotificationChannel
 import eu.kanade.tachiyomi.util.system.buildNotificationChannelGroup
+import kotlin.math.absoluteValue
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -44,6 +45,32 @@ object Notifications {
     const val ID_DOWNLOAD_EPISODE_ERROR = -204
     const val ID_DOWNLOAD_CHAPTER_CRASH_THRESHOLD = -205
     const val ID_DOWNLOAD_EPISODE_CRASH_THRESHOLD = -206
+
+    /**
+     * Notification channel and ids used by the chapter translator.
+     */
+    private const val GROUP_TRANSLATION = "group_translation"
+    const val CHANNEL_TRANSLATION_PROGRESS = "translation_progress_channel"
+    const val CHANNEL_TRANSLATION_ERROR = "translation_error_channel"
+    const val ID_TRANSLATION_PROGRESS_BASE = 100_000
+    const val ID_TRANSLATION_COMPLETE_BASE = 150_000
+    const val ID_TRANSLATION_ERROR_BASE = 200_000
+
+    fun translationProgressId(chapterId: Long): Int =
+        ID_TRANSLATION_PROGRESS_BASE + slot(chapterId)
+
+    fun translationCompleteId(chapterId: Long): Int =
+        ID_TRANSLATION_COMPLETE_BASE + slot(chapterId)
+
+    fun translationErrorId(chapterId: Long): Int =
+        ID_TRANSLATION_ERROR_BASE + slot(chapterId)
+
+    /**
+     * Widens to Long before taking the absolute value, so [Int.MIN_VALUE] cannot produce a
+     * negative slot that would land the id inside a reserved range.
+     */
+    private fun slot(chapterId: Long): Int =
+        (chapterId.hashCode().toLong().absoluteValue % 50_000L).toInt()
 
     /**
      * Notification channel and ids used by the library updater.
@@ -121,6 +148,9 @@ object Notifications {
                 buildNotificationChannelGroup(GROUP_APK_UPDATES) {
                     setName(context.stringResource(MR.strings.label_recent_updates))
                 },
+                buildNotificationChannelGroup(GROUP_TRANSLATION) {
+                    setName(context.stringResource(AYMR.strings.pref_category_translation))
+                },
             ),
         )
 
@@ -150,6 +180,16 @@ object Notifications {
                 buildNotificationChannel(CHANNEL_DOWNLOADER_ERROR, IMPORTANCE_LOW) {
                     setName(context.stringResource(MR.strings.channel_errors))
                     setGroup(GROUP_DOWNLOADER)
+                    setShowBadge(false)
+                },
+                buildNotificationChannel(CHANNEL_TRANSLATION_PROGRESS, IMPORTANCE_LOW) {
+                    setName(context.stringResource(MR.strings.channel_progress))
+                    setGroup(GROUP_TRANSLATION)
+                    setShowBadge(false)
+                },
+                buildNotificationChannel(CHANNEL_TRANSLATION_ERROR, IMPORTANCE_LOW) {
+                    setName(context.stringResource(MR.strings.channel_errors))
+                    setGroup(GROUP_TRANSLATION)
                     setShowBadge(false)
                 },
                 buildNotificationChannel(CHANNEL_BACKUP_RESTORE_PROGRESS, IMPORTANCE_LOW) {
