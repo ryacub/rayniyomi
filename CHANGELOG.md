@@ -30,6 +30,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.
 - The player now shows the standard playback error when no hoster provides a video.
 - Fixed a startup freeze caused by registering extension install receivers on the main thread.
+- Fixed the reader translate toggle doing nothing until the chapter was reopened.
 - Fixed a potential startup freeze (ANR) when many anime extensions are installed.
 - Fixed a potential startup freeze (ANR) when many manga extensions are installed.
 - Manga extensions built for a newer app version failed every details fetch with a compatibility error. The extensions can read the manga `memo` field again.
