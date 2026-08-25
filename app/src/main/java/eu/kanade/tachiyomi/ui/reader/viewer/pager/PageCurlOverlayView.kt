@@ -216,10 +216,9 @@ internal object PageCurlFrameRenderer {
         // exposed incoming side. Mirror for a left curl.
         val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
         val shadowWidth = bitmapWidth * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
-        val mirroredCrease = direction.mirrorX(tangent, bitmapWidth)
-        val mirroredOuterEdge = direction.mirrorX(tangent + shadowWidth, bitmapWidth)
-        val startX = minOf(mirroredCrease, mirroredOuterEdge)
-        val endX = maxOf(mirroredCrease, mirroredOuterEdge)
+        val band = direction.mirrorSpan(tangent..(tangent + shadowWidth), bitmapWidth)
+        val startX = band.start
+        val endX = band.endInclusive
         shadowPaint.shader = LinearGradient(
             startX,
             0f,
