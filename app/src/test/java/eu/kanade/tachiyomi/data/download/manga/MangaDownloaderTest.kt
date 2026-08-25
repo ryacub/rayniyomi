@@ -408,7 +408,6 @@ class MangaDownloaderTest {
 
         downloader.launchDownloadJobForTest(this, download).join()
 
-        println("DBG reason=${download.lastErrorReason}")
         assertEquals("LOW_STORAGE", download.lastErrorCode)
         assertEquals("No space left on device", download.lastErrorReason)
         assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
