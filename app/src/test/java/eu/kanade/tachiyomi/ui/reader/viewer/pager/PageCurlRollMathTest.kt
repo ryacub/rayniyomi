@@ -61,6 +61,16 @@ class PageCurlRollMathTest {
     private fun rowXs(verts: FloatArray, row: Int): List<Float> =
         (0..cols).map { col -> xAt(verts, row, col) }
 
+    /** Mirrors and sorts a canonical span the way drawFoldBack did before R942. */
+    private fun legacyMirroredSpan(
+        span: ClosedFloatingPointRange<Float>,
+        direction: CurlDirection,
+    ): ClosedFloatingPointRange<Float> {
+        val a = direction.mirrorX(span.start, width)
+        val b = direction.mirrorX(span.endInclusive, width)
+        return minOf(a, b)..maxOf(a, b)
+    }
+
     @Test
     fun `buffer size matches the mesh density`() {
         val expected = (cols + 1) * (rows + 1) * 2
@@ -331,6 +341,89 @@ class PageCurlRollMathTest {
                 ;(span.endInclusive + r <= width) shouldBe true
             }
             progress += 0.01f
+        }
+    }
+
+    // A13: the screen span turns on and off with the canonical span in both
+    // directions.
+    @Test
+    fun `fold back screen span is null exactly when the canonical span is null`() {
+        for (direction in CurlDirection.entries) {
+            var progress = 0f
+            while (progress <= 1f) {
+                val canonical = PageCurlRollMath.foldBackSpan(width, progress)
+                val screen = PageCurlRollMath.foldBackSpan(width, progress, direction)
+                ;(screen == null) shouldBe (canonical == null)
+                progress += 0.01f
+            }
+        }
+    }
+
+    @Test
+    fun `fold back screen span is null before the onset in both directions`() {
+        PageCurlRollMath.foldBackSpan(width, 0f, CurlDirection.FROM_RIGHT) shouldBe null
+        PageCurlRollMath.foldBackSpan(width, 0f, CurlDirection.FROM_LEFT) shouldBe null
+    }
+
+    // A14: a right curl is already in screen space.
+    @Test
+    fun `fold back screen span equals the canonical span for a right curl`() {
+        var progress = 0.01f
+        while (progress <= 1f) {
+            val canonical = PageCurlRollMath.foldBackSpan(width, progress)
+            val screen = PageCurlRollMath.foldBackSpan(width, progress, CurlDirection.FROM_RIGHT)
+            if (canonical != null) {
+                ;(abs(screen!!.start - canonical.start) < SPAN_EPSILON) shouldBe true
+                ;(abs(screen.endInclusive - canonical.endInclusive) < SPAN_EPSILON) shouldBe true
+            }
+            progress += 0.01f
+        }
+    }
+
+    // A15: a left curl reflects both endpoints about the page center and
+    // swaps them.
+    @Test
+    fun `fold back screen span reflects both endpoints for a left curl`() {
+        val progress = 0.5f
+        val tangent = PageCurlRollMath.tangentX(width, progress)
+        val r = PageCurlRollMath.radius(progress) * width
+
+        val span = PageCurlRollMath.foldBackSpan(width, progress, CurlDirection.FROM_LEFT)
+        ;(abs(span!!.start - (width - tangent)) < SPAN_EPSILON) shouldBe true
+        ;(abs(span.endInclusive - (width - tangent + r)) < SPAN_EPSILON) shouldBe true
+    }
+
+    // A16: the ordering invariant holds everywhere the span exists.
+    @Test
+    fun `fold back screen span keeps start at or below end in both directions`() {
+        for (direction in CurlDirection.entries) {
+            var progress = 0.01f
+            while (progress <= 1f) {
+                val span = PageCurlRollMath.foldBackSpan(width, progress, direction)
+                if (span != null) {
+                    ;(span.start <= span.endInclusive) shouldBe true
+                }
+                progress += 0.01f
+            }
+        }
+    }
+
+    // A17: the new path agrees with the hand-rolled mirror that drawFoldBack
+    // used before R942.
+    @Test
+    fun `fold back screen span agrees with the previous manual mirror path`() {
+        for (direction in CurlDirection.entries) {
+            var progress = 0.01f
+            while (progress <= 1f) {
+                val canonical = PageCurlRollMath.foldBackSpan(width, progress)
+                val screen = PageCurlRollMath.foldBackSpan(width, progress, direction)
+                if (canonical != null) {
+                    val legacy = legacyMirroredSpan(canonical, direction)
+                    ;(abs(screen!!.start - legacy.start) < SPAN_EPSILON) shouldBe true
+                    ;(abs(screen.endInclusive - legacy.endInclusive) < SPAN_EPSILON) shouldBe true
+                }
+                progress += 0.01f
+            }
         }
     }
 

@@ -127,15 +127,11 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * inside the bitmap for every non-null span.
      */
     private fun drawFoldBack(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
-        val canonical = PageCurlRollMath.foldBackSpan(bitmapWidth, progress) ?: return
+        val span = PageCurlRollMath.foldBackSpan(bitmapWidth, progress, direction) ?: return
         // Skip when the whole strip has rolled off screen.
-        if (canonical.endInclusive <= 0f || canonical.start >= bitmapWidth) return
-        // Mirror the canonical range about the page's center line for a left
-        // curl, swapping endpoints: (a..b) becomes (w-b)..(w-a).
-        val mirroredStart = direction.mirrorX(canonical.start, bitmapWidth)
-        val mirroredEnd = direction.mirrorX(canonical.endInclusive, bitmapWidth)
-        val left = minOf(mirroredStart, mirroredEnd)
-        val right = maxOf(mirroredStart, mirroredEnd)
+        if (span.endInclusive <= 0f || span.start >= bitmapWidth) return
+        val left = span.start
+        val right = span.endInclusive
 
         canvas.save()
         canvas.clipRect(left, 0f, right, bitmapHeight)
@@ -146,7 +142,8 @@ class PageCurlOverlayView(context: Context) : View(context) {
         if (direction == CurlDirection.FROM_RIGHT) {
             canvas.scale(-1f, 1f, right, 0f)
         } else {
-            canvas.translate(bitmapWidth - 2f * canonical.endInclusive, 0f)
+            val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
+            canvas.translate(bitmapWidth - 2f * tangent, 0f)
         }
         canvas.drawBitmap(fromBitmap!!, 0f, 0f, null)
         // Soften the sampled copy so it reads as paper.
@@ -219,11 +216,9 @@ internal object PageCurlFrameRenderer {
         // exposed incoming side. Mirror for a left curl.
         val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
         val shadowWidth = bitmapWidth * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
-        val mirroredCrease = direction.mirrorX(tangent, bitmapWidth)
-        val mirroredOuterEdge = direction.mirrorX(tangent + shadowWidth, bitmapWidth)
-        val startX = minOf(mirroredCrease, mirroredOuterEdge)
-        val endX = maxOf(mirroredCrease, mirroredOuterEdge)
-
+        val band = direction.mirrorSpan(tangent..(tangent + shadowWidth), bitmapWidth)
+        val startX = band.start
+        val endX = band.endInclusive
         shadowPaint.shader = LinearGradient(
             startX,
             0f,
