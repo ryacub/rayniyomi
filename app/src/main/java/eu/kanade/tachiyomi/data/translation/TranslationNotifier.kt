@@ -45,7 +45,7 @@ class TranslationNotifier(private val context: Context) {
         }
     }
 
-    private fun titleFor(chapterId: Long, title: String?): String =
+    private fun titleFor(title: String?): String =
         title ?: context.stringResource(AYMR.strings.pref_category_translation)
 
     private fun showProgress(
@@ -54,7 +54,7 @@ class TranslationNotifier(private val context: Context) {
         title: String?,
     ) {
         // Resolve all text before entering the builder lambda.
-        val titleText = titleFor(chapterId, title)
+        val titleText = titleFor(title)
         val contentText =
             context.stringResource(AYMR.strings.translation_progress, state.currentPage, state.totalPages)
 
@@ -72,7 +72,7 @@ class TranslationNotifier(private val context: Context) {
     private fun showComplete(chapterId: Long, title: String?) {
         context.cancelNotification(Notifications.translationProgressId(chapterId))
 
-        val titleText = titleFor(chapterId, title)
+        val titleText = titleFor(title)
         val contentText = context.stringResource(AYMR.strings.translation_complete)
 
         context.notify(Notifications.translationCompleteId(chapterId), Notifications.CHANNEL_TRANSLATION_PROGRESS) {
@@ -88,7 +88,7 @@ class TranslationNotifier(private val context: Context) {
     private fun showError(chapterId: Long, message: String, title: String?) {
         context.cancelNotification(Notifications.translationProgressId(chapterId))
 
-        val titleText = titleFor(chapterId, title)
+        val titleText = titleFor(title)
         val contentText = context.stringResource(AYMR.strings.translation_error, message)
 
         context.notify(Notifications.translationErrorId(chapterId), Notifications.CHANNEL_TRANSLATION_ERROR) {
