@@ -19,6 +19,11 @@ class TranslationStorageLayoutTest {
     }
 
     @Test
+    fun `loose translation folder name without the cbz stem is not a sidecar name`() {
+        assertFalse(TranslationStorageLayout.isSidecarDirName("Chapter 1_translated"))
+    }
+
+    @Test
     fun `chapter names are not sidecar names`() {
         assertFalse(TranslationStorageLayout.isSidecarDirName("Chapter 1"))
         assertFalse(TranslationStorageLayout.isSidecarDirName("Chapter 1.cbz"))

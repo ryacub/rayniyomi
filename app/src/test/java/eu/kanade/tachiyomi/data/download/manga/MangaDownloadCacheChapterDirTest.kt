@@ -36,6 +36,12 @@ class MangaDownloadCacheChapterDirTest {
     }
 
     @Test
+    fun `loose chapter directory whose name ends in translated is still a chapter`() {
+        val loose = fileNode("Chapter 1_translated", isDirectory = true)
+        assertEquals("Chapter 1_translated", chapterDirNameOrNull(loose))
+    }
+
+    @Test
     fun `temp download folder is ignored`() {
         val tmp = fileNode("Chapter 1" + MangaDownloader.TMP_DIR_SUFFIX, isDirectory = true)
         assertNull(chapterDirNameOrNull(tmp))
