@@ -252,6 +252,23 @@ class MangaDownloaderTest {
     }
 
     @Test
+    fun `cancellation wrapped failure with a null message falls back to the class name`() = runTest {
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        )
+
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.pages(any(), any()) } throws WrappedCancellationException(RuntimeException())
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals("RuntimeException", download.lastErrorCode)
+        assertEquals("RuntimeException", download.lastErrorReason)
+    }
+
+    @Test
     fun `retry exhaustion reason reflects the last exception`() = runTest {
         downloader.retryBackoffMillis = 0L
         val download = MangaDownload(
