@@ -278,6 +278,45 @@ class MangaDownloaderTest {
         val reason = download.lastErrorReason.orEmpty()
         assertTrue(reason.contains("EPERM") || reason.contains("Permission denied", ignoreCase = true))
     }
+
+    @Test
+    fun `cancellation during image download does not mark page error`() = runTest {
+        val page = Page(0, url = "url", imageUrl = "image")
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        ).apply {
+            pages = listOf(page)
+        }
+
+        val imageStarted = CompletableDeferred<Unit>()
+        val releaseImage = CompletableDeferred<Unit>()
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.image(any(), any(), any()) } coAnswers {
+            imageStarted.complete(Unit)
+            releaseImage.await()
+            throw CancellationException("scope cancelled")
+        }
+
+        val downloadJob = downloader.launchDownloadJobForTest(this, download)
+        imageStarted.await()
+        downloadJob.cancel()
+        releaseImage.complete(Unit)
+        downloadJob.join()
+
+        assertNotEquals(Page.State.ERROR, page.status)
+        assertNotEquals(MangaDownload.State.ERROR, download.status)
+        assertNull(download.lastErrorCode)
+        verify(exactly = 0) {
+            anyConstructed<MangaDownloadNotifier>().onError(
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
 }
 
 /**

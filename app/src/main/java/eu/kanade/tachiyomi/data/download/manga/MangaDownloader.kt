@@ -649,6 +649,7 @@ class MangaDownloader(
             page.progress = 100
             page.status = Page.State.READY
         } catch (e: Throwable) {
+            if (e is CancellationException) throw e
             if (
                 e is LowStorageException ||
                 e is StoragePermissionException ||
