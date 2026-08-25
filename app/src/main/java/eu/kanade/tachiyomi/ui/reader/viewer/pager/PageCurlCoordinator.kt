@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import android.graphics.Bitmap
 import android.os.SystemClock
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 
 /**
@@ -41,9 +41,9 @@ internal class PageCurlCoordinator(
     private var released = false
 
     /**
-     * One curl's tracked runnables and bitmaps. Main-thread only: ViewPager
-     * callbacks, posted runnables, and the view animator all run there, so
-     * the fields need no synchronization.
+     * One curl's tracked runnables and captured pages. Main-thread only:
+     * ViewPager callbacks, posted runnables, and the view animator all run
+     * there, so the fields need no synchronization.
      */
     private class CurlState {
         var generationId = 0L
@@ -51,9 +51,9 @@ internal class PageCurlCoordinator(
         var targetReadyRunnable: Runnable? = null
         var layoutCheckRunnable: Runnable? = null
         var gestureReenableRunnable: Runnable? = null
-        var pendingFromBitmap: Bitmap? = null
-        var activeFromBitmap: Bitmap? = null
-        var activeToBitmap: Bitmap? = null
+        var pendingFromPage: CapturedPage? = null
+        var activeFromPage: CapturedPage? = null
+        var activeToPage: CapturedPage? = null
 
         /**
          * True when no tracked resource remains. The teardown guard uses only
@@ -65,9 +65,9 @@ internal class PageCurlCoordinator(
             targetReadyRunnable == null &&
                 layoutCheckRunnable == null &&
                 gestureReenableRunnable == null &&
-                pendingFromBitmap == null &&
-                activeFromBitmap == null &&
-                activeToBitmap == null
+                pendingFromPage == null &&
+                activeFromPage == null &&
+                activeToPage == null
 
         fun clearRunnables(pager: Pager) {
             targetReadyRunnable?.let(pager::removeCallbacks)
@@ -79,9 +79,9 @@ internal class PageCurlCoordinator(
         }
 
         /**
-         * Tears down tracked callbacks and position, recycles every tracked
-         * bitmap, and aborts the overlay. Runs [abortOverlay] after bumping
-         * the generation and after recycling, so a reentrant animation-end
+         * Tears down tracked callbacks and position, closes every tracked
+         * page, and aborts the overlay. Runs [abortOverlay] after bumping
+         * the generation and after closing, so a reentrant animation-end
          * callback observes a stale generation and recycled bitmaps.
          *
          * Callers must check [isEmpty] first; this member assumes work exists.
@@ -93,12 +93,12 @@ internal class PageCurlCoordinator(
             generationId++
             clearRunnables(pager)
             targetPosition = null
-            pendingFromBitmap.recycleIfNeeded()
-            pendingFromBitmap = null
-            activeFromBitmap.recycleIfNeeded()
-            activeFromBitmap = null
-            activeToBitmap.recycleIfNeeded()
-            activeToBitmap = null
+            pendingFromPage?.close()
+            pendingFromPage = null
+            activeFromPage?.close()
+            activeFromPage = null
+            activeToPage?.close()
+            activeToPage = null
             abortOverlay()
         }
     }
@@ -141,21 +141,21 @@ internal class PageCurlCoordinator(
 
         // Capture the source before finish() cancels the previous curl, so
         // the previous overlay frame is still intact during the capture.
-        val fromBitmap = capture.capture(source)
-        if (fromBitmap == null) {
+        val fromPage = capture.capture(source)
+        if (fromPage == null) {
             finish(restoreInput = true)
             advance(useAnimation)
             return
         }
         // No input restore here: the new acquire below supersedes the claim.
         finish(restoreInput = false)
-        curlState.pendingFromBitmap = fromBitmap
+        curlState.pendingFromPage = fromPage
         // Set after finish() so it does not clear the new target, and before
         // advance(false) so the synchronous onPageSelected callback sees a match.
         curlState.targetPosition = targetPosition
         advance(false)
         pager.acquireGestures(GestureInputGate.Claim.CURL)
-        waitForTarget(targetPosition, targetHolder, fromBitmap, direction)
+        waitForTarget(targetPosition, targetHolder, fromPage, direction)
     }
 
     fun release() {
@@ -192,7 +192,7 @@ internal class PageCurlCoordinator(
     private fun waitForTarget(
         targetPosition: Int,
         initialTargetHolder: PagerPageHolder?,
-        fromBitmap: Bitmap,
+        fromPage: CapturedPage,
         direction: CurlDirection,
     ) {
         var waitAttempts = 0
@@ -203,8 +203,8 @@ internal class PageCurlCoordinator(
             val readyHolder = readerItemAt(targetPosition)?.let(holderFor) ?: initialTargetHolder
             if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
                 curlState.targetReadyRunnable = null
-                if (curlState.pendingFromBitmap === fromBitmap) curlState.pendingFromBitmap = null
-                playAndHideCurl(fromBitmap, readyHolder, direction)
+                if (curlState.pendingFromPage === fromPage) curlState.pendingFromPage = null
+                playAndHideCurl(fromPage, readyHolder, direction)
             } else {
                 waitAttempts++
                 pager.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
@@ -215,38 +215,38 @@ internal class PageCurlCoordinator(
     }
 
     private fun playAndHideCurl(
-        fromBitmap: Bitmap,
+        fromPage: CapturedPage,
         targetHolder: PagerPageHolder?,
         direction: CurlDirection,
     ) {
         // Store before the target capture so a capture failure tears down
         // through finish() like every other exit.
-        curlState.activeFromBitmap = fromBitmap
-        val toBitmap = targetHolder?.let(capture::capture)
-        if (toBitmap == null) {
+        curlState.activeFromPage = fromPage
+        val toPage = targetHolder?.let(capture::capture)
+        if (toPage == null) {
             finish(restoreInput = true)
             return
         }
 
         val animationGenerationId = ++curlState.generationId
-        curlState.activeToBitmap = toBitmap
+        curlState.activeToPage = toPage
         overlay.playCurl(
-            from = fromBitmap,
-            to = toBitmap,
+            from = fromPage.bitmap,
+            to = toPage.bitmap,
             direction = direction,
             durationMs = CURL_DURATION_MS,
             onEnd = {
                 if (animationGenerationId == curlState.generationId) {
-                    waitForLayout(fromBitmap, toBitmap)
+                    waitForLayout(fromPage, toPage)
                 } else {
-                    fromBitmap.recycleIfNeeded()
-                    toBitmap.recycleIfNeeded()
+                    fromPage.close()
+                    toPage.close()
                 }
             },
         )
     }
 
-    private fun waitForLayout(fromBitmap: Bitmap, toBitmap: Bitmap) {
+    private fun waitForLayout(fromPage: CapturedPage, toPage: CapturedPage) {
         var layoutCheckAttempts = 0
         lateinit var checkLayout: Runnable
         checkLayout = Runnable {

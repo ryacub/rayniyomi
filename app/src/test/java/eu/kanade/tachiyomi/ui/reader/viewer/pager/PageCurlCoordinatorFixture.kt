@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 import android.graphics.Bitmap
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 import io.mockk.every
 import io.mockk.mockk
 
@@ -126,6 +127,9 @@ internal class PageCurlCoordinatorFixture(
             every { recycle() } answers { recycled = true }
         }
     }
+
+    /** A captured-page handle wrapping one tracked mock bitmap. */
+    fun page(): CapturedPage = CapturedPage(bitmap())
 
     private companion object {
         const val TARGET_POSITION = 1
