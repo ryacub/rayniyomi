@@ -13,7 +13,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -67,9 +66,7 @@ class PlayerSettingsCustomButtonScreenModelTest {
         model.createCustomButton("name", "content", "longPress", "startup")
         advanceUntilIdle()
 
-        val event = withTimeout(1_000) {
-            model.events.first()
-        }
+        val event = model.events.first()
 
         assertEquals(CustomButtonEvent.InternalError, event)
         coVerify(exactly = 1) {

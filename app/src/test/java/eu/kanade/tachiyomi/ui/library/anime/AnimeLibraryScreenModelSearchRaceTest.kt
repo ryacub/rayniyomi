@@ -5,24 +5,22 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -45,9 +43,11 @@ import uy.kohesive.injekt.api.addSingleton
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimeLibraryScreenModelSearchRaceTest {
 
+    private val vt = VirtualTime()
+
     @BeforeEach
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        vt.setUpMain()
         // The library item constructor resolves its sourceManager through Injekt, and the
         // real getNameForAnimeInfo() extension resolves SourcePreferences through Injekt.
         Injekt.addSingleton(
@@ -73,62 +73,62 @@ class AnimeLibraryScreenModelSearchRaceTest {
 
     @AfterEach
     fun tearDown() {
-        Dispatchers.resetMain()
+        vt.tearDownMain()
     }
 
     @Test
-    fun `search changes inside the debounce window collapse to the newer query`() = runBlocking {
+    fun `search changes inside the debounce window collapse to the newer query`() = runTest(vt.scheduler) {
         val model = createModel()
 
         // Both searches land inside SEARCH_DEBOUNCE_MILLIS, so the debounce collapses them
         // into a single evaluation of the newer query. A stale "Alpha" evaluation never exists.
         model.search("Alpha")
         model.search("Beta")
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
 
-        eventually(timeoutMs = 5_000) {
-            val items = model.state.value.library[category()].orEmpty()
+        awaitAssert({ model.state.value.library[category()].orEmpty() }) { items ->
             items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Beta" }
         }
     }
 
     @Test
-    fun `a spaced search result replaces the older evaluation`() = runBlocking {
+    fun `a spaced search result replaces the older evaluation`() = runTest(vt.scheduler) {
         val model = createModel()
 
         model.search("Alpha")
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
 
-        // Wait past the debounce so the "Alpha" evaluation actually emits first.
-        eventually(timeoutMs = 5_000) {
-            val items = model.state.value.library[category()].orEmpty()
+        // Wait so the "Alpha" evaluation actually emits first.
+        awaitAssert({ model.state.value.library[category()].orEmpty() }) { items ->
             items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Alpha" }
         }
 
         model.search("Beta")
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
 
         // The newer query evaluation must replace the older one in the final state.
-        eventually(timeoutMs = 5_000) {
-            val items = model.state.value.library[category()].orEmpty()
+        awaitAssert({ model.state.value.library[category()].orEmpty() }) { items ->
             items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Beta" }
         }
     }
 
     @Test
-    fun `a comparison query result replaces the older evaluation`() = runBlocking {
+    fun `a comparison query result replaces the older evaluation`() = runTest(vt.scheduler) {
         val model = createModel()
 
         model.search("Alpha")
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
 
-        eventually(timeoutMs = 5_000) {
-            val items = model.state.value.library[category()].orEmpty()
+        awaitAssert({ model.state.value.library[category()].orEmpty() }) { items ->
             items.isNotEmpty() && items.all { it.libraryAnime.anime.title == "Alpha" }
         }
 
         model.search("total>=1")
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
 
         // Both entries have 10 episodes, so the comparison matches them both. The older
         // "Alpha" evaluation could never produce the Beta entry in the final state.
-        eventually(timeoutMs = 5_000) {
-            val items = model.state.value.library[category()].orEmpty()
+        awaitAssert({ model.state.value.library[category()].orEmpty() }) { items ->
             items.size == 2 && items.any { it.libraryAnime.anime.title == "Beta" }
         }
     }
@@ -200,16 +200,9 @@ class AnimeLibraryScreenModelSearchRaceTest {
             downloadManager = downloadManager,
             downloadCache = downloadCache,
             trackerManager = trackerManager,
+            ioDispatcher = vt.io,
         )
     }
 
     private fun category() = Category(id = 0L, name = "Default", order = 0L, flags = 0L, hidden = false)
-
-    private suspend fun eventually(timeoutMs: Long, condition: () -> Boolean) {
-        withTimeout(timeoutMs) {
-            while (!condition()) {
-                delay(10)
-            }
-        }
-    }
 }

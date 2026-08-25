@@ -12,7 +12,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -55,9 +54,7 @@ class MigrateMangaScreenModelTest {
         // If event emission suspended, loading never clears because titleList update is after send().
         assertFalse(model.state.value.isLoading)
 
-        val event = withTimeout(1_000) {
-            model.events.first()
-        }
+        val event = model.events.first()
         assertEquals(MigrationMangaEvent.FailedFetchingFavorites, event)
     }
 }

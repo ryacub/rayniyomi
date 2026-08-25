@@ -12,8 +12,10 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.online.ResolvableAnimeSource
 import eu.kanade.tachiyomi.animesource.online.UriType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.lang.launchIO
+import kotlinx.coroutines.launch
 import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
@@ -31,10 +33,11 @@ class DeepLinkAnimeScreenModel(
     private val getEpisodeByUrlAndAnimeId: GetEpisodeByUrlAndAnimeId = Injekt.get(),
     private val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId = Injekt.get(),
     private val syncEpisodesWithSource: SyncEpisodesWithSource = Injekt.get(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<DeepLinkAnimeScreenModel.State>(State.Loading) {
 
     init {
-        screenModelScope.launchIO {
+        screenModelScope.launch(ioDispatcher) {
             try {
                 val source = sourceManager.getCatalogueSources()
                     .filterIsInstance<ResolvableAnimeSource>()

@@ -5,23 +5,19 @@ import eu.kanade.presentation.updates.anime.AnimeUpdatesUiModel
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.awaitAssert
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -43,37 +39,37 @@ import java.util.concurrent.CopyOnWriteArrayList
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimeUpdatesScreenModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val vt = VirtualTime()
 
     @BeforeEach
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
+        vt.setUpMain()
     }
 
     @AfterEach
     fun tearDown() {
-        Dispatchers.resetMain()
+        vt.tearDownMain()
     }
 
     @Test
-    fun `empty preferences pass empty lists to the interactor and render items`() = runWithTimeout {
+    fun `empty preferences pass empty lists to the interactor and render items`() = runTest(vt.scheduler) {
         val env = TestEnvironment()
         val interactorCalls = env.stubInteractor(flowOf(listOf(update(10))))
 
         val model = env.model()
 
-        waitUntil { model.state.value.items.isNotEmpty() }
+        awaitAssert({ model.state.value.items }) { it.isNotEmpty() }
 
         assertEquals(1, model.state.value.items.size)
         assertEquals(emptyList<Long>() to emptyList<Long>(), interactorCalls.last())
     }
 
     @Test
-    fun `cycleCategory cycles disabled to included to excluded to cleared`() = runWithTimeout {
+    fun `cycleCategory cycles disabled to included to excluded to cleared`() = runTest(vt.scheduler) {
         val env = TestEnvironment()
         env.stubInteractor(flowOf(emptyList()))
         val model = env.model()
-        waitUntil { !model.state.value.isLoading }
+        awaitAssert({ model.state.value.isLoading }) { !it }
         val horror = category(id = 1, name = "Horror")
 
         model.cycleCategory(horror)
@@ -90,27 +86,27 @@ class AnimeUpdatesScreenModelTest {
     }
 
     @Test
-    fun `preference change re-subscribes with the category id as long`() = runWithTimeout {
+    fun `preference change re-subscribes with the category id as long`() = runTest(vt.scheduler) {
         val env = TestEnvironment()
         val interactorCalls = env.stubInteractor(flowOf(emptyList()))
         val model = env.model()
-        waitUntil { interactorCalls.isNotEmpty() }
+        awaitAssert({ interactorCalls.toList() }) { it.isNotEmpty() }
 
         model.cycleCategory(category(id = 7, name = "Action"))
 
-        waitUntil { interactorCalls.any { it.first == listOf(7L) } }
+        awaitAssert({ interactorCalls.toList() }) { calls -> calls.any { it.first == listOf(7L) } }
     }
 
     @Test
-    fun `stale category id in preference still executes without exception`() = runWithTimeout {
+    fun `stale category id in preference still executes without exception`() = runTest(vt.scheduler) {
         val env = TestEnvironment()
         env.libraryPreferences.filterAnimeUpdatesCategories().set(setOf("999"))
         val interactorCalls = env.stubInteractor(flowOf(listOf(update(10))))
 
         val model = env.model()
 
-        waitUntil { interactorCalls.any { it.first == listOf(999L) } }
-        waitUntil { model.state.value.items.isNotEmpty() }
+        awaitAssert({ interactorCalls.toList() }) { calls -> calls.any { it.first == listOf(999L) } }
+        awaitAssert({ model.state.value.items }) { it.isNotEmpty() }
     }
 
     @Test
@@ -134,13 +130,13 @@ class AnimeUpdatesScreenModelTest {
     }
 
     @Test
-    fun `anime cycleCategory does not mutate manga preferences`() = runWithTimeout {
+    fun `anime cycleCategory does not mutate manga preferences`() = runTest(vt.scheduler) {
         val env = TestEnvironment()
         env.libraryPreferences.filterMangaUpdatesCategories().set(setOf("5"))
         env.libraryPreferences.filterMangaUpdatesCategoriesExclude().set(setOf("6"))
         env.stubInteractor(flowOf(emptyList()))
         val model = env.model()
-        waitUntil { !model.state.value.isLoading }
+        awaitAssert({ model.state.value.isLoading }) { !it }
 
         model.cycleCategory(category(id = 1, name = "Horror"))
 
@@ -195,17 +191,8 @@ class AnimeUpdatesScreenModelTest {
                 libraryPreferences = libraryPreferences,
                 downloadPreferences = downloadPreferences,
                 getCategories = getCategories,
+                ioDispatcher = vt.io,
             )
-        }
-    }
-
-    private fun runWithTimeout(block: suspend () -> Unit) = runTest {
-        withTimeout(10_000) { block() }
-    }
-
-    private suspend fun waitUntil(condition: () -> Boolean) {
-        while (!condition()) {
-            delay(10)
         }
     }
 
