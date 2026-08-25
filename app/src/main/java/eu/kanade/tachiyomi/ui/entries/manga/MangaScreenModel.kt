@@ -186,6 +186,10 @@ class MangaScreenModel(
                         it.copy(
                             manga = manga,
                             chapters = chapters.toChapterListItems(manga),
+                            translationSummary = translationSummaryFrom(
+                                translationManager.translationStates.value,
+                                chapters,
+                            ),
                         )
                     }
                 }
@@ -218,7 +222,6 @@ class MangaScreenModel(
         screenModelScope.launchIO {
             val manga = getMangaAndChapters.awaitManga(mangaId)
             val chapters = getMangaAndChapters.awaitChapters(mangaId, applyScanlatorFilter = true)
-                .toChapterListItems(manga)
 
             if (!manga.favorite) {
                 setMangaDefaultChapterFlags.await(manga)
@@ -233,14 +236,17 @@ class MangaScreenModel(
                     manga = manga,
                     source = Injekt.get<MangaSourceManager>().getOrStub(manga.source),
                     isFromSource = isFromSource,
-                    chapters = chapters,
+                    chapters = chapters.toChapterListItems(manga),
+                    translationSummary = translationSummaryFrom(
+                        translationManager.translationStates.value,
+                        chapters,
+                    ),
                     availableScanlators = getAvailableScanlators.await(mangaId),
                     excludedScanlators = getExcludedScanlators.await(mangaId),
                     isRefreshingData = needRefreshInfo || needRefreshChapter,
                     dialog = null,
                 )
             }
-
             // Start observe tracking since it only needs mangaId
             observeTrackers()
 
@@ -1126,6 +1132,7 @@ class MangaScreenModel(
             val isRefreshingData: Boolean = false,
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
+            val translationSummary: TranslationSummary? = null,
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()

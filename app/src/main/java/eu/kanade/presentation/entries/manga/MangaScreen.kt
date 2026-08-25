@@ -34,7 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +66,7 @@ import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescriptio
 import eu.kanade.presentation.entries.manga.components.MangaActionRow
 import eu.kanade.presentation.entries.manga.components.MangaChapterListItem
 import eu.kanade.presentation.entries.manga.components.MangaInfoBox
+import eu.kanade.presentation.entries.manga.components.MangaTranslationSummaryCard
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
@@ -478,6 +481,20 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
+                    item(
+                        key = EntryScreenItem.TRANSLATION_SUMMARY,
+                        contentType = EntryScreenItem.TRANSLATION_SUMMARY,
+                    ) {
+                        state.translationSummary?.let { summary ->
+                            val expanded = rememberSaveable { mutableStateOf(false) }
+                            MangaTranslationSummaryCard(
+                                summary = summary,
+                                expanded = expanded.value,
+                                onToggleExpanded = { expanded.value = !expanded.value },
+                            )
+                        }
+                    }
+
                     sharedChapterItems(
                         manga = state.manga,
                         chapters = listItem,
@@ -724,6 +741,20 @@ fun MangaScreenLargeImpl(
                                     onClick = onFilterButtonClicked,
                                     isManga = true,
                                 )
+                            }
+
+                            item(
+                                key = EntryScreenItem.TRANSLATION_SUMMARY,
+                                contentType = EntryScreenItem.TRANSLATION_SUMMARY,
+                            ) {
+                                state.translationSummary?.let { summary ->
+                                    val expanded = rememberSaveable { mutableStateOf(false) }
+                                    MangaTranslationSummaryCard(
+                                        summary = summary,
+                                        expanded = expanded.value,
+                                        onToggleExpanded = { expanded.value = !expanded.value },
+                                    )
+                                }
                             }
 
                             sharedChapterItems(
