@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Claude, OpenAI, and Google Gemini translation now offer a model picker like the OpenRouter one. The app no longer falls back to a built-in default model, so each provider needs one selected model before use.
 - The left-to-right and right-to-left reading modes now play a page curl animation when the page transition style is set to Curl. The reader falls back to the slide animation at chapter boundaries, on zoomed pages, and during rapid page turns.
 - Reader settings now offer a page transition style picker with None, Slide, and Page curl. The picker replaces the "Animate page transitions" switch.
+- Chapter translation now shows a progress notification while the app is in the background. A finished job posts a completion notice, and a failed job posts the failure message.
 
 ### Improved
 - The page curl now rolls the page around a cylinder instead of sliding and lifting it. The roll keeps the flat part of the page still until the fold line reaches it.
