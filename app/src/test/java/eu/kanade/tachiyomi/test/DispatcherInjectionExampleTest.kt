@@ -37,6 +37,7 @@ class DispatcherInjectionExampleTest {
     fun tearDown() {
         vt.tearDownMain()
     }
+
     /**
      * A minimal fake screen model. It owns its lifecycle scope, takes a [CoroutineDispatcher]
      * constructor parameter with the production default, and launches exactly once on it.
