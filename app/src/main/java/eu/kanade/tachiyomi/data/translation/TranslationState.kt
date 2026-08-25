@@ -5,7 +5,11 @@ package eu.kanade.tachiyomi.data.translation
  */
 sealed class TranslationState {
     data object Idle : TranslationState()
-    data class Translating(val currentPage: Int, val totalPages: Int) : TranslationState()
+    data class Translating(
+        val currentPage: Int,
+        val totalPages: Int,
+        val retryingPage: Int? = null,
+    ) : TranslationState()
     data object Translated : TranslationState()
     data class Error(val message: String) : TranslationState()
 }

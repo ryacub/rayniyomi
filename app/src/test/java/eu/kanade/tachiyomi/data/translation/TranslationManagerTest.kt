@@ -13,6 +13,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.drop
@@ -265,6 +266,168 @@ class TranslationManagerTest {
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
         assertEquals("HTTP error 503", (state as TranslationState.Error).message)
         coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
+    }
+
+    // -----------------------------------------------------------------------
+    // Retry feedback state
+    // -----------------------------------------------------------------------
+
+    /** Collects every state for a single-chapter fixture. `values.firstOrNull()` needs exactly one chapter. */
+    private fun TestScope.collectChapterStates(): Pair<MutableList<TranslationState>, Job> {
+        val emissions = mutableListOf<TranslationState>()
+        val observer = launch(UnconfinedTestDispatcher(testScheduler)) {
+            manager.translationStates.collect {
+                emissions += it.values.firstOrNull() ?: TranslationState.Idle
+            }
+        }
+        return emissions to observer
+    }
+
+    @Test
+    fun `translateChapter emits a retrying state while a transient failure retries`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        var attempts = 0
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } answers {
+            if (attempts++ == 0) throw HttpException(503)
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        val (emissions, observer) = collectChapterStates()
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+        observer.cancel()
+
+        // Exact equality is deliberate: the flag must carry the retrying page index.
+        assertTrue(
+            emissions.any { it == TranslationState.Translating(0, 1, retryingPage = 0) },
+            "Expected a retrying emission but got $emissions",
+        )
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+    }
+
+    @Test
+    fun `translateChapter clears the retrying state when the retried page succeeds`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        var attempts = 0
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } answers {
+            if (attempts++ == 0) throw HttpException(503)
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        val (emissions, observer) = collectChapterStates()
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+        observer.cancel()
+
+        val lastRetryingIndex = emissions.indexOfLast {
+            it is TranslationState.Translating && it.retryingPage != null
+        }
+        assertTrue(lastRetryingIndex >= 0, "Expected a retrying emission but got $emissions")
+        val clearedAfterRetry = emissions.drop(lastRetryingIndex + 1).none {
+            it is TranslationState.Translating && it.retryingPage != null
+        }
+        assertTrue(clearedAfterRetry, "Retrying flag survived page success: $emissions")
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+    }
+
+    @Test
+    fun `translateChapter ends in ERROR after showing retrying when retries are exhausted`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } throws HttpException(503)
+
+        val (emissions, observer) = collectChapterStates()
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+        observer.cancel()
+
+        assertTrue(
+            emissions.any { it is TranslationState.Translating && it.retryingPage != null },
+            "Expected a retrying emission but got $emissions",
+        )
+        assertEquals(TranslationState.Error("HTTP error 503"), manager.getState(chapter.id))
+        coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
+    }
+
+    @Test
+    fun `translateChapter shows no retrying state when the first attempt succeeds`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        val (emissions, observer) = collectChapterStates()
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+        observer.cancel()
+
+        assertEquals(
+            emptyList<TranslationState>(),
+            emissions.filter { it is TranslationState.Translating && it.retryingPage != null },
+        )
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+    }
+
+    @Test
+    fun `repeated identical retries emit the retrying state only once`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        var attempts = 0
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } answers {
+            if (attempts++ < 2) throw HttpException(503)
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        val (emissions, observer) = collectChapterStates()
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+        observer.cancel()
+
+        // MutableStateFlow dedupes equal values, so identical retries must not re-emit.
+        assertEquals(1, emissions.count { it == TranslationState.Translating(0, 1, retryingPage = 0) })
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+    }
+
+    @Test
+    fun `cancelling during a retry backoff resets the state to Idle`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } throws HttpException(503)
+
+        manager.translateChapter(manga, chapter, source)
+
+        // The eager dispatcher ran the first attempt and its onRetry before suspending in the backoff.
+        val stateBeforeCancel = manager.getState(chapter.id)
+        assertTrue(
+            stateBeforeCancel == TranslationState.Translating(0, 1, retryingPage = 0),
+            "Expected the retrying state before cancel but got $stateBeforeCancel",
+        )
+
+        manager.cancelTranslation(chapter.id)
+        advanceUntilIdle()
+
+        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
     }
 
     // -----------------------------------------------------------------------

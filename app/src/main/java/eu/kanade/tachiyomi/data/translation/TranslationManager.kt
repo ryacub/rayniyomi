@@ -137,8 +137,18 @@ class TranslationManager(
                                 it.readBytes()
                             } ?: continue
 
-                            // Call LLM to detect and translate text
-                            val result = withTransientRetry("chapter \"${chapter.name}\" page ${index + 1}") {
+                            // The retrying flag clears at the progress update after this call. An
+                            // extra emission in between is not needed: render and write are fast
+                            // local operations.
+                            val result = withTransientRetry(
+                                label = "chapter \"${chapter.name}\" page ${index + 1}",
+                                onRetry = {
+                                    updateState(
+                                        chapterId,
+                                        TranslationState.Translating(index, pages.size, retryingPage = index),
+                                    )
+                                },
+                            ) {
                                 engine.detectAndTranslate(imageBytes, targetLang)
                             }
 
@@ -274,10 +284,15 @@ class TranslationManager(
     /**
      * Retries the block on transient HTTP failures with exponential backoff.
      * [label] names the work in the retry log, for example chapter and page.
+     * [onRetry] runs after each failed attempt, before its backoff delay.
      * Rethrows cancellation, permanent failures, and the last error after
      * [MAX_RETRIES] retries.
      */
-    private suspend fun <T> withTransientRetry(label: String, block: suspend () -> T): T {
+    private suspend fun <T> withTransientRetry(
+        label: String,
+        onRetry: () -> Unit = {},
+        block: suspend () -> T,
+    ): T {
         // MAX_RETRIES counts retries after the first attempt; total calls = MAX_RETRIES + 1.
         for (attempt in 0..MAX_RETRIES) {
             try {
@@ -289,6 +304,7 @@ class TranslationManager(
                 logcat(LogPriority.WARN) {
                     "Transient translation failure for $label (attempt ${attempt + 1}), retrying"
                 }
+                onRetry()
                 delay(RETRY_DELAY_BASE_MS shl attempt)
             }
         }

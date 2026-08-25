@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.translation
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -38,5 +39,19 @@ class TranslationStateTest {
     fun `different states are not equal`() {
         assertFalse(TranslationState.Idle == TranslationState.Translated)
         assertFalse(TranslationState.Translating(1, 5) == TranslationState.Translating(2, 5))
+    }
+
+    @Test
+    fun `Translating state can mark a retrying page`() {
+        val state = TranslationState.Translating(0, 10, retryingPage = 0)
+        assertEquals(0, state.retryingPage)
+        assertNull(TranslationState.Translating(3, 10).retryingPage)
+    }
+
+    @Test
+    fun `Translating states differing only in retryingPage are not equal`() {
+        assertFalse(
+            TranslationState.Translating(0, 10) == TranslationState.Translating(0, 10, retryingPage = 0),
+        )
     }
 }
