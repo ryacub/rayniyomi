@@ -2,6 +2,7 @@ package eu.kanade.presentation.entries.manga.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
@@ -25,9 +26,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.components.DropdownMenu
-import eu.kanade.presentation.components.IndicatorModifier
 import eu.kanade.presentation.components.IndicatorSize
 import eu.kanade.presentation.components.IndicatorStrokeWidth
 import eu.kanade.presentation.components.commonClickable
@@ -131,6 +132,9 @@ private fun ErrorIndicator(
     }
 }
 
+private val TranslatingIndicatorSize = 34.dp
+private val TranslatingIndicatorPadding = 2.dp
+
 @Composable
 private fun TranslatingIndicator(
     enabled: Boolean,
@@ -163,8 +167,7 @@ private fun TranslatingIndicator(
             label = "translation_progress",
         )
         CircularProgressIndicator(
-            progress = { animatedProgress },
-            modifier = IndicatorModifier,
+            modifier = Modifier.size(TranslatingIndicatorSize).padding(TranslatingIndicatorPadding),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             strokeWidth = IndicatorStrokeWidth,
             trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
