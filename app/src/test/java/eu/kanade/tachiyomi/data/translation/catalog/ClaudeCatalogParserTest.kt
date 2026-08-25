@@ -40,6 +40,52 @@ class ClaudeCatalogParserTest {
     }
 
     @Test
+    fun `uses api image input capability when present`() {
+        val body = """
+            {"data":[{
+              "id":"claude-sonnet-4-5",
+              "type":"model",
+              "display_name":"Claude Sonnet 4.5",
+              "capabilities":{"image_input":{"supported":true}}
+            }]}
+        """.trimIndent()
+
+        val model = ClaudeCatalogParser.parse(body, 1_000).models.single()
+
+        model.capabilities.imageInput shouldBe true
+    }
+
+    @Test
+    fun `drops image input when the api reports it unsupported`() {
+        val body = """
+            {"data":[{
+              "id":"claude-3-haiku",
+              "type":"model",
+              "capabilities":{"image_input":{"supported":false}}
+            }]}
+        """.trimIndent()
+
+        val model = ClaudeCatalogParser.parse(body, 1_000).models.single()
+
+        model.capabilities.imageInput shouldBe false
+    }
+
+    @Test
+    fun `falls back to image input true when capability data is missing`() {
+        val body = """
+            {"data":[
+              {"id":"claude-opus-4-1","type":"model"},
+              {"id":"claude-sonnet-4-5","type":"model","capabilities":{}},
+              {"id":"claude-haiku-4-5","type":"model","capabilities":{"image_input":{}}}
+            ]}
+        """.trimIndent()
+
+        val models = ClaudeCatalogParser.parse(body, 1_000).models
+
+        models.map { it.capabilities.imageInput } shouldBe listOf(true, true, true)
+    }
+
+    @Test
     fun `falls back to id when display name is absent`() {
         val body = """{"data":[{"id":"claude-opus-4-1","type":"model"}]}"""
 

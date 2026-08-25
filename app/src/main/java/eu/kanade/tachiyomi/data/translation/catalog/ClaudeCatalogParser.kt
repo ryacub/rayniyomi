@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.translation.catalog
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -11,9 +12,11 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Parses Claude model list responses from GET /v1/models.
  *
- * Vision capability comes from a documented policy, not API truth: every model in the
- * list accepts image input and produces text output. The policy is re-verified against
- * live provider documentation at ticket close.
+ * Vision capability comes from the API when present: `capabilities.image_input.supported`
+ * sets [TranslationModelCapabilities.imageInput]. When the entry has no capabilities
+ * object, no `image_input` key, or no `supported` boolean, image input falls back to
+ * true by documented policy; text output is always true by the same policy. The policy
+ * is re-verified against live provider documentation at ticket close.
  */
 object ClaudeCatalogParser {
 
@@ -64,7 +67,7 @@ object ClaudeCatalogParser {
             id = id,
             displayName = modelObject.string("display_name") ?: id,
             capabilities = TranslationModelCapabilities(
-                imageInput = true,
+                imageInput = modelObject.imageInputSupported(),
                 textOutput = true,
                 multilingualOcrAndTranslation = false,
                 spatialBounds = false,
@@ -82,4 +85,11 @@ object ClaudeCatalogParser {
 
     private fun JsonObject.string(name: String) =
         this[name]?.jsonPrimitive?.contentOrNull
+
+    private fun JsonObject.imageInputSupported(): Boolean =
+        runCatching {
+            val capabilities = this["capabilities"]?.jsonObject ?: return true
+            val imageInput = capabilities["image_input"]?.jsonObject ?: return true
+            imageInput["supported"]?.jsonPrimitive?.booleanOrNull ?: return true
+        }.getOrDefault(true)
 }
