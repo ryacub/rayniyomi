@@ -688,12 +688,8 @@ class TranslationManagerTest {
     fun `the chapter title survives after the state reaches Translated`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        val uri = mockk<Uri>()
-        val page = Page(0, uri = uri).apply { status = Page.State.READY }
-
         every { translationEngineFactory.create() } returns engine
-        every { downloadManager.buildPageList(source, manga, chapter) } returns listOf(page)
-        mockContentResolver(uri, imageBytes)
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
         every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
             mockk()
