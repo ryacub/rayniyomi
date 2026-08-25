@@ -192,7 +192,7 @@ jobs:
           cache-read-only: false
 
       - name: Run unit tests
-        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest --build-cache
+        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest --build-cache
 
   baseline-profile:
     name: Verify baseline profile task and artifact
