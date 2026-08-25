@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
@@ -359,6 +360,19 @@ class AnimeDownloader(
             stop()
         }
     }
+
+    /**
+     * Base backoff for video download retries. Tests set this to zero to avoid real delays.
+     */
+    @VisibleForTesting
+    internal var retryBackoffMillis: Long = 2_000L
+
+    /**
+     * Exposes [launchDownloadJob] to tests. Call this from a test coroutine scope.
+     */
+    @VisibleForTesting
+    internal fun launchDownloadJobForTest(scope: CoroutineScope, download: AnimeDownload): Job =
+        with(scope) { launchDownloadJob(download) }
 
     /**
      * Destroys the downloader subscriptions.
