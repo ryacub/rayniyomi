@@ -93,14 +93,9 @@ class ReaderTranslationCoordinator(
         onShowTranslatedPagesChange(newValue)
         toggleJob?.cancel()
         toggleJob = scope.launchIO {
-            val currChapter = getCurrChapter() ?: return@launchIO
-            val viewerChapters = getViewerChapters()
+            val viewerChapters = getViewerChapters() ?: return@launchIO
             val installed = try {
-                reloadViewerChaptersForTranslationToggle(
-                    currChapter = currChapter,
-                    prevChapter = viewerChapters?.prevChapter,
-                    nextChapter = viewerChapters?.nextChapter,
-                )
+                reloadViewerChaptersForTranslationToggle(viewerChapters)
             } catch (e: CancellationException) {
                 throw e
             }

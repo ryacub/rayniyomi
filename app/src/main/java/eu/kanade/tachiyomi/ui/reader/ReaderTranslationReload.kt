@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
+import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -58,10 +59,11 @@ internal suspend fun reloadChapterPagesForTranslationToggle(chapter: ReaderChapt
 }
 
 /**
- * Rebuilds the page lists of the visible chapters after the translated-pages toggle flipped.
+ * Rebuilds the page lists of the visible chapters of [chapters] after the translated-pages
+ * toggle flipped.
  *
- * The function rebuilds [currChapter] first. If that rebuild fails, the function returns false
- * and leaves the adjacent chapters alone, because the caller reverts the toggle.
+ * The function rebuilds [ViewerChapters.currChapter] first. If that rebuild fails, the function
+ * returns false and leaves the adjacent chapters alone, because the caller reverts the toggle.
  *
  * If the current rebuild succeeds, the function rebuilds each adjacent chapter that is in
  * [ReaderChapter.State.Loaded]. ChapterLoader rebuilds a Wait or an Error chapter on
@@ -74,13 +76,9 @@ internal suspend fun reloadChapterPagesForTranslationToggle(chapter: ReaderChapt
  * @return true when the current chapter got a fresh page list and the caller must send
  *   Event.ReloadViewerChapters.
  */
-internal suspend fun reloadViewerChaptersForTranslationToggle(
-    currChapter: ReaderChapter,
-    prevChapter: ReaderChapter?,
-    nextChapter: ReaderChapter?,
-): Boolean {
-    if (!reloadChapterPagesForTranslationToggle(currChapter)) return false
-    listOfNotNull(prevChapter, nextChapter)
+internal suspend fun reloadViewerChaptersForTranslationToggle(chapters: ViewerChapters): Boolean {
+    if (!reloadChapterPagesForTranslationToggle(chapters.currChapter)) return false
+    listOfNotNull(chapters.prevChapter, chapters.nextChapter)
         .filter { it.state is ReaderChapter.State.Loaded }
         .forEach { reloadChapterPagesForTranslationToggle(it) }
     return true
