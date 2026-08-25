@@ -12,8 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.entries.manga.model.Manga
@@ -65,8 +63,7 @@ class ReaderTranslationCoordinator(
         }
         scope.launchIO {
             translationStateFlow(translationManager.translationStates, chapterIdFlow)
-                .onEach(onTranslationStateChange)
-                .launchIn(this)
+                .collect(onTranslationStateChange)
         }
     }
 
