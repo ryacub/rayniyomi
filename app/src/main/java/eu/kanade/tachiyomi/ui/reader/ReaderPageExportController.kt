@@ -6,7 +6,6 @@ import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
 import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.Event
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.editCover
@@ -35,7 +34,7 @@ class ReaderPageExportController(
     private val scope: CoroutineScope,
     private val currentManga: () -> Manga?,
     private val getPage: () -> ReaderPage?,
-    private val onEvent: suspend (Event) -> Unit,
+    private val onEvent: suspend (ReaderEvent) -> Unit,
 ) {
 
     /**
@@ -98,11 +97,11 @@ class ReaderPageExportController(
                 )
                 withUIContext {
                     notifier.onComplete(uri)
-                    onEvent(Event.SavedImage(SaveImageResult.Success(uri)))
+                    onEvent(ReaderEvent.SavedImage(SaveImageResult.Success(uri)))
                 }
             } catch (e: Throwable) {
                 notifier.onError(e.message)
-                onEvent(Event.SavedImage(SaveImageResult.Error(e)))
+                onEvent(ReaderEvent.SavedImage(SaveImageResult.Error(e)))
             }
         }
     }
@@ -134,9 +133,9 @@ class ReaderPageExportController(
                 )
                 onEvent(
                     if (copyToClipboard) {
-                        Event.CopyImage(uri)
+                        ReaderEvent.CopyImage(uri)
                     } else {
-                        Event.ShareImage(uri, page)
+                        ReaderEvent.ShareImage(uri, page)
                     },
                 )
             }
@@ -163,18 +162,7 @@ class ReaderPageExportController(
             } catch (e: Exception) {
                 SetAsCoverResult.Error
             }
-            onEvent(Event.SetCoverResult(result))
+            onEvent(ReaderEvent.SetCoverResult(result))
         }
     }
-}
-
-enum class SetAsCoverResult {
-    Success,
-    AddToLibraryFirst,
-    Error,
-}
-
-sealed interface SaveImageResult {
-    class Success(val uri: Uri) : SaveImageResult
-    class Error(val error: Throwable) : SaveImageResult
 }

@@ -264,25 +264,25 @@ class ReaderActivity : BaseActivity() {
         viewModel.eventFlow
             .onEach { event ->
                 when (event) {
-                    ReaderViewModel.Event.ReloadViewerChapters -> {
+                    ReaderEvent.ReloadViewerChapters -> {
                         viewModel.state.value.viewerChapters?.let(::setChapters)
                     }
-                    ReaderViewModel.Event.PageChanged -> {
+                    ReaderEvent.PageChanged -> {
                         displayRefreshHost.flash()
                     }
-                    is ReaderViewModel.Event.SetOrientation -> {
+                    is ReaderEvent.SetOrientation -> {
                         setOrientation(event.orientation)
                     }
-                    is ReaderViewModel.Event.SavedImage -> {
+                    is ReaderEvent.SavedImage -> {
                         onSaveImageResult(event.result)
                     }
-                    is ReaderViewModel.Event.ShareImage -> {
+                    is ReaderEvent.ShareImage -> {
                         onShareImageResult(event.uri, event.page)
                     }
-                    is ReaderViewModel.Event.CopyImage -> {
+                    is ReaderEvent.CopyImage -> {
                         onCopyImageResult(event.uri)
                     }
-                    is ReaderViewModel.Event.SetCoverResult -> {
+                    is ReaderEvent.SetCoverResult -> {
                         onSetAsCoverResult(event.result)
                     }
                 }

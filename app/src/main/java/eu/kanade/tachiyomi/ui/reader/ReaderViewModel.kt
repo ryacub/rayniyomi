@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader
 
 import android.app.Application
-import android.net.Uri
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
@@ -104,7 +103,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private val mutableState = MutableStateFlow(State())
     val state = mutableState.asStateFlow()
 
-    private val eventChannel = Channel<Event>()
+    private val eventChannel = Channel<ReaderEvent>()
     val eventFlow = eventChannel.receiveAsFlow()
 
     /**
@@ -201,7 +200,7 @@ class ReaderViewModel @JvmOverloads constructor(
         onShowTranslatedPagesChange = { showTranslatedPages ->
             mutableState.update { it.copy(showTranslatedPages = showTranslatedPages) }
         },
-        onReload = { eventChannel.send(Event.ReloadViewerChapters) },
+        onReload = { eventChannel.send(ReaderEvent.ReloadViewerChapters) },
     )
 
     init {
@@ -443,7 +442,7 @@ class ReaderViewModel @JvmOverloads constructor(
             }
             return
         }
-        eventChannel.trySend(Event.ReloadViewerChapters)
+        eventChannel.trySend(ReaderEvent.ReloadViewerChapters)
     }
 
     fun onViewerLoaded(viewer: Viewer?) {
@@ -481,7 +480,7 @@ class ReaderViewModel @JvmOverloads constructor(
             downloadNextChapters()
         }
 
-        eventChannel.trySend(Event.PageChanged)
+        eventChannel.trySend(ReaderEvent.PageChanged)
     }
 
     private fun downloadNextChapters() {
@@ -709,7 +708,7 @@ class ReaderViewModel @JvmOverloads constructor(
                         viewerChapters = currChapters,
                     )
                 }
-                eventChannel.send(Event.ReloadViewerChapters)
+                eventChannel.send(ReaderEvent.ReloadViewerChapters)
             }
         }
     }
@@ -745,8 +744,8 @@ class ReaderViewModel @JvmOverloads constructor(
                         viewerChapters = currChapters,
                     )
                 }
-                eventChannel.send(Event.SetOrientation(getMangaOrientation()))
-                eventChannel.send(Event.ReloadViewerChapters)
+                eventChannel.send(ReaderEvent.SetOrientation(getMangaOrientation()))
+                eventChannel.send(ReaderEvent.ReloadViewerChapters)
             }
         }
     }
@@ -879,16 +878,5 @@ class ReaderViewModel @JvmOverloads constructor(
         data object ReadingModeSelect : Dialog
         data object OrientationModeSelect : Dialog
         data class PageActions(val page: ReaderPage) : Dialog
-    }
-
-    sealed interface Event {
-        data object ReloadViewerChapters : Event
-        data object PageChanged : Event
-        data class SetOrientation(val orientation: Int) : Event
-        data class SetCoverResult(val result: SetAsCoverResult) : Event
-
-        data class SavedImage(val result: SaveImageResult) : Event
-        data class ShareImage(val uri: Uri, val page: ReaderPage) : Event
-        data class CopyImage(val uri: Uri) : Event
     }
 }
