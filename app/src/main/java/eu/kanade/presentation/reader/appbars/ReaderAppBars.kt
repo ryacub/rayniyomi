@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.reader.components.ChapterNavigator
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.ui.reader.DpHingeInsets
 import eu.kanade.tachiyomi.ui.reader.TabletopControlsConstraints
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
@@ -72,6 +73,7 @@ fun ReaderAppBars(
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
     hasTranslation: Boolean,
+    translationState: TranslationState,
     translationEnabled: Boolean,
     onClickTranslation: () -> Unit,
     showWebtoonAutoScrollControls: Boolean,
@@ -226,6 +228,7 @@ fun ReaderAppBars(
                     cropEnabled = cropEnabled,
                     onClickCropBorder = onClickCropBorder,
                     hasTranslation = hasTranslation,
+                    translationState = translationState,
                     translationEnabled = translationEnabled,
                     onClickTranslation = onClickTranslation,
                     showWebtoonAutoScrollControls = showWebtoonAutoScrollControls,
