@@ -61,36 +61,37 @@ internal class DownloadPageLoader(
         return loader.getPages()
     }
 
-    private fun getPagesFromDirectory(): List<ReaderPage> {
-        val pages = downloadManager.buildPageList(
+    private suspend fun getPagesFromDirectory(): List<ReaderPage> {
+        return downloadManager.buildPageList(
             source,
             manga,
             chapter.chapter.toDomainChapter()!!,
-        )
-        val showTranslated = readerPreferences.showTranslatedPages().get()
-        val targetLang = translationPreferences.targetLanguage().get()
-        val dbChapter = chapter.chapter
+        ) { pages ->
+            val showTranslated = readerPreferences.showTranslatedPages().get()
+            val targetLang = translationPreferences.targetLanguage().get()
+            val dbChapter = chapter.chapter
 
-        return pages.map { page ->
-            val translatedFile = if (showTranslated) {
-                translationStorageManager.getTranslatedPageFile(
-                    dbChapter.name,
-                    dbChapter.scanlator,
-                    manga.title,
-                    source,
-                    targetLang,
-                    page.index,
-                )
-            } else {
-                null
-            }
+            pages.map { page ->
+                val translatedFile = if (showTranslated) {
+                    translationStorageManager.getTranslatedPageFile(
+                        dbChapter.name,
+                        dbChapter.scanlator,
+                        manga.title,
+                        source,
+                        targetLang,
+                        page.index,
+                    )
+                } else {
+                    null
+                }
 
-            val uri = translatedFile?.uri ?: page.uri
-            ReaderPage(page.index, page.url, page.imageUrl) {
-                uri?.let { context.contentResolver.openInputStream(it) }
-                    ?: throw IllegalStateException("No URI for page ${page.index}")
-            }.apply {
-                status = Page.State.READY
+                ReaderPage(page.index) {
+                    translatedFile?.let { context.contentResolver.openInputStream(it.uri) }
+                        ?: page.openStream()
+                        ?: throw IllegalStateException("No content for page ${page.index}")
+                }.apply {
+                    status = Page.State.READY
+                }
             }
         }
     }

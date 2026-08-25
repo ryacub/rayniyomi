@@ -3,13 +3,15 @@ package eu.kanade.tachiyomi.data.download.manga
 import android.content.Context
 import android.os.PowerManager
 import androidx.annotation.VisibleForTesting
+import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationChecker
 import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationPromptRequest
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
+import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
 import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
+import mihon.core.archive.archiveReader
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.system.ImageUtil
@@ -66,8 +69,9 @@ class MangaDownloadManager(
     ),
     private val downloaderForTesting: MangaDownloader? = null,
     private val scopeForTesting: CoroutineScope? = null,
+    private val chapterArchiveOpener: (UniFile) -> ChapterArchive =
+        { file -> ChapterArchiveReaderAdapter(file.archiveReader(context)) },
 ) {
-
     private val downloader: MangaDownloader by lazy {
         downloaderForTesting ?: MangaDownloader(context, provider, cache)
     }
@@ -247,30 +251,57 @@ class MangaDownloadManager(
     }
 
     /**
-     * Builds the page list of a downloaded chapter.
+     * Builds the page list of a downloaded chapter and hands it to [consumer].
+     *
+     * For an archived chapter the archive stays open only for the duration of
+     * the [consumer] call, and page streams are valid only inside it.
      *
      * @param source the source of the chapter.
      * @param manga the manga of the chapter.
      * @param chapter the downloaded chapter.
-     * @return the list of pages from the chapter.
+     * @param consumer receives the pages while they are readable.
+     * @return the value returned by [consumer].
      */
-    fun buildPageList(source: MangaSource, manga: Manga, chapter: Chapter): List<Page> {
+    suspend fun <T> buildPageList(
+        source: MangaSource,
+        manga: Manga,
+        chapter: Chapter,
+        consumer: suspend (List<DownloadedChapterPage>) -> T,
+    ): T {
         val chapterDir = provider.findChapterDir(
             chapter.name,
             chapter.scanlator,
             manga.title,
             source,
         )
+
+        if (chapterDir?.isFile == true) {
+            return chapterArchiveOpener(chapterDir).use { archive ->
+                val pages = archive.useEntries { entries ->
+                    entries
+                        .filter { entry ->
+                            entry.isFile &&
+                                ImageUtil.isImage(entry.name) { archive.getInputStream(entry.name)!! }
+                        }
+                        .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
+                        .mapIndexed { i, entry -> DownloadedChapterPage(i) { archive.getInputStream(entry.name) } }
+                        .toList()
+                }
+                consumer(pages)
+            }
+        }
+
         val files = chapterDir?.listFiles().orEmpty()
             .filter { it.isFile && ImageUtil.isImage(it.name) { it.openInputStream() } }
 
         if (files.isEmpty()) {
             throw Exception(context.stringResource(MR.strings.page_list_empty_error))
         }
-        return files.sortedBy { it.name }
-            .mapIndexed { i, file ->
-                Page(i, uri = file.uri).apply { status = Page.State.READY }
-            }
+        return consumer(
+            files.sortedBy { it.name }.mapIndexed { i, file ->
+                DownloadedChapterPage(i) { context.contentResolver.openInputStream(file.uri) }
+            },
+        )
     }
 
     /**
