@@ -27,6 +27,21 @@ enum class CurlDirection {
     /** Mirrors [x] about the page center when this direction is [FROM_LEFT]. */
     fun mirrorX(x: Float, pageWidth: Float): Float =
         if (this == FROM_RIGHT) x else pageWidth - x
+
+    /**
+     * Mirrors [span] about the page center when this direction is
+     * [FROM_LEFT]. The mirror swaps the two endpoints. The result is
+     * sorted, so `start` is never greater than `endInclusive`.
+     */
+    fun mirrorSpan(
+        span: ClosedFloatingPointRange<Float>,
+        pageWidth: Float,
+    ): ClosedFloatingPointRange<Float> =
+        if (this == FROM_RIGHT) {
+            span
+        } else {
+            mirrorX(span.endInclusive, pageWidth)..mirrorX(span.start, pageWidth)
+        }
 }
 
 internal object PageCurlRollMath {
@@ -133,9 +148,9 @@ internal object PageCurlRollMath {
         (CAST_SHADOW_MAX_ALPHA * (1f - progress)).roundToInt().coerceIn(0, CAST_SHADOW_MAX_ALPHA)
 
     /**
-     * Screen-space span of the folded-back strip at [progress], in the
-     * canonical right-curl frame, or null while no sheet point has rolled
-     * past vertical. [progress] must lie in [0, 1].
+     * Canonical right-curl span of the folded-back strip at [progress], or
+     * null while no sheet point has rolled past vertical. [progress] must
+     * lie in [0, 1].
      *
      * Sheet points beyond a quarter turn face away from the viewer and
      * project, orthographically, onto `[tangent - r, tangent]`. The back of
@@ -146,6 +161,23 @@ internal object PageCurlRollMath {
         val r = radius(progress) * pageWidth
         if (tangent + (MAX_ROLL_ANGLE / 2f) * r >= pageWidth) return null
         return (tangent - r)..tangent
+    }
+
+    /**
+     * Screen-space span of the folded-back strip at [progress] for
+     * [direction], or null while no sheet point has rolled past vertical.
+     *
+     * The two-argument form returns the canonical right-curl span. This
+     * form mirrors it for a left curl and sorts the endpoints. Every
+     * caller that draws on screen must use this form.
+     */
+    fun foldBackSpan(
+        pageWidth: Float,
+        progress: Float,
+        direction: CurlDirection,
+    ): ClosedFloatingPointRange<Float>? {
+        val canonical = foldBackSpan(pageWidth, progress) ?: return null
+        return direction.mirrorSpan(canonical, pageWidth)
     }
 
     /**
