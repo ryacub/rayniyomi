@@ -27,6 +27,12 @@ internal class PageCurlCoordinatorFixture(
     private val postedCallbacks = ArrayDeque<Runnable>()
     var nowMs = 1_000L
     var currentItemIndex = initialItemIndex
+
+    /**
+     * Emulates the overlay contract: an abort invalidates the play token,
+     * so a recorded end callback runs only while its play is current.
+     */
+    val playGate = CurlPlayGate()
     val gestureGate = GestureInputGate()
     /** Count of not-yet-run posted callbacks. */
     val pendingPostedCount: Int
@@ -80,8 +86,11 @@ internal class PageCurlCoordinatorFixture(
                 onEnd = any(),
             )
         } answers {
-            endCallbacks += arg<() -> Unit>(4)
+            val token = playGate.begin()
+            val onEnd = arg<() -> Unit>(4)
+            endCallbacks += { if (playGate.isCurrent(token)) onEnd() }
         }
+        every { overlay.abortAndHide() } answers { playGate.invalidate() }
     }
 
     fun startCurl() {

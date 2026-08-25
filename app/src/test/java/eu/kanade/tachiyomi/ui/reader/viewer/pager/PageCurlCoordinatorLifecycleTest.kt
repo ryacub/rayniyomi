@@ -161,17 +161,13 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
-    fun `release during cancellation does not post a callback after teardown`() {
+    fun `release during cancellation does not fire the animation end`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.page()
         val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
-        every { fixture.overlay.abortAndHide() } answers {
-            fixture.endCallbacks.single().invoke()
-        }
-
         fixture.coordinator.release()
 
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
@@ -334,27 +330,24 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
-    fun `teardown bumps the generation before the overlay aborts`() {
+    fun `an aborted curl suppresses the synchronous animation end`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.page()
         val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
-        // Reenter through the animation-end callback while the abort runs.
-        // The bump must land first so this callback takes the stale branch.
-        every { fixture.overlay.abortAndHide() } answers {
-            fixture.endCallbacks.single().invoke()
-        }
-
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
 
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
+
+        // The abort invalidated the play token before any end callback
+        // could run, so teardown posts nothing and closes both pages.
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 0
         verify(exactly = 1) { fromBitmap.bitmap.recycle() }
         verify(exactly = 1) { toBitmap.bitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.post(any()) } // target poll only
-        fixture.delayedCallbacks.size shouldBe 0 // stays 0 under both orders
-        fixture.inputEnabled shouldBe true // finish completed
+        fixture.inputEnabled shouldBe true
     }
 
     @Test

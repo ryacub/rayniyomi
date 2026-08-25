@@ -176,6 +176,29 @@ class PageCurlOverlayViewTest {
         verify(exactly = 0) { canvas.drawRect(any(), any(), any(), any(), any()) }
     }
 
+    // R948: the overlay owns transition terminality through play tokens.
+    @Test
+    fun `a fresh play token is current until invalidated`() {
+        val gate = CurlPlayGate()
+
+        val token = gate.begin()
+
+        gate.isCurrent(token) shouldBe true
+        gate.invalidate()
+        gate.isCurrent(token) shouldBe false
+    }
+
+    @Test
+    fun `a newer play token supersedes an older one`() {
+        val gate = CurlPlayGate()
+
+        val first = gate.begin()
+        val second = gate.begin()
+
+        gate.isCurrent(first) shouldBe false
+        gate.isCurrent(second) shouldBe true
+    }
+
     companion object {
         private const val UNSHADED = 0xFFFFFFFF.toInt()
     }

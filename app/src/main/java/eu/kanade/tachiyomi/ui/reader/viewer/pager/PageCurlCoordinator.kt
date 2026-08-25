@@ -59,7 +59,6 @@ internal class PageCurlCoordinator(
      * there, so the fields need no synchronization.
      */
     private class CurlState {
-        var generationId = 0L
         var targetPosition: Int? = null
 
         /** One tracked callback per role. Main-thread only. */
@@ -78,10 +77,6 @@ internal class PageCurlCoordinator(
             return runnable
         }
 
-        /** True while [runnable] is still the tracked callback for [role]. */
-        fun isCurrent(role: TrackedRole, runnable: Runnable): Boolean =
-            slots[role.ordinal] === runnable
-
         /**
          * Releases [role]'s slot once its runnable has fired. A fired
          * callback no longer counts as a tracked resource.
@@ -89,6 +84,10 @@ internal class PageCurlCoordinator(
         fun fire(role: TrackedRole) {
             slots[role.ordinal] = null
         }
+
+        /** True while [runnable] is still the tracked callback for [role]. */
+        fun isCurrent(role: TrackedRole, runnable: Runnable): Boolean =
+            slots[role.ordinal] === runnable
 
         /**
          * True when no tracked resource remains. The teardown guard uses only
@@ -109,9 +108,8 @@ internal class PageCurlCoordinator(
 
         /**
          * Tears down tracked callbacks and position, closes every tracked
-         * page, and aborts the overlay. Runs [abortOverlay] after bumping
-         * the generation and after closing, so a reentrant animation-end
-         * callback observes a stale generation and recycled bitmaps.
+         * page, and aborts the overlay. Runs [abortOverlay] after closing,
+         * so a reentrant animation-end callback observes recycled bitmaps.
          *
          * Callers must check [isEmpty] first; this member assumes work exists.
          */
@@ -119,7 +117,6 @@ internal class PageCurlCoordinator(
             pager: Pager,
             abortOverlay: () -> Unit,
         ) {
-            generationId++
             clearRunnables(pager)
             targetPosition = null
             pendingFromPage?.close()
@@ -258,7 +255,6 @@ internal class PageCurlCoordinator(
             return
         }
 
-        val animationGenerationId = ++curlState.generationId
         curlState.activeToPage = toPage
         overlay.playCurl(
             from = fromPage.bitmap,
@@ -266,12 +262,10 @@ internal class PageCurlCoordinator(
             direction = direction,
             durationMs = CURL_DURATION_MS,
             onEnd = {
-                if (animationGenerationId == curlState.generationId) {
-                    waitForLayout(fromPage, toPage)
-                } else {
-                    fromPage.close()
-                    toPage.close()
-                }
+                // The overlay owns terminality: onEnd runs only while this
+                // play is current. Aborted plays report no end, and their
+                // pages close through finish().
+                waitForLayout(fromPage, toPage)
             },
         )
     }

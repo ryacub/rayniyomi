@@ -31,6 +31,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
     private var toBitmap: Bitmap? = null
     private var direction = CurlDirection.FROM_RIGHT
     private var progress = 0f
+    private val playGate = CurlPlayGate()
 
     private val verts = FloatArray(PageCurlRollMath.vertCount())
     private val meshColors = PageCurlRollMath.newColors()
@@ -44,8 +45,8 @@ class PageCurlOverlayView(context: Context) : View(context) {
     /**
      * Plays the curl transition from [from] to [to].
      *
-     * The animator invokes [onEnd] exactly once when it finishes or when it is
-     * cancelled.
+     * The animator invokes [onEnd] exactly once when it finishes. An abort
+     * or a newer play supersedes this play, and [onEnd] never runs.
      */
     fun playCurl(
         from: Bitmap,
@@ -54,7 +55,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
         durationMs: Long,
         onEnd: () -> Unit,
     ) {
-        cancelCurl()
+        val token = playGate.begin()
         fromBitmap = from
         toBitmap = to
         this.direction = direction
@@ -69,7 +70,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
                 invalidate()
             }
             doOnEnd {
-                onEnd()
+                if (playGate.isCurrent(token)) onEnd()
             }
         }
         this.animator = animator
@@ -77,9 +78,12 @@ class PageCurlOverlayView(context: Context) : View(context) {
     }
 
     /**
-     * Stops the running curl animator, if any.
+     * Stops the running curl animator, if any. Invalidation comes first:
+     * cancelling fires the animator's end callback synchronously, and that
+     * end belongs to a play that no longer runs.
      */
     private fun cancelCurl() {
+        playGate.invalidate()
         animator?.cancel()
         animator = null
         fromBitmap = null
@@ -88,7 +92,8 @@ class PageCurlOverlayView(context: Context) : View(context) {
 
     /**
      * Terminal exit for the curl transition. Stops any running animator and
-     * hides the view. Safe to call when no curl is playing.
+     * hides the view; the aborted play reports no end. Safe to call when no
+     * curl is playing.
      */
     fun abortAndHide() {
         cancelCurl()
@@ -231,4 +236,28 @@ internal object PageCurlFrameRenderer {
         canvas.drawRect(startX, 0f, endX, bitmapHeight, shadowPaint)
         shadowPaint.shader = null
     }
+}
+
+/**
+ * One-shot validity tokens for curl plays. Each [begin] supersedes every
+ * earlier token; [invalidate] supersedes the current token without starting
+ * a new play. The overlay runs an animation-end callback only while its
+ * token is current, so an aborted curl never reports an end.
+ */
+internal class CurlPlayGate {
+    private var currentToken = 0L
+
+    /** Starts a new play and returns its token. */
+    fun begin(): Long {
+        currentToken++
+        return currentToken
+    }
+
+    /** Marks the current token stale. Safe to call with no play running. */
+    fun invalidate() {
+        currentToken++
+    }
+
+    /** True while [token] names the current play. */
+    fun isCurrent(token: Long): Boolean = token == currentToken
 }
