@@ -49,10 +49,6 @@ class TranslationManager(
 
     private val _chapterTitles = MutableStateFlow<Map<Long, String>>(emptyMap())
 
-    /**
-     * Display names for chapters with a state entry. Entries are removed exactly where the
-     * matching state key is removed, so a terminal state always has a title to show.
-     */
     val chapterTitles: StateFlow<Map<Long, String>> = _chapterTitles.asStateFlow()
 
     private val activeJobs = ConcurrentHashMap<Long, Job>()
