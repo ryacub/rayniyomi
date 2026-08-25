@@ -222,6 +222,7 @@ class MangaDownloader(
 
         launchDownloaderJob()
         notifier.onQueueStatusSummary(queueState.value)
+
         return pending.isNotEmpty()
     }
 
