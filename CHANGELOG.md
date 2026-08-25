@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The page curl now shades the curved fold with per-vertex lighting and casts the fold shadow onto the incoming page instead of the outgoing page.
 
 ### Fixed
+- Manga chapter download failures now always show the real cause. A source error hidden as a cancellation no longer fails silently, and a page that exhausts its retries reports the actual exception instead of "Network retries exhausted". Permission-denied file errors now fail at once instead of retrying.
 - Broken or unreachable manga and anime deep links now show the failure instead of stopping the app.
 - The player now shows the standard playback error when no hoster provides a video.
 - Fixed a startup freeze caused by registering extension install receivers on the main thread.
