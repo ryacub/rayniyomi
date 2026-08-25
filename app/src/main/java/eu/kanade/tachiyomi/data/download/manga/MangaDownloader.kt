@@ -365,6 +365,19 @@ class MangaDownloader(
     }
 
     /**
+     * Base backoff for image download retries. Tests set this to zero to avoid real delays.
+     */
+    @VisibleForTesting
+    internal var retryBackoffMillis: Long = 2_000L
+
+    /**
+     * Exposes [launchDownloadJob] to tests. Call this from a test coroutine scope.
+     */
+    @VisibleForTesting
+    internal fun launchDownloadJobForTest(scope: CoroutineScope, download: MangaDownload): Job =
+        with(scope) { launchDownloadJob(download) }
+
+    /**
      * Destroys the downloader subscriptions.
      */
     private fun cancelDownloaderJob() {
@@ -693,7 +706,7 @@ class MangaDownloader(
                 if (attempt < 3) {
                     download.retryAttempt = attempt.toInt() + 1
                     download.displayStatus = DownloadDisplayStatus.RETRYING
-                    delay((2L shl attempt.toInt()) * 1000)
+                    delay(retryBackoffMillis shl attempt.toInt())
                     true
                 } else {
                     download.lastErrorCode = "RETRY_EXHAUSTED"
