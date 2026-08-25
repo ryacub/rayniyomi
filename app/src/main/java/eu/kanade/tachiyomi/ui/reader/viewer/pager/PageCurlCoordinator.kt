@@ -18,6 +18,16 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionSty
 internal class PageCurlCoordinator(
     val overlay: PageCurlOverlayView,
     private val pager: Pager,
+    private val scheduler: PageCurlScheduler = object : PageCurlScheduler {
+        override fun post(runnable: Runnable): Boolean = pager.post(runnable)
+
+        override fun postDelayed(runnable: Runnable, delayMs: Long): Boolean =
+            pager.postDelayed(runnable, delayMs)
+
+        override fun removeCallbacks(runnable: Runnable) {
+            pager.removeCallbacks(runnable)
+        }
+    },
     private val storedTransitionStyle: () -> PageTransitionStyle,
     private val effectiveTransitionStyle: () -> PageTransitionStyle,
     private val sourceHolder: () -> PagerPageHolder?,
@@ -101,8 +111,8 @@ internal class PageCurlCoordinator(
                 activeFromPage == null &&
                 activeToPage == null
 
-        fun clearRunnables(pager: Pager) {
-            for (slot in slots) slot?.let(pager::removeCallbacks)
+        fun clearRunnables(scheduler: PageCurlScheduler) {
+            for (slot in slots) slot?.let(scheduler::removeCallbacks)
             slots.fill(null)
         }
 
@@ -114,10 +124,10 @@ internal class PageCurlCoordinator(
          * Callers must check [isEmpty] first; this member assumes work exists.
          */
         fun finish(
-            pager: Pager,
+            scheduler: PageCurlScheduler,
             abortOverlay: () -> Unit,
         ) {
-            clearRunnables(pager)
+            clearRunnables(scheduler)
             targetPosition = null
             pendingFromPage?.close()
             pendingFromPage = null
@@ -211,7 +221,7 @@ internal class PageCurlCoordinator(
         val state = curlState
         if (state.isEmpty()) return
 
-        state.finish(pager) { overlay.abortAndHide() }
+        state.finish(scheduler) { overlay.abortAndHide() }
         if (restoreInput) pager.releaseGestures(GestureInputGate.Claim.CURL)
     }
 
@@ -235,10 +245,10 @@ internal class PageCurlCoordinator(
                 playAndHideCurl(fromPage, readyHolder, direction)
             } else {
                 waitAttempts++
-                pager.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
+                scheduler.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
             }
         }
-        pager.post(curlState.track(TrackedRole.TARGET_POLL, checkTargetReady))
+        scheduler.post(curlState.track(TrackedRole.TARGET_POLL, checkTargetReady))
     }
 
     private fun playAndHideCurl(
@@ -290,16 +300,16 @@ internal class PageCurlCoordinator(
                     curlState.fire(TrackedRole.GESTURE_REENABLE)
                     if (!released) pager.releaseGestures(GestureInputGate.Claim.CURL)
                 }
-                pager.postDelayed(
+                scheduler.postDelayed(
                     curlState.track(TrackedRole.GESTURE_REENABLE, reenable),
                     GESTURE_REENABLE_DELAY_MS,
                 )
             } else {
                 layoutCheckAttempts++
-                pager.postDelayed(checkLayout, TARGET_POLL_INTERVAL_MS)
+                scheduler.postDelayed(checkLayout, TARGET_POLL_INTERVAL_MS)
             }
         }
-        pager.post(curlState.track(TrackedRole.LAYOUT_POLL, checkLayout))
+        scheduler.post(curlState.track(TrackedRole.LAYOUT_POLL, checkLayout))
     }
 
     companion object {

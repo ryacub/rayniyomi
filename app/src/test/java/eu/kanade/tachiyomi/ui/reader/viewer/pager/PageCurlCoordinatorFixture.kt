@@ -33,6 +33,21 @@ internal class PageCurlCoordinatorFixture(
      * so a recorded end callback runs only while its play is current.
      */
     val playGate = CurlPlayGate()
+
+    /**
+     * Deterministic fake driving the coordinator's scheduler seam through
+     * the recorded pager queues.
+     */
+    val scheduler = object : PageCurlScheduler {
+        override fun post(runnable: Runnable): Boolean = pager.post(runnable)
+
+        override fun postDelayed(runnable: Runnable, delayMs: Long): Boolean =
+            pager.postDelayed(runnable, delayMs)
+
+        override fun removeCallbacks(runnable: Runnable) {
+            pager.removeCallbacks(runnable)
+        }
+    }
     val gestureGate = GestureInputGate()
     /** Count of not-yet-run posted callbacks. */
     val pendingPostedCount: Int
@@ -47,14 +62,15 @@ internal class PageCurlCoordinatorFixture(
     val coordinator = PageCurlCoordinator(
         overlay = overlay,
         pager = pager,
+        scheduler = scheduler,
         storedTransitionStyle = { PageTransitionStyle.CURL },
         effectiveTransitionStyle = { PageTransitionStyle.CURL },
         sourceHolder = { sourceHolder },
         readerItemAt = { pages.getOrNull(it) },
+        capture = capture,
         transitionItemAt = { false },
         holderFor = { targetHolder },
         nowMs = { nowMs },
-        capture = capture,
     )
 
     init {
