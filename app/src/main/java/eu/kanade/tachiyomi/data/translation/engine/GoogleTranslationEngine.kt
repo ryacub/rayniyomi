@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  */
 class GoogleTranslationEngine(
     private val apiKey: String,
-    private val model: String = DEFAULT_MODEL,
+    private val model: String,
 ) : TranslationEngine {
 
     private val client = OkHttpClient.Builder()
@@ -117,7 +117,6 @@ class GoogleTranslationEngine(
     )
 
     companion object {
-        const val DEFAULT_MODEL = "gemini-2.0-flash"
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
     }
 }

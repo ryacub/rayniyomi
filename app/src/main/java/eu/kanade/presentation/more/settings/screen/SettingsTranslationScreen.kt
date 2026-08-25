@@ -4,6 +4,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +17,7 @@ import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.translation.TargetLanguages
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogPrefetch
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import kotlinx.collections.immutable.toImmutableMap
@@ -49,6 +51,17 @@ object SettingsTranslationScreen : SearchableSettings {
         val modelChoiceType by modelChoiceTypePreference.collectAsStateWithLifecycle()
         var showModelPicker by remember { mutableStateOf(false) }
         val catalogRepository = remember { TranslationModelCatalogRepository() }
+
+        LaunchedEffect(provider, apiKey) {
+            TranslationCatalogPrefetch.refreshAndResolveAutomatic(
+                repository = catalogRepository,
+                provider = provider,
+                apiKey = apiKey,
+                choiceType = modelChoiceType,
+                setModelId = { modelPreference.set(it) },
+            )
+        }
+
         var showClearConfirmation by remember { mutableStateOf(false) }
 
         if (showClearConfirmation) {
@@ -122,7 +135,7 @@ object SettingsTranslationScreen : SearchableSettings {
                         model
                     }
                 },
-                enabled = provider == TranslationProvider.OPENROUTER && apiKey.isNotBlank(),
+                enabled = provider != TranslationProvider.NONE && apiKey.isNotBlank(),
                 onClick = { showModelPicker = true },
             ),
         )
@@ -130,6 +143,8 @@ object SettingsTranslationScreen : SearchableSettings {
         if (showModelPicker) {
             TranslationModelPickerDialog(
                 repository = catalogRepository,
+                provider = provider,
+                apiKey = apiKey,
                 modelPreference = modelPreference,
                 modelChoiceTypePreference = modelChoiceTypePreference,
                 onDismiss = { showModelPicker = false },

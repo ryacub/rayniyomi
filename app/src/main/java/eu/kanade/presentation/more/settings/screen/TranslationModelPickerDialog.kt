@@ -34,6 +34,8 @@ import tachiyomi.presentation.core.i18n.stringResource
 @Composable
 fun TranslationModelPickerDialog(
     repository: TranslationModelCatalogRepository,
+    provider: TranslationProvider,
+    apiKey: String,
     modelPreference: Preference<String>,
     modelChoiceTypePreference: Preference<TranslationModelChoiceType>,
     onDismiss: () -> Unit,
@@ -59,7 +61,7 @@ fun TranslationModelPickerDialog(
     suspend fun loadModels(forceRefresh: Boolean) {
         isLoading = true
         try {
-            when (val result = repository.load(TranslationProvider.OPENROUTER, forceRefresh)) {
+            when (val result = repository.load(provider, apiKey, forceRefresh)) {
                 is TranslationCatalogResult.Success -> {
                     models = result.catalog.models
                     errorMessage = null
