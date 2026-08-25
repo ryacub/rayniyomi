@@ -189,6 +189,7 @@ class ReaderViewModel @JvmOverloads constructor(
         scope = viewModelScope,
         currentManga = { manga },
         getCurrChapter = { state.value.viewerChapters?.currChapter },
+        getViewerChapters = { state.value.viewerChapters },
         getShowTranslatedPages = { state.value.showTranslatedPages },
         chapterIdFlow = state.map { it.viewerChapters?.currChapter?.chapter?.id },
         onTranslationStateChange = { translationState ->
