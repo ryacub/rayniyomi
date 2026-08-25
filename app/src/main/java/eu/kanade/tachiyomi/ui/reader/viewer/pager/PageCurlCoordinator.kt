@@ -309,7 +309,7 @@ internal class PageCurlCoordinator(
     }
 
     companion object {
-        private const val CURL_DURATION_MS = 300L
+        private const val CURL_DURATION_MS = 500L
         private const val RAPID_NAVIGATION_WINDOW_MS = 500L
         private const val TARGET_POLL_INTERVAL_MS = 10L
         private const val TARGET_WAIT_MAX_ATTEMPTS = 10

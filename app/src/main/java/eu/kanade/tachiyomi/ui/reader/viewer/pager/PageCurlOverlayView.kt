@@ -51,7 +51,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
         from: Bitmap,
         to: Bitmap,
         direction: CurlDirection,
-        durationMs: Long = 300L,
+        durationMs: Long,
         onEnd: () -> Unit,
     ) {
         cancelCurl()
