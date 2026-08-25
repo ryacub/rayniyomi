@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 
 /**
  * The focused example for `docs/coroutine-test-dispatchers.md`. It shows how a screen model that
@@ -66,7 +67,7 @@ class DispatcherInjectionExampleTest {
     private class ForeignDispatcher : CoroutineDispatcher() {
         val dispatchCount = AtomicInteger(0)
 
-        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
             dispatchCount.incrementAndGet()
         }
     }
