@@ -3,8 +3,8 @@ package eu.kanade.tachiyomi.ui.entries.manga
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import tachiyomi.domain.items.chapter.model.Chapter
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.items.chapter.model.Chapter
 
 class TranslationSummaryTest {
 
@@ -64,8 +64,14 @@ class TranslationSummaryTest {
         val rows = translationSummaryFrom(states, chapters)!!.chapters
 
         assertEquals(2, rows.size)
-        assertEquals(ChapterTranslationProgress(chapterId = 1, chapterName = "Chapter 1", currentPage = 14, totalPages = 28), rows[0])
-        assertEquals(ChapterTranslationProgress(chapterId = 4, chapterName = "Chapter 4", currentPage = 0, totalPages = 0), rows[1])
+        assertEquals(
+            ChapterTranslationProgress(chapterId = 1, chapterName = "Chapter 1", currentPage = 14, totalPages = 28),
+            rows[0],
+        )
+        assertEquals(
+            ChapterTranslationProgress(chapterId = 4, chapterName = "Chapter 4", currentPage = 0, totalPages = 0),
+            rows[1],
+        )
     }
 
     @Test

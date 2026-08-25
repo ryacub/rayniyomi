@@ -186,6 +186,10 @@ class MangaScreenModel(
                         it.copy(
                             manga = manga,
                             chapters = chapters.toChapterListItems(manga),
+                            translationSummary = translationSummaryFrom(
+                                translationManager.translationStates.value,
+                                chapters,
+                            ),
                         )
                     }
                 }
@@ -1126,6 +1130,7 @@ class MangaScreenModel(
             val isRefreshingData: Boolean = false,
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
+            val translationSummary: TranslationSummary? = null,
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()
