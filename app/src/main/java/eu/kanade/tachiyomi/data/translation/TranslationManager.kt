@@ -47,6 +47,10 @@ class TranslationManager(
     private val _translationStates = MutableStateFlow<Map<Long, TranslationState>>(emptyMap())
     val translationStates: StateFlow<Map<Long, TranslationState>> = _translationStates.asStateFlow()
 
+    private val _chapterTitles = MutableStateFlow<Map<Long, String>>(emptyMap())
+
+    val chapterTitles: StateFlow<Map<Long, String>> = _chapterTitles.asStateFlow()
+
     private val activeJobs = ConcurrentHashMap<Long, Job>()
 
     private val _languageGeneration = MutableStateFlow(0)
@@ -76,6 +80,7 @@ class TranslationManager(
         activeJobs.clear()
         jobs.forEach { it.join() }
         _translationStates.value = emptyMap()
+        _chapterTitles.value = emptyMap()
         _languageGeneration.update { it + 1 }
     }
 
@@ -91,6 +96,7 @@ class TranslationManager(
 
         // Don't start if already translating
         if (activeJobs[chapterId]?.isActive == true) return
+        _chapterTitles.update { it + (chapterId to "${manga.title} - ${chapter.name}") }
 
         val engine = translationEngineFactory.create()
         if (engine == null) {
@@ -242,6 +248,9 @@ class TranslationManager(
     }
 
     private fun updateState(chapterId: Long, state: TranslationState) {
+        if (state is TranslationState.Idle) {
+            _chapterTitles.update { it - chapterId }
+        }
         _translationStates.update { current ->
             current.toMutableMap().apply {
                 if (state is TranslationState.Idle) {

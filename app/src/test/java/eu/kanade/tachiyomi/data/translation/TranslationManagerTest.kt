@@ -645,6 +645,62 @@ class TranslationManagerTest {
     }
 
     // -----------------------------------------------------------------------
+    // chapterTitles
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `translateChapter records the chapter title`() {
+        createManager()
+        every { translationEngineFactory.create() } returns null
+
+        manager.translateChapter(manga, chapter, source)
+
+        assertEquals("Test Manga - Chapter 1", manager.chapterTitles.value[chapter.id])
+    }
+
+    @Test
+    fun `cancelTranslation removes the chapter title`() {
+        createManager()
+        every { translationEngineFactory.create() } returns null
+        manager.translateChapter(manga, chapter, source)
+        assertTrue(manager.chapterTitles.value.containsKey(chapter.id))
+
+        manager.cancelTranslation(chapter.id)
+
+        assertFalse(manager.chapterTitles.value.containsKey(chapter.id))
+    }
+
+    @Test
+    fun `a target language change clears every chapter title`() = runTest {
+        createEagerManager()
+        advanceUntilIdle() // subscribe the observer before the value changes
+        every { translationEngineFactory.create() } returns null
+        manager.translateChapter(manga, chapter, source)
+        assertTrue(manager.chapterTitles.value.isNotEmpty())
+
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+
+        assertTrue(manager.chapterTitles.value.isEmpty())
+    }
+
+    @Test
+    fun `the chapter title survives after the state reaches Translated`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals("Test Manga - Chapter 1", manager.chapterTitles.value[chapter.id])
+    }
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
