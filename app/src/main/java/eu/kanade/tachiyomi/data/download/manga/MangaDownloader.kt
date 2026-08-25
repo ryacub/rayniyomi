@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asFlow
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -353,16 +355,36 @@ class MangaDownloader(
                 stop()
             }
         } catch (e: Throwable) {
-            if (e is CancellationException) throw e
-            logcat(LogPriority.ERROR, e)
+            val cause = unwrappedCancellationCause(e)
+            if (cause == null && !currentCoroutineContext().isActive) throw e
+            val reported = cause ?: e // cancellation-shaped while the job is still active is a failure
+            logcat(LogPriority.ERROR, reported)
             download.status = MangaDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            download.lastErrorCode = e::class.simpleName
-            download.lastErrorReason = e.message
-            notifier.onError(e.message)
+            download.lastErrorCode = reported::class.simpleName
+            download.lastErrorReason = reported.message ?: reported::class.simpleName
+            notifier.onError(
+                reported.message,
+                download.chapter.name,
+                download.manga.title,
+                download.manga.id,
+            )
             stop()
         }
     }
+
+    /**
+     * Base backoff for image download retries. Tests set this to zero to avoid real delays.
+     */
+    @VisibleForTesting
+    internal var retryBackoffMillis: Long = 2_000L
+
+    /**
+     * Exposes [launchDownloadJob] to tests. Call this from a test coroutine scope.
+     */
+    @VisibleForTesting
+    internal fun launchDownloadJobForTest(scope: CoroutineScope, download: MangaDownload): Job =
+        with(scope) { launchDownloadJob(download) }
 
     /**
      * Destroys the downloader subscriptions.
@@ -626,7 +648,13 @@ class MangaDownloader(
             page.status = Page.State.READY
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
-            if (e is LowStorageException) throw e
+            if (
+                e is LowStorageException ||
+                e is StoragePermissionException ||
+                e is RetriesExhaustedException
+            ) {
+                throw e
+            }
             // Mark this page as error and allow to download the remaining
             page.progress = 0
             page.status = Page.State.ERROR
@@ -690,15 +718,19 @@ class MangaDownloader(
                 if (cause is LowStorageException) {
                     return@retryWhen false
                 }
+                if (isPermissionFailure(cause)) {
+                    throw StoragePermissionException(
+                        cause.message ?: cause::class.simpleName,
+                        cause,
+                    )
+                }
                 if (attempt < 3) {
                     download.retryAttempt = attempt.toInt() + 1
                     download.displayStatus = DownloadDisplayStatus.RETRYING
-                    delay((2L shl attempt.toInt()) * 1000)
+                    delay(retryBackoffMillis shl attempt.toInt())
                     true
                 } else {
-                    download.lastErrorCode = "RETRY_EXHAUSTED"
-                    download.lastErrorReason = "Network retries exhausted"
-                    false
+                    throw RetriesExhaustedException(cause)
                 }
             }
             .flowOn(Dispatchers.IO)
