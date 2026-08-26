@@ -48,6 +48,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - A translation no longer fails the whole chapter when one page hits a transient API error. The manager retries rate limits and server errors with backoff, and a retry skips pages that were already written.
 - When a translated manga page retries after a temporary API failure, the chapter list ring turns a different colour and spins until the page succeeds or fails for good. The page count stays visible.
 - The chapter list translation ring showed an endless spin instead of filling up as pages completed. It tracks progress again.
+- Renaming a downloaded manga chapter now moves its translated pages too. Before, the translation folder kept the old chapter name, so the translated output became unreachable and survived deleting the chapter.
 
 ### Changed
 - The target language setting in Translation now uses a picker with readable language names instead of a free-text field. A language change now clears stale translation progress and results for chapters, and the reader reloads translated pages in the new language.
