@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
+import eu.kanade.tachiyomi.data.download.core.LowStorageException
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
@@ -334,6 +335,41 @@ class AnimeDownloaderTest {
         assertEquals(DownloadDisplayStatus.FAILED, download.displayStatus)
         assertEquals("INCOMPLETE", download.lastErrorCode)
         assertEquals("Incomplete download output", download.lastErrorReason)
+        verify(exactly = 0) {
+            anyConstructed<AnimeDownloadNotifier>().onError(any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `a failed video fetch pauses for low storage and reports once`() = runTest {
+        downloader.retryBackoffMillis = 0L
+        val video = mockk<Video>(relaxed = true)
+        every { video.videoUrl } returns "url"
+        every { video.headers } returns null
+        val download = testDownload(video)
+
+        val displayStatusAtWarning = mutableListOf<DownloadDisplayStatus>()
+        every {
+            anyConstructed<AnimeDownloadNotifier>().onWarning(any(), any(), any(), any())
+        } answers {
+            displayStatusAtWarning.add(download.displayStatus)
+            Unit
+        }
+
+        coEvery {
+            strategySelector.selectStrategy(any(), any(), any(), any())
+        } throws LowStorageException("No space left on device")
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(AnimeDownload.State.QUEUE, download.status)
+        assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
+        assertEquals("LOW_STORAGE", download.lastErrorCode)
+        assertEquals("No space left on device", download.lastErrorReason)
+        assertEquals(listOf(DownloadDisplayStatus.PAUSED_LOW_STORAGE), displayStatusAtWarning)
+        verify(exactly = 1) {
+            anyConstructed<AnimeDownloadNotifier>().onWarning(any(), any(), any(), any())
+        }
         verify(exactly = 0) {
             anyConstructed<AnimeDownloadNotifier>().onError(any(), any(), any(), any())
         }

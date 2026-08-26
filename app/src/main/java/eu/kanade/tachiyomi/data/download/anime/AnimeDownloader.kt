@@ -27,6 +27,7 @@ import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidat
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
+import eu.kanade.tachiyomi.data.download.core.DownloadFailure
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureAction
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureClassifier
 import eu.kanade.tachiyomi.data.download.core.DownloadFailurePolicy
@@ -527,10 +528,16 @@ class AnimeDownloader(
             val videoFetchResult = withIOContext {
                 getOrDownloadVideoFile(download, tmpDir)
             }
-            when (videoFetchResult) {
+            when (val result = videoFetchResult) {
                 VideoFetchResult.Success -> Unit
-                VideoFetchResult.PausedLowStorage -> return
-                VideoFetchResult.Failed -> return
+                is VideoFetchResult.PausedLowStorage -> {
+                    failureReporter.report(download, result.failure)
+                    return
+                }
+                is VideoFetchResult.Failed -> {
+                    failureReporter.report(download, result.failure)
+                    return
+                }
             }
 
             if (!isDownloadSuccessful(download, tmpDir)) {
@@ -641,14 +648,12 @@ class AnimeDownloader(
                     download.status = AnimeDownload.State.QUEUE
                     download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
                     download.blockedReason = DownloadBlockedReason.STORAGE
-                    failureReporter.report(download, action.failure)
-                    return VideoFetchResult.PausedLowStorage
+                    return VideoFetchResult.PausedLowStorage(action.failure)
                 }
                 is DownloadFailureAction.Report -> {
                     video.status = Video.State.ERROR
                     download.displayStatus = DownloadDisplayStatus.FAILED
-                    failureReporter.report(download, action.failure)
-                    return VideoFetchResult.Failed
+                    return VideoFetchResult.Failed(action.failure)
                 }
                 else -> throw e
             }
@@ -1210,6 +1215,6 @@ private const val MIN_DISK_SPACE = 200L * 1024 * 1024
 
 private sealed interface VideoFetchResult {
     data object Success : VideoFetchResult
-    data object PausedLowStorage : VideoFetchResult
-    data object Failed : VideoFetchResult
+    data class PausedLowStorage(val failure: DownloadFailure) : VideoFetchResult
+    data class Failed(val failure: DownloadFailure) : VideoFetchResult
 }
