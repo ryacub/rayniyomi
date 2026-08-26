@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 import android.graphics.Bitmap
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 import io.mockk.every
 import io.mockk.mockk
 
@@ -26,7 +27,32 @@ internal class PageCurlCoordinatorFixture(
     private val postedCallbacks = ArrayDeque<Runnable>()
     var nowMs = 1_000L
     var currentItemIndex = initialItemIndex
+
+    /**
+     * Emulates the overlay contract: an abort invalidates the play token,
+     * so a recorded end callback runs only while its play is current.
+     */
+    val playGate = CurlPlayGate()
+
+    /**
+     * Deterministic fake driving the coordinator's scheduler seam through
+     * the recorded pager queues.
+     */
+    val scheduler = object : PageCurlScheduler {
+        override fun post(runnable: Runnable): Boolean = pager.post(runnable)
+
+        override fun postDelayed(runnable: Runnable, delayMs: Long): Boolean =
+            pager.postDelayed(runnable, delayMs)
+
+        override fun removeCallbacks(runnable: Runnable) {
+            pager.removeCallbacks(runnable)
+        }
+    }
     val gestureGate = GestureInputGate()
+
+    /** Count of not-yet-run posted callbacks. */
+    val pendingPostedCount: Int
+        get() = postedCallbacks.size
 
     /**
      * Mirrors [Pager.gestureInputMode]: true only when no claim constrains gestures.
@@ -37,14 +63,15 @@ internal class PageCurlCoordinatorFixture(
     val coordinator = PageCurlCoordinator(
         overlay = overlay,
         pager = pager,
+        scheduler = scheduler,
         storedTransitionStyle = { PageTransitionStyle.CURL },
         effectiveTransitionStyle = { PageTransitionStyle.CURL },
         sourceHolder = { sourceHolder },
         readerItemAt = { pages.getOrNull(it) },
+        capture = capture,
         transitionItemAt = { false },
         holderFor = { targetHolder },
         nowMs = { nowMs },
-        capture = capture,
     )
 
     init {
@@ -76,8 +103,11 @@ internal class PageCurlCoordinatorFixture(
                 onEnd = any(),
             )
         } answers {
-            endCallbacks += arg<() -> Unit>(4)
+            val token = playGate.begin()
+            val onEnd = arg<() -> Unit>(4)
+            endCallbacks += { if (playGate.isCurrent(token)) onEnd() }
         }
+        every { overlay.abortAndHide() } answers { playGate.invalidate() }
     }
 
     fun startCurl() {
@@ -123,6 +153,9 @@ internal class PageCurlCoordinatorFixture(
             every { recycle() } answers { recycled = true }
         }
     }
+
+    /** A captured-page handle wrapping one tracked mock bitmap. */
+    fun page(): CapturedPage = CapturedPage(bitmap())
 
     private companion object {
         const val TARGET_POSITION = 1

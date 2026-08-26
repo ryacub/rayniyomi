@@ -66,11 +66,36 @@ class PageCurlCaptureTest {
         mockkConstructor(Canvas::class)
 
         val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.WHITE })
-        val result = capture.capture(source)
+        val page = capture.capture(source)
 
-        result shouldBe captured
-        result?.width shouldBe 320
-        result?.height shouldBe 480
+        page!!.bitmap shouldBe captured
+        page.bitmap.width shouldBe 320
+        page.bitmap.height shouldBe 480
+    }
+
+    @Test
+    fun `capture returns a closeable page that recycles its bitmap`() {
+        val source = mockk<View>(relaxed = true)
+        every { source.width } returns 320
+        every { source.height } returns 480
+        var recycled = false
+        val captured = mockk<Bitmap> {
+            every { isRecycled } answers { recycled }
+            every { recycle() } answers { recycled = true }
+            every { width } returns 320
+            every { height } returns 480
+        }
+
+        mockkStatic(Bitmap::class)
+        every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
+        mockkConstructor(Canvas::class)
+
+        val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.WHITE })
+        val page = capture.capture(source)!!
+
+        page.close()
+        page.close()
+        verify(exactly = 1) { captured.recycle() }
     }
 
     @Test
@@ -109,7 +134,7 @@ class PageCurlCaptureTest {
         )
         val result = capture.capture(source)
 
-        result shouldBe captured
+        result!!.bitmap shouldBe captured
     }
 
     @Test
@@ -281,7 +306,7 @@ class PageCurlCaptureTest {
 
         val result = captureTreating().capture(source)
 
-        result shouldBe captured
+        result!!.bitmap shouldBe captured
         verify(exactly = 1) { source.draw(any<Canvas>()) }
     }
 

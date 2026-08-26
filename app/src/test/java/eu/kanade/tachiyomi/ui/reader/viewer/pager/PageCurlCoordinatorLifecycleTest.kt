@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCoordinator.Phase
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -32,13 +31,13 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `target capture failure routes through the shared teardown`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
         every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
         every { fixture.capture.capture(fixture.targetHolder) } returns null
 
         fixture.startCurl()
 
-        verify(exactly = 1) { fromBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
         fixture.inputEnabled shouldBe true
         // GREEN only after R918 hoists activeFromBitmap before the target
         // capture; without that hoist the state is empty and the shared
@@ -49,21 +48,21 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `target capture failure recycles the source and restores input`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
         every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
         every { fixture.capture.capture(fixture.targetHolder) } returns null
 
         fixture.startCurl()
 
-        verify(exactly = 1) { fromBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
         fixture.inputEnabled shouldBe true
     }
 
     @Test
     fun `normal completion hides the overlay and recycles both bitmaps`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
@@ -71,8 +70,8 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.runNextPostedCallback()
 
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
-        verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { toBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
         fixture.delayedCallbacks.size shouldBe 1
 
         // The curl claim stays active until the delayed callback releases it.
@@ -84,7 +83,7 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `a curl captures exactly the outgoing and incoming bitmaps`() {
         val fixture = PageCurlCoordinatorFixture()
-        val onlyBitmap = fixture.bitmap()
+        val onlyBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(onlyBitmap)
 
         fixture.startCurl()
@@ -97,10 +96,10 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `superseded callback recycles only its bitmap pair`() {
         val fixture = PageCurlCoordinatorFixture()
-        val firstFrom = fixture.bitmap()
-        val firstTo = fixture.bitmap()
-        val secondFrom = fixture.bitmap()
-        val secondTo = fixture.bitmap()
+        val firstFrom = fixture.page()
+        val firstTo = fixture.page()
+        val secondFrom = fixture.page()
+        val secondTo = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
@@ -109,20 +108,20 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.startCurl()
         fixture.endCallbacks.first().invoke()
 
-        verify(exactly = 1) { firstFrom.recycle() }
-        verify(exactly = 1) { firstTo.recycle() }
-        verify(exactly = 0) { secondFrom.recycle() }
-        verify(exactly = 0) { secondTo.recycle() }
+        verify(exactly = 1) { firstFrom.bitmap.recycle() }
+        verify(exactly = 1) { firstTo.bitmap.recycle() }
+        verify(exactly = 0) { secondFrom.bitmap.recycle() }
+        verify(exactly = 0) { secondTo.bitmap.recycle() }
         verify(exactly = 2) { fixture.pager.post(any()) }
     }
 
     @Test
     fun `stale layout callback cannot cancel a newer curl`() {
         val fixture = PageCurlCoordinatorFixture()
-        val firstFrom = fixture.bitmap()
-        val firstTo = fixture.bitmap()
-        val secondFrom = fixture.bitmap()
-        val secondTo = fixture.bitmap()
+        val firstFrom = fixture.page()
+        val firstTo = fixture.page()
+        val secondFrom = fixture.page()
+        val secondTo = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
@@ -135,16 +134,16 @@ class PageCurlCoordinatorLifecycleTest {
         staleLayoutCallback.run()
 
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
-        verify(exactly = 0) { secondFrom.recycle() }
-        verify(exactly = 0) { secondTo.recycle() }
+        verify(exactly = 0) { secondFrom.bitmap.recycle() }
+        verify(exactly = 0) { secondTo.bitmap.recycle() }
         fixture.inputEnabled shouldBe false
     }
 
     @Test
     fun `fallback cancellation restores input`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
         val fallbacks = mutableListOf<Boolean>()
 
@@ -157,34 +156,30 @@ class PageCurlCoordinatorLifecycleTest {
 
         fallbacks.shouldContainExactly(true)
         fixture.inputEnabled shouldBe true
-        verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { toBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
     }
 
     @Test
-    fun `release during cancellation does not post a callback after teardown`() {
+    fun `release during cancellation does not fire the animation end`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
-        every { fixture.overlay.abortAndHide() } answers {
-            fixture.endCallbacks.single().invoke()
-        }
-
         fixture.coordinator.release()
 
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
         verify(exactly = 1) { fixture.pager.post(any()) }
-        verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { toBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
     }
 
     @Test
     fun `release removes a target poll and recycles its pending bitmap`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
         every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
 
         fixture.coordinator.runOrFallback(
@@ -196,14 +191,14 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.coordinator.release()
 
         verify(exactly = 1) { fixture.pager.removeCallbacks(targetPoll) }
-        verify(exactly = 1) { fromBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
     }
 
     @Test
     fun `release removes the pending layout callback`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
@@ -214,15 +209,15 @@ class PageCurlCoordinatorLifecycleTest {
 
         verify(exactly = 1) { fixture.pager.removeCallbacks(layoutCallback) }
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
-        verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { toBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
     }
 
     @Test
     fun `release removes the pending gesture callback`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
@@ -234,6 +229,26 @@ class PageCurlCoordinatorLifecycleTest {
 
         verify(exactly = 1) { fixture.pager.removeCallbacks(gestureCallback) }
         verify(exactly = 2) { fixture.overlay.abortAndHide() }
+    }
+
+    @Test
+    fun `a fired gesture callback releases its slot`() {
+        val fixture = PageCurlCoordinatorFixture()
+        every { fixture.capture.capture(any()) } returnsMany
+            listOf(fixture.page(), fixture.page(), fixture.page(), fixture.page())
+
+        fixture.startCurl()
+        fixture.endCallbacks.first().invoke()
+        fixture.runNextPostedCallback()
+        val gestureCallback = fixture.delayedCallbacks.single()
+        gestureCallback.run()
+
+        // The fired callback released its slot: the next teardown must not
+        // remove it from the pager again.
+        fixture.nowMs += 1_000L
+        fixture.startCurl()
+
+        verify(exactly = 0) { fixture.pager.removeCallbacks(gestureCallback) }
     }
 
     @Test
@@ -267,8 +282,8 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `normal completion restores input once through the delayed callback`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
@@ -282,10 +297,10 @@ class PageCurlCoordinatorLifecycleTest {
     @Test
     fun `stale callbacks from a superseded curl cannot affect a newer curl`() {
         val fixture = PageCurlCoordinatorFixture()
-        val firstFrom = fixture.bitmap()
-        val firstTo = fixture.bitmap()
-        val secondFrom = fixture.bitmap()
-        val secondTo = fixture.bitmap()
+        val firstFrom = fixture.page()
+        val firstTo = fixture.page()
+        val secondFrom = fixture.page()
+        val secondTo = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
@@ -304,57 +319,79 @@ class PageCurlCoordinatorLifecycleTest {
         staleLayoutCallback.run()
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
         fixture.delayedCallbacks.size shouldBe 0
-        verify(exactly = 0) { secondFrom.recycle() }
-        verify(exactly = 0) { secondTo.recycle() }
+        verify(exactly = 0) { secondFrom.bitmap.recycle() }
+        verify(exactly = 0) { secondTo.bitmap.recycle() }
 
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
         verify(exactly = 2) { fixture.overlay.abortAndHide() }
-        verify(exactly = 1) { secondFrom.recycle() }
-        verify(exactly = 1) { secondTo.recycle() }
+        verify(exactly = 1) { secondFrom.bitmap.recycle() }
+        verify(exactly = 1) { secondTo.bitmap.recycle() }
         fixture.inputEnabled shouldBe true
     }
 
     @Test
-    fun `teardown bumps the generation before the overlay aborts`() {
+    fun `an aborted curl suppresses the synchronous animation end`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
-        // Reenter through the animation-end callback while the abort runs.
-        // The bump must land first so this callback takes the stale branch.
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
+
+        verify(exactly = 1) { fixture.overlay.abortAndHide() }
+
+        // The abort invalidated the play token before any end callback
+        // could run, so teardown posts nothing and closes both pages.
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 0
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
+        fixture.inputEnabled shouldBe true
+    }
+
+    @Test
+    fun `teardown recycles the bitmaps before it aborts the overlay`() {
+        val fixture = PageCurlCoordinatorFixture()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
+
+        fixture.startCurl()
+        var recycledDuringAbort: Boolean? = null
         every { fixture.overlay.abortAndHide() } answers {
-            fixture.endCallbacks.single().invoke()
+            recycledDuringAbort = fromBitmap.bitmap.isRecycled
         }
 
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
 
-        verify(exactly = 1) { fixture.overlay.abortAndHide() }
-        verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { toBitmap.recycle() }
-        verify(exactly = 1) { fixture.pager.post(any()) } // target poll only
-        fixture.delayedCallbacks.size shouldBe 0 // stays 0 under both orders
-        fixture.inputEnabled shouldBe true // finish completed
+        recycledDuringAbort shouldBe true
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
     }
 
     @Test
     fun `normal run pins every transition`() {
         val fixture = PageCurlCoordinatorFixture()
         every { fixture.capture.capture(any()) } returnsMany
-            listOf(fixture.bitmap(), fixture.bitmap())
+            listOf(fixture.page(), fixture.page())
 
         fixture.startCurl()
 
-        fixture.coordinator.phase shouldBe Phase.ANIMATING
+        // Animating: the overlay plays exactly one curl and no poll runs.
+        fixture.endCallbacks.size shouldBe 1
+        fixture.pendingPostedCount shouldBe 0
 
         fixture.endCallbacks.first().invoke()
 
-        fixture.coordinator.phase shouldBe Phase.WAITING_LAYOUT
+        // Waiting for layout: exactly one layout poll is posted.
+        fixture.pendingPostedCount shouldBe 1
 
         fixture.runNextPostedCallback()
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        // Terminal: teardown leaves only the delayed gesture reenable.
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 1
     }
 
     @Test
@@ -367,17 +404,19 @@ class PageCurlCoordinatorLifecycleTest {
             advance = {},
         )
 
-        fixture.coordinator.phase shouldBe Phase.WAITING_FOR_TARGET
+        // Waiting for the target holder: exactly one poll is posted.
+        fixture.pendingPostedCount shouldBe 1
 
         fixture.runNextPostedCallback()
         fixture.endCallbacks.single().invoke()
         fixture.runNextPostedCallback()
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 1
     }
 
     @Test
-    fun `source capture failure leaves the idle phase`() {
+    fun `source capture failure leaves no tracked curl`() {
         val fixture = PageCurlCoordinatorFixture()
         every { fixture.capture.capture(fixture.sourceHolder) } returns null
 
@@ -387,20 +426,28 @@ class PageCurlCoordinatorLifecycleTest {
             advance = {},
         )
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        fixture.pendingPostedCount shouldBe 0
+        fixture.inputEnabled shouldBe true
     }
 
     @Test
-    fun `release during an active curl leaves the idle phase`() {
+    fun `release during an active curl clears tracked state`() {
         val fixture = PageCurlCoordinatorFixture()
+
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
+        every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
 
-        fixture.coordinator.phase shouldBe Phase.ANIMATING
+        fixture.endCallbacks.size shouldBe 1
 
         fixture.coordinator.release()
 
-        fixture.coordinator.phase shouldBe Phase.IDLE
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
+        fixture.pendingPostedCount shouldBe 0
+        fixture.delayedCallbacks.size shouldBe 0
     }
 
     private companion object {

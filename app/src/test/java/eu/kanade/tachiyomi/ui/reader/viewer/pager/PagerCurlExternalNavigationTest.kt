@@ -12,24 +12,24 @@ class PagerCurlExternalNavigationTest {
     @Test
     fun `external page change during a curl cancels it and restores input`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
         fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
 
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
-        verify(exactly = 1) { fromBitmap.recycle() }
-        verify(exactly = 1) { toBitmap.recycle() }
+        verify(exactly = 1) { fromBitmap.bitmap.recycle() }
+        verify(exactly = 1) { toBitmap.bitmap.recycle() }
         fixture.inputEnabled shouldBe true
     }
 
     @Test
     fun `own advance does not cancel the curl`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
-        val toBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
+        val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
 
         fixture.startCurl()
@@ -42,7 +42,7 @@ class PagerCurlExternalNavigationTest {
     @Test
     fun `external change after release is ignored`() {
         val fixture = PageCurlCoordinatorFixture()
-        val fromBitmap = fixture.bitmap()
+        val fromBitmap = fixture.page()
         every { fixture.capture.capture(fixture.sourceHolder) } returns fromBitmap
 
         fixture.coordinator.runOrFallback(

@@ -1,23 +1,33 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import android.graphics.Bitmap
 import android.os.SystemClock
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 
 /**
  * Owns the page-curl state and resources for one horizontal pager.
  *
- * All mutable curl-lifecycle state lives in one [CurlState] object that moves
- * through the phases [Phase.IDLE], [Phase.WAITING_FOR_TARGET],
- * [Phase.ANIMATING], and [Phase.WAITING_LAYOUT]. Every terminal exit (fallback
- * cancel, capture failure, superseded curl, external navigation cancel,
- * normal completion, release) routes through [finish], the single teardown
- * point for callbacks, bitmaps, the overlay, and the gesture claim.
+ * All mutable curl-lifecycle state lives in one [CurlState] object that tracks
+ * its own resources: pending and active bitmaps, plus the runnables for the
+ * target poll, the layout poll, and the gesture reenable. Every terminal exit
+ * (fallback cancel, capture failure, superseded curl, external navigation
+ * cancel, normal completion, release) routes through [finish], the single
+ * teardown point for callbacks, bitmaps, the overlay, and the gesture claim.
  */
 internal class PageCurlCoordinator(
     val overlay: PageCurlOverlayView,
     private val pager: Pager,
+    private val scheduler: PageCurlScheduler = object : PageCurlScheduler {
+        override fun post(runnable: Runnable): Boolean = pager.post(runnable)
+
+        override fun postDelayed(runnable: Runnable, delayMs: Long): Boolean =
+            pager.postDelayed(runnable, delayMs)
+
+        override fun removeCallbacks(runnable: Runnable) {
+            pager.removeCallbacks(runnable)
+        }
+    },
     private val storedTransitionStyle: () -> PageTransitionStyle,
     private val effectiveTransitionStyle: () -> PageTransitionStyle,
     private val sourceHolder: () -> PagerPageHolder?,
@@ -28,101 +38,104 @@ internal class PageCurlCoordinator(
     private val capture: PageCurlCapture = PageCurlCapture(),
 ) {
 
+    /** The callback kinds one curl tracks. Each kind holds one runnable. */
+    private enum class TrackedRole {
+
+        /** Polls until the target holder exists. */
+        TARGET_POLL,
+
+        /** Polls until the target holder finishes layout. */
+        LAYOUT_POLL,
+
+        /** Reenables gestures a short delay after teardown. */
+        GESTURE_REENABLE,
+    }
+
     private var curlState = CurlState()
 
     /**
-     * Current curl lifecycle phase. Exposed so invariant tests detect drift;
-     * nothing in production reads it.
-     */
-    internal val phase: Phase get() = curlState.phase
-
-    /**
      * Navigation-cadence timestamp for the rapid-navigation window. It tracks
-     * navigation rate, not one curl, so it survives across curls while
-     * [CurlState] returns to [Phase.IDLE].
+     * navigation rate, not one curl, so it survives while [CurlState] resets
+     * between curls.
      */
     private var lastNavigationAtMs = 0L
 
     /** Coordinator-lifetime flag; outlives any single [CurlState] cycle. */
     private var released = false
 
-    internal enum class Phase {
-        /** No curl tracked. */
-        IDLE,
-
-        /** Source captured; polling for the target holder. */
-        WAITING_FOR_TARGET,
-
-        /** [PageCurlOverlayView.playCurl] running. */
-        ANIMATING,
-
-        /** Animation finished; polling for target layout. */
-        WAITING_LAYOUT,
-    }
-
     /**
-     * One curl's tracked runnables and bitmaps. Main-thread only: ViewPager
-     * callbacks, posted runnables, and the view animator all run there, so
-     * the fields need no synchronization.
+     * One curl's tracked runnables and captured pages. Main-thread only:
+     * ViewPager callbacks, posted runnables, and the view animator all run
+     * there, so the fields need no synchronization.
      */
     private class CurlState {
-        var phase = Phase.IDLE
-        var generationId = 0L
         var targetPosition: Int? = null
-        var targetReadyRunnable: Runnable? = null
-        var layoutCheckRunnable: Runnable? = null
-        var gestureReenableRunnable: Runnable? = null
-        var pendingFromBitmap: Bitmap? = null
-        var activeFromBitmap: Bitmap? = null
-        var activeToBitmap: Bitmap? = null
+
+        /** One tracked callback per role. Main-thread only. */
+        private val slots = arrayOfNulls<Runnable>(TrackedRole.entries.size)
+
+        var pendingFromPage: CapturedPage? = null
+        var activeFromPage: CapturedPage? = null
+        var activeToPage: CapturedPage? = null
+
+        /**
+         * Stores [runnable] as the current callback for [role] and returns
+         * it, so call sites can post the same instance in one expression.
+         */
+        fun track(role: TrackedRole, runnable: Runnable): Runnable {
+            slots[role.ordinal] = runnable
+            return runnable
+        }
+
+        /**
+         * Releases [role]'s slot once its runnable has fired. A fired
+         * callback no longer counts as a tracked resource.
+         */
+        fun fire(role: TrackedRole) {
+            slots[role.ordinal] = null
+        }
+
+        /** True while [runnable] is still the tracked callback for [role]. */
+        fun isCurrent(role: TrackedRole, runnable: Runnable): Boolean =
+            slots[role.ordinal] === runnable
 
         /**
          * True when no tracked resource remains. The teardown guard uses only
-         * this predicate, never [phase]: no invariant enforces that a
-         * non-[Phase.IDLE] phase holds resources, and a phase-based guard
-         * could skip teardown and leak bitmaps or the gesture claim.
+         * this predicate: no invariant ties resources to other state, so the
+         * guard never skips teardown and never leaks pages or the gesture
+         * claim.
          */
         fun isEmpty(): Boolean =
-            targetReadyRunnable == null &&
-                layoutCheckRunnable == null &&
-                gestureReenableRunnable == null &&
-                pendingFromBitmap == null &&
-                activeFromBitmap == null &&
-                activeToBitmap == null
+            slots.all { it == null } &&
+                pendingFromPage == null &&
+                activeFromPage == null &&
+                activeToPage == null
 
-        fun takeBitmaps(): Triple<Bitmap?, Bitmap?, Bitmap?> {
-            val pendingFrom = pendingFromBitmap.also { pendingFromBitmap = null }
-            val activeFrom = activeFromBitmap.also { activeFromBitmap = null }
-            val activeTo = activeToBitmap.also { activeToBitmap = null }
-            return Triple(pendingFrom, activeFrom, activeTo)
-        }
-
-        fun clearRunnables(pager: Pager) {
-            targetReadyRunnable?.let(pager::removeCallbacks)
-            targetReadyRunnable = null
-            layoutCheckRunnable?.let(pager::removeCallbacks)
-            layoutCheckRunnable = null
-            gestureReenableRunnable?.let(pager::removeCallbacks)
-            gestureReenableRunnable = null
+        fun clearRunnables(scheduler: PageCurlScheduler) {
+            for (slot in slots) slot?.let(scheduler::removeCallbacks)
+            slots.fill(null)
         }
 
         /**
-         * Tears down tracked callbacks and position, then hands the taken
-         * bitmaps back. Runs [abortOverlay] after bumping the generation, so
-         * a reentrant animation-end callback observes a stale generation.
+         * Tears down tracked callbacks and position, closes every tracked
+         * page, and aborts the overlay. Runs [abortOverlay] after closing,
+         * so a reentrant animation-end callback observes recycled bitmaps.
          *
          * Callers must check [isEmpty] first; this member assumes work exists.
          */
         fun finish(
-            pager: Pager,
+            scheduler: PageCurlScheduler,
             abortOverlay: () -> Unit,
-        ): Triple<Bitmap?, Bitmap?, Bitmap?> {
-            generationId++
-            clearRunnables(pager)
+        ) {
+            clearRunnables(scheduler)
             targetPosition = null
-            val bitmaps = takeBitmaps()
+            pendingFromPage?.close()
+            pendingFromPage = null
+            activeFromPage?.close()
+            activeFromPage = null
+            activeToPage?.close()
+            activeToPage = null
             abortOverlay()
-            return bitmaps
         }
     }
 
@@ -164,22 +177,21 @@ internal class PageCurlCoordinator(
 
         // Capture the source before finish() cancels the previous curl, so
         // the previous overlay frame is still intact during the capture.
-        val fromBitmap = capture.capture(source)
-        if (fromBitmap == null) {
+        val fromPage = capture.capture(source)
+        if (fromPage == null) {
             finish(restoreInput = true)
             advance(useAnimation)
             return
         }
         // No input restore here: the new acquire below supersedes the claim.
         finish(restoreInput = false)
-        curlState.pendingFromBitmap = fromBitmap
+        curlState.pendingFromPage = fromPage
         // Set after finish() so it does not clear the new target, and before
         // advance(false) so the synchronous onPageSelected callback sees a match.
         curlState.targetPosition = targetPosition
         advance(false)
         pager.acquireGestures(GestureInputGate.Claim.CURL)
-        curlState.phase = Phase.WAITING_FOR_TARGET
-        waitForTarget(targetPosition, targetHolder, fromBitmap, direction)
+        waitForTarget(targetPosition, targetHolder, fromPage, direction)
     }
 
     fun release() {
@@ -203,85 +215,78 @@ internal class PageCurlCoordinator(
 
     /**
      * The single terminal exit. Tears down every tracked resource exactly
-     * once and returns [CurlState] to [Phase.IDLE].
+     * once and empties [CurlState].
      */
     private fun finish(restoreInput: Boolean) {
         val state = curlState
         if (state.isEmpty()) return
 
-        val (pendingFrom, activeFrom, activeTo) =
-            state.finish(pager) { overlay.abortAndHide() }
-        recycle(pendingFrom)
-        recycle(activeFrom)
-        recycle(activeTo)
+        state.finish(scheduler) { overlay.abortAndHide() }
         if (restoreInput) pager.releaseGestures(GestureInputGate.Claim.CURL)
-        state.phase = Phase.IDLE
     }
 
     private fun waitForTarget(
         targetPosition: Int,
         initialTargetHolder: PagerPageHolder?,
-        fromBitmap: Bitmap,
+        fromPage: CapturedPage,
         direction: CurlDirection,
     ) {
         var waitAttempts = 0
         lateinit var checkTargetReady: Runnable
         checkTargetReady = Runnable {
-            if (released || curlState.targetReadyRunnable !== checkTargetReady) return@Runnable
+            if (released || !curlState.isCurrent(TrackedRole.TARGET_POLL, checkTargetReady)) {
+                return@Runnable
+            }
 
             val readyHolder = readerItemAt(targetPosition)?.let(holderFor) ?: initialTargetHolder
             if (readyHolder != null || waitAttempts >= TARGET_WAIT_MAX_ATTEMPTS) {
-                curlState.targetReadyRunnable = null
-                if (curlState.pendingFromBitmap === fromBitmap) curlState.pendingFromBitmap = null
-                playAndHideCurl(fromBitmap, readyHolder, direction)
+                curlState.fire(TrackedRole.TARGET_POLL)
+                if (curlState.pendingFromPage === fromPage) curlState.pendingFromPage = null
+                playAndHideCurl(fromPage, readyHolder, direction)
             } else {
                 waitAttempts++
-                pager.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
+                scheduler.postDelayed(checkTargetReady, TARGET_POLL_INTERVAL_MS)
             }
         }
-        curlState.targetReadyRunnable = checkTargetReady
-        pager.post(checkTargetReady)
+        scheduler.post(curlState.track(TrackedRole.TARGET_POLL, checkTargetReady))
     }
 
     private fun playAndHideCurl(
-        fromBitmap: Bitmap,
+        fromPage: CapturedPage,
         targetHolder: PagerPageHolder?,
         direction: CurlDirection,
     ) {
         // Store before the target capture so a capture failure tears down
         // through finish() like every other exit.
-        curlState.activeFromBitmap = fromBitmap
-        val toBitmap = targetHolder?.let(capture::capture)
-        if (toBitmap == null) {
+        curlState.activeFromPage = fromPage
+        val toPage = targetHolder?.let(capture::capture)
+        if (toPage == null) {
             finish(restoreInput = true)
             return
         }
 
-        curlState.phase = Phase.ANIMATING
-        val animationGenerationId = ++curlState.generationId
-        curlState.activeToBitmap = toBitmap
+        curlState.activeToPage = toPage
         overlay.playCurl(
-            from = fromBitmap,
-            to = toBitmap,
+            from = fromPage.bitmap,
+            to = toPage.bitmap,
             direction = direction,
             durationMs = CURL_DURATION_MS,
             onEnd = {
-                if (animationGenerationId == curlState.generationId) {
-                    waitForLayout(fromBitmap, toBitmap)
-                } else {
-                    recycle(fromBitmap)
-                    recycle(toBitmap)
-                }
+                // The overlay owns terminality: onEnd runs only while this
+                // play is current. Aborted plays report no end, and their
+                // pages close through finish().
+                waitForLayout(fromPage, toPage)
             },
         )
     }
 
-    private fun waitForLayout(fromBitmap: Bitmap, toBitmap: Bitmap) {
-        curlState.phase = Phase.WAITING_LAYOUT
+    private fun waitForLayout(fromPage: CapturedPage, toPage: CapturedPage) {
         var layoutCheckAttempts = 0
         lateinit var checkLayout: Runnable
         checkLayout = Runnable {
-            if (released || curlState.layoutCheckRunnable !== checkLayout) return@Runnable
+            if (released || !curlState.isCurrent(TrackedRole.LAYOUT_POLL, checkLayout)) {
+                return@Runnable
+            }
 
             val currentHolder = readerItemAt(pager.currentItem)?.let(holderFor)
             if (currentHolder?.isLaidOut == true || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
@@ -289,23 +294,22 @@ internal class PageCurlCoordinator(
 
                 // Hold the claim briefly after the animation ends so a tap
                 // landing on the finished frame does not trigger a turn.
+                // The registration stays after finish(): clearRunnables
+                // must not undo it.
                 val reenable = Runnable {
+                    curlState.fire(TrackedRole.GESTURE_REENABLE)
                     if (!released) pager.releaseGestures(GestureInputGate.Claim.CURL)
                 }
-                curlState.gestureReenableRunnable = reenable
-                pager.postDelayed(reenable, GESTURE_REENABLE_DELAY_MS)
+                scheduler.postDelayed(
+                    curlState.track(TrackedRole.GESTURE_REENABLE, reenable),
+                    GESTURE_REENABLE_DELAY_MS,
+                )
             } else {
                 layoutCheckAttempts++
-                pager.postDelayed(checkLayout, TARGET_POLL_INTERVAL_MS)
+                scheduler.postDelayed(checkLayout, TARGET_POLL_INTERVAL_MS)
             }
         }
-        curlState.layoutCheckRunnable?.let(pager::removeCallbacks)
-        curlState.layoutCheckRunnable = checkLayout
-        pager.post(checkLayout)
-    }
-
-    private fun recycle(bitmap: Bitmap?) {
-        if (bitmap != null && !bitmap.isRecycled) bitmap.recycle()
+        scheduler.post(curlState.track(TrackedRole.LAYOUT_POLL, checkLayout))
     }
 
     companion object {

@@ -21,16 +21,99 @@ import androidx.core.view.isVisible
  */
 class PageCurlOverlayView(context: Context) : View(context) {
 
-    private companion object {
+    companion object {
         // Near-white wash over the mirrored strip so the back reads as paper
         // rather than as a mirrored copy of the front.
         private val BACK_SOFTEN_COLOR = Color.argb(90, 255, 255, 255)
+
+        /**
+         * Draws one frame of the page curl. Stateless, so tests and callers
+         * can run it without constructing a View. The caller owns the mesh
+         * buffers and the paint.
+         *
+         * Draw order: the incoming page first, then the cast shadow beside
+         * the fold line on it, then the outgoing sheet as a shaded mesh.
+         */
+        internal fun drawFrame(
+            canvas: Canvas,
+            from: Bitmap,
+            to: Bitmap,
+            progress: Float,
+            direction: CurlDirection,
+            verts: FloatArray,
+            meshColors: IntArray,
+            shadowPaint: Paint,
+        ) {
+            canvas.drawBitmap(to, 0f, 0f, null)
+            drawFoldCastShadow(
+                canvas,
+                from.width.toFloat(),
+                from.height.toFloat(),
+                progress,
+                direction,
+                shadowPaint,
+            )
+            PageCurlRollMath.buildVerts(
+                from.width.toFloat(),
+                from.height.toFloat(),
+                progress,
+                direction,
+                verts,
+            )
+            PageCurlRollMath.buildColors(from.width.toFloat(), progress, meshColors)
+            canvas.drawBitmapMesh(
+                from,
+                PageCurlRollMath.MESH_COLS,
+                PageCurlRollMath.MESH_ROWS,
+                verts,
+                0,
+                meshColors,
+                0,
+                null,
+            )
+        }
+
+        /** Contact shadow on the incoming page beside the fold line. */
+        private fun drawFoldCastShadow(
+            canvas: Canvas,
+            bitmapWidth: Float,
+            bitmapHeight: Float,
+            progress: Float,
+            direction: CurlDirection,
+            shadowPaint: Paint,
+        ) {
+            val alpha = PageCurlRollMath.castShadowAlpha(progress)
+            if (alpha <= 0) return
+
+            // Canonical frame: dark at the tangent line, fading right onto
+            // the exposed incoming side. Mirror for a left curl.
+            val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
+            val shadowWidth = bitmapWidth * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
+            val band = direction.mirrorSpan(
+                tangent..(tangent + shadowWidth),
+                bitmapWidth,
+            )
+            val startX = band.start
+            val endX = band.endInclusive
+
+            shadowPaint.shader = LinearGradient(
+                startX,
+                0f,
+                endX,
+                0f,
+                intArrayOf(Color.argb(alpha, 0, 0, 0), Color.TRANSPARENT),
+                null,
+                Shader.TileMode.CLAMP,
+            )
+            canvas.drawRect(startX, 0f, endX, bitmapHeight, shadowPaint)
+            shadowPaint.shader = null
+        }
     }
-    private var animator: ValueAnimator? = null
-    private var fromBitmap: Bitmap? = null
-    private var toBitmap: Bitmap? = null
-    private var direction = CurlDirection.FROM_RIGHT
-    private var progress = 0f
+
+    private val playback = PageCurlPlayback(
+        newAnimator = { ValueAnimator.ofFloat(0f, 1f) },
+        onUpdate = { invalidate() },
+    )
 
     private val verts = FloatArray(PageCurlRollMath.vertCount())
     private val meshColors = PageCurlRollMath.newColors()
@@ -44,8 +127,8 @@ class PageCurlOverlayView(context: Context) : View(context) {
     /**
      * Plays the curl transition from [from] to [to].
      *
-     * The animator invokes [onEnd] exactly once when it finishes or when it is
-     * cancelled.
+     * The animator invokes [onEnd] exactly once when it finishes. An abort
+     * or a newer play supersedes this play, and [onEnd] never runs.
      */
     fun playCurl(
         from: Bitmap,
@@ -54,61 +137,33 @@ class PageCurlOverlayView(context: Context) : View(context) {
         durationMs: Long,
         onEnd: () -> Unit,
     ) {
-        cancelCurl()
-        fromBitmap = from
-        toBitmap = to
-        this.direction = direction
-        progress = 0f
         isVisible = true
-
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = durationMs
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { animation ->
-                progress = animation.animatedValue as Float
-                invalidate()
-            }
-            doOnEnd {
-                onEnd()
-            }
-        }
-        this.animator = animator
-        animator.start()
+        playback.play(from, to, direction, durationMs, onEnd)
     }
 
     /**
-     * Stops the running curl animator, if any.
-     */
-    private fun cancelCurl() {
-        animator?.cancel()
-        animator = null
-        fromBitmap = null
-        toBitmap = null
-    }
-
-    /**
-     * Terminal exit for the curl transition. Stops any running animator and
-     * hides the view. Safe to call when no curl is playing.
+     * Terminal exit for the curl transition. Stops the running play and
+     * hides the view; the aborted play reports no end. Safe to call when no
+     * curl is playing.
      */
     fun abortAndHide() {
-        cancelCurl()
+        playback.abort()
         isVisible = false
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val from = fromBitmap ?: return
-        val to = toBitmap ?: return
+        val from = playback.fromBitmap ?: return
+        val to = playback.toBitmap ?: return
         if (from.width <= 0 || from.height <= 0 || to.width <= 0 || to.height <= 0) {
             return
         }
-
-        PageCurlFrameRenderer.drawFrame(
+        drawFrame(
             canvas,
             from,
             to,
-            progress,
-            direction,
+            playback.progress,
+            playback.direction,
             verts,
             meshColors,
             shadowPaint,
@@ -127,7 +182,11 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * inside the bitmap for every non-null span.
      */
     private fun drawFoldBack(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
-        val span = PageCurlRollMath.foldBackSpan(bitmapWidth, progress, direction) ?: return
+        val span = PageCurlRollMath.foldBackSpan(
+            bitmapWidth,
+            playback.progress,
+            playback.direction,
+        ) ?: return
         // Skip when the whole strip has rolled off screen.
         if (span.endInclusive <= 0f || span.start >= bitmapWidth) return
         val left = span.start
@@ -139,13 +198,13 @@ class PageCurlOverlayView(context: Context) : View(context) {
         // strip's outer edge. The mesh already mirrors the page for a left
         // curl, so there the same reflection composes into a pure
         // translation by w - 2t.
-        if (direction == CurlDirection.FROM_RIGHT) {
+        if (playback.direction == CurlDirection.FROM_RIGHT) {
             canvas.scale(-1f, 1f, right, 0f)
         } else {
-            val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
+            val tangent = PageCurlRollMath.tangentX(bitmapWidth, playback.progress)
             canvas.translate(bitmapWidth - 2f * tangent, 0f)
         }
-        canvas.drawBitmap(fromBitmap!!, 0f, 0f, null)
+        canvas.drawBitmap(playback.fromBitmap!!, 0f, 0f, null)
         // Soften the sampled copy so it reads as paper.
         canvas.drawRect(left, 0f, right, bitmapHeight, backSoftenPaint)
         canvas.restore()
@@ -153,82 +212,25 @@ class PageCurlOverlayView(context: Context) : View(context) {
 }
 
 /**
- * Draws one frame of the page curl. The object holds no state; the view owns
- * the mesh buffers and the paint.
- *
- * Draw order: the incoming page first, then the cast shadow beside the fold
- * line on it, then the outgoing sheet as a shaded mesh.
+ * One-shot validity tokens for curl plays. Each [begin] supersedes every
+ * earlier token; [invalidate] supersedes the current token without starting
+ * a new play. The overlay runs an animation-end callback only while its
+ * token is current, so an aborted curl never reports an end.
  */
-internal object PageCurlFrameRenderer {
+internal class CurlPlayGate {
+    private var currentToken = 0L
 
-    fun drawFrame(
-        canvas: Canvas,
-        from: Bitmap,
-        to: Bitmap,
-        progress: Float,
-        direction: CurlDirection,
-        verts: FloatArray,
-        meshColors: IntArray,
-        shadowPaint: Paint,
-    ) {
-        canvas.drawBitmap(to, 0f, 0f, null)
-        drawFoldCastShadow(
-            canvas,
-            from.width.toFloat(),
-            from.height.toFloat(),
-            progress,
-            direction,
-            shadowPaint,
-        )
-        PageCurlRollMath.buildVerts(
-            from.width.toFloat(),
-            from.height.toFloat(),
-            progress,
-            direction,
-            verts,
-        )
-        PageCurlRollMath.buildColors(from.width.toFloat(), progress, meshColors)
-        canvas.drawBitmapMesh(
-            from,
-            PageCurlRollMath.MESH_COLS,
-            PageCurlRollMath.MESH_ROWS,
-            verts,
-            0,
-            meshColors,
-            0,
-            null,
-        )
+    /** Starts a new play and returns its token. */
+    fun begin(): Long {
+        currentToken++
+        return currentToken
     }
 
-    /** Contact shadow on the incoming page beside the fold line. */
-    private fun drawFoldCastShadow(
-        canvas: Canvas,
-        bitmapWidth: Float,
-        bitmapHeight: Float,
-        progress: Float,
-        direction: CurlDirection,
-        shadowPaint: Paint,
-    ) {
-        val alpha = PageCurlRollMath.castShadowAlpha(progress)
-        if (alpha <= 0) return
-
-        // Canonical frame: dark at the tangent line, fading right onto the
-        // exposed incoming side. Mirror for a left curl.
-        val tangent = PageCurlRollMath.tangentX(bitmapWidth, progress)
-        val shadowWidth = bitmapWidth * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
-        val band = direction.mirrorSpan(tangent..(tangent + shadowWidth), bitmapWidth)
-        val startX = band.start
-        val endX = band.endInclusive
-        shadowPaint.shader = LinearGradient(
-            startX,
-            0f,
-            endX,
-            0f,
-            intArrayOf(Color.argb(alpha, 0, 0, 0), Color.TRANSPARENT),
-            null,
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawRect(startX, 0f, endX, bitmapHeight, shadowPaint)
-        shadowPaint.shader = null
+    /** Marks the current token stale. Safe to call with no play running. */
+    fun invalidate() {
+        currentToken++
     }
+
+    /** True while [token] names the current play. */
+    fun isCurrent(token: Long): Boolean = token == currentToken
 }

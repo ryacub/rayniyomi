@@ -43,7 +43,7 @@ internal class PageCurlCapture(
      * See [hasHardwareContent] for what the proactive check covers. The
      * IllegalArgumentException catch remains its backstop.
      */
-    fun capture(source: View): Bitmap? {
+    fun capture(source: View): CapturedPage? {
         val width = source.width
         val height = source.height
         if (width <= 0 || height <= 0) {
@@ -61,7 +61,7 @@ internal class PageCurlCapture(
             val canvas = Canvas(bitmap)
             source.draw(canvas)
             if (hasVisiblePixels(bitmap)) {
-                bitmap
+                CapturedPage(bitmap)
             } else {
                 bitmap.recycle()
                 logcat(LogPriority.WARN) { "Captured a blank page bitmap for the curl" }
@@ -110,6 +110,16 @@ internal class PageCurlCapture(
             isHardwareDrawable(drawable.getDrawable(it))
         }
         else -> false
+    }
+
+    /**
+     * An owned handle for one captured page bitmap. The owner closes it
+     * exactly once at teardown; closing recycles the bitmap.
+     */
+    internal class CapturedPage(val bitmap: Bitmap) : AutoCloseable {
+        override fun close() {
+            bitmap.recycleIfNeeded()
+        }
     }
 
     /**
