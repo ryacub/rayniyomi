@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.loader
 
-import android.app.Application
+import android.content.Context
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
@@ -14,7 +14,6 @@ import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import mihon.core.archive.archiveReader
 import tachiyomi.domain.entries.manga.model.Manga
-import uy.kohesive.injekt.injectLazy
 import java.io.InputStream
 
 /**
@@ -26,12 +25,11 @@ internal class DownloadPageLoader(
     private val source: MangaSource,
     private val downloadManager: MangaDownloadManager,
     private val downloadProvider: MangaDownloadProvider,
+    private val context: Context,
+    private val readerPreferences: ReaderPreferences,
+    private val translationPreferences: TranslationPreferences,
+    private val translationStorageManager: TranslationStorageManager,
 ) : PageLoader() {
-
-    private val context: Application by injectLazy()
-    private val readerPreferences: ReaderPreferences by injectLazy()
-    private val translationPreferences: TranslationPreferences by injectLazy()
-    private val translationStorageManager: TranslationStorageManager by injectLazy()
 
     private var archivePageLoader: ArchivePageLoader? = null
 
