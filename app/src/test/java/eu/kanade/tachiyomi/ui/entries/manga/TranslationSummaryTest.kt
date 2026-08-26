@@ -120,6 +120,19 @@ class TranslationSummaryTest {
     fun `translationStateOf falls back to Idle for an absent chapter`() {
         assertEquals(TranslationState.Idle, translationStateOf(emptyMap(), 42L))
     }
+
+    @Test
+    fun `a failed chapter row carries the failed flag`() {
+        val states = mapOf(
+            1L to TranslationState.Error("boom"),
+            2L to TranslationState.Translating(1, 20),
+        )
+        val summary = translationSummaryFrom(states, chapters)
+
+        val rows = summary!!.chapters.associateBy { it.chapterId }
+        assertEquals(true, rows.getValue(1L).isFailed)
+        assertEquals(false, rows.getValue(2L).isFailed)
+    }
 }
 
 private fun chapter(id: Long, name: String): Chapter {
