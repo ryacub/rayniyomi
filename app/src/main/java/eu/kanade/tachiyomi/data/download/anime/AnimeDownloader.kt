@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
@@ -26,9 +27,16 @@ import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidat
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
+import eu.kanade.tachiyomi.data.download.core.DownloadFailure
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureClassifier
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureKind
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureReporter
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
+import eu.kanade.tachiyomi.data.download.core.LowStorageException
+import eu.kanade.tachiyomi.data.download.core.RetriesExhaustedException
+import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateNotifier
@@ -45,6 +53,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +66,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -137,6 +147,28 @@ class AnimeDownloader(
      * Notifier for the downloader state and progress.
      */
     private val notifier by lazy { AnimeDownloadNotifier(context) }
+
+    /**
+     * Single point that applies a failure to a download.
+     */
+    private val failureReporter by lazy {
+        DownloadFailureReporter<AnimeDownload>(
+            notifyError = { download, failure ->
+                notifier.onError(
+                    failure.message,
+                    download.episode.name,
+                    download.anime.title,
+                    download.anime.id,
+                )
+            },
+            notifyWarning = { download, _ ->
+                notifier.onWarning(
+                    context.stringResource(AYMR.strings.download_insufficient_space),
+                    animeId = download.anime.id,
+                )
+            },
+        )
+    }
 
     /**
      * Coroutine scope used for download job scheduling
@@ -330,7 +362,6 @@ class AnimeDownloader(
                         job.cancel()
                         downloadJobs.remove(download)
                     }
-
                     val downloadsToStart = activeDownloads.filter { it !in downloadJobs }
                     downloadsToStart.forEach { download ->
                         downloadJobs[download] = launchDownloadJob(download)
@@ -353,12 +384,29 @@ class AnimeDownloader(
                 removeFromQueue(download)
             }
         } catch (e: Throwable) {
-            if (e is CancellationException) throw e
-            logcat(LogPriority.ERROR, e)
-            notifier.onError(e.message)
+            val failure = DownloadFailureClassifier.classify(e)
+            if (failure.kind == DownloadFailureKind.CANCELLATION && !currentCoroutineContext().isActive) throw e
+            // Cancellation-shaped while the job is still active is a failure.
+            logcat(LogPriority.ERROR, failure.cause ?: e)
+            download.status = AnimeDownload.State.ERROR
+            download.displayStatus = DownloadDisplayStatus.FAILED
+            failureReporter.report(download, failure, reasonFallback = failure.code)
             stop()
         }
     }
+
+    /**
+     * Base backoff for video download retries. Tests set this to zero to avoid real delays.
+     */
+    @VisibleForTesting
+    internal var retryBackoffMillis: Long = 2_000L
+
+    /**
+     * Exposes [launchDownloadJob] to tests. Call this from a test coroutine scope.
+     */
+    @VisibleForTesting
+    internal fun launchDownloadJobForTest(scope: CoroutineScope, download: AnimeDownload): Job =
+        with(scope) { launchDownloadJob(download) }
 
     /**
      * Destroys the downloader subscriptions.
@@ -510,18 +558,12 @@ class AnimeDownloader(
             download.lastErrorReason = null
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
+            if (error is LowStorageException) return
             // If the video threw, it will resume here
             logcat(LogPriority.ERROR, error)
             download.status = AnimeDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            download.lastErrorCode = error::class.simpleName
-            download.lastErrorReason = error.message
-            notifier.onError(
-                error.message,
-                download.episode.name,
-                download.anime.title,
-                download.anime.id,
-            )
+            failureReporter.report(download, DownloadFailureClassifier.classify(error))
         }
     }
 
@@ -588,13 +630,26 @@ class AnimeDownloader(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             if (e is LowStorageException) {
+                download.status = AnimeDownload.State.QUEUE
+                download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
+                download.blockedReason = DownloadBlockedReason.STORAGE
+                failureReporter.report(
+                    download,
+                    DownloadFailure(
+                        kind = DownloadFailureKind.LOW_STORAGE,
+                        message = e.message,
+                        cause = e,
+                    ),
+                )
                 return VideoFetchResult.PausedLowStorage
+            }
+            if (e is StoragePermissionException || e is RetriesExhaustedException) {
+                // The retry routine created this failure. Let the episode catch report it once.
+                throw e
             }
             video.status = Video.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            download.lastErrorCode = e::class.simpleName
-            download.lastErrorReason = e.message
-            notifier.onError(e.message, download.episode.name, download.anime.title, download.anime.id)
+            failureReporter.report(download, DownloadFailureClassifier.classify(e))
             return VideoFetchResult.Failed
         }
     }
@@ -641,15 +696,19 @@ class AnimeDownloader(
                 if (cause is LowStorageException) {
                     return@retryWhen false
                 }
+                if (DownloadFailureClassifier.isPermissionFailure(cause)) {
+                    throw StoragePermissionException(
+                        cause.message ?: cause::class.simpleName,
+                        cause,
+                    )
+                }
                 if (attempt < 3) {
                     download.retryAttempt = attempt.toInt() + 1
                     download.displayStatus = DownloadDisplayStatus.RETRYING
-                    delay((2L shl attempt.toInt()) * 1000)
+                    delay(retryBackoffMillis shl attempt.toInt())
                     true
                 } else {
-                    download.lastErrorCode = "RETRY_EXHAUSTED"
-                    download.lastErrorReason = "Network retries exhausted"
-                    false
+                    throw RetriesExhaustedException(cause)
                 }
             }
             .flowOn(Dispatchers.IO)
@@ -835,7 +894,7 @@ class AnimeDownloader(
                         continuation.resume(it)
                     } else {
                         val output = it.output
-                        if (isLowStorageFailure(output)) {
+                        if (DownloadFailureClassifier.isLowStorageFailure(output)) {
                             download.status = AnimeDownload.State.QUEUE
                             download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
                             download.blockedReason = DownloadBlockedReason.STORAGE
@@ -1153,16 +1212,6 @@ class AnimeDownloader(
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
-
-private class LowStorageException(message: String) : Exception(message)
-
-private fun isLowStorageFailure(message: String?): Boolean {
-    if (message.isNullOrBlank()) return false
-    return message.contains("No space left on device", ignoreCase = true) ||
-        message.contains("ENOSPC", ignoreCase = true) ||
-        message.contains("disk full", ignoreCase = true) ||
-        message.contains("insufficient storage", ignoreCase = true)
-}
 
 private sealed interface VideoFetchResult {
     data object Success : VideoFetchResult

@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.download.anime.model
 
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureTarget
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
@@ -17,7 +18,6 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.concurrent.atomic.AtomicLong
-
 data class AnimeDownload(
     val source: AnimeHttpSource,
     val anime: Anime,
@@ -25,7 +25,7 @@ data class AnimeDownload(
     val changeDownloader: Boolean = false,
     var video: Video? = null,
     var priority: DownloadPriority = DownloadPriority.NORMAL,
-) : ProgressListener, DownloadStatusSnapshot {
+) : ProgressListener, DownloadStatusSnapshot, DownloadFailureTarget {
 
     @Transient
     private val _statusFlow = MutableStateFlow(State.NOT_DOWNLOADED)
@@ -67,7 +67,7 @@ data class AnimeDownload(
     override var retryAttempt: Int = 0
 
     @Transient
-    var lastErrorCode: String? = null
+    override var lastErrorCode: String? = null
 
     @Transient
     override var lastErrorReason: String? = null
