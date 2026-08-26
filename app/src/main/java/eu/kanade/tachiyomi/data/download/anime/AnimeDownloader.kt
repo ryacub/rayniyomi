@@ -27,9 +27,9 @@ import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidat
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
-import eu.kanade.tachiyomi.data.download.core.DownloadFailure
+import eu.kanade.tachiyomi.data.download.core.DownloadFailureAction
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureClassifier
-import eu.kanade.tachiyomi.data.download.core.DownloadFailureKind
+import eu.kanade.tachiyomi.data.download.core.DownloadFailurePolicy
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureReporter
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
@@ -384,13 +384,13 @@ class AnimeDownloader(
                 removeFromQueue(download)
             }
         } catch (e: Throwable) {
-            val failure = DownloadFailureClassifier.classify(e)
-            if (failure.kind == DownloadFailureKind.CANCELLATION && !currentCoroutineContext().isActive) throw e
+            val action = DownloadFailurePolicy.forDownloadJob(e, currentCoroutineContext().isActive)
+            if (action !is DownloadFailureAction.Report) throw e
             // Cancellation-shaped while the job is still active is a failure.
-            logcat(LogPriority.ERROR, failure.cause ?: e)
+            logcat(LogPriority.ERROR, action.failure.cause ?: e)
             download.status = AnimeDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
-            failureReporter.report(download, failure, reasonFallback = failure.code)
+            failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
             stop()
         }
     }
@@ -500,11 +500,11 @@ class AnimeDownloader(
             download.status = AnimeDownload.State.QUEUE
             download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
             download.blockedReason = DownloadBlockedReason.STORAGE
-            download.lastErrorCode = "LOW_STORAGE"
-            download.lastErrorReason = context.stringResource(AYMR.strings.download_insufficient_space)
-            notifier.onWarning(
-                context.stringResource(AYMR.strings.download_insufficient_space),
-                download.anime.id,
+            failureReporter.report(
+                download,
+                DownloadFailurePolicy.lowStorageFailure(
+                    context.stringResource(AYMR.strings.download_insufficient_space),
+                ),
             )
             return
         }
@@ -536,8 +536,10 @@ class AnimeDownloader(
             if (!isDownloadSuccessful(download, tmpDir)) {
                 download.status = AnimeDownload.State.ERROR
                 download.displayStatus = DownloadDisplayStatus.FAILED
-                download.lastErrorCode = "INCOMPLETE"
-                download.lastErrorReason = "Incomplete download output"
+                failureReporter.report(
+                    download,
+                    DownloadFailurePolicy.incompleteOutputFailure("Incomplete download output"),
+                )
                 return
             }
 
@@ -557,13 +559,18 @@ class AnimeDownloader(
             download.lastErrorCode = null
             download.lastErrorReason = null
         } catch (error: Throwable) {
-            if (error is CancellationException) throw error
-            if (error is LowStorageException) return
-            // If the video threw, it will resume here
-            logcat(LogPriority.ERROR, error)
-            download.status = AnimeDownload.State.ERROR
-            download.displayStatus = DownloadDisplayStatus.FAILED
-            failureReporter.report(download, DownloadFailureClassifier.classify(error))
+            when (val action = DownloadFailurePolicy.forItem(error)) {
+                DownloadFailureAction.Rethrow -> throw error
+                is DownloadFailureAction.Silence -> return
+                is DownloadFailureAction.Report -> {
+                    // If the video threw, it will resume here
+                    logcat(LogPriority.ERROR, error)
+                    download.status = AnimeDownload.State.ERROR
+                    download.displayStatus = DownloadDisplayStatus.FAILED
+                    failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
+                }
+                else -> throw error
+            }
         }
     }
 
@@ -628,29 +635,23 @@ class AnimeDownloader(
             video.status = Video.State.READY
             return VideoFetchResult.Success
         } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            if (e is LowStorageException) {
-                download.status = AnimeDownload.State.QUEUE
-                download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
-                download.blockedReason = DownloadBlockedReason.STORAGE
-                failureReporter.report(
-                    download,
-                    DownloadFailure(
-                        kind = DownloadFailureKind.LOW_STORAGE,
-                        message = e.message,
-                        cause = e,
-                    ),
-                )
-                return VideoFetchResult.PausedLowStorage
+            when (val action = DownloadFailurePolicy.forVideoFetch(e)) {
+                DownloadFailureAction.Rethrow -> throw e
+                is DownloadFailureAction.PauseLowStorage -> {
+                    download.status = AnimeDownload.State.QUEUE
+                    download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
+                    download.blockedReason = DownloadBlockedReason.STORAGE
+                    failureReporter.report(download, action.failure)
+                    return VideoFetchResult.PausedLowStorage
+                }
+                is DownloadFailureAction.Report -> {
+                    video.status = Video.State.ERROR
+                    download.displayStatus = DownloadDisplayStatus.FAILED
+                    failureReporter.report(download, action.failure)
+                    return VideoFetchResult.Failed
+                }
+                else -> throw e
             }
-            if (e is StoragePermissionException || e is RetriesExhaustedException) {
-                // The retry routine created this failure. Let the episode catch report it once.
-                throw e
-            }
-            video.status = Video.State.ERROR
-            download.displayStatus = DownloadDisplayStatus.FAILED
-            failureReporter.report(download, DownloadFailureClassifier.classify(e))
-            return VideoFetchResult.Failed
         }
     }
 
@@ -812,15 +813,7 @@ class AnimeDownloader(
                         return
                     }
                     is DownloadError.DiskFull -> {
-                        download.status = AnimeDownload.State.QUEUE
-                        download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
-                        download.blockedReason = DownloadBlockedReason.STORAGE
-                        download.lastErrorCode = "LOW_STORAGE"
-                        download.lastErrorReason = error.message
-                        notifier.onWarning(
-                            context.stringResource(AYMR.strings.download_insufficient_space),
-                            animeId = download.anime.id,
-                        )
+                        pauseForLowStorage(download, error.message)
                         throw LowStorageException(error.message ?: "Insufficient storage")
                     }
                     else -> {
@@ -895,15 +888,7 @@ class AnimeDownloader(
                     } else {
                         val output = it.output
                         if (DownloadFailureClassifier.isLowStorageFailure(output)) {
-                            download.status = AnimeDownload.State.QUEUE
-                            download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
-                            download.blockedReason = DownloadBlockedReason.STORAGE
-                            download.lastErrorCode = "LOW_STORAGE"
-                            download.lastErrorReason = output
-                            notifier.onWarning(
-                                context.stringResource(AYMR.strings.download_insufficient_space),
-                                animeId = download.anime.id,
-                            )
+                            pauseForLowStorage(download, output)
                             continuation.resumeWithException(
                                 LowStorageException(output ?: "Insufficient storage"),
                             )
@@ -921,6 +906,16 @@ class AnimeDownloader(
                 session.cancel()
             }
         }
+    }
+
+    /**
+     * Pauses the download for low storage and warns one time through the reporter.
+     */
+    private fun pauseForLowStorage(download: AnimeDownload, message: String?) {
+        download.status = AnimeDownload.State.QUEUE
+        download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
+        download.blockedReason = DownloadBlockedReason.STORAGE
+        failureReporter.report(download, DownloadFailurePolicy.lowStorageFailure(message))
     }
 
     private fun getFFmpegOptions(video: Video, headerOptions: String, ffmpegFilename: String): Array<String> {

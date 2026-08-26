@@ -8,6 +8,8 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
+import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
@@ -56,6 +58,7 @@ import java.io.IOException
 class AnimeDownloaderTest {
 
     private lateinit var downloader: AnimeDownloader
+    private lateinit var testContext: Context
     private val testDispatcher = StandardTestDispatcher()
     private val strategySelector = mockk<DownloadStrategySelector>()
 
@@ -95,7 +98,8 @@ class AnimeDownloaderTest {
         mockkObject(NotificationReceiver.Companion)
         every { NotificationReceiver.openAnimeEntryPendingActivity(any(), any()) } returns mockk(relaxed = true)
 
-        val context = mockk<Context>(relaxed = true)
+        testContext = mockk<Context>(relaxed = true)
+        val context = testContext
         val notificationBuilder = mockk<NotificationCompat.Builder>(relaxed = true)
         every { context.notificationBuilder(any(), any()) } returns notificationBuilder
         every { context.notify(any<Int>(), any<Notification>()) } just runs
@@ -269,6 +273,70 @@ class AnimeDownloaderTest {
         assertEquals(AnimeDownload.State.ERROR, download.status)
         val reason = download.lastErrorReason.orEmpty()
         assertTrue(reason.contains("EPERM") || reason.contains("Permission denied", ignoreCase = true))
+    }
+
+    @Test
+    fun `pre-flight low storage warns once and never errors`() = runTest {
+        val download = testDownload()
+
+        every { DiskUtil.getAvailableStorageSpace(any<UniFile>()) } returns 1L
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(AnimeDownload.State.QUEUE, download.status)
+        assertEquals(DownloadDisplayStatus.PAUSED_LOW_STORAGE, download.displayStatus)
+        assertEquals(DownloadBlockedReason.STORAGE, download.blockedReason)
+        assertEquals("LOW_STORAGE", download.lastErrorCode)
+        assertEquals("mocked", download.lastErrorReason)
+        verify(exactly = 1) {
+            anyConstructed<AnimeDownloadNotifier>().onWarning(any(), any(), any(), any())
+        }
+        verify(exactly = 0) {
+            anyConstructed<AnimeDownloadNotifier>().onError(any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `incomplete output records the incomplete code without a notification`() = runTest {
+        val video = mockk<Video>(relaxed = true)
+        val download = testDownload(video)
+
+        val mkvFile = mockk<UniFile>(relaxed = true)
+        every { mkvFile.name } returns "Ch1.mkv"
+        val tmpDir = mockk<UniFile>()
+        var listedFiles = false
+        every { tmpDir.findFile(any()) } returns null
+        every { tmpDir.listFiles() } answers {
+            if (listedFiles) {
+                emptyArray()
+            } else {
+                listedFiles = true
+                arrayOf(mkvFile)
+            }
+        }
+        val provider = mockk<AnimeDownloadProvider>(relaxed = true)
+        val animeDir = mockk<UniFile>(relaxed = true)
+        every { provider.getAnimeDir(any(), any()) } returns animeDir
+        every { animeDir.createDirectory(any()) } returns tmpDir
+        downloader = AnimeDownloader(
+            context = testContext,
+            provider = provider,
+            cache = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            stateStore = mockk(relaxed = true),
+            strategySelector = strategySelector,
+            multiThreadDownloader = mockk(relaxed = true),
+        )
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(AnimeDownload.State.ERROR, download.status)
+        assertEquals(DownloadDisplayStatus.FAILED, download.displayStatus)
+        assertEquals("INCOMPLETE", download.lastErrorCode)
+        assertEquals("Incomplete download output", download.lastErrorReason)
+        verify(exactly = 0) {
+            anyConstructed<AnimeDownloadNotifier>().onError(any(), any(), any(), any())
+        }
     }
 }
 
