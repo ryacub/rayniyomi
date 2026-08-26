@@ -168,39 +168,13 @@ class PageCurlOverlayView(context: Context) : View(context) {
             meshColors,
             shadowPaint,
         )
-        drawFoldBack(canvas, from)
-    }
-
-    /**
-     * Draws the softened back of the folded-over sheet inside the projected
-     * strip.
-     *
-     * The back shows the outgoing bitmap mirrored about the crease, washed
-     * with a translucent color so it reads as paper rather than as a
-     * copy of the front. Outside the strip nothing changes. Both curl
-     * directions sample the canonical range [tangent, tangent + radius],
-     * inside the bitmap for every non-null span.
-     */
-    private fun drawFoldBack(canvas: Canvas, bitmap: Bitmap) {
-        val bitmapWidth = bitmap.width.toFloat()
-        val drawing = PageCurlRollMath.foldBackDrawing(
-            bitmapWidth,
+        PageCurlBackFaceRenderer.draw(
+            canvas,
+            from,
             playback.progress,
             playback.direction,
-        ) ?: return
-        val left = drawing.clipSpan.start
-        val right = drawing.clipSpan.endInclusive
-
-        canvas.save()
-        canvas.clipRect(left, 0f, right, bitmap.height.toFloat())
-        when (drawing.transform) {
-            FoldBackTransform.MIRROR -> canvas.scale(-1f, 1f, drawing.creaseX, 0f)
-            FoldBackTransform.TRANSLATE -> canvas.translate(2f * drawing.creaseX - bitmapWidth, 0f)
-        }
-        canvas.drawBitmap(bitmap, 0f, 0f, null)
-        // Soften the sampled copy so it reads as paper.
-        canvas.drawRect(left, 0f, right, bitmap.height.toFloat(), backSoftenPaint)
-        canvas.restore()
+            backSoftenPaint,
+        )
     }
 }
 
