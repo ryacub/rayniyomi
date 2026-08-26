@@ -3,6 +3,8 @@ package eu.kanade.tachiyomi.ui.reader.loader
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
+import eu.kanade.tachiyomi.data.translation.TranslationPreferences
+import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -31,6 +33,8 @@ class ChapterLoader(
 ) {
 
     private val readerPreferences: ReaderPreferences by injectLazy()
+    private val translationPreferences: TranslationPreferences by injectLazy()
+    private val translationStorageManager: TranslationStorageManager by injectLazy()
 
     /**
      * Assigns the chapter's page loader and loads the its pages. Returns immediately if the chapter
@@ -94,6 +98,10 @@ class ChapterLoader(
                 source,
                 downloadManager,
                 downloadProvider,
+                context,
+                readerPreferences,
+                translationPreferences,
+                translationStorageManager,
             )
             source is LocalMangaSource -> source.getFormat(chapter.chapter).let { format ->
                 when (format) {
