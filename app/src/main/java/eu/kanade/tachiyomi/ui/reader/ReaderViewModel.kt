@@ -188,25 +188,20 @@ class ReaderViewModel @JvmOverloads constructor(
      * Owns the translated-pages reaction: language change watching, reload decision, and toggles.
      */
     private val translationCoordinator = ReaderTranslationCoordinator(
-        translationStorageManager = translationStorageManager,
-        translationPreferences = translationPreferences,
         translationManager = translationManager,
-        sourceManager = sourceManager,
         readerPreferences = readerPreferences,
         scope = viewModelScope,
-        currentManga = { manga },
-        getCurrChapter = { state.value.viewerChapters?.currChapter },
-        getViewerChapters = { state.value.viewerChapters },
-        getShowTranslatedPages = { state.value.translation.showTranslatedPages },
+        readerContext = {
+            val current = state.value
+            ReaderTranslationContext(
+                viewerChapters = current.viewerChapters,
+                showTranslatedPages = current.translation.showTranslatedPages,
+            )
+        },
+        hasTranslationFor = ::hasTranslationForChapter,
         chapterIdFlow = state.map { it.viewerChapters?.currChapter?.chapter?.id },
-        onTranslationStateChange = { translationState ->
-            mutableState.update { it.copy(translation = it.translation.copy(translationState = translationState)) }
-        },
-        onHasTranslationChange = { hasTranslation ->
-            mutableState.update { it.copy(translation = it.translation.copy(hasTranslation = hasTranslation)) }
-        },
-        onShowTranslatedPagesChange = { showTranslatedPages ->
-            mutableState.update { it.copy(translation = it.translation.copy(showTranslatedPages = showTranslatedPages)) }
+        updateTranslation = { reduce ->
+            mutableState.update { it.copy(translation = reduce(it.translation)) }
         },
         onReload = { eventChannel.send(ReaderEvent.ReloadViewerChapters) },
         cancelAdjacentPreload = { cancelActivePreload() },

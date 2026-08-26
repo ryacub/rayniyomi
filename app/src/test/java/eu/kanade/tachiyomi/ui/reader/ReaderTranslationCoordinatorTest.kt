@@ -2,9 +2,7 @@ package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.data.translation.TranslationManager
-import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationState
-import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -34,8 +32,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
-import tachiyomi.domain.entries.manga.model.Manga
-import tachiyomi.domain.source.manga.service.MangaSourceManager
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -99,8 +95,10 @@ class ReaderTranslationCoordinatorTest {
     }
 
     private class Recorder {
+        var slice = ReaderTranslationUiState()
         val shownValues = mutableListOf<Boolean>()
         val hasTranslationValues = mutableListOf<Boolean>()
+        val hasTranslationQueries = mutableListOf<String>()
         val events = mutableListOf<String>()
         var reloads = 0
     }
@@ -127,27 +125,29 @@ class ReaderTranslationCoordinatorTest {
     ): Pair<ReaderTranslationCoordinator, Recorder> {
         val recorder = Recorder()
         val coordinator = ReaderTranslationCoordinator(
-            translationStorageManager = mockk<TranslationStorageManager>(relaxed = true) {
-                every {
-                    isChapterTranslated(any(), any(), any(), any(), any())
-                } returns isChapterTranslated
-            },
             translationManager = translationManager,
-            translationPreferences = mockk<TranslationPreferences> {
-                every { targetLanguage() } returns mockk { every { get() } returns "en" }
-            },
-            sourceManager = mockk<MangaSourceManager>(relaxed = true),
             readerPreferences = readerPreferences,
             scope = scope,
-            currentManga = { mockk<Manga>(relaxed = true) },
-            getCurrChapter = { getViewerChapters()?.currChapter },
-            getViewerChapters = getViewerChapters,
-            getShowTranslatedPages = { preference.get() },
+            readerContext = {
+                ReaderTranslationContext(
+                    viewerChapters = getViewerChapters(),
+                    showTranslatedPages = preference.get(),
+                )
+            },
+            hasTranslationFor = { chapter ->
+                recorder.hasTranslationQueries.add(chapter.name)
+                isChapterTranslated
+            },
             chapterIdFlow = MutableStateFlow<Long?>(null),
-            onHasTranslationChange = { value -> recorder.hasTranslationValues.add(value) },
-            onTranslationStateChange = { },
-            onShowTranslatedPagesChange = { value ->
-                recorder.shownValues.add(value)
+            updateTranslation = { reduce ->
+                val next = reduce(recorder.slice)
+                if (next.showTranslatedPages != recorder.slice.showTranslatedPages) {
+                    recorder.shownValues.add(next.showTranslatedPages)
+                }
+                if (next.hasTranslation != recorder.slice.hasTranslation) {
+                    recorder.hasTranslationValues.add(next.hasTranslation)
+                }
+                recorder.slice = next
             },
             onReload = { recorder.reloads++ },
             cancelAdjacentPreload = {
@@ -367,7 +367,7 @@ class ReaderTranslationCoordinatorTest {
 
             // A dedicated scope holds start()'s infinite collectors; the finally block cancels
             // it so runTest does not see unfinished children of the test scope.
-            val collectorScope = CoroutineScope(SupervisorJob() + vt.io)
+            val collectorScope = CoroutineScope(vt.io + SupervisorJob())
 
             val (coordinator, recorder) = buildCoordinator(
                 scope = collectorScope,
@@ -404,7 +404,8 @@ class ReaderTranslationCoordinatorTest {
             }
             // A dedicated scope holds start()'s infinite collectors; the finally block cancels
             // it so runTest does not see unfinished children of the test scope.
-            val collectorScope = CoroutineScope(SupervisorJob() + vt.io)
+
+            val collectorScope = CoroutineScope(vt.io + SupervisorJob())
 
             val (coordinator, recorder) = buildCoordinator(
                 scope = collectorScope,
