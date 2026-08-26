@@ -37,6 +37,8 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -136,6 +138,12 @@ class ReaderViewModel @JvmOverloads constructor(
     private var loader: ChapterLoader? = null
 
     /**
+     * The in-flight adjacent-chapter preload, if any. Owned here so the translation toggle can
+     * cancel and await it before rebuilding the same chapter's pages.
+     */
+    private var preloadJob: Job? = null
+
+    /**
      * The time the chapter was started reading
      */
     private var chapterReadStartTime: Long? = null
@@ -201,6 +209,7 @@ class ReaderViewModel @JvmOverloads constructor(
             mutableState.update { it.copy(showTranslatedPages = showTranslatedPages) }
         },
         onReload = { eventChannel.send(ReaderEvent.ReloadViewerChapters) },
+        cancelAdjacentPreload = { cancelActivePreload() },
     )
 
     init {
@@ -407,8 +416,25 @@ class ReaderViewModel @JvmOverloads constructor(
     /**
      * Called when the viewers decide it's a good time to preload a [chapter] and improve the UX so
      * that the user doesn't have to wait too long to continue reading.
+     *
+     * The launched job is tracked so [cancelActivePreload] can stop it: the preload and the
+     * translation toggle both write [ReaderChapter.state].
      */
-    suspend fun preload(chapter: ReaderChapter) {
+    fun preload(chapter: ReaderChapter) {
+        preloadJob?.cancel()
+        preloadJob = viewModelScope.launchIO { preloadChapter(chapter) }
+    }
+
+    /**
+     * Cancels the in-flight preload and waits for it to finish unwinding, so no late write to
+     * [ReaderChapter.state] can land after the caller's own rebuild.
+     */
+    suspend fun cancelActivePreload() {
+        preloadJob?.cancelAndJoin()
+        preloadJob = null
+    }
+
+    private suspend fun preloadChapter(chapter: ReaderChapter) {
         if (chapter.state is ReaderChapter.State.Loaded || chapter.state == ReaderChapter.State.Loading) {
             return
         }
