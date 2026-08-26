@@ -28,11 +28,13 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import okhttp3.Response
 import okhttp3.ResponseBody
@@ -90,6 +92,7 @@ class MangaDownloaderTest {
         every { anyConstructed<MangaDownloadNotifier>().onQueueStatusSummary(any()) } just runs
         every { anyConstructed<MangaDownloadNotifier>().onPaused() } just runs
         every { anyConstructed<MangaDownloadNotifier>().onComplete() } just runs
+        every { anyConstructed<MangaDownloadNotifier>().onProgressChange(any()) } just runs
         every { NotificationHandler.openDownloadManagerPendingActivity(any()) } returns mockk(relaxed = true)
         mockkObject(NotificationReceiver.Companion)
         every { NotificationReceiver.openMangaEntryPendingActivity(any(), any()) } returns mockk(relaxed = true)
@@ -99,6 +102,7 @@ class MangaDownloaderTest {
         every { context.notificationBuilder(any(), any()) } returns notificationBuilder
         every { context.notify(any<Int>(), any<Notification>()) } just runs
         every { context.stringResource(any()) } returns "mocked"
+        every { context.stringResource(any(), *anyVararg()) } returns "mocked"
 
         downloader = MangaDownloader(
             context = context,
@@ -159,18 +163,51 @@ class MangaDownloaderTest {
     @Test
     fun `source failure during image url fetch marks only that page as error`() = runTest {
         val page = Page(0)
+        val unaffectedPage = Page(1, url = "url", imageUrl = "image")
         val download = MangaDownload(
             source = mockk(relaxed = true),
             manga = Manga.create().copy(id = 1L, title = "Test"),
             chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
-        ).apply { pages = listOf(page) }
+        ).apply { pages = listOf(page, unaffectedPage) }
+        downloader.retryBackoffMillis = 0L
 
+        val imageUrlStarted = CompletableDeferred<Unit>()
+        val releaseImageUrl = CompletableDeferred<Unit>()
+        val imageStarted = CompletableDeferred<Unit>()
+        val releaseImage = CompletableDeferred<Unit>()
         mockkObject(MangaSourceGateway)
-        coEvery { MangaSourceGateway.imageUrl(any(), any()) } throws RuntimeException("boom")
+        coEvery { MangaSourceGateway.imageUrl(any(), any()) } coAnswers {
+            imageUrlStarted.complete(Unit)
+            releaseImageUrl.await()
+            throw RuntimeException("boom")
+        }
+        // The unaffected page reaches the image fetch. Serve a response whose body
+        // cannot be read, so its status stays DOWNLOAD_IMAGE and never becomes ERROR.
+        val response = mockk<Response>(relaxed = true)
+        val body = mockk<ResponseBody>()
+        every { response.body } returns body
+        every { body.source() } throws IOException("unaffected page body")
+        coEvery { MangaSourceGateway.image(any(), any(), any()) } coAnswers {
+            imageStarted.complete(Unit)
+            releaseImage.await()
+            response
+        }
 
-        downloader.downloadChapter(download)
+        val downloadJob = launch {
+            downloader.downloadChapter(download)
+        }
 
+        imageUrlStarted.await()
+        releaseImageUrl.complete(Unit)
+        imageStarted.await()
+        releaseImage.complete(Unit)
+        downloadJob.join()
+
+        withTimeout(5_000) {
+            page.statusFlow.first { it == Page.State.ERROR }
+        }
         assertEquals(Page.State.ERROR, page.status)
+        assertNotEquals(Page.State.ERROR, unaffectedPage.status)
     }
 
     @Test
