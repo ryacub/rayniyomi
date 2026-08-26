@@ -427,6 +427,37 @@ class PageCurlRollMathTest {
         }
     }
 
+    @Test
+    fun `right fold back drawing mirrors about the screen crease`() {
+        val progress = 0.5f
+        val span = PageCurlRollMath.foldBackSpan(width, progress, CurlDirection.FROM_RIGHT)!!
+
+        val drawing = PageCurlRollMath.foldBackDrawing(width, progress, CurlDirection.FROM_RIGHT)
+
+        drawing!!.clipSpan shouldBe span
+        drawing.creaseX shouldBe span.endInclusive
+        drawing.transform shouldBe FoldBackTransform.MIRROR
+    }
+
+    @Test
+    fun `left fold back drawing translates from the mirrored screen crease`() {
+        val progress = 0.5f
+        val span = PageCurlRollMath.foldBackSpan(width, progress, CurlDirection.FROM_LEFT)!!
+
+        val drawing = PageCurlRollMath.foldBackDrawing(width, progress, CurlDirection.FROM_LEFT)
+
+        drawing!!.clipSpan shouldBe span
+        drawing.creaseX shouldBe span.start
+        drawing.transform shouldBe FoldBackTransform.TRANSLATE
+    }
+
+    @Test
+    fun `fold back drawing is absent outside the visible page`() {
+        PageCurlRollMath.foldBackDrawing(width, 0f, CurlDirection.FROM_RIGHT) shouldBe null
+        PageCurlRollMath.foldBackDrawing(width, 1f, CurlDirection.FROM_RIGHT) shouldBe null
+        PageCurlRollMath.foldBackDrawing(width, 1f, CurlDirection.FROM_LEFT) shouldBe null
+    }
+
     // A7: the roll stays single valued under the theta clamp. The flat run
     // folds back once at the tangent line; the wrapped segment then reverses
     // direction once across the quarter turn. At p = 1 the whole sheet lies

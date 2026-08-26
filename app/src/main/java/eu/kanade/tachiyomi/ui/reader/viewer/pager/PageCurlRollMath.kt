@@ -15,6 +15,17 @@ import kotlin.math.sin
  * left curl. The projection is orthographic, so the roll depth never
  * affects the output: only x moves, and y stays on its row line.
  */
+internal enum class FoldBackTransform {
+    MIRROR,
+    TRANSLATE,
+}
+
+internal data class FoldBackDrawing(
+    val clipSpan: ClosedFloatingPointRange<Float>,
+    val creaseX: Float,
+    val transform: FoldBackTransform,
+)
+
 internal object PageCurlRollMath {
 
     const val MESH_COLS = 48
@@ -149,6 +160,29 @@ internal object PageCurlRollMath {
     ): ClosedFloatingPointRange<Float>? {
         val canonical = foldBackSpan(pageWidth, progress) ?: return null
         return direction.mirrorSpan(canonical, pageWidth)
+    }
+
+    /** Returns the visible clip and transform decision for the folded page back. */
+    fun foldBackDrawing(
+        pageWidth: Float,
+        progress: Float,
+        direction: CurlDirection,
+    ): FoldBackDrawing? {
+        val span = foldBackSpan(pageWidth, progress, direction) ?: return null
+        if (span.endInclusive <= 0f || span.start >= pageWidth) return null
+
+        return when (direction) {
+            CurlDirection.FROM_RIGHT -> FoldBackDrawing(
+                clipSpan = span,
+                creaseX = span.endInclusive,
+                transform = FoldBackTransform.MIRROR,
+            )
+            CurlDirection.FROM_LEFT -> FoldBackDrawing(
+                clipSpan = span,
+                creaseX = span.start,
+                transform = FoldBackTransform.TRANSLATE,
+            )
+        }
     }
 
     /**

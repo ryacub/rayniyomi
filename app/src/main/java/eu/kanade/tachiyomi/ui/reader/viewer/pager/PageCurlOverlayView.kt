@@ -168,7 +168,7 @@ class PageCurlOverlayView(context: Context) : View(context) {
             meshColors,
             shadowPaint,
         )
-        drawFoldBack(canvas, from.width.toFloat(), from.height.toFloat())
+        drawFoldBack(canvas, from)
     }
 
     /**
@@ -181,32 +181,25 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * directions sample the canonical range [tangent, tangent + radius],
      * inside the bitmap for every non-null span.
      */
-    private fun drawFoldBack(canvas: Canvas, bitmapWidth: Float, bitmapHeight: Float) {
-        val span = PageCurlRollMath.foldBackSpan(
+    private fun drawFoldBack(canvas: Canvas, bitmap: Bitmap) {
+        val bitmapWidth = bitmap.width.toFloat()
+        val drawing = PageCurlRollMath.foldBackDrawing(
             bitmapWidth,
             playback.progress,
             playback.direction,
         ) ?: return
-        // Skip when the whole strip has rolled off screen.
-        if (span.endInclusive <= 0f || span.start >= bitmapWidth) return
-        val left = span.start
-        val right = span.endInclusive
+        val left = drawing.clipSpan.start
+        val right = drawing.clipSpan.endInclusive
 
         canvas.save()
-        canvas.clipRect(left, 0f, right, bitmapHeight)
-        // The right curl reflects the bitmap about the fold line at the
-        // strip's outer edge. The mesh already mirrors the page for a left
-        // curl, so there the same reflection composes into a pure
-        // translation by w - 2t.
-        if (playback.direction == CurlDirection.FROM_RIGHT) {
-            canvas.scale(-1f, 1f, right, 0f)
-        } else {
-            val tangent = PageCurlRollMath.tangentX(bitmapWidth, playback.progress)
-            canvas.translate(bitmapWidth - 2f * tangent, 0f)
+        canvas.clipRect(left, 0f, right, bitmap.height.toFloat())
+        when (drawing.transform) {
+            FoldBackTransform.MIRROR -> canvas.scale(-1f, 1f, drawing.creaseX, 0f)
+            FoldBackTransform.TRANSLATE -> canvas.translate(2f * drawing.creaseX - bitmapWidth, 0f)
         }
-        canvas.drawBitmap(playback.fromBitmap!!, 0f, 0f, null)
+        canvas.drawBitmap(bitmap, 0f, 0f, null)
         // Soften the sampled copy so it reads as paper.
-        canvas.drawRect(left, 0f, right, bitmapHeight, backSoftenPaint)
+        canvas.drawRect(left, 0f, right, bitmap.height.toFloat(), backSoftenPaint)
         canvas.restore()
     }
 }
