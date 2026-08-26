@@ -6,14 +6,14 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import mihon.domain.extensionrepo.model.ExtensionRepo
 import org.junit.jupiter.api.AfterEach
@@ -44,7 +44,7 @@ class ExtensionReposScreenModelTest {
     }
 
     @Test
-    fun `initial state is Loading`() = runTest {
+    fun `initial state is Loading`() {
         // Keep the state deterministic by preventing any repo emission during init.
         val deps = createMockDependencies(emptyFlow())
         val model = ExtensionReposScreenModel(deps)
@@ -54,13 +54,16 @@ class ExtensionReposScreenModelTest {
     }
 
     @Test
-    fun `dependencies interface is called correctly`() = runTest {
+    fun `dependencies interface is called correctly`() {
         val deps = createMockDependencies(flowOf(emptyList()))
         val model = ExtensionReposScreenModel(deps)
 
-        // subscribeAll() is called inside launchIO (Dispatchers.IO), so we wait for the state
-        // to transition out of Loading — proving subscribeAll() was invoked.
-        withContext(Dispatchers.Default.limitedParallelism(1)) {
+        // subscribeAll() runs on Dispatchers.IO through launchIO, outside every test
+        // scheduler. The state transition is the completion signal: first {} resumes on
+        // that event alone, so no polling and no fixed wait participate in the ordering.
+        // runBlocking keeps withTimeout on the real clock, where it only caps a broken
+        // run; it never gates the happy path.
+        runBlocking {
             withTimeout(5_000) {
                 model.state.first { it !is RepoScreenState.Loading }
             }
@@ -70,14 +73,16 @@ class ExtensionReposScreenModelTest {
     }
 
     @Test
-    fun `invalid url event is delivered even when collector attaches late`() = runTest {
+    fun `invalid url event is delivered even when collector attaches late`() {
         val deps = createMockDependencies(emptyFlow())
         coEvery { deps.createRepo("not-a-url") } returns ExtensionReposScreenModel.CreateResult.InvalidUrl
         val model = ExtensionReposScreenModel(deps)
 
         model.createRepo("not-a-url")
 
-        val event = withContext(Dispatchers.Default.limitedParallelism(1)) {
+        // The producer runs on Dispatchers.IO through launchIO. The buffered channel
+        // hands the event to this late collector as an event wait, not a timed one.
+        val event = runBlocking {
             withTimeout(5_000) {
                 model.events.first()
             }
@@ -88,7 +93,7 @@ class ExtensionReposScreenModelTest {
     }
 
     private fun createMockDependencies(
-        reposFlow: kotlinx.coroutines.flow.Flow<List<ExtensionRepo>>,
+        reposFlow: Flow<List<ExtensionRepo>>,
     ): ExtensionReposScreenModel.Dependencies {
         return mockk {
             every { subscribeAll() } returns reposFlow

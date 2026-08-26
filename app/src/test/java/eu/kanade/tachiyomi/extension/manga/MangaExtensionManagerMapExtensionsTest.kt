@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.manga
 
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
@@ -20,7 +21,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
  * Tests the real [MangaExtensionManager.mapExtensions] helper. The mapping must run on
@@ -49,23 +49,26 @@ class MangaExtensionManagerMapExtensionsTest {
     @Test
     fun `mapping work runs on the injected dispatcher`() = runTest {
         val accessThreads = mutableListOf<String>()
+        val mappedOnWorker = CompletableDeferred<Unit>()
         val extension = untrusted("pkg1")
         // The seed value read inside stateIn runs synchronously on the test thread
         // and is not part of the assertion.
-        val source = MutableStateFlow(recordingMap(mapOf("pkg1" to extension), accessThreads))
+        val source = MutableStateFlow(
+            recordingMap(mapOf("pkg1" to extension), accessThreads, mappedOnWorker),
+        )
         val scope = managerScope()
 
         val mapped = source.mapExtensions(scope, mapDispatcher)
         val seedAccessCount = accessThreads.size
         scope.launch { mapped.collect { /* drain */ } }
-        advanceUntilIdle()
 
-        // flowOn hops to a real worker thread that the test scheduler cannot see,
-        // so wait on the wall clock until the mapping work is recorded.
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-        while (accessThreads.size == seedAccessCount && System.nanoTime() < deadline) {
-            Thread.sleep(10)
-        }
+        // flowOn hops to a real worker thread that the test scheduler cannot see.
+        // The recording map completes this barrier when the mapping work runs there,
+        // so the wait is event-driven instead of a wall-clock poll. The final drain
+        // delivers the mapped emission back through the sharing pipeline.
+        advanceUntilIdle()
+        mappedOnWorker.await()
+        advanceUntilIdle()
 
         assertEquals(listOf(extension), mapped.value)
         assertTrue(accessThreads.size > seedAccessCount, "Mapping never ran during collection")
@@ -109,11 +112,18 @@ class MangaExtensionManagerMapExtensionsTest {
     private fun recordingMap(
         delegate: Map<String, MangaExtension.Untrusted>,
         accessThreads: MutableList<String>,
+        mappedOnWorker: CompletableDeferred<Unit>,
     ): Map<String, MangaExtension.Untrusted> {
         return object : AbstractMap<String, MangaExtension.Untrusted>() {
             override val entries: Set<Map.Entry<String, MangaExtension.Untrusted>>
                 get() {
-                    accessThreads += Thread.currentThread().name
+                    val threadName = Thread.currentThread().name
+                    accessThreads += threadName
+                    // Seed reads run on the test thread; only the worker hop completes
+                    // the barrier.
+                    if (threadName.startsWith(mapThreadName)) {
+                        mappedOnWorker.complete(Unit)
+                    }
                     return delegate.entries
                 }
 
