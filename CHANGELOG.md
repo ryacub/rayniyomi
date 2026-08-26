@@ -28,6 +28,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The page curl now shows the softened back of the folding page.
 - The page curl now shades the curved fold with per-vertex lighting and casts the fold shadow onto the incoming page instead of the outgoing page.
 - The chapter list translation indicator now shows the current page count and the total page count while a chapter translates.
+- The chapter translation progress ring no longer jumps backwards when a page retries after a transient failure. The ring keeps counting finished pages and turns amber while the retry runs.
 
 ### Fixed
 - Manga chapter download failures now always show the real cause. A source error hidden as a cancellation no longer fails silently, and a page that exhausts its retries reports the actual exception instead of "Network retries exhausted". Permission-denied file errors now fail at once instead of retrying.

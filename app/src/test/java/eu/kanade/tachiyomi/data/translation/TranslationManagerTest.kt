@@ -302,9 +302,9 @@ class TranslationManagerTest {
         advanceUntilIdle()
         observer.cancel()
 
-        // Exact equality is deliberate: the flag must carry the retrying page index.
+        // Exact equality is deliberate: the phase must name the retried page, 1-based.
         assertTrue(
-            emissions.any { it == TranslationState.Translating(0, 1, retryingPage = 0) },
+            emissions.any { it == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)) },
             "Expected a retrying emission but got $emissions",
         )
         assertEquals(TranslationState.Translated, manager.getState(chapter.id))
@@ -330,11 +330,11 @@ class TranslationManagerTest {
         observer.cancel()
 
         val lastRetryingIndex = emissions.indexOfLast {
-            it is TranslationState.Translating && it.retryingPage != null
+            it is TranslationState.Translating && it.phase is TranslationPhase.Retrying
         }
         assertTrue(lastRetryingIndex >= 0, "Expected a retrying emission but got $emissions")
         val clearedAfterRetry = emissions.drop(lastRetryingIndex + 1).none {
-            it is TranslationState.Translating && it.retryingPage != null
+            it is TranslationState.Translating && it.phase is TranslationPhase.Retrying
         }
         assertTrue(clearedAfterRetry, "Retrying flag survived page success: $emissions")
         assertEquals(TranslationState.Translated, manager.getState(chapter.id))
@@ -354,7 +354,7 @@ class TranslationManagerTest {
         observer.cancel()
 
         assertTrue(
-            emissions.any { it is TranslationState.Translating && it.retryingPage != null },
+            emissions.any { it is TranslationState.Translating && it.phase is TranslationPhase.Retrying },
             "Expected a retrying emission but got $emissions",
         )
         assertEquals(TranslationState.Error("HTTP error 503"), manager.getState(chapter.id))
@@ -375,10 +375,9 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
         observer.cancel()
-
         assertEquals(
             emptyList<TranslationState>(),
-            emissions.filter { it is TranslationState.Translating && it.retryingPage != null },
+            emissions.filter { it is TranslationState.Translating && it.phase is TranslationPhase.Retrying },
         )
         assertEquals(TranslationState.Translated, manager.getState(chapter.id))
     }
@@ -403,8 +402,7 @@ class TranslationManagerTest {
         observer.cancel()
 
         // MutableStateFlow dedupes equal values, so identical retries must not re-emit.
-        assertEquals(1, emissions.count { it == TranslationState.Translating(0, 1, retryingPage = 0) })
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(1, emissions.count { it == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)) })
     }
 
     @Test
@@ -420,7 +418,7 @@ class TranslationManagerTest {
         // The eager dispatcher ran the first attempt and its onRetry before suspending in the backoff.
         val stateBeforeCancel = manager.getState(chapter.id)
         assertTrue(
-            stateBeforeCancel == TranslationState.Translating(0, 1, retryingPage = 0),
+            stateBeforeCancel == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)),
             "Expected the retrying state before cancel but got $stateBeforeCancel",
         )
 
@@ -430,6 +428,40 @@ class TranslationManagerTest {
         assertEquals(TranslationState.Idle, manager.getState(chapter.id))
     }
 
+    @Test
+    fun `a retry on a later page never lowers the progress count`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(
+            listOf(
+                DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) },
+                DownloadedChapterPage(1) { ByteArrayInputStream(imageBytes) },
+            ),
+        )
+        var attempts = 0
+        coEvery { engine.detectAndTranslate(any(), "en") } answers {
+            // Page 1 succeeds; page 2 fails once transiently, then succeeds.
+            if (attempts++ == 1) throw HttpException(503)
+            TranslationResult(emptyList())
+        }
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        val (emissions, observer) = collectChapterStates()
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+        observer.cancel()
+
+        val counts = emissions.filterIsInstance<TranslationState.Translating>().map { it.currentPage }
+        assertEquals(counts.sorted(), counts, "Progress went backwards: $emissions")
+        // The retry reports the page it is retrying without touching the finished count.
+        assertTrue(
+            emissions.any { it == TranslationState.Translating(1, 2, TranslationPhase.Retrying(2)) },
+            "Expected a retrying emission for page 2 but got $emissions",
+        )
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+    }
     // -----------------------------------------------------------------------
     // Cancellation
     // -----------------------------------------------------------------------

@@ -145,7 +145,11 @@ class TranslationManager(
                                 onRetry = {
                                     updateState(
                                         chapterId,
-                                        TranslationState.Translating(index, pages.size, retryingPage = index),
+                                        TranslationState.Translating(
+                                            currentPage = index,
+                                            totalPages = pages.size,
+                                            phase = TranslationPhase.Retrying(page = index + 1),
+                                        ),
                                     )
                                 },
                             ) {

@@ -42,16 +42,22 @@ class TranslationStateTest {
     }
 
     @Test
-    fun `Translating state can mark a retrying page`() {
-        val state = TranslationState.Translating(0, 10, retryingPage = 0)
-        assertEquals(0, state.retryingPage)
-        assertNull(TranslationState.Translating(3, 10).retryingPage)
+    fun `Translating defaults to the progressing phase`() {
+        assertEquals(TranslationPhase.Progressing, TranslationState.Translating(3, 10).phase)
     }
 
     @Test
-    fun `Translating states differing only in retryingPage are not equal`() {
+    fun `Retrying phase carries the one-based page being retried`() {
+        val state = TranslationState.Translating(7, 32, phase = TranslationPhase.Retrying(page = 8))
+        assertEquals(TranslationPhase.Retrying(8), state.phase)
+        assertEquals(7, state.currentPage)
+    }
+
+    @Test
+    fun `Translating states differing only in phase are not equal`() {
         assertFalse(
-            TranslationState.Translating(0, 10) == TranslationState.Translating(0, 10, retryingPage = 0),
+            TranslationState.Translating(7, 32) ==
+                TranslationState.Translating(7, 32, phase = TranslationPhase.Retrying(8)),
         )
     }
 }

@@ -32,6 +32,7 @@ import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.components.IndicatorSize
 import eu.kanade.presentation.components.IndicatorStrokeWidth
 import eu.kanade.presentation.components.commonClickable
+import eu.kanade.tachiyomi.data.translation.TranslationPhase
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.IconButtonTokens
@@ -64,7 +65,7 @@ fun ChapterTranslationIndicator(
             modifier = modifier,
             currentPage = state.currentPage,
             totalPages = state.totalPages,
-            retryingPage = state.retryingPage,
+            phase = state.phase,
             onClick = onClick,
         )
         TranslationState.Translated -> TranslatedIndicator(
@@ -141,7 +142,7 @@ private fun TranslatingIndicator(
     enabled: Boolean,
     currentPage: Int,
     totalPages: Int,
-    retryingPage: Int?,
+    phase: TranslationPhase,
     onClick: (ChapterTranslationAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -168,10 +169,9 @@ private fun TranslatingIndicator(
             animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
             label = "translation_progress",
         )
-        // A retrying page turns the ring tertiary and drops it to indeterminate, so the user can
-        // tell a transient failure apart from steady progress and from terminal error. Motion
-        // carries the signal as well as colour, which colour on its own cannot do.
-        val isRetrying = retryingPage != null
+        // The ring stays determinate during a retry. The finished-page count never moves backwards,
+        // so the count text keeps its meaning and the tertiary tint carries the retry signal.
+        val isRetrying = phase is TranslationPhase.Retrying
         val tint = if (isRetrying) {
             MaterialTheme.colorScheme.tertiary
         } else {
@@ -181,24 +181,14 @@ private fun TranslatingIndicator(
             .size(TranslatingIndicatorSize)
             .padding(TranslatingIndicatorPadding)
         val ringTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
-        if (isRetrying) {
-            CircularProgressIndicator(
-                modifier = ringModifier,
-                color = tint,
-                strokeWidth = IndicatorStrokeWidth,
-                trackColor = ringTrackColor,
-                strokeCap = StrokeCap.Round,
-            )
-        } else {
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = ringModifier,
-                color = tint,
-                strokeWidth = IndicatorStrokeWidth,
-                trackColor = ringTrackColor,
-                strokeCap = StrokeCap.Round,
-            )
-        }
+        CircularProgressIndicator(
+            progress = { animatedProgress },
+            modifier = ringModifier,
+            color = tint,
+            strokeWidth = IndicatorStrokeWidth,
+            trackColor = ringTrackColor,
+            strokeCap = StrokeCap.Round,
+        )
         Text(
             text = "$currentPage/$totalPages",
             style = MaterialTheme.typography.labelSmall.copy(
