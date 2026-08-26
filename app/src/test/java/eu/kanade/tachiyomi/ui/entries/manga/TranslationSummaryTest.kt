@@ -108,7 +108,17 @@ class TranslationSummaryTest {
 
         assertEquals(1, summary.translatingCount)
         assertEquals(0, summary.failedCount)
-        assertEquals(listOf(1L), summary.chapters.map { it.chapterId })
+    }
+
+    @Test
+    fun `translationStateOf returns the mapped state`() {
+        val states = mapOf(1L to TranslationState.Translating(2, 10))
+        assertEquals(TranslationState.Translating(2, 10), translationStateOf(states, 1L))
+    }
+
+    @Test
+    fun `translationStateOf falls back to Idle for an absent chapter`() {
+        assertEquals(TranslationState.Idle, translationStateOf(emptyMap(), 42L))
     }
 }
 

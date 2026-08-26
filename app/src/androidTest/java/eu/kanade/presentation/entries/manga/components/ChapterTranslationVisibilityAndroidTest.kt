@@ -139,7 +139,7 @@ class ChapterTranslationVisibilityAndroidTest {
             onClick = {},
             onDownloadClick = {},
             onChapterSwipe = {},
-            translationStateProvider = { translationState },
+            translationState = translationState,
             onTranslationClick = {},
         )
     }

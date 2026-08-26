@@ -48,13 +48,13 @@ enum class ChapterTranslationAction {
 fun ChapterTranslationIndicator(
     enabled: Boolean,
     isDownloaded: Boolean,
-    translationStateProvider: () -> TranslationState,
+    translationState: TranslationState,
     onClick: (ChapterTranslationAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (!isDownloaded) return
 
-    when (val state = translationStateProvider()) {
+    when (val state = translationState) {
         TranslationState.Idle -> NotTranslatedIndicator(
             enabled = enabled,
             modifier = modifier,

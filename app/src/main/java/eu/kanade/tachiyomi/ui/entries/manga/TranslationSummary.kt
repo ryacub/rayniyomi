@@ -21,6 +21,13 @@ data class TranslationSummary(
 )
 
 /**
+ * The state for [chapterId] in [states]. A chapter absent from the map is [TranslationState.Idle]:
+ * the manager removes a chapter from the map when it goes idle.
+ */
+fun translationStateOf(states: Map<Long, TranslationState>, chapterId: Long): TranslationState =
+    states[chapterId] ?: TranslationState.Idle
+
+/**
  * Builds a translation progress summary for the given manga chapters.
  *
  * Returns null when no chapter is currently translating or failed, so the
