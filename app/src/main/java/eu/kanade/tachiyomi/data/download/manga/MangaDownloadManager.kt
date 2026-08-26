@@ -555,8 +555,6 @@ class MangaDownloadManager(
         val oldSidecarName = TranslationStorageLayout.sidecarDirName(oldChapterFileName)
         val oldSidecar = mangaDir.findFile(oldSidecarName) ?: return
         val newSidecarName = TranslationStorageLayout.sidecarDirName(newChapterFileName)
-        if (oldSidecarName == newSidecarName) return
-
         if (!oldSidecar.renameTo(newSidecarName)) {
             logcat(LogPriority.ERROR) { "Could not rename translation folder: $oldSidecarName" }
         }
