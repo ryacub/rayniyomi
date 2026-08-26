@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -94,13 +95,30 @@ class ReaderTranslationCoordinatorTest {
         every { showTranslatedPages() } returns preference
     }
 
+    /**
+     * Records every reducer output into [updates]. The per-field views keep one entry per update
+     * whose field differs from the previous value, matching what the old one-line setter
+     * callbacks recorded.
+     */
     private class Recorder {
         var slice = ReaderTranslationUiState()
-        val shownValues = mutableListOf<Boolean>()
-        val hasTranslationValues = mutableListOf<Boolean>()
-        val hasTranslationQueries = mutableListOf<String>()
+        val updates = mutableListOf<ReaderTranslationUiState>()
         val events = mutableListOf<String>()
         var reloads = 0
+
+        val shownValues: List<Boolean>
+            get() = updates.map { it.showTranslatedPages }.changesFrom(ReaderTranslationUiState().showTranslatedPages)
+        val hasTranslationValues: List<Boolean>
+            get() = updates.map { it.hasTranslation }.changesFrom(ReaderTranslationUiState().hasTranslation)
+
+        private fun <T> List<T>.changesFrom(first: T): List<T> {
+            var previous = first
+            return mapNotNull { value ->
+                if (value == previous) return@mapNotNull null
+                previous = value
+                value
+            }
+        }
     }
 
     private fun readerChapter(id: Long, name: String): ReaderChapter =
@@ -129,19 +147,11 @@ class ReaderTranslationCoordinatorTest {
             readerPreferences = readerPreferences,
             scope = scope,
             getViewerChapters = getViewerChapters,
-            hasTranslationFor = { chapter ->
-                recorder.hasTranslationQueries.add(chapter.name)
-                isChapterTranslated
-            },
+            hasTranslationFor = { isChapterTranslated },
             chapterIdFlow = MutableStateFlow<Long?>(null),
             updateTranslation = { reduce ->
                 val next = reduce(recorder.slice)
-                if (next.showTranslatedPages != recorder.slice.showTranslatedPages) {
-                    recorder.shownValues.add(next.showTranslatedPages)
-                }
-                if (next.hasTranslation != recorder.slice.hasTranslation) {
-                    recorder.hasTranslationValues.add(next.hasTranslation)
-                }
+                recorder.updates.add(next)
                 recorder.slice = next
             },
             onReload = { recorder.reloads++ },
@@ -348,23 +358,26 @@ class ReaderTranslationCoordinatorTest {
             recorder.reloads shouldBe 1
         }
 
-    @Test
-    fun `a language generation change refreshes hasTranslation and reloads when translations are shown`() =
-        runTest(vt.scheduler) {
-            val curr = readerChapter(id = 1L, name = "Curr")
-            curr.state = ReaderChapter.State.Loaded(emptyList())
-            val chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null)
-            preference.set(true)
-            val generations = MutableStateFlow(0)
-            val translationManager = mockk<TranslationManager> {
-                every { languageGeneration } returns generations
-                every { translationStates } returns MutableStateFlow<Map<Long, TranslationState>>(emptyMap())
-            }
+    /**
+     * Starts the coordinator against a Loaded current chapter, bumps languageGeneration once,
+     * and advances the scheduler. Returns the recorder and the current chapter. Call inside
+     * runTest; the collector scope is cancelled before the assertions run.
+     */
+    private suspend fun TestScope.bumpLanguageGeneration(shown: Boolean): Pair<Recorder, ReaderChapter> {
+        val curr = readerChapter(id = 1L, name = "Curr")
+        curr.state = ReaderChapter.State.Loaded(emptyList())
+        val chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null)
+        preference.set(shown)
+        val generations = MutableStateFlow(0)
+        val translationManager = mockk<TranslationManager> {
+            every { languageGeneration } returns generations
+            every { translationStates } returns MutableStateFlow<Map<Long, TranslationState>>(emptyMap())
+        }
+        // A dedicated scope holds start()'s infinite collectors; cancelling it keeps runTest
+        // from seeing unfinished children of the test scope.
+        val collectorScope = CoroutineScope(vt.io + SupervisorJob())
 
-            // A dedicated scope holds start()'s infinite collectors; the finally block cancels
-            // it so runTest does not see unfinished children of the test scope.
-            val collectorScope = CoroutineScope(vt.io + SupervisorJob())
-
+        try {
             val (coordinator, recorder) = buildCoordinator(
                 scope = collectorScope,
                 getViewerChapters = { chapters },
@@ -372,55 +385,33 @@ class ReaderTranslationCoordinatorTest {
                 isChapterTranslated = true,
             )
 
-            try {
-                coordinator.start()
-                advanceUntilIdle()
-                generations.value += 1
-                advanceUntilIdle()
+            coordinator.start()
+            advanceUntilIdle()
+            generations.value += 1
+            advanceUntilIdle()
+            return recorder to curr
+        } finally {
+            collectorScope.cancel()
+        }
+    }
 
-                recorder.hasTranslationValues shouldBe listOf(true)
-                curr.state shouldBe ReaderChapter.State.Wait
-                recorder.reloads shouldBe 1
-            } finally {
-                collectorScope.cancel()
-            }
+    @Test
+    fun `a language generation change refreshes hasTranslation and reloads when translations are shown`() =
+        runTest(vt.scheduler) {
+            val (recorder, curr) = bumpLanguageGeneration(shown = true)
+
+            recorder.hasTranslationValues shouldBe listOf(true)
+            curr.state shouldBe ReaderChapter.State.Wait
+            recorder.reloads shouldBe 1
         }
 
     @Test
     fun `a language generation change updates hasTranslation without reload when translations are hidden`() =
         runTest(vt.scheduler) {
-            val curr = readerChapter(id = 1L, name = "Curr")
-            curr.state = ReaderChapter.State.Loaded(emptyList())
-            val chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null)
-            preference.set(false)
-            val generations = MutableStateFlow(0)
-            val translationManager = mockk<TranslationManager> {
-                every { languageGeneration } returns generations
-                every { translationStates } returns MutableStateFlow<Map<Long, TranslationState>>(emptyMap())
-            }
-            // A dedicated scope holds start()'s infinite collectors; the finally block cancels
-            // it so runTest does not see unfinished children of the test scope.
+            val (recorder, curr) = bumpLanguageGeneration(shown = false)
 
-            val collectorScope = CoroutineScope(vt.io + SupervisorJob())
-
-            val (coordinator, recorder) = buildCoordinator(
-                scope = collectorScope,
-                getViewerChapters = { chapters },
-                translationManager = translationManager,
-                isChapterTranslated = true,
-            )
-
-            try {
-                coordinator.start()
-                advanceUntilIdle()
-                generations.value += 1
-                advanceUntilIdle()
-
-                recorder.hasTranslationValues shouldBe listOf(true)
-                curr.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
-                recorder.reloads shouldBe 0
-            } finally {
-                collectorScope.cancel()
-            }
+            recorder.hasTranslationValues shouldBe listOf(true)
+            curr.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
+            recorder.reloads shouldBe 0
         }
 }
