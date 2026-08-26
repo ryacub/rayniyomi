@@ -15,6 +15,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
@@ -96,13 +97,15 @@ class ReaderTranslationCoordinator(
         val newValue = readerPreferences.showTranslatedPages().toggle()
         onShowTranslatedPagesChange(newValue)
         toggleJob?.cancel()
-        toggleJob = scope.launch(ioDispatcher) {
+        toggleJob = scope.launch {
             // A preload started by the viewer writes the same ReaderChapter.state this rebuild
             // writes. Wait for it to finish cancelling, so it cannot land old-language pages on
             // an adjacent chapter afterwards.
             cancelAdjacentPreload()
             val viewerChapters = getViewerChapters() ?: return@launch
-            val installed = reloadViewerChaptersForTranslationToggle(viewerChapters)
+            val installed = withContext(ioDispatcher) {
+                reloadViewerChaptersForTranslationToggle(viewerChapters)
+            }
             if (!installed) {
                 readerPreferences.showTranslatedPages().set(!newValue)
                 onShowTranslatedPagesChange(!newValue)

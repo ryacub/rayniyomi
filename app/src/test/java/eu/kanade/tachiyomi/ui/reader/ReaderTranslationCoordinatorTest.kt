@@ -25,12 +25,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import kotlin.coroutines.ContinuationInterceptor
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 
 /**
  * Contract tests for [ReaderTranslationCoordinator.toggleTranslatedPages]. They pin the
@@ -297,4 +301,43 @@ class ReaderTranslationCoordinatorTest {
         recorder.reloads shouldBe 1
         recorder.shownValues shouldBe listOf(true, false)
     }
+
+    @Test
+    fun `cancel runs on the scope confinement while page loading uses the injected dispatcher`() =
+        runTest(vt.scheduler) {
+            val scopeDispatcher = kotlin.coroutines.coroutineContext[kotlin.coroutines.ContinuationInterceptor]
+            val curr = readerChapter(id = 1L, name = "Curr")
+            curr.state = ReaderChapter.State.Loaded(emptyList())
+            val interceptors = mutableListOf<String>()
+            object : PageLoader() {
+                override var isLocal: Boolean = true
+
+                override suspend fun getPages(): List<ReaderPage> {
+                    val ici = kotlin.coroutines.coroutineContext[kotlin.coroutines.ContinuationInterceptor]
+                    interceptors.add("pages:" + System.identityHashCode(ici))
+                    return listOf(ReaderPage(index = 0, url = "curr-translated", imageUrl = null))
+                }
+            }.also { curr.pageLoader = it }
+            val chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null)
+
+            val (coordinator, recorder) = buildCoordinator(
+                scope = this,
+                getViewerChapters = { chapters },
+                cancelAdjacentPreload = {
+                    val cci = kotlin.coroutines.coroutineContext[kotlin.coroutines.ContinuationInterceptor]
+                    interceptors.add(0, "cancel:" + System.identityHashCode(cci))
+                },
+            )
+
+            coordinator.toggleTranslatedPages()
+            advanceUntilIdle()
+
+            // The cancel must run where the toggle job started — the scope's own confinement,
+            // the context preload() writes from in production — and only the page reload may
+            // hop to the injected dispatcher. Index 0 is the cancel; index 1 is getPages().
+            interceptors.size shouldBe 2
+            interceptors[0] shouldBe "cancel:" + System.identityHashCode(scopeDispatcher)
+            interceptors[1] shouldBe "pages:" + System.identityHashCode(vt.io)
+            recorder.reloads shouldBe 1
+        }
 }
