@@ -639,6 +639,7 @@
     <string name="translation_retry_progress">Retrying page %1$d of %2$d</string>
     <string name="translation_summary_title">Translation in progress</string>
     <string name="translation_summary_counts">%1$d translating · %2$d done · %3$d failed</string>
+    <string name="translation_status_failed">Failed</string>
     <string name="translation_complete">Translation complete</string>
     <string name="translation_error">Translation failed: %s</string>
     <string name="translation_no_provider">No translation provider configured</string>
