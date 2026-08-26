@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader
 import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
+import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -19,15 +20,16 @@ import tachiyomi.core.common.preference.toggle
  * recomputes whether the current chapter has a translation, decides when the viewer must reload,
  * and toggles between translated and original pages.
  *
- * The ViewModel supplies one accessor that snapshots the translation-related state through
- * [readerContext], one reducer that writes it through [updateTranslation], and event delivery
- * through callbacks, so state ownership stays in one place.
+ * The ViewModel supplies the open viewer chapters through one accessor, one reducer that writes
+ * the translation state through [updateTranslation], and event delivery through callbacks, so
+ * state ownership stays in one place. The shown-translated-pages preference is read through
+ * [readerPreferences]: the coordinator is its only writer.
  */
 class ReaderTranslationCoordinator(
     private val translationManager: TranslationManager,
     private val readerPreferences: ReaderPreferences,
     private val scope: CoroutineScope,
-    private val readerContext: () -> ReaderTranslationContext,
+    private val getViewerChapters: () -> ViewerChapters?,
     private val hasTranslationFor: (Chapter) -> Boolean,
     private val chapterIdFlow: Flow<Long?>,
     private val updateTranslation: ((ReaderTranslationUiState) -> ReaderTranslationUiState) -> Unit,
@@ -48,10 +50,9 @@ class ReaderTranslationCoordinator(
             translationManager.languageGeneration
                 .drop(1)
                 .collect {
-                    val context = readerContext()
-                    val currChapter = context.currChapter ?: return@collect
+                    val currChapter = getViewerChapters()?.currChapter ?: return@collect
                     updateTranslation { it.copy(hasTranslation = hasTranslationFor(currChapter.chapter)) }
-                    if (prepareTranslationReload(currChapter, context.showTranslatedPages)) {
+                    if (prepareTranslationReload(currChapter, readerPreferences.showTranslatedPages().get())) {
                         onReload()
                     }
                 }
@@ -79,7 +80,7 @@ class ReaderTranslationCoordinator(
             // writes. Wait for it to finish cancelling, so it cannot land old-language pages on
             // an adjacent chapter afterwards.
             cancelAdjacentPreload()
-            val viewerChapters = readerContext().viewerChapters ?: return@launch
+            val viewerChapters = getViewerChapters() ?: return@launch
             val installed = withContext(ioDispatcher) {
                 reloadViewerChaptersForTranslationToggle(viewerChapters)
             }

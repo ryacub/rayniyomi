@@ -191,13 +191,7 @@ class ReaderViewModel @JvmOverloads constructor(
         translationManager = translationManager,
         readerPreferences = readerPreferences,
         scope = viewModelScope,
-        readerContext = {
-            val current = state.value
-            ReaderTranslationContext(
-                viewerChapters = current.viewerChapters,
-                showTranslatedPages = current.translation.showTranslatedPages,
-            )
-        },
+        getViewerChapters = { state.value.viewerChapters },
         hasTranslationFor = ::hasTranslationForChapter,
         chapterIdFlow = state.map { it.viewerChapters?.currChapter?.chapter?.id },
         updateTranslation = { reduce ->

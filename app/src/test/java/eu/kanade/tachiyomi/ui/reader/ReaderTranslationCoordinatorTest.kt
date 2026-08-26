@@ -128,12 +128,7 @@ class ReaderTranslationCoordinatorTest {
             translationManager = translationManager,
             readerPreferences = readerPreferences,
             scope = scope,
-            readerContext = {
-                ReaderTranslationContext(
-                    viewerChapters = getViewerChapters(),
-                    showTranslatedPages = preference.get(),
-                )
-            },
+            getViewerChapters = getViewerChapters,
             hasTranslationFor = { chapter ->
                 recorder.hasTranslationQueries.add(chapter.name)
                 isChapterTranslated

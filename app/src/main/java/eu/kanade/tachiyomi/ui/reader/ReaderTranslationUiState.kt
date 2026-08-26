@@ -2,8 +2,6 @@ package eu.kanade.tachiyomi.ui.reader
 
 import androidx.compose.runtime.Immutable
 import eu.kanade.tachiyomi.data.translation.TranslationState
-import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
-import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 
 /**
  * The reader's translation-related UI state, grouped so the three fields move as one value.
@@ -18,15 +16,3 @@ data class ReaderTranslationUiState(
     val hasTranslation: Boolean = false,
     val translationState: TranslationState = TranslationState.Idle,
 )
-
-/**
- * A snapshot of the reader state [ReaderTranslationCoordinator] reads. One accessor returning this
- * replaces the four per-field getter lambdas the coordinator used to take; each call site takes a
- * fresh snapshot, so the read timing matches the per-field reads it replaces.
- */
-data class ReaderTranslationContext(
-    val viewerChapters: ViewerChapters?,
-    val showTranslatedPages: Boolean,
-) {
-    val currChapter: ReaderChapter? get() = viewerChapters?.currChapter
-}
