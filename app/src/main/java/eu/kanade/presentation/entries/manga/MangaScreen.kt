@@ -896,7 +896,7 @@ private fun LazyListScope.sharedChapterItems(
                     onChapterSwipe = {
                         onChapterSwipe(item, it)
                     },
-                    translationStateProvider = { item.translationState },
+                    translationState = item.translationState,
                     onTranslationClick = if (onTranslationChapter != null) {
                         { onTranslationChapter(item, it) }
                     } else {

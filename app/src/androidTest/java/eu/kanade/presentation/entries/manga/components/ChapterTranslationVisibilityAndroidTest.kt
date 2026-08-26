@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.translation.TranslationPhase
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import org.junit.Rule
 import org.junit.Test
@@ -96,6 +97,49 @@ class ChapterTranslationVisibilityAndroidTest {
         composeRule.onNodeWithContentDescription(progress).assertExists()
     }
 
+    @Test
+    fun retryingChapterKeepsTheDeterminatePageCount() {
+        composeRule.setContent {
+            MaterialTheme {
+                Surface {
+                    ChapterRow(
+                        downloadState = MangaDownload.State.DOWNLOADED,
+                        translationState = TranslationState.Translating(
+                            currentPage = 7,
+                            totalPages = 32,
+                            phase = TranslationPhase.Retrying(page = 8),
+                        ),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("7/32").assertExists()
+    }
+
+    @Test
+    fun retryingChapterAnnouncesTheRetryToScreenReaders() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val retrying = context.stringResource(AYMR.strings.translation_retry_progress, 8, 32)
+
+        composeRule.setContent {
+            MaterialTheme {
+                Surface {
+                    ChapterRow(
+                        downloadState = MangaDownload.State.DOWNLOADED,
+                        translationState = TranslationState.Translating(
+                            currentPage = 7,
+                            totalPages = 32,
+                            phase = TranslationPhase.Retrying(page = 8),
+                        ),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(retrying).assertExists()
+    }
+
     @Composable
     private fun ChapterRow(
         downloadState: MangaDownload.State,
@@ -118,7 +162,7 @@ class ChapterTranslationVisibilityAndroidTest {
             onClick = {},
             onDownloadClick = {},
             onChapterSwipe = {},
-            translationStateProvider = { translationState },
+            translationState = translationState,
             onTranslationClick = {},
         )
     }

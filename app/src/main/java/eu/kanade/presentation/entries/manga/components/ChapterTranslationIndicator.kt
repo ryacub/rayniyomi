@@ -32,6 +32,7 @@ import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.components.IndicatorSize
 import eu.kanade.presentation.components.IndicatorStrokeWidth
 import eu.kanade.presentation.components.commonClickable
+import eu.kanade.tachiyomi.data.translation.TranslationPhase
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.IconButtonTokens
@@ -47,13 +48,13 @@ enum class ChapterTranslationAction {
 fun ChapterTranslationIndicator(
     enabled: Boolean,
     isDownloaded: Boolean,
-    translationStateProvider: () -> TranslationState,
+    translationState: TranslationState,
     onClick: (ChapterTranslationAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (!isDownloaded) return
 
-    when (val state = translationStateProvider()) {
+    when (val state = translationState) {
         TranslationState.Idle -> NotTranslatedIndicator(
             enabled = enabled,
             modifier = modifier,
@@ -64,7 +65,7 @@ fun ChapterTranslationIndicator(
             modifier = modifier,
             currentPage = state.currentPage,
             totalPages = state.totalPages,
-            retryingPage = state.retryingPage,
+            phase = state.phase,
             onClick = onClick,
         )
         TranslationState.Translated -> TranslatedIndicator(
@@ -141,15 +142,22 @@ private fun TranslatingIndicator(
     enabled: Boolean,
     currentPage: Int,
     totalPages: Int,
-    retryingPage: Int?,
+    phase: TranslationPhase,
     onClick: (ChapterTranslationAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val progressDescription = stringResource(
-        AYMR.strings.translation_progress,
-        currentPage,
-        totalPages,
-    )
+    val progressDescription = when (phase) {
+        is TranslationPhase.Retrying -> stringResource(
+            AYMR.strings.translation_retry_progress,
+            phase.page,
+            totalPages,
+        )
+        TranslationPhase.Progressing -> stringResource(
+            AYMR.strings.translation_progress,
+            currentPage,
+            totalPages,
+        )
+    }
     Box(
         modifier = modifier
             .size(IconButtonTokens.StateLayerSize)
@@ -168,10 +176,9 @@ private fun TranslatingIndicator(
             animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
             label = "translation_progress",
         )
-        // A retrying page turns the ring tertiary and drops it to indeterminate, so the user can
-        // tell a transient failure apart from steady progress and from terminal error. Motion
-        // carries the signal as well as colour, which colour on its own cannot do.
-        val isRetrying = retryingPage != null
+        // The ring stays determinate during a retry. The finished-page count never moves backwards,
+        // so the count text keeps its meaning and the tertiary tint carries the retry signal.
+        val isRetrying = phase is TranslationPhase.Retrying
         val tint = if (isRetrying) {
             MaterialTheme.colorScheme.tertiary
         } else {
@@ -181,24 +188,14 @@ private fun TranslatingIndicator(
             .size(TranslatingIndicatorSize)
             .padding(TranslatingIndicatorPadding)
         val ringTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
-        if (isRetrying) {
-            CircularProgressIndicator(
-                modifier = ringModifier,
-                color = tint,
-                strokeWidth = IndicatorStrokeWidth,
-                trackColor = ringTrackColor,
-                strokeCap = StrokeCap.Round,
-            )
-        } else {
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = ringModifier,
-                color = tint,
-                strokeWidth = IndicatorStrokeWidth,
-                trackColor = ringTrackColor,
-                strokeCap = StrokeCap.Round,
-            )
-        }
+        CircularProgressIndicator(
+            progress = { animatedProgress },
+            modifier = ringModifier,
+            color = tint,
+            strokeWidth = IndicatorStrokeWidth,
+            trackColor = ringTrackColor,
+            strokeCap = StrokeCap.Round,
+        )
         Text(
             text = "$currentPage/$totalPages",
             style = MaterialTheme.typography.labelSmall.copy(

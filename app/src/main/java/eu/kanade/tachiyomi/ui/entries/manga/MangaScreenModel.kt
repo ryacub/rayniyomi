@@ -179,17 +179,15 @@ class MangaScreenModel(
                 downloadCache.changes,
                 downloadManager.queueState,
                 translationManager.translationStates,
-            ) { mangaAndChapters, _, _, _ -> mangaAndChapters }
+            ) { mangaAndChapters, _, _, translationStates -> mangaAndChapters to translationStates }
                 .flowWithLifecycle(lifecycle)
-                .collectLatest { (manga, chapters) ->
+                .collectLatest { (mangaAndChapters, translationStates) ->
+                    val (manga, chapters) = mangaAndChapters
                     updateSuccessState {
                         it.copy(
                             manga = manga,
-                            chapters = chapters.toChapterListItems(manga),
-                            translationSummary = translationSummaryFrom(
-                                translationManager.translationStates.value,
-                                chapters,
-                            ),
+                            chapters = chapters.toChapterListItems(manga, translationStates),
+                            translationSummary = translationSummaryFrom(translationStates, chapters),
                         )
                     }
                 }
@@ -231,16 +229,16 @@ class MangaScreenModel(
             val needRefreshChapter = chapters.isEmpty()
 
             // Show what we have earlier
+            // One-shot initial render before any flow has emitted; the combine above corrects it
+            // on its first emission, which is immediate because translationStates is a StateFlow.
+            val translationStates = translationManager.translationStates.value
             mutableState.update {
                 State.Success(
                     manga = manga,
                     source = Injekt.get<MangaSourceManager>().getOrStub(manga.source),
                     isFromSource = isFromSource,
-                    chapters = chapters.toChapterListItems(manga),
-                    translationSummary = translationSummaryFrom(
-                        translationManager.translationStates.value,
-                        chapters,
-                    ),
+                    chapters = chapters.toChapterListItems(manga, translationStates),
+                    translationSummary = translationSummaryFrom(translationStates, chapters),
                     availableScanlators = getAvailableScanlators.await(mangaId),
                     excludedScanlators = getExcludedScanlators.await(mangaId),
                     isRefreshingData = needRefreshInfo || needRefreshChapter,
@@ -563,7 +561,10 @@ class MangaScreenModel(
         }
     }
 
-    private fun List<Chapter>.toChapterListItems(manga: Manga): List<ChapterList.Item> {
+    private fun List<Chapter>.toChapterListItems(
+        manga: Manga,
+        translationStates: Map<Long, TranslationState>,
+    ): List<ChapterList.Item> {
         val isLocal = manga.isLocal()
         return map { chapter ->
             val activeDownload = if (isLocal) {
@@ -587,15 +588,12 @@ class MangaScreenModel(
                 else -> MangaDownload.State.NOT_DOWNLOADED
             }
 
-            val translState = translationManager.translationStates.value[chapter.id]
-                ?: TranslationState.Idle
-
             ChapterList.Item(
                 chapter = chapter,
                 downloadState = downloadState,
                 downloadProgress = activeDownload?.progress ?: 0,
                 selected = chapter.id in selectedChapterIds,
-                translationState = translState,
+                translationState = translationStateOf(translationStates, chapter.id),
             )
         }
     }
@@ -751,10 +749,6 @@ class MangaScreenModel(
         val manga = successState?.manga ?: return
         val source = successState?.source ?: return
         translationManager.deleteTranslation(chapter, manga.title, source)
-    }
-
-    fun getTranslationState(chapterId: Long): TranslationState {
-        return translationManager.getState(chapterId)
     }
 
     fun markPreviousChapterRead(pointer: Chapter) {

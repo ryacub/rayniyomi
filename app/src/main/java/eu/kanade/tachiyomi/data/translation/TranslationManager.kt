@@ -2,16 +2,12 @@ package eu.kanade.tachiyomi.data.translation
 
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
-import eu.kanade.tachiyomi.data.translation.engine.ImageFormatUtil
-import eu.kanade.tachiyomi.data.translation.renderer.TranslationRenderer
-import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +36,7 @@ class TranslationManager(
     private val translationStorageManager: TranslationStorageManager = Injekt.get(),
     private val downloadManager: MangaDownloadManager = Injekt.get(),
     scope: CoroutineScope? = null,
+    private val chapterRunner: TranslationChapterRunner = TranslationChapterRunner(translationStorageManager),
 ) {
 
     private val scope = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -116,79 +113,15 @@ class TranslationManager(
                     if (pages.isEmpty()) {
                         updateState(chapterId, TranslationState.Error("No pages found"))
                     } else {
-                        updateState(chapterId, TranslationState.Translating(0, pages.size))
-
-                        for ((index, page) in pages.withIndex()) {
-                            // Skip pages already written by an earlier run, including stored originals.
-                            val existing = translationStorageManager.getTranslatedPageFile(
-                                chapter.name,
-                                chapter.scanlator,
-                                manga.title,
-                                source,
-                                targetLang,
-                                index,
-                            )
-                            if (existing != null) {
-                                updateState(chapterId, TranslationState.Translating(index + 1, pages.size))
-                                continue
-                            }
-
-                            val imageBytes = page.openStream()?.use {
-                                it.readBytes()
-                            } ?: continue
-
-                            // The retrying flag clears at the progress update after this call. An
-                            // extra emission in between is not needed: render and write are fast
-                            // local operations.
-                            val result = withTransientRetry(
-                                label = "chapter \"${chapter.name}\" page ${index + 1}",
-                                onRetry = {
-                                    updateState(
-                                        chapterId,
-                                        TranslationState.Translating(index, pages.size, retryingPage = index),
-                                    )
-                                },
-                            ) {
-                                engine.detectAndTranslate(imageBytes, targetLang)
-                            }
-
-                            // Render overlay
-                            val renderedBytes = if (result.regions.isNotEmpty()) {
-                                TranslationRenderer.render(imageBytes, result)
-                            } else {
-                                imageBytes // No text found, store original
-                            }
-
-                            // Determine filename from original page
-                            val extension = ImageFormatUtil.detectExtension(imageBytes)
-                            val fileName = "%03d.%s".format(index + 1, extension)
-
-                            // Write translated page
-                            translationStorageManager.writeTranslatedPage(
-                                chapterName = chapter.name,
-                                chapterScanlator = chapter.scanlator,
-                                mangaTitle = manga.title,
-                                source = source,
-                                targetLang = targetLang,
-                                fileName = fileName,
-                                imageBytes = renderedBytes,
-                            )
-
-                            // Update progress after processing each page
-                            updateState(chapterId, TranslationState.Translating(index + 1, pages.size))
-                        }
-
-                        // Write metadata
-                        translationStorageManager.writeMetadata(
-                            chapterName = chapter.name,
-                            chapterScanlator = chapter.scanlator,
-                            mangaTitle = manga.title,
+                        chapterRunner.run(
+                            manga = manga,
+                            chapter = chapter,
                             source = source,
+                            pages = pages,
+                            engine = engine,
                             targetLang = targetLang,
                             provider = provider,
-                        )
-
-                        updateState(chapterId, TranslationState.Translated)
+                        ) { state -> updateState(chapterId, state) }
                     }
                 }
             } catch (e: CancellationException) {
@@ -211,13 +144,6 @@ class TranslationManager(
     fun cancelTranslation(chapterId: Long) {
         activeJobs.remove(chapterId)?.cancel()
         updateState(chapterId, TranslationState.Idle)
-    }
-
-    /**
-     * Get the current translation state for a chapter.
-     */
-    fun getState(chapterId: Long): TranslationState {
-        return _translationStates.value[chapterId] ?: TranslationState.Idle
     }
 
     /**
@@ -270,49 +196,5 @@ class TranslationManager(
                 }
             }
         }
-    }
-
-    /**
-     * True only for HTTP status codes where a retry can succeed: rate limiting (429)
-     * and server errors (5xx). All other failures are permanent for this page.
-     */
-    private fun Throwable.isTransientHttp(): Boolean {
-        val httpException = this as? HttpException ?: return false
-        return httpException.code == 429 || httpException.code in 500..599
-    }
-
-    /**
-     * Retries the block on transient HTTP failures with exponential backoff.
-     * [label] names the work in the retry log, for example chapter and page.
-     * [onRetry] runs after each failed attempt, before its backoff delay.
-     * Rethrows cancellation, permanent failures, and the last error after
-     * [MAX_RETRIES] retries.
-     */
-    private suspend fun <T> withTransientRetry(
-        label: String,
-        onRetry: () -> Unit = {},
-        block: suspend () -> T,
-    ): T {
-        // MAX_RETRIES counts retries after the first attempt; total calls = MAX_RETRIES + 1.
-        for (attempt in 0..MAX_RETRIES) {
-            try {
-                return block()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (attempt == MAX_RETRIES || !e.isTransientHttp()) throw e
-                logcat(LogPriority.WARN) {
-                    "Transient translation failure for $label (attempt ${attempt + 1}), retrying"
-                }
-                onRetry()
-                delay(RETRY_DELAY_BASE_MS shl attempt)
-            }
-        }
-        throw IllegalStateException("unreachable")
-    }
-
-    private companion object {
-        const val MAX_RETRIES = 3
-        const val RETRY_DELAY_BASE_MS = 2_000L
     }
 }
