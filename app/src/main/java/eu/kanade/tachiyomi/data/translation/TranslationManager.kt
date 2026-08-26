@@ -147,13 +147,6 @@ class TranslationManager(
     }
 
     /**
-     * Get the current translation state for a chapter.
-     */
-    fun getState(chapterId: Long): TranslationState {
-        return _translationStates.value[chapterId] ?: TranslationState.Idle
-    }
-
-    /**
      * Check if a chapter is translated (from storage).
      */
     fun isChapterTranslated(

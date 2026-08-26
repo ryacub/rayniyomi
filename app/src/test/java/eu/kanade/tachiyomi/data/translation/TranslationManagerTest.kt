@@ -97,6 +97,10 @@ class TranslationManagerTest {
     private fun TestScope.createEagerManager(): TranslationManager =
         createManager(CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
 
+    /** The chapter's state from the public flow; an absent chapter is Idle, as production sees it. */
+    private fun stateOf(chapterId: Long): TranslationState =
+        manager.translationStates.value[chapterId] ?: TranslationState.Idle
+
     // -----------------------------------------------------------------------
     // State transition: IDLE -> TRANSLATING -> TRANSLATED (success path)
     // -----------------------------------------------------------------------
@@ -112,14 +116,14 @@ class TranslationManagerTest {
             mockk()
 
         // Initial state should be IDLE
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
 
         manager.translateChapter(manga, chapter, source)
 
         // Allow the coroutine to complete
         advanceUntilIdle()
 
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
     }
 
     // -----------------------------------------------------------------------
@@ -138,7 +142,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        val state = manager.getState(chapter.id)
+        val state = stateOf(chapter.id)
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
         assertEquals("API rate limit exceeded", (state as TranslationState.Error).message)
     }
@@ -152,7 +156,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        val state = manager.getState(chapter.id)
+        val state = stateOf(chapter.id)
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
         assertEquals("No pages found", (state as TranslationState.Error).message)
     }
@@ -164,7 +168,7 @@ class TranslationManagerTest {
 
         manager.translateChapter(manga, chapter, source)
 
-        val state = manager.getState(chapter.id)
+        val state = stateOf(chapter.id)
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
         assertEquals(
             "No translation model is selected. Choose a model in Settings > Translation.",
@@ -193,7 +197,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
         coVerify(exactly = 2) { engine.detectAndTranslate(imageBytes, "en") }
     }
 
@@ -220,7 +224,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
         coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
         verify(exactly = 1) {
             translationStorageManager.getTranslatedPageFile(
@@ -245,7 +249,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        val state = manager.getState(chapter.id)
+        val state = stateOf(chapter.id)
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
         assertEquals("HTTP error 401", (state as TranslationState.Error).message)
         coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
@@ -262,7 +266,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        val state = manager.getState(chapter.id)
+        val state = stateOf(chapter.id)
         assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
         assertEquals("HTTP error 503", (state as TranslationState.Error).message)
         coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
@@ -307,7 +311,7 @@ class TranslationManagerTest {
             emissions.any { it == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)) },
             "Expected a retrying emission but got $emissions",
         )
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
     }
 
     @Test
@@ -337,7 +341,7 @@ class TranslationManagerTest {
             it is TranslationState.Translating && it.phase is TranslationPhase.Retrying
         }
         assertTrue(clearedAfterRetry, "Retrying flag survived page success: $emissions")
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
     }
 
     @Test
@@ -357,7 +361,7 @@ class TranslationManagerTest {
             emissions.any { it is TranslationState.Translating && it.phase is TranslationPhase.Retrying },
             "Expected a retrying emission but got $emissions",
         )
-        assertEquals(TranslationState.Error("HTTP error 503"), manager.getState(chapter.id))
+        assertEquals(TranslationState.Error("HTTP error 503"), stateOf(chapter.id))
         coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
     }
 
@@ -379,7 +383,7 @@ class TranslationManagerTest {
             emptyList<TranslationState>(),
             emissions.filter { it is TranslationState.Translating && it.phase is TranslationPhase.Retrying },
         )
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
     }
 
     @Test
@@ -403,7 +407,7 @@ class TranslationManagerTest {
 
         // MutableStateFlow dedupes equal values, so identical retries must not re-emit.
         assertEquals(1, emissions.count { it == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)) })
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
     }
 
     @Test
@@ -417,7 +421,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
 
         // The eager dispatcher ran the first attempt and its onRetry before suspending in the backoff.
-        val stateBeforeCancel = manager.getState(chapter.id)
+        val stateBeforeCancel = stateOf(chapter.id)
         assertTrue(
             stateBeforeCancel == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)),
             "Expected the retrying state before cancel but got $stateBeforeCancel",
@@ -426,7 +430,7 @@ class TranslationManagerTest {
         manager.cancelTranslation(chapter.id)
         advanceUntilIdle()
 
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
     }
 
     @Test
@@ -461,7 +465,7 @@ class TranslationManagerTest {
             emissions.any { it == TranslationState.Translating(1, 2, TranslationPhase.Retrying(2)) },
             "Expected a retrying emission for page 2 but got $emissions",
         )
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
     }
     // -----------------------------------------------------------------------
     // Cancellation
@@ -485,7 +489,7 @@ class TranslationManagerTest {
         // Cancel before the engine finishes
         manager.cancelTranslation(chapter.id)
 
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
     }
 
     @Test
@@ -493,21 +497,21 @@ class TranslationManagerTest {
         createManager()
         // Should be a no-op
         manager.cancelTranslation(999L)
-        assertEquals(TranslationState.Idle, manager.getState(999L))
+        assertEquals(TranslationState.Idle, stateOf(999L))
     }
 
     // -----------------------------------------------------------------------
-    // getState
+    // translationStates lookup
     // -----------------------------------------------------------------------
 
     @Test
-    fun `getState returns IDLE for unknown chapter`() {
+    fun `the states lookup returns Idle for an unknown chapter`() {
         createManager()
-        assertEquals(TranslationState.Idle, manager.getState(999L))
+        assertEquals(TranslationState.Idle, stateOf(999L))
     }
 
     @Test
-    fun `getState returns correct state for each chapter independently`() = runTest {
+    fun `the states lookup returns the right state for each chapter independently`() = runTest {
         createEagerManager()
         val chapter2 = chapter.copy(id = 200L, name = "Chapter 2")
 
@@ -516,8 +520,8 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
 
         // chapter 1 should be in Error, chapter 2 should be Idle
-        assertTrue(manager.getState(chapter.id) is TranslationState.Error)
-        assertEquals(TranslationState.Idle, manager.getState(chapter2.id))
+        assertTrue(stateOf(chapter.id) is TranslationState.Error)
+        assertEquals(TranslationState.Idle, stateOf(chapter2.id))
     }
 
     // -----------------------------------------------------------------------
@@ -608,7 +612,7 @@ class TranslationManagerTest {
         // First put the chapter into an error state
         every { translationEngineFactory.create() } returns null
         manager.translateChapter(manga, chapter, source)
-        assertTrue(manager.getState(chapter.id) is TranslationState.Error)
+        assertTrue(stateOf(chapter.id) is TranslationState.Error)
 
         // Now delete -- should reset to IDLE
         every {
@@ -623,7 +627,7 @@ class TranslationManagerTest {
 
         manager.deleteTranslation(chapter, manga.title, source)
 
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
     }
 
     // -----------------------------------------------------------------------
@@ -741,7 +745,7 @@ class TranslationManagerTest {
         advanceUntilIdle()
 
         assertFalse(manager.translationStates.value.containsKey(chapter.id))
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
     }
 
     @Test
@@ -762,7 +766,7 @@ class TranslationManagerTest {
         targetLanguageFlow.value = "it"
         advanceUntilIdle()
 
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
         coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
         coVerify(exactly = 0) { engine.detectAndTranslate(any(), "it") }
     }
@@ -837,7 +841,7 @@ class TranslationManagerTest {
         }
 
         assertFalse(manager.translationStates.value.containsKey(chapter.id))
-        assertEquals(TranslationState.Idle, manager.getState(chapter.id))
+        assertEquals(TranslationState.Idle, stateOf(chapter.id))
     }
 
     // -----------------------------------------------------------------------
@@ -893,7 +897,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         advanceUntilIdle()
 
-        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
+        assertEquals(TranslationState.Translated, stateOf(chapter.id))
         assertEquals("Test Manga - Chapter 1", manager.chapterTitles.value[chapter.id])
     }
     // -----------------------------------------------------------------------
