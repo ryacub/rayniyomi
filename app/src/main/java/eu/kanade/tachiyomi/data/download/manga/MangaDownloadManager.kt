@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
 import eu.kanade.tachiyomi.util.size
@@ -513,18 +514,51 @@ class MangaDownloadManager(
             .mapNotNull { mangaDir.findFile(it) }
             .firstOrNull() ?: return
 
+        // An archive keeps its translations in a sibling folder, so that folder has
+        // to move too. A folder of images keeps them in a child, which the rename of
+        // the parent carries along.
+        val isArchive = oldDownload.isFile && oldDownload.extension == "cbz"
+        val oldDownloadName = oldDownload.name
+
         var newName = provider.getChapterDirName(newChapter.name, newChapter.scanlator)
-        if (oldDownload.isFile && oldDownload.extension == "cbz") {
+        if (isArchive) {
             newName += ".cbz"
         }
 
-        if (oldDownload.name == newName) return
+        if (oldDownloadName == newName) return
 
         if (oldDownload.renameTo(newName)) {
+            if (isArchive && oldDownloadName != null) {
+                renameTranslationSidecar(mangaDir, oldDownloadName, newName)
+            }
             cache.removeChapter(oldChapter, manga)
             cache.addChapter(newName, mangaDir, manga)
         } else {
             logcat(LogPriority.ERROR) { "Could not rename downloaded chapter: ${oldNames.joinToString()}" }
+        }
+    }
+
+    /**
+     * Moves the translation folder that sits next to an archive chapter so it keeps
+     * matching the chapter file name.
+     *
+     * A chapter with no translations has no such folder, which is a no-op. A rename
+     * that the file system refuses is logged and swallowed: the chapter itself has
+     * already been renamed, and failing the whole call would leave the caller with a
+     * renamed chapter and an error.
+     */
+    private fun renameTranslationSidecar(
+        mangaDir: UniFile,
+        oldChapterFileName: String,
+        newChapterFileName: String,
+    ) {
+        val oldSidecarName = TranslationStorageLayout.sidecarDirName(oldChapterFileName)
+        val oldSidecar = mangaDir.findFile(oldSidecarName) ?: return
+        val newSidecarName = TranslationStorageLayout.sidecarDirName(newChapterFileName)
+        if (oldSidecarName == newSidecarName) return
+
+        if (!oldSidecar.renameTo(newSidecarName)) {
+            logcat(LogPriority.ERROR) { "Could not rename translation folder: $oldSidecarName" }
         }
     }
 
