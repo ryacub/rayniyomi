@@ -69,7 +69,13 @@ class TranslationSummaryTest {
             rows[0],
         )
         assertEquals(
-            ChapterTranslationProgress(chapterId = 4, chapterName = "Chapter 4", currentPage = 0, totalPages = 0),
+            ChapterTranslationProgress(
+                chapterId = 4,
+                chapterName = "Chapter 4",
+                currentPage = 0,
+                totalPages = 0,
+                isFailed = true,
+            ),
             rows[1],
         )
     }
@@ -119,6 +125,19 @@ class TranslationSummaryTest {
     @Test
     fun `translationStateOf falls back to Idle for an absent chapter`() {
         assertEquals(TranslationState.Idle, translationStateOf(emptyMap(), 42L))
+    }
+
+    @Test
+    fun `a failed chapter row carries the failed flag`() {
+        val states = mapOf(
+            1L to TranslationState.Error("boom"),
+            2L to TranslationState.Translating(1, 20),
+        )
+        val summary = translationSummaryFrom(states, chapters)
+
+        val rows = summary!!.chapters.associateBy { it.chapterId }
+        assertEquals(true, rows.getValue(1L).isFailed)
+        assertEquals(false, rows.getValue(2L).isFailed)
     }
 }
 

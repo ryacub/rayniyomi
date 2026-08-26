@@ -67,7 +67,13 @@ fun MangaTranslationSummaryCard(
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (chapter.totalPages > 0) {
+                            if (chapter.isFailed) {
+                                Text(
+                                    text = stringResource(AYMR.strings.translation_status_failed),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            } else if (chapter.totalPages > 0) {
                                 Text(
                                     text = stringResource(
                                         AYMR.strings.translation_progress,
@@ -113,6 +119,7 @@ private fun MangaTranslationSummaryCardPreview() {
                         chapterName = "Chapter 15",
                         currentPage = 0,
                         totalPages = 0,
+                        isFailed = true,
                     ),
                 ),
             ),
