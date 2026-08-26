@@ -69,7 +69,13 @@ class TranslationSummaryTest {
             rows[0],
         )
         assertEquals(
-            ChapterTranslationProgress(chapterId = 4, chapterName = "Chapter 4", currentPage = 0, totalPages = 0),
+            ChapterTranslationProgress(
+                chapterId = 4,
+                chapterName = "Chapter 4",
+                currentPage = 0,
+                totalPages = 0,
+                isFailed = true,
+            ),
             rows[1],
         )
     }

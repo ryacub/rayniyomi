@@ -10,6 +10,7 @@ data class ChapterTranslationProgress(
     val chapterName: String,
     val currentPage: Int,
     val totalPages: Int,
+    val isFailed: Boolean = false,
 )
 
 @Immutable
@@ -64,6 +65,7 @@ fun translationSummaryFrom(
                     chapterName = chapter.name,
                     currentPage = 0,
                     totalPages = 0,
+                    isFailed = true,
                 )
             }
             null,
