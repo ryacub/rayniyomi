@@ -146,11 +146,18 @@ private fun TranslatingIndicator(
     onClick: (ChapterTranslationAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val progressDescription = stringResource(
-        AYMR.strings.translation_progress,
-        currentPage,
-        totalPages,
-    )
+    val progressDescription = when (phase) {
+        is TranslationPhase.Retrying -> stringResource(
+            AYMR.strings.translation_retry_progress,
+            phase.page,
+            totalPages,
+        )
+        TranslationPhase.Progressing -> stringResource(
+            AYMR.strings.translation_progress,
+            currentPage,
+            totalPages,
+        )
+    }
     Box(
         modifier = modifier
             .size(IconButtonTokens.StateLayerSize)

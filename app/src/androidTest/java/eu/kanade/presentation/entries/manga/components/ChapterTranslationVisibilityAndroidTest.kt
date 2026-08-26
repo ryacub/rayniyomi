@@ -117,6 +117,29 @@ class ChapterTranslationVisibilityAndroidTest {
         composeRule.onNodeWithText("7/32").assertExists()
     }
 
+    @Test
+    fun retryingChapterAnnouncesTheRetryToScreenReaders() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val retrying = context.stringResource(AYMR.strings.translation_retry_progress, 8, 32)
+
+        composeRule.setContent {
+            MaterialTheme {
+                Surface {
+                    ChapterRow(
+                        downloadState = MangaDownload.State.DOWNLOADED,
+                        translationState = TranslationState.Translating(
+                            currentPage = 7,
+                            totalPages = 32,
+                            phase = TranslationPhase.Retrying(page = 8),
+                        ),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(retrying).assertExists()
+    }
+
     @Composable
     private fun ChapterRow(
         downloadState: MangaDownload.State,
