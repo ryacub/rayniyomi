@@ -8,13 +8,15 @@ import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.core.common.preference.toggle
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
@@ -42,6 +44,8 @@ class ReaderTranslationCoordinator(
     private val onTranslationStateChange: (TranslationState) -> Unit,
     private val onShowTranslatedPagesChange: (showTranslatedPages: Boolean) -> Unit,
     private val onReload: suspend () -> Unit,
+    private val cancelAdjacentPreload: suspend () -> Unit = {},
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
     private var toggleJob: Job? = null
@@ -52,7 +56,7 @@ class ReaderTranslationCoordinator(
      * The language-generation collector skips the initial emission.
      */
     fun start() {
-        scope.launchIO {
+        scope.launch(ioDispatcher) {
             translationManager.languageGeneration
                 .drop(1)
                 .collect {
@@ -63,7 +67,7 @@ class ReaderTranslationCoordinator(
                     }
                 }
         }
-        scope.launchIO {
+        scope.launch(ioDispatcher) {
             translationStateFlow(translationManager.translationStates, chapterIdFlow)
                 .collect(onTranslationStateChange)
         }
@@ -86,23 +90,26 @@ class ReaderTranslationCoordinator(
      * current chapter's page list through its loader. It also rebuilds the loaded adjacent
      * chapters, so they show pages that match the new preference before the user swipes.
      * A failed current-chapter rebuild reverts the toggle so the icon, the preference, and
-     * the displayed pages agree.
+     * the displayed pages agree. It first cancels any in-flight adjacent-chapter preload,
+     * because that preload writes the same [ReaderChapter.state] this rebuild writes.
      */
     fun toggleTranslatedPages() {
         val newValue = readerPreferences.showTranslatedPages().toggle()
         onShowTranslatedPagesChange(newValue)
         toggleJob?.cancel()
-        toggleJob = scope.launchIO {
-            val viewerChapters = getViewerChapters() ?: return@launchIO
-            val installed = try {
+        toggleJob = scope.launch {
+            // A preload started by the viewer writes the same ReaderChapter.state this rebuild
+            // writes. Wait for it to finish cancelling, so it cannot land old-language pages on
+            // an adjacent chapter afterwards.
+            cancelAdjacentPreload()
+            val viewerChapters = getViewerChapters() ?: return@launch
+            val installed = withContext(ioDispatcher) {
                 reloadViewerChaptersForTranslationToggle(viewerChapters)
-            } catch (e: CancellationException) {
-                throw e
             }
             if (!installed) {
                 readerPreferences.showTranslatedPages().set(!newValue)
                 onShowTranslatedPagesChange(!newValue)
-                return@launchIO
+                return@launch
             }
             onReload()
         }
