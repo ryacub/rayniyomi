@@ -11,9 +11,11 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.drop
@@ -598,23 +600,32 @@ class TranslationManagerTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `translateChapter does not start if already translating`() {
-        // Use a real IO scope so the first translation stays active during the second call
-        createManager()
+    fun `translateChapter does not start if already translating`() = runTest {
+        // Scheduler-owned eager scope: the first translation starts immediately and
+        // stays suspended inside detectAndTranslate.
+        createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        val translationStarted = CompletableDeferred<Unit>()
 
         every { translationEngineFactory.create() } returns engine
-        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery {
+            downloadManager.buildPageList<Unit>(source, manga, chapter, any())
+        } coAnswers {
+            translationStarted.complete(Unit)
+            arg<suspend (List<DownloadedChapterPage>) -> Unit>(3).invoke(
+                listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }),
+            )
+        }
         coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
-            kotlinx.coroutines.delay(60_000)
+            delay(60_000) // Virtual time; holds the first job open.
             TranslationResult(emptyList())
         }
 
-        // Start first translation (launches on IO, stays suspended)
+        // Start first translation
         manager.translateChapter(manga, chapter, source)
 
-        // Give the coroutine a moment to start
-        Thread.sleep(100)
+        // Explicit signal replaces the sleep: the first job reached buildPageList.
+        translationStarted.await()
 
         // Try to start again -- should be a no-op (job is already active)
         manager.translateChapter(manga, chapter, source)
@@ -772,20 +783,19 @@ class TranslationManagerTest {
     }
 
     @Test
-    fun `language change does not leave stale state when a cancelled job finishes late`() {
-        // Real IO scope so the job tail and the observer race across threads.
-        createManager()
+    fun `language change does not leave stale state when a cancelled job finishes late`() = runTest {
+        val releaseHeldEngine = CompletableDeferred<Unit>()
+        createEagerManager()
+        advanceUntilIdle() // Subscribe the language observer.
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
 
         every { translationEngineFactory.create() } returns engine
         mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
         coEvery { engine.detectAndTranslate(any(), any()) } coAnswers {
-            // Hold the last resumption past cancellation so the tail runs after the clear.
+            // Hold the last resumption past cancellation so the tail runs late, after
+            // the observer cancelled this job and parked in join().
             withContext(NonCancellable) {
-                val deadline = System.currentTimeMillis() + 2_000
-                while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
-                    kotlinx.coroutines.delay(10)
-                }
+                releaseHeldEngine.await()
             }
             TranslationResult(emptyList())
         }
@@ -794,14 +804,14 @@ class TranslationManagerTest {
 
         manager.translateChapter(manga, chapter, source)
 
-        // Let the job reach the engine before changing the language.
-        Thread.sleep(200)
+        // The job sits suspended in the NonCancellable block. Change the language: the
+        // observer cancels the job, blocks in join() on the held resumption, and clears
+        // the state map only after the late tail finishes.
         targetLanguageFlow.value = "it"
+        advanceUntilIdle()
 
-        val deadline = System.currentTimeMillis() + 5_000
-        while (manager.translationStates.value.isNotEmpty() && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20)
-        }
+        releaseHeldEngine.complete(Unit)
+        advanceUntilIdle()
 
         assertFalse(manager.translationStates.value.containsKey(chapter.id))
         assertEquals(TranslationState.Idle, manager.getState(chapter.id))
