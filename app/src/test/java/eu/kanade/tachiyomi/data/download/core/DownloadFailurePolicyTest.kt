@@ -176,4 +176,15 @@ class DownloadFailurePolicyTest {
         assertEquals("INCOMPLETE", failure.code)
         assertEquals(DownloadFailureNotification.NONE, failure.kind.notification)
     }
+
+    @Test
+    fun `lowStorageFailure carries an optional cause`() {
+        val cause = IOException("No space left on device")
+        val failure = DownloadFailurePolicy.lowStorageFailure(cause.message, cause)
+
+        assertEquals(DownloadFailureKind.LOW_STORAGE, failure.kind)
+        assertEquals("No space left on device", failure.reason)
+        assertTrue(failure.cause === cause)
+        assertEquals(DownloadFailureNotification.WARNING, failure.kind.notification)
+    }
 }

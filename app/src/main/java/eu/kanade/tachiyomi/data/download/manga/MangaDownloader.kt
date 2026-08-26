@@ -8,10 +8,8 @@ import eu.kanade.domain.entries.manga.model.getComicInfo
 import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
-import eu.kanade.tachiyomi.data.download.core.DownloadFailure
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureAction
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureClassifier
-import eu.kanade.tachiyomi.data.download.core.DownloadFailureKind
 import eu.kanade.tachiyomi.data.download.core.DownloadFailurePolicy
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureReporter
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
@@ -616,7 +614,8 @@ class MangaDownloader(
                     download.displayStatus = DownloadDisplayStatus.FAILED
                     failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
                 }
-                else -> throw error
+                // forItem never pauses; keep the compiler-exhaustive rethrow.
+                is DownloadFailureAction.PauseLowStorage -> throw error
             }
         }
     }
@@ -680,7 +679,9 @@ class MangaDownloader(
                     page.status = Page.State.ERROR
                     failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
                 }
-                else -> throw e
+                // forImageFetch never silences or pauses; the item catch owns both.
+                is DownloadFailureAction.Silence -> Unit
+                is DownloadFailureAction.PauseLowStorage -> throw e
             }
         }
     }
@@ -721,14 +722,9 @@ class MangaDownloader(
                 if (DownloadFailureClassifier.isLowStorageFailure(e.message)) {
                     download.status = MangaDownload.State.QUEUE
                     download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
-                    download.blockedReason = DownloadBlockedReason.STORAGE
                     failureReporter.report(
                         download,
-                        DownloadFailure(
-                            kind = DownloadFailureKind.LOW_STORAGE,
-                            message = e.message,
-                            cause = e,
-                        ),
+                        DownloadFailurePolicy.lowStorageFailure(e.message, e),
                     )
                     throw LowStorageException(e.message ?: "Insufficient storage")
                 }

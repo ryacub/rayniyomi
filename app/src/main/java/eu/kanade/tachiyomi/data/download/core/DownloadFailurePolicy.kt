@@ -64,9 +64,9 @@ object DownloadFailurePolicy {
         else -> DownloadFailureAction.Report(DownloadFailureClassifier.classify(error))
     }
 
-    /** The failure that a free-space or ffmpeg output check produces. */
-    fun lowStorageFailure(localizedMessage: String?): DownloadFailure =
-        DownloadFailure(DownloadFailureKind.LOW_STORAGE, localizedMessage, null)
+    /** The failure that a free-space, ffmpeg output, or image save check produces. */
+    fun lowStorageFailure(message: String?, cause: Throwable? = null): DownloadFailure =
+        DownloadFailure(DownloadFailureKind.LOW_STORAGE, message, cause)
 
     /** The failure that an incomplete download output produces. */
     fun incompleteOutputFailure(message: String): DownloadFailure =

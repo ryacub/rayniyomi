@@ -576,7 +576,8 @@ class AnimeDownloader(
                     download.displayStatus = DownloadDisplayStatus.FAILED
                     failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
                 }
-                else -> throw error
+                // forItem never pauses; keep the compiler-exhaustive rethrow.
+                is DownloadFailureAction.PauseLowStorage -> throw error
             }
         }
     }
@@ -655,7 +656,8 @@ class AnimeDownloader(
                     download.displayStatus = DownloadDisplayStatus.FAILED
                     return VideoFetchResult.Failed(action.failure)
                 }
-                else -> throw e
+                // forVideoFetch never silences; the caller would report it once.
+                is DownloadFailureAction.Silence -> return VideoFetchResult.Failed(action.failure)
             }
         }
     }
