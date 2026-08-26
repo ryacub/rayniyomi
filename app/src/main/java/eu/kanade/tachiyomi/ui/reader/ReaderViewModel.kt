@@ -14,6 +14,7 @@ import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.presentation.util.ReaderFoldState
+import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
@@ -212,6 +213,14 @@ class ReaderViewModel @JvmOverloads constructor(
         cancelAdjacentPreload = { cancelActivePreload() },
     )
 
+    private fun hasTranslationForChapter(chapter: Chapter): Boolean = computeHasTranslation(
+        manga = manga,
+        chapter = chapter,
+        sourceManager = sourceManager,
+        translationStorageManager = translationStorageManager,
+        targetLanguage = translationPreferences.targetLanguage().get(),
+    )
+
     init {
         // To save state
         state.map { it.viewerChapters?.currChapter }
@@ -346,7 +355,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
         // Check translation status on IO thread before switching to UI context
         val dbChapter = newChapters.currChapter.chapter
-        val hasTranslation = translationCoordinator.computeHasTranslation(dbChapter)
+        val hasTranslation = hasTranslationForChapter(dbChapter)
 
         withUIContext {
             mutableState.update {
