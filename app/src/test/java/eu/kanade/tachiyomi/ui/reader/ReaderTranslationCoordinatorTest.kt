@@ -344,6 +344,7 @@ class ReaderTranslationCoordinatorTest {
 
             coordinator.toggleTranslatedPages()
             advanceUntilIdle()
+            // The cancel must run where the toggle job started — the scope's own confinement,
             // the context preload() writes from in production — and only the page reload may
             // hop to the injected dispatcher. Index 0 is the cancel; index 1 is getPages().
             interceptors.size shouldBe 2
