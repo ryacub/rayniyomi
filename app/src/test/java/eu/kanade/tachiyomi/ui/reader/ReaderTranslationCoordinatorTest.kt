@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader
 import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
+import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
@@ -11,11 +12,14 @@ import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,6 +100,7 @@ class ReaderTranslationCoordinatorTest {
 
     private class Recorder {
         val shownValues = mutableListOf<Boolean>()
+        val hasTranslationValues = mutableListOf<Boolean>()
         val events = mutableListOf<String>()
         var reloads = 0
     }
@@ -117,12 +122,20 @@ class ReaderTranslationCoordinatorTest {
         scope: CoroutineScope,
         getViewerChapters: () -> ViewerChapters?,
         cancelAdjacentPreload: suspend () -> Unit = {},
+        translationManager: TranslationManager = mockk(relaxed = true),
+        isChapterTranslated: Boolean = false,
     ): Pair<ReaderTranslationCoordinator, Recorder> {
         val recorder = Recorder()
         val coordinator = ReaderTranslationCoordinator(
-            translationStorageManager = mockk<TranslationStorageManager>(relaxed = true),
-            translationPreferences = mockk<TranslationPreferences>(relaxed = true),
-            translationManager = mockk<TranslationManager>(relaxed = true),
+            translationStorageManager = mockk<TranslationStorageManager>(relaxed = true) {
+                every {
+                    isChapterTranslated(any(), any(), any(), any(), any())
+                } returns isChapterTranslated
+            },
+            translationManager = translationManager,
+            translationPreferences = mockk<TranslationPreferences> {
+                every { targetLanguage() } returns mockk { every { get() } returns "en" }
+            },
             sourceManager = mockk<MangaSourceManager>(relaxed = true),
             readerPreferences = readerPreferences,
             scope = scope,
@@ -131,7 +144,7 @@ class ReaderTranslationCoordinatorTest {
             getViewerChapters = getViewerChapters,
             getShowTranslatedPages = { preference.get() },
             chapterIdFlow = MutableStateFlow<Long?>(null),
-            onHasTranslationChange = { },
+            onHasTranslationChange = { value -> recorder.hasTranslationValues.add(value) },
             onTranslationStateChange = { },
             onShowTranslatedPagesChange = { value ->
                 recorder.shownValues.add(value)
@@ -331,13 +344,86 @@ class ReaderTranslationCoordinatorTest {
 
             coordinator.toggleTranslatedPages()
             advanceUntilIdle()
-
-            // The cancel must run where the toggle job started — the scope's own confinement,
             // the context preload() writes from in production — and only the page reload may
             // hop to the injected dispatcher. Index 0 is the cancel; index 1 is getPages().
             interceptors.size shouldBe 2
             interceptors[0] shouldBe "cancel:" + System.identityHashCode(scopeDispatcher)
             interceptors[1] shouldBe "pages:" + System.identityHashCode(vt.io)
             recorder.reloads shouldBe 1
+        }
+
+    @Test
+    fun `a language generation change refreshes hasTranslation and reloads when translations are shown`() =
+        runTest(vt.scheduler) {
+            val curr = readerChapter(id = 1L, name = "Curr")
+            curr.state = ReaderChapter.State.Loaded(emptyList())
+            val chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null)
+            preference.set(true)
+            val generations = MutableStateFlow(0)
+            val translationManager = mockk<TranslationManager> {
+                every { languageGeneration } returns generations
+                every { translationStates } returns MutableStateFlow<Map<Long, TranslationState>>(emptyMap())
+            }
+
+            // A dedicated scope holds start()'s infinite collectors; the finally block cancels
+            // it so runTest does not see unfinished children of the test scope.
+            val collectorScope = CoroutineScope(SupervisorJob() + vt.io)
+
+            val (coordinator, recorder) = buildCoordinator(
+                scope = collectorScope,
+                getViewerChapters = { chapters },
+                translationManager = translationManager,
+                isChapterTranslated = true,
+            )
+
+            try {
+                coordinator.start()
+                advanceUntilIdle()
+                generations.value += 1
+                advanceUntilIdle()
+
+                recorder.hasTranslationValues shouldBe listOf(true)
+                curr.state shouldBe ReaderChapter.State.Wait
+                recorder.reloads shouldBe 1
+            } finally {
+                collectorScope.cancel()
+            }
+        }
+
+    @Test
+    fun `a language generation change updates hasTranslation without reload when translations are hidden`() =
+        runTest(vt.scheduler) {
+            val curr = readerChapter(id = 1L, name = "Curr")
+            curr.state = ReaderChapter.State.Loaded(emptyList())
+            val chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null)
+            preference.set(false)
+            val generations = MutableStateFlow(0)
+            val translationManager = mockk<TranslationManager> {
+                every { languageGeneration } returns generations
+                every { translationStates } returns MutableStateFlow<Map<Long, TranslationState>>(emptyMap())
+            }
+            // A dedicated scope holds start()'s infinite collectors; the finally block cancels
+            // it so runTest does not see unfinished children of the test scope.
+            val collectorScope = CoroutineScope(SupervisorJob() + vt.io)
+
+            val (coordinator, recorder) = buildCoordinator(
+                scope = collectorScope,
+                getViewerChapters = { chapters },
+                translationManager = translationManager,
+                isChapterTranslated = true,
+            )
+
+            try {
+                coordinator.start()
+                advanceUntilIdle()
+                generations.value += 1
+                advanceUntilIdle()
+
+                recorder.hasTranslationValues shouldBe listOf(true)
+                curr.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
+                recorder.reloads shouldBe 0
+            } finally {
+                collectorScope.cancel()
+            }
         }
 }
