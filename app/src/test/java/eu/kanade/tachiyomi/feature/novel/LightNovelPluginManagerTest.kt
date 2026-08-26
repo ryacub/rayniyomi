@@ -27,6 +27,7 @@ import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -46,6 +47,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -672,24 +674,28 @@ class LightNovelPluginManagerTest {
             call
         }
 
-        // Launch both coroutines on IO threads for true concurrent execution.
-        val deferred1 = async(Dispatchers.IO) { manager.ensurePluginReady() }
-        // Wait until deferred1 has started the network call — at this point activeDeferred
-        // is guaranteed to be set (it is stored before the network call begins).
-        firstCallAtNetworkLatch.await(5, TimeUnit.SECONDS)
+        // One caller thread: deferred1 occupies it through the inFlightInstallMutex
+        // critical section and releases it only when it suspends inside await(). So
+        // deferred2 starts strictly after the in-flight deferred is stored, without a
+        // timed wait. The install body itself still runs on Dispatchers.IO.
+        val callerExecutor = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "dedup-caller") }
+        val callerDispatcher = callerExecutor.asCoroutineDispatcher()
 
-        val deferred2 = async(Dispatchers.IO) { manager.ensurePluginReady() }
-        // No wait is needed before we release the gate. The latch above proves that
-        // deferred1 left the inFlightInstallMutex critical section, so deferred2 reads
-        // the stored deferred under the same mutex and always deduplicates, whenever it
-        // starts. If it reaches await() after the gate opens, the deferred is already
-        // completed and the results still match.
+        try {
+            val deferred1 = async(callerDispatcher) { manager.ensurePluginReady() }
+            // Wait until deferred1 has parked at the network gate before deferred2 exists.
+            firstCallAtNetworkLatch.await(5, TimeUnit.SECONDS)
 
-        manifestFetchGate.countDown()
-        val results = awaitAll(deferred1, deferred2)
+            val deferred2 = async(callerDispatcher) { manager.ensurePluginReady() }
 
-        manifestCallCount.get() shouldBe 1
-        results[0] shouldBe results[1]
+            manifestFetchGate.countDown()
+            val results = awaitAll(deferred1, deferred2)
+
+            manifestCallCount.get() shouldBe 1
+            results[0] shouldBe results[1]
+        } finally {
+            callerDispatcher.close()
+        }
     }
 
     @Test
