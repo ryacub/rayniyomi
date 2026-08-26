@@ -8,7 +8,6 @@ import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -94,11 +93,7 @@ class ReaderTranslationCoordinator(
         toggleJob?.cancel()
         toggleJob = scope.launchIO {
             val viewerChapters = getViewerChapters() ?: return@launchIO
-            val installed = try {
-                reloadViewerChaptersForTranslationToggle(viewerChapters)
-            } catch (e: CancellationException) {
-                throw e
-            }
+            val installed = reloadViewerChaptersForTranslationToggle(viewerChapters)
             if (!installed) {
                 readerPreferences.showTranslatedPages().set(!newValue)
                 onShowTranslatedPagesChange(!newValue)
