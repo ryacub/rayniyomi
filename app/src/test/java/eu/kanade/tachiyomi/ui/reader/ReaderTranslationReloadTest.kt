@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
+import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -8,10 +10,14 @@ import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeSameInstanceAs
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 class ReaderTranslationReloadTest {
 
@@ -379,5 +385,42 @@ class ReaderTranslationReloadTest {
 
         prevLoader.calls shouldBe 0
         nextLoader.calls shouldBe 0
+    }
+
+    @Test
+    fun `no manga means no translation`() {
+        computeHasTranslation(
+            manga = null,
+            chapter = ChapterImpl().apply { name = "Chapter 1" },
+            sourceManager = mockk(),
+            translationStorageManager = mockk(),
+            targetLanguage = "en",
+        ) shouldBe false
+    }
+
+    @Test
+    fun `the stored translation is looked up by chapter, manga title, source and language`() {
+        val chapter = ChapterImpl().apply {
+            name = "Chapter 1"
+            scanlator = "scan"
+        }
+        val mangaSource = mockk<MangaSource>()
+        val sourceManager = mockk<MangaSourceManager> {
+            every { getOrStub(7L) } returns mangaSource
+        }
+        val storage = mockk<TranslationStorageManager> {
+            every {
+                isChapterTranslated("Chapter 1", "scan", "Manga", mangaSource, "es")
+            } returns true
+        }
+        val manga = mockk<Manga> {
+            every { title } returns "Manga"
+            every { source } returns 7L
+        }
+
+        computeHasTranslation(manga, chapter, sourceManager, storage, "es") shouldBe true
+        verify(exactly = 1) {
+            storage.isChapterTranslated("Chapter 1", "scan", "Manga", mangaSource, "es")
+        }
     }
 }

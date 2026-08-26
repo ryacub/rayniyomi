@@ -1,8 +1,12 @@
 package eu.kanade.tachiyomi.ui.reader
 
+import eu.kanade.tachiyomi.data.database.models.manga.Chapter
+import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import kotlinx.coroutines.CancellationException
+import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 /**
  * Prepares [chapter] for a reload after the target language changed, keeping the read position.
@@ -20,6 +24,30 @@ internal fun prepareTranslationReload(
     chapter.requestedPage = chapter.chapter.last_page_read
     chapter.state = ReaderChapter.State.Wait
     return true
+}
+
+/**
+ * Whether [chapter] has a stored translation in [targetLanguage] for [manga].
+ *
+ * Free function so both callers — the ViewModel's chapter load and the coordinator's
+ * language-generation reaction — share one implementation, and so it is unit-testable without
+ * building a coordinator. A null [manga] means no chapter is open, which is not translated.
+ */
+internal fun computeHasTranslation(
+    manga: Manga?,
+    chapter: Chapter,
+    sourceManager: MangaSourceManager,
+    translationStorageManager: TranslationStorageManager,
+    targetLanguage: String,
+): Boolean {
+    val currentManga = manga ?: return false
+    return translationStorageManager.isChapterTranslated(
+        chapter.name,
+        chapter.scanlator,
+        currentManga.title,
+        sourceManager.getOrStub(currentManga.source),
+        targetLanguage,
+    )
 }
 
 /**

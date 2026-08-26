@@ -14,6 +14,7 @@ import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.presentation.util.ReaderFoldState
+import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
@@ -21,7 +22,6 @@ import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
-import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -188,28 +188,25 @@ class ReaderViewModel @JvmOverloads constructor(
      * Owns the translated-pages reaction: language change watching, reload decision, and toggles.
      */
     private val translationCoordinator = ReaderTranslationCoordinator(
-        translationStorageManager = translationStorageManager,
-        translationPreferences = translationPreferences,
         translationManager = translationManager,
-        sourceManager = sourceManager,
         readerPreferences = readerPreferences,
         scope = viewModelScope,
-        currentManga = { manga },
-        getCurrChapter = { state.value.viewerChapters?.currChapter },
         getViewerChapters = { state.value.viewerChapters },
-        getShowTranslatedPages = { state.value.showTranslatedPages },
+        hasTranslationFor = ::hasTranslationForChapter,
         chapterIdFlow = state.map { it.viewerChapters?.currChapter?.chapter?.id },
-        onTranslationStateChange = { translationState ->
-            mutableState.update { it.copy(translationState = translationState) }
-        },
-        onHasTranslationChange = { hasTranslation ->
-            mutableState.update { it.copy(hasTranslation = hasTranslation) }
-        },
-        onShowTranslatedPagesChange = { showTranslatedPages ->
-            mutableState.update { it.copy(showTranslatedPages = showTranslatedPages) }
+        updateTranslation = { reduce ->
+            mutableState.update { it.copy(translation = reduce(it.translation)) }
         },
         onReload = { eventChannel.send(ReaderEvent.ReloadViewerChapters) },
         cancelAdjacentPreload = { cancelActivePreload() },
+    )
+
+    private fun hasTranslationForChapter(chapter: Chapter): Boolean = computeHasTranslation(
+        manga = manga,
+        chapter = chapter,
+        sourceManager = sourceManager,
+        translationStorageManager = translationStorageManager,
+        targetLanguage = translationPreferences.targetLanguage().get(),
     )
 
     init {
@@ -346,7 +343,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
         // Check translation status on IO thread before switching to UI context
         val dbChapter = newChapters.currChapter.chapter
-        val hasTranslation = translationCoordinator.computeHasTranslation(dbChapter)
+        val hasTranslation = hasTranslationForChapter(dbChapter)
 
         withUIContext {
             mutableState.update {
@@ -358,8 +355,10 @@ class ReaderViewModel @JvmOverloads constructor(
                 it.copy(
                     viewerChapters = newChapters,
                     bookmarked = newChapters.currChapter.chapter.bookmark,
-                    showTranslatedPages = readerPreferences.showTranslatedPages().get(),
-                    hasTranslation = hasTranslation,
+                    translation = it.translation.copy(
+                        showTranslatedPages = readerPreferences.showTranslatedPages().get(),
+                        hasTranslation = hasTranslation,
+                    ),
                 )
             }
         }
@@ -886,9 +885,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val menuVisible: Boolean = false,
         @IntRange(from = -100, to = 100) val brightnessOverlayValue: Int = 0,
         val assistUrl: String? = null,
-        val showTranslatedPages: Boolean = false,
-        val hasTranslation: Boolean = false,
-        val translationState: TranslationState = TranslationState.Idle,
+        val translation: ReaderTranslationUiState = ReaderTranslationUiState(),
         val foldState: ReaderFoldState? = null,
     ) {
         val currentChapter: ReaderChapter?

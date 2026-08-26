@@ -2,9 +2,6 @@ package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.translation.TranslationManager
-import eu.kanade.tachiyomi.data.translation.TranslationPreferences
-import eu.kanade.tachiyomi.data.translation.TranslationState
-import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
@@ -17,32 +14,25 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.preference.toggle
-import tachiyomi.domain.entries.manga.model.Manga
-import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 /**
  * Owns the translated-pages reaction for the reader: it watches [TranslationManager.languageGeneration],
  * recomputes whether the current chapter has a translation, decides when the viewer must reload,
  * and toggles between translated and original pages.
  *
- * The ViewModel supplies state accessors and event delivery through callbacks so state ownership
- * stays in one place.
+ * The ViewModel supplies the open viewer chapters through one accessor, one reducer that writes
+ * the translation state through [updateTranslation], and event delivery through callbacks, so
+ * state ownership stays in one place. The shown-translated-pages preference is read through
+ * [readerPreferences]: the coordinator is its only writer.
  */
 class ReaderTranslationCoordinator(
-    private val translationStorageManager: TranslationStorageManager,
-    private val translationPreferences: TranslationPreferences,
     private val translationManager: TranslationManager,
-    private val sourceManager: MangaSourceManager,
     private val readerPreferences: ReaderPreferences,
     private val scope: CoroutineScope,
-    private val currentManga: () -> Manga?,
-    private val getCurrChapter: () -> ReaderChapter?,
     private val getViewerChapters: () -> ViewerChapters?,
-    private val getShowTranslatedPages: () -> Boolean,
+    private val hasTranslationFor: (Chapter) -> Boolean,
     private val chapterIdFlow: Flow<Long?>,
-    private val onHasTranslationChange: (hasTranslation: Boolean) -> Unit,
-    private val onTranslationStateChange: (TranslationState) -> Unit,
-    private val onShowTranslatedPagesChange: (showTranslatedPages: Boolean) -> Unit,
+    private val updateTranslation: ((ReaderTranslationUiState) -> ReaderTranslationUiState) -> Unit,
     private val onReload: suspend () -> Unit,
     private val cancelAdjacentPreload: suspend () -> Unit = {},
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -60,29 +50,17 @@ class ReaderTranslationCoordinator(
             translationManager.languageGeneration
                 .drop(1)
                 .collect {
-                    val currChapter = getCurrChapter() ?: return@collect
-                    onHasTranslationChange(computeHasTranslation(currChapter.chapter))
-                    if (prepareTranslationReload(currChapter, getShowTranslatedPages())) {
+                    val currChapter = getViewerChapters()?.currChapter ?: return@collect
+                    updateTranslation { it.copy(hasTranslation = hasTranslationFor(currChapter.chapter)) }
+                    if (prepareTranslationReload(currChapter, readerPreferences.showTranslatedPages().get())) {
                         onReload()
                     }
                 }
         }
         scope.launch(ioDispatcher) {
             translationStateFlow(translationManager.translationStates, chapterIdFlow)
-                .collect(onTranslationStateChange)
+                .collect { state -> updateTranslation { it.copy(translationState = state) } }
         }
-    }
-
-    fun computeHasTranslation(chapter: Chapter): Boolean {
-        val manga = currentManga() ?: return false
-        val currentSource = sourceManager.getOrStub(manga.source)
-        return translationStorageManager.isChapterTranslated(
-            chapter.name,
-            chapter.scanlator,
-            manga.title,
-            currentSource,
-            translationPreferences.targetLanguage().get(),
-        )
     }
 
     /**
@@ -95,7 +73,7 @@ class ReaderTranslationCoordinator(
      */
     fun toggleTranslatedPages() {
         val newValue = readerPreferences.showTranslatedPages().toggle()
-        onShowTranslatedPagesChange(newValue)
+        updateTranslation { it.copy(showTranslatedPages = newValue) }
         toggleJob?.cancel()
         toggleJob = scope.launch {
             // A preload started by the viewer writes the same ReaderChapter.state this rebuild
@@ -108,7 +86,7 @@ class ReaderTranslationCoordinator(
             }
             if (!installed) {
                 readerPreferences.showTranslatedPages().set(!newValue)
-                onShowTranslatedPagesChange(!newValue)
+                updateTranslation { it.copy(showTranslatedPages = !newValue) }
                 return@launch
             }
             onReload()
