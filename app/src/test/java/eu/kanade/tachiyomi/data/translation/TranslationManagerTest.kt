@@ -403,6 +403,7 @@ class TranslationManagerTest {
 
         // MutableStateFlow dedupes equal values, so identical retries must not re-emit.
         assertEquals(1, emissions.count { it == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)) })
+        assertEquals(TranslationState.Translated, manager.getState(chapter.id))
     }
 
     @Test
