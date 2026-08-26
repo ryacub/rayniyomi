@@ -528,9 +528,9 @@ class ReaderActivity : BaseActivity() {
                     menuToggleToast?.cancel()
                     menuToggleToast = toast(if (enabled) MR.strings.on else MR.strings.off)
                 },
-                hasTranslation = state.hasTranslation,
-                translationState = state.translationState,
-                translationEnabled = state.showTranslatedPages,
+                hasTranslation = state.translation.hasTranslation,
+                translationState = state.translation.translationState,
+                translationEnabled = state.translation.showTranslatedPages,
                 onClickTranslation = viewModel::toggleTranslatedPages,
                 showWebtoonAutoScrollControls = state.viewer is WebtoonViewer,
                 isAutoScrollRunning = isAutoScrollRunning,
