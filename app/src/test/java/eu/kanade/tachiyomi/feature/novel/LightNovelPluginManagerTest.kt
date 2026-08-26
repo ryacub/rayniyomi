@@ -679,10 +679,11 @@ class LightNovelPluginManagerTest {
         firstCallAtNetworkLatch.await(5, TimeUnit.SECONDS)
 
         val deferred2 = async(Dispatchers.IO) { manager.ensurePluginReady() }
-        // Allow deferred2 to find the active deferred and block on its await().
-        // A short sleep is unavoidable here: we need deferred2 to be waiting on the deferred
-        // before we release the gate, but there is no production-code hook to signal this.
-        Thread.sleep(50)
+        // No wait is needed before we release the gate. The latch above proves that
+        // deferred1 left the inFlightInstallMutex critical section, so deferred2 reads
+        // the stored deferred under the same mutex and always deduplicates, whenever it
+        // starts. If it reaches await() after the gate opens, the deferred is already
+        // completed and the results still match.
 
         manifestFetchGate.countDown()
         val results = awaitAll(deferred1, deferred2)
