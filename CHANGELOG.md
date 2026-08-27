@@ -13,6 +13,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.349] - 2026-08-27
+
+### Added
 - Translation settings now store an encrypted BYOK API key and a model for each provider. The settings also link to provider account controls.
 - OpenRouter translation now shows the live image-capable model catalog, including paid models, pricing, modalities, and output limits. It caches the list for 24 hours and keeps cached entries when refresh fails.
 - Claude, OpenAI, and Google Gemini translation now offer a model picker like the OpenRouter one. The app no longer falls back to a built-in default model, so each provider needs one selected model before use.
