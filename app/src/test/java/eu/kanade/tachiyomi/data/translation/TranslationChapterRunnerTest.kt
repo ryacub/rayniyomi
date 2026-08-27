@@ -13,7 +13,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -64,6 +63,23 @@ class TranslationChapterRunnerTest {
         every {
             translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
         } returns null
+        every {
+            translationStorageManager.getTranslationCoverage(any(), any(), any(), any(), any())
+        } returns null
+        every {
+            translationStorageManager.initializeTranslationCoverage(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns true
+        every {
+            translationStorageManager.writePageOutcome(any(), any(), any(), any(), any(), any(), any())
+        } returns true
         renderCalls = 0
     }
 
@@ -123,10 +139,45 @@ class TranslationChapterRunnerTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf(0, 1, 2),
+            listOf(1, 1, 2),
             emissions.filterIsInstance<TranslationState.Translating>().map { it.currentPage },
         )
         coVerify(exactly = 1) { engine.detectAndTranslate(any(), "en") }
+    }
+
+    @Test
+    fun `resume uses stored outcomes and retries only unresolved pages`() = runTest {
+        every {
+            translationStorageManager.getTranslationCoverage(any(), any(), any(), any(), any())
+        } returns TranslationCoverage(
+            totalPages = 2,
+            outcomes = mapOf(
+                0 to TranslationPageOutcome.TRANSLATED,
+                1 to TranslationPageOutcome.NOT_ATTEMPTED,
+            ),
+        )
+        every {
+            translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), 0)
+        } returns mockk()
+        coEvery { engine.detectAndTranslate(any(), "en") } returns TranslationResult(emptyList())
+        every {
+            translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any())
+        } returns mockk()
+
+        createRunner().run(manga, chapter, source, pagesOf(2, byteArrayOf(1)), engine, "en", "CLAUDE") {}
+
+        coVerify(exactly = 1) { engine.detectAndTranslate(any(), "en") }
+        verify(exactly = 0) {
+            translationStorageManager.initializeTranslationCoverage(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
@@ -201,20 +252,19 @@ class TranslationChapterRunnerTest {
     }
 
     @Test
-    fun `propagates a permanent failure to the caller`() {
+    fun `reports a permanent failure without claiming completion`() {
         coEvery { engine.detectAndTranslate(any(), "en") } throws HttpException(401)
         val emissions = mutableListOf<TranslationState>()
         val runner = createRunner()
 
-        assertThrows(HttpException::class.java) {
-            runTest {
-                runner.run(manga, chapter, source, pagesOf(1, byteArrayOf(1)), engine, "en", "CLAUDE") {
-                    emissions += it
-                }
+        runTest {
+            runner.run(manga, chapter, source, pagesOf(1, byteArrayOf(1)), engine, "en", "CLAUDE") {
+                emissions += it
             }
         }
 
         assertTrue(emissions.none { it == TranslationState.Translated })
+        assertTrue(emissions.last() is TranslationState.Incomplete)
     }
 
     @Test
@@ -248,6 +298,65 @@ class TranslationChapterRunnerTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { engine.detectAndTranslate(any(), "en") }
-        assertEquals(TranslationState.Translated, emissions.last())
+        assertEquals(
+            TranslationState.Incomplete(
+                resolvedPages = 1,
+                totalPages = 2,
+                unresolvedPages = listOf(1),
+                reason = "Page 1 could not be read",
+            ),
+            emissions.last(),
+        )
+    }
+
+    @Test
+    fun `an empty source stream is not a resolved no-text page`() = runTest {
+        coEvery { engine.detectAndTranslate(any(), "en") } returns TranslationResult(emptyList())
+        val emissions = mutableListOf<TranslationState>()
+
+        createRunner().run(
+            manga,
+            chapter,
+            source,
+            listOf(DownloadedChapterPage(0) { ByteArrayInputStream(byteArrayOf()) }),
+            engine,
+            "en",
+            "CLAUDE",
+        ) { emissions += it }
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { engine.detectAndTranslate(any(), "en") }
+        assertEquals(
+            TranslationState.Incomplete(
+                resolvedPages = 0,
+                totalPages = 1,
+                unresolvedPages = listOf(1),
+                reason = "Page 1 could not be read",
+            ),
+            emissions.last(),
+        )
+    }
+
+    @Test
+    fun `does not complete when translated page storage fails`() = runTest {
+        coEvery { engine.detectAndTranslate(any(), "en") } returns TranslationResult(emptyList())
+        every {
+            translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any())
+        } returns null
+        val emissions = mutableListOf<TranslationState>()
+
+        createRunner().run(manga, chapter, source, pagesOf(1, byteArrayOf(1)), engine, "en", "CLAUDE") {
+            emissions += it
+        }
+
+        assertEquals(
+            TranslationState.Incomplete(
+                resolvedPages = 0,
+                totalPages = 1,
+                unresolvedPages = listOf(1),
+                reason = "Page 1 could not be stored",
+            ),
+            emissions.last(),
+        )
     }
 }

@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 
 class TranslationStorageManagerTest {
 
@@ -33,15 +35,20 @@ class TranslationStorageManagerTest {
      * [asArchive] flips the node into a plain file that rejects children, which is
      * the real behaviour that made writes no-ops for CBZ chapters.
      */
-    private inner class FakeNode(val nodeName: String) {
+    private inner class FakeNode(var nodeName: String) {
         val mock: UniFile = mockk("node:$nodeName")
         val children = LinkedHashMap<String, FakeNode>()
+        var bytes = byteArrayOf()
+        var failWrites = false
+        var failChildWrites = false
+        var failRenames = false
+        var failChildRenames = false
 
         /** Set when the node is attached to a parent, so delete removes it from the tree. */
         var parent: FakeNode? = null
 
         init {
-            every { mock.name } returns nodeName
+            every { mock.name } answers { nodeName }
             every { mock.isDirectory } returns true
             every { mock.isFile } returns false
             every { mock.findFile(any<String>()) } answers { children[firstArg()]?.mock }
@@ -49,9 +56,24 @@ class TranslationStorageManagerTest {
                 attach(children.getOrPut(firstArg()) { FakeNode(firstArg()) }).mock
             }
             every { mock.createFile(any<String>()) } answers {
-                attach(children.getOrPut(firstArg()) { newFakeFile(firstArg()) }).mock
+                val child = children.getOrPut(firstArg()) { newFakeFile(firstArg()) }
+                child.failWrites = failChildWrites
+                child.failRenames = failChildRenames
+                attach(child).mock
             }
             every { mock.listFiles() } answers { children.values.map { it.mock }.toTypedArray() }
+            every { mock.renameTo(any()) } answers {
+                if (failRenames) return@answers false
+                val newName = firstArg<String>()
+                val owner = parent ?: return@answers false
+                if (owner.children[newName] != null && owner.children[newName] !== this@FakeNode) {
+                    return@answers false
+                }
+                owner.children.remove(nodeName)
+                nodeName = newName
+                owner.children[newName] = this@FakeNode
+                true
+            }
             every { mock.delete() } answers {
                 parent?.children?.remove(nodeName)
                 true
@@ -76,7 +98,16 @@ class TranslationStorageManagerTest {
         val node = FakeNode(name)
         every { node.mock.isFile } returns true
         every { node.mock.isDirectory } returns false
-        every { node.mock.openOutputStream() } answers { ByteArrayOutputStream() }
+        every { node.mock.openInputStream() } answers { ByteArrayInputStream(node.bytes) }
+        every { node.mock.openOutputStream() } answers {
+            if (node.failWrites) throw IOException("write failed")
+            object : ByteArrayOutputStream() {
+                override fun close() {
+                    node.bytes = toByteArray()
+                    super.close()
+                }
+            }
+        }
         return node
     }
 
@@ -216,5 +247,203 @@ class TranslationStorageManagerTest {
 
         assertNull(result)
         verify(exactly = 0) { provider.findMangaDir(any(), any()) }
+    }
+
+    @Test
+    fun `coverage manifest preserves resolved and unresolved page outcomes`() {
+        cbzChapter()
+
+        assertTrue(
+            manager.initializeTranslationCoverage(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+                totalPages = 2,
+                legacyResolvedPages = setOf(0),
+            ),
+        )
+        assertTrue(
+            manager.writePageOutcome(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+                pageIndex = 1,
+                outcome = TranslationPageOutcome.NO_TEXT,
+            ),
+        )
+
+        val coverage = manager.getTranslationCoverage(chapterName, null, mangaTitle, source, "en")!!
+        assertEquals(2, coverage.totalPages)
+        assertEquals(TranslationPageOutcome.LEGACY_STORED, coverage.outcomes[0])
+        assertEquals(TranslationPageOutcome.NO_TEXT, coverage.outcomes[1])
+    }
+
+    @Test
+    fun `failed coverage write preserves the previous manifest`() {
+        cbzChapter()
+        manager.initializeTranslationCoverage(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            totalPages = 1,
+            legacyResolvedPages = emptySet(),
+        )
+        val langDir = mangaDir.children["Chapter 1.cbz_translated"]!!.children["en"]!!
+        val oldCoverage = langDir.children[".translation_coverage"]!!.bytes.copyOf()
+        langDir.failChildWrites = true
+
+        assertFalse(
+            manager.writePageOutcome(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+                pageIndex = 0,
+                outcome = TranslationPageOutcome.STORAGE_FAILURE,
+            ),
+        )
+        assertEquals(oldCoverage.toList(), langDir.children[".translation_coverage"]!!.bytes.toList())
+    }
+
+    @Test
+    fun `coverage reads the backup after an interrupted replacement`() {
+        cbzChapter()
+        manager.initializeTranslationCoverage(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            totalPages = 1,
+            legacyResolvedPages = emptySet(),
+        )
+        val langDir = mangaDir.children["Chapter 1.cbz_translated"]!!.children["en"]!!
+        langDir.children[".translation_coverage"]!!.mock.renameTo(".translation_coverage.bak")
+
+        val coverage = manager.getTranslationCoverage(chapterName, null, mangaTitle, source, "en")
+
+        assertEquals(TranslationPageOutcome.NOT_ATTEMPTED, coverage?.outcomes?.get(0))
+    }
+
+    @Test
+    fun `stale backup is removed before replacing the primary manifest`() {
+        cbzChapter()
+        manager.initializeTranslationCoverage(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            totalPages = 1,
+            legacyResolvedPages = emptySet(),
+        )
+        val langDir = mangaDir.children["Chapter 1.cbz_translated"]!!.children["en"]!!
+        langDir.children[".translation_coverage.bak"] = FakeNode(".translation_coverage.bak").also {
+            it.parent = langDir
+        }
+
+        assertTrue(
+            manager.writePageOutcome(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+                pageIndex = 0,
+                outcome = TranslationPageOutcome.NO_TEXT,
+            ),
+        )
+        assertFalse(langDir.children.containsKey(".translation_coverage.bak"))
+        assertEquals(
+            TranslationPageOutcome.NO_TEXT,
+            manager.getTranslationCoverage(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+            )?.outcomes?.get(0),
+        )
+    }
+
+    @Test
+    fun `backup-only manifest survives a failed replacement`() {
+        cbzChapter()
+        manager.initializeTranslationCoverage(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            totalPages = 1,
+            legacyResolvedPages = emptySet(),
+        )
+        val langDir = mangaDir.children["Chapter 1.cbz_translated"]!!.children["en"]!!
+        langDir.children[".translation_coverage"]!!.mock.renameTo(".translation_coverage.bak")
+        langDir.failChildRenames = true
+
+        assertFalse(
+            manager.writePageOutcome(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+                pageIndex = 0,
+                outcome = TranslationPageOutcome.STORAGE_FAILURE,
+            ),
+        )
+        assertTrue(langDir.children.containsKey(".translation_coverage.bak"))
+        assertEquals(
+            TranslationPageOutcome.NOT_ATTEMPTED,
+            manager.getTranslationCoverage(
+                chapterName,
+                null,
+                mangaTitle,
+                source,
+                "en",
+            )?.outcomes?.get(0),
+        )
+    }
+
+    @Test
+    fun `unresolved outcome hides a stored page from the reader`() {
+        cbzChapter()
+        manager.initializeTranslationCoverage(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            totalPages = 1,
+            legacyResolvedPages = emptySet(),
+        )
+        manager.writeTranslatedPage(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            "001.jpg",
+            byteArrayOf(1),
+        )
+        manager.writePageOutcome(
+            chapterName,
+            null,
+            mangaTitle,
+            source,
+            "en",
+            pageIndex = 0,
+            outcome = TranslationPageOutcome.STORAGE_FAILURE,
+        )
+
+        assertNull(manager.getTranslatedPageFile(chapterName, null, mangaTitle, source, "en", 0))
     }
 }

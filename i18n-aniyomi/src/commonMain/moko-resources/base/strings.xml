@@ -644,6 +644,7 @@
     <string name="translation_status_failed">Failed</string>
     <string name="translation_complete">Translation complete</string>
     <string name="translation_error">Translation failed: %s</string>
+    <string name="translation_incomplete">Translation incomplete: %1$d of %2$d pages resolved. Unresolved pages: %3$s</string>
     <string name="translation_no_provider">No translation provider configured</string>
     <string name="translation_cost_warning">This will make API calls for each page. Continue?</string>
     <string name="pref_show_translated_pages">Show translated pages</string>

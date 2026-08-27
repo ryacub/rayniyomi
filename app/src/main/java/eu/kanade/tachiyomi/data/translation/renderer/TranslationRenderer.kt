@@ -33,66 +33,71 @@ object TranslationRenderer {
         if (result.regions.isEmpty()) return imageBytes
 
         val original = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            ?: return imageBytes
-        val mutable = original.copy(Bitmap.Config.ARGB_8888, true)
-        original.recycle()
-
-        if (mutable == null) return imageBytes
-
-        val canvas = Canvas(mutable)
-        val fillPaint = Paint().apply { style = Paint.Style.FILL }
-        val textPaint = TextPaint().apply {
-            isAntiAlias = true
-            color = Color.BLACK
-            style = Paint.Style.FILL
+            ?: error("Could not decode source image")
+        val mutable = try {
+            original.copy(Bitmap.Config.ARGB_8888, true)
+        } finally {
+            original.recycle()
         }
 
-        val imgWidth = mutable.width
-        val imgHeight = mutable.height
+        checkNotNull(mutable) { "Could not create mutable source image" }
+        try {
+            val canvas = Canvas(mutable)
+            val fillPaint = Paint().apply { style = Paint.Style.FILL }
+            val textPaint = TextPaint().apply {
+                isAntiAlias = true
+                color = Color.BLACK
+                style = Paint.Style.FILL
+            }
 
-        for (region in result.regions) {
-            val pixelRect = toPixelRect(region.bounds, imgWidth, imgHeight)
-            if (pixelRect.width() <= 0 || pixelRect.height() <= 0) continue
+            val imgWidth = mutable.width
+            val imgHeight = mutable.height
 
-            // Sample edge color for fill
-            fillPaint.color = sampleEdgeColor(mutable, pixelRect)
+            for (region in result.regions) {
+                val pixelRect = toPixelRect(region.bounds, imgWidth, imgHeight)
+                if (pixelRect.width() <= 0 || pixelRect.height() <= 0) continue
 
-            // White out the original text region
-            canvas.drawRect(
-                pixelRect.left.toFloat(),
-                pixelRect.top.toFloat(),
-                pixelRect.right.toFloat(),
-                pixelRect.bottom.toFloat(),
-                fillPaint,
-            )
+                // Sample edge color for fill
+                fillPaint.color = sampleEdgeColor(mutable, pixelRect)
 
-            // Determine text color based on fill brightness
-            textPaint.color = contrastColor(fillPaint.color)
+                // White out the original text region
+                canvas.drawRect(
+                    pixelRect.left.toFloat(),
+                    pixelRect.top.toFloat(),
+                    pixelRect.right.toFloat(),
+                    pixelRect.bottom.toFloat(),
+                    fillPaint,
+                )
 
-            // Fit and draw translated text
-            val layout = TextFitter.fitText(
-                text = region.translatedText,
-                width = pixelRect.width(),
-                height = pixelRect.height(),
-                textPaint = textPaint,
-            ) ?: continue
+                // Determine text color based on fill brightness
+                textPaint.color = contrastColor(fillPaint.color)
 
-            canvas.save()
-            val paddingX = (pixelRect.width() * 0.05f)
-            val paddingY = (pixelRect.height() - layout.height) / 2f
-            canvas.translate(
-                pixelRect.left + paddingX,
-                pixelRect.top + paddingY.coerceAtLeast(0f),
-            )
-            layout.draw(canvas)
-            canvas.restore()
+                // Fit and draw translated text
+                val layout = TextFitter.fitText(
+                    text = region.translatedText,
+                    width = pixelRect.width(),
+                    height = pixelRect.height(),
+                    textPaint = textPaint,
+                ) ?: continue
+
+                canvas.save()
+                val paddingX = (pixelRect.width() * 0.05f)
+                val paddingY = (pixelRect.height() - layout.height) / 2f
+                canvas.translate(
+                    pixelRect.left + paddingX,
+                    pixelRect.top + paddingY.coerceAtLeast(0f),
+                )
+                layout.draw(canvas)
+                canvas.restore()
+            }
+
+            val output = ByteArrayOutputStream()
+            val format = ImageFormatUtil.detectCompressFormat(imageBytes)
+            check(mutable.compress(format, 90, output)) { "Could not encode translated image" }
+            return output.toByteArray()
+        } finally {
+            mutable.recycle()
         }
-
-        val output = ByteArrayOutputStream()
-        val format = ImageFormatUtil.detectCompressFormat(imageBytes)
-        mutable.compress(format, 90, output)
-        mutable.recycle()
-        return output.toByteArray()
     }
 
     private fun toPixelRect(bounds: NormalizedRect, imgWidth: Int, imgHeight: Int): Rect {

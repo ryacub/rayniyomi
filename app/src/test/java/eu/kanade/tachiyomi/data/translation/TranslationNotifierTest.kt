@@ -141,6 +141,43 @@ class TranslationNotifierTest {
     }
 
     @Test
+    fun `posts an incomplete notification with resolved and unresolved pages`() {
+        val state = TranslationState.Incomplete(
+            resolvedPages = 3,
+            totalPages = 5,
+            unresolvedPages = listOf(4, 5),
+            reason = "Page 4 could not be translated",
+        )
+
+        notifier.onStatesChanged(mapOf(chapterId to state), titles())
+
+        verify(exactly = 1) {
+            context.notify(Notifications.translationErrorId(chapterId), any<Notification>())
+        }
+        verify {
+            context.stringResource(AYMR.strings.translation_incomplete, 3, 5, "4, 5")
+        }
+    }
+
+    @Test
+    fun `clears stale incomplete notifications when translation resumes and completes`() {
+        notifier.onStatesChanged(
+            mapOf(
+                chapterId to TranslationState.Incomplete(3, 5, listOf(4, 5), "Page 4 failed"),
+            ),
+            titles(),
+        )
+        notifier.onStatesChanged(
+            mapOf(chapterId to TranslationState.Translating(3, 5)),
+            titles(),
+        )
+        notifier.onStatesChanged(mapOf(chapterId to TranslationState.Translated), titles())
+
+        verify(exactly = 2) { context.cancelNotification(Notifications.translationErrorId(chapterId)) }
+        verify(exactly = 1) { context.notify(Notifications.translationCompleteId(chapterId), any<Notification>()) }
+    }
+
+    @Test
     fun `does not repost the error notification on later emissions`() {
         notifier.onStatesChanged(
             mapOf(chapterId to TranslationState.Error("API rate limit exceeded")),

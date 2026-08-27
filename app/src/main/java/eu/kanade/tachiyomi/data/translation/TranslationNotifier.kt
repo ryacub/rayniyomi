@@ -40,6 +40,7 @@ class TranslationNotifier(private val context: Context) {
                 TranslationState.Idle -> Unit // Idle chapters are absent from the map.
                 is TranslationState.Translating -> showProgress(chapterId, state, titles[chapterId])
                 TranslationState.Translated -> showComplete(chapterId, titles[chapterId])
+                is TranslationState.Incomplete -> showIncomplete(chapterId, state, titles[chapterId])
                 is TranslationState.Error -> showError(chapterId, state.message, titles[chapterId])
             }
         }
@@ -54,6 +55,8 @@ class TranslationNotifier(private val context: Context) {
         title: String?,
     ) {
         // Resolve all text before entering the builder lambda.
+        context.cancelNotification(Notifications.translationErrorId(chapterId))
+        context.cancelNotification(Notifications.translationCompleteId(chapterId))
         val titleText = titleFor(title)
         val contentText =
             context.stringResource(AYMR.strings.translation_progress, state.currentPage, state.totalPages)
@@ -71,6 +74,7 @@ class TranslationNotifier(private val context: Context) {
 
     private fun showComplete(chapterId: Long, title: String?) {
         context.cancelNotification(Notifications.translationProgressId(chapterId))
+        context.cancelNotification(Notifications.translationErrorId(chapterId))
 
         val titleText = titleFor(title)
         val contentText = context.stringResource(AYMR.strings.translation_complete)
@@ -87,6 +91,7 @@ class TranslationNotifier(private val context: Context) {
 
     private fun showError(chapterId: Long, message: String, title: String?) {
         context.cancelNotification(Notifications.translationProgressId(chapterId))
+        context.cancelNotification(Notifications.translationCompleteId(chapterId))
 
         val titleText = titleFor(title)
         val contentText = context.stringResource(AYMR.strings.translation_error, message)
@@ -95,6 +100,29 @@ class TranslationNotifier(private val context: Context) {
             setContentTitle(titleText)
             setContentText(contentText)
             setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            setSmallIcon(R.drawable.ic_warning_white_24dp)
+            setOngoing(false)
+            setAutoCancel(true)
+            setProgress(0, 0, false)
+        }
+    }
+
+    private fun showIncomplete(chapterId: Long, state: TranslationState.Incomplete, title: String?) {
+        context.cancelNotification(Notifications.translationProgressId(chapterId))
+        context.cancelNotification(Notifications.translationCompleteId(chapterId))
+
+        val titleText = titleFor(title)
+        val contentText = context.stringResource(
+            AYMR.strings.translation_incomplete,
+            state.resolvedPages,
+            state.totalPages,
+            state.unresolvedPages.joinToString(", "),
+        )
+
+        context.notify(Notifications.translationErrorId(chapterId), Notifications.CHANNEL_TRANSLATION_ERROR) {
+            setContentTitle(titleText)
+            setContentText(contentText)
+            setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
             setSmallIcon(R.drawable.ic_warning_white_24dp)
             setOngoing(false)
             setAutoCancel(true)

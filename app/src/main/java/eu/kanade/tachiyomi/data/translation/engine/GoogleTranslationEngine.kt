@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.translation.engine
 
 import android.util.Base64
+import eu.kanade.tachiyomi.data.translation.InvalidTranslationResponseException
 import eu.kanade.tachiyomi.data.translation.TranslationEngine
 import eu.kanade.tachiyomi.data.translation.TranslationResult
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -91,7 +92,8 @@ class GoogleTranslationEngine(
         val apiResponse = json.decodeFromString<GeminiResponse>(body)
         val textContent = apiResponse.candidates.firstOrNull()
             ?.content?.parts?.firstOrNull()?.text
-            ?: return TranslationResult(emptyList())
+            ?.takeIf { it.isNotBlank() }
+            ?: throw InvalidTranslationResponseException("Provider response did not contain text")
 
         return RegionParser.parse(textContent, json)
     }

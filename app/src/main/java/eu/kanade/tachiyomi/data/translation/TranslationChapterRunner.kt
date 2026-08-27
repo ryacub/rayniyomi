@@ -4,6 +4,9 @@ import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
 import eu.kanade.tachiyomi.data.translation.engine.ImageFormatUtil
 import eu.kanade.tachiyomi.data.translation.renderer.TranslationRenderer
 import eu.kanade.tachiyomi.source.MangaSource
+import kotlinx.coroutines.CancellationException
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 
@@ -25,9 +28,8 @@ class TranslationChapterRunner(
 
     /**
      * [pages] must be non-empty; the caller reports the empty case.
-     * [onState] receives every [TranslationState] for this chapter, ending in
-     * [TranslationState.Translated] on success. Throws on terminal failure; the manager keeps the
-     * catch that maps it to [TranslationState.Error].
+     * [onState] receives every [TranslationState] for this chapter. A chapter reaches
+     * [TranslationState.Translated] only when every source page has a resolved outcome.
      */
     suspend fun run(
         manga: Manga,
@@ -39,71 +41,248 @@ class TranslationChapterRunner(
         provider: String,
         onState: (TranslationState) -> Unit,
     ) {
-        onState(TranslationState.Translating(0, pages.size))
-
-        for ((index, page) in pages.withIndex()) {
-            // Skip pages already written by an earlier run, including stored originals.
-            val existing = translationStorageManager.getTranslatedPageFile(
+        val initialCoverage = translationStorageManager.getTranslationCoverage(
+            chapter.name,
+            chapter.scanlator,
+            manga.title,
+            source,
+            targetLang,
+        )?.takeIf { it.totalPages == pages.size }
+        val legacyResolvedPages = if (initialCoverage == null) {
+            pages.mapIndexedNotNullTo(mutableSetOf()) { index, _ ->
+                translationStorageManager.getTranslatedPageFile(
+                    chapter.name,
+                    chapter.scanlator,
+                    manga.title,
+                    source,
+                    targetLang,
+                    index,
+                )?.let { index }
+            }
+        } else {
+            emptySet()
+        }
+        if (initialCoverage == null && !translationStorageManager.initializeTranslationCoverage(
                 chapter.name,
                 chapter.scanlator,
                 manga.title,
                 source,
                 targetLang,
-                index,
+                pages.size,
+                legacyResolvedPages,
             )
-            if (existing != null) {
-                onState(TranslationState.Translating(index + 1, pages.size))
+        ) {
+            onState(
+                TranslationState.Incomplete(
+                    resolvedPages = 0,
+                    totalPages = pages.size,
+                    unresolvedPages = pages.indices.map { it + 1 },
+                    reason = "Translation coverage could not be saved",
+                ),
+            )
+            return
+        }
+
+        val outcomes = (
+            initialCoverage?.outcomes ?: legacyResolvedPages.associateWith {
+                TranslationPageOutcome.LEGACY_STORED
+            }
+            ).toMutableMap()
+        var resolvedPages = outcomes.count { it.value.isResolved() }
+        var incompleteReason: String? = null
+        onState(TranslationState.Translating(resolvedPages, pages.size))
+
+        for ((index, page) in pages.withIndex()) {
+            val storedPage = if (outcomes[index]?.isResolved() == true) {
+                translationStorageManager.getTranslatedPageFile(
+                    chapter.name,
+                    chapter.scanlator,
+                    manga.title,
+                    source,
+                    targetLang,
+                    index,
+                )
+            } else {
+                null
+            }
+            if (storedPage != null) {
+                onState(TranslationState.Translating(resolvedPages, pages.size))
+                continue
+            }
+            if (outcomes[index]?.isResolved() == true) {
+                outcomes[index] = TranslationPageOutcome.NOT_ATTEMPTED
+                resolvedPages--
+            }
+
+            val imageBytes = try {
+                page.openStream()?.use { it.readBytes() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (imageBytes == null || imageBytes.isEmpty()) {
+                recordOutcome(
+                    chapter,
+                    manga,
+                    source,
+                    targetLang,
+                    outcomes,
+                    index,
+                    TranslationPageOutcome.UNREADABLE_INPUT,
+                )
+                incompleteReason = incompleteReason ?: "Page ${index + 1} could not be read"
+                logOutcome(chapter, index, TranslationPageOutcome.UNREADABLE_INPUT)
                 continue
             }
 
-            val imageBytes = page.openStream()?.use { it.readBytes() } ?: continue
-
-            val result = retryPolicy.execute(
-                label = "chapter \"${chapter.name}\" page ${index + 1}",
-                onRetry = {
-                    onState(
-                        TranslationState.Translating(
-                            currentPage = index,
-                            totalPages = pages.size,
-                            phase = TranslationPhase.Retrying(page = index + 1),
-                        ),
-                    )
-                },
-            ) {
-                engine.detectAndTranslate(imageBytes, targetLang)
+            val result = try {
+                retryPolicy.execute(
+                    label = "chapter \"${chapter.name}\" page ${index + 1}",
+                    onRetry = {
+                        onState(
+                            TranslationState.Translating(
+                                currentPage = resolvedPages,
+                                totalPages = pages.size,
+                                phase = TranslationPhase.Retrying(page = index + 1),
+                            ),
+                        )
+                    },
+                ) {
+                    engine.detectAndTranslate(imageBytes, targetLang)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val outcome = if (e is InvalidTranslationResponseException) {
+                    TranslationPageOutcome.INVALID_PROVIDER_OUTPUT
+                } else {
+                    TranslationPageOutcome.PROVIDER_FAILURE
+                }
+                recordOutcome(chapter, manga, source, targetLang, outcomes, index, outcome)
+                incompleteReason = incompleteReason ?: "Page ${index + 1} could not be translated"
+                logOutcome(chapter, index, outcome)
+                break
             }
 
-            val renderedBytes = if (result.regions.isNotEmpty()) {
-                render(imageBytes, result)
+            val hasTranslatedRegions = result.regions.isNotEmpty()
+            val renderedBytes = if (hasTranslatedRegions) {
+                try {
+                    render(imageBytes, result)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
             } else {
-                imageBytes // No text found, store original
+                imageBytes
+            }
+            if (renderedBytes == null) {
+                recordOutcome(
+                    chapter,
+                    manga,
+                    source,
+                    targetLang,
+                    outcomes,
+                    index,
+                    TranslationPageOutcome.RENDER_FAILURE,
+                )
+                incompleteReason = incompleteReason ?: "Page ${index + 1} could not be rendered"
+                logOutcome(chapter, index, TranslationPageOutcome.RENDER_FAILURE)
+                break
             }
 
             val extension = ImageFormatUtil.detectExtension(imageBytes)
             val fileName = "%03d.%s".format(index + 1, extension)
+            val stored = try {
+                translationStorageManager.writeTranslatedPage(
+                    chapterName = chapter.name,
+                    chapterScanlator = chapter.scanlator,
+                    mangaTitle = manga.title,
+                    source = source,
+                    targetLang = targetLang,
+                    fileName = fileName,
+                    imageBytes = renderedBytes,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            val outcome = if (stored == null) {
+                TranslationPageOutcome.STORAGE_FAILURE
+            } else if (hasTranslatedRegions) {
+                TranslationPageOutcome.TRANSLATED
+            } else {
+                TranslationPageOutcome.NO_TEXT
+            }
 
-            translationStorageManager.writeTranslatedPage(
+            if (outcome == TranslationPageOutcome.STORAGE_FAILURE) {
+                recordOutcome(chapter, manga, source, targetLang, outcomes, index, outcome)
+                incompleteReason = incompleteReason ?: "Page ${index + 1} could not be stored"
+                logOutcome(chapter, index, outcome)
+                break
+            }
+            if (!recordOutcome(chapter, manga, source, targetLang, outcomes, index, outcome)) {
+                outcomes[index] = TranslationPageOutcome.STORAGE_FAILURE
+                incompleteReason = incompleteReason ?: "Page ${index + 1} could not be stored"
+                logOutcome(chapter, index, TranslationPageOutcome.STORAGE_FAILURE)
+                break
+            }
+
+            resolvedPages++
+            onState(TranslationState.Translating(resolvedPages, pages.size))
+        }
+
+        val unresolvedPages = pages.indices
+            .filterNot { outcomes[it]?.isResolved() == true }
+            .map { it + 1 }
+        if (unresolvedPages.isEmpty()) {
+            translationStorageManager.writeMetadata(
                 chapterName = chapter.name,
                 chapterScanlator = chapter.scanlator,
                 mangaTitle = manga.title,
                 source = source,
                 targetLang = targetLang,
-                fileName = fileName,
-                imageBytes = renderedBytes,
+                provider = provider,
             )
-
-            onState(TranslationState.Translating(index + 1, pages.size))
+            onState(TranslationState.Translated)
+        } else {
+            onState(
+                TranslationState.Incomplete(
+                    resolvedPages = pages.size - unresolvedPages.size,
+                    totalPages = pages.size,
+                    unresolvedPages = unresolvedPages,
+                    reason = incompleteReason ?: "Translation incomplete on page ${unresolvedPages.first()}",
+                ),
+            )
         }
+    }
 
-        translationStorageManager.writeMetadata(
-            chapterName = chapter.name,
-            chapterScanlator = chapter.scanlator,
-            mangaTitle = manga.title,
-            source = source,
-            targetLang = targetLang,
-            provider = provider,
+    private fun recordOutcome(
+        chapter: Chapter,
+        manga: Manga,
+        source: MangaSource,
+        targetLang: String,
+        outcomes: MutableMap<Int, TranslationPageOutcome>,
+        pageIndex: Int,
+        outcome: TranslationPageOutcome,
+    ): Boolean {
+        outcomes[pageIndex] = outcome
+        return translationStorageManager.writePageOutcome(
+            chapter.name,
+            chapter.scanlator,
+            manga.title,
+            source,
+            targetLang,
+            pageIndex,
+            outcome,
         )
+    }
 
-        onState(TranslationState.Translated)
+    private fun logOutcome(chapter: Chapter, pageIndex: Int, outcome: TranslationPageOutcome) {
+        logcat(LogPriority.WARN) {
+            "Translation page outcome: chapter \"${chapter.name}\", page ${pageIndex + 1}, outcome $outcome"
+        }
     }
 }

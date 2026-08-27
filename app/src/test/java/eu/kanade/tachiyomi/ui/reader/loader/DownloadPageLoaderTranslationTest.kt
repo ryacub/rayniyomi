@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.entries.manga.model.Manga
 import java.io.ByteArrayInputStream
+import java.io.IOException
 
 class DownloadPageLoaderTranslationTest {
 
@@ -83,6 +84,31 @@ class DownloadPageLoaderTranslationTest {
         verify(exactly = 0) {
             translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
         }
+    }
+
+    @Test
+    fun `a translated page that fails to open falls back to the original page`() = runTest {
+        val originalBytes = byteArrayOf(1, 2, 3)
+        val translatedUri = mockk<Uri>()
+        val translatedFile = mockk<UniFile> {
+            every { uri } returns translatedUri
+        }
+        stubLoader(showTranslated = true, originalBytes = originalBytes)
+        every {
+            translationStorageManager.getTranslatedPageFile(
+                chapter.chapter.name,
+                chapter.chapter.scanlator,
+                manga.title,
+                source,
+                "es",
+                0,
+            )
+        } returns translatedFile
+        every { application.contentResolver.openInputStream(translatedUri) } throws IOException("file vanished")
+
+        val page = buildLoader().getPages().single()
+
+        assertArrayEquals(originalBytes, page.stream!!.invoke().readBytes())
     }
 
     private fun stubLoader(showTranslated: Boolean, originalBytes: ByteArray) {

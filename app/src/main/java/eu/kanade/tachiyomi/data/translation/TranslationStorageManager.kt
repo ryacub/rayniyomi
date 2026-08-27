@@ -98,7 +98,97 @@ class TranslationStorageManager(
 
         val translatedDir = root.findFile(targetLang) ?: return false
 
-        return translatedDir.listFiles()?.any { it.isFile } == true
+        return translatedDir.listFiles()?.any {
+            it.isFile && it.name !in setOf(
+                META_FILE,
+                COVERAGE_FILE,
+                COVERAGE_TEMP_FILE,
+                COVERAGE_BACKUP_FILE,
+            )
+        } == true
+    }
+
+    /** Read the page outcomes for a chapter, or null when it has no coverage manifest. */
+    fun getTranslationCoverage(
+        chapterName: String,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        source: MangaSource,
+        targetLang: String,
+    ): TranslationCoverage? {
+        val root = getTranslationRoot(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            create = false,
+        ) ?: return null
+        val translatedDir = root.findFile(targetLang) ?: return null
+        return listOf(COVERAGE_FILE, COVERAGE_BACKUP_FILE, COVERAGE_TEMP_FILE)
+            .mapNotNull { translatedDir.findFile(it) }
+            .asSequence()
+            .mapNotNull { file ->
+                runCatching {
+                    file.openInputStream().use { input ->
+                        json.decodeFromString<TranslationCoverage>(input.readBytes().decodeToString())
+                    }
+                }.getOrNull()
+            }
+            .firstOrNull()
+    }
+
+    /** Create the coverage manifest before a run so failed writes cannot look like legacy files. */
+    fun initializeTranslationCoverage(
+        chapterName: String,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        source: MangaSource,
+        targetLang: String,
+        totalPages: Int,
+        legacyResolvedPages: Set<Int>,
+    ): Boolean {
+        val outcomes = (0 until totalPages).associateWith { index ->
+            if (index in legacyResolvedPages) {
+                TranslationPageOutcome.LEGACY_STORED
+            } else {
+                TranslationPageOutcome.NOT_ATTEMPTED
+            }
+        }
+        return writeCoverage(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            targetLang,
+            TranslationCoverage(totalPages, outcomes),
+        )
+    }
+
+    /** Persist one page outcome so a later run can resume at the first unresolved page. */
+    fun writePageOutcome(
+        chapterName: String,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        source: MangaSource,
+        targetLang: String,
+        pageIndex: Int,
+        outcome: TranslationPageOutcome,
+    ): Boolean {
+        val current = getTranslationCoverage(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            targetLang,
+        ) ?: return false
+        return writeCoverage(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            targetLang,
+            current.copy(outcomes = current.outcomes + (pageIndex to outcome)),
+        )
     }
 
     /**
@@ -121,6 +211,15 @@ class TranslationStorageManager(
         ) ?: return null
 
         val translatedDir = root.findFile(targetLang) ?: return null
+
+        val coverage = getTranslationCoverage(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            targetLang,
+        )
+        if (coverage != null && coverage.outcomes[pageIndex]?.isResolved() != true) return null
 
         // Match file by page index prefix (e.g., "001.jpg", "001.png")
         val prefix = "%03d.".format(pageIndex + 1)
@@ -236,5 +335,61 @@ class TranslationStorageManager(
 
     companion object {
         private const val META_FILE = ".translation_meta"
+        private const val COVERAGE_FILE = ".translation_coverage"
+        private const val COVERAGE_TEMP_FILE = ".translation_coverage.tmp"
+        private const val COVERAGE_BACKUP_FILE = ".translation_coverage.bak"
+    }
+
+    private fun writeCoverage(
+        chapterName: String,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        source: MangaSource,
+        targetLang: String,
+        coverage: TranslationCoverage,
+    ): Boolean {
+        val dir = getTranslatedDir(
+            chapterName,
+            chapterScanlator,
+            mangaTitle,
+            source,
+            targetLang,
+        ) ?: return false
+        val tempFile = dir.createFile(COVERAGE_TEMP_FILE) ?: return false
+        var backupCreated = false
+        var installed = false
+
+        return try {
+            tempFile.openOutputStream().use {
+                it.write(json.encodeToString(coverage).toByteArray())
+            }
+
+            val currentFile = dir.findFile(COVERAGE_FILE)
+            val staleBackup = dir.findFile(COVERAGE_BACKUP_FILE)
+            if (currentFile != null && staleBackup != null && !staleBackup.delete()) {
+                false
+            } else if (currentFile != null && !currentFile.renameTo(COVERAGE_BACKUP_FILE)) {
+                false
+            } else {
+                backupCreated = currentFile != null
+                if (!tempFile.renameTo(COVERAGE_FILE)) {
+                    false
+                } else {
+                    installed = true
+                    true
+                }
+            }
+        } catch (_: Exception) {
+            false
+        } finally {
+            if (!installed) {
+                tempFile.delete()
+                if (backupCreated) {
+                    dir.findFile(COVERAGE_BACKUP_FILE)?.renameTo(COVERAGE_FILE)
+                }
+            } else {
+                dir.findFile(COVERAGE_BACKUP_FILE)?.delete()
+            }
+        }
     }
 }

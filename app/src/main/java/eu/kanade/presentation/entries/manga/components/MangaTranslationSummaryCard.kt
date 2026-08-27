@@ -73,6 +73,17 @@ fun MangaTranslationSummaryCard(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,
                                 )
+                            } else if (chapter.isIncomplete) {
+                                Text(
+                                    text = stringResource(
+                                        AYMR.strings.translation_incomplete,
+                                        chapter.currentPage,
+                                        chapter.totalPages,
+                                        chapter.unresolvedPages.joinToString(", "),
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
                             } else if (chapter.totalPages > 0) {
                                 Text(
                                     text = stringResource(

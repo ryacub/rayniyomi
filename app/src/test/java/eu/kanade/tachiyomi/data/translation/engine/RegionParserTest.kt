@@ -1,9 +1,10 @@
 package eu.kanade.tachiyomi.data.translation.engine
 
+import eu.kanade.tachiyomi.data.translation.InvalidTranslationResponseException
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class RegionParserTest {
 
@@ -11,72 +12,80 @@ class RegionParserTest {
 
     @Test
     fun `parses valid JSON array of regions`() {
-        val text = """[
-            {"left":0.1,"top":0.05,"right":0.4,"bottom":0.15,"original":"こんにちは","translated":"Hello"},
-            {"left":0.5,"top":0.2,"right":0.9,"bottom":0.35,"original":"世界","translated":"World"}
-        ]"""
+        val result = RegionParser.parse(
+            """[{"left":0.1,"top":0.05,"right":0.4,"bottom":0.15,"original":"hello","translated":"bonjour"}]""",
+            json,
+        )
 
-        val result = RegionParser.parse(text, json)
-        assertEquals(2, result.regions.size)
-
-        val first = result.regions[0]
-        assertEquals(0.1f, first.bounds.left, 0.001f)
-        assertEquals(0.05f, first.bounds.top, 0.001f)
-        assertEquals(0.4f, first.bounds.right, 0.001f)
-        assertEquals(0.15f, first.bounds.bottom, 0.001f)
-        assertEquals("こんにちは", first.originalText)
-        assertEquals("Hello", first.translatedText)
-
-        val second = result.regions[1]
-        assertEquals("世界", second.originalText)
-        assertEquals("World", second.translatedText)
+        assertEquals(1, result.regions.size)
+        assertEquals("hello", result.regions.single().originalText)
+        assertEquals("bonjour", result.regions.single().translatedText)
     }
 
     @Test
-    fun `returns empty regions for empty array`() {
-        val result = RegionParser.parse("[]", json)
-        assertTrue(result.regions.isEmpty())
+    fun `valid empty array is a no-text result`() {
+        assertEquals(emptyList<Any>(), RegionParser.parse("[]", json).regions)
     }
 
     @Test
-    fun `returns empty regions for no JSON`() {
-        val result = RegionParser.parse("No text found on this page.", json)
-        assertTrue(result.regions.isEmpty())
+    fun `missing array is invalid provider output`() {
+        assertThrows<InvalidTranslationResponseException> {
+            RegionParser.parse("No JSON response", json)
+        }
     }
 
     @Test
-    fun `extracts JSON from surrounding text`() {
-        val text = """Here are the detected regions:
-[{"left":0.1,"top":0.2,"right":0.3,"bottom":0.4,"original":"test","translated":"test"}]
-That's all I found."""
+    fun `malformed array is invalid provider output`() {
+        assertThrows<InvalidTranslationResponseException> {
+            RegionParser.parse("[{\"left\": 0.1}", json)
+        }
+    }
 
-        val result = RegionParser.parse(text, json)
+    @Test
+    fun `unusable region is invalid provider output`() {
+        assertThrows<InvalidTranslationResponseException> {
+            RegionParser.parse(
+                "[{\"left\": 0.1,\"top\": 0.1,\"right\": 0.1,\"bottom\": 0.2,\"original\":\"a\",\"translated\":\"b\"}]",
+                json,
+            )
+        }
+    }
+
+    @Test
+    fun `region outside the image is invalid provider output`() {
+        assertThrows<InvalidTranslationResponseException> {
+            RegionParser.parse(
+                "[{\"left\":1.1,\"top\":0.1,\"right\":1.2,\"bottom\":0.2,\"original\":\"a\",\"translated\":\"b\"}]",
+                json,
+            )
+        }
+    }
+
+    @Test
+    fun `extracts an array from surrounding response text`() {
+        val result = RegionParser.parse(
+            "Here are the regions: [{\"left\":0.1,\"top\":0.1,\"right\":0.4,\"bottom\":0.4,\"original\":\"a\",\"translated\":\"b\"}]",
+            json,
+        )
+
         assertEquals(1, result.regions.size)
     }
 
     @Test
-    fun `clamps coordinates to 0-1 range`() {
-        val text = """[{"left":-0.1,"top":1.5,"right":0.5,"bottom":0.5,"original":"test","translated":"test"}]"""
+    fun `clamps usable coordinates to the image bounds`() {
+        val result = RegionParser.parse(
+            "[{\"left\":-0.1,\"top\":0.1,\"right\":0.5,\"bottom\":1.5,\"original\":\"a\",\"translated\":\"b\"}]",
+            json,
+        )
 
-        val result = RegionParser.parse(text, json)
-        assertEquals(1, result.regions.size)
-        assertEquals(0f, result.regions[0].bounds.left, 0.001f)
-        assertEquals(1f, result.regions[0].bounds.top, 0.001f)
+        assertEquals(0f, result.regions.single().bounds.left)
+        assertEquals(1f, result.regions.single().bounds.bottom)
     }
 
     @Test
-    fun `handles malformed JSON gracefully`() {
-        val text = """[{"left":0.1, this is broken}]"""
-        val result = RegionParser.parse(text, json)
-        assertTrue(result.regions.isEmpty())
-    }
-
-    @Test
-    fun `handles missing optional fields with defaults`() {
-        val text = """[{"left":0.1,"top":0.2,"right":0.3,"bottom":0.4}]"""
-        val result = RegionParser.parse(text, json)
-        assertEquals(1, result.regions.size)
-        assertEquals("", result.regions[0].originalText)
-        assertEquals("", result.regions[0].translatedText)
+    fun `missing region fields are invalid provider output`() {
+        assertThrows<InvalidTranslationResponseException> {
+            RegionParser.parse("[{\"left\":0.1,\"top\":0.2,\"right\":0.3,\"bottom\":0.4}]", json)
+        }
     }
 }

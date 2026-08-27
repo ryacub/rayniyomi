@@ -73,6 +73,17 @@ fun ChapterTranslationIndicator(
             modifier = modifier,
             onClick = onClick,
         )
+        is TranslationState.Incomplete -> ErrorIndicator(
+            enabled = enabled,
+            modifier = modifier,
+            onClick = onClick,
+            contentDescription = stringResource(
+                AYMR.strings.translation_incomplete,
+                state.resolvedPages,
+                state.totalPages,
+                state.unresolvedPages.joinToString(", "),
+            ),
+        )
         is TranslationState.Error -> ErrorIndicator(
             enabled = enabled,
             modifier = modifier,
@@ -113,6 +124,7 @@ private fun ErrorIndicator(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     onClick: (ChapterTranslationAction) -> Unit,
+    contentDescription: String = stringResource(AYMR.strings.translation_action_translate),
 ) {
     Box(
         modifier = modifier
@@ -127,7 +139,7 @@ private fun ErrorIndicator(
     ) {
         Icon(
             imageVector = Icons.Outlined.ErrorOutline,
-            contentDescription = stringResource(AYMR.strings.translation_action_translate),
+            contentDescription = contentDescription,
             modifier = Modifier.size(IndicatorSize),
             tint = MaterialTheme.colorScheme.error,
         )
