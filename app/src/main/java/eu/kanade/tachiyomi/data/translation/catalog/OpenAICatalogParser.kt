@@ -70,7 +70,7 @@ object OpenAICatalogParser {
                 spatialBounds = false,
                 normalizedCoordinates = false,
                 originalAndTranslatedFields = false,
-                minimumOutputTokens = null,
+                maxOutputTokens = null,
                 structuredJsonOutput = false,
             ),
             cost = TranslationModelCost.PAID,

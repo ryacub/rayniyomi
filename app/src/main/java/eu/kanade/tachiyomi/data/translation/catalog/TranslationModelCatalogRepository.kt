@@ -76,14 +76,18 @@ class TranslationModelCatalogRepository(
                 TranslationProvider.NONE ->
                     throw IllegalArgumentException("No translation provider is selected.")
             }
-            val compatibleModels = TranslationModelCatalogFilter.filter(models, provider)
-            if (compatibleModels.isEmpty()) {
+            val storedModels = if (provider == TranslationProvider.OPENROUTER) {
+                models
+            } else {
+                TranslationModelCatalogFilter.filter(models, provider)
+            }
+            if (storedModels.isEmpty() && provider != TranslationProvider.OPENROUTER) {
                 throw IllegalArgumentException("No compatible models are available.")
             }
             val catalog = TranslationModelCatalog(
                 provider = provider,
                 fetchedAtEpochMilliseconds = now,
-                models = compatibleModels,
+                models = storedModels,
             )
             cacheByProvider[provider] = catalog
             TranslationCatalogResult.Success(catalog, fromCache = false)
@@ -119,7 +123,11 @@ class TranslationModelCatalogRepository(
     }
 
     private fun openRouterRequest(endpoint: String) = Request.Builder()
-        .url(endpoint)
+        .url(
+            endpoint.toHttpUrl().newBuilder()
+                .setQueryParameter("output_modalities", "all")
+                .build(),
+        )
         .get()
         .build()
 

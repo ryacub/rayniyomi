@@ -21,12 +21,9 @@ import java.util.concurrent.TimeUnit
 class OpenRouterTranslationEngine(
     private val apiKey: String,
     private val model: String = DEFAULT_MODEL,
+    private val client: OkHttpClient = defaultClient(),
+    private val endpoint: String = API_URL,
 ) : TranslationEngine {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .build()
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -76,7 +73,7 @@ class OpenRouterTranslationEngine(
         }.toString()
 
         val request = Request.Builder()
-            .url(API_URL)
+            .url(endpoint)
             .addHeader("Authorization", "Bearer $apiKey")
             .addHeader("Content-Type", "application/json")
             .post(requestBody.toRequestBody("application/json".toMediaType()))
@@ -95,5 +92,10 @@ class OpenRouterTranslationEngine(
     companion object {
         const val DEFAULT_MODEL = "anthropic/claude-sonnet-4-5-20250929"
         private const val API_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+        private fun defaultClient() = OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .build()
     }
 }

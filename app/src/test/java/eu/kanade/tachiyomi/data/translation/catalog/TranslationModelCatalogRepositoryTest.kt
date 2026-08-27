@@ -79,11 +79,45 @@ class TranslationModelCatalogRepositoryTest {
     }
 
     @Test
+    fun `requests the complete OpenRouter output modalities and caches paid models`() = runTest {
+        server.enqueue(
+            MockResponse().setBody(
+                """
+            {"data":[
+              {"id":"openai/gpt-4o","architecture":{"input_modalities":["image"],"output_modalities":["text"]},"pricing":{"prompt":"1","completion":"1"}},
+              {"id":"text-only","architecture":{"input_modalities":["text"],"output_modalities":["text"]},"pricing":{"prompt":"0","completion":"0"}}
+            ]}
+                """.trimIndent(),
+            ),
+        )
+
+        val result = repository.load(TranslationProvider.OPENROUTER, OPENROUTER_KEY, forceRefresh = true)
+
+        (result as TranslationCatalogResult.Success).catalog.models.map { it.id } shouldBe
+            listOf("openai/gpt-4o", "text-only")
+        server.takeRequest().requestUrl?.queryParameter("output_modalities") shouldBe "all"
+    }
+
+    @Test
     fun `returns sanitized failure with cached models when refresh fails`() = runTest {
         enqueueCompatibleCatalog()
         repository.load(TranslationProvider.OPENROUTER, OPENROUTER_KEY, forceRefresh = false)
 
         server.enqueue(MockResponse().setResponseCode(500))
+        val result = repository.load(TranslationProvider.OPENROUTER, OPENROUTER_KEY, forceRefresh = true)
+
+        result shouldBe TranslationCatalogResult.Failure(
+            reason = "The model list could not be updated. Check the connection.",
+            cachedModels = listOf(expectedCompatibleModel()),
+        )
+    }
+
+    @Test
+    fun `keeps cached models when refresh contains no valid entries`() = runTest {
+        enqueueCompatibleCatalog()
+        repository.load(TranslationProvider.OPENROUTER, OPENROUTER_KEY, forceRefresh = false)
+
+        server.enqueue(MockResponse().setBody("""{"data":[{"id":""}]}"""))
         val result = repository.load(TranslationProvider.OPENROUTER, OPENROUTER_KEY, forceRefresh = true)
 
         result shouldBe TranslationCatalogResult.Failure(
@@ -228,17 +262,21 @@ class TranslationModelCatalogRepositoryTest {
         capabilities = TranslationModelCapabilities(
             imageInput = true,
             textOutput = true,
-            multilingualOcrAndTranslation = true,
-            spatialBounds = true,
-            normalizedCoordinates = true,
-            originalAndTranslatedFields = true,
-            minimumOutputTokens = 4_096,
+            multilingualOcrAndTranslation = false,
+            spatialBounds = false,
+            normalizedCoordinates = false,
+            originalAndTranslatedFields = false,
+            maxOutputTokens = 4_096,
             structuredJsonOutput = true,
+            inputModalities = listOf("text", "image"),
+            outputModalities = listOf("text"),
+            supportedParameters = listOf("response_format"),
         ),
         cost = TranslationModelCost.FREE,
         freeTierEligible = true,
         stability = TranslationModelStability.UNKNOWN,
         dataTerms = null,
+        pricing = mapOf("prompt" to "0", "completion" to "0"),
     )
 
     companion object {

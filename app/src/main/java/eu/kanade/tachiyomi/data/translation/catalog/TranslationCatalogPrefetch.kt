@@ -23,7 +23,11 @@ object TranslationCatalogPrefetch {
             if (choiceType != TranslationModelChoiceType.AUTOMATIC) return
             when (
                 val resolution =
-                    TranslationModelResolver.resolve(TranslationModelChoice(choiceType), result.catalog.models)
+                    TranslationModelResolver.resolve(
+                        provider = provider,
+                        choice = TranslationModelChoice(choiceType),
+                        models = result.catalog.models,
+                    )
             ) {
                 is TranslationModelResolution.Selected -> setModelId(resolution.model.id)
                 is TranslationModelResolution.Unavailable -> setModelId("")

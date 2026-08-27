@@ -23,6 +23,8 @@ import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepos
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoice
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelPickerState
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelPricingFormatter
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolution
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolver
 import kotlinx.coroutines.launch
@@ -41,15 +43,14 @@ fun TranslationModelPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var models by remember { mutableStateOf<List<TranslationModelEntry>>(emptyList()) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    var pickerState by remember { mutableStateOf(TranslationModelPickerState(isLoading = true)) }
 
-    fun resolveAutomaticModel(compatibleModels: List<TranslationModelEntry>) {
+    fun resolveAutomaticModel(visibleModels: List<TranslationModelEntry>) {
         if (modelChoiceTypePreference.get() != TranslationModelChoiceType.AUTOMATIC) return
         val resolution = TranslationModelResolver.resolve(
+            provider = provider,
             choice = TranslationModelChoice(TranslationModelChoiceType.AUTOMATIC),
-            compatibleModels = compatibleModels,
+            models = visibleModels,
         )
         if (resolution is TranslationModelResolution.Selected) {
             modelPreference.set(resolution.model.id)
@@ -59,21 +60,19 @@ fun TranslationModelPickerDialog(
     }
 
     suspend fun loadModels(forceRefresh: Boolean) {
-        isLoading = true
+        pickerState = pickerState.copy(isLoading = true)
         try {
             when (val result = repository.load(provider, apiKey, forceRefresh)) {
                 is TranslationCatalogResult.Success -> {
-                    models = result.catalog.models
-                    errorMessage = null
-                    resolveAutomaticModel(result.catalog.models)
+                    pickerState = TranslationModelPickerState.fromResult(result, provider)
+                    resolveAutomaticModel(pickerState.models)
                 }
                 is TranslationCatalogResult.Failure -> {
-                    models = result.cachedModels
-                    errorMessage = result.reason
+                    pickerState = TranslationModelPickerState.fromResult(result, provider)
                 }
             }
         } finally {
-            isLoading = false
+            pickerState = pickerState.copy(isLoading = false)
         }
     }
 
@@ -84,18 +83,24 @@ fun TranslationModelPickerDialog(
         title = { Text(stringResource(AYMR.strings.pref_translation_model_picker_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (isLoading) {
+                if (pickerState.isLoading) {
                     Text(stringResource(AYMR.strings.pref_translation_model_loading))
                 }
-                errorMessage?.let {
+                pickerState.errorMessage?.let {
                     Text(stringResource(AYMR.strings.pref_translation_model_refresh_failed))
+                }
+                if (provider == TranslationProvider.OPENROUTER) {
+                    Text(stringResource(AYMR.strings.pref_translation_model_automatic_paid_warning))
+                }
+                if (!pickerState.isLoading && pickerState.models.isEmpty()) {
+                    Text(stringResource(AYMR.strings.pref_translation_model_empty))
                 }
                 LazyColumn {
                     item {
                         TextButton(
                             onClick = {
                                 modelChoiceTypePreference.set(TranslationModelChoiceType.AUTOMATIC)
-                                resolveAutomaticModel(models)
+                                resolveAutomaticModel(pickerState.models)
                                 onDismiss()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -103,7 +108,7 @@ fun TranslationModelPickerDialog(
                             Text(stringResource(AYMR.strings.pref_translation_model_automatic))
                         }
                     }
-                    items(models) { model ->
+                    items(pickerState.models) { model ->
                         TextButton(
                             onClick = {
                                 modelPreference.set(model.id)
@@ -120,6 +125,12 @@ fun TranslationModelPickerDialog(
                                         model.cost.name.lowercase(),
                                         model.stability.name.lowercase(),
                                         model.dataTerms,
+                                        TranslationModelPricingFormatter.format(model),
+                                        model.capabilities.inputModalities.takeIf { it.isNotEmpty() }
+                                            ?.let { "input: ${it.joinToString()}" },
+                                        model.capabilities.outputModalities.takeIf { it.isNotEmpty() }
+                                            ?.let { "output: ${it.joinToString()}" },
+                                        model.capabilities.maxOutputTokens?.let { "$it output tokens" },
                                     ).joinToString(" · "),
                                 )
                             }
@@ -133,7 +144,7 @@ fun TranslationModelPickerDialog(
                 onClick = {
                     coroutineScope.launch { loadModels(forceRefresh = true) }
                 },
-                enabled = !isLoading,
+                enabled = !pickerState.isLoading,
             ) {
                 Text(stringResource(AYMR.strings.pref_translation_model_refresh))
             }
