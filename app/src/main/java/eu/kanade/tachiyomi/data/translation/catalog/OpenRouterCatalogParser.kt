@@ -98,6 +98,7 @@ object OpenRouterCatalogParser {
         val prices = values.map { it.toBigDecimalOrNull() }
         return when {
             prompt == null || completion == null || prices.any { it == null } -> TranslationModelCost.UNKNOWN
+            prices.any { it?.signum() ?: 0 < 0 } -> TranslationModelCost.UNKNOWN
             prices.any { it?.signum() ?: 0 > 0 } -> TranslationModelCost.PAID
             else -> TranslationModelCost.FREE
         }

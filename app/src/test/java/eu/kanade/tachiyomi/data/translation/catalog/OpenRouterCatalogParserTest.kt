@@ -82,6 +82,22 @@ class OpenRouterCatalogParserTest {
     }
 
     @Test
+    fun `marks negative pricing sentinel as unknown`() {
+        val body = """
+            {"data":[{
+              "id":"openrouter/auto",
+              "architecture":{"input_modalities":["image"],"output_modalities":["text"]},
+              "pricing":{"prompt":"-1","completion":"-1"}
+            }]}
+        """.trimIndent()
+
+        val model = OpenRouterCatalogParser.parse(body, 1_000).models.single()
+
+        model.cost shouldBe TranslationModelCost.UNKNOWN
+        model.freeTierEligible shouldBe null
+    }
+
+    @Test
     fun `keeps model when optional metadata has the wrong shape`() {
         val body = """
             {"data":[{
