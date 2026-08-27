@@ -31,6 +31,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The chapter translation indicator now tells a screen reader which page is being retried, instead of reading the same text as steady progress.
 
 ### Fixed
+- Page curl now falls back to the slide animation when the live system
+  animator scale disables animations, even when the stored setting reports
+  animations enabled.
 - The chapter translation progress ring no longer jumps backwards when a page retries after a transient failure. The ring keeps counting finished pages and turns amber while the retry runs.
 - Manga chapter download failures now always show the real cause. A source error hidden as a cancellation no longer fails silently, and a page that exhausts its retries reports the actual exception instead of "Network retries exhausted". Permission-denied file errors now fail at once instead of retrying.
 - Anime episode download failures now always show the real cause. A source error hidden as a cancellation no longer fails silently, and an episode that exhausts its retries reports the actual exception instead of "Network retries exhausted". Permission-denied file errors now fail at once instead of retrying.

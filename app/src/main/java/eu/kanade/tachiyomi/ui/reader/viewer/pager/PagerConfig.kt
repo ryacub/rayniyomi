@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
-import android.content.Context
+import android.animation.ValueAnimator
+import android.os.Build
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerConfig
@@ -10,7 +11,6 @@ import eu.kanade.tachiyomi.ui.reader.viewer.navigation.EdgeNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.KindlishNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.LNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.RightAndLeftNavigation
-import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
@@ -153,22 +153,38 @@ class PagerConfig(
     }
 
     /**
-     * The transition style to use now. The system animation setting can
-     * override the preference.
+     * The transition style to use now. The live animator scale can override the
+     * preference.
      */
-    fun effectiveTransitionStyle(context: Context): ReaderPreferences.PageTransitionStyle =
-        effectiveTransitionStyle(pageTransitionStyle, context.animatorDurationScale)
+    fun effectiveTransitionStyle(): ReaderPreferences.PageTransitionStyle =
+        effectiveTransitionStyle(pageTransitionStyle)
 }
 
 /**
- * Downgrade CURL to SLIDE when the device has animations turned off.
+ * Downgrade CURL to SLIDE when the framework has animations turned off.
+ *
+ * [ValueAnimator.getDurationScale] is the live framework value. It can differ
+ * from the value that [android.provider.Settings.Global] reports.
  */
 internal fun effectiveTransitionStyle(
     style: ReaderPreferences.PageTransitionStyle,
-    animatorDurationScale: Float,
+    animatorDurationScale: Float = liveAnimatorDurationScale(),
 ): ReaderPreferences.PageTransitionStyle =
     if (style == ReaderPreferences.PageTransitionStyle.CURL && animatorDurationScale == 0f) {
         ReaderPreferences.PageTransitionStyle.SLIDE
     } else {
         style
+    }
+
+/**
+ * Reads the framework animation state that controls [ValueAnimator].
+ *
+ * [ValueAnimator.getDurationScale] is available from API 33. Older supported
+ * versions expose the same zero/nonzero decision through [ValueAnimator.areAnimatorsEnabled].
+ */
+internal fun liveAnimatorDurationScale(sdkInt: Int = Build.VERSION.SDK_INT): Float =
+    if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+        ValueAnimator.getDurationScale()
+    } else {
+        if (ValueAnimator.areAnimatorsEnabled()) 1f else 0f
     }
