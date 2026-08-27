@@ -126,40 +126,42 @@ open class ReaderPageImageView @JvmOverloads constructor(
     }
 
     private fun SubsamplingScaleImageView.landscapeZoom(forward: Boolean) {
-        if (config != null &&
-            config!!.landscapeZoom &&
-            config!!.minimumScaleType == SCALE_TYPE_CENTER_INSIDE &&
-            sWidth > sHeight &&
-            scale == minScale
+        val imageConfig = config ?: return
+        if (!imageConfig.landscapeZoom ||
+            imageConfig.minimumScaleType != SCALE_TYPE_CENTER_INSIDE ||
+            sWidth <= sHeight ||
+            scale != minScale
         ) {
-            handler?.postDelayed(500) {
-                val point = when (config!!.zoomStartPosition) {
-                    ZoomStartPosition.LEFT -> if (forward) {
-                        PointF(0F, 0F)
-                    } else {
-                        PointF(
-                            sWidth.toFloat(),
-                            0F,
-                        )
-                    }
-                    ZoomStartPosition.RIGHT -> if (forward) {
-                        PointF(sWidth.toFloat(), 0F)
-                    } else {
-                        PointF(
-                            0F,
-                            0F,
-                        )
-                    }
-                    ZoomStartPosition.CENTER -> center
-                }
+            return
+        }
 
-                val targetScale = height.toFloat() / sHeight.toFloat()
-                animateScaleAndCenter(targetScale, point)!!
-                    .withDuration(500)
-                    .withEasing(EASE_IN_OUT_QUAD)
-                    .withInterruptible(true)
-                    .start()
+        handler?.postDelayed(500) {
+            val point = when (imageConfig.zoomStartPosition) {
+                ZoomStartPosition.LEFT -> if (forward) {
+                    PointF(0F, 0F)
+                } else {
+                    PointF(
+                        sWidth.toFloat(),
+                        0F,
+                    )
+                }
+                ZoomStartPosition.RIGHT -> if (forward) {
+                    PointF(sWidth.toFloat(), 0F)
+                } else {
+                    PointF(
+                        0F,
+                        0F,
+                    )
+                }
+                ZoomStartPosition.CENTER -> center
             }
+
+            val targetScale = height.toFloat() / sHeight.toFloat()
+            animateScaleAndCenter(targetScale, point)!!
+                .withDuration(500)
+                .withEasing(EASE_IN_OUT_QUAD)
+                .withInterruptible(true)
+                .start()
         }
     }
 
