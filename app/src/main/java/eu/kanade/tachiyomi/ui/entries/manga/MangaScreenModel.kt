@@ -128,6 +128,8 @@ class MangaScreenModel(
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<MangaScreenModel.State>(State.Loading) {
 
+    private val chapterListItemMapper = MangaChapterListItemMapper(downloadManager)
+
     private val successState: State.Success?
         get() = state.value as? State.Success
 
@@ -186,7 +188,12 @@ class MangaScreenModel(
                     updateSuccessState {
                         it.copy(
                             manga = manga,
-                            chapters = chapters.toChapterListItems(manga, translationStates),
+                            chapters = chapterListItemMapper.map(
+                                chapters = chapters,
+                                manga = manga,
+                                selectedChapterIds = selectedChapterIds,
+                                translationStates = translationStates,
+                            ),
                             translationSummary = translationSummaryFrom(translationStates, chapters),
                         )
                     }
@@ -237,7 +244,12 @@ class MangaScreenModel(
                     manga = manga,
                     source = Injekt.get<MangaSourceManager>().getOrStub(manga.source),
                     isFromSource = isFromSource,
-                    chapters = chapters.toChapterListItems(manga, translationStates),
+                    chapters = chapterListItemMapper.map(
+                        chapters = chapters,
+                        manga = manga,
+                        selectedChapterIds = selectedChapterIds,
+                        translationStates = translationStates,
+                    ),
                     translationSummary = translationSummaryFrom(translationStates, chapters),
                     availableScanlators = getAvailableScanlators.await(mangaId),
                     excludedScanlators = getExcludedScanlators.await(mangaId),
@@ -558,43 +570,6 @@ class MangaScreenModel(
             )
             if (newChapters === successState.chapters) return@updateSuccessState successState
             successState.copy(chapters = newChapters)
-        }
-    }
-
-    private fun List<Chapter>.toChapterListItems(
-        manga: Manga,
-        translationStates: Map<Long, TranslationState>,
-    ): List<ChapterList.Item> {
-        val isLocal = manga.isLocal()
-        return map { chapter ->
-            val activeDownload = if (isLocal) {
-                null
-            } else {
-                downloadManager.getQueuedDownloadOrNull(chapter.id)
-            }
-            val downloaded = if (isLocal) {
-                true
-            } else {
-                downloadManager.isChapterDownloaded(
-                    chapter.name,
-                    chapter.scanlator,
-                    manga.title,
-                    manga.source,
-                )
-            }
-            val downloadState = when {
-                activeDownload != null -> activeDownload.status
-                downloaded -> MangaDownload.State.DOWNLOADED
-                else -> MangaDownload.State.NOT_DOWNLOADED
-            }
-
-            ChapterList.Item(
-                chapter = chapter,
-                downloadState = downloadState,
-                downloadProgress = activeDownload?.progress ?: 0,
-                selected = chapter.id in selectedChapterIds,
-                translationState = translationStateOf(translationStates, chapter.id),
-            )
         }
     }
 
