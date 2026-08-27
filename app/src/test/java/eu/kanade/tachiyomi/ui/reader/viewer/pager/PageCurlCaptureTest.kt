@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.View
@@ -10,13 +11,16 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -65,12 +69,53 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.WHITE })
+        val capture = PageCurlCapture(
+            samplePixel = { _, _, _ -> Color.WHITE },
+        )
         val page = capture.capture(source)
 
         page!!.bitmap shouldBe captured
         page.bitmap.width shouldBe 320
         page.bitmap.height shouldBe 480
+    }
+
+    @Test
+    fun `capture crops to the displayed image bounds`() {
+        val source = mockk<View>(relaxed = true)
+        every { source.width } returns 320
+        every { source.height } returns 480
+        val captured = mockk<Bitmap>(relaxed = true)
+        every { captured.width } returns 61
+        every { captured.height } returns 81
+        val canvas = mockk<Canvas>(relaxed = true)
+        every { canvas.translate(any(), any()) } just Runs
+
+        mockkStatic(Bitmap::class)
+        every { Bitmap.createBitmap(61, 81, Bitmap.Config.ARGB_8888) } returns captured
+        mockkConstructor(Canvas::class)
+
+        val page = PageCurlCapture(
+            samplePixel = { _, _, _ -> Color.WHITE },
+            newCanvas = { canvas },
+        )
+            .capture(
+                source,
+                RectF().apply {
+                    left = 20.25f
+                    top = 30.5f
+                    right = 80.1f
+                    bottom = 110.2f
+                },
+            )!!
+
+        page.bitmap shouldBe captured
+        assertEquals(20.25f, page.bounds.left)
+        assertEquals(30.5f, page.bounds.top)
+        assertEquals(80.1f, page.bounds.right)
+        assertEquals(110.2f, page.bounds.bottom)
+        assertEquals(20f, page.origin.x)
+        assertEquals(30f, page.origin.y)
+        verify { canvas.translate(-20f, -30f) }
     }
 
     @Test
@@ -90,7 +135,9 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.WHITE })
+        val capture = PageCurlCapture(
+            samplePixel = { _, _, _ -> Color.WHITE },
+        )
         val page = capture.capture(source)!!
 
         page.close()
@@ -109,7 +156,9 @@ class PageCurlCaptureTest {
         every { Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888) } returns captured
         mockkConstructor(Canvas::class)
 
-        val capture = PageCurlCapture(samplePixel = { _, _, _ -> Color.TRANSPARENT })
+        val capture = PageCurlCapture(
+            samplePixel = { _, _, _ -> Color.TRANSPARENT },
+        )
         val result = capture.capture(source)
 
         result shouldBe null

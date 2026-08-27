@@ -1,11 +1,65 @@
 package eu.kanade.tachiyomi.ui.reader.viewer
 
 import android.graphics.Bitmap
+import android.graphics.RectF
+import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.util.system.ImageUtil
 
 class ReaderPageImageViewDecodePolicyTest {
+
+    @Test
+    fun `displayed image bounds clamp to the holder`() {
+        val bounds = normalizedDisplayedImageBounds(
+            left = -4.25f,
+            top = 12.5f,
+            right = 104.75f,
+            bottom = 180.25f,
+            containerWidth = 100,
+            containerHeight = 200,
+        )
+
+        assertEquals(0f, bounds?.left)
+        assertEquals(12.5f, bounds?.top)
+        assertEquals(100f, bounds?.right)
+        assertEquals(180.25f, bounds?.bottom)
+    }
+
+    @Test
+    fun `displayed image bounds reject empty rectangles`() {
+        normalizedDisplayedImageBounds(
+            left = 40f,
+            top = 20f,
+            right = 40f,
+            bottom = 80f,
+            containerWidth = 100,
+            containerHeight = 200,
+        ) shouldBe null
+    }
+
+    @Test
+    fun `displayed image bounds include the child offset before clamping`() {
+        val imageBounds = RectF().apply {
+            left = -10f
+            top = 12.5f
+            right = 90f
+            bottom = 180.25f
+        }
+
+        val bounds = displayedImageBoundsInContainer(
+            imageBounds = imageBounds,
+            imageViewLeft = 8,
+            imageViewTop = 4,
+            containerWidth = 100,
+            containerHeight = 200,
+        )
+
+        assertEquals(0f, bounds?.left)
+        assertEquals(16.5f, bounds?.top)
+        assertEquals(98f, bounds?.right)
+        assertEquals(184.25f, bounds?.bottom)
+    }
 
     private fun analysis(
         isTallImage: Boolean,

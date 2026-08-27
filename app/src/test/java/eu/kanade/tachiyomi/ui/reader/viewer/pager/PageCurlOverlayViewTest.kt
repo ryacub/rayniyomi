@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PointF
+import android.graphics.RectF
 import android.view.animation.DecelerateInterpolator
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -107,6 +109,86 @@ class PageCurlOverlayViewTest {
             canvas.drawRect(any(), any(), any(), any(), any())
             canvas.drawBitmapMesh(from, any(), any(), any(), any(), any(), any(), any())
         }
+    }
+
+    @Test
+    fun `inset curl draws inside the displayed image bounds in both directions`() {
+        val from = bitmap()
+        val to = bitmap()
+        val fromBounds = RectF().apply {
+            left = 120.25f
+            top = 80.5f
+            right = 960.75f
+            bottom = 1840.25f
+        }
+        val toBounds = RectF().apply {
+            left = 100.25f
+            top = 60.5f
+            right = 980.75f
+            bottom = 1860.25f
+        }
+        val fromOrigin = PointF().apply {
+            x = 120f
+            y = 80f
+        }
+        val toOrigin = PointF().apply {
+            x = 100f
+            y = 60f
+        }
+
+        for (direction in CurlDirection.entries) {
+            PageCurlOverlayView.drawFrame(
+                canvas,
+                from,
+                to,
+                fromBounds,
+                toBounds,
+                fromOrigin,
+                toOrigin,
+                0.5f,
+                direction,
+                PageCurlRollMath.newVerts(),
+                PageCurlRollMath.newColors(),
+                shadowPaint,
+            )
+        }
+
+        verify(exactly = CurlDirection.entries.size) {
+            canvas.drawBitmap(to, toOrigin.x, toOrigin.y, null)
+        }
+        verify(exactly = CurlDirection.entries.size) { canvas.clipRect(fromBounds) }
+        verify(exactly = CurlDirection.entries.size) { canvas.clipRect(toBounds) }
+        verify(exactly = CurlDirection.entries.size) {
+            canvas.translate(fromOrigin.x, fromOrigin.y)
+        }
+    }
+
+    @Test
+    fun `inset back face stays inside the displayed image bounds`() {
+        val from = bitmap()
+        val fromBounds = RectF().apply {
+            left = 120.25f
+            top = 80.5f
+            right = 960.75f
+            bottom = 1840.25f
+        }
+        val fromOrigin = PointF().apply {
+            x = 120f
+            y = 80f
+        }
+
+        PageCurlOverlayView.drawBackFace(
+            canvas,
+            from,
+            fromBounds,
+            fromOrigin,
+            0.75f,
+            CurlDirection.FROM_LEFT,
+            shadowPaint,
+        )
+
+        verify { canvas.clipRect(fromBounds) }
+        verify { canvas.translate(fromOrigin.x, fromOrigin.y) }
     }
 
     @Test

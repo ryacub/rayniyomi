@@ -178,8 +178,8 @@ internal class PageCurlCoordinator(
 
         curlState.activeToPage = toPage
         overlay.playCurl(
-            from = fromPage.bitmap,
-            to = toPage.bitmap,
+            from = fromPage,
+            to = toPage,
             direction = direction,
             durationMs = CURL_DURATION_MS,
             onEnd = {

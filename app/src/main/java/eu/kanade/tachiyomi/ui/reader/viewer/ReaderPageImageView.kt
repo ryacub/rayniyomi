@@ -214,6 +214,39 @@ open class ReaderPageImageView @JvmOverloads constructor(
     }
 
     /**
+     * Returns the displayed image rectangle in this wrapper's coordinates.
+     *
+     * Returns null until the current image view exposes stable display bounds.
+     */
+    internal fun displayedImageBounds(): RectF? {
+        val view = pageView ?: return null
+        val bounds = when (view) {
+            is SubsamplingScaleImageView -> {
+                if (!view.isReady || view.sWidth <= 0 || view.sHeight <= 0) return null
+                val topLeft = view.sourceToViewCoord(0f, 0f) ?: return null
+                val bottomRight = view.sourceToViewCoord(view.sWidth.toFloat(), view.sHeight.toFloat())
+                    ?: return null
+                RectF(
+                    minOf(topLeft.x, bottomRight.x),
+                    minOf(topLeft.y, bottomRight.y),
+                    maxOf(topLeft.x, bottomRight.x),
+                    maxOf(topLeft.y, bottomRight.y),
+                )
+            }
+            is PhotoView -> view.displayRect?.let(::RectF) ?: return null
+            else -> return null
+        }
+
+        return displayedImageBoundsInContainer(
+            imageBounds = bounds,
+            imageViewLeft = view.left,
+            imageViewTop = view.top,
+            containerWidth = width,
+            containerHeight = height,
+        )
+    }
+
+    /**
      * Check whether the image can be panned.
      * @param fn a function that returns the direction to check for
      */
@@ -532,3 +565,43 @@ internal fun isAtMinimumZoom(scale: Float, minScale: Float): Boolean =
     scale <= minScale * MIN_ZOOM_TOLERANCE
 
 internal fun animatedImageAllowHardware(isWebtoon: Boolean): Boolean = isWebtoon
+
+internal fun normalizedDisplayedImageBounds(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    containerWidth: Int,
+    containerHeight: Int,
+): RectF? {
+    if (containerWidth <= 0 || containerHeight <= 0) return null
+    if (!left.isFinite() || !top.isFinite() || !right.isFinite() || !bottom.isFinite()) return null
+
+    val clippedLeft = left.coerceIn(0f, containerWidth.toFloat())
+    val clippedTop = top.coerceIn(0f, containerHeight.toFloat())
+    val clippedRight = right.coerceIn(0f, containerWidth.toFloat())
+    val clippedBottom = bottom.coerceIn(0f, containerHeight.toFloat())
+    if (clippedRight <= clippedLeft || clippedBottom <= clippedTop) return null
+
+    return RectF().apply {
+        this.left = clippedLeft
+        this.top = clippedTop
+        this.right = clippedRight
+        this.bottom = clippedBottom
+    }
+}
+
+internal fun displayedImageBoundsInContainer(
+    imageBounds: RectF,
+    imageViewLeft: Int,
+    imageViewTop: Int,
+    containerWidth: Int,
+    containerHeight: Int,
+): RectF? = normalizedDisplayedImageBounds(
+    left = imageBounds.left + imageViewLeft,
+    top = imageBounds.top + imageViewTop,
+    right = imageBounds.right + imageViewLeft,
+    bottom = imageBounds.bottom + imageViewTop,
+    containerWidth = containerWidth,
+    containerHeight = containerHeight,
+)
