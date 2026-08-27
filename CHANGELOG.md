@@ -31,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The chapter translation indicator now tells a screen reader which page is being retried, instead of reading the same text as steady progress.
 
 ### Fixed
+- Page curl now stays inside the displayed image when the reader adds letterboxing or insets.
 - Page curl now falls back to the slide animation when the live system
   animator scale disables animations, even when the stored setting reports
   animations enabled.

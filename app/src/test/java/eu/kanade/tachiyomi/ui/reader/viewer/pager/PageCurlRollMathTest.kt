@@ -182,6 +182,23 @@ class PageCurlRollMathTest {
         }
     }
 
+    @Test
+    fun `terminal curl clears an inset image on both sides`() {
+        val insetWidth = 840f
+        val insetLeft = 120f
+
+        for (direction in CurlDirection.entries) {
+            val verts = PageCurlRollMath.newVerts()
+            PageCurlRollMath.buildVerts(insetWidth, height, 1f, direction, verts)
+            val xs = (0 until verts.size step 2).map { index -> verts[index] }
+
+            when (direction) {
+                CurlDirection.FROM_RIGHT -> (xs.maxOrNull()!! <= 0f) shouldBe true
+                CurlDirection.FROM_LEFT -> (xs.minOrNull()!! >= insetWidth) shouldBe true
+            }
+        }
+    }
+
     // Discriminator against the old translate-and-lift model, which moved y.
     @Test
     fun `y coordinates never move at any progress`() {

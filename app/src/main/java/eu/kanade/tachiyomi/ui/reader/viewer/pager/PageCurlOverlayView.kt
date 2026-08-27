@@ -7,11 +7,14 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PointF
+import android.graphics.RectF
 import android.graphics.Shader
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.animation.doOnEnd
 import androidx.core.view.isVisible
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PageCurlCapture.CapturedPage
 
 /**
  * Draws the page curl transition on top of the pager.
@@ -44,7 +47,71 @@ class PageCurlOverlayView(context: Context) : View(context) {
             meshColors: IntArray,
             shadowPaint: Paint,
         ) {
-            canvas.drawBitmap(to, 0f, 0f, null)
+            drawFrame(
+                canvas = canvas,
+                from = from,
+                to = to,
+                fromBounds = bitmapBounds(from),
+                toBounds = bitmapBounds(to),
+                fromOrigin = PointF(),
+                toOrigin = PointF(),
+                progress = progress,
+                direction = direction,
+                verts = verts,
+                meshColors = meshColors,
+                shadowPaint = shadowPaint,
+            )
+        }
+
+        internal fun drawFrame(
+            canvas: Canvas,
+            from: Bitmap,
+            to: Bitmap,
+            fromBounds: RectF,
+            toBounds: RectF,
+            progress: Float,
+            direction: CurlDirection,
+            verts: FloatArray,
+            meshColors: IntArray,
+            shadowPaint: Paint,
+        ) {
+            drawFrame(
+                canvas,
+                from,
+                to,
+                fromBounds,
+                toBounds,
+                point(fromBounds.left, fromBounds.top),
+                point(toBounds.left, toBounds.top),
+                progress,
+                direction,
+                verts,
+                meshColors,
+                shadowPaint,
+            )
+        }
+
+        internal fun drawFrame(
+            canvas: Canvas,
+            from: Bitmap,
+            to: Bitmap,
+            fromBounds: RectF,
+            toBounds: RectF,
+            fromOrigin: PointF,
+            toOrigin: PointF,
+            progress: Float,
+            direction: CurlDirection,
+            verts: FloatArray,
+            meshColors: IntArray,
+            shadowPaint: Paint,
+        ) {
+            canvas.save()
+            canvas.clipRect(toBounds)
+            canvas.drawBitmap(to, toOrigin.x, toOrigin.y, null)
+            canvas.restore()
+            canvas.save()
+            canvas.clipRect(fromBounds)
+            canvas.translate(fromOrigin.x, fromOrigin.y)
             drawFoldCastShadow(
                 canvas,
                 from.width.toFloat(),
@@ -71,6 +138,52 @@ class PageCurlOverlayView(context: Context) : View(context) {
                 0,
                 null,
             )
+            canvas.restore()
+        }
+
+        internal fun drawBackFace(
+            canvas: Canvas,
+            bitmap: Bitmap,
+            bounds: RectF,
+            progress: Float,
+            direction: CurlDirection,
+            softenPaint: Paint,
+        ) {
+            drawBackFace(
+                canvas,
+                bitmap,
+                bounds,
+                point(bounds.left, bounds.top),
+                progress,
+                direction,
+                softenPaint,
+            )
+        }
+
+        internal fun drawBackFace(
+            canvas: Canvas,
+            bitmap: Bitmap,
+            bounds: RectF,
+            origin: PointF,
+            progress: Float,
+            direction: CurlDirection,
+            softenPaint: Paint,
+        ) {
+            canvas.save()
+            canvas.clipRect(bounds)
+            canvas.translate(origin.x, origin.y)
+            PageCurlBackFaceRenderer.draw(canvas, bitmap, progress, direction, softenPaint)
+            canvas.restore()
+        }
+
+        private fun bitmapBounds(bitmap: Bitmap): RectF = RectF().apply {
+            right = bitmap.width.toFloat()
+            bottom = bitmap.height.toFloat()
+        }
+
+        private fun point(x: Float, y: Float): PointF = PointF().apply {
+            this.x = x
+            this.y = y
         }
 
         /** Contact shadow on the incoming page beside the fold line. */
@@ -119,6 +232,10 @@ class PageCurlOverlayView(context: Context) : View(context) {
     private val meshColors = PageCurlRollMath.newColors()
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val backSoftenPaint = Paint().apply { color = BACK_SOFTEN_COLOR }
+    private var fromBounds: RectF? = null
+    private var toBounds: RectF? = null
+    private var fromOrigin: PointF? = null
+    private var toOrigin: PointF? = null
 
     init {
         isVisible = false
@@ -130,15 +247,19 @@ class PageCurlOverlayView(context: Context) : View(context) {
      * The animator invokes [onEnd] exactly once when it finishes. An abort
      * or a newer play supersedes this play, and [onEnd] never runs.
      */
-    fun playCurl(
-        from: Bitmap,
-        to: Bitmap,
+    internal fun playCurl(
+        from: CapturedPage,
+        to: CapturedPage,
         direction: CurlDirection,
         durationMs: Long,
         onEnd: () -> Unit,
     ) {
+        fromBounds = from.bounds.copy()
+        toBounds = to.bounds.copy()
+        fromOrigin = from.origin
+        toOrigin = to.origin
         isVisible = true
-        playback.play(from, to, direction, durationMs, onEnd)
+        playback.play(from.bitmap, to.bitmap, direction, durationMs, onEnd)
     }
 
     /**
@@ -148,6 +269,10 @@ class PageCurlOverlayView(context: Context) : View(context) {
      */
     fun abortAndHide() {
         playback.abort()
+        fromBounds = null
+        toBounds = null
+        fromOrigin = null
+        toOrigin = null
         isVisible = false
     }
 
@@ -155,6 +280,10 @@ class PageCurlOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         val from = playback.fromBitmap ?: return
         val to = playback.toBitmap ?: return
+        val fromBounds = fromBounds ?: return
+        val toBounds = toBounds ?: return
+        val fromOrigin = fromOrigin ?: return
+        val toOrigin = toOrigin ?: return
         if (from.width <= 0 || from.height <= 0 || to.width <= 0 || to.height <= 0) {
             return
         }
@@ -162,20 +291,33 @@ class PageCurlOverlayView(context: Context) : View(context) {
             canvas,
             from,
             to,
+            fromBounds,
+            toBounds,
+            fromOrigin,
+            toOrigin,
             playback.progress,
             playback.direction,
             verts,
             meshColors,
             shadowPaint,
         )
-        PageCurlBackFaceRenderer.draw(
+        drawBackFace(
             canvas,
             from,
+            fromBounds,
+            fromOrigin,
             playback.progress,
             playback.direction,
             backSoftenPaint,
         )
     }
+}
+
+private fun RectF.copy(): RectF = RectF().apply {
+    left = this@copy.left
+    top = this@copy.top
+    right = this@copy.right
+    bottom = this@copy.bottom
 }
 
 /**
