@@ -24,7 +24,7 @@ class OpenAICatalogParserTest {
         model.displayName shouldBe "gpt-4o"
         model.capabilities.imageInput shouldBe true
         model.capabilities.textOutput shouldBe true
-        model.capabilities.minimumOutputTokens shouldBe null
+        model.capabilities.maxOutputTokens shouldBe null
         model.capabilities.multilingualOcrAndTranslation shouldBe false
         model.capabilities.spatialBounds shouldBe false
         model.capabilities.normalizedCoordinates shouldBe false

@@ -630,9 +630,11 @@
     <string name="pref_translation_model_automatic">Automatic</string>
     <string name="pref_translation_model_none">No compatible model selected</string>
     <string name="pref_translation_model_picker_title">Select translation model</string>
-    <string name="pref_translation_model_loading">Loading compatible models</string>
+    <string name="pref_translation_model_loading">Loading models</string>
     <string name="pref_translation_model_refresh">Refresh</string>
     <string name="pref_translation_model_refresh_failed">The model list could not be updated. Check the connection.</string>
+    <string name="pref_translation_model_empty">No image-capable models with text output are available. Refresh the catalog.</string>
+    <string name="pref_translation_model_automatic_paid_warning">Automatic selection can choose a paid OpenRouter model. Provider charges apply.</string>
     <string name="translation_action_translate">Translate</string>
     <string name="translation_action_delete">Delete translation</string>
     <string name="translation_progress">Translating page %1$d of %2$d</string>

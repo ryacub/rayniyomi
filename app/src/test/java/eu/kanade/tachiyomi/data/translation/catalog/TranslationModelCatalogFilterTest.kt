@@ -13,20 +13,20 @@ class TranslationModelCatalogFilterTest {
         spatialBounds = true,
         normalizedCoordinates = true,
         originalAndTranslatedFields = true,
-        minimumOutputTokens = 4_096,
+        maxOutputTokens = 4_096,
         structuredJsonOutput = true,
     )
 
     @Test
-    fun `keeps only models with every required capability`() {
+    fun `keeps image input and text output models for the picker`() {
         val missingImageInput = compatibleCapabilities.copy(imageInput = false)
-        val belowTokenLimit = compatibleCapabilities.copy(minimumOutputTokens = 1_024)
+        val missingTextOutput = compatibleCapabilities.copy(textOutput = false)
 
         val result = TranslationModelCatalogFilter.filter(
             listOf(
                 entry("compatible", compatibleCapabilities),
                 entry("missing-image-input", missingImageInput),
-                entry("below-limit", belowTokenLimit),
+                entry("missing-text-output", missingTextOutput),
             ),
         )
 
@@ -34,11 +34,12 @@ class TranslationModelCatalogFilterTest {
     }
 
     @Test
-    fun `keeps only free models`() {
+    fun `keeps paid and unknown price models for the picker`() {
         val paid = entry("paid", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
         val unknown = entry("unknown", compatibleCapabilities).copy(cost = TranslationModelCost.UNKNOWN)
 
-        TranslationModelCatalogFilter.filter(listOf(paid, unknown)) shouldBe emptyList()
+        TranslationModelCatalogFilter.filter(listOf(paid, unknown)).map { it.id } shouldBe
+            listOf("paid", "unknown")
     }
 
     @Test
@@ -59,23 +60,32 @@ class TranslationModelCatalogFilterTest {
     }
 
     @Test
-    fun `openrouter filter keeps strict gating unchanged`() {
+    fun `automatic OpenRouter filter requires output capacity`() {
         val strictCompatible = entry("free-vision", compatibleCapabilities)
-        val paidVision = entry("paid-vision", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
+        val paidVision = entry("paid-vision", compatibleCapabilities)
+            .copy(cost = TranslationModelCost.PAID)
+        val noLimit = entry("no-limit", compatibleCapabilities)
+            .copy(capabilities = compatibleCapabilities.copy(maxOutputTokens = null))
+        val lowLimit = entry("low-limit", compatibleCapabilities)
+            .copy(capabilities = compatibleCapabilities.copy(maxOutputTokens = 1_024))
 
         val result = TranslationModelCatalogFilter.filter(
-            listOf(strictCompatible, paidVision),
+            listOf(strictCompatible, paidVision, noLimit, lowLimit),
             TranslationProvider.OPENROUTER,
         )
 
-        result.map { it.id } shouldBe listOf("free-vision")
+        result.map { it.id } shouldBe listOf("free-vision", "paid-vision", "no-limit", "low-limit")
+        TranslationModelCatalogFilter.filterForAutomatic(
+            listOf(strictCompatible, paidVision, noLimit, lowLimit),
+            TranslationProvider.OPENROUTER,
+        ).map { it.id } shouldBe listOf("free-vision", "paid-vision")
     }
 
     @Test
-    fun `single argument filter delegates to openrouter gating`() {
+    fun `single argument filter delegates to OpenRouter picker visibility`() {
         val paidVision = entry("paid-vision", compatibleCapabilities).copy(cost = TranslationModelCost.PAID)
 
-        TranslationModelCatalogFilter.filter(listOf(paidVision)) shouldBe emptyList()
+        TranslationModelCatalogFilter.filter(listOf(paidVision)).map { it.id } shouldBe listOf("paid-vision")
     }
 
     private fun entry(id: String, capabilities: TranslationModelCapabilities) =

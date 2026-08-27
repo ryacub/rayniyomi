@@ -27,7 +27,7 @@ class ClaudeCatalogParserTest {
         model.displayName shouldBe "Claude Sonnet 4.5"
         model.capabilities.imageInput shouldBe true
         model.capabilities.textOutput shouldBe true
-        model.capabilities.minimumOutputTokens shouldBe null
+        model.capabilities.maxOutputTokens shouldBe null
         model.capabilities.multilingualOcrAndTranslation shouldBe false
         model.capabilities.spatialBounds shouldBe false
         model.capabilities.normalizedCoordinates shouldBe false

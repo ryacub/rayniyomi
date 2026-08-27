@@ -10,14 +10,15 @@ object TranslationModelCatalogFilter {
     fun filter(
         models: List<TranslationModelEntry>,
         provider: TranslationProvider,
+    ): List<TranslationModelEntry> = models.filter { it.capabilities.supportsImageTranslation() }
+
+    fun filterForAutomatic(
+        models: List<TranslationModelEntry>,
+        provider: TranslationProvider,
     ): List<TranslationModelEntry> = when (provider) {
-        TranslationProvider.OPENROUTER -> models.filter { model ->
-            model.capabilities.supportsTranslationRequirements() &&
-                model.cost == TranslationModelCost.FREE
+        TranslationProvider.OPENROUTER -> models.filter {
+            it.capabilities.supportsAutomaticTranslation()
         }
-        // Native APIs are paid, so the cost gate is waived there.
-        else -> models.filter { model ->
-            model.capabilities.imageInput && model.capabilities.textOutput
-        }
+        else -> filter(models, provider)
     }
 }

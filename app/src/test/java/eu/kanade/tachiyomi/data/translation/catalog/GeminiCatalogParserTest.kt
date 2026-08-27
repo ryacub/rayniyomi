@@ -26,7 +26,7 @@ class GeminiCatalogParserTest {
         model.displayName shouldBe "Gemini 2.0 Flash"
         model.capabilities.imageInput shouldBe true
         model.capabilities.textOutput shouldBe true
-        model.capabilities.minimumOutputTokens shouldBe null
+        model.capabilities.maxOutputTokens shouldBe null
         model.capabilities.multilingualOcrAndTranslation shouldBe false
         model.capabilities.spatialBounds shouldBe false
         model.capabilities.normalizedCoordinates shouldBe false

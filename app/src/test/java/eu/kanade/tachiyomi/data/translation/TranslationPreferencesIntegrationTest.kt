@@ -57,6 +57,18 @@ class TranslationPreferencesIntegrationTest {
     }
 
     @Test
+    fun `OpenRouter selected model and pinned choice persist`() {
+        val model = translationPreferences.translationModel(TranslationProvider.OPENROUTER)
+        val choice = translationPreferences.translationModelChoiceType(TranslationProvider.OPENROUTER)
+
+        model.set("openai/gpt-4o")
+        choice.set(TranslationModelChoiceType.PINNED)
+
+        model.get() shouldBe "openai/gpt-4o"
+        choice.get() shouldBe TranslationModelChoiceType.PINNED
+    }
+
+    @Test
     fun `model choice types are isolated`() {
         val claudeChoice = translationPreferences.translationModelChoiceType(TranslationProvider.CLAUDE)
         val openAiChoice = translationPreferences.translationModelChoiceType(TranslationProvider.OPENAI)
