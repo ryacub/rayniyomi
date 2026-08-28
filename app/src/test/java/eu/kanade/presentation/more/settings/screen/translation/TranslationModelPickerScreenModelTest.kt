@@ -143,6 +143,7 @@ class TranslationModelPickerScreenModelTest {
             withTimeout(5_000) {
                 model.state.first { !it.pickerState.isLoading }
                 model.refresh()
+                model.state.first { it.pickerState.isLoading }
                 model.state.first { !it.pickerState.isLoading }
             }
         }
