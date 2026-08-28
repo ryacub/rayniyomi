@@ -23,6 +23,8 @@ internal class PageCurlCoordinatorFixture(
     val targetHolder = mockk<PagerPageHolder>(relaxed = true)
     private val pages = List(pageCount) { ReaderPage(it) }
     val endCallbacks = mutableListOf<() -> Unit>()
+    val playedDirections = mutableListOf<CurlDirection>()
+    val advancedAnimations = mutableListOf<Boolean>()
     val delayedCallbacks = mutableListOf<Runnable>()
     private val postedCallbacks = ArrayDeque<Runnable>()
     var nowMs = 1_000L
@@ -69,10 +71,12 @@ internal class PageCurlCoordinatorFixture(
         sourceHolder = { sourceHolder },
         readerItemAt = { pages.getOrNull(it) },
         capture = capture,
-        transitionItemAt = { false },
+        transitionItemAt = { it in transitionPositions },
         holderFor = { targetHolder },
         nowMs = { nowMs },
     )
+
+    var transitionPositions: Set<Int> = emptySet()
 
     init {
         every { sourceHolder.isAtMinimumZoom() } returns true
@@ -103,6 +107,7 @@ internal class PageCurlCoordinatorFixture(
                 onEnd = any(),
             )
         } answers {
+            playedDirections += arg<CurlDirection>(2)
             val token = playGate.begin()
             val onEnd = arg<() -> Unit>(4)
             endCallbacks += { if (playGate.isCurrent(token)) onEnd() }
@@ -124,14 +129,27 @@ internal class PageCurlCoordinatorFixture(
      * posted, so each tap starts from a settled state.
      */
     fun simulateTap(targetPosition: Int) {
+        requestTap(targetPosition, CurlDirection.FROM_RIGHT)
+    }
+
+    fun requestTap(targetPosition: Int, direction: CurlDirection) {
         coordinator.runOrFallback(
             targetPosition = targetPosition,
-            direction = CurlDirection.FROM_RIGHT,
-            advance = { _ -> currentItemIndex = targetPosition },
+            direction = direction,
+            advance = { animate ->
+                advancedAnimations += animate
+                currentItemIndex = targetPosition
+            },
         )
         while (postedCallbacks.isNotEmpty()) {
             postedCallbacks.removeFirst().run()
         }
+    }
+
+    fun completeCurl(playIndex: Int) {
+        endCallbacks[playIndex].invoke()
+        runNextPostedCallback()
+        if (pendingPostedCount > 0) runNextPostedCallback()
     }
 
     fun runNewestPostedCallback() {

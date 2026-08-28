@@ -94,7 +94,7 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
-    fun `superseded callback recycles only its bitmap pair`() {
+    fun `cancelled callback cannot affect a newer curl`() {
         val fixture = PageCurlCoordinatorFixture()
         val firstFrom = fixture.page()
         val firstTo = fixture.page()
@@ -104,6 +104,7 @@ class PageCurlCoordinatorLifecycleTest {
             listOf(firstFrom, firstTo, secondFrom, secondTo)
 
         fixture.startCurl()
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
         fixture.nowMs += 1_000L
         fixture.startCurl()
         fixture.endCallbacks.first().invoke()
@@ -140,21 +141,20 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
-    fun `fallback cancellation restores input`() {
+    fun `external navigation cancels queued turns and restores input`() {
         val fixture = PageCurlCoordinatorFixture()
         val fromBitmap = fixture.page()
         val toBitmap = fixture.page()
         every { fixture.capture.capture(any()) } returnsMany listOf(fromBitmap, toBitmap)
-        val fallbacks = mutableListOf<Boolean>()
 
         fixture.startCurl()
         fixture.coordinator.runOrFallback(
-            targetPosition = TARGET_POSITION,
+            targetPosition = TARGET_POSITION + 1,
             direction = CurlDirection.FROM_RIGHT,
-            advance = { fallbacks += it },
+            advance = {},
         )
 
-        fallbacks.shouldContainExactly(true)
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 5)
         fixture.inputEnabled shouldBe true
         verify(exactly = 1) { fromBitmap.bitmap.recycle() }
         verify(exactly = 1) { toBitmap.bitmap.recycle() }
@@ -252,31 +252,85 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
-    fun `four rapid taps inside one second advance four pages`() {
+    fun `four rapid taps play four sequential curls`() {
         val fixture = PageCurlCoordinatorFixture()
+        every { fixture.capture.capture(any()) } returnsMany
+            List(8) { fixture.page() }
 
-        fixture.simulateTap(TARGET_POSITION)
+        fixture.requestTap(TARGET_POSITION, CurlDirection.FROM_RIGHT)
         repeat(3) { index ->
             fixture.nowMs += 100L
-            fixture.simulateTap(TARGET_POSITION + index + 1)
+            fixture.requestTap(TARGET_POSITION + index + 1, CurlDirection.FROM_RIGHT)
         }
 
+        fixture.playedDirections.size shouldBe 1
+        repeat(4) { fixture.completeCurl(it) }
         fixture.currentItemIndex shouldBe TARGET_POSITION + 3
-        verify(exactly = 1) {
-            fixture.overlay.playCurl(any(), any(), any(), any(), any())
+        fixture.playedDirections.size shouldBe 4
+        fixture.advancedAnimations shouldBe listOf(false, false, false, false)
+        verify(exactly = 4) {
+            fixture.overlay.playCurl(any(), any(), CurlDirection.FROM_RIGHT, any(), any())
         }
     }
 
     @Test
-    fun `snap taps keep input enabled between turns`() {
+    fun `queued taps keep input claimed until the queue drains`() {
         val fixture = PageCurlCoordinatorFixture()
+        every { fixture.capture.capture(any()) } returnsMany
+            List(8) { fixture.page() }
 
-        fixture.simulateTap(TARGET_POSITION)
+        fixture.requestTap(TARGET_POSITION, CurlDirection.FROM_RIGHT)
         repeat(3) { index ->
             fixture.nowMs += 100L
-            fixture.simulateTap(TARGET_POSITION + index + 1)
-            fixture.inputEnabled shouldBe true
+            fixture.requestTap(TARGET_POSITION + index + 1, CurlDirection.FROM_RIGHT)
+            fixture.inputEnabled shouldBe false
         }
+
+        repeat(4) { fixture.completeCurl(it) }
+        fixture.delayedCallbacks.single().run()
+        fixture.inputEnabled shouldBe true
+    }
+
+    @Test
+    fun `queued turns preserve alternating directions and targets`() {
+        val fixture = PageCurlCoordinatorFixture(initialItemIndex = TARGET_POSITION)
+        every { fixture.capture.capture(any()) } returnsMany
+            List(6) { fixture.page() }
+
+        fixture.requestTap(TARGET_POSITION + 1, CurlDirection.FROM_RIGHT)
+        fixture.requestTap(TARGET_POSITION, CurlDirection.FROM_LEFT)
+        fixture.requestTap(TARGET_POSITION + 1, CurlDirection.FROM_RIGHT)
+
+        repeat(3) { fixture.completeCurl(it) }
+
+        fixture.playedDirections shouldBe listOf(
+            CurlDirection.FROM_RIGHT,
+            CurlDirection.FROM_LEFT,
+            CurlDirection.FROM_RIGHT,
+        )
+        fixture.currentItemIndex shouldBe TARGET_POSITION + 1
+    }
+
+    @Test
+    fun `queued chapter fallback continues with later valid turns`() {
+        val fixture = PageCurlCoordinatorFixture()
+        fixture.transitionPositions = setOf(TARGET_POSITION + 2)
+        every { fixture.capture.capture(any()) } returnsMany
+            List(4) { fixture.page() }
+
+        fixture.requestTap(TARGET_POSITION + 1, CurlDirection.FROM_RIGHT)
+        fixture.requestTap(TARGET_POSITION + 2, CurlDirection.FROM_RIGHT)
+        fixture.requestTap(TARGET_POSITION + 3, CurlDirection.FROM_RIGHT)
+
+        fixture.completeCurl(0)
+        fixture.coordinator.onPageChangedExternally(TARGET_POSITION + 2)
+        fixture.coordinator.onPagerIdle()
+        fixture.runNextPostedCallback()
+        fixture.completeCurl(1)
+
+        fixture.currentItemIndex shouldBe TARGET_POSITION + 3
+        fixture.playedDirections.size shouldBe 2
+        fixture.advancedAnimations shouldBe listOf(false, true, false)
     }
 
     @Test
@@ -314,7 +368,8 @@ class PageCurlCoordinatorLifecycleTest {
             direction = CurlDirection.FROM_RIGHT,
             advance = {},
         )
-        fixture.runNewestPostedCallback()
+        fixture.runNextPostedCallback()
+        fixture.runNextPostedCallback()
 
         staleLayoutCallback.run()
         verify(exactly = 1) { fixture.overlay.abortAndHide() }
@@ -448,6 +503,7 @@ class PageCurlCoordinatorLifecycleTest {
         verify(exactly = 1) { toBitmap.bitmap.recycle() }
         fixture.pendingPostedCount shouldBe 0
         fixture.delayedCallbacks.size shouldBe 0
+        fixture.inputEnabled shouldBe true
     }
 
     private companion object {

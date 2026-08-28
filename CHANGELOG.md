@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Rapid taps during a page curl now queue and play as sequential curls instead of falling back to slide transitions.
 - Chapter translation now records each page outcome. Valid no-text pages remain resolved, while unreadable pages, invalid provider output, and storage failures report incomplete coverage and resume safely.
 
 ### Changed

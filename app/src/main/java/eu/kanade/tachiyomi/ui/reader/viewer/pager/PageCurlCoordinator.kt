@@ -38,7 +38,22 @@ internal class PageCurlCoordinator(
     private val capture: PageCurlCapture = PageCurlCapture(),
 ) {
 
+    private data class QueuedTurn(
+        val targetPosition: Int,
+        val direction: CurlDirection,
+        val advance: (animate: Boolean) -> Unit,
+    )
+
+    private data class PendingFallback(
+        val turn: QueuedTurn,
+        val waitForIdle: Boolean,
+        var selected: Boolean = false,
+    )
+
     private var curlState = CurlState()
+    private val queuedTurns = ArrayDeque<QueuedTurn>()
+    private var activeTurn: QueuedTurn? = null
+    private var pendingFallback: PendingFallback? = null
 
     /**
      * Navigation-cadence timestamp for the rapid-navigation window. It tracks
@@ -58,10 +73,21 @@ internal class PageCurlCoordinator(
         if (released) return
 
         val now = nowMs()
-        val preference = storedTransitionStyle()
         val withinRapidNavigationWindow = now - lastNavigationAtMs < RAPID_NAVIGATION_WINDOW_MS
         lastNavigationAtMs = now
 
+        val turn = QueuedTurn(targetPosition, direction, advance)
+        if (activeTurn != null || pendingFallback != null) {
+            queuedTurns.addLast(turn)
+            return
+        }
+
+        startTurn(turn, withinRapidNavigationWindow)
+    }
+
+    /** Starts one turn or hands it to the existing non-curl fallback path. */
+    private fun startTurn(turn: QueuedTurn, withinRapidNavigationWindow: Boolean) {
+        val preference = storedTransitionStyle()
         val style = if (preference == PageTransitionStyle.CURL) {
             effectiveTransitionStyle()
         } else {
@@ -69,20 +95,19 @@ internal class PageCurlCoordinator(
         }
         val useAnimation = style != PageTransitionStyle.NONE
         val source = sourceHolder()
-        val targetHolder = readerItemAt(targetPosition)?.let(holderFor)
+        val targetHolder = readerItemAt(turn.targetPosition)?.let(holderFor)
 
         val canAttemptCurl = source != null &&
             shouldAttemptCurl(
                 style = style,
-                targetIsChapterTransition = transitionItemAt(targetPosition),
+                targetIsChapterTransition = transitionItemAt(turn.targetPosition),
                 sourceAtMinimumZoom = source.isAtMinimumZoom(),
                 targetAtMinimumZoom = targetHolder?.isAtMinimumZoom() ?: true,
                 withinRapidNavigationWindow = withinRapidNavigationWindow,
             )
 
         if (!canAttemptCurl) {
-            finish(restoreInput = true)
-            advance(useAnimation)
+            startFallback(turn, useAnimation)
             return
         }
 
@@ -90,26 +115,34 @@ internal class PageCurlCoordinator(
         // the previous overlay frame is still intact during the capture.
         val fromPage = capture.capture(source)
         if (fromPage == null) {
-            finish(restoreInput = true)
-            advance(useAnimation)
+            startFallback(turn, useAnimation)
             return
         }
         // No input restore here: the new acquire below supersedes the claim.
         finish(restoreInput = false)
+        activeTurn = turn
         curlState.pendingFromPage = fromPage
         // Set after finish() so it does not clear the new target, and before
         // advance(false) so the synchronous onPageSelected callback sees a match.
-        curlState.targetPosition = targetPosition
-        advance(false)
+        curlState.targetPosition = turn.targetPosition
+        turn.advance(false)
         pager.acquireGestures(GestureInputGate.Claim.CURL)
-        waitForTarget(targetPosition, targetHolder, fromPage, direction)
+        waitForTarget(turn.targetPosition, targetHolder, fromPage, turn.direction)
     }
 
     fun release() {
         if (released) return
 
         released = true
-        finish(restoreInput = false)
+        queuedTurns.clear()
+        pendingFallback = null
+        finish(restoreInput = true)
+    }
+
+    /** Continues a queued turn after a fallback animation reaches its idle state. */
+    fun onPagerIdle() {
+        val fallback = pendingFallback ?: return
+        if (fallback.selected) continueAfterFallback()
     }
 
     /**
@@ -119,7 +152,20 @@ internal class PageCurlCoordinator(
      */
     fun onPageChangedExternally(position: Int) {
         if (released) return
-        if (curlState.targetPosition != null && position != curlState.targetPosition) {
+
+        pendingFallback?.let { fallback ->
+            if (position == fallback.turn.targetPosition) {
+                fallback.selected = true
+                if (!fallback.waitForIdle) continueAfterFallback()
+                return
+            } else {
+                pendingFallback = null
+                queuedTurns.clear()
+            }
+        }
+
+        if (activeTurn != null && position != curlState.targetPosition) {
+            queuedTurns.clear()
             finish(restoreInput = true)
         }
     }
@@ -130,10 +176,57 @@ internal class PageCurlCoordinator(
      */
     private fun finish(restoreInput: Boolean) {
         val state = curlState
-        if (state.isEmpty()) return
+        activeTurn = null
+        if (state.isEmpty()) {
+            if (restoreInput) {
+                pager.releaseGestures(GestureInputGate.Claim.CURL)
+            }
+            return
+        }
 
         state.finish(scheduler) { overlay.abortAndHide() }
         if (restoreInput) pager.releaseGestures(GestureInputGate.Claim.CURL)
+    }
+
+    private fun startFallback(turn: QueuedTurn, useAnimation: Boolean) {
+        finish(restoreInput = true)
+        val fallback = PendingFallback(turn = turn, waitForIdle = useAnimation)
+        pendingFallback = fallback
+        turn.advance(useAnimation)
+
+        if (pendingFallback === fallback && pager.currentItem == turn.targetPosition) {
+            fallback.selected = true
+            if (!fallback.waitForIdle) continueAfterFallback()
+        }
+    }
+
+    private fun continueAfterFallback() {
+        pendingFallback = null
+        startNextQueuedTurn()
+    }
+
+    private fun startNextQueuedTurn() {
+        if (queuedTurns.isEmpty()) return
+        val next = queuedTurns.removeFirst()
+        startTurn(next, withinRapidNavigationWindow = false)
+    }
+
+    private fun continueAfterCurl() {
+        if (queuedTurns.isNotEmpty()) {
+            startNextQueuedTurn()
+            return
+        }
+
+        // Hold the claim briefly after the animation ends so a tap landing on
+        // the finished frame does not trigger a turn.
+        val reenable = Runnable {
+            curlState.fire(TrackedRole.GESTURE_REENABLE)
+            if (!released) pager.releaseGestures(GestureInputGate.Claim.CURL)
+        }
+        scheduler.postDelayed(
+            curlState.track(TrackedRole.GESTURE_REENABLE, reenable),
+            GESTURE_REENABLE_DELAY_MS,
+        )
     }
 
     private fun waitForTarget(
@@ -173,6 +266,7 @@ internal class PageCurlCoordinator(
         val toPage = targetHolder?.let(capture::capture)
         if (toPage == null) {
             finish(restoreInput = true)
+            startNextQueuedTurn()
             return
         }
 
@@ -202,19 +296,7 @@ internal class PageCurlCoordinator(
             val currentHolder = readerItemAt(pager.currentItem)?.let(holderFor)
             if (currentHolder?.isLaidOut == true || layoutCheckAttempts >= LAYOUT_WAIT_MAX_ATTEMPTS) {
                 finish(restoreInput = false)
-
-                // Hold the claim briefly after the animation ends so a tap
-                // landing on the finished frame does not trigger a turn.
-                // The registration stays after finish(): clearRunnables
-                // must not undo it.
-                val reenable = Runnable {
-                    curlState.fire(TrackedRole.GESTURE_REENABLE)
-                    if (!released) pager.releaseGestures(GestureInputGate.Claim.CURL)
-                }
-                scheduler.postDelayed(
-                    curlState.track(TrackedRole.GESTURE_REENABLE, reenable),
-                    GESTURE_REENABLE_DELAY_MS,
-                )
+                continueAfterCurl()
             } else {
                 layoutCheckAttempts++
                 scheduler.postDelayed(checkLayout, TARGET_POLL_INTERVAL_MS)
