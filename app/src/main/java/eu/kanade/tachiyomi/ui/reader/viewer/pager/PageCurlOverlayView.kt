@@ -214,12 +214,21 @@ class PageCurlOverlayView(context: Context) : View(context) {
                 0f,
                 endX,
                 0f,
-                intArrayOf(Color.argb(alpha, 0, 0, 0), Color.TRANSPARENT),
+                castShadowColors(direction, alpha),
                 null,
                 Shader.TileMode.CLAMP,
             )
             canvas.drawRect(startX, 0f, endX, bitmapHeight, shadowPaint)
             shadowPaint.shader = null
+        }
+
+        internal fun castShadowColors(direction: CurlDirection, alpha: Int): IntArray {
+            val dark = Color.argb(alpha, 0, 0, 0)
+            return if (direction == CurlDirection.FROM_LEFT) {
+                intArrayOf(Color.TRANSPARENT, dark)
+            } else {
+                intArrayOf(dark, Color.TRANSPARENT)
+            }
         }
     }
 
