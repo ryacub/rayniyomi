@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 
 ### Changed
+- Translation model picker is now a full-screen settings page with radio selection, wrapped model names, and details on demand (#1150).
 
 ### Removed
 
