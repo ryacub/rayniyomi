@@ -4,13 +4,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import kotlinx.coroutines.flow.update
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
@@ -25,11 +28,11 @@ import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelPickerState
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolution
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolver
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.screens.LoadingScreen
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -40,6 +43,12 @@ class TranslationModelPickerScreen : Screen() {
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = rememberScreenModel { TranslationModelPickerScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
+        var expandedModelIds by rememberSaveable(
+            stateSaver = listSaver<Set<String>, String>(
+                save = { it.toList() },
+                restore = { it.toSet() },
+            ),
+        ) { mutableStateOf(emptySet<String>()) }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -62,7 +71,29 @@ class TranslationModelPickerScreen : Screen() {
                 )
             },
         ) { contentPadding ->
-            LoadingScreen()
+            TranslationModelPickerContent(
+                state = state.pickerState,
+                provider = state.provider,
+                choiceType = state.choiceType,
+                selectedModelId = state.selectedModelId,
+                expandedModelIds = expandedModelIds,
+                contentPadding = contentPadding,
+                onSelectAutomatic = {
+                    screenModel.selectAutomatic()
+                    navigator.pop()
+                },
+                onSelectModel = { modelId ->
+                    screenModel.selectModel(modelId)
+                    navigator.pop()
+                },
+                onToggleDetails = { id ->
+                    expandedModelIds = if (id in expandedModelIds) {
+                        expandedModelIds - id
+                    } else {
+                        expandedModelIds + id
+                    }
+                },
+            )
         }
     }
 }

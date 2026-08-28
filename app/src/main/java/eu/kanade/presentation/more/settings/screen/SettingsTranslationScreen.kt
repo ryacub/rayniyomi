@@ -9,11 +9,13 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.screen.translation.TranslationModelPickerScreen
 import eu.kanade.tachiyomi.data.translation.TargetLanguages
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
@@ -36,6 +38,7 @@ object SettingsTranslationScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
+        val navigator = LocalNavigator.currentOrThrow
         val translationPreferences = remember { Injekt.get<TranslationPreferences>() }
         val uriHandler = LocalUriHandler.current
 
@@ -49,8 +52,8 @@ object SettingsTranslationScreen : SearchableSettings {
             translationPreferences.translationModelChoiceType(provider)
         }
         val modelChoiceType by modelChoiceTypePreference.collectAsStateWithLifecycle()
-        var showModelPicker by remember { mutableStateOf(false) }
-        val catalogRepository = remember { TranslationModelCatalogRepository() }
+        val catalogRepository: TranslationModelCatalogRepository =
+            remember { Injekt.get<TranslationModelCatalogRepository>() }
 
         LaunchedEffect(provider, apiKey) {
             TranslationCatalogPrefetch.refreshAndResolveAutomatic(
@@ -136,20 +139,9 @@ object SettingsTranslationScreen : SearchableSettings {
                     }
                 },
                 enabled = provider != TranslationProvider.NONE && apiKey.isNotBlank(),
-                onClick = { showModelPicker = true },
+                onClick = { navigator.push(TranslationModelPickerScreen()) },
             ),
         )
-
-        if (showModelPicker) {
-            TranslationModelPickerDialog(
-                repository = catalogRepository,
-                provider = provider,
-                apiKey = apiKey,
-                modelPreference = modelPreference,
-                modelChoiceTypePreference = modelChoiceTypePreference,
-                onDismiss = { showModelPicker = false },
-            )
-        }
 
         provider.links?.let { links ->
             preferences += Preference.PreferenceItem.TextPreference(
