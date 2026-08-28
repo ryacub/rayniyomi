@@ -140,6 +140,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
 
                 override fun onPageScrollStateChanged(state: Int) {
                     isIdle = state == ViewPager.SCROLL_STATE_IDLE
+                    if (isIdle) curlCoordinator?.onPagerIdle()
                 }
             },
         )
