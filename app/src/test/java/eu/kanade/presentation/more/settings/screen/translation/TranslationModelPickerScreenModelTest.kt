@@ -186,7 +186,7 @@ class TranslationModelPickerScreenModelTest {
         }
     }
 
-    private class Fixture(
+    private inner class Fixture(
         val modelId: String = "",
         val choiceType: TranslationModelChoiceType = TranslationModelChoiceType.AUTOMATIC,
     ) {
@@ -223,7 +223,7 @@ class TranslationModelPickerScreenModelTest {
         }
     }
 
-    private fun <T> statefulPref(default: T): Preference<T> {
+    private inline fun <reified T> statefulPref(default: T): Preference<T> {
         val holder = Holder(default)
         return mockk(relaxed = true) {
             every { get() } answers { holder.value }
