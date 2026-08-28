@@ -250,6 +250,7 @@ private fun List<TranslationModelRowUi.DetailToken>.toDetailText(): List<String>
     }
     return result
 }
+
 @PreviewLightDark
 @Composable
 private fun TranslationModelPickerContentPreview() {

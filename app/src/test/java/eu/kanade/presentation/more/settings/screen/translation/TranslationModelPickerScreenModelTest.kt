@@ -3,9 +3,9 @@ package eu.kanade.presentation.more.settings.screen.translation
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogResult
+import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCapabilities
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalog
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
-import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCapabilities
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCost
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
