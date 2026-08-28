@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- Stabilize the translation model picker refresh test by holding the refresh loader until the loading state is observed.
 
 ### Other
 

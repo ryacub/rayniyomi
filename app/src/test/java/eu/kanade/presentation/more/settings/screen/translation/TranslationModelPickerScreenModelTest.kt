@@ -134,9 +134,15 @@ class TranslationModelPickerScreenModelTest {
     fun `refresh calls load catalog with force refresh true`() {
         val fixture = Fixture(modelId = "", choiceType = TranslationModelChoiceType.AUTOMATIC)
         val order = mutableListOf<Boolean>()
+        val refreshGate = CompletableDeferred<Unit>()
         val model = fixture.model(
-            successes = listOf(success(emptyList()), success(emptyList())),
-            onLoad = { forceRefresh -> order.add(forceRefresh) },
+            loadCatalog = { _, _, forceRefresh ->
+                order.add(forceRefresh)
+                if (forceRefresh) {
+                    refreshGate.await()
+                }
+                success(emptyList())
+            },
         )
 
         runBlocking {
@@ -144,6 +150,7 @@ class TranslationModelPickerScreenModelTest {
                 model.state.first { !it.pickerState.isLoading }
                 model.refresh()
                 model.state.first { it.pickerState.isLoading }
+                refreshGate.complete(Unit)
                 model.state.first { !it.pickerState.isLoading }
             }
         }
