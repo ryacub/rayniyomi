@@ -6,38 +6,21 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.FFmpegKitConfig
-import com.arthenica.ffmpegkit.FFprobeKit
-import com.arthenica.ffmpegkit.Level
-import com.arthenica.ffmpegkit.LogCallback
-import com.arthenica.ffmpegkit.LogRedirectionStrategy
-import com.arthenica.ffmpegkit.StatisticsCallback
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.UnmeteredSource
-import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
-import eu.kanade.tachiyomi.data.download.anime.multithread.DownloadError
-import eu.kanade.tachiyomi.data.download.anime.multithread.DownloadResult
 import eu.kanade.tachiyomi.data.download.anime.multithread.MultiThreadDownloader
-import eu.kanade.tachiyomi.data.download.anime.multithread.VideoFormat
-import eu.kanade.tachiyomi.data.download.anime.multithread.VideoSignatureValidator
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
-import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategy
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
 import eu.kanade.tachiyomi.data.download.core.DownloadFailure
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureAction
-import eu.kanade.tachiyomi.data.download.core.DownloadFailureClassifier
 import eu.kanade.tachiyomi.data.download.core.DownloadFailurePolicy
 import eu.kanade.tachiyomi.data.download.core.DownloadFailureReporter
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitorBuilders
 import eu.kanade.tachiyomi.data.download.core.DownloadMonitors
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueOperations
-import eu.kanade.tachiyomi.data.download.core.LowStorageException
-import eu.kanade.tachiyomi.data.download.core.RetriesExhaustedException
-import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateNotifier
@@ -46,7 +29,6 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.util.storage.DiskUtil
-import eu.kanade.tachiyomi.util.storage.toFFmpegString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -55,7 +37,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -63,14 +44,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -85,8 +62,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * This class is the one in charge of downloading episodes.
@@ -189,6 +164,16 @@ class AnimeDownloader(
      * Preference for user's choice of external downloader
      */
     private val preferences: DownloadPreferences by injectLazy()
+
+    private val videoDownloader by lazy {
+        AnimeVideoDownloader(
+            context = context,
+            strategySelector = strategySelector,
+            multiThreadDownloader = multiThreadDownloader,
+            preferences = preferences,
+            onLowStorage = ::pauseForLowStorage,
+        )
+    }
 
     /**
      * Network helper for HTTP client access.
@@ -400,7 +385,11 @@ class AnimeDownloader(
      * Base backoff for video download retries. Tests set this to zero to avoid real delays.
      */
     @VisibleForTesting
-    internal var retryBackoffMillis: Long = 2_000L
+    internal var retryBackoffMillis: Long
+        get() = videoDownloader.retryBackoffMillis
+        set(value) {
+            videoDownloader.retryBackoffMillis = value
+        }
 
     /**
      * Exposes [launchDownloadJob] to tests. Call this from a test coroutine scope.
@@ -627,7 +616,7 @@ class AnimeDownloader(
                                 notifier.onProgressChange(it)
                             },
                         ) {
-                            downloadVideo(download, tmpDir, filename)
+                            videoDownloader.download(download, tmpDir, filename)
                         }
                     } else {
                         val betterFileName = DiskUtil.buildValidFilename(
@@ -663,259 +652,6 @@ class AnimeDownloader(
     }
 
     /**
-     * Define a retry routine in order to accommodate some errors that can be raised
-     *
-     * @param download the download reference
-     * @param tmpDir the directory where placing the file
-     * @param filename the name to give to download file
-     */
-    private suspend fun downloadVideo(
-        download: AnimeDownload,
-        tmpDir: UniFile,
-        filename: String,
-    ): UniFile {
-        return flow {
-            tmpDir.findFile("$filename.tmp")?.delete()
-            val videoFile = tmpDir.createFile("$filename.tmp")!!
-            try {
-                // Select download strategy based on video format and preferences
-                val strategy = selectDownloadStrategy(download)
-
-                when (strategy) {
-                    DownloadStrategy.MULTI_THREAD -> {
-                        downloadWithMultiThread(download, tmpDir, videoFile, filename)
-                    }
-                    DownloadStrategy.SINGLE_THREAD,
-                    DownloadStrategy.FFMPEG,
-                    -> {
-                        // Fall back to FFmpeg for single-thread and streaming protocols
-                        ffmpegDownload(download, tmpDir, videoFile, filename)
-                    }
-                }
-            } catch (e: Exception) {
-                videoFile.delete()
-                throw e
-            }
-
-            emit(videoFile)
-        }
-            // Retry 3 times, waiting 2, 4 and 8 seconds between attempts.
-            .retryWhen { cause, attempt ->
-                if (cause is LowStorageException) {
-                    return@retryWhen false
-                }
-                if (DownloadFailureClassifier.isPermissionFailure(cause)) {
-                    throw StoragePermissionException(
-                        cause.message ?: cause::class.simpleName,
-                        cause,
-                    )
-                }
-                if (attempt < 3) {
-                    download.retryAttempt = attempt.toInt() + 1
-                    download.displayStatus = DownloadDisplayStatus.RETRYING
-                    delay(retryBackoffMillis shl attempt.toInt())
-                    true
-                } else {
-                    throw RetriesExhaustedException(cause)
-                }
-            }
-            .flowOn(Dispatchers.IO)
-            .first()
-    }
-
-    /**
-     * Selects the appropriate download strategy for the video.
-     */
-    private suspend fun selectDownloadStrategy(download: AnimeDownload): DownloadStrategy {
-        download.displayStatus = DownloadDisplayStatus.PREPARING
-        download.blockedReason = DownloadBlockedReason.PREPARING
-        val video = download.video!!
-        val videoUrl = video.videoUrl
-            ?: return DownloadStrategy.FFMPEG // Fallback if no URL available
-
-        // Quick check: HLS/DASH always use FFmpeg
-        val format = VideoSignatureValidator.detectVideoFormat(videoUrl)
-        if (format == VideoFormat.HLS || format == VideoFormat.DASH) {
-            return DownloadStrategy.FFMPEG
-        }
-
-        // Check if multi-thread is enabled in preferences
-        val multiThreadEnabled = preferences.multiThreadDownloads().get()
-        val maxConnections = preferences.multiThreadConnections().get().coerceIn(1, 4)
-
-        // Select strategy
-        val result = strategySelector.selectStrategy(
-            videoUrl = videoUrl,
-            headers = video.headers?.let {
-                okhttp3.Headers.headersOf(*it.toList().flatMap { (k, v) -> listOf(k, v) }.toTypedArray())
-            },
-            multiThreadEnabled = multiThreadEnabled,
-            maxConnections = maxConnections,
-        )
-
-        return when (result) {
-            is DownloadStrategySelector.StrategyResult.Success -> result.strategy
-            is DownloadStrategySelector.StrategyResult.Error -> {
-                logcat(LogPriority.WARN) { "Strategy selection failed: ${result.reason}, falling back to FFmpeg" }
-                DownloadStrategy.FFMPEG
-            }
-        }
-    }
-
-    /**
-     * Downloads using the multi-thread downloader.
-     */
-    private suspend fun downloadWithMultiThread(
-        download: AnimeDownload,
-        tmpDir: UniFile,
-        videoFile: UniFile,
-        filename: String,
-    ) {
-        val video = download.video!!
-        val episodeId = download.episode.id ?: throw IllegalStateException("Episode ID is null")
-
-        // Null safety check for videoUrl
-        val videoUrl = video.videoUrl
-            ?: throw IllegalStateException("Video URL is null for episode $episodeId")
-
-        // Detect format from URL to use correct extension
-        val format = VideoSignatureValidator.detectVideoFormat(videoUrl)
-        val extension = format.extension
-
-        val result = multiThreadDownloader.download(
-            episodeId = episodeId,
-            videoUrl = videoUrl,
-            headers = video.headers?.let {
-                okhttp3.Headers.headersOf(*it.toList().flatMap { (k, v) -> listOf(k, v) }.toTypedArray())
-            },
-            tmpDir = tmpDir,
-            outputFile = videoFile,
-        ) { progress ->
-            // Update download progress
-            download.progress = progress.progressPercent.coerceIn(0, 100)
-            download.lastProgressAt = System.currentTimeMillis()
-            download.displayStatus = DownloadDisplayStatus.DOWNLOADING
-            download.retryAttempt = 0
-        }
-
-        when (result) {
-            is DownloadResult.Success -> {
-                // Rename to final filename with correct extension
-                tmpDir.findFile("$filename.tmp")?.apply {
-                    renameTo("$filename.$extension")
-                }
-            }
-            is DownloadResult.Error -> {
-                when (val error = result.error) {
-                    is DownloadError.InvalidRange -> {
-                        if (error.msg.contains("not satisfiable", ignoreCase = true)) {
-                            download.displayStatus = DownloadDisplayStatus.RETRYING
-                            download.lastErrorCode = "RANGE_NOT_SATISFIABLE"
-                            download.lastErrorReason = "Remote file changed, restarting download"
-                        } else {
-                            download.lastErrorCode = "RANGE_UNSUPPORTED"
-                            download.lastErrorReason = "Server does not support range requests, falling back"
-                        }
-                        ffmpegDownload(download, tmpDir, videoFile, filename)
-                        return
-                    }
-                    is DownloadError.DiskFull -> {
-                        pauseForLowStorage(download, error.message)
-                        throw LowStorageException(error.message ?: "Insufficient storage")
-                    }
-                    else -> {
-                        download.lastErrorCode = error::class.simpleName
-                        download.lastErrorReason = error.message
-                    }
-                }
-                throw Exception("Multi-thread download failed: ${result.error.message}")
-            }
-            DownloadResult.Cancelled -> {
-                throw CancellationException("Download cancelled")
-            }
-        }
-    }
-
-    // ffmpeg is always on safe mode
-    private suspend fun ffmpegDownload(
-        download: AnimeDownload,
-        tmpDir: UniFile,
-        videoFile: UniFile,
-        filename: String,
-    ) {
-        val video = download.video!!
-
-        val ffmpegFilename = { videoFile.uri.toFFmpegString(context) }
-
-        val headers = video.headers ?: download.source.headers
-        val headerOptions = headers.joinToString("", "-headers '", "'") {
-            "${it.first}: ${it.second}\r\n"
-        }
-
-        FFmpegKitConfig.setLogRedirectionStrategy(LogRedirectionStrategy.ALWAYS_PRINT_LOGS)
-        val ffmpegOptions = getFFmpegOptions(video, headerOptions, ffmpegFilename())
-        val ffprobeCommand = { file: String, ffprobeHeaders: String? ->
-            FFmpegKitConfig.parseArguments(
-                "${ffprobeHeaders?.plus(" ") ?: ""}-v quiet -show_entries " +
-                    "format=duration -of default=noprint_wrappers=1:nokey=1 \"$file\"",
-            )
-        }
-
-        var duration = 0L
-
-        val logCallback = LogCallback { log ->
-            if (log.level <= Level.AV_LOG_WARNING) {
-                log.message?.let {
-                    logcat(LogPriority.ERROR) { it }
-                }
-            }
-        }
-
-        val statCallback = StatisticsCallback { s ->
-            val outTime = (s.time / 1000.0).toLong()
-
-            if (duration != 0L && outTime > 0) {
-                download.progress = (100 * outTime / duration).toInt()
-                download.lastProgressAt = System.currentTimeMillis()
-                download.displayStatus = DownloadDisplayStatus.DOWNLOADING
-            }
-        }
-
-        duration = getDuration(ffprobeCommand(video.videoUrl, headerOptions))?.toLong() ?: 0L
-
-        suspendCancellableCoroutine { continuation ->
-            val session = FFmpegKit.executeWithArgumentsAsync(
-                ffmpegOptions,
-                {
-                    if (it.returnCode.isValueSuccess) {
-                        tmpDir.findFile("$filename.tmp")?.apply {
-                            renameTo("$filename.mkv")
-                        }
-                        continuation.resume(it)
-                    } else {
-                        val output = it.output
-                        if (DownloadFailureClassifier.isLowStorageFailure(output)) {
-                            pauseForLowStorage(download, output)
-                            continuation.resumeWithException(
-                                LowStorageException(output ?: "Insufficient storage"),
-                            )
-                        } else {
-                            continuation.resumeWithException(
-                                Exception("Error in ffmpeg! ${output.orEmpty()}"),
-                            )
-                        }
-                    }
-                },
-                logCallback,
-                statCallback,
-            )
-            continuation.invokeOnCancellation {
-                session.cancel()
-            }
-        }
-    }
-
-    /**
      * Pauses the download for low storage and warns one time through the reporter.
      */
     private fun pauseForLowStorage(download: AnimeDownload, message: String?) {
@@ -923,75 +659,6 @@ class AnimeDownloader(
         download.displayStatus = DownloadDisplayStatus.PAUSED_LOW_STORAGE
         download.blockedReason = DownloadBlockedReason.STORAGE
         failureReporter.report(download, DownloadFailurePolicy.lowStorageFailure(message))
-    }
-
-    private fun getFFmpegOptions(video: Video, headerOptions: String, ffmpegFilename: String): Array<String> {
-        fun formatInputs(tracks: List<Track>) = tracks.joinToString(" ", postfix = " ") {
-            buildList {
-                if (it.url.startsWith("http")) {
-                    add(headerOptions)
-                }
-                add("-i")
-                add("\"${it.url}\"")
-            }.joinToString(" ")
-        }
-
-        fun formatMaps(tracks: List<Track>, type: String, offset: Int = 0) = tracks.indices.joinToString(" ") {
-            "-map ${it + 1 + offset}:$type"
-        }
-
-        fun formatMetadata(tracks: List<Track>, type: String) = tracks.mapIndexed { i, track ->
-            "-metadata:s:$type:$i \"title=${track.lang}\""
-        }.joinToString(" ")
-
-        val subtitleInputs = formatInputs(video.subtitleTracks)
-        val subtitleMaps = formatMaps(video.subtitleTracks, "s")
-        val subtitleMetadata = formatMetadata(video.subtitleTracks, "s")
-
-        val audioInputs = formatInputs(video.audioTracks)
-        val audioMaps = formatMaps(video.audioTracks, "a", video.subtitleTracks.size)
-        val audioMetadata = formatMetadata(video.audioTracks, "a")
-
-        val sourceStreamOptions = video.ffmpegStreamArgs.joinToString(" ") { (key, value) ->
-            "-$key \"$value\""
-        }
-        val sourceVideoOptions = video.ffmpegVideoArgs.joinToString(" ") { (key, value) ->
-            "-$key \"$value\""
-        }
-
-        val videoInput = buildList {
-            if (video.videoUrl.startsWith("http")) {
-                add(headerOptions)
-            }
-            add(sourceStreamOptions)
-            add("-i")
-            add("\"${video.videoUrl}\"")
-        }.joinToString(" ")
-
-        val command = listOf(
-            videoInput, subtitleInputs, audioInputs,
-            "-map 0:v", audioMaps, "-map 0:a?", subtitleMaps, "-map 0:s? -map 0:t?",
-            "-f matroska -c:a copy -c:v copy -c:s copy",
-            subtitleMetadata, audioMetadata, sourceVideoOptions,
-            "\"$ffmpegFilename\" -y",
-        )
-            .filter(String::isNotBlank)
-            .joinToString(" ")
-
-        return FFmpegKitConfig.parseArguments(command)
-    }
-
-    private suspend fun getDuration(ffprobeCommand: Array<String>): Float? {
-        return suspendCancellableCoroutine { continuation ->
-            val session = FFprobeKit.executeWithArgumentsAsync(ffprobeCommand) {
-                if (it.returnCode.isValueSuccess) {
-                    continuation.resume(it)
-                } else {
-                    continuation.resumeWithException(Exception(it.output))
-                }
-            }
-            continuation.invokeOnCancellation { session.cancel() }
-        }.output.toFloatOrNull()
     }
 
     /**
