@@ -60,4 +60,18 @@ class TranslationStateTest {
                 TranslationState.Translating(7, 32, phase = TranslationPhase.Retrying(8)),
         )
     }
+
+    @Test
+    fun `Incomplete state identifies unresolved pages`() {
+        val state = TranslationState.Incomplete(
+            resolvedPages = 3,
+            totalPages = 5,
+            unresolvedPages = listOf(4, 5),
+            reason = "Translation failed on page 4",
+        )
+
+        assertEquals(3, state.resolvedPages)
+        assertEquals(5, state.totalPages)
+        assertEquals(listOf(4, 5), state.unresolvedPages)
+    }
 }

@@ -139,6 +139,22 @@ class TranslationSummaryTest {
         assertEquals(true, rows.getValue(1L).isFailed)
         assertEquals(false, rows.getValue(2L).isFailed)
     }
+
+    @Test
+    fun `an incomplete chapter row carries resolved page progress`() {
+        val summary = translationSummaryFrom(
+            mapOf(
+                1L to TranslationState.Incomplete(3, 5, listOf(4, 5), "Page 4 failed"),
+            ),
+            chapters,
+        )!!
+
+        assertEquals(1, summary.failedCount)
+        assertEquals(3, summary.chapters.single().currentPage)
+        assertEquals(5, summary.chapters.single().totalPages)
+        assertEquals(true, summary.chapters.single().isIncomplete)
+        assertEquals(listOf(4, 5), summary.chapters.single().unresolvedPages)
+    }
 }
 
 private fun chapter(id: Long, name: String): Chapter {

@@ -82,6 +82,23 @@ class TranslationManagerTest {
         every {
             translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
         } returns null
+        every {
+            translationStorageManager.getTranslationCoverage(any(), any(), any(), any(), any())
+        } returns null
+        every {
+            translationStorageManager.initializeTranslationCoverage(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns true
+        every {
+            translationStorageManager.writePageOutcome(any(), any(), any(), any(), any(), any(), any())
+        } returns true
     }
 
     private fun createManager(scope: CoroutineScope? = null): TranslationManager {
@@ -129,11 +146,11 @@ class TranslationManagerTest {
     }
 
     // -----------------------------------------------------------------------
-    // State transition: IDLE -> TRANSLATING -> ERROR (failure path)
+    // State transition: IDLE -> TRANSLATING -> INCOMPLETE (failure path)
     // -----------------------------------------------------------------------
 
     @Test
-    fun `translateChapter transitions to ERROR when engine throws exception`() = runTest {
+    fun `translateChapter transitions to INCOMPLETE when engine throws exception`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
 
@@ -145,8 +162,8 @@ class TranslationManagerTest {
         advanceUntilIdle()
 
         val state = stateOf(chapter.id)
-        assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
-        assertEquals("API rate limit exceeded", (state as TranslationState.Error).message)
+        assertTrue(state is TranslationState.Incomplete, "Expected Incomplete state but got $state")
+        assertEquals(listOf(1), (state as TranslationState.Incomplete).unresolvedPages)
     }
 
     @Test
@@ -252,8 +269,8 @@ class TranslationManagerTest {
         advanceUntilIdle()
 
         val state = stateOf(chapter.id)
-        assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
-        assertEquals("HTTP error 401", (state as TranslationState.Error).message)
+        assertTrue(state is TranslationState.Incomplete, "Expected Incomplete state but got $state")
+        assertEquals(listOf(1), (state as TranslationState.Incomplete).unresolvedPages)
         coVerify(exactly = 1) { engine.detectAndTranslate(imageBytes, "en") }
     }
 
@@ -269,8 +286,8 @@ class TranslationManagerTest {
         advanceUntilIdle()
 
         val state = stateOf(chapter.id)
-        assertTrue(state is TranslationState.Error, "Expected Error state but got $state")
-        assertEquals("HTTP error 503", (state as TranslationState.Error).message)
+        assertTrue(state is TranslationState.Incomplete, "Expected Incomplete state but got $state")
+        assertEquals(listOf(1), (state as TranslationState.Incomplete).unresolvedPages)
         coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
     }
 
@@ -347,7 +364,7 @@ class TranslationManagerTest {
     }
 
     @Test
-    fun `translateChapter ends in ERROR after showing retrying when retries are exhausted`() = runTest {
+    fun `translateChapter ends INCOMPLETE after showing retrying when retries are exhausted`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
         every { translationEngineFactory.create() } returns engine
@@ -363,7 +380,15 @@ class TranslationManagerTest {
             emissions.any { it is TranslationState.Translating && it.phase is TranslationPhase.Retrying },
             "Expected a retrying emission but got $emissions",
         )
-        assertEquals(TranslationState.Error("HTTP error 503"), stateOf(chapter.id))
+        assertEquals(
+            TranslationState.Incomplete(
+                resolvedPages = 0,
+                totalPages = 1,
+                unresolvedPages = listOf(1),
+                reason = "Page 1 could not be translated",
+            ),
+            stateOf(chapter.id),
+        )
         coVerify(exactly = 4) { engine.detectAndTranslate(imageBytes, "en") }
     }
 

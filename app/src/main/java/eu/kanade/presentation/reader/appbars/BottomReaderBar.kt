@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
@@ -120,6 +121,19 @@ fun BottomReaderBar(
                 currentPage = translationState.currentPage,
                 totalPages = translationState.totalPages,
             )
+        } else if (translationState is TranslationState.Incomplete) {
+            IconButton(onClick = onClickTranslation) {
+                Icon(
+                    imageVector = Icons.Outlined.ErrorOutline,
+                    contentDescription = stringResource(
+                        AYMR.strings.translation_incomplete,
+                        translationState.resolvedPages,
+                        translationState.totalPages,
+                        translationState.unresolvedPages.joinToString(", "),
+                    ),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
         } else if (hasTranslation) {
             IconButton(onClick = onClickTranslation) {
                 Icon(

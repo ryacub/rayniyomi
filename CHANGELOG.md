@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Chapter translation now records each page outcome. Valid no-text pages remain resolved, while unreadable pages, invalid provider output, and storage failures report incomplete coverage and resume safely.
 
 ### Changed
 - Translation model picker is now a full-screen settings page with radio selection, wrapped model names, and details on demand (#1150).

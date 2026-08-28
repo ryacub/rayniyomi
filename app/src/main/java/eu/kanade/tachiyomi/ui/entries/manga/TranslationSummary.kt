@@ -11,6 +11,8 @@ data class ChapterTranslationProgress(
     val currentPage: Int,
     val totalPages: Int,
     val isFailed: Boolean = false,
+    val isIncomplete: Boolean = false,
+    val unresolvedPages: List<Int> = emptyList(),
 )
 
 @Immutable
@@ -66,6 +68,17 @@ fun translationSummaryFrom(
                     currentPage = 0,
                     totalPages = 0,
                     isFailed = true,
+                )
+            }
+            is TranslationState.Incomplete -> {
+                failedCount++
+                rows += ChapterTranslationProgress(
+                    chapterId = chapter.id,
+                    chapterName = chapter.name,
+                    currentPage = state.resolvedPages,
+                    totalPages = state.totalPages,
+                    isIncomplete = true,
+                    unresolvedPages = state.unresolvedPages,
                 )
             }
             null,

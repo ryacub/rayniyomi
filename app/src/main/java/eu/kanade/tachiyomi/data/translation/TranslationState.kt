@@ -34,5 +34,11 @@ sealed class TranslationState {
     ) : TranslationState()
 
     data object Translated : TranslationState()
+    data class Incomplete(
+        val resolvedPages: Int,
+        val totalPages: Int,
+        val unresolvedPages: List<Int>,
+        val reason: String,
+    ) : TranslationState()
     data class Error(val message: String) : TranslationState()
 }

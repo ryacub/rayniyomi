@@ -102,7 +102,9 @@ internal class DownloadPageLoader(
                 }
 
                 ReaderPage(page.index) {
-                    translatedFile?.let { context.contentResolver.openInputStream(it.uri) }
+                    translatedFile?.let {
+                        runCatching { context.contentResolver.openInputStream(it.uri) }.getOrNull()
+                    }
                         ?: page.openStream()
                         ?: throw IllegalStateException("No content for page ${page.index}")
                 }.apply {

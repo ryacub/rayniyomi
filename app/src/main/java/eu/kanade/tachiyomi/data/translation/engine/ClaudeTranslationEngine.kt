@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.translation.engine
 
 import android.util.Base64
+import eu.kanade.tachiyomi.data.translation.InvalidTranslationResponseException
 import eu.kanade.tachiyomi.data.translation.TranslationEngine
 import eu.kanade.tachiyomi.data.translation.TranslationResult
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -87,7 +88,8 @@ class ClaudeTranslationEngine(
 
         val apiResponse = json.decodeFromString<ClaudeResponse>(body)
         val textContent = apiResponse.content.firstOrNull { it.type == "text" }?.text
-            ?: return TranslationResult(emptyList())
+            ?.takeIf { it.isNotBlank() }
+            ?: throw InvalidTranslationResponseException("Provider response did not contain text")
 
         return RegionParser.parse(textContent, json)
     }

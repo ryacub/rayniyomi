@@ -1,11 +1,16 @@
 package eu.kanade.tachiyomi.data.translation
 
+import java.io.IOException
+
 /**
  * Result of translating a manga page image via a vision LLM.
  */
 data class TranslationResult(
     val regions: List<TextRegion>,
 )
+
+/** A provider response that cannot be used to resolve a page. */
+class InvalidTranslationResponseException(message: String) : IOException(message)
 
 /**
  * Normalized bounding box (0-1 coords relative to image dimensions).
