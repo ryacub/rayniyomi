@@ -117,7 +117,13 @@ internal class TranslationModelPickerScreenModel(
     private val choiceTypePreference = preferences.translationModelChoiceType(provider)
 
     init {
-        mutableState.update { it.copy(provider = provider, selectedModelId = modelPreference.get()) }
+        mutableState.update {
+            it.copy(
+                provider = provider,
+                choiceType = choiceTypePreference.get(),
+                selectedModelId = modelPreference.get(),
+            )
+        }
         screenModelScope.launchIO { load(forceRefresh = false) }
     }
 

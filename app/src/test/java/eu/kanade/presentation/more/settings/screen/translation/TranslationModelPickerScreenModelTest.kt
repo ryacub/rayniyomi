@@ -93,6 +93,17 @@ class TranslationModelPickerScreenModelTest {
     }
 
     @Test
+    fun `load restores saved pinned choice type`() {
+        val fixture = Fixture(modelId = "pinned-id", choiceType = TranslationModelChoiceType.PINNED)
+        val model = fixture.model(success = success(emptyList()))
+
+        model.awaitSettled()
+
+        assertEquals(TranslationModelChoiceType.PINNED, model.state.value.choiceType)
+        assertEquals("pinned-id", model.state.value.selectedModelId)
+    }
+
+    @Test
     fun `select model writes id and pinned choice type`() {
         val fixture = Fixture(modelId = "", choiceType = TranslationModelChoiceType.AUTOMATIC)
         val model = fixture.model()

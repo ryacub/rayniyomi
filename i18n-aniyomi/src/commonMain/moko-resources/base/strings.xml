@@ -651,7 +651,6 @@
     <string name="pref_translation_model_data_terms">Data terms: %1$s</string>
 
     <string name="translation_action_translate">Translate</string>
-    <string name="translation_action_translate">Translate</string>
     <string name="translation_action_delete">Delete translation</string>
     <string name="translation_progress">Translating page %1$d of %2$d</string>
     <string name="translation_retry_progress">Retrying page %1$d of %2$d</string>
