@@ -76,7 +76,7 @@ class TranslationModelRowUiFactoryTest {
     fun `summary never exceeds max summary tokens`(provider: TranslationProvider) {
         TranslationModelPickerFixtures.forProvider(provider).forEach { model ->
             val row = TranslationModelRowUiFactory.create(model)
-            row.summary.size <= TranslationModelRowUiFactory.MAX_SUMMARY_TOKENS shouldBe true
+            (row.summary.size <= TranslationModelRowUiFactory.MAX_SUMMARY_TOKENS) shouldBe true
         }
     }
 
