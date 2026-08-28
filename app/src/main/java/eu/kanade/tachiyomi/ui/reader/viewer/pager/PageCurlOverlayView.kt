@@ -127,7 +127,12 @@ class PageCurlOverlayView(context: Context) : View(context) {
                 direction,
                 verts,
             )
-            PageCurlRollMath.buildColors(from.width.toFloat(), progress, meshColors)
+            PageCurlRollMath.buildColors(
+                from.width.toFloat(),
+                progress,
+                direction,
+                meshColors,
+            )
             canvas.drawBitmapMesh(
                 from,
                 PageCurlRollMath.MESH_COLS,

@@ -36,9 +36,12 @@ class PageCurlRollMathTest {
 
     private fun colorIndex(row: Int, col: Int) = row * (cols + 1) + col
 
-    private fun buildColors(progress: Float): IntArray {
+    private fun buildColors(
+        progress: Float,
+        direction: CurlDirection = CurlDirection.FROM_RIGHT,
+    ): IntArray {
         val colors = PageCurlRollMath.newColors()
-        PageCurlRollMath.buildColors(width, progress, colors)
+        PageCurlRollMath.buildColors(width, progress, direction, colors)
         return colors
     }
 
@@ -172,12 +175,14 @@ class PageCurlRollMathTest {
     }
 
     @Test
-    fun `mesh is identity at zero progress`() {
-        val verts = buildVerts(0f)
-        for (row in 0..rows) {
-            for (col in 0..cols) {
-                xAt(verts, row, col) shouldBe originalX(col)
-                verts[index(row, col) + 1] shouldBe originalY(row)
+    fun `mesh is identity at zero progress in both directions`() {
+        for (direction in CurlDirection.entries) {
+            val verts = buildVerts(0f, direction)
+            for (row in 0..rows) {
+                for (col in 0..cols) {
+                    xAt(verts, row, col) shouldBe originalX(col)
+                    verts[index(row, col) + 1] shouldBe originalY(row)
+                }
             }
         }
     }
@@ -246,12 +251,18 @@ class PageCurlRollMathTest {
 
     // A5: one expression of the geometry, mirrored at the direction boundary.
     @Test
-    fun `left curl mirrors canonical x and keeps y`() {
-        val canonical = buildVerts(0.6f, direction = CurlDirection.FROM_RIGHT)
-        val mirrored = buildVerts(0.6f, direction = CurlDirection.FROM_LEFT)
-        for (i in canonical.indices step 2) {
-            mirrored[i] shouldBe width - canonical[i]
-            mirrored[i + 1] shouldBe canonical[i + 1]
+    fun `left curl keeps its flat source columns in place`() {
+        val progress = 0.6f
+        val verts = buildVerts(progress, direction = CurlDirection.FROM_LEFT)
+        val tangent = PageCurlRollMath.tangentX(width, progress)
+
+        for (row in 0..rows) {
+            for (col in 0..cols) {
+                if (width - originalX(col) <= tangent) {
+                    xAt(verts, row, col) shouldBe originalX(col)
+                    verts[index(row, col) + 1] shouldBe originalY(row)
+                }
+            }
         }
     }
 
@@ -457,7 +468,7 @@ class PageCurlRollMathTest {
     }
 
     @Test
-    fun `left fold back drawing translates from the mirrored screen crease`() {
+    fun `left fold back drawing mirrors about the screen crease`() {
         val progress = 0.5f
         val span = PageCurlRollMath.foldBackSpan(width, progress, CurlDirection.FROM_LEFT)!!
 
@@ -465,7 +476,7 @@ class PageCurlRollMathTest {
 
         drawing!!.clipSpan shouldBe span
         drawing.creaseX shouldBe span.start
-        drawing.transform shouldBe FoldBackTransform.TRANSLATE
+        drawing.transform shouldBe FoldBackTransform.MIRROR
     }
 
     @Test
@@ -594,13 +605,19 @@ class PageCurlRollMathTest {
     }
 
     @Test
-    fun `color rows follow the original column layout`() {
+    fun `color rows follow the canonical column layout in both directions`() {
         val progress = 0.5f
-        val colors = buildColors(progress)
         val row = rows / 2
-        for (col in 0..cols) {
-            colors[colorIndex(row, col)] shouldBe
-                PageCurlRollMath.shadedColor(originalX(col), width, progress)
+        for (direction in CurlDirection.entries) {
+            val colors = buildColors(progress, direction)
+            for (col in 0..cols) {
+                colors[colorIndex(row, col)] shouldBe
+                    PageCurlRollMath.shadedColor(
+                        direction.mirrorX(originalX(col), width),
+                        width,
+                        progress,
+                    )
+            }
         }
     }
 

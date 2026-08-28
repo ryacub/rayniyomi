@@ -59,7 +59,7 @@ class PageCurlBackFaceRendererTest {
     }
 
     @Test
-    fun `left curl clips and translates the back face`() {
+    fun `left curl clips and mirrors the back face`() {
         val drawing = PageCurlRollMath.foldBackDrawing(
             width.toFloat(),
             progress,
@@ -82,7 +82,7 @@ class PageCurlBackFaceRendererTest {
                 drawing.clipSpan.endInclusive,
                 height.toFloat(),
             )
-            canvas.translate(2f * drawing.creaseX - width, 0f)
+            canvas.scale(-1f, 1f, drawing.creaseX, 0f)
             canvas.drawBitmap(bitmap, 0f, 0f, null)
             canvas.drawRect(
                 drawing.clipSpan.start,
