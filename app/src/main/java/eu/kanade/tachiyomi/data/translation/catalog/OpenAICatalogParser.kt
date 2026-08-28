@@ -1,12 +1,9 @@
 package eu.kanade.tachiyomi.data.translation.catalog
 
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Parses OpenAI model list responses from GET /v1/models.
@@ -32,16 +29,8 @@ object OpenAICatalogParser {
         Regex("^o3-mini"),
     )
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     fun parse(responseBody: String, fetchedAtEpochMilliseconds: Long): TranslationModelCatalog {
-        val root = runCatching { json.parseToJsonElement(responseBody).jsonObject }
-            .getOrElse { error ->
-                throw IllegalArgumentException(
-                    "OpenAI catalog response is not a JSON object",
-                    error,
-                )
-            }
+        val root = catalogRootObject(responseBody, "OpenAI")
         val dataArray = root["data"]?.jsonArray
             ?: throw IllegalArgumentException("OpenAI catalog response has no model list")
 
@@ -85,7 +74,4 @@ object OpenAICatalogParser {
 
     private fun isTextOnly(id: String): Boolean =
         TEXT_ONLY_DENYLIST.any { it.containsMatchIn(id) }
-
-    private fun JsonObject.string(name: String) =
-        this[name]?.jsonPrimitive?.contentOrNull
 }

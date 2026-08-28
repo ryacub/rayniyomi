@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.data.translation.catalog
 
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -11,16 +9,8 @@ import kotlinx.serialization.json.jsonPrimitive
 
 object OpenRouterCatalogParser {
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     fun parse(responseBody: String, fetchedAtEpochMilliseconds: Long): TranslationModelCatalog {
-        val root = runCatching { json.parseToJsonElement(responseBody).jsonObject }
-            .getOrElse { error ->
-                throw IllegalArgumentException(
-                    "OpenRouter catalog response is not a JSON object",
-                    error,
-                )
-            }
+        val root = catalogRootObject(responseBody, "OpenRouter")
         val dataArray = root["data"]?.jsonArray
             ?: throw IllegalArgumentException("OpenRouter catalog response has no model list")
 
@@ -41,9 +31,9 @@ object OpenRouterCatalogParser {
     private fun parseModel(modelObject: JsonObject): TranslationModelEntry {
         val id = modelObject.string("id") ?: throw IllegalArgumentException("Model has no ID")
         val architecture = modelObject["architecture"] as? JsonObject ?: JsonObject(emptyMap())
-        val inputModalities = architecture.arrayText("input_modalities")
-        val outputModalities = architecture.arrayText("output_modalities")
-        val supportedParameters = modelObject.arrayText("supported_parameters")
+        val inputModalities = architecture.textArray("input_modalities")
+        val outputModalities = architecture.textArray("output_modalities")
+        val supportedParameters = modelObject.textArray("supported_parameters")
         val pricing = modelObject.stringMap("pricing")
         val topProvider = modelObject["top_provider"] as? JsonObject ?: JsonObject(emptyMap())
         val cost = pricing.cost()
@@ -65,7 +55,7 @@ object OpenRouterCatalogParser {
 
         return TranslationModelEntry(
             id = id,
-            displayName = modelObject.string("name") ?: id,
+            displayName = runCatching { modelObject.string("name") }.getOrNull() ?: id,
             capabilities = capabilities,
             cost = cost,
             freeTierEligible = if (cost == TranslationModelCost.FREE) true else null,
@@ -75,16 +65,8 @@ object OpenRouterCatalogParser {
         )
     }
 
-    private fun JsonObject.string(name: String) =
-        runCatching { this[name]?.jsonPrimitive?.contentOrNull }.getOrNull()
-
     private fun JsonObject.int(name: String) =
         runCatching { this[name]?.jsonPrimitive?.contentOrNull?.toIntOrNull() }.getOrNull()
-
-    private fun JsonObject.arrayText(name: String): List<String> =
-        (this[name] as? JsonArray)?.mapNotNull { element ->
-            runCatching { element.jsonPrimitive.contentOrNull }.getOrNull()
-        } ?: emptyList()
 
     private fun JsonObject.stringMap(name: String): Map<String, String> =
         (this[name] as? JsonObject)?.mapNotNull { (key, value) ->

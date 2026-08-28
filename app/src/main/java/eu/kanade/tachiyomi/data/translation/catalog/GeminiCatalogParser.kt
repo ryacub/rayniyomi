@@ -1,13 +1,9 @@
 package eu.kanade.tachiyomi.data.translation.catalog
 
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Parses Google Gemini model list responses from v1beta models.list.
@@ -24,16 +20,8 @@ object GeminiCatalogParser {
 
     private const val MODEL_NAME_PREFIX = "models/"
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     fun parse(responseBody: String, fetchedAtEpochMilliseconds: Long): TranslationModelCatalog {
-        val root = runCatching { json.parseToJsonElement(responseBody).jsonObject }
-            .getOrElse { error ->
-                throw IllegalArgumentException(
-                    "Gemini catalog response is not a JSON object",
-                    error,
-                )
-            }
+        val root = catalogRootObject(responseBody, "Gemini")
         val modelArray = root["models"]?.let { it as? JsonArray }
             ?: throw IllegalArgumentException("Gemini catalog response has no model list")
 
@@ -50,7 +38,7 @@ object GeminiCatalogParser {
 
     private fun parseModel(modelObject: JsonObject): TranslationModelEntry? {
         val fullName = modelObject.string("name") ?: throw IllegalArgumentException("Model has no ID")
-        if (!modelObject.generationMethods().contains("generateContent")) return null
+        if (!modelObject.textArray("supportedGenerationMethods").contains("generateContent")) return null
 
         return TranslationModelEntry(
             id = fullName.removePrefix(MODEL_NAME_PREFIX),
@@ -71,13 +59,4 @@ object GeminiCatalogParser {
             dataTerms = null,
         )
     }
-
-    private fun JsonObject.generationMethods(): List<String> =
-        this["supportedGenerationMethods"]
-            ?.let { it as? JsonArray }
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-            ?: emptyList()
-
-    private fun JsonObject.string(name: String) =
-        this[name]?.jsonPrimitive?.contentOrNull
 }
