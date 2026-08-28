@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Rapid taps during a page curl now queue and play as sequential curls instead of falling back to slide transitions.
 - Chapter translation now records each page outcome. Valid no-text pages remain resolved, while unreadable pages, invalid provider output, and storage failures report incomplete coverage and resume safely.
+- Left-curl page shadows now fade away from the crease instead of darkening at the outer edge.
 
 ### Changed
 - Translation model picker is now a full-screen settings page with radio selection, wrapped model names, and details on demand (#1150).

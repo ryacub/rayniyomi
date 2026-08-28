@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.PointF
@@ -243,6 +244,46 @@ class PageCurlOverlayViewTest {
         left.captured shouldBe width - tangent - width * PageCurlRollMath.CAST_SHADOW_WIDTH_FRACTION
         right.captured shouldBe width - tangent
     }
+
+    @Test
+    fun `right shadow gradient stays darkest beside the fold`() {
+        assertShadowGradient(
+            CurlDirection.FROM_RIGHT,
+            intArrayOf(darkShadowColor(), Color.TRANSPARENT),
+        )
+    }
+
+    @Test
+    fun `left shadow gradient stays darkest beside the fold`() {
+        assertShadowGradient(
+            CurlDirection.FROM_LEFT,
+            intArrayOf(Color.TRANSPARENT, darkShadowColor()),
+        )
+    }
+
+    private fun assertShadowGradient(direction: CurlDirection, expectedColors: IntArray) {
+        val from = bitmap()
+        val to = bitmap()
+
+        PageCurlOverlayView.drawFrame(
+            canvas,
+            from,
+            to,
+            0.5f,
+            direction,
+            PageCurlRollMath.newVerts(),
+            PageCurlRollMath.newColors(),
+            shadowPaint,
+        )
+
+        PageCurlOverlayView.castShadowColors(
+            direction,
+            PageCurlRollMath.castShadowAlpha(0.5f),
+        ).toList() shouldBe expectedColors.toList()
+    }
+
+    private fun darkShadowColor(): Int =
+        Color.argb(PageCurlRollMath.castShadowAlpha(0.5f), 0, 0, 0)
 
     @Test
     fun `no shadow rect once the fold clears`() {
