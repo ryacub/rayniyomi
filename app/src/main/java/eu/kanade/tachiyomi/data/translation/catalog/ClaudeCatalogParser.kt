@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.data.translation.catalog
 
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -26,19 +25,11 @@ object ClaudeCatalogParser {
         val lastId: String?,
     )
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     fun parse(responseBody: String, fetchedAtEpochMilliseconds: Long): TranslationModelCatalog =
         buildCatalog(parsePage(responseBody).models, fetchedAtEpochMilliseconds)
 
     fun parsePage(responseBody: String): Page {
-        val root = runCatching { json.parseToJsonElement(responseBody).jsonObject }
-            .getOrElse { error ->
-                throw IllegalArgumentException(
-                    "Claude catalog response is not a JSON object",
-                    error,
-                )
-            }
+        val root = catalogRootObject(responseBody, "Claude")
         val dataArray = root["data"]?.jsonArray
             ?: throw IllegalArgumentException("Claude catalog response has no model list")
 
@@ -82,9 +73,6 @@ object ClaudeCatalogParser {
             dataTerms = null,
         )
     }
-
-    private fun JsonObject.string(name: String) =
-        this[name]?.jsonPrimitive?.contentOrNull
 
     private fun JsonObject.imageInputSupported(): Boolean =
         runCatching {
