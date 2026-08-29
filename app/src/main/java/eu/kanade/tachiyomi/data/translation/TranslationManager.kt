@@ -36,7 +36,11 @@ class TranslationManager(
     private val translationStorageManager: TranslationStorageManager = Injekt.get(),
     private val downloadManager: MangaDownloadManager = Injekt.get(),
     scope: CoroutineScope? = null,
-    private val chapterRunner: TranslationChapterRunner = TranslationChapterRunner(translationStorageManager),
+    private val translationRunTelemetry: TranslationRunTelemetry = NoOpTranslationRunTelemetry,
+    private val chapterRunner: TranslationChapterRunner = TranslationChapterRunner(
+        translationStorageManager = translationStorageManager,
+        telemetry = translationRunTelemetry,
+    ),
 ) {
 
     private val scope = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -95,6 +99,9 @@ class TranslationManager(
         if (activeJobs[chapterId]?.isActive == true) return
         _chapterTitles.update { it + (chapterId to "${manga.title} - ${chapter.name}") }
 
+        val translationProvider = translationPreferences.translationProvider().get()
+        val provider = translationProvider.name
+        val model = translationPreferences.translationModel(translationProvider).get()
         val engine = translationEngineFactory.create()
         if (engine == null) {
             updateState(
@@ -105,8 +112,6 @@ class TranslationManager(
         }
 
         val targetLang = translationPreferences.targetLanguage().get()
-        val provider = translationPreferences.translationProvider().get().name
-
         val job = scope.launch {
             try {
                 downloadManager.buildPageList(source, manga, chapter) { pages ->
@@ -121,7 +126,9 @@ class TranslationManager(
                             engine = engine,
                             targetLang = targetLang,
                             provider = provider,
-                        ) { state -> updateState(chapterId, state) }
+                            model = model,
+                            onState = { state -> updateState(chapterId, state) },
+                        )
                     }
                 }
             } catch (e: CancellationException) {

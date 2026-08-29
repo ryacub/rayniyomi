@@ -78,6 +78,9 @@ class TranslationManagerTest {
         every { translationPreferences.targetLanguage() } returns targetLanguagePref
         mockTargetLanguage("en")
         mockTranslationProvider(TranslationProvider.CLAUDE)
+        every { translationPreferences.translationModel(any()) } returns mockk {
+            every { get() } returns "claude-3"
+        }
         // Relaxed mocks return a non-null file, which would skip every page.
         every {
             translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
