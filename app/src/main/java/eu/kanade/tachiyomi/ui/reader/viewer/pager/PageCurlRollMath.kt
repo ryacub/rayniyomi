@@ -11,8 +11,8 @@ import kotlin.math.sin
  *
  * The page wraps around a cylinder whose axis is parallel to the page's
  * vertical edge. The cylinder rolls off the curling edge. The canonical
- * frame curls from the right edge; [buildVerts] mirrors the result for a
- * left curl. The projection is orthographic, so the roll depth never
+ * frame curls from the right edge; [buildVerts] mirrors the source and result
+ * for a left curl. The projection is orthographic, so the roll depth never
  * affects the output: only x moves, and y stays on its row line.
  */
 internal enum class FoldBackTransform {
@@ -115,12 +115,21 @@ internal object PageCurlRollMath {
     }
 
     /** Fills [colors] row-major, matching buildVerts vertex order. */
-    fun buildColors(pageWidth: Float, progress: Float, colors: IntArray) {
+    fun buildColors(
+        pageWidth: Float,
+        progress: Float,
+        direction: CurlDirection,
+        colors: IntArray,
+    ) {
         var i = 0
         for (row in 0..MESH_ROWS) {
             for (col in 0..MESH_COLS) {
-                colors[i++] =
-                    shadedColor(pageWidth * col / MESH_COLS, pageWidth, progress)
+                val sourceX = pageWidth * col / MESH_COLS
+                colors[i++] = shadedColor(
+                    direction.mirrorX(sourceX, pageWidth),
+                    pageWidth,
+                    progress,
+                )
             }
         }
     }
@@ -180,7 +189,7 @@ internal object PageCurlRollMath {
             CurlDirection.FROM_LEFT -> FoldBackDrawing(
                 clipSpan = span,
                 creaseX = span.start,
-                transform = FoldBackTransform.TRANSLATE,
+                transform = FoldBackTransform.MIRROR,
             )
         }
     }
@@ -201,7 +210,12 @@ internal object PageCurlRollMath {
         for (row in 0..MESH_ROWS) {
             val y = pageHeight * row / MESH_ROWS
             for (col in 0..MESH_COLS) {
-                val canonicalX = rollX(pageWidth * col / MESH_COLS, pageWidth, progress)
+                val sourceX = pageWidth * col / MESH_COLS
+                val canonicalX = rollX(
+                    direction.mirrorX(sourceX, pageWidth),
+                    pageWidth,
+                    progress,
+                )
                 verts[index] = direction.mirrorX(canonicalX, pageWidth)
                 verts[index + 1] = y
                 index += 2
