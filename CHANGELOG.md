@@ -14,6 +14,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+- Added privacy-safe aggregate translation run telemetry for coverage, retries, duration, and failure classes.
 ### Improved
 
 ### Fixed
