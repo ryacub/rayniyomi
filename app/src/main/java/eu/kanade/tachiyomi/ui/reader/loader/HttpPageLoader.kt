@@ -71,7 +71,7 @@ internal class HttpPageLoader(
      */
     override suspend fun getPages(): List<ReaderPage> {
         val pages = try {
-            chapterCache.getPageListFromCache(chapter.chapter.toDomainChapter()!!)
+            chapterCache.getPageListFromCache(chapter.chapter.toDomainChapter())
         } catch (e: Throwable) {
             if (e is CancellationException) {
                 throw e
@@ -144,7 +144,7 @@ internal class HttpPageLoader(
                     // Convert to pages without reader information
                     val pagesToSave = pages.map { Page(it.index, it.url, it.imageUrl) }
                     chapterCache.putPageListToCache(
-                        chapter.chapter.toDomainChapter()!!,
+                        chapter.chapter.toDomainChapter(),
                         pagesToSave,
                     )
                 } catch (e: Throwable) {

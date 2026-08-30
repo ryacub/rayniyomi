@@ -2,6 +2,7 @@
 
 package eu.kanade.tachiyomi.data.database.models.manga
 
+import eu.kanade.tachiyomi.data.database.models.DatabaseModelConversionException
 import eu.kanade.tachiyomi.source.model.SChapter
 import java.io.Serializable
 import tachiyomi.domain.items.chapter.model.Chapter as DomainChapter
@@ -30,11 +31,12 @@ interface Chapter : SChapter, Serializable {
 val Chapter.isRecognizedNumber: Boolean
     get() = chapter_number >= 0f
 
-fun Chapter.toDomainChapter(): DomainChapter? {
-    if (id == null || manga_id == null) return null
+fun Chapter.toDomainChapter(): DomainChapter {
+    val chapterId = id ?: throw DatabaseModelConversionException("Chapter has no database id")
+    val mangaId = manga_id ?: throw DatabaseModelConversionException("Chapter has no manga id")
     return DomainChapter(
-        id = id!!,
-        mangaId = manga_id!!,
+        id = chapterId,
+        mangaId = mangaId,
         read = read,
         bookmark = bookmark,
         lastPageRead = last_page_read.toLong(),

@@ -381,7 +381,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
         val source = currentSource.value ?: return null
         return source is AnimeHttpSource &&
             !EpisodeLoader.isDownload(
-                episode.toDomainEpisode()!!,
+                episode.toDomainEpisode(),
                 anime,
             )
     }
@@ -1193,7 +1193,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                     }
                     qualityIndex = Pair(hostIndex, vidIndex)
                 } else {
-                    EpisodeLoader.getHosters(currentEp.toDomainEpisode()!!, anime, source)
+                    EpisodeLoader.getHosters(currentEp.toDomainEpisode(), anime, source)
                         .takeIf { it.isNotEmpty() }
                         ?.also { currentHosterList = it }
                         ?: run {
@@ -1285,7 +1285,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                     currentEpisode.value
                         ?: throw ExceptionWithStringResource("No episode loaded", AYMR.strings.no_episode_loaded)
                 currentHosterList = EpisodeLoader.getHosters(
-                    currentEpisode.toDomainEpisode()!!,
+                    currentEpisode.toDomainEpisode(),
                     anime,
                     source,
                 )
@@ -1371,8 +1371,8 @@ class PlayerViewModel @JvmOverloads internal constructor(
 
         val nextEpisode = currentPlaylist.value[getCurrentEpisodeIndex() + 1]
         val episodesAreDownloaded =
-            EpisodeLoader.isDownload(currentEpisode.toDomainEpisode()!!, anime) &&
-                EpisodeLoader.isDownload(nextEpisode.toDomainEpisode()!!, anime)
+            EpisodeLoader.isDownload(currentEpisode.toDomainEpisode(), anime) &&
+                EpisodeLoader.isDownload(nextEpisode.toDomainEpisode(), anime)
 
         viewModelScope.launchIO {
             if (!episodesAreDownloaded) {
@@ -1616,7 +1616,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
         if (!episode.seen) return
         val anime = currentAnime.value ?: return
         viewModelScope.launchNonCancellable {
-            downloadManager.enqueueEpisodesToDelete(listOf(episode.toDomainEpisode()!!), anime)
+            downloadManager.enqueueEpisodesToDelete(listOf(episode.toDomainEpisode()), anime)
         }
     }
 

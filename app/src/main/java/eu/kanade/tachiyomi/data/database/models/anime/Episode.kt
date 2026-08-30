@@ -3,6 +3,7 @@
 package eu.kanade.tachiyomi.data.database.models.anime
 
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.data.database.models.DatabaseModelConversionException
 import java.io.Serializable
 import tachiyomi.domain.items.episode.model.Episode as DomainEpisode
 
@@ -32,11 +33,12 @@ interface Episode : SEpisode, Serializable {
 val Episode.isRecognizedNumber: Boolean
     get() = episode_number >= 0f
 
-fun Episode.toDomainEpisode(): DomainEpisode? {
-    if (id == null || anime_id == null) return null
+fun Episode.toDomainEpisode(): DomainEpisode {
+    val episodeId = id ?: throw DatabaseModelConversionException("Episode has no database id")
+    val animeId = anime_id ?: throw DatabaseModelConversionException("Episode has no anime id")
     return DomainEpisode(
-        id = id!!,
-        animeId = anime_id!!,
+        id = episodeId,
+        animeId = animeId,
         seen = seen,
         bookmark = bookmark,
         fillermark = fillermark,
