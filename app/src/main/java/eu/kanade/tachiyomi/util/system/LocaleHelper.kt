@@ -63,7 +63,8 @@ object LocaleHelper {
             "zh-TW" -> Locale.forLanguageTag("zh-Hant")
             else -> Locale.forLanguageTag(lang)
         }
-        return locale!!.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) }
+        val nonNullLocale = checkNotNull(locale) { "Missing locale for language: $lang" }
+        return nonNullLocale.getDisplayName(nonNullLocale).replaceFirstChar { it.uppercase(nonNullLocale) }
     }
 
     /**
@@ -77,7 +78,9 @@ object LocaleHelper {
      * Return English display string from string language code
      */
     fun getSimpleLocaleDisplayName(): String {
-        return LocaleListCompat.getDefault()[0]!!.displayLanguage
+        return checkNotNull(LocaleListCompat.getDefault()[0]) {
+            "Default locale list is empty"
+        }.displayLanguage
     }
 }
 

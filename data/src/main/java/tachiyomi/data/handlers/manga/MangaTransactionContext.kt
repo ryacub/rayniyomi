@@ -40,7 +40,9 @@ internal suspend fun <T> AndroidMangaDatabaseHandler.withMangaTransaction(block:
     val transactionContext =
         coroutineContext[TransactionElement]?.transactionDispatcher ?: createTransactionContext()
     return withContext(transactionContext) {
-        val transactionElement = coroutineContext[TransactionElement]!!
+        val transactionElement = checkNotNull(coroutineContext[TransactionElement]) {
+            "Missing TransactionElement in coroutine context"
+        }
         transactionElement.acquire()
         try {
             db.transactionWithResult {
@@ -108,7 +110,11 @@ private suspend fun CoroutineDispatcher.acquireTransactionThread(
             dispatch(EmptyCoroutineContext) {
                 runBlocking {
                     // Thread acquired, resume coroutine
-                    continuation.resume(coroutineContext[ContinuationInterceptor]!!)
+                    continuation.resume(
+                        checkNotNull(coroutineContext[ContinuationInterceptor]) {
+                            "Missing ContinuationInterceptor in coroutine context"
+                        },
+                    )
                     controlJob.join()
                 }
             }

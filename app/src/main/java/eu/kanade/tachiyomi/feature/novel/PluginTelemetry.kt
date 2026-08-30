@@ -111,7 +111,7 @@ internal class PluginTelemetry {
     }
 
     // ConcurrentHashMap + AtomicIntegers give lock-free per-cell updates.
-    // All stage keys are pre-populated so !! assertions on lookup are safe.
+    // All stage keys are pre-populated, and getValue names a missing stage if that changes.
     private val successCounters = ConcurrentHashMap<PluginStage, AtomicInteger>().also { map ->
         PluginStage.entries.forEach { map[it] = AtomicInteger(0) }
     }
@@ -150,14 +150,14 @@ internal class PluginTelemetry {
 
         when (result) {
             is PluginResult.Success -> {
-                successCounters[stage]!!.incrementAndGet()
+                successCounters.getValue(stage).incrementAndGet()
                 val durationStr = if (durationMs != null) " durationMs=$durationMs" else ""
                 logcat(LOG_TAG, LogPriority.INFO) {
                     "stage=$stage result=Success channel=$channel$durationStr"
                 }
             }
             is PluginResult.Failure -> {
-                failureCounters[stage]!!.incrementAndGet()
+                failureCounters.getValue(stage).incrementAndGet()
                 val priority = if (result.isFatal) LogPriority.ERROR else LogPriority.WARN
                 val durationStr = if (durationMs != null) " durationMs=$durationMs" else ""
                 logcat(LOG_TAG, priority) {
@@ -210,8 +210,8 @@ internal class PluginTelemetry {
             }
 
             StageCounters(
-                successCount = successCounters[stage]!!.get(),
-                failureCount = failureCounters[stage]!!.get(),
+                successCount = successCounters.getValue(stage).get(),
+                failureCount = failureCounters.getValue(stage).get(),
                 p50LatencyMs = p50,
                 p95LatencyMs = p95,
             )

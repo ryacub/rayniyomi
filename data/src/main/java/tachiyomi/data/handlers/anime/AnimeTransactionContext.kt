@@ -40,7 +40,9 @@ internal suspend fun <T> AndroidAnimeDatabaseHandler.withAnimeTransaction(block:
     val transactionContext =
         coroutineContext[AnimeTransactionElement]?.transactionDispatcher ?: createTransactionContext()
     return withContext(transactionContext) {
-        val transactionElement = coroutineContext[AnimeTransactionElement]!!
+        val transactionElement = checkNotNull(coroutineContext[AnimeTransactionElement]) {
+            "Missing AnimeTransactionElement in coroutine context"
+        }
         transactionElement.acquire()
         try {
             db.transactionWithResult {
@@ -109,7 +111,11 @@ private suspend fun CoroutineDispatcher.acquireTransactionThread(
             dispatch(EmptyCoroutineContext) {
                 runBlocking {
                     // Thread acquired, resume coroutine
-                    continuation.resume(coroutineContext[ContinuationInterceptor]!!)
+                    continuation.resume(
+                        checkNotNull(coroutineContext[ContinuationInterceptor]) {
+                            "Missing ContinuationInterceptor in coroutine context"
+                        },
+                    )
                     controlJob.join()
                 }
             }

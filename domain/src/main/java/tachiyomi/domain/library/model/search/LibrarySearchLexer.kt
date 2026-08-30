@@ -55,13 +55,15 @@ object LibrarySearchLexer {
                 groups["LParen"] != null -> tokens.add(Token.LParen)
                 groups["RParen"] != null -> tokens.add(Token.RParen)
                 groups["CompField"] != null -> {
-                    val comparator = ComparisonOperator.fromString(groups["Comparator"]!!.value)
+                    val comparator = ComparisonOperator.fromString(
+                        checkNotNull(groups["Comparator"]) { "Missing regex group: Comparator" }.value,
+                    )
                     val value = groups["CompValQuoted"]?.value
-                        ?: groups["CompVal"]!!.value
+                        ?: checkNotNull(groups["CompVal"]) { "Missing regex group: CompVal" }.value
                     if (comparator != null) {
                         tokens.add(
                             Token.CompField(
-                                field = groups["CompField"]!!.value,
+                                field = checkNotNull(groups["CompField"]) { "Missing regex group: CompField" }.value,
                                 comparator = comparator,
                                 value = value,
                             ),
@@ -69,7 +71,10 @@ object LibrarySearchLexer {
                     } else {
                         tokens.add(
                             Token.General(
-                                "${groups["CompField"]!!.value}${groups["Comparator"]!!.value}$value",
+                                "${checkNotNull(groups["CompField"]) { "Missing regex group: CompField" }.value}" +
+                                    "${checkNotNull(groups["Comparator"]) {
+                                        "Missing regex group: Comparator"
+                                    }.value}$value",
                             ),
                         )
                     }
@@ -77,15 +82,15 @@ object LibrarySearchLexer {
                 groups["Field"] != null -> {
                     tokens.add(
                         Token.Field(
-                            field = groups["Field"]!!.value,
+                            field = checkNotNull(groups["Field"]) { "Missing regex group: Field" }.value,
                             value = groups["FieldValQuoted"]?.value
-                                ?: groups["FieldVal"]!!.value,
+                                ?: checkNotNull(groups["FieldVal"]) { "Missing regex group: FieldVal" }.value,
                         ),
                     )
                 }
                 else -> {
                     val value = groups["GeneralQuoted"]?.value
-                        ?: groups["General"]!!.value
+                        ?: checkNotNull(groups["General"]) { "Missing regex group: General" }.value
                     tokens.add(Token.General(value))
                 }
             }

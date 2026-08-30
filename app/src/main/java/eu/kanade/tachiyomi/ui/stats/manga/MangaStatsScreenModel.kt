@@ -145,7 +145,9 @@ class MangaStatsScreenModel(
     }
 
     private fun get10PointScore(track: MangaTrack): Double {
-        val service = trackerManager.get(track.trackerId)!!
+        val service = checkNotNull(trackerManager.get(track.trackerId)) {
+            "Missing tracker for id: ${track.trackerId}"
+        }
         return service.mangaService.get10PointScore(track)
     }
 }

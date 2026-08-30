@@ -300,7 +300,9 @@ private data class TrackStatusSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
             )
         }
         val state by screenModel.state.collectAsStateWithLifecycle()
@@ -355,7 +357,9 @@ private data class TrackEpisodeSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
             )
         }
         val state by screenModel.state.collectAsStateWithLifecycle()
@@ -418,7 +422,9 @@ private data class TrackScoreSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
             )
         }
         val state by screenModel.state.collectAsStateWithLifecycle()
@@ -530,7 +536,9 @@ private data class TrackDateSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
                 start = start,
             )
         }
@@ -605,7 +613,9 @@ private data class TrackDateRemoverScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
                 start = start,
             )
         }
@@ -696,7 +706,9 @@ data class TrackServiceSearchScreen(
                 animeId = animeId,
                 currentUrl = currentUrl,
                 initialQuery = initialQuery,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
             )
         }
 
@@ -787,7 +799,9 @@ private data class TrackerAnimeRemoveScreen(
             Model(
                 animeId = animeId,
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                    "Missing tracker for id: $serviceId"
+                },
             )
         }
         val serviceName = screenModel.getName()
