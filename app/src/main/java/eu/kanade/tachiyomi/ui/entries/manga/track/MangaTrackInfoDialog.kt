@@ -113,7 +113,7 @@ data class MangaTrackInfoDialogHomeScreen(
             onStatusClick = {
                 navigator.push(
                     TrackStatusSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -121,7 +121,7 @@ data class MangaTrackInfoDialogHomeScreen(
             onChapterClick = {
                 navigator.push(
                     TrackChapterSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -129,7 +129,7 @@ data class MangaTrackInfoDialogHomeScreen(
             onScoreClick = {
                 navigator.push(
                     TrackScoreSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -137,7 +137,7 @@ data class MangaTrackInfoDialogHomeScreen(
             onStartDateEdit = {
                 navigator.push(
                     TrackDateSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                         start = true,
                     ),
@@ -146,7 +146,7 @@ data class MangaTrackInfoDialogHomeScreen(
             onEndDateEdit = {
                 navigator.push(
                     TrackDateSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                         start = false,
                     ),
@@ -156,11 +156,12 @@ data class MangaTrackInfoDialogHomeScreen(
                 if (it.tracker is EnhancedMangaTracker) {
                     screenModel.registerEnhancedTracking(it)
                 } else {
+                    val track = (it as? MangaTrackInfoItem.Tracked)?.track
                     navigator.push(
                         TrackServiceSearchScreen(
                             mangaId = mangaId,
-                            initialQuery = it.track?.title ?: mangaTitle,
-                            currentUrl = it.track?.remoteUrl,
+                            initialQuery = track?.title ?: mangaTitle,
+                            currentUrl = track?.remoteUrl,
                             serviceId = it.tracker.id,
                         ),
                     )
@@ -171,7 +172,7 @@ data class MangaTrackInfoDialogHomeScreen(
                 navigator.push(
                     TrackerMangaRemoveScreen(
                         mangaId = mangaId,
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -184,15 +185,15 @@ data class MangaTrackInfoDialogHomeScreen(
     /**
      * Opens registered tracker url in browser
      */
-    private fun openTrackerInBrowser(context: Context, trackItem: MangaTrackItem) {
-        val url = trackItem.track?.remoteUrl ?: return
+    private fun openTrackerInBrowser(context: Context, trackItem: MangaTrackInfoItem.Tracked) {
+        val url = trackItem.track.remoteUrl
         if (url.isNotBlank()) {
             context.openInBrowser(url)
         }
     }
 
-    private fun Context.copyTrackerLink(trackItem: MangaTrackItem) {
-        val url = trackItem.track?.remoteUrl ?: return
+    private fun Context.copyTrackerLink(trackItem: MangaTrackInfoItem.Tracked) {
+        val url = trackItem.track.remoteUrl
         if (url.isNotBlank()) {
             copyToClipboard(url, url)
         }
@@ -224,12 +225,12 @@ data class MangaTrackInfoDialogHomeScreen(
             }
         }
 
-        fun registerEnhancedTracking(item: MangaTrackItem) {
-            item.tracker as EnhancedMangaTracker
+        fun registerEnhancedTracking(item: MangaTrackInfoItem) {
+            val tracker = item.tracker as EnhancedMangaTracker
             screenModelScope.launchNonCancellable {
                 val manga = Injekt.get<GetManga>().await(mangaId) ?: return@launchNonCancellable
                 try {
-                    val matchResult = item.tracker.match(manga) ?: throw Exception()
+                    val matchResult = tracker.match(manga) ?: throw Exception()
                     item.tracker.mangaService.register(matchResult, mangaId)
                 } catch (e: Exception) {
                     withUIContext { Injekt.get<Application>().toast(MR.strings.error_no_match) }
@@ -242,16 +243,16 @@ data class MangaTrackInfoDialogHomeScreen(
             val context = Injekt.get<Application>()
 
             refreshTracks.await(mangaId)
-                .filter { it.first != null }
                 .forEach { (track, e) ->
+                    val tracker = track ?: return@forEach
                     logcat(LogPriority.ERROR, e) {
-                        "Failed to refresh track data mangaId=$mangaId for service ${track!!.name}"
+                        "Failed to refresh track data mangaId=$mangaId for service ${tracker.name}"
                     }
                     withUIContext {
                         context.toast(
                             context.stringResource(
                                 MR.strings.track_error,
-                                track!!.name,
+                                tracker.name,
                                 e.message ?: "",
                             ),
                         )
@@ -259,27 +260,31 @@ data class MangaTrackInfoDialogHomeScreen(
                 }
         }
 
-        fun togglePrivate(item: MangaTrackItem) {
+        fun togglePrivate(item: MangaTrackInfoItem.Tracked) {
             screenModelScope.launchNonCancellable {
-                (item.tracker as? MangaTracker)?.setRemotePrivate(item.track!!.toDbTrack(), !item.track.private)
+                (item.tracker as? MangaTracker)?.setRemotePrivate(item.track.toDbTrack(), !item.track.private)
             }
         }
 
-        private fun List<MangaTrack>.mapToTrackItem(): List<MangaTrackItem> {
+        private fun List<MangaTrack>.mapToTrackItem(): List<MangaTrackInfoItem> {
             val loggedInTrackers = Injekt.get<TrackerManager>().loggedInTrackers().filter {
                 it is MangaTracker
             }
             val source = Injekt.get<MangaSourceManager>().getOrStub(sourceId)
             return loggedInTrackers
                 // Map to TrackItem
-                .map { service -> MangaTrackItem(find { it.trackerId == service.id }, service) }
+                .map { service ->
+                    find { it.trackerId == service.id }
+                        ?.let { MangaTrackInfoItem.Tracked(it, service) }
+                        ?: MangaTrackInfoItem.Untracked(service)
+                }
                 // Show only if the service supports this manga's source
                 .filter { (it.tracker as? EnhancedMangaTracker)?.accept(source) ?: true }
         }
 
         @Immutable
         data class State(
-            val trackItems: List<MangaTrackItem> = emptyList(),
+            val trackItems: List<MangaTrackInfoItem> = emptyList(),
         )
     }
 }

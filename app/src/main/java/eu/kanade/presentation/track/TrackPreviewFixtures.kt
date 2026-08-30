@@ -3,8 +3,8 @@ package eu.kanade.presentation.track
 import androidx.compose.ui.tooling.preview.datasource.LoremIpsum
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
-import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
-import eu.kanade.tachiyomi.ui.entries.manga.track.MangaTrackItem
+import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackInfoItem
+import eu.kanade.tachiyomi.ui.entries.manga.track.MangaTrackInfoItem
 import eu.kanade.test.DummyTracker
 import tachiyomi.domain.track.anime.model.AnimeTrack
 import tachiyomi.domain.track.manga.model.MangaTrack
@@ -83,17 +83,16 @@ internal fun previewMangaTrackSearch(): MangaTrackSearch {
     }
 }
 
-internal fun previewAnimeTrackItemWithoutTrack(): AnimeTrackItem =
-    AnimeTrackItem(
-        track = null,
+internal fun previewAnimeTrackItemWithoutTrack(): AnimeTrackInfoItem =
+    AnimeTrackInfoItem.Untracked(
         tracker = previewDummyTracker(
             id = 1L,
             name = "Example Tracker",
         ),
     )
 
-internal fun previewAnimeTrackItemWithTrack(privateTracking: Boolean = false): AnimeTrackItem =
-    AnimeTrackItem(
+internal fun previewAnimeTrackItemWithTrack(privateTracking: Boolean = false): AnimeTrackInfoItem =
+    AnimeTrackInfoItem.Tracked(
         track = previewAnimeTrack(privateTracking = privateTracking),
         tracker = previewDummyTracker(
             id = 2L,
@@ -101,17 +100,16 @@ internal fun previewAnimeTrackItemWithTrack(privateTracking: Boolean = false): A
         ),
     )
 
-internal fun previewMangaTrackItemWithoutTrack(): MangaTrackItem =
-    MangaTrackItem(
-        track = null,
+internal fun previewMangaTrackItemWithoutTrack(): MangaTrackInfoItem =
+    MangaTrackInfoItem.Untracked(
         tracker = previewDummyTracker(
             id = 1L,
             name = "Example Tracker",
         ),
     )
 
-internal fun previewMangaTrackItemWithTrack(privateTracking: Boolean = false): MangaTrackItem =
-    MangaTrackItem(
+internal fun previewMangaTrackItemWithTrack(privateTracking: Boolean = false): MangaTrackInfoItem =
+    MangaTrackInfoItem.Tracked(
         track = previewMangaTrack(privateTracking = privateTracking),
         tracker = previewDummyTracker(
             id = 2L,
