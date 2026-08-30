@@ -81,7 +81,7 @@ internal class DownloadPageLoader(
         return downloadManager.buildPageList(
             source,
             manga,
-            chapter.chapter.toDomainChapter()!!,
+            chapter.chapter.toDomainChapter(),
         ) { pages ->
             val showTranslated = readerPreferences.showTranslatedPages().get()
             val targetLang = translationPreferences.targetLanguage().get()

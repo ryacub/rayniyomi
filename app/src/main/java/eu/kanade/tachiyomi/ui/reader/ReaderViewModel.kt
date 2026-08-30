@@ -527,7 +527,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
             val chaptersToDownload = getNextChapters.await(manga.id, nextChapter.id!!).run {
                 if (readerPreferences.skipDupe().get()) {
-                    removeDuplicates(nextChapter.toDomainChapter()!!)
+                    removeDuplicates(nextChapter.toDomainChapter())
                 } else {
                     this
                 }
@@ -853,7 +853,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
         viewModelScope.launchNonCancellable {
             downloadManager.enqueueChaptersToDelete(
-                listOf(chapter.chapter.toDomainChapter()!!),
+                listOf(chapter.chapter.toDomainChapter()),
                 manga,
             )
         }
