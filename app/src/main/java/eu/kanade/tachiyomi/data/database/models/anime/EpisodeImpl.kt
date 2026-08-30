@@ -2,9 +2,9 @@
 
 package eu.kanade.tachiyomi.data.database.models.anime
 
-class EpisodeImpl : Episode {
-
-    override var id: Long? = null
+class EpisodeImpl(
+    override var id: Long,
+) : Episode {
 
     override var anime_id: Long? = null
 

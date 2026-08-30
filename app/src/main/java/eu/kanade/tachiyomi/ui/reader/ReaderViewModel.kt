@@ -221,7 +221,7 @@ class ReaderViewModel @JvmOverloads constructor(
                 } else if (!currentChapter.chapter.read) {
                     currentChapter.requestedPage = currentChapter.chapter.last_page_read
                 }
-                chapterId = currentChapter.chapter.id!!
+                chapterId = currentChapter.chapter.id
 
                 // Update assist URL for current chapter
                 viewModelScope.launchIO {
@@ -525,7 +525,7 @@ class ReaderViewModel @JvmOverloads constructor(
             )
             if (!isNextChapterDownloaded) return@launchIO
 
-            val chaptersToDownload = getNextChapters.await(manga.id, nextChapter.id!!).run {
+            val chaptersToDownload = getNextChapters.await(manga.id, nextChapter.id).run {
                 if (readerPreferences.skipDupe().get()) {
                     removeDuplicates(nextChapter.toDomainChapter())
                 } else {
@@ -544,7 +544,7 @@ class ReaderViewModel @JvmOverloads constructor(
      * if setting is enabled and [currentChapter] is queued for download
      */
     private fun cancelQueuedDownloads(currentChapter: ReaderChapter): MangaDownload? {
-        return downloadManager.getQueuedDownloadOrNull(currentChapter.chapter.id!!.toLong())?.also {
+        return downloadManager.getQueuedDownloadOrNull(currentChapter.chapter.id)?.also {
             downloadManager.cancelQueuedDownloads(listOf(it))
         }
     }
@@ -591,7 +591,7 @@ class ReaderViewModel @JvmOverloads constructor(
 
             updateChapter.await(
                 ChapterUpdate(
-                    id = readerChapter.chapter.id!!,
+                    id = readerChapter.chapter.id,
                     read = readerChapter.chapter.read,
                     lastPageRead = readerChapter.chapter.last_page_read.toLong(),
                 ),
@@ -630,7 +630,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private suspend fun updateHistory(readerChapter: ReaderChapter) {
         if (incognitoMode) return
 
-        val chapterId = readerChapter.chapter.id!!
+        val chapterId = readerChapter.chapter.id
         val readAt = Date()
         val sessionReadDuration = chapterReadStartTime?.let { readAt.time - it } ?: 0
 
@@ -686,7 +686,7 @@ class ReaderViewModel @JvmOverloads constructor(
         viewModelScope.launchNonCancellable {
             updateChapter.await(
                 ChapterUpdate(
-                    id = chapter.id!!.toLong(),
+                    id = chapter.id,
                     bookmark = bookmarked,
                 ),
             )

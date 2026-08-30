@@ -22,8 +22,7 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 class ReaderTranslationReloadTest {
 
     private fun readerChapter(lastPageRead: Int = 0): ReaderChapter {
-        val chapter = ChapterImpl().apply {
-            id = 1L
+        val chapter = ChapterImpl(id = 1L).apply {
             manga_id = 1L
             name = "Chapter 1"
             last_page_read = lastPageRead
@@ -391,7 +390,7 @@ class ReaderTranslationReloadTest {
     fun `no manga means no translation`() {
         computeHasTranslation(
             manga = null,
-            chapter = ChapterImpl().apply { name = "Chapter 1" },
+            chapter = ChapterImpl(id = -1L).apply { name = "Chapter 1" },
             sourceManager = mockk(),
             translationStorageManager = mockk(),
             targetLanguage = "en",
@@ -400,7 +399,7 @@ class ReaderTranslationReloadTest {
 
     @Test
     fun `the stored translation is looked up by chapter, manga title, source and language`() {
-        val chapter = ChapterImpl().apply {
+        val chapter = ChapterImpl(id = -1L).apply {
             name = "Chapter 1"
             scanlator = "scan"
         }

@@ -9,7 +9,7 @@ import tachiyomi.domain.items.episode.model.Episode as DomainEpisode
 
 interface Episode : SEpisode, Serializable {
 
-    var id: Long?
+    var id: Long
 
     var anime_id: Long?
 
@@ -34,7 +34,7 @@ val Episode.isRecognizedNumber: Boolean
     get() = episode_number >= 0f
 
 fun Episode.toDomainEpisode(): DomainEpisode {
-    val episodeId = id ?: throw DatabaseModelConversionException("Episode has no database id")
+    val episodeId = id
     val animeId = anime_id ?: throw DatabaseModelConversionException("Episode has no anime id")
     return DomainEpisode(
         id = episodeId,

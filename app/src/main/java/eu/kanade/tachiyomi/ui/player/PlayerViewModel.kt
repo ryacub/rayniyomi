@@ -1290,7 +1290,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                     source,
                 )
 
-                this@PlayerViewModel.episodeId = currentEpisode.id!!
+                this@PlayerViewModel.episodeId = currentEpisode.id
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { e.message ?: "Error getting links" }
             }
@@ -1353,7 +1353,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                     episode.isRecognizedNumber &&
                     episode.episode_number == currentEp.episode_number
                 ) {
-                    EpisodeUpdate(id = episode.id!!, seen = true)
+                    EpisodeUpdate(id = episode.id, seen = true)
                 } else {
                     null
                 }
@@ -1378,7 +1378,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
             if (!episodesAreDownloaded) {
                 return@launchIO
             }
-            val episodesToDownload = getNextEpisodes.await(anime.id, nextEpisode.id!!)
+            val episodesToDownload = getNextEpisodes.await(anime.id, nextEpisode.id)
                 .take(downloadAheadAmount)
             downloadManager.downloadEpisodes(anime, episodesToDownload)
         }
@@ -1427,7 +1427,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
         if (!incognitoMode || hasTrackers) {
             updateEpisode.await(
                 EpisodeUpdate(
-                    id = episode.id!!,
+                    id = episode.id,
                     seen = episode.seen,
                     bookmark = episode.bookmark,
                     fillermark = episode.fillermark,
@@ -1443,7 +1443,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
      */
     private suspend fun saveEpisodeHistory(episode: Episode) {
         if (!incognitoMode) {
-            val episodeId = episode.id!!
+            val episodeId = episode.id
             val seenAt = Date()
             upsertHistory.await(
                 AnimeHistoryUpdate(episodeId, seenAt),

@@ -38,8 +38,7 @@ class DownloadPageLoaderTranslationTest {
     private val targetLanguage = mockk<Preference<String>>()
     private val manga = Manga.create().copy(id = 1L, source = 2L, title = "Test Manga")
     private val chapter = ReaderChapter(
-        ChapterImpl().apply {
-            id = 3L
+        ChapterImpl(id = 3L).apply {
             manga_id = manga.id
             url = "chapter-1"
             name = "Chapter 1"
