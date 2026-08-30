@@ -2,9 +2,9 @@
 
 package eu.kanade.tachiyomi.data.database.models.manga
 
-class ChapterImpl : Chapter {
-
-    override var id: Long? = null
+class ChapterImpl(
+    override var id: Long,
+) : Chapter {
 
     override var manga_id: Long? = null
 

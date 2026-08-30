@@ -32,8 +32,7 @@ fun Episode.copyFromSEpisode(sEpisode: SEpisode): Episode {
     )
 }
 
-fun Episode.toDbEpisode(): DbEpisode = EpisodeImpl().also {
-    it.id = id
+fun Episode.toDbEpisode(): DbEpisode = EpisodeImpl(id).also {
     it.anime_id = animeId
     it.url = url
     it.name = name

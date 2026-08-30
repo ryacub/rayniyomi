@@ -9,7 +9,7 @@ import tachiyomi.domain.items.chapter.model.Chapter as DomainChapter
 
 interface Chapter : SChapter, Serializable {
 
-    var id: Long?
+    var id: Long
 
     var manga_id: Long?
 
@@ -32,7 +32,7 @@ val Chapter.isRecognizedNumber: Boolean
     get() = chapter_number >= 0f
 
 fun Chapter.toDomainChapter(): DomainChapter {
-    val chapterId = id ?: throw DatabaseModelConversionException("Chapter has no database id")
+    val chapterId = id
     val mangaId = manga_id ?: throw DatabaseModelConversionException("Chapter has no manga id")
     return DomainChapter(
         id = chapterId,

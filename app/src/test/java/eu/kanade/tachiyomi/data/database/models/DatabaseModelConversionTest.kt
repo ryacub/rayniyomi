@@ -10,22 +10,16 @@ import org.junit.jupiter.api.assertThrows
 class DatabaseModelConversionTest {
 
     @Test
-    fun `episode conversion rejects missing identifiers`() {
+    fun `episode conversion rejects missing parent identifier`() {
         assertThrows<DatabaseModelConversionException> {
-            EpisodeImpl().apply { anime_id = 1L }.toDomainEpisode()
-        }
-        assertThrows<DatabaseModelConversionException> {
-            EpisodeImpl().apply { id = 1L }.toDomainEpisode()
+            EpisodeImpl(id = 1L).toDomainEpisode()
         }
     }
 
     @Test
-    fun `chapter conversion rejects missing identifiers`() {
+    fun `chapter conversion rejects missing parent identifier`() {
         assertThrows<DatabaseModelConversionException> {
-            ChapterImpl().apply { manga_id = 1L }.toDomainChapter()
-        }
-        assertThrows<DatabaseModelConversionException> {
-            ChapterImpl().apply { id = 1L }.toDomainChapter()
+            ChapterImpl(id = 1L).toDomainChapter()
         }
     }
 }

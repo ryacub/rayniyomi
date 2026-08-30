@@ -26,8 +26,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
     )
 }
 
-fun Chapter.toDbChapter(): DbChapter = ChapterImpl().also {
-    it.id = id
+fun Chapter.toDbChapter(): DbChapter = ChapterImpl(id).also {
     it.manga_id = mangaId
     it.url = url
     it.name = name

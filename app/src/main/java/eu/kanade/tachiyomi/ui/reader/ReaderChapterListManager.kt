@@ -89,7 +89,7 @@ internal class ReaderChapterListManager(
                     chapter.isRecognizedNumber &&
                     chapter.chapter_number == readerChapter.chapter.chapter_number
                 ) {
-                    ChapterUpdate(id = chapter.id!!, read = true)
+                    ChapterUpdate(id = chapter.id, read = true)
                 } else {
                     null
                 }

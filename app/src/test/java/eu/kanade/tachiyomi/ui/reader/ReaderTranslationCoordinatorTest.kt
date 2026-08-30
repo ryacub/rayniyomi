@@ -123,8 +123,7 @@ class ReaderTranslationCoordinatorTest {
 
     private fun readerChapter(id: Long, name: String): ReaderChapter =
         ReaderChapter(
-            ChapterImpl().apply {
-                this.id = id
+            ChapterImpl(id = id).apply {
                 manga_id = 1L
                 this.name = name
             },
