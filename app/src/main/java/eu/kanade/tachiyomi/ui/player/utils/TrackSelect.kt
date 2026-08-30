@@ -33,7 +33,11 @@ class TrackSelect(
         }.split(",").filter(String::isNotEmpty).map(String::trim)
 
         val locales = prefLangs.map(::Locale).ifEmpty {
-            listOf(LocaleListCompat.getDefault()[0]!!)
+            listOf(
+                checkNotNull(LocaleListCompat.getDefault()[0]) {
+                    "Default locale list is empty"
+                },
+            )
         }
 
         val chosenLocale = locales.firstOrNull { locale ->
