@@ -113,7 +113,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             onStatusClick = {
                 navigator.push(
                     TrackStatusSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -121,7 +121,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             onEpisodeClick = {
                 navigator.push(
                     TrackEpisodeSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -129,7 +129,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             onScoreClick = {
                 navigator.push(
                     TrackScoreSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -137,7 +137,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             onStartDateEdit = {
                 navigator.push(
                     TrackDateSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                         start = true,
                     ),
@@ -146,7 +146,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             onEndDateEdit = {
                 navigator.push(
                     TrackDateSelectorScreen(
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                         start = false,
                     ),
@@ -156,11 +156,12 @@ data class AnimeTrackInfoDialogHomeScreen(
                 if (it.tracker is EnhancedAnimeTracker) {
                     screenModel.registerEnhancedTracking(it)
                 } else {
+                    val track = (it as? AnimeTrackInfoItem.Tracked)?.track
                     navigator.push(
                         TrackServiceSearchScreen(
                             animeId = animeId,
-                            initialQuery = it.track?.title ?: animeTitle,
-                            currentUrl = it.track?.remoteUrl,
+                            initialQuery = track?.title ?: animeTitle,
+                            currentUrl = track?.remoteUrl,
                             serviceId = it.tracker.id,
                         ),
                     )
@@ -171,7 +172,7 @@ data class AnimeTrackInfoDialogHomeScreen(
                 navigator.push(
                     TrackerAnimeRemoveScreen(
                         animeId = animeId,
-                        track = it.track!!,
+                        track = it.track,
                         serviceId = it.tracker.id,
                     ),
                 )
@@ -184,15 +185,15 @@ data class AnimeTrackInfoDialogHomeScreen(
     /**
      * Opens registered tracker url in browser
      */
-    private fun openTrackerInBrowser(context: Context, trackItem: AnimeTrackItem) {
-        val url = trackItem.track?.remoteUrl ?: return
+    private fun openTrackerInBrowser(context: Context, trackItem: AnimeTrackInfoItem.Tracked) {
+        val url = trackItem.track.remoteUrl
         if (url.isNotBlank()) {
             context.openInBrowser(url)
         }
     }
 
-    private fun Context.copyTrackerLink(trackItem: AnimeTrackItem) {
-        val url = trackItem.track?.remoteUrl ?: return
+    private fun Context.copyTrackerLink(trackItem: AnimeTrackInfoItem.Tracked) {
+        val url = trackItem.track.remoteUrl
         if (url.isNotBlank()) {
             copyToClipboard(url, url)
         }
@@ -224,12 +225,12 @@ data class AnimeTrackInfoDialogHomeScreen(
             }
         }
 
-        fun registerEnhancedTracking(item: AnimeTrackItem) {
-            item.tracker as EnhancedAnimeTracker
+        fun registerEnhancedTracking(item: AnimeTrackInfoItem) {
+            val tracker = item.tracker as EnhancedAnimeTracker
             screenModelScope.launchNonCancellable {
                 val anime = Injekt.get<GetAnime>().await(animeId) ?: return@launchNonCancellable
                 try {
-                    val matchResult = item.tracker.match(anime) ?: throw Exception()
+                    val matchResult = tracker.match(anime) ?: throw Exception()
                     item.tracker.animeService.register(matchResult, animeId)
                 } catch (e: Exception) {
                     withUIContext { Injekt.get<Application>().toast(MR.strings.error_no_match) }
@@ -242,16 +243,16 @@ data class AnimeTrackInfoDialogHomeScreen(
             val context = Injekt.get<Application>()
 
             refreshTracks.await(animeId)
-                .filter { it.first != null }
                 .forEach { (track, e) ->
+                    val tracker = track ?: return@forEach
                     logcat(LogPriority.ERROR, e) {
-                        "Failed to refresh track data mangaId=$animeId for service ${track!!.id}"
+                        "Failed to refresh track data mangaId=$animeId for service ${tracker.id}"
                     }
                     withUIContext {
                         context.toast(
                             context.stringResource(
                                 MR.strings.track_error,
-                                track!!.name,
+                                tracker.name,
                                 e.message ?: "",
                             ),
                         )
@@ -259,27 +260,31 @@ data class AnimeTrackInfoDialogHomeScreen(
                 }
         }
 
-        fun togglePrivate(item: AnimeTrackItem) {
+        fun togglePrivate(item: AnimeTrackInfoItem.Tracked) {
             screenModelScope.launchNonCancellable {
-                (item.tracker as? AnimeTracker)?.setRemotePrivate(item.track!!.toDbTrack(), !item.track.private)
+                (item.tracker as? AnimeTracker)?.setRemotePrivate(item.track.toDbTrack(), !item.track.private)
             }
         }
 
-        private fun List<AnimeTrack>.mapToTrackItem(): List<AnimeTrackItem> {
+        private fun List<AnimeTrack>.mapToTrackItem(): List<AnimeTrackInfoItem> {
             val loggedInTrackers = Injekt.get<TrackerManager>().loggedInTrackers().filter {
                 it is AnimeTracker
             }
             val source = Injekt.get<AnimeSourceManager>().getOrStub(sourceId)
             return loggedInTrackers
                 // Map to TrackItem
-                .map { service -> AnimeTrackItem(find { it.trackerId == service.id }, service) }
+                .map { service ->
+                    find { it.trackerId == service.id }
+                        ?.let { AnimeTrackInfoItem.Tracked(it, service) }
+                        ?: AnimeTrackInfoItem.Untracked(service)
+                }
                 // Show only if the service supports this anime's source
                 .filter { (it.tracker as? EnhancedAnimeTracker)?.accept(source) ?: true }
         }
 
         @Immutable
         data class State(
-            val trackItems: List<AnimeTrackItem> = emptyList(),
+            val trackItems: List<AnimeTrackInfoItem> = emptyList(),
         )
     }
 }
