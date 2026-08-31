@@ -32,6 +32,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 - Stabilize the translation model picker refresh test by holding the refresh loader until the loading state is observed.
+- Fail pull request checks when production Kotlin sources add a new non-null assertion.
 
 ### Other
 

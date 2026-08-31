@@ -4,14 +4,160 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+
+abstract class CheckNullAssertionsTask : DefaultTask() {
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceFiles: ConfigurableFileCollection
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val baselineFile: RegularFileProperty
+
+    @get:Internal
+    abstract val projectDirectory: DirectoryProperty
+
+    @TaskAction
+    fun check() {
+        val baseline = baselineFile.get().asFile.readLines()
+            .asSequence()
+            .filter { it.isNotBlank() && !it.startsWith("#") }
+            .groupingBy { it }
+            .eachCount()
+            .toMutableMap()
+        val projectDir = projectDirectory.get().asFile
+        val violations = mutableListOf<String>()
+
+        sourceFiles.asFileTree.matching { include("**/*.kt") }
+            .files
+            .sortedBy { it.path }
+            .forEach { file ->
+                val lines = file.readLines()
+                val relativePath = file.relativeTo(projectDir).invariantSeparatorsPath
+                findNullAssertions(lines).forEach { lineNumber ->
+                    val line = lines[lineNumber - 1].trim()
+                    val fingerprint = "$relativePath\t$line"
+                    val remaining = baseline[fingerprint] ?: 0
+                    if (remaining == 0) {
+                        violations.add("$relativePath:$lineNumber: $line")
+                    } else {
+                        baseline[fingerprint] = remaining - 1
+                    }
+                }
+            }
+
+        val staleBaseline = baseline.filterValues { it > 0 }.keys
+        if (violations.isNotEmpty() || staleBaseline.isNotEmpty()) {
+            violations.forEach { logger.error("NULL_ASSERTION: $it") }
+            staleBaseline.forEach { logger.error("STALE_NULL_ASSERTION_BASELINE: $it") }
+            throw GradleException(
+                "Found ${violations.size} new production null assertion(s) and " +
+                    "${staleBaseline.sumOf { baseline[it] ?: 0 }} stale baseline entry(ies). " +
+                    "Remove `!!`, or update scripts/null_assertion_baseline.txt only for " +
+                    "pre-existing assertions.",
+            )
+        } else {
+            logger.lifecycle("checkNullAssertions: No new production null assertions found ✓")
+        }
+    }
+
+    private fun findNullAssertions(lines: List<String>): List<Int> {
+        val assertions = mutableListOf<Int>()
+        var state = ScanState.CODE
+        var blockCommentDepth = 0
+
+        lines.forEachIndexed { index, line ->
+            var offset = 0
+            while (offset < line.length) {
+                when (state) {
+                    ScanState.CODE -> when {
+                        line.startsWith("//", offset) -> offset = line.length
+                        line.startsWith("/*", offset) -> {
+                            state = ScanState.BLOCK_COMMENT
+                            blockCommentDepth = 1
+                            offset += 2
+                        }
+                        line.startsWith("\"\"\"", offset) -> {
+                            state = ScanState.TRIPLE_QUOTE
+                            offset += 3
+                        }
+                        line[offset] == '\"' -> {
+                            state = ScanState.STRING
+                            offset += 1
+                        }
+                        line[offset] == '\'' -> {
+                            state = ScanState.CHARACTER
+                            offset += 1
+                        }
+                        line.startsWith("!!", offset) -> {
+                            assertions.add(index + 1)
+                            offset += 2
+                        }
+                        else -> offset += 1
+                    }
+                    ScanState.BLOCK_COMMENT -> when {
+                        line.startsWith("/*", offset) -> {
+                            blockCommentDepth += 1
+                            offset += 2
+                        }
+                        line.startsWith("*/", offset) -> {
+                            blockCommentDepth -= 1
+                            offset += 2
+                            if (blockCommentDepth == 0) state = ScanState.CODE
+                        }
+                        else -> offset += 1
+                    }
+                    ScanState.TRIPLE_QUOTE -> if (line.startsWith("\"\"\"", offset)) {
+                        state = ScanState.CODE
+                        offset += 3
+                    } else {
+                        offset += 1
+                    }
+                    ScanState.STRING -> when {
+                        line[offset] == '\\' -> offset += 2
+                        line[offset] == '\"' -> {
+                            state = ScanState.CODE
+                            offset += 1
+                        }
+                        else -> offset += 1
+                    }
+                    ScanState.CHARACTER -> when {
+                        line[offset] == '\\' -> offset += 2
+                        line[offset] == '\'' -> {
+                            state = ScanState.CODE
+                            offset += 1
+                        }
+                        else -> offset += 1
+                    }
+                }
+            }
+            if (state == ScanState.STRING || state == ScanState.CHARACTER) {
+                state = ScanState.CODE
+            }
+        }
+        return assertions
+    }
+
+    private enum class ScanState {
+        CODE,
+        BLOCK_COMMENT,
+        TRIPLE_QUOTE,
+        STRING,
+        CHARACTER,
+    }
+}
 
 abstract class CheckBlockingCallsTask : DefaultTask() {
 
