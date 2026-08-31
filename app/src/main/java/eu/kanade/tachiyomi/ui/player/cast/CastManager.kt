@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.cast
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
@@ -156,12 +157,14 @@ class CastManager(
     fun seekTo(positionMs: Long) {
         castSession?.remoteMediaClient?.seek(positionMs)
     }
+
     fun setPlaybackRate(rate: Double) {
-        TODO("R1033")
+        castSession?.remoteMediaClient?.setPlaybackRate(rate)
     }
 
     fun isPlaybackRateSupported(): Boolean {
-        TODO("R1033")
+        val status = castSession?.remoteMediaClient?.mediaStatus ?: return false
+        return status.isMediaCommandSupported(MediaStatus.COMMAND_PLAYBACK_RATE)
     }
 
     fun disconnect() {
