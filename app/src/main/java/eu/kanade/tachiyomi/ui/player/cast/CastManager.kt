@@ -156,6 +156,13 @@ class CastManager(
     fun seekTo(positionMs: Long) {
         castSession?.remoteMediaClient?.seek(positionMs)
     }
+    fun setPlaybackRate(rate: Double) {
+        TODO("R1033")
+    }
+
+    fun isPlaybackRateSupported(): Boolean {
+        TODO("R1033")
+    }
 
     fun disconnect() {
         getSessionManager()?.endCurrentSession(true)
