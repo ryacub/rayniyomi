@@ -6,7 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -161,14 +161,14 @@ class PlaybackSpeedControllerTest {
     @Test
     fun `local speed is restored when the cast session ends`() = runTest {
         controller.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
         playbackSpeed.value = 1.25f
         startCasting()
-        advanceUntilIdle()
+        runCurrent()
         controller.setSpeed(2.0f)
         every { castManager.isCastSessionActive() } returns false
         castState.value = CastState.DISCONNECTED
-        advanceUntilIdle()
+        runCurrent()
 
         verify { sink.apply(1.25f) }
         assertEquals(1.25f, playbackSpeed.value)
@@ -177,13 +177,13 @@ class PlaybackSpeedControllerTest {
     @Test
     fun `the speed control is available again after the cast session ends`() = runTest {
         controller.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
         controller.onReceiverStatus(1.0, false)
         startCasting()
-        advanceUntilIdle()
+        runCurrent()
         every { castManager.isCastSessionActive() } returns false
         castState.value = CastState.DISCONNECTED
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(controller.isSpeedControlAvailable.value)
     }

@@ -7,5 +7,6 @@ object CastPlaybackRate {
     // Mirrors MediaLoadOptions.PLAYBACK_RATE_MAX.
     const val MAX = 2.0f
 
-    fun clamp(rate: Float): Float = TODO("R1033")
+    /** Clamps [rate] to the range the Cast SDK accepts for playback rate. */
+    fun clamp(rate: Float): Float = rate.coerceIn(MIN, MAX)
 }
