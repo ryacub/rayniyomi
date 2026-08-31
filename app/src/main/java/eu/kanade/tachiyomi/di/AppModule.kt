@@ -268,7 +268,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { LightNovelPluginStateManager(app, get(), get()) }
 
         addSingletonFactory { ExternalIntents() }
-        addSingletonFactory { CastManager(app) }
+        addSingletonFactory { CastManager(app, get()) }
 
         // Asynchronously init expensive components for a faster cold start
         ContextCompat.getMainExecutor(app).execute {

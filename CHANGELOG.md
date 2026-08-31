@@ -17,6 +17,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Added privacy-safe aggregate translation run telemetry for coverage, retries, duration, and failure classes.
 ### Improved
 
+- Cast now proxies header-dependent progressive streams through a temporary local HTTP endpoint.
+
 ### Fixed
 - Tracker sync now reports malformed AniList, Jellyfin, Kavita, and Simkl responses instead of crashing or unlinking entries.
 - Malformed extension metadata no longer crashes extension loading.

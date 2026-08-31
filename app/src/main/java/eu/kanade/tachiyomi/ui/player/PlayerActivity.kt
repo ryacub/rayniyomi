@@ -1043,7 +1043,14 @@ class PlayerActivity : BaseActivity() {
             val episode = viewModel.currentEpisode.value?.toDomainEpisode()
             val anime = viewModel.currentAnime.value
             if (episode != null && anime != null) {
-                castManager.loadMedia(video, episode, anime, position ?: 0L)
+                val sourceHeaders = (viewModel.currentSource.value as? AnimeHttpSource)?.headers
+                castManager.loadMedia(
+                    video,
+                    episode,
+                    anime,
+                    position ?: 0L,
+                    video.headers ?: sourceHeaders,
+                )
                 return
             }
         }
