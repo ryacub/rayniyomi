@@ -66,7 +66,8 @@ abstract class CheckNullAssertionsTask : DefaultTask() {
                 "Found ${violations.size} new production null assertion(s) and " +
                     "${staleBaseline.sumOf { baseline[it] ?: 0 }} stale baseline entry(ies). " +
                     "Remove `!!`, or update scripts/null_assertion_baseline.txt only for " +
-                    "pre-existing assertions.",
+                    "pre-existing assertions. See docs/null-assertion-baseline.md for " +
+                    "baseline maintenance rules.",
             )
         } else {
             logger.lifecycle("checkNullAssertions: No new production null assertions found ✓")
