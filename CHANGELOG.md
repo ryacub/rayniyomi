@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Tracker sync now reports malformed AniList, Jellyfin, Kavita, and Simkl responses instead of crashing or unlinking entries.
 - The outgoing page no longer appears mirrored during a left-to-right page curl.
 - Rapid taps during a page curl now queue and play as sequential curls instead of falling back to slide transitions.
 - Chapter translation now records each page outcome. Valid no-text pages remain resolved, while unreadable pages, invalid provider output, and storage failures report incomplete coverage and resume safely.

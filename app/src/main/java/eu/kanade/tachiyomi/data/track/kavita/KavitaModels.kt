@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.track.kavita
 
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import kotlinx.serialization.Serializable
@@ -45,7 +46,7 @@ data class VolumeDto(
 data class ChapterDto(
     val id: Int? = -1,
     val range: String? = "",
-    val number: String? = "-1",
+    val number: String? = null,
     val pages: Int? = 0,
     val isSpecial: Boolean? = false,
     val title: String? = "",
@@ -54,6 +55,9 @@ data class ChapterDto(
     val volumeId: Int? = -1,
     val created: String? = "",
 )
+
+internal fun ChapterDto.requireNumber(): String = number
+    ?: throw MalformedTrackerResponseException("Kavita", "chapter number")
 
 @Serializable
 data class AuthenticationDto(

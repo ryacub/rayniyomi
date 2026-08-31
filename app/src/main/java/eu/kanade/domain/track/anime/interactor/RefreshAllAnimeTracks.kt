@@ -6,6 +6,7 @@ import eu.kanade.domain.track.interactor.TrackSyncConflictResolver
 import eu.kanade.domain.track.service.MediaType
 import eu.kanade.domain.track.service.TrackerSyncFailure
 import eu.kanade.tachiyomi.data.track.AnimeTracker
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
@@ -59,7 +60,7 @@ class RefreshAllAnimeTracks(
                 insertTrack.await(resolution.mergedTrack)
                 syncedCount++
             } catch (e: Throwable) {
-                if (isDeletedRemoteEntry(e)) {
+                if (e !is MalformedTrackerResponseException && isDeletedRemoteEntry(e)) {
                     deleteTrack.await(localTrack.animeId, localTrack.trackerId)
                     unlinkedCount++
                 } else {

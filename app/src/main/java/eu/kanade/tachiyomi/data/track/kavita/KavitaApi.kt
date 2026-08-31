@@ -109,10 +109,11 @@ class KavitaApi(private val client: OkHttpClient, interceptor: KavitaInterceptor
             var volumeNumber = 0L
             var maxChapterNumber = 0L
             for (volume in listVolumeDto) {
-                if (volume.chapters.maxOf { it.number!!.toFloat() } == 0f) {
+                val maxChapterNumberInVolume = volume.chapters.maxOf { it.requireNumber().toFloat() }
+                if (maxChapterNumberInVolume == 0f) {
                     volumeNumber++
-                } else if (maxChapterNumber < volume.chapters.maxOf { it.number!!.toFloat() }) {
-                    maxChapterNumber = volume.chapters.maxOf { it.number!!.toFloat().toLong() }
+                } else if (maxChapterNumber < maxChapterNumberInVolume) {
+                    maxChapterNumber = maxChapterNumberInVolume.toLong()
                 }
             }
 
@@ -130,7 +131,7 @@ class KavitaApi(private val client: OkHttpClient, interceptor: KavitaInterceptor
             with(json) {
                 authClient.newCall(GET(requestUrl)).execute().use {
                     if (it.code == 200) {
-                        return it.parseAs<ChapterDto>().number!!.replace(",", ".").toDouble()
+                        return it.parseAs<ChapterDto>().requireNumber().replace(",", ".").toDouble()
                     }
                     if (it.code == 204) {
                         return 0.0

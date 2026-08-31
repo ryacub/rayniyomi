@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.track.jellyfin
 
 import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.jellyfin.dto.JFItem
 import eu.kanade.tachiyomi.data.track.jellyfin.dto.JFItemList
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
@@ -92,7 +93,8 @@ class JellyfinApi(
                 .parseAs<JFItemList>()
         }.items
 
-        val totalEpisodes = episodes.last().indexNumber!!
+        val totalEpisodes = episodes.lastOrNull()?.requireIndexNumber()
+            ?: throw MalformedTrackerResponseException("Jellyfin", "episode list")
         val firstUnwatched = episodes.indexOfFirst { !it.userData.played }
 
         if (firstUnwatched == 0) {
@@ -111,7 +113,7 @@ class JellyfinApi(
             }
         }
 
-        val lastContinuousSeen = episodes[firstUnwatched - 1].indexNumber!!
+        val lastContinuousSeen = episodes[firstUnwatched - 1].requireIndexNumber()
 
         return track.apply {
             this.total_episodes = totalEpisodes
@@ -134,8 +136,9 @@ class JellyfinApi(
                     .parseAs<JFItemList>()
             }.items
 
+            episodes.forEach { it.requireIndexNumber() }
             episodes.firstOrNull {
-                it.indexNumber!!.equalsTo(track.last_episode_seen)
+                it.requireIndexNumber().equalsTo(track.last_episode_seen)
             }?.id
         }
 
@@ -166,3 +169,6 @@ class JellyfinApi(
         private val DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
     }
 }
+
+internal fun JFItem.requireIndexNumber(): Long = indexNumber
+    ?: throw MalformedTrackerResponseException("Jellyfin", "episode index number")

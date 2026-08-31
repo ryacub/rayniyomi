@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.track.anilist.dto
 
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -14,8 +15,8 @@ data class ALSearchItem(
     val chapters: Long?,
     val episodes: Long?,
     val averageScore: Int?,
-    val staff: ALStaff?,
-    val studios: ALStudios?,
+    val staff: ALStaff? = null,
+    val studios: ALStudios? = null,
 ) {
     fun toALManga(): ALManga = ALManga(
         remoteId = id,
@@ -27,7 +28,7 @@ data class ALSearchItem(
         startDateFuzzy = startDate.toEpochMilli(),
         totalChapters = chapters ?: 0,
         averageScore = averageScore ?: -1,
-        staff = staff!!,
+        staff = staff ?: throw MalformedTrackerResponseException("AniList", "manga staff"),
     )
 
     fun toALAnime(): ALAnime = ALAnime(
@@ -40,7 +41,7 @@ data class ALSearchItem(
         startDateFuzzy = startDate.toEpochMilli(),
         totalEpisodes = episodes ?: 0,
         averageScore = averageScore ?: -1,
-        studios = studios!!,
+        studios = studios ?: throw MalformedTrackerResponseException("AniList", "anime studios"),
     )
 }
 

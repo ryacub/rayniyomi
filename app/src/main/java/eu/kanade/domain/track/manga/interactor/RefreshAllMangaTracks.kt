@@ -5,6 +5,7 @@ import eu.kanade.domain.track.manga.model.toDbTrack
 import eu.kanade.domain.track.manga.model.toDomainTrack
 import eu.kanade.domain.track.service.MediaType
 import eu.kanade.domain.track.service.TrackerSyncFailure
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
@@ -59,7 +60,7 @@ class RefreshAllMangaTracks(
                 insertTrack.await(resolution.mergedTrack)
                 syncedCount++
             } catch (e: Throwable) {
-                if (isDeletedRemoteEntry(e)) {
+                if (e !is MalformedTrackerResponseException && isDeletedRemoteEntry(e)) {
                     deleteTrack.await(localTrack.mangaId, localTrack.trackerId)
                     unlinkedCount++
                 } else {
