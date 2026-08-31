@@ -82,7 +82,10 @@ internal object AnimeExtensionLoader {
                 return false
             }
 
-            if (!extensionSignatures.containsAll(getSignatures(currentExtension)!!)) {
+            val currentExtensionSignatures = getSignatures(currentExtension)
+            if (currentExtensionSignatures.isNullOrEmpty() ||
+                !extensionSignatures.containsAll(currentExtensionSignatures)
+            ) {
                 logcat(LogPriority.ERROR) { "Installed extension signature is not matched." }
                 return false
             }
@@ -145,7 +148,7 @@ internal object AnimeExtensionLoader {
 
                 val path = it.absolutePath
                 pkgManager.getPackageArchiveInfo(path, PACKAGE_FLAGS)
-                    ?.apply { applicationInfo!!.fixBasePaths(path) }
+                    ?.apply { applicationInfo?.fixBasePaths(path) }
             }
             ?.filter { isPackageAnExtension(it) }
             ?.map { AnimeExtensionInfo(packageInfo = it, isShared = false) }
@@ -180,7 +183,7 @@ internal object AnimeExtensionLoader {
         val extensionPackage = getAnimeExtensionInfoFromPkgName(context, pkgName)
         if (extensionPackage == null) {
             logcat(LogPriority.ERROR) { "Extension package is not found ($pkgName)" }
-            return AnimeLoadResult.Error
+            return AnimeLoadResult.Error("Failed to load extension $pkgName: package is not found")
         }
         return loadExtension(context, extensionPackage)
     }
@@ -201,7 +204,7 @@ internal object AnimeExtensionLoader {
             )
                 ?.takeIf { isPackageAnExtension(it) }
                 ?.let {
-                    it.applicationInfo!!.fixBasePaths(privateExtensionFile.absolutePath)
+                    it.applicationInfo?.fixBasePaths(privateExtensionFile.absolutePath)
                     AnimeExtensionInfo(
                         packageInfo = it,
                         isShared = false,
@@ -237,18 +240,19 @@ internal object AnimeExtensionLoader {
         val pkgManager = context.packageManager
 
         val pkgInfo = extensionInfo.packageInfo
-        val appInfo = pkgInfo.applicationInfo!!
         val pkgName = pkgInfo.packageName
+        val appInfo = pkgInfo.applicationInfo ?: return loadError(pkgName, "missing application info")
 
         val extName = pkgManager.getApplicationLabel(appInfo).toString()
             .substringAfter("Rayniyomi: ")
             .substringAfter("Aniyomi: ")
+        val metadata = appInfo.metaData ?: return loadError(extName, "missing metadata")
         val versionName = pkgInfo.versionName
         val versionCode = PackageInfoCompat.getLongVersionCode(pkgInfo)
 
         if (versionName.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "Missing versionName for extension $extName" }
-            return AnimeLoadResult.Error
+            return loadError(extName, "missing version name")
         }
 
         // Validate lib version
@@ -258,13 +262,30 @@ internal object AnimeExtensionLoader {
                 "Lib version is $libVersion, while only versions " +
                     "$LIB_VERSION_MIN to $LIB_VERSION_MAX are allowed"
             }
-            return AnimeLoadResult.Error
+            return loadError(extName, "unsupported library version")
+        }
+
+        val isNsfw = when (val value = metadata.get(METADATA_NSFW)) {
+            null -> false
+            is Int -> value == 1
+            else -> return loadError(extName, "malformed metadata")
+        }
+        val sourceClassMetadata = when (val value = metadata.get(METADATA_SOURCE_CLASS)) {
+            null -> return loadError(extName, "missing source class metadata")
+            is String -> value.takeIf { it.isNotBlank() }
+                ?: return loadError(extName, "malformed metadata")
+            else -> return loadError(extName, "malformed metadata")
+        }
+        val pkgFactory = when (val value = metadata.get(METADATA_SOURCE_FACTORY)) {
+            null -> null
+            is String -> value
+            else -> return loadError(extName, "malformed metadata")
         }
 
         val signatures = getSignatures(pkgInfo)
         if (signatures.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "Package $pkgName isn't signed" }
-            return AnimeLoadResult.Error
+            return loadError(extName, "package is not signed")
         }
         val signatureHash = signatures.first()
         if (!trustExtension.isTrusted(pkgInfo, signatures)) {
@@ -280,23 +301,16 @@ internal object AnimeExtensionLoader {
             return AnimeLoadResult.Untrusted(extension)
         }
 
-        val isNsfw = appInfo.metaData.getInt(METADATA_NSFW) == 1
         if (!loadNsfwSource && isNsfw) {
             logcat(LogPriority.WARN) { "NSFW extension $pkgName not allowed" }
-            return AnimeLoadResult.Error
+            return loadError(extName, "NSFW extensions are disabled")
         }
 
         val classLoader = try {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($pkgName)" }
-            return AnimeLoadResult.Error
-        }
-
-        val sourceClassMetadata = appInfo.metaData.getString(METADATA_SOURCE_CLASS)
-        if (sourceClassMetadata.isNullOrBlank()) {
-            logcat(LogPriority.ERROR) { "Extension load error: $extName (missing $METADATA_SOURCE_CLASS)" }
-            return AnimeLoadResult.Error
+            return loadError(extName, "source class loader failed")
         }
 
         val sources = sourceClassMetadata
@@ -336,7 +350,7 @@ internal object AnimeExtensionLoader {
                             else -> throw Exception("Unknown source class type: ${obj.javaClass}")
                         }
                     },
-                ) ?: return AnimeLoadResult.Error
+                ) ?: return loadError(extName, "source failed to load")
             }
 
         val langs = sources.filterIsInstance<AnimeCatalogueSource>()
@@ -357,12 +371,18 @@ internal object AnimeExtensionLoader {
             lang = lang,
             isNsfw = isNsfw,
             sources = sources,
-            pkgFactory = appInfo.metaData.getString(METADATA_SOURCE_FACTORY),
+            pkgFactory = pkgFactory,
             icon = appInfo.loadIcon(pkgManager),
             isShared = extensionInfo.isShared,
             signatureHash = signatureHash,
         )
         return AnimeLoadResult.Success(extension)
+    }
+
+    private fun loadError(extensionName: String, reason: String): AnimeLoadResult.Error {
+        val message = "Failed to load extension $extensionName: $reason"
+        logcat(LogPriority.ERROR) { message }
+        return AnimeLoadResult.Error(message)
     }
 
     internal fun instantiateSources(
@@ -391,18 +411,15 @@ internal object AnimeExtensionLoader {
      * @param private extension installed to data directory
      */
     private fun selectExtensionPackage(shared: AnimeExtensionInfo?, private: AnimeExtensionInfo?): AnimeExtensionInfo? {
-        when {
-            private == null && shared != null -> return shared
-            shared == null && private != null -> return private
-            shared == null && private == null -> return null
-        }
+        val sharedPackage = shared ?: return private
+        val privatePackage = private ?: return shared
 
-        return if (PackageInfoCompat.getLongVersionCode(shared!!.packageInfo) >=
-            PackageInfoCompat.getLongVersionCode(private!!.packageInfo)
+        return if (PackageInfoCompat.getLongVersionCode(sharedPackage.packageInfo) >=
+            PackageInfoCompat.getLongVersionCode(privatePackage.packageInfo)
         ) {
-            shared
+            sharedPackage
         } else {
-            private
+            privatePackage
         }
     }
 
@@ -423,7 +440,7 @@ internal object AnimeExtensionLoader {
      */
     private fun getSignatures(pkgInfo: PackageInfo): List<String>? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val signingInfo = pkgInfo.signingInfo!!
+            val signingInfo = pkgInfo.signingInfo ?: return null
             if (signingInfo.hasMultipleSigners()) {
                 signingInfo.apkContentsSigners
             } else {
