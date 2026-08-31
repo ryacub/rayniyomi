@@ -6,12 +6,12 @@ import java.time.ZoneId
 
 @Serializable
 data class ALFuzzyDate(
-    val year: Int?,
-    val month: Int?,
-    val day: Int?,
+    val year: Int? = null,
+    val month: Int? = null,
+    val day: Int? = null,
 ) {
     fun toEpochMilli(): Long = try {
-        LocalDate.of(year!!, month!!, day!!)
+        LocalDate.of(year ?: return 0L, month ?: return 0L, day ?: return 0L)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()

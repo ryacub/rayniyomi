@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.track.simkl.dto
 
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.simkl.SimklApi.Companion.POSTERS_URL
@@ -25,7 +26,8 @@ data class SimklSearchResult(
     fun toTrackSearch(fallbackType: String): AnimeTrackSearch {
         return AnimeTrackSearch.create(TrackerManager.SIMKL).apply {
             remote_id = ids.simklId
-            title = titleRomaji ?: this@SimklSearchResult.title!!
+            title = titleRomaji ?: this@SimklSearchResult.title
+                ?: throw MalformedTrackerResponseException("Simkl", "title")
             total_episodes = epCount ?: 1
             cover_url = poster?.let { "$POSTERS_URL${it}_m.webp" } ?: ""
             summary = allTitles?.joinToString("\n", prefix = "All titles:\n") ?: ""

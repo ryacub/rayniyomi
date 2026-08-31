@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableAnimeTracker
 import eu.kanade.tachiyomi.data.track.DeletableMangaTracker
+import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALOAuth
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
@@ -211,7 +212,7 @@ class Anilist(id: Long) :
 
     override suspend fun update(track: MangaTrack, didReadChapter: Boolean): MangaTrack {
         // If user was using API v1 fetch library_id
-        if (track.library_id == null || track.library_id!! == 0L) {
+        if (track.library_id == null || track.library_id == 0L) {
             val libManga = api.findLibManga(track, getUsername().toInt())
                 ?: throw Exception("$track not found on user library")
             track.library_id = libManga.library_id
@@ -236,7 +237,7 @@ class Anilist(id: Long) :
 
     override suspend fun update(track: AnimeTrack, didWatchEpisode: Boolean): AnimeTrack {
         // If user was using API v1 fetch library_id
-        if (track.library_id == null || track.library_id!! == 0L) {
+        if (track.library_id == null || track.library_id == 0L) {
             val libManga = api.findLibAnime(track, getUsername().toInt())
                 ?: throw Exception("$track not found on user library")
             track.library_id = libManga.library_id
@@ -262,16 +263,26 @@ class Anilist(id: Long) :
     override suspend fun delete(track: DomainMangaTrack) {
         if (track.libraryId == null || track.libraryId == 0L) {
             val libManga = api.findLibManga(track.toDbTrack(), getUsername().toInt()) ?: return
-            return api.deleteLibManga(track.copy(id = libManga.library_id!!))
+            return api.deleteLibManga(
+                track.copy(
+                    id = libManga.library_id
+                        ?: throw MalformedTrackerResponseException("AniList", "library id"),
+                ),
+            )
         }
 
         api.deleteLibManga(track)
     }
 
     override suspend fun delete(track: DomainAnimeTrack) {
-        if (track.libraryId == null || track.libraryId!! == 0L) {
+        if (track.libraryId == null || track.libraryId == 0L) {
             val libAnime = api.findLibAnime(track.toDbTrack(), getUsername().toInt()) ?: return
-            return api.deleteLibAnime(track.copy(id = libAnime.library_id!!))
+            return api.deleteLibAnime(
+                track.copy(
+                    id = libAnime.library_id
+                        ?: throw MalformedTrackerResponseException("AniList", "library id"),
+                ),
+            )
         }
 
         api.deleteLibAnime(track)
