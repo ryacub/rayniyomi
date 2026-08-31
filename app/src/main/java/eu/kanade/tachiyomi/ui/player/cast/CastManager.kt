@@ -6,12 +6,14 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
 import eu.kanade.tachiyomi.animesource.model.Video
+import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import okhttp3.Headers
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 
@@ -30,7 +32,10 @@ sealed class CastError {
  * Manages the Google Cast session lifecycle for [eu.kanade.tachiyomi.ui.player.PlayerActivity].
  * Registered as a DI singleton in [eu.kanade.tachiyomi.di.AppModule].
  */
-class CastManager(private val context: Context) {
+class CastManager(
+    private val context: Context,
+    private val network: NetworkHelper,
+) {
 
     private val _castState = MutableStateFlow(CastState.DISCONNECTED)
     val castState: StateFlow<CastState> = _castState.asStateFlow()
@@ -38,7 +43,8 @@ class CastManager(private val context: Context) {
     private val _castError = MutableSharedFlow<CastError>(extraBufferCapacity = 8)
     val castError: SharedFlow<CastError> = _castError.asSharedFlow()
 
-    private val mediaBuilder = CastMediaBuilder()
+    private val streamProxy = CastStreamProxy(network.client)
+    private val mediaBuilder = CastMediaBuilder(streamProxy)
     private val sessionListener = CastSessionListener(this)
 
     private var castSession: CastSession? = null
@@ -78,6 +84,9 @@ class CastManager(private val context: Context) {
     /** Call in [PlayerActivity.onDestroy]. */
     fun cleanup() {
         unregisterActivity()
+        if (!isCastSessionActive()) {
+            streamProxy.stop()
+        }
         castSession = null
     }
 
@@ -89,11 +98,13 @@ class CastManager(private val context: Context) {
     }
 
     fun onSessionEnded() {
+        streamProxy.stop()
         castSession = null
         _castState.value = CastState.DISCONNECTED
     }
 
     fun onSessionResumeFailed() {
+        streamProxy.stop()
         castSession = null
         _castState.value = CastState.DISCONNECTED
     }
@@ -105,12 +116,18 @@ class CastManager(private val context: Context) {
         episode: Episode,
         anime: Anime,
         startPositionMs: Long,
+        headers: Headers? = video.headers,
     ) {
         val session = castSession ?: return
         val client = session.remoteMediaClient ?: return
 
+        val proxyHeaders = headers?.takeIf { it.size > 0 && requiresProxy(it) }
+        if (proxyHeaders == null) {
+            streamProxy.stop()
+        }
+
         val mediaInfo = try {
-            mediaBuilder.build(video, episode, anime)
+            mediaBuilder.build(video, episode, anime, proxyHeaders)
         } catch (e: Exception) {
             _castError.tryEmit(CastError.LoadFailed(e.message ?: "Cannot cast this media"))
             return
@@ -156,6 +173,15 @@ class CastManager(private val context: Context) {
         } catch (e: Exception) {
             Log.w(TAG, "Failed to get Cast SessionManager: ${e.message}")
             null
+        }
+    }
+
+    private fun requiresProxy(headers: Headers): Boolean {
+        val defaultUserAgent = network.defaultUserAgentProvider()
+        return headers.any { header ->
+            val name = header.first
+            val value = header.second
+            !name.equals("User-Agent", ignoreCase = true) || value != defaultUserAgent
         }
     }
 

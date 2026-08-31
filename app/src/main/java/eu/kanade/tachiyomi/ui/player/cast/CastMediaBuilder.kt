@@ -5,29 +5,40 @@ import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaTrack
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
+import okhttp3.Headers
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 
 /**
  * Builds a Cast [MediaInfo] from a [Video], [Episode], and [Anime].
- * Note: Cast SDK does not support custom HTTP headers; auth-required streams will fail without a proxy.
+ * Header-dependent progressive streams use the local proxy; protected HLS and DASH remain unsupported.
  */
-class CastMediaBuilder {
+class CastMediaBuilder(
+    private val streamProxy: CastStreamProxy? = null,
+) {
 
     fun build(
         video: Video,
         episode: Episode,
         anime: Anime,
+        requestHeaders: Headers? = video.headers,
     ): MediaInfo {
-        val videoUrl = video.videoUrl
+        val originalVideoUrl = video.videoUrl
+        check(!originalVideoUrl.startsWith("content://") && !originalVideoUrl.startsWith("file://")) {
+            "Cannot cast local files: $originalVideoUrl"
+        }
 
-        check(!videoUrl.startsWith("content://") && !videoUrl.startsWith("file://")) {
-            "Cannot cast local files: $videoUrl"
+        val headers = requestHeaders
+        val videoUrl = when {
+            headers == null || headers.size == 0 -> originalVideoUrl
+            isAdaptiveStream(originalVideoUrl) -> error("Cannot cast a protected HLS or DASH stream")
+            streamProxy != null -> streamProxy.urlFor(originalVideoUrl, headers)
+            else -> error("Cannot cast a stream with request headers")
         }
 
         val contentType = when {
-            videoUrl.contains(".m3u8") -> "application/x-mpegURL"
-            videoUrl.contains(".mpd") -> "application/dash+xml"
+            originalVideoUrl.contains(".m3u8") -> "application/x-mpegURL"
+            originalVideoUrl.contains(".mpd") -> "application/dash+xml"
             else -> "video/mp4"
         }
 
@@ -64,6 +75,11 @@ class CastMediaBuilder {
             }
 
         return subtitleTracks + audioTracks
+    }
+
+    private fun isAdaptiveStream(url: String): Boolean {
+        val lowerUrl = url.lowercase()
+        return lowerUrl.contains(".m3u8") || lowerUrl.contains(".mpd")
     }
 
     // ass/ssa use a vector rendering engine Chromecast doesn't support

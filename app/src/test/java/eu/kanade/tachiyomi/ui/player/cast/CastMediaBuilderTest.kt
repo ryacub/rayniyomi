@@ -53,6 +53,29 @@ class CastMediaBuilderTest {
         val video = createVideo("https://example.com/video.mp4")
         val mediaInfo = builder.build(video, testEpisode, testAnime)
         assertEquals("video/mp4", mediaInfo.contentType)
+        assertEquals(video.videoUrl, mediaInfo.contentId)
+    }
+
+    @Test
+    fun `build refuses protected HLS URLs until playlist proxying is supported`() {
+        val video = createVideo(
+            "https://example.com/stream.m3u8",
+        ).copy(headers = okhttp3.Headers.headersOf("Referer", "https://example.com/"))
+
+        assertThrows(IllegalStateException::class.java) {
+            builder.build(video, testEpisode, testAnime)
+        }
+    }
+
+    @Test
+    fun `build refuses protected DASH URLs until playlist proxying is supported`() {
+        val video = createVideo(
+            "https://example.com/stream.mpd",
+        ).copy(headers = okhttp3.Headers.headersOf("Referer", "https://example.com/"))
+
+        assertThrows(IllegalStateException::class.java) {
+            builder.build(video, testEpisode, testAnime)
+        }
     }
 
     // ---- Subtitle track handling ----

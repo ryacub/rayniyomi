@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.cast
 
 import android.content.Context
 import com.google.android.gms.cast.framework.CastSession
+import eu.kanade.tachiyomi.network.NetworkHelper
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -13,10 +14,11 @@ class CastManagerTest {
 
     private lateinit var castManager: CastManager
     private val mockContext: Context = mockk(relaxed = true)
+    private val mockNetwork: NetworkHelper = mockk(relaxed = true)
 
     @BeforeEach
     fun setup() {
-        castManager = CastManager(mockContext)
+        castManager = CastManager(mockContext, mockNetwork)
     }
 
     @Test
