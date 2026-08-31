@@ -119,6 +119,9 @@ jobs:
       - name: Check code format
         run: ./gradlew spotlessCheck
 
+      - name: Check production null assertions
+        run: ./gradlew checkNullAssertions
+
   build:
     name: Build app
     runs-on: 'ubuntu-24.04'

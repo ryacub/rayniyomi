@@ -1,0 +1,191 @@
+# Existing production null assertions.
+# Keep one entry for each assertion occurrence.
+app/src/main/java/eu/kanade/domain/track/anime/interactor/AddAnimeTracks.kt	insertTrack.await(track.toDomainTrack(idRequired = false)!!)
+app/src/main/java/eu/kanade/domain/track/anime/interactor/AddAnimeTracks.kt	track.toDomainTrack(idRequired = false)!!,
+app/src/main/java/eu/kanade/domain/track/anime/interactor/RefreshAnimeTracks.kt	val updatedTrack = service!!.animeService.refresh(track.toDbTrack()).toDomainTrack()!!
+app/src/main/java/eu/kanade/domain/track/anime/interactor/RefreshAnimeTracks.kt	val updatedTrack = service!!.animeService.refresh(track.toDbTrack()).toDomainTrack()!!
+app/src/main/java/eu/kanade/domain/track/anime/interactor/TrackEpisode.kt	.toDomainTrack(idRequired = true)!!
+app/src/main/java/eu/kanade/domain/track/manga/interactor/AddMangaTracks.kt	insertTrack.await(track.toDomainTrack(idRequired = false)!!)
+app/src/main/java/eu/kanade/domain/track/manga/interactor/AddMangaTracks.kt	track.toDomainTrack(idRequired = false)!!,
+app/src/main/java/eu/kanade/domain/track/manga/interactor/RefreshMangaTracks.kt	val updatedTrack = service!!.mangaService.refresh(track.toDbTrack()).toDomainTrack()!!
+app/src/main/java/eu/kanade/domain/track/manga/interactor/RefreshMangaTracks.kt	val updatedTrack = service!!.mangaService.refresh(track.toDbTrack()).toDomainTrack()!!
+app/src/main/java/eu/kanade/domain/track/manga/interactor/TrackChapter.kt	.toDomainTrack(idRequired = true)!!
+app/src/main/java/eu/kanade/presentation/browse/anime/AnimeExtensionsScreen.kt	onTrustExtension(trustState!!)
+app/src/main/java/eu/kanade/presentation/browse/anime/AnimeExtensionsScreen.kt	onUninstallExtension(trustState!!)
+app/src/main/java/eu/kanade/presentation/browse/anime/components/BrowseAnimeIcons.kt	)!!.applicationInfo!!
+app/src/main/java/eu/kanade/presentation/browse/anime/components/BrowseAnimeIcons.kt	)!!.applicationInfo!!
+app/src/main/java/eu/kanade/presentation/browse/anime/components/BrowseAnimeIcons.kt	appResources.getDrawableForDensity(appInfo.icon, density, null)!!
+app/src/main/java/eu/kanade/presentation/browse/manga/MangaExtensionsScreen.kt	onTrustExtension(trustState!!)
+app/src/main/java/eu/kanade/presentation/browse/manga/MangaExtensionsScreen.kt	onUninstallExtension(trustState!!)
+app/src/main/java/eu/kanade/presentation/browse/manga/components/BrowseMangaIcons.kt	)!!.applicationInfo!!
+app/src/main/java/eu/kanade/presentation/browse/manga/components/BrowseMangaIcons.kt	)!!.applicationInfo!!
+app/src/main/java/eu/kanade/presentation/browse/manga/components/BrowseMangaIcons.kt	appResources.getDrawableForDensity(appInfo.icon, density, null)!!
+app/src/main/java/eu/kanade/presentation/components/AppBar.kt	text = title!!,
+app/src/main/java/eu/kanade/presentation/components/TabbedDialog.kt	content!! { expanded = false }
+app/src/main/java/eu/kanade/presentation/entries/anime/AnimeScreen.kt	onDownloadEpisode!!(selected.toList(), EpisodeDownloadAction.START)
+app/src/main/java/eu/kanade/presentation/entries/anime/EpisodeOptionsDialogScreen.kt	_hosterState.update { _ -> Result.failure(hosterListResult.exceptionOrNull()!!) }
+app/src/main/java/eu/kanade/presentation/entries/manga/MangaScreen.kt	onDownloadChapter!!(selected.toList(), ChapterDownloadAction.START)
+app/src/main/java/eu/kanade/presentation/more/onboarding/PermissionStep.kt	batteryGranted = context.getSystemService<PowerManager>()!!
+app/src/main/java/eu/kanade/presentation/more/settings/PreferenceItem.kt	if (item.internalOnValueChanged(newValue!!)) {
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt	.map { pm.getApplicationLabel(it.applicationInfo!!).toString() }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsPlayerScreen.kt	.map { pm.getApplicationLabel(it.applicationInfo!!).toString() }
+app/src/main/java/eu/kanade/presentation/more/settings/widget/AppThemePreferenceWidget.kt	text = stringResource(appTheme.titleRes!!),
+app/src/main/java/eu/kanade/presentation/more/settings/widget/ListPreferenceWidget.kt	onValueChange(current.key!!)
+app/src/main/java/eu/kanade/presentation/track/TrackInfoDialogSelector.kt	TextButton(onClick = { onConfirm(pickerState.selectedDateMillis!!) }) {
+app/src/main/java/eu/kanade/presentation/webview/WebViewScreenContent.kt	url(request!!.url.toString())
+app/src/main/java/eu/kanade/tachiyomi/crash/GlobalExceptionHandler.kt	Json.decodeFromString(ThrowableSerializer, intent.getStringExtra(INTENT_EXTRA)!!)
+app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	url(url!!)
+app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
+app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
+app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	url(url!!)
+app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
+app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	val sourceId = sourceMap[dir.name!!.lowercase()]
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	.map { it.name!! }
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	.associate { it.name!! to AnimeDirectory(it) }
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	return downloadsDir!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getSourceDirName(source))!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getAnimeDirName(animeTitle))!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val video = download.video!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val file = tmpDir.createFile("${filename}_tmp.mkv")!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	context.copyToClipboard("Episode download location", tmpDir.filePath!!.substringBeforeLast("_tmp"))
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	tmpDir.filePath!!.substringBeforeLast("_"),
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val videoFile = tmpDir.createFile("$filename.tmp")!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/model/AnimeDownloadPart.kt	_file = placingDir.createFile("${range.first}.part.tmp")!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/model/AnimeDownloadPart.kt	return _file!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	val sourceId = sourceMap[dir.name!!.lowercase()]
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	.map { it.name!! }
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	.associate { it.name!! to MangaDirectory(it) }
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadManager.kt	ImageUtil.isImage(entry.name) { archive.getInputStream(entry.name)!! }
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadNotifier.kt	download.pages!!.size,
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadNotifier.kt	setProgress(download.pages!!.size, download.downloadedImages, false)
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadProvider.kt	return downloadsDir!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadProvider.kt	.createDirectory(getSourceDirName(source))!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadProvider.kt	.createDirectory(getMangaDirName(mangaTitle))!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	val tmpDir = mangaDir.createDirectory(chapterDirname + TMP_DIR_SUFFIX)!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	it.name!!.startsWith("$filename.") ||
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	it.name!!.startsWith(
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	chapterCache.isImageInCache(page.imageUrl!!) -> copyImageFromCache(
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	chapterCache.getImageFile(page.imageUrl!!),
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	val file = tmpDir.createFile("$filename.tmp")!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	val tmpFile = tmpDir.createFile("$filename.tmp")!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	val zip = mangaDir.createFile("$dirname.cbz$TMP_DIR_SUFFIX")!!
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	dir.createFile(COMIC_INFO_FILE)!!.openOutputStream().use {
+app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	intent.getStringExtra(EXTRA_URI)!!.toUri(),
+app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	intent.getParcelableExtraCompat(EXTRA_URI)!!,
+app/src/main/java/eu/kanade/tachiyomi/data/saver/ImageSaver.kt	input.copyTo(output!!)
+app/src/main/java/eu/kanade/tachiyomi/data/track/bangumi/BangumiInterceptor.kt	val response = chain.proceed(BangumiApi.refreshTokenRequest(currAuth.refreshToken!!))
+app/src/main/java/eu/kanade/tachiyomi/data/track/jellyfin/JellyfinApi.kt	val fragment = httpUrl.fragment!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/jellyfin/JellyfinApi.kt	val fragment = url.fragment!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/jellyfin/JellyfinApi.kt	val fragment = httpUrl.fragment!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/kitsu/KitsuInterceptor.kt	val refreshToken = currAuth.refreshToken!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/shikimori/ShikimoriInterceptor.kt	val refreshToken = currAuth.refreshToken!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/suwayomi/SuwayomiApi.kt	private fun getPrefBaseUrl(): String = preferences.getString(ADDRESS_TITLE, ADDRESS_DEFAULT)!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/suwayomi/SuwayomiApi.kt	private fun getPrefBaseLogin(): String = preferences.getString(LOGIN_TITLE, LOGIN_DEFAULT)!!
+app/src/main/java/eu/kanade/tachiyomi/data/track/suwayomi/SuwayomiApi.kt	)!!
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/installer/PackageInstallerInstallerAnime.kt	val session = packageInstaller.openSession(activeSession!!.second)
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/installer/PackageInstallerInstallerAnime.kt	activeSession!!.second,
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstallActivity.kt	val downloadId = intent.extras!!.getLong(AnimeExtensionInstaller.EXTRA_DOWNLOAD_ID)
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstallService.kt	installer!!.addToQueue(id, uri)
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstaller.kt	private val downloadManager = context.getSystemService<DownloadManager>()!!
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/PackageInstallerInstallerManga.kt	.allowAction(this.action!!)
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/PackageInstallerInstallerManga.kt	val session = packageInstaller.openSession(activeSession!!.second)
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/PackageInstallerInstallerManga.kt	activeSession!!.second,
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/ShizukuInstallerManga.kt	service.contentResolver.openInputStream(entry.uri)!!.use {
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstallActivity.kt	val downloadId = intent.extras!!.getLong(MangaExtensionInstaller.EXTRA_DOWNLOAD_ID)
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstallService.kt	installer!!.addToQueue(id, uri)
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstaller.kt	private val downloadManager = context.getSystemService<DownloadManager>()!!
+app/src/main/java/eu/kanade/tachiyomi/extension/util/ExtensionDownloadRegistry.kt	}!!
+app/src/main/java/eu/kanade/tachiyomi/feature/novel/LightNovelPluginManager.kt	policyResult.blockReason!!.toInstallErrorCode(),
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/migration/anime/MigrateAnimeScreen.kt	title = state.source!!.name,
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/migration/search/AnimeMigrateSearchScreenDialogScreenModel.kt	val anime = getAnime.await(animeId)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/migration/search/MigrateAnimeSearchScreen.kt	AnimeSourceSearchScreen(dialogState.anime!!, it.id, state.searchQuery),
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/migration/search/MigrateAnimeSearchScreen.kt	oldAnime = dialogState.anime!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/migration/search/MigrateAnimeSearchScreen.kt	onClickSeasons = { navigator.push(MigrateSeasonSelectScreen(dialogState.anime!!, dialog.anime)) },
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/migration/search/MigrateAnimeSearchScreenModel.kt	val anime = getAnime.await(animeId)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/source/browse/SourceFilterAnimeDialog.kt	!filter.state!!.ascending
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/source/browse/SourceFilterAnimeDialog.kt	filter.state!!.ascending
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/migration/manga/MigrateMangaScreen.kt	title = state.source!!.name,
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/migration/search/MangaMigrateSearchScreenDialogScreenModel.kt	val manga = getManga.await(mangaId)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/migration/search/MigrateMangaSearchScreen.kt	MangaSourceSearchScreen(dialogState.manga!!, it.id, state.searchQuery),
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/migration/search/MigrateMangaSearchScreen.kt	oldManga = dialogState.manga!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/migration/search/MigrateMangaSearchScreenModel.kt	val manga = getManga.await(mangaId)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/source/browse/SourceFilterMangaDialog.kt	!filter.state!!.ascending
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/source/browse/SourceFilterMangaDialog.kt	filter.state!!.ascending
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreen.kt	onTagSearch = { scope.launch { performGenreSearch(navigator, it, screenModel.source!!) } },
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreen.kt	anime = anime!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreen.kt	isCustomCover = remember(anime) { anime!!.hasCustomCover() },
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreen.kt	isCustomBackground = remember(anime) { anime!!.hasCustomBackground() },
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreenModel.kt	track!!.name,
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreenModel.kt	isTrackerSupported = { (it as? EnhancedAnimeTracker)?.accept(source!!) ?: true },
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreen.kt	onTagSearch = { scope.launch { performGenreSearch(navigator, it, screenModel.source!!) } },
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreen.kt	manga = manga!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreen.kt	isCustomCover = remember(manga) { manga!!.hasCustomCover() },
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreenModel.kt	track!!.name,
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreenModel.kt	isTrackerSupported = { (it as? EnhancedMangaTracker)?.accept(source!!) ?: true },
+app/src/main/java/eu/kanade/tachiyomi/ui/home/HomeScreen.kt	painter = tab.options.icon!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/player/AniyomiMPVView.kt	set(position) = MPVLib.setPropertyInt("time-pos", position!!)
+app/src/main/java/eu/kanade/tachiyomi/ui/player/AniyomiMPVView.kt	set(paused) = MPVLib.setPropertyBoolean("pause", paused!!)
+app/src/main/java/eu/kanade/tachiyomi/ui/player/ExternalIntents.kt	File(uri.path!!),
+app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerActivity.kt	val width = it * player.getVideoOutAspect()!!
+app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	saveWatchingProgress(currentEpisode.value!!)
+app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	id = episodeId!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	id = episodeId!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/BottomLeftPlayerControls.kt	chapter = currentChapter!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/dialogs/EpisodeListDialog.kt	text = episode.scanlator!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleDelayPanel.kt	val elapsed = System.currentTimeMillis() - timerStart!!
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleDelayPanel.kt	finalDelay = startingDelay + (if (isDirectionPositive!!) elapsed else -elapsed).toInt()
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsColorsCard.kt	}!!
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	onShare { takeScreenshot(cachePath, showSubtitles)!! }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	onSave { takeScreenshot(cachePath, showSubtitles)!! }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	onSetAsArt(setArtTypeAs!!) {
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	val videoUri = videoFile!!.uri
+app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	hoster.videoList != null && source is AnimeHttpSource -> hoster.videoList!!.parseVideoUrls(source)
+app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	hoster.videoList != null -> hoster.videoList!!
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	inputStream = page.stream!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	inputStream = page.stream!!,
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	.filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	stream = { reader.getInputStream(entry.name)!! }
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/EpubPageLoader.kt	stream = { reader.getInputStream(path)!! }
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/HttpPageLoader.kt	val imageUrl = page.imageUrl!!
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/GestureDetectorWithLongTap.kt	private val longTapFn = Runnable { listener.onLongTapConfirmed(lastDownEvent!!) }
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/ReaderPageImageView.kt	animateScaleAndCenter(targetScale, point)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/ReaderPageImageView.kt	view.animateCenter(target)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PagerViewerAdapter.kt	viewer.moveToPage(insertPageLastPage!!)
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/webtoon/WebtoonLayoutManager.kt	val child = getChildAt(i)!!
+app/src/main/java/eu/kanade/tachiyomi/ui/webview/WebViewActivity.kt	(sourceManager.get(intent.extras!!.getLong(SOURCE_KEY)) as? HttpSource)?.let { source ->
+app/src/main/java/eu/kanade/tachiyomi/ui/webview/WebViewActivity.kt	(animeSourceManager.get(intent.extras!!.getLong(SOURCE_KEY)) as? AnimeHttpSource)?.let { animeSource ->
+app/src/main/java/eu/kanade/tachiyomi/util/AniChartApi.kt	item.track!!.let {
+app/src/main/java/eu/kanade/tachiyomi/util/system/ContextExtensions.kt	val clipboard = getSystemService<ClipboardManager>()!!
+app/src/main/java/eu/kanade/tachiyomi/util/system/ContextExtensions.kt	get() = getSystemService()!!
+app/src/main/java/eu/kanade/tachiyomi/util/system/NetworkExtensions.kt	get() = getSystemService()!!
+app/src/main/java/eu/kanade/tachiyomi/util/system/NetworkExtensions.kt	get() = getSystemService()!!
+app/src/main/java/eu/kanade/tachiyomi/util/system/NotificationExtensions.kt	get() = getSystemService()!!
+app/src/main/java/eu/kanade/tachiyomi/widget/TachiyomiTextInputEditText.kt	setIncognito(scope!!)
+app/src/main/java/mihon/core/migration/migrations/MergeSortTypeDirectionMigration.kt	val direction = prefs.getString("library_sorting_ascending", "ASCENDING")!!
+app/src/main/java/mihon/core/migration/migrations/PrefLangMigration.kt	)!!.split(",").filter(String::isNotEmpty).map(String::trim)
+app/src/main/java/mihon/core/migration/migrations/VideoPlayerPreferenceMigration.kt	val subtitleConf = prefs.getString("pref_sub_select_conf", "")!!
+domain/src/main/java/tachiyomi/domain/entries/anime/interactor/NetworkToLocalAnime.kt	anime.copy(id = id!!)
+domain/src/main/java/tachiyomi/domain/entries/manga/interactor/NetworkToLocalManga.kt	manga.copy(id = id!!)
+domain/src/main/java/tachiyomi/domain/items/chapter/service/ChapterRecognition.kt	val initial = it.groups[1]?.value?.toDouble()!!
+domain/src/main/java/tachiyomi/domain/items/episode/service/EpisodeRecognition.kt	val initial = it.groups[1]?.value?.toDouble()!!
+domain/src/main/java/tachiyomi/domain/items/season/service/SeasonRecognition.kt	val initial = it.groups[1]?.value?.toDouble()!!
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/anime/LocalAnimeSource.kt	animeDirs = if (filter.state!!.ascending) {
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/anime/LocalAnimeSource.kt	animeDirs = if (filter.state!!.ascending) {
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/anime/LocalAnimeSource.kt	val animeDir = fileSystem.getAnimeDirectory(anime.url)!!
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/anime/LocalAnimeSource.kt	val episodeFile = animeDir.findFile(episodeName)!!
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	mangaDirs = if (filter.state!!.ascending) {
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	mangaDirs = if (filter.state!!.ascending) {
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	.find { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	entry?.let { coverManager.update(manga, reader.getInputStream(it.name)!!) }
+source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	entry?.let { coverManager.update(manga, epub.getInputStream(it)!!) }
+source-local/src/androidMain/kotlin/tachiyomi/source/local/image/anime/LocalAnimeBackgroundManager.kt	val targetFile = find(anime.url) ?: directory.createFile(DEFAULT_BACKGROUND_NAME)!!
+source-local/src/androidMain/kotlin/tachiyomi/source/local/image/anime/LocalAnimeCoverManager.kt	val targetFile = find(anime.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!
+source-local/src/androidMain/kotlin/tachiyomi/source/local/image/anime/LocalEpisodeThumbnailManager.kt	val targetFile = find(anime.url, fileName) ?: directory.createFile(fileName)!!
+source-local/src/androidMain/kotlin/tachiyomi/source/local/image/manga/LocalMangaCoverManager.kt	val targetFile = find(manga.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!
