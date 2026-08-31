@@ -204,6 +204,19 @@ class PlayerViewModel @JvmOverloads internal constructor(
     val isLoading = MutableStateFlow(true)
     val playbackSpeed = MutableStateFlow(playerPreferences.playerSpeed().get())
 
+    internal val playbackSpeedController = PlaybackSpeedController(
+        castManager = castManager,
+        playbackSpeed = playbackSpeed,
+        localSink = object : LocalSpeedSink {
+            override fun apply(speed: Float) = MPVLib.setPropertyDouble("speed", speed.toDouble())
+            override fun persist(speed: Float) = playerPreferences.playerSpeed().set(speed)
+        },
+    ).also { it.attach(viewModelScope) }
+
+    val isSpeedControlAvailable = playbackSpeedController.isSpeedControlAvailable
+
+    fun setPlaybackSpeed(speed: Float) = playbackSpeedController.setSpeed(speed)
+
     private val hosterOrchestrator = HosterOrchestrator(
         scope = viewModelScope,
         onNoVideosAvailable = {

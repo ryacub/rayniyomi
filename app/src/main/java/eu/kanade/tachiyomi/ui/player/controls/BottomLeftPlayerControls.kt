@@ -52,6 +52,7 @@ fun BottomLeftPlayerControls(
     onLockControls: () -> Unit,
     onCycleRotation: () -> Unit,
     orientationControlEnabled: Boolean,
+    speedControlEnabled: Boolean,
     onPlaybackSpeedChange: (Float) -> Unit,
     onOpenSheet: (Sheets) -> Unit,
     modifier: Modifier = Modifier,
@@ -88,15 +89,32 @@ fun BottomLeftPlayerControls(
                 )
             }
         }
-        ControlsButton(
-            text = stringResource(AYMR.strings.player_speed, playbackSpeed),
-            onClick = {
-                val newSpeed = if (playbackSpeed >= 2) 0.25f else playbackSpeed + 0.25f
-                onPlaybackSpeedChange(newSpeed)
-                playerPreferences.playerSpeed().set(newSpeed)
-            },
-            onLongClick = { onOpenSheet(Sheets.PlaybackSpeed) },
-        )
+        if (speedControlEnabled) {
+            ControlsButton(
+                text = stringResource(AYMR.strings.player_speed, playbackSpeed),
+                onClick = {
+                    val newSpeed = if (playbackSpeed >= 2) 0.25f else playbackSpeed + 0.25f
+                    onPlaybackSpeedChange(newSpeed)
+                },
+                onLongClick = { onOpenSheet(Sheets.PlaybackSpeed) },
+            )
+        } else {
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    PlainTooltip {
+                        Text(text = stringResource(AYMR.strings.player_speed_cast_unsupported))
+                    }
+                },
+                state = rememberTooltipState(),
+            ) {
+                ControlsButton(
+                    text = stringResource(AYMR.strings.player_speed, playbackSpeed),
+                    onClick = {},
+                    enabled = false,
+                )
+            }
+        }
         AnimatedVisibility(
             currentChapter != null && playerPreferences.showCurrentChapter().get(),
             enter = fadeIn(),

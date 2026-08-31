@@ -80,7 +80,6 @@ import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
 import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
-import `is`.xyz.mpv.MPVLib
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
@@ -546,6 +545,8 @@ fun PlayerControls(
                 }
                 // Bottom left controls
                 val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
+                val isSpeedControlAvailable by viewModel.isSpeedControlAvailable
+                    .collectAsStateWithLifecycle()
                 AnimatedVisibility(
                     controlsShown && !areControlsLocked,
                     enter = if (!reduceMotion) {
@@ -573,9 +574,8 @@ fun PlayerControls(
                         onLockControls = viewModel::lockControls,
                         onCycleRotation = viewModel::cycleScreenRotations,
                         orientationControlEnabled = honorsOrientationRequests(LocalConfiguration.current),
-                        onPlaybackSpeedChange = {
-                            MPVLib.setPropertyDouble("speed", it.toDouble())
-                        },
+                        speedControlEnabled = isSpeedControlAvailable,
+                        onPlaybackSpeedChange = viewModel::setPlaybackSpeed,
                         onOpenSheet = viewModel::showSheet,
                     )
                 }
@@ -630,7 +630,7 @@ fun PlayerControls(
             decoder = decoder,
             onUpdateDecoder = viewModel::updateDecoder,
             speed = speed,
-            onSpeedChange = { MPVLib.setPropertyDouble("speed", it.toFixed(2).toDouble()) },
+            onSpeedChange = { viewModel.setPlaybackSpeed(it.toFixed(2)) },
             sleepTimerTimeRemaining = sleepTimerTimeRemaining,
             onStartSleepTimer = viewModel::startTimer,
             buttons = customButtons.getButtons().toImmutableList(),
