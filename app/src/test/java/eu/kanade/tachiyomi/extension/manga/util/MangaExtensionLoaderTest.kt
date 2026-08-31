@@ -1,7 +1,18 @@
 package eu.kanade.tachiyomi.extension.manga.util
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.FeatureInfo
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.os.Bundle
+import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import io.kotest.matchers.shouldBe
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class MangaExtensionLoaderTest {
 
@@ -70,6 +81,38 @@ class MangaExtensionLoaderTest {
     }
 
     @Test
+    fun `missing metadata returns a named load error without throwing`() = runTest {
+        val result = loadExtension(metadata = null)
+
+        result shouldBe MangaLoadResult.Error("Failed to load extension Example Manga: missing metadata")
+    }
+
+    @Test
+    fun `malformed version metadata returns a named load error`() = runTest {
+        val result = loadExtension(Bundle(), versionName = "not-a-version")
+
+        result shouldBe MangaLoadResult.Error("Failed to load extension Example Manga: unsupported library version")
+    }
+
+    @Test
+    fun `missing required metadata field returns a named load error`() = runTest {
+        val result = loadExtension(Bundle())
+
+        result shouldBe MangaLoadResult.Error(
+            "Failed to load extension Example Manga: missing source class metadata",
+        )
+    }
+
+    @Test
+    fun `wrong metadata type returns a named load error`() = runTest {
+        val metadata = mockk<Bundle>(relaxed = true)
+        every { metadata.get("tachiyomi.extension.class") } returns 1
+        val result = loadExtension(metadata)
+
+        result shouldBe MangaLoadResult.Error("Failed to load extension Example Manga: malformed metadata")
+    }
+
+    @Test
     fun `resolve lib version falls back to version name when declared is zero`() {
         MangaExtensionLoader.resolveLibVersion(declaredLibVersion = 0f, versionName = "1.4.10") shouldBe 1.4
     }
@@ -107,5 +150,29 @@ class MangaExtensionLoaderTest {
     @Test
     fun `resolve nsfw true when both warning and flag present`() {
         MangaExtensionLoader.resolveIsNsfw(contentWarning = 1, nsfwFlag = 1) shouldBe true
+    }
+
+    private suspend fun loadExtension(
+        metadata: Bundle?,
+        versionName: String = "1.4.0",
+    ): MangaLoadResult {
+        val context = mockk<Context>(relaxed = true)
+        val packageManager = mockk<PackageManager>(relaxed = true)
+        val applicationInfo = ApplicationInfo().apply { this.metaData = metadata }
+        val packageInfo = PackageInfo().apply {
+            packageName = "com.example.manga"
+            this.applicationInfo = applicationInfo
+            this.versionName = versionName
+            reqFeatures = arrayOf(
+                FeatureInfo().apply { name = "tachiyomi.extension" },
+            )
+        }
+
+        every { context.packageManager } returns packageManager
+        every { context.filesDir } returns File("build/tmp/manga-extension-loader-test")
+        every { packageManager.getPackageInfo("com.example.manga", any<Int>()) } returns packageInfo
+        every { packageManager.getApplicationLabel(applicationInfo) } returns "Example Manga"
+
+        return MangaExtensionLoader.loadMangaExtensionFromPkgName(context, "com.example.manga")
     }
 }

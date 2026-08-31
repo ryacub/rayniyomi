@@ -32,7 +32,8 @@ internal class MangaExtensionInstallReceiver(
     override fun isError(result: MangaLoadResult): Boolean = result is MangaLoadResult.Error
 
     override suspend fun load(context: Context, pkgName: String?): MangaLoadResult =
-        pkgName?.let { MangaExtensionLoader.loadMangaExtensionFromPkgName(context, it) } ?: MangaLoadResult.Error
+        pkgName?.let { MangaExtensionLoader.loadMangaExtensionFromPkgName(context, it) }
+            ?: MangaLoadResult.Error("Failed to load extension: package name is missing")
 
     override fun dispatchInstalled(listener: Listener, result: MangaLoadResult) {
         if (result is MangaLoadResult.Success) listener.onExtensionInstalled(result.extension)
@@ -46,6 +47,10 @@ internal class MangaExtensionInstallReceiver(
         if (result is MangaLoadResult.Untrusted) listener.onExtensionUntrusted(result.extension)
     }
 
+    override fun dispatchError(listener: Listener, result: MangaLoadResult) {
+        if (result is MangaLoadResult.Error) listener.onExtensionLoadError(result.message)
+    }
+
     override fun dispatchRemoved(listener: Listener, pkgName: String) {
         listener.onPackageUninstalled(pkgName)
     }
@@ -57,6 +62,7 @@ internal class MangaExtensionInstallReceiver(
         fun onExtensionInstalled(extension: MangaExtension.Installed)
         fun onExtensionUpdated(extension: MangaExtension.Installed)
         fun onExtensionUntrusted(extension: MangaExtension.Untrusted)
+        fun onExtensionLoadError(message: String)
         fun onPackageUninstalled(pkgName: String)
     }
 

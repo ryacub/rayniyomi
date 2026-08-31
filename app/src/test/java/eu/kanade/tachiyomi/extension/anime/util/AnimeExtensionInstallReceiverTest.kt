@@ -67,8 +67,8 @@ class AnimeExtensionInstallReceiverTest {
         coEvery {
             AnimeExtensionLoader.loadExtensionFromPkgName(any(), "pkg1")
         } returnsMany listOf(
-            AnimeLoadResult.Error,
-            AnimeLoadResult.Error,
+            AnimeLoadResult.Error("load failed"),
+            AnimeLoadResult.Error("load failed"),
             AnimeLoadResult.Success(mockk(relaxed = true)),
         )
 
@@ -169,8 +169,8 @@ class AnimeExtensionInstallReceiverTest {
         coEvery {
             AnimeExtensionLoader.loadExtensionFromPkgName(any(), "pkg1")
         } returnsMany listOf(
-            AnimeLoadResult.Error,
-            AnimeLoadResult.Error,
+            AnimeLoadResult.Error("load failed"),
+            AnimeLoadResult.Error("load failed"),
             AnimeLoadResult.Success(mockk(relaxed = true)),
         )
 
@@ -181,6 +181,28 @@ class AnimeExtensionInstallReceiverTest {
             AnimeExtensionLoader.loadExtensionFromPkgName(any(), "pkg1")
         }
         verify(exactly = 1) { listener.onExtensionUpdated(any()) }
+    }
+
+    @Test
+    fun `replace retry reports final load error`() = runTest {
+        val context = mockk<Context>(relaxed = true)
+        val listener = mockk<AnimeExtensionInstallReceiver.Listener>(relaxed = true)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        val receiver = AnimeExtensionInstallReceiver(listener, scope)
+
+        mockkObject(AnimeExtensionLoader)
+        coEvery {
+            AnimeExtensionLoader.loadExtensionFromPkgName(any(), "pkg1")
+        } returns AnimeLoadResult.Error("Failed to load extension Example Anime: malformed metadata")
+
+        receiver.onReceive(context, replacedIntent("pkg1"))
+        advanceUntilIdle()
+
+        verify(exactly = 1) {
+            listener.onExtensionLoadError("Failed to load extension Example Anime: malformed metadata")
+        }
+        verify(exactly = 0) { listener.onExtensionUpdated(any()) }
     }
 
     @Test

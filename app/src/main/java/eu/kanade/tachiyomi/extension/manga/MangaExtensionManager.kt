@@ -158,6 +158,10 @@ class MangaExtensionManager(
             untrustedExtensionsMapFlow.value = extensions
                 .filterIsInstance<MangaLoadResult.Untrusted>()
                 .associate { it.extension.pkgName to it.extension }
+
+            extensions
+                .filterIsInstance<MangaLoadResult.Error>()
+                .forEach { reportLoadError(it.message) }
         } finally {
             _isInitialized.value = true
         }
@@ -332,9 +336,11 @@ class MangaExtensionManager(
 
         untrustedExtensionsMapFlow.value -= extension.pkgName
 
-        MangaExtensionLoader.loadMangaExtensionFromPkgName(context, extension.pkgName)
-            .let { it as? MangaLoadResult.Success }
-            ?.let { registerNewExtension(it.extension) }
+        when (val result = MangaExtensionLoader.loadMangaExtensionFromPkgName(context, extension.pkgName)) {
+            is MangaLoadResult.Success -> registerNewExtension(result.extension)
+            is MangaLoadResult.Error -> reportLoadError(result.message)
+            is MangaLoadResult.Untrusted -> Unit
+        }
     }
 
     /**
@@ -388,11 +394,19 @@ class MangaExtensionManager(
             updatePendingUpdatesCount()
         }
 
+        override fun onExtensionLoadError(message: String) {
+            scope.launch { reportLoadError(message) }
+        }
+
         override fun onPackageUninstalled(pkgName: String) {
             MangaExtensionLoader.uninstallPrivateExtension(context, pkgName)
             unregisterExtension(pkgName)
             updatePendingUpdatesCount()
         }
+    }
+
+    private suspend fun reportLoadError(message: String) {
+        withUIContext { context.toast(message) }
     }
 
     /**

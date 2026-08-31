@@ -163,6 +163,10 @@ class AnimeExtensionManager(
             untrustedExtensionsMapFlow.value = animeextensions
                 .filterIsInstance<AnimeLoadResult.Untrusted>()
                 .associate { it.extension.pkgName to it.extension }
+
+            animeextensions
+                .filterIsInstance<AnimeLoadResult.Error>()
+                .forEach { reportLoadError(it.message) }
         } finally {
             _isInitialized.value = true
         }
@@ -337,9 +341,11 @@ class AnimeExtensionManager(
 
         untrustedExtensionsMapFlow.value -= extension.pkgName
 
-        AnimeExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)
-            .let { it as? AnimeLoadResult.Success }
-            ?.let { registerNewExtension(it.extension) }
+        when (val result = AnimeExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)) {
+            is AnimeLoadResult.Success -> registerNewExtension(result.extension)
+            is AnimeLoadResult.Error -> reportLoadError(result.message)
+            is AnimeLoadResult.Untrusted -> Unit
+        }
     }
 
     /**
@@ -393,11 +399,19 @@ class AnimeExtensionManager(
             updatePendingUpdatesCount()
         }
 
+        override fun onExtensionLoadError(message: String) {
+            scope.launch { reportLoadError(message) }
+        }
+
         override fun onPackageUninstalled(pkgName: String) {
             AnimeExtensionLoader.uninstallPrivateExtension(context, pkgName)
             unregisterAnimeExtension(pkgName)
             updatePendingUpdatesCount()
         }
+    }
+
+    private suspend fun reportLoadError(message: String) {
+        withUIContext { context.toast(message) }
     }
 
     /**

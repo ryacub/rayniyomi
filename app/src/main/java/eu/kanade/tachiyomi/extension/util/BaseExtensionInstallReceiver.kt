@@ -76,6 +76,11 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
     protected abstract fun dispatchUntrusted(listener: L, result: R)
 
     /**
+     * Notifies [listener] of a load failure.
+     */
+    protected abstract fun dispatchError(listener: L, result: R)
+
+    /**
      * Notifies [listener] that the package [pkgName] was uninstalled.
      */
     protected abstract fun dispatchRemoved(listener: L, pkgName: String)
@@ -117,6 +122,7 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
                     val result = getExtensionFromIntent(context, intent)
                     dispatchInstalled(listener, result)
                     dispatchUntrusted(listener, result)
+                    dispatchError(listener, result)
                 }
             }
             Intent.ACTION_PACKAGE_REPLACED, actions.replaced -> {
@@ -124,6 +130,7 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
                     val result = loadWithRetryOnReplace(context, intent)
                     dispatchUpdated(listener, result)
                     dispatchUntrusted(listener, result)
+                    dispatchError(listener, result)
                 }
             }
             Intent.ACTION_PACKAGE_REMOVED, actions.removed -> {
