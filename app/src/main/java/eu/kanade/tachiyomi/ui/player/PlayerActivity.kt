@@ -897,6 +897,10 @@ class PlayerActivity : BaseActivity() {
             val client = castManager.getRemoteMediaClient() ?: return
             val status = client.mediaStatus ?: return
             viewModel.updateCastProgress(status.streamPosition)
+            viewModel.playbackSpeedController.onReceiverStatus(
+                rate = status.playbackRate,
+                isRateSupported = status.isMediaCommandSupported(MediaStatus.COMMAND_PLAYBACK_RATE),
+            )
             if (status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
                 status.idleReason == MediaStatus.IDLE_REASON_FINISHED &&
                 viewModel.currentEpisode.value != null
