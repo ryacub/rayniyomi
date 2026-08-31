@@ -1050,6 +1050,7 @@ class PlayerActivity : BaseActivity() {
                     anime,
                     position ?: 0L,
                     video.headers ?: sourceHeaders,
+                    viewModel.playbackSpeed.value.toDouble(),
                 )
                 return
             }

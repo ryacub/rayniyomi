@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.cast
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.cast.MediaLoadOptions
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
@@ -118,6 +119,7 @@ class CastManager(
         anime: Anime,
         startPositionMs: Long,
         headers: Headers? = video.headers,
+        playbackRate: Double = 1.0,
     ) {
         val session = castSession ?: return
         val client = session.remoteMediaClient ?: return
@@ -134,8 +136,9 @@ class CastManager(
             return
         }
 
-        val loadOptions = com.google.android.gms.cast.MediaLoadOptions.Builder()
+        val loadOptions = MediaLoadOptions.Builder()
             .setPlayPosition(startPositionMs)
+            .setPlaybackRate(CastPlaybackRate.clamp(playbackRate.toFloat()).toDouble())
             .build()
 
         client.load(mediaInfo, loadOptions)
