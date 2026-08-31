@@ -64,7 +64,6 @@ import eu.kanade.tachiyomi.ui.player.controls.components.DoubleTapSeekTriangles
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
-import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import tachiyomi.i18n.aniyomi.AYMR
@@ -94,6 +93,7 @@ fun GestureHandler(
     val areControlsLocked by viewModel.areControlsLocked.collectAsStateWithLifecycle()
     val seekAmount by viewModel.doubleTapSeekAmount.collectAsStateWithLifecycle()
     val isSeekingForwards by viewModel.isSeekingForwards.collectAsStateWithLifecycle()
+    val isCasting by viewModel.isCasting.collectAsStateWithLifecycle()
     var isDoubleTapSeeking by remember { mutableStateOf(false) }
 
     LaunchedEffect(seekAmount) {
@@ -116,7 +116,7 @@ fun GestureHandler(
     DisposableEffect(Unit) {
         onDispose {
             if (isLongPressing) {
-                MPVLib.setPropertyDouble("speed", speedBeforeBoost.toDouble())
+                viewModel.playbackSpeedController.setSpeedBoost(speedBeforeBoost)
                 viewModel.playerUpdate.update { PlayerUpdates.None }
             }
         }
@@ -176,17 +176,18 @@ fun GestureHandler(
                         tryAwaitRelease()
                         if (isLongPressing) {
                             isLongPressing = false
-                            MPVLib.setPropertyDouble("speed", originalSpeed.toDouble())
+                            viewModel.playbackSpeedController.setSpeedBoost(originalSpeed)
                             viewModel.playerUpdate.update { PlayerUpdates.None }
                         }
                         interactionSource.emit(PressInteraction.Release(press))
                     },
                     onLongPress = {
                         if (areControlsLocked) return@detectTapGestures
+                        if (isCasting) return@detectTapGestures // Receiver round trip outlasts the press (R1033).
                         if (!isLongPressing) {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             isLongPressing = true
-                            MPVLib.setPropertyDouble("speed", SPEED_BOOST_FACTOR)
+                            viewModel.playbackSpeedController.setSpeedBoost(SPEED_BOOST_FACTOR.toFloat())
                             viewModel.playerUpdate.update { PlayerUpdates.SpeedBoost(SPEED_BOOST_FACTOR.toFloat()) }
                         }
                     },
