@@ -29,6 +29,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Changed
 - Translation model picker is now a full-screen settings page with radio selection, wrapped model names, and details on demand (#1150).
+- Playback speed now applies to the Cast receiver during a cast session (#1175)
 
 ### Removed
 

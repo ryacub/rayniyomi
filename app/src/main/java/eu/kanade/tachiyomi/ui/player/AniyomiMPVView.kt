@@ -150,6 +150,7 @@ class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(c
             MPVLib.setOptionString(it.mpvProperty, it.preference(decoderPreferences).get().toString())
         }
 
+        // Local renderer default, set before any Cast session exists (R1033).
         MPVLib.setOptionString("speed", playerPreferences.playerSpeed().get().toString())
         // workaround for <https://github.com/mpv-player/mpv/issues/14651>
         MPVLib.setOptionString("vd-lavc-film-grain", "cpu")
