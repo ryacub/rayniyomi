@@ -6,7 +6,6 @@ import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
 import com.arthenica.ffmpegkit.FFprobeKit
 import com.hippo.unifile.UniFile
-import eu.kanade.tachiyomi.util.storage.toFFmpegString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -32,7 +31,7 @@ class CastVideoConverter(
         try {
             suspendCancellableCoroutine<Unit> { continuation ->
                 val ffmpegSession = FFmpegKit.executeWithArgumentsAsync(
-                    buildArguments(input.toFFmpegString(context), temporaryFile.absolutePath),
+                    buildArguments(input.toFfmpegInput(), temporaryFile.absolutePath),
                     { result ->
                         if (result.returnCode.isValueSuccess) {
                             if (continuation.isActive) continuation.resume(Unit)
@@ -74,7 +73,7 @@ class CastVideoConverter(
             val session = FFprobeKit.executeWithArgumentsAsync(
                 FFmpegKitConfig.parseArguments(
                     "-v quiet -show_entries format=duration " +
-                        "-of default=noprint_wrappers=1:nokey=1 \"${file.toFFmpegString(context)}\"",
+                        "-of default=noprint_wrappers=1:nokey=1 \"${file.toFfmpegInput()}\"",
                 ),
             ) { result ->
                 if (continuation.isActive) {
@@ -85,6 +84,14 @@ class CastVideoConverter(
             }
             continuation.invokeOnCancellation { session.cancel() }
         }
+    }
+
+    private fun UniFile.toFfmpegInput(): String {
+        return if (uri.scheme == "content") {
+            FFmpegKitConfig.getSafParameter(context, uri, "rw")
+        } else {
+            filePath!!
+        }.replace("\"", "\\\"")
     }
 
     companion object {
