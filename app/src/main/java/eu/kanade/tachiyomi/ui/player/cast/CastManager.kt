@@ -71,6 +71,10 @@ class CastManager(
     private var pendingLoad: CastLoadRequest? = null
     private var convertedFile: UniFile? = null
 
+    private val _subtitleWarning = MutableStateFlow(false)
+    val subtitleWarning: StateFlow<Boolean> = _subtitleWarning.asStateFlow()
+    private var pendingSubtitleLoad: CastLoadRequest? = null
+
     private val streamProxy = CastStreamProxy(
         client = network.client,
         localFileProvider = { uri -> UniFile.fromUri(context, uri.toUri()) },
@@ -171,6 +175,16 @@ class CastManager(
         playbackRate: Double = 1.0,
     ) {
         val request = CastLoadRequest(video, episode, anime, startPositionMs, headers, playbackRate)
+        if (mediaBuilder.subtitlesDroppedForCast(video)) {
+            pendingSubtitleLoad = request
+            _subtitleWarning.value = true
+            return
+        }
+        proceedWithLoad(request)
+    }
+
+    private fun proceedWithLoad(request: CastLoadRequest) {
+        val video = request.video
         val session = castSession ?: return
         val client = session.remoteMediaClient ?: return
 
@@ -296,6 +310,18 @@ class CastManager(
             convertedFile?.delete()
             convertedFile = null
         }
+    }
+
+    fun confirmSubtitleWarning() {
+        _subtitleWarning.value = false
+        val request = pendingSubtitleLoad ?: return
+        pendingSubtitleLoad = null
+        proceedWithLoad(request)
+    }
+
+    fun dismissSubtitleWarning() {
+        _subtitleWarning.value = false
+        pendingSubtitleLoad = null
     }
 
     private data class CastLoadRequest(

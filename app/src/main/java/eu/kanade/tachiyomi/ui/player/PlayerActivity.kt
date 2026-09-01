@@ -47,6 +47,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -276,9 +278,11 @@ class PlayerActivity : BaseActivity() {
 
     private fun startPlayerAfterMpvReady() {
         setContent {
+            val showCastSubtitleWarning by castManager.subtitleWarning.collectAsState()
             PlayerHostContent(
                 playerView = playerView,
                 viewModel = viewModel,
+                showCastSubtitleWarning = showCastSubtitleWarning,
                 callbacks = PlayerHostUiCallbacks(
                     onBackPress = {
                         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
@@ -289,6 +293,14 @@ class PlayerActivity : BaseActivity() {
                     },
                     onPipRectChanged = { rect ->
                         pipRect = rect
+                    },
+                    onCastSubtitleWarningConfirm = {
+                        castManager.confirmSubtitleWarning()
+                    },
+                    onCastSubtitleWarningCancel = {
+                        castManager.dismissSubtitleWarning()
+                        castManager.disconnect()
+                        viewModel.resumeFromCast(0L)
                     },
                 ),
             )
