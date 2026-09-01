@@ -121,6 +121,19 @@ class CastMediaBuilderTest {
         assertEquals(0, tracks.size)
     }
 
+    @Test
+    fun `build includes mixed srt and vtt subtitles but skips ass`() {
+        val subtitles = listOf(
+            Track("https://example.com/sub_en.srt", "English"),
+            Track("https://example.com/sub_fr.vtt", "French"),
+            Track("https://example.com/sub_jp.ass", "Japanese"),
+        )
+        val video = createVideo("https://example.com/video.mp4", subtitles = subtitles)
+        val mediaInfo = builder.build(video, testEpisode, testAnime)
+        val tracks = mediaInfo.mediaTracks ?: emptyList()
+        assertEquals(2, tracks.size)
+    }
+
     // ---- Subtitle drop detection ----
 
     @Test
