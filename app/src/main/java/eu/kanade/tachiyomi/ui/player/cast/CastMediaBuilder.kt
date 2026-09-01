@@ -57,6 +57,10 @@ class CastMediaBuilder(
             .build()
     }
 
+    /** True when the video has subtitles but the receiver can show none of them. */
+    fun subtitlesDroppedForCast(video: Video): Boolean =
+        video.subtitleTracks.isNotEmpty() && video.subtitleTracks.none { it.isCastCompatible() }
+
     private fun buildMediaTracks(video: Video): List<MediaTrack> {
         val subtitleTracks = video.subtitleTracks
             .filter { it.isCastCompatible() }

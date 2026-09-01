@@ -121,17 +121,43 @@ class CastMediaBuilderTest {
         assertEquals(0, tracks.size)
     }
 
+    // ---- Subtitle drop detection ----
+
     @Test
-    fun `build includes mixed srt and vtt subtitles but skips ass`() {
+    fun `subtitlesDroppedForCast returns true when only ass subtitles are present`() {
+        val subtitles = listOf(Track("https://example.com/sub.ass", "Japanese"))
+        val video = createVideo("https://example.com/video.mp4", subtitles = subtitles)
+        assertEquals(true, builder.subtitlesDroppedForCast(video))
+    }
+
+    @Test
+    fun `subtitlesDroppedForCast returns true when only ssa subtitles are present`() {
+        val subtitles = listOf(Track("https://example.com/sub.ssa", "Japanese"))
+        val video = createVideo("https://example.com/video.mp4", subtitles = subtitles)
+        assertEquals(true, builder.subtitlesDroppedForCast(video))
+    }
+
+    @Test
+    fun `subtitlesDroppedForCast returns false when a compatible track survives`() {
         val subtitles = listOf(
-            Track("https://example.com/sub_en.srt", "English"),
-            Track("https://example.com/sub_fr.vtt", "French"),
             Track("https://example.com/sub_jp.ass", "Japanese"),
+            Track("https://example.com/sub_en.vtt", "English"),
         )
         val video = createVideo("https://example.com/video.mp4", subtitles = subtitles)
-        val mediaInfo = builder.build(video, testEpisode, testAnime)
-        val tracks = mediaInfo.mediaTracks ?: emptyList()
-        assertEquals(2, tracks.size)
+        assertEquals(false, builder.subtitlesDroppedForCast(video))
+    }
+
+    @Test
+    fun `subtitlesDroppedForCast returns false when only compatible subtitles are present`() {
+        val subtitles = listOf(Track("https://example.com/sub.srt", "English"))
+        val video = createVideo("https://example.com/video.mp4", subtitles = subtitles)
+        assertEquals(false, builder.subtitlesDroppedForCast(video))
+    }
+
+    @Test
+    fun `subtitlesDroppedForCast returns false when there are no subtitle tracks`() {
+        val video = createVideo("https://example.com/video.mp4")
+        assertEquals(false, builder.subtitlesDroppedForCast(video))
     }
 
     // ---- Metadata ----
