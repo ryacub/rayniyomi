@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
  * - On long-press: playerUpdate becomes SpeedBoost(2.0f)
  * - On release: playerUpdate returns to None
  * - originalSpeed is captured per-press, so a speed change between presses is respected
+ * - The boost is disabled while casting (R1033)
  */
 class GestureHandlerSpeedBoostTest {
 
@@ -28,7 +29,8 @@ class GestureHandlerSpeedBoostTest {
     /**
      * Mirrors the long-press handler logic from GestureHandler.onLongPress.
      */
-    private fun onLongPressDetected() {
+    private fun onLongPressDetected(isCasting: Boolean = false) {
+        if (isCasting) return
         playerUpdate.update { PlayerUpdates.SpeedBoost(2.0f) }
     }
 
@@ -38,7 +40,7 @@ class GestureHandlerSpeedBoostTest {
      */
     private fun onRelease(originalSpeed: Float) {
         playerUpdate.update { PlayerUpdates.None }
-        // In the real code, MPVLib.setPropertyDouble("speed", originalSpeed.toDouble()) is also called
+        // In the real code, playbackSpeedController.setSpeedBoost(originalSpeed) is also called
         playbackSpeed.value = originalSpeed
     }
 
@@ -113,5 +115,19 @@ class GestureHandlerSpeedBoostTest {
 
         assertEquals(a, b)
         assertTrue(a != c)
+    }
+
+    @Test
+    fun `long press does not boost while casting`() {
+        onLongPressDetected(isCasting = true)
+
+        assertEquals(PlayerUpdates.None, playerUpdate.value)
+    }
+
+    @Test
+    fun `long press still boosts when not casting`() {
+        onLongPressDetected(isCasting = false)
+
+        assertInstanceOf(PlayerUpdates.SpeedBoost::class.java, playerUpdate.value)
     }
 }

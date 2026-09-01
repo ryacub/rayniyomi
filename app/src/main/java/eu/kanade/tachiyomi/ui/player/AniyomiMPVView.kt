@@ -150,6 +150,7 @@ class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(c
             MPVLib.setOptionString(it.mpvProperty, it.preference(decoderPreferences).get().toString())
         }
 
+        // Not routed through the speed boundary: no Cast session exists at mpv init (R1033).
         MPVLib.setOptionString("speed", playerPreferences.playerSpeed().get().toString())
         // workaround for <https://github.com/mpv-player/mpv/issues/14651>
         MPVLib.setOptionString("vd-lavc-film-grain", "cpu")

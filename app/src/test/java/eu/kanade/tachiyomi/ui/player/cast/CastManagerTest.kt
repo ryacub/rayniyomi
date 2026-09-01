@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.android.gms.cast.framework.CastSession
 import eu.kanade.tachiyomi.network.NetworkHelper
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -67,5 +68,26 @@ class CastManagerTest {
     fun `cleanup unregisters session listener`() {
         // Should not throw; verifies listener cleanup runs without error
         castManager.cleanup()
+    }
+
+    @Test
+    fun `setPlaybackRate forwards the rate to the remote media client`() {
+        val mockSession: CastSession = mockk(relaxed = true)
+        castManager.onSessionConnected(mockSession)
+
+        castManager.setPlaybackRate(1.5)
+
+        verify { mockSession.remoteMediaClient?.setPlaybackRate(1.5) }
+    }
+
+    @Test
+    fun `setPlaybackRate is a no-op without a session`() {
+        // Should not throw when no session is active
+        castManager.setPlaybackRate(1.5)
+    }
+
+    @Test
+    fun `isPlaybackRateSupported is false without a session`() {
+        assertEquals(false, castManager.isPlaybackRateSupported())
     }
 }

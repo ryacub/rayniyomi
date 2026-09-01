@@ -897,6 +897,10 @@ class PlayerActivity : BaseActivity() {
             val client = castManager.getRemoteMediaClient() ?: return
             val status = client.mediaStatus ?: return
             viewModel.updateCastProgress(status.streamPosition)
+            viewModel.playbackSpeedController.onReceiverStatus(
+                rate = status.playbackRate,
+                isRateSupported = castManager.isPlaybackRateSupported(),
+            )
             if (status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
                 status.idleReason == MediaStatus.IDLE_REASON_FINISHED &&
                 viewModel.currentEpisode.value != null
@@ -1050,6 +1054,7 @@ class PlayerActivity : BaseActivity() {
                     anime,
                     position ?: 0L,
                     video.headers ?: sourceHeaders,
+                    viewModel.playbackSpeed.value.toDouble(),
                 )
                 return
             }

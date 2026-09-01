@@ -98,13 +98,16 @@ fun ControlsButton(
     modifier: Modifier = Modifier,
     onLongClick: () -> Unit = {},
     color: Color = Color.White,
+    enabled: Boolean = true,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
     val clickEvent = LocalPlayerButtonsClickEvent.current
+    val textColor = if (enabled) color else color.copy(alpha = DISABLED_ALPHA)
     Box(
         modifier = modifier
             .combinedClickable(
+                enabled = enabled,
                 onClick = {
                     clickEvent()
                     onClick()
@@ -123,7 +126,7 @@ fun ControlsButton(
     ) {
         Text(
             text,
-            color = color,
+            color = textColor,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
