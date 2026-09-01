@@ -899,7 +899,7 @@ class PlayerActivity : BaseActivity() {
             viewModel.updateCastProgress(status.streamPosition)
             viewModel.playbackSpeedController.onReceiverStatus(
                 rate = status.playbackRate,
-                isRateSupported = status.isMediaCommandSupported(MediaStatus.COMMAND_PLAYBACK_RATE),
+                isRateSupported = castManager.isPlaybackRateSupported(),
             )
             if (status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
                 status.idleReason == MediaStatus.IDLE_REASON_FINISHED &&
