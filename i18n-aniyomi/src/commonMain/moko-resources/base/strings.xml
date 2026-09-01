@@ -191,6 +191,9 @@
     <string name="cast_button_connecting">Connecting to Cast device</string>
     <string name="cast_button_connected">Casting to TV</string>
     <string name="cast_subtitle_unsupported_format">This subtitle format is not supported on Chromecast</string>
+    <string name="cast_subtitle_unavailable_title">Subtitles unavailable on your TV</string>
+    <string name="cast_subtitle_unavailable_message">Your Chromecast cannot display this episode\'s subtitle format (ASS or SSA). Cast without subtitles, or watch on this device.</string>
+    <string name="cast_subtitle_cast_anyway">Cast anyway</string>
     <string name="cast_disconnect">Disconnect Cast</string>
     <string name="cast_subtitles">Subtitles</string>
     <string name="cast_subtitle_settings_title">Subtitle Settings</string>

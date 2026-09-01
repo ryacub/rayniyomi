@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 - Added privacy-safe aggregate translation run telemetry for coverage, retries, duration, and failure classes.
+- Casting now warns before playback when the episode's subtitles cannot be shown on the receiver.
 ### Improved
 
 - Cast now proxies header-dependent progressive streams through a temporary local HTTP endpoint.

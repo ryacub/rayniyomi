@@ -9,17 +9,21 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.viewinterop.AndroidView
 import eu.kanade.presentation.theme.TachiyomiTheme
+import eu.kanade.tachiyomi.ui.player.cast.CastSubtitleWarningDialog
 import eu.kanade.tachiyomi.ui.player.controls.PlayerControls
 
 internal data class PlayerHostUiCallbacks(
     val onBackPress: () -> Unit,
     val onPipRectChanged: (Rect) -> Unit,
+    val onCastSubtitleWarningConfirm: () -> Unit,
+    val onCastSubtitleWarningCancel: () -> Unit,
 )
 
 @Composable
 internal fun PlayerHostContent(
     playerView: AniyomiMPVView,
     viewModel: PlayerViewModel,
+    showCastSubtitleWarning: Boolean,
     callbacks: PlayerHostUiCallbacks,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -44,6 +48,12 @@ internal fun PlayerHostContent(
                         callbacks.onPipRectChanged(pipRect)
                     },
             )
+            if (showCastSubtitleWarning) {
+                CastSubtitleWarningDialog(
+                    onConfirm = callbacks.onCastSubtitleWarningConfirm,
+                    onCancel = callbacks.onCastSubtitleWarningCancel,
+                )
+            }
         }
     }
 }
