@@ -28,8 +28,19 @@ class CastSessionListener(
         castManager.onSessionResumeFailed()
     }
 
-    override fun onSessionStarting(session: CastSession) = Unit
-    override fun onSessionResuming(session: CastSession, sessionId: String) = Unit
-    override fun onSessionStartFailed(session: CastSession, error: Int) = Unit
-    override fun onSessionEnding(session: CastSession) = Unit
+    override fun onSessionStarting(session: CastSession) {
+        castManager.onSessionStarting()
+    }
+
+    override fun onSessionResuming(session: CastSession, sessionId: String) {
+        castManager.onSessionResuming()
+    }
+
+    override fun onSessionStartFailed(session: CastSession, error: Int) {
+        castManager.onSessionStartFailed()
+    }
+
+    override fun onSessionEnding(session: CastSession) {
+        castManager.onSessionEnding()
+    }
 }

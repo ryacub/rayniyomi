@@ -2,10 +2,9 @@ package eu.kanade.tachiyomi.ui.player.cast
 
 import android.content.Context
 import android.util.Log
-import com.google.android.gms.cast.MediaLoadOptions
-import com.google.android.gms.cast.MediaStatus
 import androidx.core.net.toUri
 import com.google.android.gms.cast.MediaLoadOptions
+import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
@@ -129,6 +128,26 @@ class CastManager(
         _castState.value = CastState.CONNECTED
     }
 
+    fun onSessionStarting() {
+        _castState.value = CastState.CONNECTING
+    }
+
+    fun onSessionResuming() {
+        _castState.value = CastState.CONNECTING
+    }
+
+    fun onSessionStartFailed() {
+        stopMediaPreparation()
+        castSession = null
+        _castState.value = CastState.DISCONNECTED
+    }
+
+    fun onSessionEnding() {
+        stopMediaPreparation()
+        castSession = null
+        _castState.value = CastState.DISCONNECTED
+    }
+
     fun onSessionEnded() {
         stopMediaPreparation()
         castSession = null
@@ -151,7 +170,7 @@ class CastManager(
         headers: Headers? = video.headers,
         playbackRate: Double = 1.0,
     ) {
-        val request = CastLoadRequest(video, episode, anime, startPositionMs, headers)
+        val request = CastLoadRequest(video, episode, anime, startPositionMs, headers, playbackRate)
         val session = castSession ?: return
         val client = session.remoteMediaClient ?: return
 
@@ -251,7 +270,7 @@ class CastManager(
 
         val loadOptions = MediaLoadOptions.Builder()
             .setPlayPosition(startPositionMs)
-            .setPlaybackRate(CastPlaybackRate.clamp(playbackRate.toFloat()).toDouble())
+            .setPlaybackRate(CastPlaybackRate.clamp(request.playbackRate.toFloat()).toDouble())
             .build()
 
         client.load(mediaInfo, loadOptions)
@@ -285,6 +304,7 @@ class CastManager(
         val anime: Anime,
         val startPositionMs: Long,
         val headers: Headers?,
+        val playbackRate: Double,
     )
 
     fun pause() {

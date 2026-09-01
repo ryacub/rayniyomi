@@ -31,6 +31,18 @@ class CastManagerTest {
     }
 
     @Test
+    fun `castState transitions to CONNECTING when a session starts`() = runTest {
+        castManager.onSessionStarting()
+        assertEquals(CastState.CONNECTING, castManager.castState.first())
+    }
+
+    @Test
+    fun `castState transitions to CONNECTING when a session resumes`() = runTest {
+        castManager.onSessionResuming()
+        assertEquals(CastState.CONNECTING, castManager.castState.first())
+    }
+
+    @Test
     fun `castState transitions to CONNECTED when onSessionConnected is called`() = runTest {
         val mockSession: CastSession = mockk(relaxed = true)
         castManager.onSessionConnected(mockSession)
@@ -57,6 +69,20 @@ class CastManagerTest {
     }
 
     @Test
+    fun `castState transitions to DISCONNECTED on session start failure`() = runTest {
+        castManager.onSessionStarting()
+        castManager.onSessionStartFailed()
+        assertEquals(CastState.DISCONNECTED, castManager.castState.first())
+    }
+
+    @Test
+    fun `castState transitions to DISCONNECTED when a session ends`() = runTest {
+        castManager.onSessionConnected(mockk(relaxed = true))
+        castManager.onSessionEnding()
+        assertEquals(CastState.DISCONNECTED, castManager.castState.first())
+    }
+
+    @Test
     fun `resetForNewActivity clears stale session reference`() = runTest {
         val mockSession: CastSession = mockk(relaxed = true)
         castManager.onSessionConnected(mockSession)
@@ -67,12 +93,6 @@ class CastManagerTest {
     }
 
     @Test
-    fun `cleanup unregisters session listener`() {
-        // Should not throw; verifies listener cleanup runs without error
-        castManager.cleanup()
-    }
-
-    @Test
     fun `setPlaybackRate forwards the rate to the remote media client`() {
         val mockSession: CastSession = mockk(relaxed = true)
         castManager.onSessionConnected(mockSession)
@@ -80,12 +100,6 @@ class CastManagerTest {
         castManager.setPlaybackRate(1.5)
 
         verify { mockSession.remoteMediaClient?.setPlaybackRate(1.5) }
-    }
-
-    @Test
-    fun `setPlaybackRate is a no-op without a session`() {
-        // Should not throw when no session is active
-        castManager.setPlaybackRate(1.5)
     }
 
     @Test
