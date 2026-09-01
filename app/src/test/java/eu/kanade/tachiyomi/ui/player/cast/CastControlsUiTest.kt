@@ -20,7 +20,6 @@ package eu.kanade.tachiyomi.ui.player.cast
 import eu.kanade.tachiyomi.ui.player.cast.components.formatCastTime
 import eu.kanade.tachiyomi.ui.player.model.VideoTrack
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -63,17 +62,17 @@ class CastControlsUiTest {
     }
 
     @Test
-    fun `CastButton is disabled when url starts with content-slash-slash`() {
+    fun `CastButton is enabled when url starts with content-slash-slash`() {
         val url = "content://some.provider/path"
-        val canCast = !url.startsWith("content://") && !url.startsWith("file://")
-        assertFalse(canCast)
+        val canCast = url.isNotBlank()
+        assertTrue(canCast)
     }
 
     @Test
-    fun `CastButton is disabled when url starts with file-slash-slash`() {
+    fun `CastButton is enabled when url starts with file-slash-slash`() {
         val url = "file:///storage/emulated/0/video.mp4"
-        val canCast = !url.startsWith("content://") && !url.startsWith("file://")
-        assertFalse(canCast)
+        val canCast = url.isNotBlank()
+        assertTrue(canCast)
     }
 
     @Test

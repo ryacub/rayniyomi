@@ -1753,8 +1753,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
         _primaryButtonTitle.update { _ -> button.name }
     }
 
-    fun canCast(video: Video): Boolean =
-        !video.videoUrl.startsWith("content://") && !video.videoUrl.startsWith("file://")
+    fun canCast(video: Video): Boolean = video.videoUrl.isNotBlank()
 
     fun resumeFromCast(positionMs: Long) {
         MPVLib.command(arrayOf("set", "time-pos", "${positionMs / 1000.0}"))

@@ -4,9 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.google.android.gms.cast.MediaLoadOptions
 import com.google.android.gms.cast.MediaStatus
+import androidx.core.net.toUri
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
+import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -45,7 +47,10 @@ class CastManager(
     private val _castError = MutableSharedFlow<CastError>(extraBufferCapacity = 8)
     val castError: SharedFlow<CastError> = _castError.asSharedFlow()
 
-    private val streamProxy = CastStreamProxy(network.client)
+    private val streamProxy = CastStreamProxy(
+        client = network.client,
+        localFileProvider = { uri -> UniFile.fromUri(context, uri.toUri()) },
+    )
     private val mediaBuilder = CastMediaBuilder(streamProxy)
     private val sessionListener = CastSessionListener(this)
 

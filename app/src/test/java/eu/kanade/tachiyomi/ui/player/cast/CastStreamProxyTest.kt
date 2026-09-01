@@ -1,5 +1,8 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
+import com.hippo.unifile.UniFile
+import io.mockk.every
+import io.mockk.mockk
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -10,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayInputStream
 import java.net.InetAddress
 
 class CastStreamProxyTest {
@@ -106,6 +110,44 @@ class CastStreamProxyTest {
 
         assertThrows(IllegalStateException::class.java) {
             noAddressProxy.urlFor(upstream.url("/episode.mp4").toString(), Headers.headersOf("User-Agent", "cast-test"))
+        }
+    }
+
+    @Test
+    fun `local proxy serves content URI with container type and ranges`() {
+        val file = mockk<UniFile>()
+        every { file.exists() } returns true
+        every { file.isFile } returns true
+        every { file.type } returns "video/mp4"
+        every { file.length() } returns 7L
+        every { file.openInputStream() } returns ByteArrayInputStream("episode".toByteArray())
+        val localProxy = CastStreamProxy(
+            client = OkHttpClient(),
+            addressProvider = { InetAddress.getLoopbackAddress() },
+            tokenProvider = { "local-token" },
+            localFileProvider = { uri ->
+                assertEquals("content://downloads/episode.mp4", uri)
+                file
+            },
+        )
+
+        try {
+            val media = localProxy.localMediaFor("content://downloads/episode.mp4")
+            val response = OkHttpClient().newCall(
+                Request.Builder()
+                    .url(media.url)
+                    .header("Range", "bytes=2-4")
+                    .build(),
+            ).execute()
+
+            response.use {
+                assertEquals(206, it.code)
+                assertEquals("video/mp4", it.header("Content-Type"))
+                assertEquals("bytes 2-4/7", it.header("Content-Range"))
+                assertEquals("iso", it.body.string())
+            }
+        } finally {
+            localProxy.stop()
         }
     }
 }
