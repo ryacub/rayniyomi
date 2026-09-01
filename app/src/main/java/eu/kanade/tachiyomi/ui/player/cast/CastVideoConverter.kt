@@ -90,7 +90,7 @@ class CastVideoConverter(
         return if (uri.scheme == "content") {
             FFmpegKitConfig.getSafParameter(context, uri, "rw")
         } else {
-            filePath!!
+            checkNotNull(filePath) { "Cast conversion input has no file path" }
         }.replace("\"", "\\\"")
     }
 
