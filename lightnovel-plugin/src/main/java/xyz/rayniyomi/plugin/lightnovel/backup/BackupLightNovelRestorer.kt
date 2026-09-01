@@ -3,17 +3,15 @@ package xyz.rayniyomi.plugin.lightnovel.backup
 import android.content.Context
 import android.util.Log
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.data.NovelLibrary
-import xyz.rayniyomi.plugin.lightnovel.data.NovelLibraryEnvelope
-import xyz.rayniyomi.plugin.lightnovel.data.NovelSchemaMigrations
+import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 import java.io.File
-import java.io.FileOutputStream
 
 class BackupLightNovelRestorer(
     private val context: Context,
 ) {
+    private val storage = NovelStorage(context)
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -39,7 +37,7 @@ class BackupLightNovelRestorer(
             return false
         }
 
-        return restoreLibraryAtomically(backup.library)
+        return storage.restoreLibrary(backup.library)
     }
 
     private fun isVersionCompatible(version: Int): Boolean {
@@ -48,10 +46,14 @@ class BackupLightNovelRestorer(
 
     private fun validateLibrary(library: NovelLibrary): Boolean {
         return try {
+            val ids = mutableSetOf<String>()
             val allValid = library.books.all { book ->
                 book.id.isNotBlank() &&
+                    ids.add(book.id) &&
                     book.title.isNotBlank() &&
                     book.epubFileName.isNotBlank() &&
+                    File(book.epubFileName).name == book.epubFileName &&
+                    !book.epubFileName.contains('\\') &&
                     book.lastReadChapter >= 0 &&
                     book.lastReadOffset >= 0 &&
                     book.updatedAt >= 0
@@ -62,40 +64,6 @@ class BackupLightNovelRestorer(
             allValid
         } catch (e: Exception) {
             Log.e(TAG, "Library validation failed: ${e.message}")
-            false
-        }
-    }
-
-    private fun restoreLibraryAtomically(library: NovelLibrary): Boolean {
-        val rootDir = File(context.filesDir, "light_novel_plugin")
-        val timestamp = System.currentTimeMillis()
-        val tempFile = File(rootDir, "library_restore_temp_$timestamp.json")
-        val libraryFile = File(rootDir, "library.json")
-
-        return runCatching {
-            require(rootDir.mkdirs() || rootDir.exists()) {
-                "Failed to create root directory: ${rootDir.absolutePath}"
-            }
-
-            val envelope = NovelLibraryEnvelope(
-                schemaVersion = NovelSchemaMigrations.LATEST_SCHEMA_VERSION,
-                library = library,
-            )
-            tempFile.writeText(json.encodeToString(envelope))
-
-            FileOutputStream(tempFile).use { it.fd.sync() }
-
-            json.decodeFromString<NovelLibraryEnvelope>(tempFile.readText())
-
-            val success = tempFile.renameTo(libraryFile)
-            if (!success) {
-                throw IllegalStateException("Failed to rename temp file to library file")
-            }
-
-            true
-        }.getOrElse { e ->
-            Log.e(TAG, "Failed to restore library atomically: ${e.message}", e)
-            tempFile.delete()
             false
         }
     }

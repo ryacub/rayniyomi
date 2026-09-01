@@ -10,6 +10,7 @@ import android.os.Binder
 import android.os.Bundle
 import android.os.Process
 import android.util.Log
+import xyz.rayniyomi.lightnovel.contract.LightNovelBackupContract
 import xyz.rayniyomi.plugin.lightnovel.data.NovelStorage
 
 class LightNovelBackupContentProvider : ContentProvider() {
@@ -27,7 +28,9 @@ class LightNovelBackupContentProvider : ContentProvider() {
             Log.w(TAG, "query() rejected: caller UID ${Binder.getCallingUid()} is not trusted")
             return null
         }
-        return if (uri.pathSegments.size == 1 && uri.pathSegments[0] == PATH_LIBRARY) {
+        return if (uri.pathSegments.size == 1 &&
+            uri.pathSegments[0] == LightNovelBackupContract.PATH_LIBRARY
+        ) {
             exportLibraryAsCursor(projection)
         } else {
             null
@@ -71,12 +74,12 @@ class LightNovelBackupContentProvider : ContentProvider() {
         books.forEach { book ->
             val row = columnsToUse.map { column ->
                 when (column) {
-                    COLUMN_ID -> book.id
-                    COLUMN_TITLE -> book.title
-                    COLUMN_EPUB_FILE_NAME -> book.epubFileName
-                    COLUMN_LAST_READ_CHAPTER -> book.lastReadChapter
-                    COLUMN_LAST_READ_OFFSET -> book.lastReadOffset
-                    COLUMN_UPDATED_AT -> book.updatedAt
+                    LightNovelBackupContract.COLUMN_ID -> book.id
+                    LightNovelBackupContract.COLUMN_TITLE -> book.title
+                    LightNovelBackupContract.COLUMN_EPUB_FILE_NAME -> book.epubFileName
+                    LightNovelBackupContract.COLUMN_LAST_READ_CHAPTER -> book.lastReadChapter
+                    LightNovelBackupContract.COLUMN_LAST_READ_OFFSET -> book.lastReadOffset
+                    LightNovelBackupContract.COLUMN_UPDATED_AT -> book.updatedAt
                     else -> null
                 }
             }.toTypedArray<Any?>()
@@ -87,7 +90,9 @@ class LightNovelBackupContentProvider : ContentProvider() {
     }
 
     override fun getType(uri: Uri): String? {
-        return if (uri.pathSegments.size == 1 && uri.pathSegments[0] == PATH_LIBRARY) {
+        return if (uri.pathSegments.size == 1 &&
+            uri.pathSegments[0] == LightNovelBackupContract.PATH_LIBRARY
+        ) {
             "vnd.android.cursor.dir/vnd.xyz.rayniyomi.plugin.lightnovel.backup.library"
         } else {
             null
@@ -112,13 +117,13 @@ class LightNovelBackupContentProvider : ContentProvider() {
     ): Bundle? {
         if (!isCallerTrusted()) {
             Log.w(TAG, "call() rejected: caller UID ${Binder.getCallingUid()} is not trusted")
-            return Bundle().apply { putBoolean(RESULT_SUCCESS, false) }
+            return Bundle().apply { putBoolean(LightNovelBackupContract.RESULT_SUCCESS, false) }
         }
-        if (method != METHOD_RESTORE_BACKUP) return super.call(method, arg, extras)
+        if (method != LightNovelBackupContract.METHOD_RESTORE_BACKUP) return super.call(method, arg, extras)
 
-        val backupData = extras?.getByteArray(EXTRA_BACKUP_DATA)
+        val backupData = extras?.getByteArray(LightNovelBackupContract.EXTRA_BACKUP_DATA)
         if (backupData == null) {
-            return Bundle().apply { putBoolean(RESULT_SUCCESS, false) }
+            return Bundle().apply { putBoolean(LightNovelBackupContract.RESULT_SUCCESS, false) }
         }
 
         val restored = runCatching {
@@ -127,34 +132,16 @@ class LightNovelBackupContentProvider : ContentProvider() {
             Log.e(TAG, "Failed to restore backup payload", error)
             false
         }
-        return Bundle().apply { putBoolean(RESULT_SUCCESS, restored) }
+        return Bundle().apply { putBoolean(LightNovelBackupContract.RESULT_SUCCESS, restored) }
     }
 
     companion object {
-        const val AUTHORITY = "xyz.rayniyomi.plugin.lightnovel.backup"
-        const val PATH_LIBRARY = "library"
+        const val AUTHORITY = LightNovelBackupContract.AUTHORITY
+        const val PATH_LIBRARY = LightNovelBackupContract.PATH_LIBRARY
 
-        val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH_LIBRARY")
+        val CONTENT_URI: Uri = Uri.parse(LightNovelBackupContract.CONTENT_URI)
 
-        val COLUMNS = arrayOf(
-            COLUMN_ID,
-            COLUMN_TITLE,
-            COLUMN_EPUB_FILE_NAME,
-            COLUMN_LAST_READ_CHAPTER,
-            COLUMN_LAST_READ_OFFSET,
-            COLUMN_UPDATED_AT,
-        )
-
-        const val COLUMN_ID = "id"
-        const val COLUMN_TITLE = "title"
-        const val COLUMN_EPUB_FILE_NAME = "epub_file_name"
-        const val COLUMN_LAST_READ_CHAPTER = "last_read_chapter"
-        const val COLUMN_LAST_READ_OFFSET = "last_read_offset"
-        const val COLUMN_UPDATED_AT = "updated_at"
-
-        const val METHOD_RESTORE_BACKUP = "restore_backup"
-        const val EXTRA_BACKUP_DATA = "backup_data"
-        const val RESULT_SUCCESS = "success"
+        val COLUMNS = LightNovelBackupContract.LIBRARY_COLUMNS.toTypedArray()
         private const val TAG = "LNBackupProvider"
     }
 }
