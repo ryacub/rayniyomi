@@ -9,10 +9,19 @@ import kotlinx.serialization.json.Json
 import xyz.rayniyomi.plugin.lightnovel.epub.EpubTextExtractor
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+
+internal object NovelStorageCoordinator {
+    private val lock = ReentrantLock(true)
+
+    fun <T> withLock(action: () -> T): T = lock.withLock(action)
+}
 
 /**
  * Persistent storage for the user's light-novel library.
@@ -52,18 +61,17 @@ class NovelStorage(private val context: Context) {
      * @return [NovelStorageState.Ok] if the file is absent or valid JSON,
      *   [NovelStorageState.Corrupted] otherwise.
      */
-    @Synchronized
-    fun checkIntegrity(): NovelStorageState {
-        if (!libraryFile.exists()) return NovelStorageState.Ok
+    fun checkIntegrity(): NovelStorageState = NovelStorageCoordinator.withLock {
+        if (!libraryFile.exists()) return@withLock NovelStorageState.Ok
         val text = libraryFile.readText()
         if (text.isBlank()) {
-            return NovelStorageState.Corrupted(reason = "Library file is empty")
+            return@withLock NovelStorageState.Corrupted(reason = "Library file is empty")
         }
-        return runCatching {
+        runCatching {
             val envelope = json.decodeFromString<NovelLibraryEnvelope>(text)
             if (envelope.schemaVersion > NovelSchemaMigrations.LATEST_SCHEMA_VERSION) {
                 val maxVersion = NovelSchemaMigrations.LATEST_SCHEMA_VERSION
-                return NovelStorageState.Corrupted(
+                return@withLock NovelStorageState.Corrupted(
                     reason = "Schema version ${envelope.schemaVersion} exceeds max supported $maxVersion",
                 )
             }
@@ -88,28 +96,25 @@ class NovelStorage(private val context: Context) {
      *
      * @return `true` if the file was deleted successfully or did not exist; `false` if deletion failed.
      */
-    @Synchronized
-    fun clearAndRecover(): Boolean {
-        if (!libraryFile.exists()) return true
+    fun clearAndRecover(): Boolean = NovelStorageCoordinator.withLock {
+        if (!libraryFile.exists()) return@withLock true
         val deleted = libraryFile.delete()
         if (!deleted) {
             Log.e(TAG, "clearAndRecover: failed to delete library file at ${libraryFile.absolutePath}")
         }
-        return deleted
+        deleted
     }
 
     // -------------------------------------------------------------------------
     // Library reads
     // -------------------------------------------------------------------------
 
-    @Synchronized
-    fun listBooks(): List<NovelBook> {
-        return readLibrary().books.sortedByDescending { it.updatedAt }
+    fun listBooks(): List<NovelBook> = NovelStorageCoordinator.withLock {
+        readLibrary().books.sortedByDescending { it.updatedAt }
     }
 
-    @Synchronized
-    fun getBook(bookId: String): NovelBook? {
-        return readLibrary().books.firstOrNull { it.id == bookId }
+    fun getBook(bookId: String): NovelBook? = NovelStorageCoordinator.withLock {
+        readLibrary().books.firstOrNull { it.id == bookId }
     }
 
     @Synchronized
@@ -121,7 +126,6 @@ class NovelStorage(private val context: Context) {
     // Import / update
     // -------------------------------------------------------------------------
 
-    @Synchronized
     fun importEpub(
         uri: Uri,
         onVerifying: () -> Unit = {},
@@ -152,10 +156,6 @@ class NovelStorage(private val context: Context) {
                 .getOrElse { throw InvalidEpubException("Unable to parse EPUB metadata", it) }
             val title = parsedTitle.takeIf { it.isNotBlank() } ?: targetFile.nameWithoutExtension
 
-            if (!tempFile.renameTo(targetFile)) {
-                throw IOException("Unable to finalize imported EPUB file")
-            }
-
             val newBook = NovelBook(
                 id = id,
                 title = title,
@@ -165,10 +165,16 @@ class NovelStorage(private val context: Context) {
                 updatedAt = System.currentTimeMillis(),
             )
 
-            val current = readLibrary().books.toMutableList()
-            current.add(newBook)
-            writeLibrary(NovelLibrary(current))
-            return newBook
+            return NovelStorageCoordinator.withLock {
+                if (!tempFile.renameTo(targetFile)) {
+                    throw IOException("Unable to finalize imported EPUB file")
+                }
+
+                val current = readLibrary().books.toMutableList()
+                current.add(newBook)
+                writeLibrary(NovelLibrary(current))
+                newBook
+            }
         } catch (cause: Throwable) {
             tempFile.delete()
             if (!targetFile.exists()) {
@@ -180,20 +186,34 @@ class NovelStorage(private val context: Context) {
         }
     }
 
-    @Synchronized
-    fun updateProgress(bookId: String, chapterIndex: Int, charOffset: Int) {
-        val updated = readLibrary().books.map { book ->
-            if (book.id == bookId) {
-                book.copy(
-                    lastReadChapter = chapterIndex.coerceAtLeast(0),
-                    lastReadOffset = charOffset.coerceAtLeast(0),
-                    updatedAt = System.currentTimeMillis(),
-                )
-            } else {
-                book
+    fun updateProgress(bookId: String, chapterIndex: Int, charOffset: Int) =
+        NovelStorageCoordinator.withLock {
+            val updated = readLibrary().books.map { book ->
+                if (book.id == bookId) {
+                    book.copy(
+                        lastReadChapter = chapterIndex.coerceAtLeast(0),
+                        lastReadOffset = charOffset.coerceAtLeast(0),
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                } else {
+                    book
+                }
             }
+            writeLibrary(NovelLibrary(updated))
         }
-        writeLibrary(NovelLibrary(updated))
+
+    fun restoreLibrary(library: NovelLibrary): Boolean = NovelStorageCoordinator.withLock {
+        runCatching {
+            val restoredIds = library.books.mapTo(mutableSetOf()) { it.id }
+            val preservedBooks = readLibrary().books.filter { book ->
+                book.id !in restoredIds && getBookFile(book).isFile
+            }
+            writeLibrary(NovelLibrary(library.books + preservedBooks))
+            true
+        }.getOrElse { cause ->
+            Log.e(TAG, "restoreLibrary: failed to write library: ${cause.message}", cause)
+            false
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -232,11 +252,16 @@ class NovelStorage(private val context: Context) {
             library = library,
         )
         val tmpFile = File(libraryFile.parent, "${libraryFile.name}.tmp")
-        tmpFile.writeText(json.encodeToString(envelope))
-        val renamed = tmpFile.renameTo(libraryFile)
-        if (!renamed) {
-            tmpFile.delete()
+        try {
+            FileOutputStream(tmpFile).use { output ->
+                output.write(json.encodeToString(envelope).encodeToByteArray())
+                output.fd.sync()
+            }
+            if (tmpFile.renameTo(libraryFile)) return
             throw IOException("Atomic rename failed: ${tmpFile.absolutePath} -> ${libraryFile.absolutePath}")
+        } catch (cause: Throwable) {
+            tmpFile.delete()
+            throw cause
         }
     }
 

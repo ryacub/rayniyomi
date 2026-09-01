@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import xyz.rayniyomi.lightnovel.contract.LightNovelBackupContract as SharedLightNovelBackupContract
 
 class LightNovelBackupCreator(
     private val context: Context,
@@ -32,12 +33,12 @@ class LightNovelBackupCreator(
                 val books = mutableListOf<NovelBookPayload>()
                 while (cursor.moveToNext()) {
                     books += NovelBookPayload(
-                        id = cursor.getStringOrEmpty(COLUMN_ID),
-                        title = cursor.getStringOrEmpty(COLUMN_TITLE),
-                        epubFileName = cursor.getStringOrEmpty(COLUMN_EPUB_FILE_NAME),
-                        lastReadChapter = cursor.getIntOrZero(COLUMN_LAST_READ_CHAPTER),
-                        lastReadOffset = cursor.getIntOrZero(COLUMN_LAST_READ_OFFSET),
-                        updatedAt = cursor.getLongOrZero(COLUMN_UPDATED_AT),
+                        id = cursor.getStringOrEmpty(SharedLightNovelBackupContract.COLUMN_ID),
+                        title = cursor.getStringOrEmpty(SharedLightNovelBackupContract.COLUMN_TITLE),
+                        epubFileName = cursor.getStringOrEmpty(SharedLightNovelBackupContract.COLUMN_EPUB_FILE_NAME),
+                        lastReadChapter = cursor.getIntOrZero(SharedLightNovelBackupContract.COLUMN_LAST_READ_CHAPTER),
+                        lastReadOffset = cursor.getIntOrZero(SharedLightNovelBackupContract.COLUMN_LAST_READ_OFFSET),
+                        updatedAt = cursor.getLongOrZero(SharedLightNovelBackupContract.COLUMN_UPDATED_AT),
                     )
                 }
 
@@ -75,26 +76,10 @@ class LightNovelBackupCreator(
     companion object {
         private const val TAG = "LightNovelBackupCreator"
 
-        private const val PATH_LIBRARY = "library"
         private val CONTENT_URI = android.net.Uri.parse(
-            "content://${LightNovelBackupContract.BACKUP_AUTHORITY}/$PATH_LIBRARY",
+            SharedLightNovelBackupContract.CONTENT_URI,
         )
-
-        private const val COLUMN_ID = "id"
-        private const val COLUMN_TITLE = "title"
-        private const val COLUMN_EPUB_FILE_NAME = "epub_file_name"
-        private const val COLUMN_LAST_READ_CHAPTER = "last_read_chapter"
-        private const val COLUMN_LAST_READ_OFFSET = "last_read_offset"
-        private const val COLUMN_UPDATED_AT = "updated_at"
-
-        private val COLUMNS = arrayOf(
-            COLUMN_ID,
-            COLUMN_TITLE,
-            COLUMN_EPUB_FILE_NAME,
-            COLUMN_LAST_READ_CHAPTER,
-            COLUMN_LAST_READ_OFFSET,
-            COLUMN_UPDATED_AT,
-        )
+        private val COLUMNS = SharedLightNovelBackupContract.LIBRARY_COLUMNS.toTypedArray()
     }
 }
 

@@ -2,6 +2,7 @@ package xyz.rayniyomi.plugin.lightnovel.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import xyz.rayniyomi.lightnovel.contract.LightNovelBackupContract
 
 /**
  * A single novel book entry stored in the library.
@@ -14,13 +15,13 @@ import kotlinx.serialization.Serializable
 data class NovelBook(
     val id: String,
     val title: String,
-    @SerialName("epub_file_name")
+    @SerialName(LightNovelBackupContract.COLUMN_EPUB_FILE_NAME)
     val epubFileName: String,
-    @SerialName("last_read_chapter")
+    @SerialName(LightNovelBackupContract.COLUMN_LAST_READ_CHAPTER)
     val lastReadChapter: Int = 0,
-    @SerialName("last_read_offset")
+    @SerialName(LightNovelBackupContract.COLUMN_LAST_READ_OFFSET)
     val lastReadOffset: Int = 0,
-    @SerialName("updated_at")
+    @SerialName(LightNovelBackupContract.COLUMN_UPDATED_AT)
     val updatedAt: Long = 0L,
     /** Cumulative reading time in minutes. Added in schema v2; defaults to 0 for v1 data. */
     @SerialName("reading_time_minutes")

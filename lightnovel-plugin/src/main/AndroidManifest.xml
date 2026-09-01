@@ -26,7 +26,7 @@
 
         <provider
             android:name=".backup.LightNovelBackupContentProvider"
-            android:authorities="xyz.rayniyomi.plugin.lightnovel.backup"
+            android:authorities="${applicationId}.backup"
             android:exported="true"
             android:enabled="true"
             android:readPermission="xyz.rayniyomi.permission.READ_LIGHT_NOVEL_BACKUP"

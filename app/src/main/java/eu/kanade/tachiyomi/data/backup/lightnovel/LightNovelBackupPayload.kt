@@ -2,10 +2,11 @@ package eu.kanade.tachiyomi.data.backup.lightnovel
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import xyz.rayniyomi.lightnovel.contract.LightNovelBackupContract as SharedLightNovelBackupContract
 
 @Serializable
 data class LightNovelBackupPayload(
-    val version: Int = LIGHT_NOVEL_BACKUP_VERSION,
+    val version: Int = SharedLightNovelBackupContract.LATEST_BACKUP_VERSION,
     val timestamp: Long = System.currentTimeMillis(),
     val library: NovelLibraryPayload,
 )
@@ -19,14 +20,12 @@ data class NovelLibraryPayload(
 data class NovelBookPayload(
     val id: String,
     val title: String,
-    @SerialName("epub_file_name")
+    @SerialName(SharedLightNovelBackupContract.COLUMN_EPUB_FILE_NAME)
     val epubFileName: String,
-    @SerialName("last_read_chapter")
+    @SerialName(SharedLightNovelBackupContract.COLUMN_LAST_READ_CHAPTER)
     val lastReadChapter: Int = 0,
-    @SerialName("last_read_offset")
+    @SerialName(SharedLightNovelBackupContract.COLUMN_LAST_READ_OFFSET)
     val lastReadOffset: Int = 0,
-    @SerialName("updated_at")
+    @SerialName(SharedLightNovelBackupContract.COLUMN_UPDATED_AT)
     val updatedAt: Long = System.currentTimeMillis(),
 )
-
-private const val LIGHT_NOVEL_BACKUP_VERSION = 1
