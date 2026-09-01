@@ -24,19 +24,21 @@ class CastMediaBuilder(
         requestHeaders: Headers? = video.headers,
     ): MediaInfo {
         val originalVideoUrl = video.videoUrl
-        check(!originalVideoUrl.startsWith("content://") && !originalVideoUrl.startsWith("file://")) {
-            "Cannot cast local files: $originalVideoUrl"
-        }
-
         val headers = requestHeaders
-        val videoUrl = when {
+        val localMedia = if (CastStreamProxy.isLocalUri(originalVideoUrl)) {
+            streamProxy?.localMediaFor(originalVideoUrl)
+                ?: error("Cannot cast a downloaded video without a local proxy")
+        } else {
+            null
+        }
+        val videoUrl = localMedia?.url ?: when {
             headers == null || headers.size == 0 -> originalVideoUrl
             isAdaptiveStream(originalVideoUrl) -> error("Cannot cast a protected HLS or DASH stream")
             streamProxy != null -> streamProxy.urlFor(originalVideoUrl, headers)
             else -> error("Cannot cast a stream with request headers")
         }
 
-        val contentType = when {
+        val contentType = localMedia?.contentType ?: when {
             originalVideoUrl.contains(".m3u8") -> "application/x-mpegURL"
             originalVideoUrl.contains(".mpd") -> "application/dash+xml"
             else -> "video/mp4"

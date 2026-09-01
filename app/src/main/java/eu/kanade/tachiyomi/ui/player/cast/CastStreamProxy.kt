@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
+import androidx.core.net.toUri
+import com.hippo.unifile.UniFile
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -25,6 +27,7 @@ class CastStreamProxy(
     private val client: OkHttpClient,
     private val addressProvider: () -> InetAddress? = ::findLocalAddress,
     private val tokenProvider: () -> String = { UUID.randomUUID().toString() },
+    private val localFileProvider: (String) -> UniFile? = { null },
 ) : Closeable {
 
     private val upstreamClient = client.newBuilder()
@@ -38,9 +41,38 @@ class CastStreamProxy(
         videoUrl: String,
         headers: Headers,
     ): String {
+        return urlFor(ProxyRoute.Remote(videoUrl, headers))
+    }
+
+    internal fun localMediaFor(videoUrl: String): LocalProxyMedia {
+        val media = when (val status = localMediaStatus(videoUrl)) {
+            is LocalMediaStatus.Castable -> status
+            is LocalMediaStatus.NeedsConversion -> error(
+                "Downloaded video requires conversion from ${status.container}",
+            )
+            is LocalMediaStatus.Unavailable -> error(status.reason)
+        }
+        return LocalProxyMedia(
+            url = urlFor(ProxyRoute.Local(media.file, media.contentType)),
+            contentType = media.contentType,
+        )
+    }
+
+    internal fun localMediaStatus(videoUrl: String): LocalMediaStatus {
+        val file = localFileProvider(videoUrl)
+            ?.takeIf { it.exists() && it.isFile }
+            ?: return LocalMediaStatus.Unavailable("Downloaded video is not available: $videoUrl")
+        val contentType = file.type?.lowercase()
+        return if (contentType?.let { it in CASTABLE_VIDEO_TYPES } == true) {
+            LocalMediaStatus.Castable(file, contentType)
+        } else {
+            LocalMediaStatus.NeedsConversion(file, file.type ?: file.name ?: "unknown")
+        }
+    }
+
+    private fun urlFor(route: ProxyRoute): String {
         val address = addressProvider()
             ?: error("Cannot cast a protected stream without a reachable local address")
-        val route = ProxyRoute(videoUrl, headers)
 
         return synchronized(lock) {
             val activeServer = server ?: ProxyServer(address, upstreamClient).also {
@@ -62,10 +94,29 @@ class CastStreamProxy(
 
     override fun close() = stop()
 
-    private data class ProxyRoute(
+    internal data class LocalProxyMedia(
         val url: String,
-        val headers: Headers,
+        val contentType: String,
     )
+
+    internal sealed interface LocalMediaStatus {
+        data class Castable(
+            val file: UniFile,
+            val contentType: String,
+        ) : LocalMediaStatus
+
+        data class NeedsConversion(
+            val file: UniFile,
+            val container: String,
+        ) : LocalMediaStatus
+
+        data class Unavailable(val reason: String) : LocalMediaStatus
+    }
+
+    private sealed interface ProxyRoute {
+        data class Remote(val url: String, val headers: Headers) : ProxyRoute
+        data class Local(val file: UniFile, val contentType: String) : ProxyRoute
+    }
 
     private class ProxyServer(
         address: InetAddress,
@@ -151,25 +202,38 @@ class CastStreamProxy(
                         return
                     }
 
-                    val requestBuilder = Request.Builder().url(route.url)
-                    route.headers.forEach { header ->
-                        val name = header.first
-                        val value = header.second
-                        if (name.lowercase() !in HOP_BY_HOP_HEADERS) {
-                            requestBuilder.header(name, value)
-                        }
-                    }
-                    requestHeaders["Range"]?.let { requestBuilder.header("Range", it) }
-                    if (method == "HEAD") requestBuilder.head() else requestBuilder.get()
+                    when (route) {
+                        is ProxyRoute.Remote -> {
+                            val requestBuilder = Request.Builder().url(route.url)
+                            route.headers.forEach { header ->
+                                val name = header.first
+                                val value = header.second
+                                if (name.lowercase() !in HOP_BY_HOP_HEADERS) {
+                                    requestBuilder.header(name, value)
+                                }
+                            }
+                            requestHeaders["Range"]?.let { requestBuilder.header("Range", it) }
+                            if (method == "HEAD") requestBuilder.head() else requestBuilder.get()
 
-                    val call = client.newCall(requestBuilder.build())
-                    calls += call
-                    try {
-                        call.execute().use { response ->
-                            writeResponse(clientSocket.getOutputStream(), response, method == "HEAD")
+                            val call = client.newCall(requestBuilder.build())
+                            calls += call
+                            try {
+                                call.execute().use { response ->
+                                    writeResponse(clientSocket.getOutputStream(), response, method == "HEAD")
+                                }
+                            } finally {
+                                calls -= call
+                            }
                         }
-                    } finally {
-                        calls -= call
+                        is ProxyRoute.Local -> {
+                            writeLocalResponse(
+                                output = clientSocket.getOutputStream(),
+                                file = route.file,
+                                contentType = route.contentType,
+                                rangeHeader = requestHeaders["Range"],
+                                headOnly = method == "HEAD",
+                            )
+                        }
                     }
                 } catch (_: Exception) {
                     // The receiver can close its socket while the upstream stream is active.
@@ -204,6 +268,94 @@ class CastStreamProxy(
             output.flush()
         }
 
+        private fun writeLocalResponse(
+            output: OutputStream,
+            file: UniFile,
+            contentType: String,
+            rangeHeader: String?,
+            headOnly: Boolean,
+        ) {
+            val fileLength = file.length()
+            val range = rangeHeader?.let { parseRange(it, fileLength) }
+            if (rangeHeader != null && range == null) {
+                output.write(
+                    "HTTP/1.1 416 Range Not Satisfiable\r\n".toByteArray(StandardCharsets.ISO_8859_1),
+                )
+                output.write("Content-Range: bytes */$fileLength\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+                output.write("Connection: close\r\n\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+                output.flush()
+                return
+            }
+
+            val start = range?.first ?: 0L
+            val contentLength = range?.second ?: fileLength
+            val status = if (range == null) "200 OK" else "206 Partial Content"
+            output.write("HTTP/1.1 $status\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+            output.write("Content-Type: $contentType\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+            output.write("Accept-Ranges: bytes\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+            if (range != null) {
+                output.write(
+                    "Content-Range: bytes $start-${start + contentLength - 1}/$fileLength\r\n"
+                        .toByteArray(StandardCharsets.ISO_8859_1),
+                )
+            }
+            output.write("Content-Length: $contentLength\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+            output.write("Connection: close\r\n\r\n".toByteArray(StandardCharsets.ISO_8859_1))
+            if (!headOnly) {
+                file.openInputStream().use { input ->
+                    skipFully(input, start)
+                    copyBytes(input, output, contentLength)
+                }
+            }
+            output.flush()
+        }
+
+        private fun parseRange(value: String, fileLength: Long): Pair<Long, Long>? {
+            if (fileLength < 0 || !value.startsWith("bytes=") || value.drop(6).contains(',')) return null
+            val range = value.substringAfter('=').split('-', limit = 2)
+            if (range.size != 2 || fileLength == 0L) return null
+            val startText = range[0]
+            val endText = range[1]
+            return when {
+                startText.isEmpty() -> {
+                    val suffixLength = endText.toLongOrNull()?.takeIf { it > 0 } ?: return null
+                    val length = suffixLength.coerceAtMost(fileLength)
+                    fileLength - length to length
+                }
+
+                else -> {
+                    val start = startText.toLongOrNull()?.takeIf { it in 0 until fileLength } ?: return null
+                    val end = endText.toLongOrNull()?.coerceAtMost(fileLength - 1) ?: (fileLength - 1)
+                    if (end < start) null else start to (end - start + 1)
+                }
+            }
+        }
+
+        private fun skipFully(input: java.io.InputStream, bytes: Long) {
+            var remaining = bytes
+            while (remaining > 0) {
+                val skipped = input.skip(remaining)
+                if (skipped > 0) {
+                    remaining -= skipped
+                } else if (input.read() == -1) {
+                    throw IOException("Downloaded video ended before the requested range")
+                } else {
+                    remaining--
+                }
+            }
+        }
+
+        private fun copyBytes(input: java.io.InputStream, output: OutputStream, byteCount: Long) {
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var remaining = byteCount
+            while (remaining > 0) {
+                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                if (read == -1) break
+                output.write(buffer, 0, read)
+                remaining -= read
+            }
+        }
+
         private fun writeError(output: OutputStream, code: Int, message: String) {
             val body = "$code $message\n".toByteArray(StandardCharsets.UTF_8)
             output.write(
@@ -232,6 +384,17 @@ class CastStreamProxy(
             "transfer-encoding",
             "upgrade",
         )
+
+        private val CASTABLE_VIDEO_TYPES = setOf(
+            "video/mp4",
+            "video/webm",
+            "video/mp2t",
+        )
+
+        internal fun isLocalUri(url: String): Boolean {
+            val lowerUrl = url.lowercase()
+            return lowerUrl.startsWith("content://") || lowerUrl.startsWith("file://")
+        }
 
         private fun findLocalAddress(): InetAddress? {
             return try {

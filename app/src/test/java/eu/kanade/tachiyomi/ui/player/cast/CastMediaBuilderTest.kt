@@ -1,7 +1,10 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
+import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -157,6 +160,30 @@ class CastMediaBuilderTest {
         val video = createVideo("file:///sdcard/Download/episode.mp4")
         assertThrows(IllegalStateException::class.java) {
             builder.build(video, testEpisode, testAnime)
+        }
+    }
+
+    @Test
+    fun `build rejects downloaded containers that Cast cannot play`() {
+        val file = mockk<UniFile>()
+        every { file.exists() } returns true
+        every { file.isFile } returns true
+        every { file.type } returns "video/x-matroska"
+        every { file.name } returns "episode.mkv"
+        val proxy = CastStreamProxy(
+            client = okhttp3.OkHttpClient(),
+            addressProvider = { java.net.InetAddress.getLoopbackAddress() },
+            localFileProvider = { file },
+        )
+
+        try {
+            val localBuilder = CastMediaBuilder(proxy)
+            val error = assertThrows(IllegalStateException::class.java) {
+                localBuilder.build(createVideo("content://downloads/episode.mkv"), testEpisode, testAnime)
+            }
+            assertEquals(true, error.message?.contains("video/x-matroska") == true)
+        } finally {
+            proxy.stop()
         }
     }
 }

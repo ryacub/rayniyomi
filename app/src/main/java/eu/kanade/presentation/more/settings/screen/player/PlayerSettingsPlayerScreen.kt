@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.ui.player.PlayerOrientation
 import eu.kanade.tachiyomi.ui.player.VLC_PLAYER
 import eu.kanade.tachiyomi.ui.player.WEB_VIDEO_CASTER
 import eu.kanade.tachiyomi.ui.player.X_PLAYER
+import eu.kanade.tachiyomi.ui.player.settings.CastConversionPolicy
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import kotlinx.collections.immutable.persistentListOf
@@ -66,6 +67,14 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
             Preference.PreferenceItem.SwitchPreference(
                 preference = playerPreferences.preserveWatchingPosition(),
                 title = stringResource(AYMR.strings.pref_preserve_watching_position),
+            ),
+            Preference.PreferenceItem.ListPreference(
+                preference = playerPreferences.castConversionPolicy(),
+                entries = persistentMapOf(
+                    CastConversionPolicy.ASK to stringResource(AYMR.strings.pref_cast_conversion_ask),
+                    CastConversionPolicy.ALWAYS to stringResource(AYMR.strings.pref_cast_conversion_always),
+                ),
+                title = stringResource(AYMR.strings.pref_cast_conversion),
             ),
             Preference.PreferenceItem.CustomPreference(
                 title = stringResource(AYMR.strings.pref_category_player_orientation),

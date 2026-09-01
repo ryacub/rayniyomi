@@ -18,6 +18,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 - Cast now proxies header-dependent progressive streams through a temporary local HTTP endpoint.
+- Cast now serves downloaded MP4, WebM, and MPEG-TS episodes through a temporary local HTTP endpoint with seeking support.
+- Cast now offers a temporary MP4 conversion for downloaded containers that Chromecast cannot play directly.
 
 ### Fixed
 - Tracker sync now reports malformed AniList, Jellyfin, Kavita, and Simkl responses instead of crashing or unlinking entries.
