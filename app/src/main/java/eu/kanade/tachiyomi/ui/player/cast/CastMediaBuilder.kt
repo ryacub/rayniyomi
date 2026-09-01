@@ -25,7 +25,7 @@ class CastMediaBuilder(
     ): MediaInfo {
         val originalVideoUrl = video.videoUrl
         val headers = requestHeaders
-        val localMedia = if (isLocalUri(originalVideoUrl)) {
+        val localMedia = if (CastStreamProxy.isLocalUri(originalVideoUrl)) {
             streamProxy?.localMediaFor(originalVideoUrl)
                 ?: error("Cannot cast a downloaded video without a local proxy")
         } else {
@@ -82,11 +82,6 @@ class CastMediaBuilder(
     private fun isAdaptiveStream(url: String): Boolean {
         val lowerUrl = url.lowercase()
         return lowerUrl.contains(".m3u8") || lowerUrl.contains(".mpd")
-    }
-
-    private fun isLocalUri(url: String): Boolean {
-        val lowerUrl = url.lowercase()
-        return lowerUrl.startsWith("content://") || lowerUrl.startsWith("file://")
     }
 
     // ass/ssa use a vector rendering engine Chromecast doesn't support

@@ -326,7 +326,7 @@ class PlayerActivity : BaseActivity() {
                     is CastError.LoadFailed -> {
                         Snackbar.make(
                             rootView,
-                            stringResource(AYMR.strings.cast_error_load_failed),
+                            error.reason.ifBlank { stringResource(AYMR.strings.cast_error_load_failed) },
                             Snackbar.LENGTH_LONG,
                         ).setAction(stringResource(AYMR.strings.cast_watch_locally)) {
                             castManager.disconnect()

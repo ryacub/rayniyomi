@@ -5,6 +5,14 @@ import eu.kanade.tachiyomi.ui.player.VideoAspect
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
 
+enum class CastConversionPolicy {
+    ASK,
+    ALWAYS,
+    ;
+
+    fun requiresPrompt() = this == ASK
+}
+
 class PlayerPreferences(
     private val preferenceStore: PreferenceStore,
 ) {
@@ -76,6 +84,10 @@ class PlayerPreferences(
         false,
     )
     fun externalPlayerPreference() = preferenceStore.getString("external_player_preference", "")
+    fun castConversionPolicy() = preferenceStore.getEnum(
+        "pref_cast_conversion_policy",
+        CastConversionPolicy.ASK,
+    )
 
     // Non-preferences
 

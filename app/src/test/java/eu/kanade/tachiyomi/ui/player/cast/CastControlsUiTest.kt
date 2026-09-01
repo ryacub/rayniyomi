@@ -78,7 +78,7 @@ class CastControlsUiTest {
     @Test
     fun `CastButton is enabled when url starts with https-slash-slash`() {
         val url = "https://example.com/video.mp4"
-        val canCast = !url.startsWith("content://") && !url.startsWith("file://")
+        val canCast = url.isNotBlank()
         assertTrue(canCast)
     }
 

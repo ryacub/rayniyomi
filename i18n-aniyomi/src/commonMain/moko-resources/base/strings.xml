@@ -203,6 +203,14 @@
     <string name="cast_edge_drop_shadow">Drop Shadow</string>
     <string name="cast_unknown_episode">Unknown Episode</string>
     <string name="cast_unknown_anime">Unknown Anime</string>
+    <string name="cast_convert_title">Convert for casting?</string>
+    <string name="cast_convert_message">This downloaded video uses %1$s, which Chromecast cannot play directly. Rayniyomi can create a temporary compatible copy. Conversion may take time and use storage.</string>
+    <string name="cast_convert_once">Convert once</string>
+    <string name="cast_convert_always">Always convert</string>
+    <string name="cast_conversion_progress">Preparing video for casting: %1$d%%</string>
+    <string name="pref_cast_conversion">Downloaded video casting</string>
+    <string name="pref_cast_conversion_ask">Ask every time</string>
+    <string name="pref_cast_conversion_always">Always convert</string>
     <!-- /Cast -->
     <string name="pref_player_custom_button_content">Lua code</string>
     <string name="pref_player_custom_button_content_long">Lua code (on long press)</string>

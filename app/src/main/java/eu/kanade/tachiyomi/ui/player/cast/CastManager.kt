@@ -5,18 +5,28 @@ import android.util.Log
 import com.google.android.gms.cast.MediaLoadOptions
 import com.google.android.gms.cast.MediaStatus
 import androidx.core.net.toUri
+import com.google.android.gms.cast.MediaLoadOptions
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.ui.player.settings.CastConversionPolicy
+import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import okhttp3.Headers
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
@@ -25,6 +35,12 @@ enum class CastState {
     DISCONNECTED,
     CONNECTING,
     CONNECTED,
+}
+
+sealed class CastConversionState {
+    data object Idle : CastConversionState()
+    data class Prompt(val container: String) : CastConversionState()
+    data class Converting(val progress: Int?) : CastConversionState()
 }
 
 sealed class CastError {
@@ -39,6 +55,8 @@ sealed class CastError {
 class CastManager(
     private val context: Context,
     private val network: NetworkHelper,
+    private val playerPreferences: PlayerPreferences,
+    private val converter: CastVideoConverter = CastVideoConverter(context),
 ) {
 
     private val _castState = MutableStateFlow(CastState.DISCONNECTED)
@@ -46,6 +64,13 @@ class CastManager(
 
     private val _castError = MutableSharedFlow<CastError>(extraBufferCapacity = 8)
     val castError: SharedFlow<CastError> = _castError.asSharedFlow()
+
+    private val _conversionState = MutableStateFlow<CastConversionState>(CastConversionState.Idle)
+    val conversionState: StateFlow<CastConversionState> = _conversionState.asStateFlow()
+    private val conversionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var conversionJob: Job? = null
+    private var pendingLoad: CastLoadRequest? = null
+    private var convertedFile: UniFile? = null
 
     private val streamProxy = CastStreamProxy(
         client = network.client,
@@ -92,7 +117,7 @@ class CastManager(
     fun cleanup() {
         unregisterActivity()
         if (!isCastSessionActive()) {
-            streamProxy.stop()
+            stopMediaPreparation()
         }
         castSession = null
     }
@@ -105,13 +130,13 @@ class CastManager(
     }
 
     fun onSessionEnded() {
-        streamProxy.stop()
+        stopMediaPreparation()
         castSession = null
         _castState.value = CastState.DISCONNECTED
     }
 
     fun onSessionResumeFailed() {
-        streamProxy.stop()
+        stopMediaPreparation()
         castSession = null
         _castState.value = CastState.DISCONNECTED
     }
@@ -126,8 +151,90 @@ class CastManager(
         headers: Headers? = video.headers,
         playbackRate: Double = 1.0,
     ) {
+        val request = CastLoadRequest(video, episode, anime, startPositionMs, headers)
         val session = castSession ?: return
         val client = session.remoteMediaClient ?: return
+
+        if (CastStreamProxy.isLocalUri(video.videoUrl)) {
+            when (val status = streamProxy.localMediaStatus(video.videoUrl)) {
+                is CastStreamProxy.LocalMediaStatus.Castable -> loadMediaNow(request, client)
+                is CastStreamProxy.LocalMediaStatus.NeedsConversion -> {
+                    pendingLoad = request
+                    if (playerPreferences.castConversionPolicy().get().requiresPrompt()) {
+                        _conversionState.value = CastConversionState.Prompt(status.container)
+                    } else {
+                        startConversion()
+                    }
+                }
+                is CastStreamProxy.LocalMediaStatus.Unavailable -> {
+                    _castError.tryEmit(CastError.LoadFailed(status.reason))
+                }
+            }
+            return
+        }
+
+        loadMediaNow(request, client)
+    }
+
+    fun startConversion(alwaysConvert: Boolean = false) {
+        val request = pendingLoad ?: return
+        if (alwaysConvert) {
+            playerPreferences.castConversionPolicy().set(CastConversionPolicy.ALWAYS)
+        }
+        conversionJob?.cancel()
+        conversionJob = conversionScope.launch {
+            _conversionState.value = CastConversionState.Converting(null)
+            try {
+                val file = converter.convert(request.video.videoUrl) { progress ->
+                    _conversionState.value = CastConversionState.Converting(progress)
+                }
+                convertedFile?.delete()
+                convertedFile = file
+                val convertedVideo = request.video.copy(
+                    videoUrl = file.uri.toString(),
+                    headers = null,
+                )
+                val activeSession = castSession
+                val client = activeSession?.remoteMediaClient
+                if (client == null) {
+                    file.delete()
+                    convertedFile = null
+                    pendingLoad = null
+                    return@launch
+                }
+                pendingLoad = null
+                loadMediaNow(request.copy(video = convertedVideo, headers = null), client, file)
+                _conversionState.value = CastConversionState.Idle
+            } catch (_: CancellationException) {
+                _conversionState.value = CastConversionState.Idle
+            } catch (error: Exception) {
+                pendingLoad = null
+                _conversionState.value = CastConversionState.Idle
+                _castError.tryEmit(
+                    CastError.LoadFailed(error.message ?: "Could not prepare the downloaded video for casting"),
+                )
+            }
+        }
+    }
+
+    fun cancelConversion() {
+        conversionJob?.cancel()
+        conversionJob = null
+        pendingLoad = null
+        _conversionState.value = CastConversionState.Idle
+    }
+
+    private fun loadMediaNow(
+        request: CastLoadRequest,
+        client: RemoteMediaClient,
+        fileToKeep: UniFile? = null,
+    ) {
+        val video = request.video
+        val episode = request.episode
+        val anime = request.anime
+        val startPositionMs = request.startPositionMs
+        val headers = request.headers
+        releaseConvertedFile(except = fileToKeep)
 
         val proxyHeaders = headers?.takeIf { it.size > 0 && requiresProxy(it) }
         if (proxyHeaders == null) {
@@ -137,6 +244,7 @@ class CastManager(
         val mediaInfo = try {
             mediaBuilder.build(video, episode, anime, proxyHeaders)
         } catch (e: Exception) {
+            releaseConvertedFile()
             _castError.tryEmit(CastError.LoadFailed(e.message ?: "Cannot cast this media"))
             return
         }
@@ -150,9 +258,34 @@ class CastManager(
             .addStatusListener { status ->
                 if (!status.isSuccess) {
                     _castError.tryEmit(CastError.LoadFailed("Media load failed: ${status.statusCode}"))
+                    releaseConvertedFile()
                 }
             }
     }
+
+    private fun stopMediaPreparation() {
+        conversionJob?.cancel()
+        conversionJob = null
+        pendingLoad = null
+        _conversionState.value = CastConversionState.Idle
+        releaseConvertedFile()
+        streamProxy.stop()
+    }
+
+    private fun releaseConvertedFile(except: UniFile? = null) {
+        if (convertedFile?.uri != except?.uri) {
+            convertedFile?.delete()
+            convertedFile = null
+        }
+    }
+
+    private data class CastLoadRequest(
+        val video: Video,
+        val episode: Episode,
+        val anime: Anime,
+        val startPositionMs: Long,
+        val headers: Headers?,
+    )
 
     fun pause() {
         castSession?.remoteMediaClient?.pause()

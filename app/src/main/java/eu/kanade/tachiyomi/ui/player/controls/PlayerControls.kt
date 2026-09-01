@@ -67,6 +67,7 @@ import eu.kanade.tachiyomi.ui.player.Sheets
 import eu.kanade.tachiyomi.ui.player.VideoAspect
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.cast.CastState
+import eu.kanade.tachiyomi.ui.player.cast.components.CastConversionDialog
 import eu.kanade.tachiyomi.ui.player.cast.components.CastMiniController
 import eu.kanade.tachiyomi.ui.player.controls.components.BrightnessOverlay
 import eu.kanade.tachiyomi.ui.player.controls.components.BrightnessSlider
@@ -124,6 +125,7 @@ fun PlayerControls(
 
     val castManager = remember { Injekt.get<CastManager>() }
     val castState by castManager.castState.collectAsStateWithLifecycle()
+    val conversionState by castManager.conversionState.collectAsStateWithLifecycle()
     val isCasting = (castState == CastState.CONNECTED)
     val castProgress by viewModel.castProgress.collectAsStateWithLifecycle()
     val currentVideo by viewModel.currentVideo.collectAsStateWithLifecycle()
@@ -676,6 +678,12 @@ fun PlayerControls(
                 activity.changeEpisode(it)
             },
             onDismissRequest = { viewModel.showDialog(Dialogs.None) },
+        )
+
+        CastConversionDialog(
+            state = conversionState,
+            onConvert = castManager::startConversion,
+            onCancel = castManager::cancelConversion,
         )
 
         BrightnessOverlay(

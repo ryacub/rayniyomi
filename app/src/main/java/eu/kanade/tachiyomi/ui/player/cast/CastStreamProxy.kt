@@ -45,19 +45,29 @@ class CastStreamProxy(
     }
 
     internal fun localMediaFor(videoUrl: String): LocalProxyMedia {
+        val media = when (val status = localMediaStatus(videoUrl)) {
+            is LocalMediaStatus.Castable -> status
+            is LocalMediaStatus.NeedsConversion -> error(
+                "Downloaded video requires conversion from ${status.container}",
+            )
+            is LocalMediaStatus.Unavailable -> error(status.reason)
+        }
+        return LocalProxyMedia(
+            url = urlFor(ProxyRoute.Local(media.file, media.contentType)),
+            contentType = media.contentType,
+        )
+    }
+
+    internal fun localMediaStatus(videoUrl: String): LocalMediaStatus {
         val file = localFileProvider(videoUrl)
             ?.takeIf { it.exists() && it.isFile }
-            ?: error("Downloaded video is not available: $videoUrl")
+            ?: return LocalMediaStatus.Unavailable("Downloaded video is not available: $videoUrl")
         val contentType = file.type?.lowercase()
-            ?.takeIf { it in CASTABLE_VIDEO_TYPES }
-            ?: error(
-                "Cannot cast downloaded video: unsupported container " +
-                    (file.type ?: file.name ?: "unknown"),
-            )
-        return LocalProxyMedia(
-            url = urlFor(ProxyRoute.Local(file, contentType)),
-            contentType = contentType,
-        )
+        return if (contentType?.let { it in CASTABLE_VIDEO_TYPES } == true) {
+            LocalMediaStatus.Castable(file, contentType)
+        } else {
+            LocalMediaStatus.NeedsConversion(file, file.type ?: file.name ?: "unknown")
+        }
     }
 
     private fun urlFor(route: ProxyRoute): String {
@@ -88,6 +98,20 @@ class CastStreamProxy(
         val url: String,
         val contentType: String,
     )
+
+    internal sealed interface LocalMediaStatus {
+        data class Castable(
+            val file: UniFile,
+            val contentType: String,
+        ) : LocalMediaStatus
+
+        data class NeedsConversion(
+            val file: UniFile,
+            val container: String,
+        ) : LocalMediaStatus
+
+        data class Unavailable(val reason: String) : LocalMediaStatus
+    }
 
     private sealed interface ProxyRoute {
         data class Remote(val url: String, val headers: Headers) : ProxyRoute
@@ -366,6 +390,11 @@ class CastStreamProxy(
             "video/webm",
             "video/mp2t",
         )
+
+        internal fun isLocalUri(url: String): Boolean {
+            val lowerUrl = url.lowercase()
+            return lowerUrl.startsWith("content://") || lowerUrl.startsWith("file://")
+        }
 
         private fun findLocalAddress(): InetAddress? {
             return try {

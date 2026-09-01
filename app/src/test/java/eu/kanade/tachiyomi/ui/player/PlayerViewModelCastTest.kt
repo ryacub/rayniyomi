@@ -29,30 +29,30 @@ class PlayerViewModelCastTest {
     }
 
     @Test
-    fun `canCast rejects content-slash-slash URLs`() {
+    fun `canCast accepts content-slash-slash URLs`() {
         val videoUrl = "content://some.provider/path"
-        val canCast = !videoUrl.startsWith("content://") && !videoUrl.startsWith("file://")
-        assertFalse(canCast, "Should reject content:// URLs")
+        val canCast = videoUrl.isNotBlank()
+        assertTrue(canCast, "Should accept content:// URLs")
     }
 
     @Test
-    fun `canCast rejects file-slash-slash URLs`() {
+    fun `canCast accepts file-slash-slash URLs`() {
         val videoUrl = "file:///storage/emulated/0/video.mp4"
-        val canCast = !videoUrl.startsWith("content://") && !videoUrl.startsWith("file://")
-        assertFalse(canCast, "Should reject file:// URLs")
+        val canCast = videoUrl.isNotBlank()
+        assertTrue(canCast, "Should accept file:// URLs")
     }
 
     @Test
     fun `canCast accepts http-slash-slash URLs`() {
         val videoUrl = "http://example.com/video.mp4"
-        val canCast = !videoUrl.startsWith("content://") && !videoUrl.startsWith("file://")
+        val canCast = videoUrl.isNotBlank()
         assertTrue(canCast, "Should accept http:// URLs")
     }
 
     @Test
     fun `canCast accepts https-slash-slash URLs`() {
         val videoUrl = "https://example.com/video.mp4"
-        val canCast = !videoUrl.startsWith("content://") && !videoUrl.startsWith("file://")
+        val canCast = videoUrl.isNotBlank()
         assertTrue(canCast, "Should accept https:// URLs")
     }
 
