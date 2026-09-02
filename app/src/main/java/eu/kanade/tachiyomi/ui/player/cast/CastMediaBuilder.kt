@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.cast
 
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaMetadata
+import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaTrack
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -60,6 +61,17 @@ class CastMediaBuilder(
     /** True when the video has subtitles but the receiver can show none of them. */
     fun subtitlesDroppedForCast(video: Video): Boolean =
         video.subtitleTracks.isNotEmpty() && video.subtitleTracks.none { it.isCastCompatible() }
+
+    fun buildQueueItem(
+        video: Video,
+        episode: Episode,
+        anime: Anime,
+        requestHeaders: Headers? = video.headers,
+    ): MediaQueueItem {
+        return MediaQueueItem.Builder(build(video, episode, anime, requestHeaders))
+            .setAutoplay(true)
+            .build()
+    }
 
     private fun buildMediaTracks(video: Video): List<MediaTrack> {
         val subtitleTracks = video.subtitleTracks

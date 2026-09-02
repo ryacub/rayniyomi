@@ -225,4 +225,21 @@ class CastMediaBuilderTest {
             proxy.stop()
         }
     }
+
+    // ---- Queue items ----
+
+    @Test
+    fun `buildQueueItem wraps the media info with autoplay enabled`() {
+        val video = createVideo("https://example.com/video.mp4")
+        val item = builder.buildQueueItem(video, testEpisode, testAnime)
+        assertNotNull(item.media)
+        assertEquals("https://example.com/video.mp4", item.media?.contentId)
+    }
+
+    @Test
+    fun `buildQueueItem preserves the contentId used for episode identity`() {
+        val video = createVideo("https://example.com/episode-42.mp4")
+        val item = builder.buildQueueItem(video, testEpisode, testAnime)
+        assertEquals(video.videoUrl, item.media?.contentId)
+    }
 }

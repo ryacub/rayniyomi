@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.core.net.toUri
 import com.google.android.gms.cast.MediaLoadOptions
+import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
@@ -165,6 +166,51 @@ class CastManager(
     }
 
     // ---- Playback control ----
+
+    fun isDownloadedVideo(video: Video): Boolean = CastStreamProxy.isLocalUri(video.videoUrl)
+
+    fun buildQueueItem(
+        video: Video,
+        episode: Episode,
+        anime: Anime,
+        headers: Headers? = video.headers,
+    ): MediaQueueItem? {
+        val proxyHeaders = headers?.takeIf { it.size > 0 && requiresProxy(it) }
+        return try {
+            mediaBuilder.buildQueueItem(video, episode, anime, proxyHeaders)
+        } catch (e: Exception) {
+            _castError.tryEmit(CastError.LoadFailed(e.message ?: "Cannot cast this media"))
+            null
+        }
+    }
+
+    fun loadQueue(items: List<MediaQueueItem>, startPositionMs: Long) {
+        val client = castSession?.remoteMediaClient ?: return
+        client.queueLoad(
+            items.toTypedArray(),
+            0,
+            MediaStatus.REPEAT_MODE_REPEAT_OFF,
+            startPositionMs,
+            null,
+        ).addStatusListener { status ->
+            if (!status.isSuccess) {
+                _castError.tryEmit(CastError.LoadFailed("Media load failed: ${status.statusCode}"))
+            }
+        }
+    }
+
+    fun appendToQueue(item: MediaQueueItem) {
+        castSession?.remoteMediaClient?.queueAppendItem(item, null)
+    }
+
+    fun removeQueueItems(itemIds: List<Int>) {
+        castSession?.remoteMediaClient?.queueRemoveItems(itemIds.toIntArray(), null)
+    }
+
+    fun itemIdForContentId(contentId: String): Int? {
+        val status = castSession?.remoteMediaClient?.mediaStatus ?: return null
+        return status.queueItems.firstOrNull { it.media?.contentId == contentId }?.itemId
+    }
 
     fun loadMedia(
         video: Video,
