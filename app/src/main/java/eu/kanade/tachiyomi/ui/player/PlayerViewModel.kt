@@ -1065,13 +1065,10 @@ class PlayerViewModel @JvmOverloads internal constructor(
     }
 
     override fun onCleared() {
-        if (currentEpisode.value != null) {
-            saveWatchingProgress(currentEpisode.value!!)
+        currentEpisode.value?.let { episode ->
+            saveWatchingProgress(episode)
             episodeToDownload?.let {
-                val episodeId = it.episode.id
-                if (episodeId != null) {
-                    downloadManager.addDownloadsToStartByEpisodeIdsAsync(listOf(episodeId))
-                }
+                downloadManager.addDownloadsToStartByEpisodeIdsAsync(listOf(it.episode.id))
             }
         }
     }
@@ -1502,11 +1499,11 @@ class PlayerViewModel @JvmOverloads internal constructor(
     /**
      * Bookmarks the currently active episode.
      */
-    fun bookmarkEpisode(episodeId: Long?, bookmarked: Boolean) {
+    fun bookmarkEpisode(episodeId: Long, bookmarked: Boolean) {
         viewModelScope.launchNonCancellable {
             updateEpisode.await(
                 EpisodeUpdate(
-                    id = episodeId!!,
+                    id = episodeId,
                     bookmark = bookmarked,
                 ),
             )
@@ -1516,11 +1513,11 @@ class PlayerViewModel @JvmOverloads internal constructor(
     /**
      * Fillermarks the currently active episode.
      */
-    fun fillermarkEpisode(episodeId: Long?, fillermarked: Boolean) {
+    fun fillermarkEpisode(episodeId: Long, fillermarked: Boolean) {
         viewModelScope.launchNonCancellable {
             updateEpisode.await(
                 EpisodeUpdate(
-                    id = episodeId!!,
+                    id = episodeId,
                     fillermark = fillermarked,
                 ),
             )

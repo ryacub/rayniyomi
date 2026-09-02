@@ -133,9 +133,6 @@ app/src/main/java/eu/kanade/tachiyomi/ui/player/AniyomiMPVView.kt	set(position) 
 app/src/main/java/eu/kanade/tachiyomi/ui/player/AniyomiMPVView.kt	set(paused) = MPVLib.setPropertyBoolean("pause", paused!!)
 app/src/main/java/eu/kanade/tachiyomi/ui/player/ExternalIntents.kt	File(uri.path!!),
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerActivity.kt	val width = it * player.getVideoOutAspect()!!
-app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	saveWatchingProgress(currentEpisode.value!!)
-app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	id = episodeId!!,
-app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	id = episodeId!!,
 app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/BottomLeftPlayerControls.kt	chapter = currentChapter!!,
 app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/dialogs/EpisodeListDialog.kt	text = episode.scanlator!!,
 app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleDelayPanel.kt	val elapsed = System.currentTimeMillis() - timerStart!!
