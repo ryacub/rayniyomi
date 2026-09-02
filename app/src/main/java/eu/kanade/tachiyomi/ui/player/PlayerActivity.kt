@@ -66,13 +66,13 @@ import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.data.database.models.anime.toDomainEpisode
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.player.cast.CastError
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
+import eu.kanade.tachiyomi.ui.player.cast.CastReceiverSnapshot
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
@@ -908,17 +908,19 @@ class PlayerActivity : BaseActivity() {
         override fun onStatusUpdated() {
             val client = castManager.getRemoteMediaClient() ?: return
             val status = client.mediaStatus ?: return
-            viewModel.updateCastProgress(status.streamPosition)
+            viewModel.onCastStatus(
+                CastReceiverSnapshot(
+                    contentId = status.mediaInfo?.contentId,
+                    positionMs = status.streamPosition,
+                    durationMs = client.streamDuration,
+                    isIdleFinished = status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
+                        status.idleReason == MediaStatus.IDLE_REASON_FINISHED,
+                ),
+            )
             viewModel.playbackSpeedController.onReceiverStatus(
                 rate = status.playbackRate,
                 isRateSupported = castManager.isPlaybackRateSupported(),
             )
-            if (status.playerState == MediaStatus.PLAYER_STATE_IDLE &&
-                status.idleReason == MediaStatus.IDLE_REASON_FINISHED &&
-                viewModel.currentEpisode.value != null
-            ) {
-                viewModel.onCastEpisodeFinished()
-            }
         }
     }
 
@@ -1056,20 +1058,8 @@ class PlayerActivity : BaseActivity() {
         if (video == null) return
 
         if (viewModel.isCasting.value && viewModel.canCast(video)) {
-            val episode = viewModel.currentEpisode.value?.toDomainEpisode()
-            val anime = viewModel.currentAnime.value
-            if (episode != null && anime != null) {
-                val sourceHeaders = (viewModel.currentSource.value as? AnimeHttpSource)?.headers
-                castManager.loadMedia(
-                    video,
-                    episode,
-                    anime,
-                    position ?: 0L,
-                    video.headers ?: sourceHeaders,
-                    viewModel.playbackSpeed.value.toDouble(),
-                )
-                return
-            }
+            viewModel.startCastQueue(video, position ?: 0L)
+            return
         }
 
         setHttpOptions(video)

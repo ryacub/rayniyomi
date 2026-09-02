@@ -65,9 +65,14 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
+import eu.kanade.tachiyomi.ui.player.cast.CastQueueController
+import eu.kanade.tachiyomi.ui.player.cast.CastQueuePlanner
+import eu.kanade.tachiyomi.ui.player.cast.CastQueueSink
+import eu.kanade.tachiyomi.ui.player.cast.CastReceiverSnapshot
 import eu.kanade.tachiyomi.ui.player.cast.CastState
 import eu.kanade.tachiyomi.ui.player.controls.components.IndexedSegment
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
+import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterOrchestrator
 import eu.kanade.tachiyomi.ui.player.loader.PlayerMediaOrchestrator
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
@@ -99,11 +104,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -214,6 +223,27 @@ class PlayerViewModel @JvmOverloads internal constructor(
     ).also { it.attach(viewModelScope) }
 
     val isSpeedControlAvailable = playbackSpeedController.isSpeedControlAvailable
+
+    private val castQueueController = CastQueueController(
+        object : CastQueueSink {
+            override fun onProgress(episodeId: Long, positionMs: Long, durationMs: Long) {
+                currentPlaylist.value.firstOrNull { it.id == episodeId }
+                    ?.let { markProgress(it, positionMs, durationMs) }
+            }
+
+            override fun onCurrentEpisodeChanged(episodeId: Long) = adoptCastEpisode(episodeId)
+
+            override fun onQueueExhausted() {
+                viewModelScope.launchIO { fillCastQueue() }
+            }
+        },
+    ).also { controller ->
+        castManager.castState
+            .onEach { state ->
+                if (state != CastState.CONNECTED) controller.onSessionEnded()
+            }
+            .launchIn(viewModelScope)
+    }
 
     fun setPlaybackSpeed(speed: Float) = playbackSpeedController.setSpeed(speed)
 
@@ -1328,26 +1358,31 @@ class PlayerViewModel @JvmOverloads internal constructor(
 
         val seconds = position * 1000L
         val totalSeconds = duration * 1000L
-        // Save last second seen and mark as seen if needed
-        currentEp.last_second_seen = seconds
-        currentEp.total_seconds = totalSeconds
 
         episodePosition = seconds
 
-        val progress = playerPreferences.progressPreference().get()
-        val shouldTrack = !incognitoMode || hasTrackers
-        if (seconds >= totalSeconds * progress && shouldTrack) {
-            viewModelScope.launchNonCancellable {
-                updateEpisodeProgressOnComplete(currentEp)
-            }
-        }
-
-        saveWatchingProgress(currentEp)
+        markProgress(currentEp, seconds, totalSeconds)
 
         val inDownloadRange = seconds.toDouble() / totalSeconds > 0.35
         if (inDownloadRange) {
             downloadNextEpisodes()
         }
+    }
+
+    /** The single place episode progress is written, shared by local playback and Cast. */
+    private fun markProgress(episode: Episode, positionMs: Long, totalMs: Long) {
+        if (totalMs <= 0L) return
+        episode.last_second_seen = positionMs
+        episode.total_seconds = totalMs
+
+        val progress = playerPreferences.progressPreference().get()
+        val shouldTrack = !incognitoMode || hasTrackers
+        if (positionMs >= totalMs * progress && shouldTrack) {
+            viewModelScope.launchNonCancellable {
+                updateEpisodeProgressOnComplete(episode)
+            }
+        }
+        saveWatchingProgress(episode)
     }
 
     private suspend fun updateEpisodeProgressOnComplete(currentEp: Episode) {
@@ -1763,9 +1798,100 @@ class PlayerViewModel @JvmOverloads internal constructor(
         _castProgress.value = posMs
     }
 
-    fun onCastEpisodeFinished() {
-        changeEpisode(previous = false, autoPlay = true)
+    /** Feeds one receiver reading to the queue controller. The receiver drives; the app follows. */
+    fun onCastStatus(snapshot: CastReceiverSnapshot) {
+        _castProgress.value = snapshot.positionMs
+        castQueueController.onSnapshot(snapshot)
     }
+
+    /** Loads the current episode as a one-item queue, then fills the lookahead in the background. */
+    fun startCastQueue(video: Video, startPositionMs: Long) {
+        val anime = currentAnime.value ?: return
+        val episode = currentEpisode.value ?: return
+        if (!canCast(video)) return
+        val headers = video.headers ?: (currentSource.value as? AnimeHttpSource)?.headers
+        // Downloaded videos may need container conversion, which only the single-item path handles.
+        if (castManager.isDownloadedVideo(video)) {
+            castManager.loadMedia(
+                video,
+                episode.toDomainEpisode(),
+                anime,
+                startPositionMs,
+                headers,
+                playbackSpeed.value.toDouble(),
+            )
+            return
+        }
+        val item = castManager.buildQueueItem(video, episode.toDomainEpisode(), anime, headers) ?: return
+        castQueueController.reset()
+        castManager.loadQueue(listOf(item), startPositionMs)
+        item.media?.contentId?.let { castQueueController.registerQueuedItem(it, episode.id) }
+        viewModelScope.launchIO { fillCastQueue() }
+    }
+
+    /** Tops the queue back up to the lookahead depth and drops episodes the user marked seen. */
+    private suspend fun fillCastQueue() {
+        castQueueMutex.withLock {
+            val anime = currentAnime.value ?: return
+            val currentEpisodeId = currentEpisode.value?.id ?: return
+            val sourceHeaders = (currentSource.value as? AnimeHttpSource)?.headers
+
+            val candidates = CastQueuePlanner.planLookahead(
+                currentPlaylist.value,
+                currentEpisodeId,
+            ).filterNot { it.id in castQueueController.queuedEpisodeIds() }
+
+            candidates.forEach { episode ->
+                val video = resolveCastVideo(episode) ?: return@forEach
+                if (!canCast(video)) return@forEach
+                // Downloaded videos need the single-item conversion path, so they skip the queue.
+                if (castManager.isDownloadedVideo(video)) return@forEach
+                val item = castManager.buildQueueItem(
+                    video,
+                    episode.toDomainEpisode(),
+                    anime,
+                    video.headers ?: sourceHeaders,
+                ) ?: return@forEach
+                castManager.appendToQueue(item)
+                item.media?.contentId?.let { castQueueController.registerQueuedItem(it, episode.id) }
+            }
+
+            val staleIds = CastQueuePlanner.staleEpisodeIds(
+                castQueueController.queuedEpisodeIds(),
+                currentPlaylist.value,
+                currentEpisodeId,
+            )
+            staleIds.forEach { episodeId ->
+                val contentId = castQueueController.contentIdForEpisode(episodeId) ?: return@forEach
+                castManager.itemIdForContentId(contentId)?.let { itemId ->
+                    castManager.removeQueueItems(listOf(itemId))
+                }
+                castQueueController.unregisterEpisode(episodeId)
+            }
+        }
+    }
+
+    private suspend fun resolveCastVideo(episode: Episode): Video? = try {
+        val source = currentSource.value ?: return null
+        val anime = currentAnime.value ?: return null
+        val hosters = EpisodeLoader.getHosters(episode.toDomainEpisode(), anime, source)
+        HosterLoader.getBestVideo(source, hosters)
+    } catch (e: Exception) {
+        logcat(LogPriority.WARN, e) { "Cannot resolve cast lookahead for episode ${episode.id}" }
+        null
+    }
+
+    /** Adopts the episode the receiver moved to, without reloading or pushing a load. */
+    private fun adoptCastEpisode(episodeId: Long) {
+        val episode = currentPlaylist.value.firstOrNull { it.id == episodeId } ?: return
+        episodeListManager.setCurrentEpisode(episode)
+        this.episodeId = episode.id
+        updateEpisode(episode)
+        updateNavigationState()
+        viewModelScope.launchIO { fillCastQueue() }
+    }
+
+    private val castQueueMutex = Mutex()
 
     sealed class Event {
         data class SetArtResult(val result: SetAsArt, val artType: ArtType) : Event()

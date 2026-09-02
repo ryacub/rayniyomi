@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.cast
 
 import android.content.Context
 import com.google.android.gms.cast.framework.CastSession
+import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import io.mockk.mockk
@@ -105,5 +106,17 @@ class CastManagerTest {
     @Test
     fun `isPlaybackRateSupported is false without a session`() {
         assertEquals(false, castManager.isPlaybackRateSupported())
+    }
+
+    @Test
+    fun `isDownloadedVideo is true for a content URI`() {
+        val video = Video(videoUrl = "content://downloads/episode.mp4")
+        assertEquals(true, castManager.isDownloadedVideo(video))
+    }
+
+    @Test
+    fun `isDownloadedVideo is false for a streaming URL`() {
+        val video = Video(videoUrl = "https://example.com/video.mp4")
+        assertEquals(false, castManager.isDownloadedVideo(video))
     }
 }
