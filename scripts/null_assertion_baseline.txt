@@ -33,7 +33,6 @@ app/src/main/java/eu/kanade/presentation/more/settings/widget/AppThemePreference
 app/src/main/java/eu/kanade/presentation/more/settings/widget/ListPreferenceWidget.kt	onValueChange(current.key!!)
 app/src/main/java/eu/kanade/presentation/track/TrackInfoDialogSelector.kt	TextButton(onClick = { onConfirm(pickerState.selectedDateMillis!!) }) {
 app/src/main/java/eu/kanade/presentation/webview/WebViewScreenContent.kt	url(request!!.url.toString())
-app/src/main/java/eu/kanade/tachiyomi/crash/GlobalExceptionHandler.kt	Json.decodeFromString(ThrowableSerializer, intent.getStringExtra(INTENT_EXTRA)!!)
 app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	url(url!!)
 app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
 app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
