@@ -17,8 +17,8 @@ fun PlayerDialogs(
     episodeList: List<Episode>,
     dateRelativeTime: Boolean,
     dateFormat: DateTimeFormatter,
-    onBookmarkClicked: (Long?, Boolean) -> Unit,
-    onFillermarkClicked: (Long?, Boolean) -> Unit,
+    onBookmarkClicked: (Long, Boolean) -> Unit,
+    onFillermarkClicked: (Long, Boolean) -> Unit,
     onEpisodeClicked: (Long?) -> Unit,
 
     onDismissRequest: () -> Unit,

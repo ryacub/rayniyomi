@@ -55,8 +55,8 @@ fun EpisodeListDialog(
     episodeList: List<Episode>,
     dateRelativeTime: Boolean,
     dateFormat: DateTimeFormatter,
-    onBookmarkClicked: (Long?, Boolean) -> Unit,
-    onFillermarkClicked: (Long?, Boolean) -> Unit,
+    onBookmarkClicked: (Long, Boolean) -> Unit,
+    onFillermarkClicked: (Long, Boolean) -> Unit,
     onEpisodeClicked: (Long?) -> Unit,
     onDismissRequest: () -> Unit,
 ) {
@@ -127,8 +127,8 @@ private fun EpisodeListItem(
     isCurrentEpisode: Boolean,
     title: String,
     date: String?,
-    onBookmarkClicked: (Long?, Boolean) -> Unit,
-    onFillermarkClicked: (Long?, Boolean) -> Unit,
+    onBookmarkClicked: (Long, Boolean) -> Unit,
+    onFillermarkClicked: (Long, Boolean) -> Unit,
     onEpisodeClicked: (Long?) -> Unit,
 ) {
     var isBookmarked by remember { mutableStateOf(episode.bookmark) }
