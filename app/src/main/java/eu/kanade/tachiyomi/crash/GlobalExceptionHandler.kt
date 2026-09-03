@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.crash
 
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.VisibleForTesting
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -63,9 +64,14 @@ class GlobalExceptionHandler private constructor(
             Thread.setDefaultUncaughtExceptionHandler(handler)
         }
 
-        fun getThrowableFromIntent(intent: Intent): Throwable? {
+        fun getThrowableFromIntent(intent: Intent): Throwable? =
+            deserializeThrowable(intent.getStringExtra(INTENT_EXTRA))
+
+        @VisibleForTesting
+        internal fun deserializeThrowable(serialized: String?): Throwable? {
+            if (serialized == null) return null
             return try {
-                Json.decodeFromString(ThrowableSerializer, intent.getStringExtra(INTENT_EXTRA)!!)
+                Json.decodeFromString(ThrowableSerializer, serialized)
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Wasn't able to retrieve throwable from intent" }
                 null
