@@ -137,10 +137,6 @@ app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/dialogs/Epis
 app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleDelayPanel.kt	val elapsed = System.currentTimeMillis() - timerStart!!
 app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleDelayPanel.kt	finalDelay = startingDelay + (if (isDirectionPositive!!) elapsed else -elapsed).toInt()
 app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsColorsCard.kt	}!!
-app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	onShare { takeScreenshot(cachePath, showSubtitles)!! }
-app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	onSave { takeScreenshot(cachePath, showSubtitles)!! }
-app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	onSetAsArt(setArtTypeAs!!) {
-app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/ScreenshotSheet.kt	)!!
 app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	val videoUri = videoFile!!.uri
 app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	hoster.videoList != null && source is AnimeHttpSource -> hoster.videoList!!.parseVideoUrls(source)
 app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	hoster.videoList != null -> hoster.videoList!!
