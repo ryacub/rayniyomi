@@ -33,6 +33,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -53,6 +54,7 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
+import uy.kohesive.injekt.api.get
 import java.io.FileNotFoundException
 import java.io.IOException
 
@@ -401,6 +403,94 @@ class AnimeDownloaderTest {
         assertEquals("IOException", download.lastErrorCode)
         assertTrue(download.lastErrorReason!!.startsWith("Could not create the download directory"))
         verify(exactly = 0) { AnimeDownloadJob.stop(any()) }
+    }
+
+    @Test
+    fun `a storage location without a local path still hands the download to the external downloader`() = runTest {
+        // Main must run eagerly: the pre-fix code reads `filePath` inside `withUIContext`,
+        // and a queued Main task would stall the hand-off instead of failing it.
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+
+        val downloadPreferences: DownloadPreferences = Injekt.get()
+        every { downloadPreferences.useExternalDownloader().get() } returns true
+        every { downloadPreferences.externalDownloaderSelection().get() } returns ""
+
+        val video = mockk<Video>(relaxed = true)
+        every { video.videoUrl } returns "url"
+        val download = testDownload(video)
+
+        val mkvFile = mockk<UniFile>(relaxed = true)
+        every { mkvFile.name } returns "Ch1.mkv"
+        val tmpDir = mockk<UniFile>(relaxed = true)
+        every { tmpDir.filePath } returns null
+        every { tmpDir.createFile(any()) } returns mkvFile
+        var listedFiles = false
+        every { tmpDir.listFiles() } answers {
+            if (listedFiles) {
+                arrayOf(mkvFile)
+            } else {
+                listedFiles = true
+                emptyArray()
+            }
+        }
+
+        val provider = mockk<AnimeDownloadProvider>(relaxed = true)
+        val animeDir = mockk<UniFile>(relaxed = true)
+        every { provider.getAnimeDir(any(), any()) } returns animeDir
+        every { animeDir.createDirectory(any()) } returns tmpDir
+        downloader = AnimeDownloader(
+            context = testContext,
+            provider = provider,
+            cache = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            stateStore = mockk(relaxed = true),
+            strategySelector = strategySelector,
+            multiThreadDownloader = mockk(relaxed = true),
+        )
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        verify(exactly = 1) { testContext.startActivity(any()) }
+        assertEquals(AnimeDownload.State.DOWNLOADED, download.status)
+    }
+
+    @Test
+    fun `ADM hand-off reports a named failure when the storage location has no local path`() = runTest {
+        // Main must run eagerly: the pre-fix code reads `filePath` inside `withUIContext`,
+        // and a queued Main task would stall the hand-off instead of failing it.
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+
+        val downloadPreferences: DownloadPreferences = Injekt.get()
+        every { downloadPreferences.useExternalDownloader().get() } returns true
+        every { downloadPreferences.externalDownloaderSelection().get() } returns "com.dv.adm"
+
+        val video = mockk<Video>(relaxed = true)
+        every { video.videoUrl } returns "url"
+        every { video.headers } returns null
+        val download = testDownload(video)
+
+        val tmpDir = mockk<UniFile>(relaxed = true)
+        every { tmpDir.filePath } returns null
+        every { tmpDir.createFile(any()) } returns mockk(relaxed = true)
+
+        val provider = mockk<AnimeDownloadProvider>(relaxed = true)
+        val animeDir = mockk<UniFile>(relaxed = true)
+        every { provider.getAnimeDir(any(), any()) } returns animeDir
+        every { animeDir.createDirectory(any()) } returns tmpDir
+        downloader = AnimeDownloader(
+            context = testContext,
+            provider = provider,
+            cache = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            stateStore = mockk(relaxed = true),
+            strategySelector = strategySelector,
+            multiThreadDownloader = mockk(relaxed = true),
+        )
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals("IOException", download.lastErrorCode)
+        assertTrue(download.lastErrorReason!!.startsWith("The download location has no local file path"))
     }
 }
 

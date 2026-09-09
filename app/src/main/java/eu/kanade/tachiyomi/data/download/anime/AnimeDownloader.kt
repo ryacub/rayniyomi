@@ -682,8 +682,11 @@ class AnimeDownloader(
     ): UniFile {
         try {
             val file = tmpDir.createFile("${filename}_tmp.mkv")!!
-            withUIContext {
-                context.copyToClipboard("Episode download location", tmpDir.filePath!!.substringBeforeLast("_tmp"))
+            val tmpDirPath = tmpDir.filePath
+            tmpDirPath?.let { path ->
+                withUIContext {
+                    context.copyToClipboard("Episode download location", path.substringBeforeLast("_tmp"))
+                }
             }
 
             // TODO: support other file formats!!
@@ -736,7 +739,11 @@ class AnimeDownloader(
                             )
                             putExtra(
                                 "com.dv.get.ACTION_LIST_PATH",
-                                tmpDir.filePath!!.substringBeforeLast("_"),
+                                tmpDirPath?.substringBeforeLast("_")
+                                    ?: throw IOException(
+                                        "The download location has no local file path, " +
+                                            "which the selected external downloader requires",
+                                    ),
                             )
                             putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
                         }
