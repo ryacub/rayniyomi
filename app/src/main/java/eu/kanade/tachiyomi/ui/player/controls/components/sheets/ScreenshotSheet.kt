@@ -15,18 +15,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.player.components.PlayerSheet
 import eu.kanade.presentation.player.components.SwitchPreference
 import eu.kanade.tachiyomi.ui.player.ArtType
 import eu.kanade.tachiyomi.ui.player.controls.components.dialogs.PlayerDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.ActionButton
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import java.io.InputStream
+
+internal suspend fun captureScreenshotOrNotify(
+    takeScreenshot: suspend () -> InputStream?,
+    onSuccess: (InputStream) -> Unit,
+    onFailure: () -> Unit,
+) {
+    val screenshot = takeScreenshot()
+    if (screenshot == null) {
+        onFailure()
+    } else {
+        onSuccess(screenshot)
+    }
+}
 
 @Composable
 fun ScreenshotSheet(
@@ -45,6 +62,23 @@ fun ScreenshotSheet(
     modifier: Modifier = Modifier,
 ) {
     var setArtTypeAs: ArtType? by remember { mutableStateOf(null) }
+    var captureError by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun handleScreenshotAction(onAction: (() -> InputStream) -> Unit) {
+        scope.launch {
+            captureScreenshotOrNotify(
+                takeScreenshot = {
+                    withContext(Dispatchers.IO) { takeScreenshot(cachePath, showSubtitles) }
+                },
+                onSuccess = { screenshot ->
+                    captureError = false
+                    onAction { screenshot }
+                },
+                onFailure = { captureError = true },
+            )
+        }
+    }
 
     PlayerSheet(
         onDismissRequest = onDismissRequest,
@@ -79,17 +113,24 @@ fun ScreenshotSheet(
                     modifier = Modifier.weight(1f),
                     title = stringResource(MR.strings.action_share),
                     icon = Icons.Outlined.Share,
-                    onClick = {
-                        onShare { takeScreenshot(cachePath, showSubtitles)!! }
-                    },
+                    onClick = { handleScreenshotAction(onShare) },
                 )
                 ActionButton(
                     modifier = Modifier.weight(1f),
                     title = stringResource(MR.strings.action_save),
                     icon = Icons.Outlined.Save,
-                    onClick = {
-                        onSave { takeScreenshot(cachePath, showSubtitles)!! }
-                    },
+                    onClick = { handleScreenshotAction(onSave) },
+                )
+            }
+
+            if (captureError) {
+                Text(
+                    text = stringResource(AYMR.strings.screenshot_capture_failed),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(
+                        horizontal = MaterialTheme.padding.medium,
+                        vertical = MaterialTheme.padding.small,
+                    ),
                 )
             }
 
@@ -110,16 +151,23 @@ fun ScreenshotSheet(
         }
     }
 
-    if (setArtTypeAs != null) {
+    val artType = setArtTypeAs
+    if (artType != null) {
         PlayerDialog(
             title = stringResource(MR.strings.confirm_set_image_as_cover),
             modifier = Modifier.fillMaxWidth(fraction = 0.6F).padding(MaterialTheme.padding.medium),
             onConfirmRequest = {
-                onSetAsArt(setArtTypeAs!!) {
-                    takeScreenshot(
-                        cachePath,
-                        showSubtitles,
-                    )!!
+                scope.launch {
+                    captureScreenshotOrNotify(
+                        takeScreenshot = {
+                            withContext(Dispatchers.IO) { takeScreenshot(cachePath, showSubtitles) }
+                        },
+                        onSuccess = { screenshot ->
+                            captureError = false
+                            onSetAsArt(artType) { screenshot }
+                        },
+                        onFailure = { captureError = true },
+                    )
                 }
             },
             onDismissRequest = { setArtTypeAs = null },
