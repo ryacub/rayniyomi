@@ -646,12 +646,7 @@ class MangaDownloader(
         tmpFile?.delete()
 
         // Try to find the image file
-        val imageFile = tmpDir.listFiles()?.firstOrNull {
-            it.name!!.startsWith("$filename.") ||
-                it.name!!.startsWith(
-                    "${filename}__001",
-                )
-        }
+        val imageFile = tmpDir.listFiles()?.firstOrNull { isDownloadedImageFile(it, filename) }
 
         try {
             // If the image is already downloaded, do nothing. Otherwise download from network
@@ -945,6 +940,12 @@ class MangaDownloader(
         const val CHAPTERS_PER_SOURCE_QUEUE_WARNING_THRESHOLD = 15
         private const val DOWNLOADS_QUEUED_WARNING_THRESHOLD = 30
     }
+}
+
+@VisibleForTesting
+internal fun isDownloadedImageFile(file: UniFile, filename: String): Boolean {
+    val name = file.name ?: return false
+    return name.startsWith("$filename.") || name.startsWith("${filename}__001")
 }
 
 // Arbitrary minimum required space to start a download: 200 MB

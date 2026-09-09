@@ -40,6 +40,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -129,6 +130,15 @@ class MangaDownloaderTest {
         unmockkObject(DiskUtil)
         unmockkObject(MangaSourceGateway)
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `null file names are ignored during downloaded image lookup`() {
+        val file = mockk<UniFile> {
+            every { name } returns null
+        }
+
+        assertFalse(isDownloadedImageFile(file, "001"))
     }
 
     @Test
