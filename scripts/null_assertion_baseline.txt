@@ -67,8 +67,6 @@ app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadProvider.
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadProvider.kt	.createDirectory(getSourceDirName(source))!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadProvider.kt	.createDirectory(getMangaDirName(mangaTitle))!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	val tmpDir = mangaDir.createDirectory(chapterDirname + TMP_DIR_SUFFIX)!!
-app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	it.name!!.startsWith("$filename.") ||
-app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	it.name!!.startsWith(
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	chapterCache.isImageInCache(page.imageUrl!!) -> copyImageFromCache(
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	chapterCache.getImageFile(page.imageUrl!!),
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	val file = tmpDir.createFile("$filename.tmp")!!
