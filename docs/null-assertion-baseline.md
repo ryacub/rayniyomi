@@ -19,3 +19,6 @@ Run `./gradlew checkNullAssertions` before you commit the change.
 
 For the per-site triage of the anime download assertions, see
 [`anime-download-null-assertion-triage.md`](anime-download-null-assertion-triage.md).
+
+For the per-site triage of the tracker model conversion assertions, see
+[`tracker-model-conversion-null-assertion-triage.md`](tracker-model-conversion-null-assertion-triage.md).
