@@ -121,8 +121,6 @@ class AnimeDownloaderTest {
 
     @AfterEach
     fun tearDown() {
-        // The DownloadPreferences singleton persists across tests, so restore the
-        // external-downloader default that some tests flip on (R1047).
         every { Injekt.get<DownloadPreferences>().useExternalDownloader().get() } returns false
         unmockkStatic("tachiyomi.core.common.i18n.LocalizeKt")
         unmockkStatic("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt")
@@ -410,8 +408,6 @@ class AnimeDownloaderTest {
 
     @Test
     fun `a storage location without a local path still hands the download to the external downloader`() = runTest {
-        // Main must run eagerly: the pre-fix code reads `filePath` inside `withUIContext`,
-        // and a queued Main task would stall the hand-off instead of failing it.
         Dispatchers.setMain(UnconfinedTestDispatcher())
 
         val downloadPreferences: DownloadPreferences = Injekt.get()
@@ -459,8 +455,6 @@ class AnimeDownloaderTest {
 
     @Test
     fun `ADM hand-off reports a named failure when the storage location has no local path`() = runTest {
-        // Main must run eagerly: the pre-fix code reads `filePath` inside `withUIContext`,
-        // and a queued Main task would stall the hand-off instead of failing it.
         Dispatchers.setMain(UnconfinedTestDispatcher())
 
         val downloadPreferences: DownloadPreferences = Injekt.get()

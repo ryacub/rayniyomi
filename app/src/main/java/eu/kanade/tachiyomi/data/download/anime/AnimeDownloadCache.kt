@@ -543,14 +543,6 @@ private object UniFileAsStringSerializer : KSerializer<UniFile?> {
     }
 }
 
-/**
- * Returns each child directory of [parent] paired with its name, reading the name
- * exactly once per child.
- *
- * `UniFile.getName()` re-queries the content provider on every call, so reading it
- * twice can see a directory that was deleted in between and return null the second
- * time. Callers must use the returned name instead of re-reading `name`.
- */
 internal fun namedChildDirectories(parent: UniFile?): List<Pair<UniFile, String>> {
     return parent?.listFiles().orEmpty().mapNotNull { child ->
         if (!child.isDirectory) return@mapNotNull null
