@@ -374,6 +374,34 @@ class AnimeDownloaderTest {
             anyConstructed<AnimeDownloadNotifier>().onError(any(), any(), any(), any())
         }
     }
+
+    @Test
+    fun `an unwritable episode directory fails one episode without stopping the downloader`() = runTest {
+        val download = testDownload(mockk<Video>(relaxed = true))
+
+        val provider = mockk<AnimeDownloadProvider>(relaxed = true)
+        val animeDir = mockk<UniFile>(relaxed = true)
+        every { provider.getAnimeDir(any(), any()) } returns animeDir
+        every { animeDir.createDirectory(any()) } returns null // SAF write failure
+
+        downloader = AnimeDownloader(
+            context = testContext,
+            provider = provider,
+            cache = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            stateStore = mockk(relaxed = true),
+            strategySelector = strategySelector,
+            multiThreadDownloader = mockk(relaxed = true),
+        )
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(AnimeDownload.State.ERROR, download.status)
+        assertEquals(DownloadDisplayStatus.FAILED, download.displayStatus)
+        assertEquals("IOException", download.lastErrorCode)
+        assertTrue(download.lastErrorReason!!.startsWith("Could not create the download directory"))
+        verify(exactly = 0) { AnimeDownloadJob.stop(any()) }
+    }
 }
 
 /**

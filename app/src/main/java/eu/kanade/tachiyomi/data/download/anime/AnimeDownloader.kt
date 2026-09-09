@@ -62,6 +62,7 @@ import tachiyomi.i18n.aniyomi.AYMR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
+import java.io.IOException
 
 /**
  * This class is the one in charge of downloading episodes.
@@ -500,9 +501,13 @@ class AnimeDownloader(
         }
 
         val episodeDirname = provider.getEpisodeDirName(download.episode.name, download.episode.scanlator)
-        val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)!!
 
         try {
+            val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)
+                ?: throw IOException(
+                    "Could not create the download directory $episodeDirname$TMP_DIR_SUFFIX",
+                )
+
             if (download.video == null) {
                 // Pull video from network and add them to download object
                 val hosters = EpisodeLoader.getHosters(download.episode, download.anime, download.source)

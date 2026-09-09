@@ -42,7 +42,6 @@ app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKe
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	return downloadsDir!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getSourceDirName(source))!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getAnimeDirName(animeTitle))!!
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val video = download.video!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val file = tmpDir.createFile("${filename}_tmp.mkv")!!
