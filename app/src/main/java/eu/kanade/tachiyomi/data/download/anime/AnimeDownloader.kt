@@ -62,6 +62,7 @@ import tachiyomi.i18n.aniyomi.AYMR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
+import java.io.IOException
 
 /**
  * This class is the one in charge of downloading episodes.
@@ -500,9 +501,13 @@ class AnimeDownloader(
         }
 
         val episodeDirname = provider.getEpisodeDirName(download.episode.name, download.episode.scanlator)
-        val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)!!
 
         try {
+            val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)
+                ?: throw IOException(
+                    "Could not create the download directory $episodeDirname$TMP_DIR_SUFFIX",
+                )
+
             if (download.video == null) {
                 // Pull video from network and add them to download object
                 val hosters = EpisodeLoader.getHosters(download.episode, download.anime, download.source)
@@ -677,8 +682,11 @@ class AnimeDownloader(
     ): UniFile {
         try {
             val file = tmpDir.createFile("${filename}_tmp.mkv")!!
-            withUIContext {
-                context.copyToClipboard("Episode download location", tmpDir.filePath!!.substringBeforeLast("_tmp"))
+            val tmpDirPath = tmpDir.filePath
+            tmpDirPath?.let { path ->
+                withUIContext {
+                    context.copyToClipboard("Episode download location", path.substringBeforeLast("_tmp"))
+                }
             }
 
             // TODO: support other file formats!!
@@ -731,7 +739,11 @@ class AnimeDownloader(
                             )
                             putExtra(
                                 "com.dv.get.ACTION_LIST_PATH",
-                                tmpDir.filePath!!.substringBeforeLast("_"),
+                                tmpDirPath?.substringBeforeLast("_")
+                                    ?: throw IOException(
+                                        "The download location has no local file path, " +
+                                            "which the selected external downloader requires",
+                                    ),
                             )
                             putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
                         }

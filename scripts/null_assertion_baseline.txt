@@ -39,18 +39,12 @@ app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	diskCacheKe
 app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	url(url!!)
 app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
 app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	val sourceId = sourceMap[dir.name!!.lowercase()]
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	.map { it.name!! }
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	.associate { it.name!! to AnimeDirectory(it) }
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	return downloadsDir!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getSourceDirName(source))!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getAnimeDirName(animeTitle))!!
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val tmpDir = animeDir.createDirectory(episodeDirname + TMP_DIR_SUFFIX)!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val video = download.video!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	val file = tmpDir.createFile("${filename}_tmp.mkv")!!
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	context.copyToClipboard("Episode download location", tmpDir.filePath!!.substringBeforeLast("_tmp"))
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt	tmpDir.filePath!!.substringBeforeLast("_"),
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val videoFile = tmpDir.createFile("$filename.tmp")!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!

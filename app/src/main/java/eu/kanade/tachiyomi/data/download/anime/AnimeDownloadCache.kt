@@ -394,18 +394,16 @@ class AnimeDownloadCache(
             rootDownloadsDirMutex.withLock {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
-                val candidateDirs = updatedRootDir.dir?.listFiles().orEmpty()
-                    .filter { it.isDirectory && !it.name.isNullOrBlank() }
+                val candidateDirs = namedChildDirectories(updatedRootDir.dir)
 
                 updatedRootDir.sourceDirs = candidateDirs
-                    .mapNotNull { dir ->
-                        val sourceId = sourceMap[dir.name!!.lowercase()]
-                        sourceId?.let { it to SourceDirectory(dir) }
+                    .mapNotNull { (dir, name) ->
+                        sourceMap[name.lowercase()]?.let { it to SourceDirectory(dir) }
                     }
                     .toMap()
 
                 val droppedDirs = candidateDirs
-                    .map { it.name!! }
+                    .map { (_, name) -> name }
                     .filter { sourceMap[it.lowercase()] == null }
                 if (droppedDirs.isNotEmpty()) {
                     Log.w(
@@ -418,9 +416,8 @@ class AnimeDownloadCache(
 
                 updatedRootDir.sourceDirs.values.map { sourceDir ->
                     async {
-                        sourceDir.animeDirs = sourceDir.dir?.listFiles().orEmpty()
-                            .filter { it.isDirectory && !it.name.isNullOrBlank() }
-                            .associate { it.name!! to AnimeDirectory(it) }
+                        sourceDir.animeDirs = namedChildDirectories(sourceDir.dir)
+                            .associate { (dir, name) -> name to AnimeDirectory(dir) }
                         sourceDir.animeDirs.values.forEach { animeDir ->
                             val episodeDirs = animeDir.dir?.listFiles().orEmpty()
                                 .mapNotNull {
@@ -543,5 +540,13 @@ private object UniFileAsStringSerializer : KSerializer<UniFile?> {
         } else {
             decoder.decodeNull()
         }
+    }
+}
+
+internal fun namedChildDirectories(parent: UniFile?): List<Pair<UniFile, String>> {
+    return parent?.listFiles().orEmpty().mapNotNull { child ->
+        if (!child.isDirectory) return@mapNotNull null
+        val name = child.name
+        if (name.isNullOrBlank()) null else child to name
     }
 }
