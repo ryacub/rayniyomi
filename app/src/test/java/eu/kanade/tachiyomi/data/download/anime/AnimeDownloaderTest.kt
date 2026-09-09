@@ -121,6 +121,9 @@ class AnimeDownloaderTest {
 
     @AfterEach
     fun tearDown() {
+        // The DownloadPreferences singleton persists across tests, so restore the
+        // external-downloader default that some tests flip on (R1047).
+        every { Injekt.get<DownloadPreferences>().useExternalDownloader().get() } returns false
         unmockkStatic("tachiyomi.core.common.i18n.LocalizeKt")
         unmockkStatic("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt")
         unmockkObject(NotificationHandler)
