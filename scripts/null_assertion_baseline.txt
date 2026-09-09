@@ -39,9 +39,6 @@ app/src/main/java/eu/kanade/tachiyomi/data/coil/AnimeImageFetcher.kt	diskCacheKe
 app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	url(url!!)
 app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
 app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt	diskCacheKeyLazy = lazy { imageLoader.components.key(data, options)!! },
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	val sourceId = sourceMap[dir.name!!.lowercase()]
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	.map { it.name!! }
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	.associate { it.name!! to AnimeDirectory(it) }
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	return downloadsDir!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getSourceDirName(source))!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadProvider.kt	.createDirectory(getAnimeDirName(animeTitle))!!
