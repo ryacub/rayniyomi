@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
+import java.io.IOException
 
 class KitsuInterceptor(private val kitsu: Kitsu) : Interceptor {
 
@@ -22,10 +23,10 @@ class KitsuInterceptor(private val kitsu: Kitsu) : Interceptor {
 
         val currAuth = oauth ?: throw Exception("Not authenticated with Kitsu")
 
-        val refreshToken = currAuth.refreshToken!!
-
         // Refresh access token if expired.
         if (currAuth.isExpired()) {
+            val refreshToken = currAuth.refreshToken
+                ?: throw IOException("Kitsu: Login has expired")
             val response = chain.proceed(KitsuApi.refreshTokenRequest(refreshToken))
             if (response.isSuccessful) {
                 newAuth(json.decodeFromString(response.body.string()))

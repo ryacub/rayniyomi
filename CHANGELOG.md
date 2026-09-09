@@ -27,6 +27,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Manga downloads now ignore unnamed filesystem entries when they resume a page.
 - Screenshot actions now show an inline retry error when MPV cannot create the screenshot.
 - Tracker sync now reports malformed AniList, Jellyfin, Kavita, and Simkl responses instead of crashing or unlinking entries.
+- Tracker sync now reports expired Bangumi, Kitsu, and Shikimori logins without a refresh token instead of crashing.
+- Jellyfin tracking now reports an item URL without its required fragment instead of crashing.
 - Malformed extension metadata no longer crashes extension loading.
 - The outgoing page no longer appears mirrored during a left-to-right page curl.
 - Rapid taps during a page curl now queue and play as sequential curls instead of falling back to slide transitions.
