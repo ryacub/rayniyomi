@@ -32,7 +32,7 @@ class JellyfinApi(
         withIOContext {
             try {
                 val httpUrl = url.toHttpUrl()
-                val fragment = httpUrl.fragment!!
+                val fragment = httpUrl.requireFragment()
 
                 val track = with(json) {
                     client.newCall(GET(url))
@@ -68,7 +68,7 @@ class JellyfinApi(
     }
 
     private fun getEpisodesUrl(url: HttpUrl): HttpUrl {
-        val fragment = url.fragment!!
+        val fragment = url.requireFragment()
 
         return url.newBuilder().apply {
             encodedPath("/")
@@ -124,7 +124,7 @@ class JellyfinApi(
 
     suspend fun updateProgress(track: AnimeTrack): AnimeTrack {
         val httpUrl = track.tracking_url.toHttpUrl()
-        val fragment = httpUrl.fragment!!
+        val fragment = httpUrl.requireFragment()
 
         val itemId = if (fragment.startsWith("movie")) {
             httpUrl.pathSegments.last()
@@ -169,6 +169,9 @@ class JellyfinApi(
         private val DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
     }
 }
+
+private fun HttpUrl.requireFragment(): String = fragment
+    ?: throw MalformedTrackerResponseException("Jellyfin", "item URL fragment")
 
 internal fun JFItem.requireIndexNumber(): Long = indexNumber
     ?: throw MalformedTrackerResponseException("Jellyfin", "episode index number")

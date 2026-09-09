@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
+import java.io.IOException
 
 class ShikimoriInterceptor(private val shikimori: Shikimori) : Interceptor {
 
@@ -22,10 +23,10 @@ class ShikimoriInterceptor(private val shikimori: Shikimori) : Interceptor {
 
         val currAuth = oauth ?: throw Exception("Not authenticated with Shikimori")
 
-        val refreshToken = currAuth.refreshToken!!
-
         // Refresh access token if expired.
         if (currAuth.isExpired()) {
+            val refreshToken = currAuth.refreshToken
+                ?: throw IOException("Shikimori: Login has expired")
             val response = chain.proceed(ShikimoriApi.refreshTokenRequest(refreshToken))
             if (response.isSuccessful) {
                 newAuth(json.decodeFromString<SMOAuth>(response.body.string()))

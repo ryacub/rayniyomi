@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
+import java.io.IOException
 
 class BangumiInterceptor(private val bangumi: Bangumi) : Interceptor {
 
@@ -23,7 +24,9 @@ class BangumiInterceptor(private val bangumi: Bangumi) : Interceptor {
         var currAuth: BGMOAuth = oauth ?: throw Exception("Not authenticated with Bangumi")
 
         if (currAuth.isExpired()) {
-            val response = chain.proceed(BangumiApi.refreshTokenRequest(currAuth.refreshToken!!))
+            val refreshToken = currAuth.refreshToken
+                ?: throw IOException("Bangumi: Login has expired")
+            val response = chain.proceed(BangumiApi.refreshTokenRequest(refreshToken))
             if (response.isSuccessful) {
                 currAuth = json.decodeFromString<BGMOAuth>(response.body.string())
                 newAuth(currAuth)

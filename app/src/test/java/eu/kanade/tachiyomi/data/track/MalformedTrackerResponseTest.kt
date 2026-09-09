@@ -98,6 +98,21 @@ class MalformedTrackerResponseTest {
     }
 
     @Test
+    fun `Jellyfin URL without a fragment reports a malformed response`() = runTest {
+        val exception = try {
+            JellyfinApi(trackId = 1L, client = OkHttpClient()).getTrackSearch("https://example.com/Items/item-id")
+            null
+        } catch (e: MalformedTrackerResponseException) {
+            e
+        }
+
+        assertEquals(
+            "Jellyfin returned an invalid response: item URL fragment is absent",
+            exception?.message,
+        )
+    }
+
+    @Test
     fun `AniList response without manga staff reports a malformed response`() {
         val response = json.decodeFromString<ALSearchItem>(
             """
