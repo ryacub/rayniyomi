@@ -71,6 +71,8 @@ open class ReaderPageImageView @JvmOverloads constructor(
 
     private var config: Config? = null
 
+    private var landscapeZoomRunnable: Runnable? = null
+
     var onImageLoaded: (() -> Unit)? = null
     var onImageLoadError: (() -> Unit)? = null
     var onScaleChanged: ((newScale: Float) -> Unit)? = null
@@ -135,7 +137,9 @@ open class ReaderPageImageView @JvmOverloads constructor(
             return
         }
 
-        handler?.postDelayed(500) {
+        landscapeZoomRunnable?.let(handler::removeCallbacks)
+        landscapeZoomRunnable = Runnable {
+            if (!isReady) return@Runnable
             val point = when (imageConfig.zoomStartPosition) {
                 ZoomStartPosition.LEFT -> if (forward) {
                     PointF(0F, 0F)
@@ -157,12 +161,13 @@ open class ReaderPageImageView @JvmOverloads constructor(
             }
 
             val targetScale = height.toFloat() / sHeight.toFloat()
-            animateScaleAndCenter(targetScale, point)!!
+            val animation = animateScaleAndCenter(targetScale, point) ?: return@Runnable
+            animation
                 .withDuration(500)
                 .withEasing(EASE_IN_OUT_QUAD)
                 .withInterruptible(true)
                 .start()
-        }
+        }.also { handler?.postDelayed(it, 500) }
     }
 
     fun setImage(drawable: Drawable, config: Config) {
@@ -187,12 +192,16 @@ open class ReaderPageImageView @JvmOverloads constructor(
         }
     }
 
-    fun recycle() = pageView?.let {
-        when (it) {
-            is SubsamplingScaleImageView -> it.recycle()
-            is AppCompatImageView -> it.dispose()
+    fun recycle() {
+        landscapeZoomRunnable?.let(handler::removeCallbacks)
+        landscapeZoomRunnable = null
+        pageView?.let {
+            when (it) {
+                is SubsamplingScaleImageView -> it.recycle()
+                is AppCompatImageView -> it.dispose()
+            }
+            it.isVisible = false
         }
-        it.isVisible = false
     }
 
     /**

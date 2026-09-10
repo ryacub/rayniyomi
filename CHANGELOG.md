@@ -24,6 +24,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Cast now offers a temporary MP4 conversion for downloaded containers that Chromecast cannot play directly.
 
 ### Fixed
+- Reader EPUB loading now skips image references to files that the archive does not contain.
 - Manga downloads now ignore unnamed filesystem entries when they resume a page.
 - Screenshot actions now show an inline retry error when MPV cannot create the screenshot.
 - Tracker sync now reports malformed AniList, Jellyfin, Kavita, and Simkl responses instead of crashing or unlinking entries.
