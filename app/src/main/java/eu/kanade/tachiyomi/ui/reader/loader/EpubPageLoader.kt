@@ -14,7 +14,11 @@ internal class EpubPageLoader(private val reader: EpubReader) : PageLoader() {
     override suspend fun getPages(): List<ReaderPage> {
         return reader.getImagesFromPages().mapIndexed { i, path ->
             ReaderPage(i).apply {
-                stream = { reader.getInputStream(path)!! }
+                stream = {
+                    checkNotNull(reader.getInputStream(path)) {
+                        "EPUB image was not found after discovery: $path"
+                    }
+                }
                 status = Page.State.READY
             }
         }

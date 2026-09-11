@@ -130,10 +130,8 @@ app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	in
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	inputStream = page.stream!!,
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	.filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	stream = { reader.getInputStream(entry.name)!! }
-app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/EpubPageLoader.kt	stream = { reader.getInputStream(path)!! }
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/HttpPageLoader.kt	val imageUrl = page.imageUrl!!
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/GestureDetectorWithLongTap.kt	private val longTapFn = Runnable { listener.onLongTapConfirmed(lastDownEvent!!) }
-app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/ReaderPageImageView.kt	animateScaleAndCenter(targetScale, point)!!
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/ReaderPageImageView.kt	view.animateCenter(target)!!
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PagerViewerAdapter.kt	viewer.moveToPage(insertPageLastPage!!)
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/webtoon/WebtoonLayoutManager.kt	val child = getChildAt(i)!!

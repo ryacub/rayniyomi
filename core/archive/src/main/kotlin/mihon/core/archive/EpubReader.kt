@@ -72,6 +72,9 @@ class EpubReader(private val reader: ArchiveReader) : Closeable by reader {
      */
     private fun getImagesFromPages(pages: List<String>, packageHref: String): List<String> {
         val result = mutableListOf<String>()
+        val entries = reader.useEntries { archive ->
+            archive.filter { it.isFile }.map { it.name }.toSet()
+        }
         val basePath = getParentDirectory(packageHref)
         pages.forEach { page ->
             val entryPath = resolveZipPath(basePath, page)
@@ -79,9 +82,13 @@ class EpubReader(private val reader: ArchiveReader) : Closeable by reader {
             val imageBasePath = getParentDirectory(entryPath)
 
             document.allElements.forEach {
-                when (it.tagName()) {
-                    "img" -> result.add(resolveZipPath(imageBasePath, it.attr("src")))
-                    "image" -> result.add(resolveZipPath(imageBasePath, it.attr("xlink:href")))
+                val imagePath = when (it.tagName()) {
+                    "img" -> resolveZipPath(imageBasePath, it.attr("src"))
+                    "image" -> resolveZipPath(imageBasePath, it.attr("xlink:href"))
+                    else -> return@forEach
+                }
+                if (imagePath in entries) {
+                    result.add(imagePath)
                 }
             }
         }
