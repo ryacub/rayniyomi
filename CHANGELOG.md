@@ -14,6 +14,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.379] - 2026-09-11
+
+### Added
+
 - Added privacy-safe aggregate translation run telemetry for coverage, retries, duration, and failure classes.
 - Casting now warns before playback when the episode's subtitles cannot be shown on the receiver.
 - Casting now continues to the next unseen episode instead of stopping at the end of one, and marks episodes seen with their real watched progress.
