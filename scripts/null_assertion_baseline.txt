@@ -161,7 +161,3 @@ source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMa
 source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	.find { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
 source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	entry?.let { coverManager.update(manga, reader.getInputStream(it.name)!!) }
 source-local/src/androidMain/kotlin/tachiyomi/source/local/entries/manga/LocalMangaSource.kt	entry?.let { coverManager.update(manga, epub.getInputStream(it)!!) }
-source-local/src/androidMain/kotlin/tachiyomi/source/local/image/anime/LocalAnimeBackgroundManager.kt	val targetFile = find(anime.url) ?: directory.createFile(DEFAULT_BACKGROUND_NAME)!!
-source-local/src/androidMain/kotlin/tachiyomi/source/local/image/anime/LocalAnimeCoverManager.kt	val targetFile = find(anime.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!
-source-local/src/androidMain/kotlin/tachiyomi/source/local/image/anime/LocalEpisodeThumbnailManager.kt	val targetFile = find(anime.url, fileName) ?: directory.createFile(fileName)!!
-source-local/src/androidMain/kotlin/tachiyomi/source/local/image/manga/LocalMangaCoverManager.kt	val targetFile = find(manga.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!

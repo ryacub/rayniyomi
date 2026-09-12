@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.util.storage.DiskUtil
 import tachiyomi.core.common.storage.nameWithoutExtension
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.source.local.io.anime.LocalAnimeSourceFileSystem
+import java.io.IOException
 import java.io.InputStream
 
 private const val DEFAULT_THUMBNAIL_NAME = "thumbnail.jpg"
@@ -33,12 +34,15 @@ actual class LocalEpisodeThumbnailManager(
         }
 
         val fileName = "${episode.name}-$DEFAULT_THUMBNAIL_NAME"
-        val targetFile = find(anime.url, fileName) ?: directory.createFile(fileName)!!
-
-        inputStream.use { input ->
+        val targetFile = inputStream.use { input ->
+            val targetFile = find(anime.url, fileName) ?: directory.createFile(fileName)
+            if (targetFile == null) {
+                throw IOException("Could not create the local episode thumbnail file.")
+            }
             targetFile.openOutputStream().use { output ->
                 input.copyTo(output)
             }
+            targetFile
         }
 
         DiskUtil.createNoMediaFile(directory, context)
