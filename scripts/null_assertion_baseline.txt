@@ -27,8 +27,6 @@ app/src/main/java/eu/kanade/presentation/entries/anime/EpisodeOptionsDialogScree
 app/src/main/java/eu/kanade/presentation/entries/manga/MangaScreen.kt	onDownloadChapter!!(selected.toList(), ChapterDownloadAction.START)
 app/src/main/java/eu/kanade/presentation/more/onboarding/PermissionStep.kt	batteryGranted = context.getSystemService<PowerManager>()!!
 app/src/main/java/eu/kanade/presentation/more/settings/PreferenceItem.kt	if (item.internalOnValueChanged(newValue!!)) {
-app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt	.map { pm.getApplicationLabel(it.applicationInfo!!).toString() }
-app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsPlayerScreen.kt	.map { pm.getApplicationLabel(it.applicationInfo!!).toString() }
 app/src/main/java/eu/kanade/presentation/more/settings/widget/AppThemePreferenceWidget.kt	text = stringResource(appTheme.titleRes!!),
 app/src/main/java/eu/kanade/presentation/more/settings/widget/ListPreferenceWidget.kt	onValueChange(current.key!!)
 app/src/main/java/eu/kanade/presentation/track/TrackInfoDialogSelector.kt	TextButton(onClick = { onConfirm(pickerState.selectedDateMillis!!) }) {
