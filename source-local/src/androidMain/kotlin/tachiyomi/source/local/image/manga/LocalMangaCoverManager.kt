@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.util.storage.DiskUtil
 import tachiyomi.core.common.storage.nameWithoutExtension
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
+import java.io.IOException
 import java.io.InputStream
 
 private const val DEFAULT_COVER_NAME = "cover.jpg"
@@ -34,12 +35,15 @@ actual class LocalMangaCoverManager(
             return null
         }
 
-        val targetFile = find(manga.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!
-
-        inputStream.use { input ->
+        val targetFile = inputStream.use { input ->
+            val targetFile = find(manga.url) ?: directory.createFile(DEFAULT_COVER_NAME)
+            if (targetFile == null) {
+                throw IOException("Could not create the local manga cover file.")
+            }
             targetFile.openOutputStream().use { output ->
                 input.copyTo(output)
             }
+            targetFile
         }
 
         DiskUtil.createNoMediaFile(directory, context)
