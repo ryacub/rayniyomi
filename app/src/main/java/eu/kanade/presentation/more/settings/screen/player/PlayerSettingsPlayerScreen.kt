@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.ui.player.WEB_VIDEO_CASTER
 import eu.kanade.tachiyomi.ui.player.X_PLAYER
 import eu.kanade.tachiyomi.ui.player.settings.CastConversionPolicy
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.util.system.applicationLabelOrPackageName
 import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
@@ -342,7 +343,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
 
         val packageNames = supportedPlayers.map { it.packageName }
         val packageNamesReadable = supportedPlayers
-            .map { pm.getApplicationLabel(it.applicationInfo!!).toString() }
+            .map { it.applicationLabelOrPackageName(pm) }
 
         val packageNamesMap: Map<String, String> =
             packageNames.zip(packageNamesReadable)

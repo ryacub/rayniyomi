@@ -18,6 +18,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Settings no longer crash when an installed external player or downloader has no application metadata.
+
 ### Changed
 
 ### Removed

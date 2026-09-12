@@ -26,6 +26,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.category.visualName
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
+import eu.kanade.tachiyomi.util.system.applicationLabelOrPackageName
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
@@ -385,7 +386,7 @@ object SettingsDownloadScreen : SearchableSettings {
         }
         val packageNames = supportedDownloaders.map { it.packageName }
         val packageNamesReadable = supportedDownloaders
-            .map { pm.getApplicationLabel(it.applicationInfo!!).toString() }
+            .map { it.applicationLabelOrPackageName(pm) }
 
         val packageNamesMap: Map<String, String> =
             mapOf("" to "None") + packageNames.zip(packageNamesReadable).toMap()
