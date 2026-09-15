@@ -79,6 +79,58 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
         val backPress = LocalBackPress.currentOrThrow
         val containerColor = if (twoPane) getPalerSurface() else MaterialTheme.colorScheme.surface
         val topBarState = rememberTopAppBarState()
+        val items = remember {
+            listOf(
+                Item(
+                    titleRes = AYMR.strings.pref_player_internal,
+                    subtitleRes = AYMR.strings.pref_player_internal_summary,
+                    icon = Icons.Outlined.PlayCircleOutline,
+                    screen = PlayerSettingsPlayerScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_gestures,
+                    subtitleRes = AYMR.strings.pref_player_gestures_summary,
+                    icon = Icons.Outlined.Gesture,
+                    screen = PlayerSettingsGesturesScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_decoder,
+                    subtitleRes = AYMR.strings.pref_player_decoder_summary,
+                    icon = Icons.Outlined.Memory,
+                    screen = PlayerSettingsDecoderScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_subtitle,
+                    subtitleRes = AYMR.strings.pref_player_subtitle_summary,
+                    icon = Icons.Outlined.Subtitles,
+                    screen = PlayerSettingsSubtitleScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_audio,
+                    subtitleRes = AYMR.strings.pref_player_audio_summary,
+                    icon = Icons.Outlined.Audiotrack,
+                    screen = PlayerSettingsAudioScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_custom_button,
+                    subtitleRes = AYMR.strings.pref_player_custom_button_summary,
+                    icon = Icons.Outlined.Terminal,
+                    screen = PlayerSettingsCustomButtonScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_editor,
+                    subtitleRes = AYMR.strings.pref_player_editor_summary,
+                    icon = Icons.Outlined.EditNote,
+                    screen = PlayerSettingsEditorScreen,
+                ),
+                Item(
+                    titleRes = AYMR.strings.pref_player_advanced,
+                    subtitleRes = AYMR.strings.pref_player_advanced_summary,
+                    icon = Icons.Outlined.Code,
+                    screen = PlayerSettingsAdvancedScreen,
+                ),
+            )
+        }
 
         Scaffold(
             topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(topBarState),
@@ -187,56 +239,5 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
         val formatSubtitle: @Composable () -> String? = { subtitleRes?.let { stringResource(it) } },
         val icon: ImageVector,
         val screen: VoyagerScreen,
-    )
-
-    private val items = listOf(
-        Item(
-            titleRes = AYMR.strings.pref_player_internal,
-            subtitleRes = AYMR.strings.pref_player_internal_summary,
-            icon = Icons.Outlined.PlayCircleOutline,
-            screen = PlayerSettingsPlayerScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_gestures,
-            subtitleRes = AYMR.strings.pref_player_gestures_summary,
-            icon = Icons.Outlined.Gesture,
-            screen = PlayerSettingsGesturesScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_decoder,
-            subtitleRes = AYMR.strings.pref_player_decoder_summary,
-            icon = Icons.Outlined.Memory,
-            screen = PlayerSettingsDecoderScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_subtitle,
-            subtitleRes = AYMR.strings.pref_player_subtitle_summary,
-            icon = Icons.Outlined.Subtitles,
-            screen = PlayerSettingsSubtitleScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_audio,
-            subtitleRes = AYMR.strings.pref_player_audio_summary,
-            icon = Icons.Outlined.Audiotrack,
-            screen = PlayerSettingsAudioScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_custom_button,
-            subtitleRes = AYMR.strings.pref_player_custom_button_summary,
-            icon = Icons.Outlined.Terminal,
-            screen = PlayerSettingsCustomButtonScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_editor,
-            subtitleRes = AYMR.strings.pref_player_editor_summary,
-            icon = Icons.Outlined.EditNote,
-            screen = PlayerSettingsEditorScreen,
-        ),
-        Item(
-            titleRes = AYMR.strings.pref_player_advanced,
-            subtitleRes = AYMR.strings.pref_player_advanced_summary,
-            icon = Icons.Outlined.Code,
-            screen = PlayerSettingsAdvancedScreen,
-        ),
     )
 }
