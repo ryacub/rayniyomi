@@ -316,6 +316,11 @@ object SettingsLibraryScreen : SearchableSettings {
                     title = stringResource(MR.strings.pref_library_update_refresh_metadata),
                     subtitle = stringResource(MR.strings.pref_library_update_refresh_metadata_summary),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = libraryPreferences.autoPopulateAnimeFillermarks(),
+                    title = stringResource(AYMR.strings.pref_library_update_auto_fillermarks),
+                    subtitle = stringResource(AYMR.strings.pref_library_update_auto_fillermarks_summary),
+                ),
                 Preference.PreferenceItem.MultiSelectListPreference(
                     preference = libraryPreferences.autoUpdateItemRestrictions(),
                     entries = persistentMapOf(

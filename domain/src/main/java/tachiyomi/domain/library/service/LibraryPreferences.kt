@@ -58,6 +58,8 @@ class LibraryPreferences(
 
     fun autoUpdateMetadata() = preferenceStore.getBoolean("auto_update_metadata", false)
 
+    fun autoPopulateAnimeFillermarks() = preferenceStore.getBoolean("auto_populate_anime_fillermarks", false)
+
     fun showContinueViewingButton() =
         preferenceStore.getBoolean("display_continue_reading_button", false)
 

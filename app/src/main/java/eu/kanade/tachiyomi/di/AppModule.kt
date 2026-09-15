@@ -27,6 +27,8 @@ import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
+import eu.kanade.tachiyomi.data.filler.AnimeFillerListSource
+import eu.kanade.tachiyomi.data.filler.AnimeFillerSource
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
@@ -223,6 +225,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { AnimeDownloadProvider(app) }
         addSingletonFactory { AnimeDownloadManager(app) }
         addSingletonFactory { AnimeDownloadCache(app) }
+        addSingletonFactory<AnimeFillerSource> { AnimeFillerListSource(context = app) }
 
         // Multi-threaded anime download components
         addSingletonFactory { DownloadStateStore(app) }
