@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.setting
 
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -78,17 +79,10 @@ class SettingsScreen(
                 previousNavigationLayout = navigationLayout
             }
             if (twoPane) {
-                val insets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
-                TwoPanelBox(
-                    modifier = Modifier
-                        .windowInsetsPadding(insets)
-                        .consumeWindowInsets(insets),
-                    startContent = {
-                        CompositionLocalProvider(LocalBackPress provides parentNavigator::pop) {
-                            SettingsMainScreen.Content(twoPane = true)
-                        }
-                    },
-                    endContent = { DefaultNavigatorScreenTransition(navigator = navigator) },
+                SettingsTwoPaneContent(
+                    parentNavigator = parentNavigator,
+                    navigator = navigator,
+                    startContent = { SettingsMainScreen.Content(twoPane = true) },
                 )
             } else {
                 val pop: () -> Unit = {
@@ -110,4 +104,39 @@ class SettingsScreen(
         data object DataAndStorage : Destination(1)
         data object Tracking : Destination(2)
     }
+}
+
+@Composable
+internal fun SettingsTwoPaneContent(
+    parentNavigator: Navigator,
+    navigator: Navigator,
+    startContent: @Composable BoxScope.() -> Unit,
+) {
+    val insets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
+    TwoPanelBox(
+        modifier = Modifier
+            .windowInsetsPadding(insets)
+            .consumeWindowInsets(insets),
+        startContent = {
+            CompositionLocalProvider(
+                LocalBackPress provides parentNavigator::pop,
+                content = { startContent() },
+            )
+        },
+        endContent = {
+            DefaultNavigatorScreenTransition(
+                navigator = navigator,
+                content = { screen ->
+                    val backPress: (() -> Unit)? = if (screen == SettingsMainScreen) {
+                        { parentNavigator.pop() }
+                    } else {
+                        null
+                    }
+                    CompositionLocalProvider(LocalBackPress provides backPress) {
+                        screen.Content()
+                    }
+                },
+            )
+        },
+    )
 }
