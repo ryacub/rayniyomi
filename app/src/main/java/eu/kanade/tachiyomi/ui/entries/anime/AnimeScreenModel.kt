@@ -17,6 +17,7 @@ import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.downloadedFilter
 import eu.kanade.domain.entries.anime.model.seasonDownloadedFilter
 import eu.kanade.domain.entries.anime.model.toSAnime
+import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
@@ -133,6 +134,7 @@ class AnimeScreenModel(
     private val setAnimeSeasonFlags: SetAnimeSeasonFlags = Injekt.get(),
     private val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags = Injekt.get(),
     private val setSeenStatus: SetSeenStatus = Injekt.get(),
+    private val populateFillerMarks: PopulateFillerMarks = Injekt.get(),
     private val updateEpisode: UpdateEpisode = Injekt.get(),
     private val updateAnime: UpdateAnime = Injekt.get(),
     private val syncEpisodesWithSource: SyncEpisodesWithSource = Injekt.get(),
@@ -633,6 +635,10 @@ class AnimeScreenModel(
             source,
             manualFetch,
         )
+
+        screenModelScope.launchIO {
+            populateFillerMarks.await(anime, getEpisodesByAnimeId.await(anime.id))
+        }
 
         if (manualFetch) {
             downloadNewEpisodes(newEpisodes)

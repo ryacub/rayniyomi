@@ -20,6 +20,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
+import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
@@ -61,6 +62,7 @@ import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.items.episode.model.NoEpisodesException
 import tachiyomi.domain.items.season.interactor.GetAnimeSeasonsByParentId
@@ -94,6 +96,8 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private val getAnime: GetAnime = Injekt.get()
     private val updateAnime: UpdateAnime = Injekt.get()
     private val syncEpisodesWithSource: SyncEpisodesWithSource = Injekt.get()
+    private val populateFillerMarks: PopulateFillerMarks = Injekt.get()
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get()
     private val animeFetchInterval: AnimeFetchInterval = Injekt.get()
     private val filterEpisodesForDownload: FilterEpisodesForDownload = Injekt.get()
     private val getAnimeSeasonsByParentId: GetAnimeSeasonsByParentId = Injekt.get()
@@ -404,7 +408,9 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         // to get latest data so it doesn't get overwritten later on
         val dbAnime = getAnime.await(anime.id)?.takeIf { it.parentId != null || it.favorite } ?: return emptyList()
 
-        return syncEpisodesWithSource.await(episodes, dbAnime, source, false, fetchWindow)
+        val newEpisodes = syncEpisodesWithSource.await(episodes, dbAnime, source, false, fetchWindow)
+        populateFillerMarks.await(dbAnime, getEpisodesByAnimeId.await(dbAnime.id))
+        return newEpisodes
     }
 
     private suspend fun withUpdateNotification(
