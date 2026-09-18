@@ -31,6 +31,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- Branding guardrail now handles binary documentation fixtures.
 
 ### Other
 

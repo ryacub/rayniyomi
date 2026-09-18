@@ -3,8 +3,11 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from scripts.check_branding_guardrail import main as guardrail_main
+from scripts.check_branding_guardrail import read_diff
 
 
 class BrandingGuardrailTest(unittest.TestCase):
@@ -102,6 +105,12 @@ index 1111111..2222222 100644
 +see https://aniyomi.org/docs
 """
         self.assertEqual(self._run(diff), 1)
+
+    def test_replaces_invalid_bytes_when_reading_git_diff(self) -> None:
+        result = SimpleNamespace(returncode=0, stdout="binary replacement: \ufffd", stderr="")
+        with patch("scripts.check_branding_guardrail.subprocess.run", return_value=result) as run:
+            self.assertIn("\ufffd", read_diff("origin/main", None))
+        self.assertEqual(run.call_args.kwargs["errors"], "replace")
 
 
 if __name__ == "__main__":
