@@ -77,10 +77,12 @@ fun MangaExtensionScreen(
     searchQuery: String?,
     onLongClickItem: (MangaExtension) -> Unit,
     onClickItemCancel: (MangaExtension) -> Unit,
+    onClickItemDismiss: (MangaExtension) -> Unit,
     onOpenWebView: (MangaExtension.Available) -> Unit,
     onInstallExtension: (MangaExtension.Available) -> Unit,
     onUninstallExtension: (MangaExtension) -> Unit,
     onUpdateExtension: (MangaExtension.Installed) -> Unit,
+    onRetryExtension: (MangaExtension) -> Unit,
     onTrustExtension: (MangaExtension.Untrusted) -> Unit,
     onOpenExtension: (MangaExtension.Installed) -> Unit,
     onClickUpdateAll: () -> Unit,
@@ -119,10 +121,12 @@ fun MangaExtensionScreen(
                     contentPadding = contentPadding,
                     onLongClickItem = onLongClickItem,
                     onClickItemCancel = onClickItemCancel,
+                    onClickItemDismiss = onClickItemDismiss,
                     onOpenWebView = onOpenWebView,
                     onInstallExtension = onInstallExtension,
                     onUninstallExtension = onUninstallExtension,
                     onUpdateExtension = onUpdateExtension,
+                    onRetryExtension = onRetryExtension,
                     onTrustExtension = onTrustExtension,
                     onOpenExtension = onOpenExtension,
                     onClickUpdateAll = onClickUpdateAll,
@@ -139,9 +143,11 @@ private fun ExtensionContent(
     onLongClickItem: (MangaExtension) -> Unit,
     onOpenWebView: (MangaExtension.Available) -> Unit,
     onClickItemCancel: (MangaExtension) -> Unit,
+    onClickItemDismiss: (MangaExtension) -> Unit,
     onInstallExtension: (MangaExtension.Available) -> Unit,
     onUninstallExtension: (MangaExtension) -> Unit,
     onUpdateExtension: (MangaExtension.Installed) -> Unit,
+    onRetryExtension: (MangaExtension) -> Unit,
     onTrustExtension: (MangaExtension.Untrusted) -> Unit,
     onOpenExtension: (MangaExtension.Installed) -> Unit,
     onClickUpdateAll: () -> Unit,
@@ -237,7 +243,9 @@ private fun ExtensionContent(
                         when (it) {
                             is MangaExtension.Available -> onInstallExtension(it)
                             is MangaExtension.Installed -> {
-                                if (it.hasUpdate) {
+                                if (item.installStep == InstallStep.Error) {
+                                    onRetryExtension(it)
+                                } else if (it.hasUpdate) {
                                     onUpdateExtension(it)
                                 } else {
                                     onOpenExtension(it)
@@ -249,6 +257,7 @@ private fun ExtensionContent(
                             }
                         }
                     },
+                    onClickItemDismiss = onClickItemDismiss,
                 )
             }
         }
@@ -276,6 +285,7 @@ private fun ExtensionItem(
     onClickItem: (MangaExtension) -> Unit,
     onLongClickItem: (MangaExtension) -> Unit,
     onClickItemCancel: (MangaExtension) -> Unit,
+    onClickItemDismiss: (MangaExtension) -> Unit,
     onClickItemAction: (MangaExtension) -> Unit,
     onClickItemSecondaryAction: (MangaExtension) -> Unit,
     modifier: Modifier = Modifier,
@@ -320,6 +330,7 @@ private fun ExtensionItem(
                 extension = extension,
                 installStep = installStep,
                 onClickItemCancel = onClickItemCancel,
+                onClickItemDismiss = onClickItemDismiss,
                 onClickItemAction = onClickItemAction,
                 onClickItemSecondaryAction = onClickItemSecondaryAction,
             )
@@ -406,6 +417,7 @@ private fun ExtensionItemActions(
     installStep: InstallStep,
     modifier: Modifier = Modifier,
     onClickItemCancel: (MangaExtension) -> Unit = {},
+    onClickItemDismiss: (MangaExtension) -> Unit = {},
     onClickItemAction: (MangaExtension) -> Unit = {},
     onClickItemSecondaryAction: (MangaExtension) -> Unit = {},
 ) {
@@ -425,11 +437,19 @@ private fun ExtensionItemActions(
                 }
             }
             installStep == InstallStep.Error -> {
-                IconButton(onClick = { onClickItemAction(extension) }) {
+                IconButton(onClick = { onClickItemDismiss(extension) }) {
                     Icon(
-                        imageVector = Icons.Outlined.Refresh,
-                        contentDescription = stringResource(MR.strings.action_retry),
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = stringResource(MR.strings.action_close),
                     )
+                }
+                if (extension !is MangaExtension.Installed || extension.hasUpdate) {
+                    IconButton(onClick = { onClickItemAction(extension) }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = stringResource(MR.strings.action_retry),
+                        )
+                    }
                 }
             }
             installStep == InstallStep.Idle -> {

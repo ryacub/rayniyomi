@@ -75,10 +75,12 @@ fun AnimeExtensionScreen(
     searchQuery: String?,
     onLongClickItem: (AnimeExtension) -> Unit,
     onClickItemCancel: (AnimeExtension) -> Unit,
+    onClickItemDismiss: (AnimeExtension) -> Unit,
     onOpenWebView: (AnimeExtension.Available) -> Unit,
     onInstallExtension: (AnimeExtension.Available) -> Unit,
     onUninstallExtension: (AnimeExtension) -> Unit,
     onUpdateExtension: (AnimeExtension.Installed) -> Unit,
+    onRetryExtension: (AnimeExtension) -> Unit,
     onTrustExtension: (AnimeExtension.Untrusted) -> Unit,
     onOpenExtension: (AnimeExtension.Installed) -> Unit,
     onClickUpdateAll: () -> Unit,
@@ -117,10 +119,12 @@ fun AnimeExtensionScreen(
                     contentPadding = contentPadding,
                     onLongClickItem = onLongClickItem,
                     onClickItemCancel = onClickItemCancel,
+                    onClickItemDismiss = onClickItemDismiss,
                     onOpenWebView = onOpenWebView,
                     onInstallExtension = onInstallExtension,
                     onUninstallExtension = onUninstallExtension,
                     onUpdateExtension = onUpdateExtension,
+                    onRetryExtension = onRetryExtension,
                     onTrustExtension = onTrustExtension,
                     onOpenExtension = onOpenExtension,
                     onClickUpdateAll = onClickUpdateAll,
@@ -137,9 +141,11 @@ private fun AnimeExtensionContent(
     onLongClickItem: (AnimeExtension) -> Unit,
     onOpenWebView: (AnimeExtension.Available) -> Unit,
     onClickItemCancel: (AnimeExtension) -> Unit,
+    onClickItemDismiss: (AnimeExtension) -> Unit,
     onInstallExtension: (AnimeExtension.Available) -> Unit,
     onUninstallExtension: (AnimeExtension) -> Unit,
     onUpdateExtension: (AnimeExtension.Installed) -> Unit,
+    onRetryExtension: (AnimeExtension) -> Unit,
     onTrustExtension: (AnimeExtension.Untrusted) -> Unit,
     onOpenExtension: (AnimeExtension.Installed) -> Unit,
     onClickUpdateAll: () -> Unit,
@@ -235,7 +241,9 @@ private fun AnimeExtensionContent(
                         when (it) {
                             is AnimeExtension.Available -> onInstallExtension(it)
                             is AnimeExtension.Installed -> {
-                                if (it.hasUpdate) {
+                                if (item.installStep == InstallStep.Error) {
+                                    onRetryExtension(it)
+                                } else if (it.hasUpdate) {
                                     onUpdateExtension(it)
                                 } else {
                                     onOpenExtension(it)
@@ -247,6 +255,7 @@ private fun AnimeExtensionContent(
                             }
                         }
                     },
+                    onClickItemDismiss = onClickItemDismiss,
                 )
             }
         }
@@ -274,6 +283,7 @@ private fun AnimeExtensionItem(
     onClickItem: (AnimeExtension) -> Unit,
     onLongClickItem: (AnimeExtension) -> Unit,
     onClickItemCancel: (AnimeExtension) -> Unit,
+    onClickItemDismiss: (AnimeExtension) -> Unit,
     onClickItemAction: (AnimeExtension) -> Unit,
     modifier: Modifier = Modifier,
     onClickItemSecondaryAction: (AnimeExtension) -> Unit,
@@ -318,6 +328,7 @@ private fun AnimeExtensionItem(
                 extension = extension,
                 installStep = installStep,
                 onClickItemCancel = onClickItemCancel,
+                onClickItemDismiss = onClickItemDismiss,
                 onClickItemAction = onClickItemAction,
                 onClickItemSecondaryAction = onClickItemSecondaryAction,
             )
@@ -404,6 +415,7 @@ private fun AnimeExtensionItemActions(
     installStep: InstallStep,
     modifier: Modifier = Modifier,
     onClickItemCancel: (AnimeExtension) -> Unit = {},
+    onClickItemDismiss: (AnimeExtension) -> Unit = {},
     onClickItemAction: (AnimeExtension) -> Unit = {},
     onClickItemSecondaryAction: (AnimeExtension) -> Unit = {},
 ) {
@@ -423,11 +435,19 @@ private fun AnimeExtensionItemActions(
                 }
             }
             installStep == InstallStep.Error -> {
-                IconButton(onClick = { onClickItemAction(extension) }) {
+                IconButton(onClick = { onClickItemDismiss(extension) }) {
                     Icon(
-                        imageVector = Icons.Outlined.Refresh,
-                        contentDescription = stringResource(MR.strings.action_retry),
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = stringResource(MR.strings.action_close),
                     )
+                }
+                if (extension !is AnimeExtension.Installed || extension.hasUpdate) {
+                    IconButton(onClick = { onClickItemAction(extension) }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = stringResource(MR.strings.action_retry),
+                        )
+                    }
                 }
             }
             installStep == InstallStep.Idle -> {

@@ -13,7 +13,15 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
+import eu.kanade.tachiyomi.extension.completeInstall
+import eu.kanade.tachiyomi.extension.dismissInstallError
+import eu.kanade.tachiyomi.extension.withInstallStep
 import eu.kanade.tachiyomi.util.system.LocaleHelper
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +40,8 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
 class AnimeExtensionsScreenModel(
@@ -40,9 +50,11 @@ class AnimeExtensionsScreenModel(
     private val extensionManager: AnimeExtensionManager = Injekt.get(),
     private val getExtensions: GetAnimeExtensionsByType = Injekt.get(),
     private val application: Application = Injekt.get(),
+    private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<AnimeExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())
+    private val activeInstallations = ConcurrentHashMap<String, Job>()
 
     init {
         val extensionMapper: (Map<String, InstallStep>) -> ((AnimeExtension) -> AnimeExtensionUiModel.Item) = { map ->
@@ -169,34 +181,88 @@ class AnimeExtensionsScreenModel(
     }
 
     fun installExtension(extension: AnimeExtension.Available) {
-        screenModelScope.launchIO {
-            extensionManager.installExtension(extension).collectToInstallUpdate(extension)
-        }
+        startInstall(extension) { extensionManager.installExtension(extension) }
     }
 
     fun updateExtension(extension: AnimeExtension.Installed) {
-        screenModelScope.launchIO {
-            extensionManager.updateExtension(extension).collectToInstallUpdate(extension)
+        startInstall(extension) { extensionManager.updateExtension(extension) }
+    }
+
+    private fun startInstall(extension: AnimeExtension, flow: () -> Flow<InstallStep>) {
+        val job = screenModelScope.launch(installDispatcher, CoroutineStart.LAZY) {
+            try {
+                flow().collectToInstallUpdate(extension)
+            } finally {
+                synchronized(activeInstallations) {
+                    activeInstallations.remove(extension.pkgName, coroutineContext[Job])
+                }
+            }
+        }
+        synchronized(activeInstallations) {
+            if (activeInstallations.putIfAbsent(extension.pkgName, job) == null) {
+                job.start()
+            } else {
+                job.cancel()
+            }
+        }
+    }
+
+    fun retryInstallUpdateExtension(extension: AnimeExtension) {
+        when (extension) {
+            is AnimeExtension.Available -> installExtension(extension)
+            is AnimeExtension.Installed -> if (extension.hasUpdate) updateExtension(extension)
+            is AnimeExtension.Untrusted -> Unit
         }
     }
 
     fun cancelInstallUpdateExtension(extension: AnimeExtension) {
-        extensionManager.cancelInstallUpdateExtension(extension)
+        synchronized(activeInstallations) {
+            val job = activeInstallations[extension.pkgName] ?: return@synchronized
+            extensionManager.cancelInstallUpdateExtension(extension)
+            if (activeInstallations.remove(extension.pkgName, job)) {
+                currentDownloads.update { it - extension.pkgName }
+                job.cancel()
+            }
+        }
     }
 
     private fun addDownloadState(extension: AnimeExtension, installStep: InstallStep) {
-        currentDownloads.update { it + Pair(extension.pkgName, installStep) }
+        currentDownloads.update { it.withInstallStep(extension.pkgName, installStep) }
     }
 
     private fun removeDownloadState(extension: AnimeExtension) {
-        currentDownloads.update { it - extension.pkgName }
+        currentDownloads.update { it.completeInstall(extension.pkgName) }
     }
 
-    private suspend fun Flow<InstallStep>.collectToInstallUpdate(extension: AnimeExtension) =
-        this
-            .onEach { installStep -> addDownloadState(extension, installStep) }
-            .onCompletion { removeDownloadState(extension) }
+    fun dismissInstallError(extension: AnimeExtension) {
+        currentDownloads.update { it.dismissInstallError(extension.pkgName) }
+    }
+
+    private suspend fun Flow<InstallStep>.collectToInstallUpdate(extension: AnimeExtension) {
+        val job = currentCoroutineContext()[Job]
+        var lastInstallStep: InstallStep? = null
+        onEach { installStep ->
+            synchronized(activeInstallations) {
+                if (activeInstallations[extension.pkgName] !== job) return@onEach
+                lastInstallStep = installStep
+                if (installStep != InstallStep.Error) {
+                    addDownloadState(extension, installStep)
+                }
+            }
+        }
+            .onCompletion { cause ->
+                synchronized(activeInstallations) {
+                    if (!activeInstallations.remove(extension.pkgName, job)) return@onCompletion
+                    when {
+                        lastInstallStep == InstallStep.Error && cause !is CancellationException -> {
+                            addDownloadState(extension, InstallStep.Error)
+                        }
+                        lastInstallStep != null -> removeDownloadState(extension)
+                    }
+                }
+            }
             .collect()
+    }
 
     fun uninstallExtension(extension: AnimeExtension) {
         extensionManager.uninstallExtension(extension)
