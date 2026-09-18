@@ -69,6 +69,7 @@ fun mangaExtensionsTab(
                     }
                 },
                 onClickItemCancel = extensionsScreenModel::cancelInstallUpdateExtension,
+                onClickItemDismiss = extensionsScreenModel::dismissInstallError,
                 onClickUpdateAll = extensionsScreenModel::updateAllExtensions,
                 onOpenWebView = { extension ->
                     extension.sources.getOrNull(0)?.let {
@@ -86,6 +87,7 @@ fun mangaExtensionsTab(
                 onTrustExtension = { extensionsScreenModel.trustExtension(it) },
                 onUninstallExtension = { extensionsScreenModel.uninstallExtension(it) },
                 onUpdateExtension = extensionsScreenModel::updateExtension,
+                onRetryExtension = extensionsScreenModel::retryInstallUpdateExtension,
                 onRefresh = extensionsScreenModel::findAvailableExtensions,
             )
 
