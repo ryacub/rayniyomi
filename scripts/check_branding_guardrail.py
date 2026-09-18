@@ -103,9 +103,9 @@ def load_allowlist(path: Path) -> list[AllowlistEntry]:
 
 def read_diff(base: str, diff_file: str | None) -> str:
     if diff_file:
-        return Path(diff_file).read_text(encoding="utf-8")
+        return Path(diff_file).read_text(encoding="utf-8", errors="replace")
     cmd = ["git", "diff", "--unified=0", "--no-color", "--find-renames", f"{base}...HEAD"]
-    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True, errors="replace")
     if result.returncode != 0:
         raise RuntimeError(f"git diff failed with exit code {result.returncode}: {result.stderr.strip()}")
     return result.stdout
