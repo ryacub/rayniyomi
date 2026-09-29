@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 
+- Extension linkage failures during shared HTTP requests no longer stop the app.
 - Extension installation failures now remain visible so users can retry or dismiss them.
 - Settings no longer crash when the settings layout changes from one pane to two panes.
 - Player settings no longer crash when the settings layout changes from one pane to two panes.

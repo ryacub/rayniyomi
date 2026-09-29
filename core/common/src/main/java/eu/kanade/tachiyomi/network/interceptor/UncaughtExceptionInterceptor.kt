@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.network.interceptor
 
 import okhttp3.Interceptor
 import okhttp3.Response
+import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import java.io.IOException
 
 /**
@@ -17,6 +18,8 @@ class UncaughtExceptionInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         return try {
             chain.proceed(chain.request())
+        } catch (error: LinkageError) {
+            throw IOException(error.reportAsSourceFailure())
         } catch (e: Exception) {
             if (e is IOException) {
                 throw e
