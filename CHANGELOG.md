@@ -14,6 +14,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.388] - 2026-09-29
+
+### Added
+
 - Anime library updates can populate filler marks from AnimeFillerList when enabled.
 
 ### Improved
