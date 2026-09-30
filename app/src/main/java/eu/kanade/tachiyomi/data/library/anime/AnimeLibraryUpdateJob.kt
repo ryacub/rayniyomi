@@ -29,8 +29,10 @@ import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
-import eu.kanade.tachiyomi.data.library.AutoUpdateSkipReason
+import eu.kanade.tachiyomi.data.library.SkippedUpdate
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.skippedUpdatesForReport
+import eu.kanade.tachiyomi.data.library.writeSkippedUpdateReport
 import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
@@ -106,6 +108,8 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
     private var animeToUpdate: List<LibraryAnime> = mutableListOf()
 
+    private var skippedUpdates: List<SkippedUpdate> = emptyList()
+
     override suspend fun doWork(): Result {
         if (tags.contains(WORK_NAME_AUTO)) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
@@ -128,6 +132,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             logcat(LogPriority.ERROR, e) { "Not allowed to set foreground job" }
         }
 
+        if (WORK_NAME_MANUAL in tags) notifier.cancelUpdateSkippedNotification()
         libraryPreferences.lastUpdatedTimestamp().set(Instant.now().toEpochMilli())
 
         val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
@@ -136,6 +141,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         return withIOContext {
             try {
                 updateEpisodeList()
+                reportSkippedUpdates()
                 Result.success()
             } catch (e: Exception) {
                 if (e is CancellationException) {
@@ -217,7 +223,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         // Smart-update restrictions control background update selection and are independent
         // from library UI-only filters like "customized update frequency".
         val restrictions = libraryPreferences.autoUpdateItemRestrictions().get()
-        val skippedUpdates = mutableListOf<Pair<Anime, String?>>()
+        val skipped = mutableListOf<SkippedUpdate>()
         val (_, fetchWindowUpperBound) = animeFetchInterval.getWindow(ZonedDateTime.now())
 
         animeToUpdate = lastToUpdateWithSeasons
@@ -236,7 +242,8 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                 )
 
                 if (skipReason != null) {
-                    skippedUpdates.add(it.anime to skipReason.toLocalizedReason())
+                    val source = sourceManager.getOrStub(it.anime.source).toString()
+                    skipped.add(SkippedUpdate(skipReason, source, it.anime.title))
                     false
                 } else {
                     true
@@ -246,25 +253,28 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         notifier.showQueueSizeWarningNotificationIfNeeded(animeToUpdate)
 
-        if (skippedUpdates.isNotEmpty()) {
-            // TODO: surface skipped reasons to user?
+        skippedUpdates = skipped
+        if (skipped.isNotEmpty()) {
             logcat {
-                skippedUpdates
-                    .groupBy { it.second }
-                    .map { (reason, entries) -> "$reason: [${entries.map { it.first.title }.sorted().joinToString()}]" }
+                skipped
+                    .groupBy { it.reason }
+                    .map { (reason, entries) -> "$reason: [${entries.map { it.title }.sorted().joinToString()}]" }
                     .joinToString()
             }
         }
     }
 
-    private fun AutoUpdateSkipReason.toLocalizedReason(): String = when (this) {
-        AutoUpdateSkipReason.NOT_ALWAYS_UPDATE -> context.stringResource(MR.strings.skipped_reason_not_always_update)
-        AutoUpdateSkipReason.COMPLETED -> context.stringResource(MR.strings.skipped_reason_completed)
-        AutoUpdateSkipReason.NOT_CAUGHT_UP -> context.stringResource(MR.strings.skipped_reason_not_caught_up)
-        AutoUpdateSkipReason.NOT_STARTED -> context.stringResource(MR.strings.skipped_reason_not_started)
-        AutoUpdateSkipReason.OUTSIDE_RELEASE_PERIOD -> context.stringResource(
-            MR.strings.skipped_reason_not_in_release_period,
-        )
+    private fun reportSkippedUpdates() {
+        val isManualRun = WORK_NAME_MANUAL in tags
+        val skipped = skippedUpdatesForReport(isManualRun = isManualRun, skipped = skippedUpdates)
+
+        val outcome = context.writeSkippedUpdateReport(SKIPPED_LOG_FILENAME, skipped)
+        val file = (outcome as? ErrorLogWriteOutcome.Created)?.file?.takeIf(::hasShareableErrorLogFile)
+        if (file != null) {
+            notifier.showUpdateSkippedNotification(skipped.size, file.getUriCompat(context))
+        } else if (outcome is ErrorLogWriteOutcome.Failed) {
+            logcat(LogPriority.WARN, outcome.cause) { "Failed to write anime library update skipped file" }
+        }
     }
 
     /**
@@ -476,6 +486,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         private const val WORK_NAME_MANUAL = "AnimeLibraryUpdate-manual"
 
         internal const val ERROR_LOG_FILENAME = "rayniyomi_update_errors.txt"
+        private const val SKIPPED_LOG_FILENAME = "rayniyomi_anime_update_skipped.txt"
         private const val ERROR_LOG_HELP_URL = "https://aniyomi.org/docs/guides/troubleshooting/"
 
         private const val ANIME_PER_SOURCE_QUEUE_WARNING_THRESHOLD = 60

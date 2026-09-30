@@ -1014,6 +1014,9 @@
     <string name="skipped_reason_not_started">Skipped because no chapters are read</string>
     <string name="skipped_reason_not_always_update">Skipped because series does not require updates</string>
     <string name="skipped_reason_not_in_release_period">Skipped because no release was expected today</string>
+    <string name="notification_update_skipped">%1$d title(s) skipped by smart update</string>
+    <string name="action_show_skipped">These are not errors. Tap to see why</string>
+    <string name="library_skipped_help">Smart update settings skipped these titles on purpose. These are not errors.</string>
 
     <!-- File Picker Titles -->
     <string name="file_select_cover">Select cover image</string>

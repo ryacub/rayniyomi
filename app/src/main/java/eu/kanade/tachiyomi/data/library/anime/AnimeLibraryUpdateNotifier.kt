@@ -177,6 +177,25 @@ class AnimeLibraryUpdateNotifier(
         }
     }
 
+    fun showUpdateSkippedNotification(skipped: Int, uri: Uri) {
+        context.notify(
+            Notifications.ID_LIBRARY_SKIPPED_ANIME,
+            Notifications.CHANNEL_LIBRARY_PROGRESS,
+        ) {
+            setContentTitle(context.stringResource(MR.strings.notification_update_skipped, skipped))
+            setContentText(context.stringResource(MR.strings.action_show_skipped))
+            setSmallIcon(R.drawable.ic_ani)
+            setPriority(NotificationCompat.PRIORITY_LOW)
+            setAutoCancel(true)
+
+            setContentIntent(NotificationReceiver.openErrorLogPendingActivity(context, uri))
+        }
+    }
+
+    fun cancelUpdateSkippedNotification() {
+        context.cancelNotification(Notifications.ID_LIBRARY_SKIPPED_ANIME)
+    }
+
     /**
      * Shows the parent group notification containing the result of the update done by the service.
      *
