@@ -99,10 +99,13 @@ internal fun Project.configureTest() {
     }
 
     // Gradle 9 requires junit-platform-launcher on the test runtime classpath.
+    // The launcher has no catalogue version, so the BOM supplies it in modules with no test dependencies.
     // Capture libs before entering the configuration lambda (no Project receiver inside).
+    val junitBom = libs.junit.bom
     val junitPlatformLauncher = libs.junit.platform.launcher
     configurations.matching { it.name == "testRuntimeOnly" }.configureEach {
         dependencies {
+            add(name, platform(junitBom))
             add(name, junitPlatformLauncher)
         }
     }
