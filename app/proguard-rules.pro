@@ -41,6 +41,8 @@
 -keep,allowoptimization class eu.kanade.tachiyomi.network.OkHttpExtensionsKt { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.network.RequestsKt { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.AppInfo { public protected *; }
+# Extensions call HttpException.getCode(). R8 inlines the getter into app code and removes it.
+-keep,allowoptimization class eu.kanade.tachiyomi.network.HttpException { public protected *; }
 
 ##---------------Begin: extension source API ABI ----------
 # Installed extensions call these public methods across a child-first class loader.

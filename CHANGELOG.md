@@ -20,12 +20,15 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Light-novel restore failures now appear in the backup completion result.
+- Manga extensions built on extension-lib 1.6 no longer fail when they call `runBlockingK`, `Job.cancel`, `Source.supportsLatest`, or `HttpException.code`. The app now updates kotlinx-coroutines to 1.11.0 (#1252).
 
 ### Changed
 
 ### Removed
 
 ### CI
+
+- `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
 

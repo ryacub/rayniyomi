@@ -8,11 +8,17 @@ from scripts.check_release_extension_abi import (
     REQUIRED_METHODS,
     baseline_differences,
     baseline_rows,
+    missing_supertypes,
     render_flags,
 )
 
 ACC_PUBLIC = 0x1
 ACC_STATIC = 0x8
+
+SOURCE = "Leu/kanade/tachiyomi/source/Source;"
+MANGA_SOURCE = "Leu/kanade/tachiyomi/source/MangaSource;"
+CATALOGUE_SOURCE = "Leu/kanade/tachiyomi/source/CatalogueSource;"
+HTTP_SOURCE = "Leu/kanade/tachiyomi/source/online/HttpSource;"
 
 GET_FILTER_LIST = (
     "Leu/kanade/tachiyomi/animesource/online/AnimeHttpSource;"
@@ -119,6 +125,51 @@ class ExtensionAbiBaselineTest(unittest.TestCase):
             "->getMemo()Lkotlinx/serialization/json/JsonObject;",
             REQUIRED_METHODS["manga source model"],
         )
+
+    def test_requires_the_lib_16_host_members(self) -> None:
+        """R1078: lib-1.6 extensions call these, and the 0.18.1.388 release did not define them."""
+        required = REQUIRED_METHODS["extension-lib 1.6 host members"]
+
+        for signature in (
+            "Leu/kanade/tachiyomi/source/Source;->getSupportsLatest()Z",
+            "Leu/kanade/tachiyomi/network/HttpException;->getCode()I",
+            "Lkotlinx/coroutines/BuildersKt;->runBlockingK(Lkotlin/coroutines/CoroutineContext;"
+            "Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;",
+            "Lkotlinx/coroutines/BuildersKt;->runBlockingK$default(Lkotlin/coroutines/CoroutineContext;"
+            "Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ljava/lang/Object;",
+            "Lkotlinx/coroutines/Job;->cancel$default(Lkotlinx/coroutines/Job;"
+            "Ljava/util/concurrent/CancellationException;ILjava/lang/Object;)V",
+        ):
+            self.assertIn(signature, required)
+
+
+class ExtensionSupertypeTest(unittest.TestCase):
+    """`invoke-interface Source.getSupportsLatest` needs a receiver that implements Source.
+
+    ART throws IncompatibleClassChangeError otherwise, even when the method resolves.
+    """
+
+    def test_accepts_http_source_that_implements_source_through_its_interfaces(self) -> None:
+        parents = {
+            HTTP_SOURCE: ["Ljava/lang/Object;", CATALOGUE_SOURCE],
+            CATALOGUE_SOURCE: ["Ljava/lang/Object;", MANGA_SOURCE],
+            MANGA_SOURCE: ["Ljava/lang/Object;", SOURCE],
+            SOURCE: ["Ljava/lang/Object;"],
+        }
+
+        self.assertEqual(missing_supertypes(parents), [])
+
+    def test_reports_http_source_that_does_not_implement_source(self) -> None:
+        parents = {
+            HTTP_SOURCE: ["Ljava/lang/Object;", CATALOGUE_SOURCE],
+            CATALOGUE_SOURCE: ["Ljava/lang/Object;", MANGA_SOURCE],
+            MANGA_SOURCE: ["Ljava/lang/Object;"],
+        }
+
+        self.assertEqual(missing_supertypes(parents), [(HTTP_SOURCE, SOURCE)])
+
+    def test_reports_an_absent_http_source(self) -> None:
+        self.assertEqual(missing_supertypes({}), [(HTTP_SOURCE, SOURCE)])
 
 
 if __name__ == "__main__":
