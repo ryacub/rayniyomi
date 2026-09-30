@@ -1,6 +1,7 @@
 package tachiyomi.domain.items.chapter.model
 
 import kotlinx.serialization.json.JsonObject
+import tachiyomi.core.common.util.lang.EmptyJsonObject
 
 data class Chapter(
     val id: Long,
@@ -48,7 +49,7 @@ data class Chapter(
             scanlator = null,
             lastModifiedAt = 0,
             version = 1,
-            memo = JsonObject(emptyMap()),
+            memo = EmptyJsonObject,
         )
     }
 }

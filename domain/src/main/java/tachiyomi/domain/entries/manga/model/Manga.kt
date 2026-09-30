@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import tachiyomi.core.common.preference.TriState
+import tachiyomi.core.common.util.lang.EmptyJsonObject
 import tachiyomi.domain.entries.EntryModel
 import java.io.ObjectStreamException
 import java.time.Instant
@@ -133,7 +134,7 @@ data class Manga(
             lastModifiedAt = 0L,
             favoriteModifiedAt = null,
             version = 0L,
-            memo = JsonObject(emptyMap()),
+            memo = EmptyJsonObject,
         )
     }
 

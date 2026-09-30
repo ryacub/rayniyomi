@@ -7,7 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
-import kotlinx.serialization.json.JsonObject
+import tachiyomi.core.common.util.lang.EmptyJsonObject
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
@@ -197,7 +197,7 @@ class MangaRestorer(
             dateUpload = 0L,
             lastModifiedAt = 0L,
             version = 0L,
-            memo = JsonObject(emptyMap()),
+            memo = EmptyJsonObject,
         )
 
     private suspend fun insertNewChapters(chapters: List<Chapter>) {

@@ -4,8 +4,9 @@ import app.cash.sqldelight.ColumnAdapter
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import tachiyomi.core.common.util.lang.toByteArray
+import tachiyomi.core.common.util.lang.toJsonObject
 import java.util.Date
 
 object DateColumnAdapter : ColumnAdapter<Date, Long> {
@@ -48,8 +49,6 @@ object FetchTypeColumnAdapter : ColumnAdapter<FetchType, Long> {
 }
 
 object MemoColumnAdapter : ColumnAdapter<JsonObject, ByteArray> {
-    override fun decode(databaseValue: ByteArray): JsonObject =
-        Json.decodeFromString<JsonObject>(databaseValue.decodeToString())
-
-    override fun encode(value: JsonObject): ByteArray = value.toString().encodeToByteArray()
+    override fun decode(databaseValue: ByteArray): JsonObject = databaseValue.toJsonObject()
+    override fun encode(value: JsonObject): ByteArray = value.toByteArray()
 }
