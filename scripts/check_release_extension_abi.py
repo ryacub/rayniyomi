@@ -7,11 +7,13 @@ import argparse
 import struct
 import sys
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 
 
 ACC_FINAL = 0x10
 ACC_SYNTHETIC = 0x1000
+NO_INDEX = 0xFFFFFFFF
 
 # The members that extensions link against at run time.
 #
@@ -147,6 +149,24 @@ REQUIRED_METHODS = {
         "Leu/kanade/tachiyomi/util/JsoupExtensionsKt;->attrOrText(Lorg/jsoup/nodes/Element;Ljava/lang/String;)Ljava/lang/String;",
         "Leu/kanade/tachiyomi/util/JsoupExtensionsKt;->asJsoup(Lokhttp3/Response;Ljava/lang/String;)Lorg/jsoup/nodes/Document;",
         "Leu/kanade/tachiyomi/util/JsoupExtensionsKt;->asJsoup$default(Lokhttp3/Response;Ljava/lang/String;ILjava/lang/Object;)Lorg/jsoup/nodes/Document;",
+    ],
+    # R1078: lib-1.6 extensions call these. The 0.18.1.388 release did not define them.
+    # scripts/check_extension_links.py finds such members in an extension catalogue.
+    "extension-lib 1.6 host members": [
+        "Leu/kanade/tachiyomi/source/Source;->getSupportsLatest()Z",
+        "Leu/kanade/tachiyomi/network/HttpException;->getCode()I",
+        "Lkotlinx/coroutines/BuildersKt;->runBlockingK(Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;",
+        "Lkotlinx/coroutines/BuildersKt;->runBlockingK$default(Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ljava/lang/Object;",
+        "Lkotlinx/coroutines/Job;->cancel$default(Lkotlinx/coroutines/Job;Ljava/util/concurrent/CancellationException;ILjava/lang/Object;)V",
+    ],
+}
+
+# An extension calls `invoke-interface Source.getSupportsLatest` on itself, and
+# ART throws IncompatibleClassChangeError unless the receiver implements Source.
+# A present method does not prove this, so the supertype is checked separately.
+REQUIRED_SUPERTYPES = {
+    "Leu/kanade/tachiyomi/source/online/HttpSource;": [
+        "Leu/kanade/tachiyomi/source/Source;",
     ],
 }
 
@@ -327,6 +347,8 @@ class DexFile:
         self.type_ids_off = read_u32(data, 68)
         self.proto_ids_size = read_u32(data, 72)
         self.proto_ids_off = read_u32(data, 76)
+        self.field_ids_size = read_u32(data, 80)
+        self.field_ids_off = read_u32(data, 84)
         self.method_ids_size = read_u32(data, 88)
         self.method_ids_off = read_u32(data, 92)
         self.class_defs_size = read_u32(data, 96)
@@ -370,15 +392,48 @@ class DexFile:
         name_idx = read_u32(self.data, method_off + 4)
         return f"{self.type_descriptor(class_idx)}->{self.string(name_idx)}{self.proto_descriptor(proto_idx)}"
 
-    def defined_methods(self) -> set[str]:
-        methods: set[str] = set()
-        _, method_flags = self.access_flags()
-        methods.update(method_flags)
-        return methods
+    def field_signature(self, index: int) -> str:
+        field_off = self.field_ids_off + index * 8
+        class_idx = read_u16(self.data, field_off)
+        type_idx = read_u16(self.data, field_off + 2)
+        name_idx = read_u32(self.data, field_off + 4)
+        return f"{self.type_descriptor(class_idx)}->{self.string(name_idx)}:{self.type_descriptor(type_idx)}"
 
-    def access_flags(self) -> tuple[dict[str, int], dict[str, int]]:
+    def referenced_members(self) -> set[str]:
+        """Return every method and field that this DEX file names, defined here or elsewhere."""
+        methods = {self.method_signature(index) for index in range(self.method_ids_size)}
+        fields = {self.field_signature(index) for index in range(self.field_ids_size)}
+        return methods | fields
+
+    def parents(self) -> dict[str, list[str]]:
+        """Return the superclass and the direct interfaces of each class that this DEX file defines."""
+        parents: dict[str, list[str]] = {}
+        for class_index in range(self.class_defs_size):
+            class_def_off = self.class_defs_off + class_index * 32
+            class_name = self.type_descriptor(read_u32(self.data, class_def_off))
+            supertypes: list[str] = []
+            superclass_idx = read_u32(self.data, class_def_off + 8)
+            if superclass_idx != NO_INDEX:
+                supertypes.append(self.type_descriptor(superclass_idx))
+            interfaces_off = read_u32(self.data, class_def_off + 12)
+            if interfaces_off != 0:
+                size = read_u32(self.data, interfaces_off)
+                supertypes.extend(
+                    self.type_descriptor(read_u16(self.data, interfaces_off + 4 + i * 2))
+                    for i in range(size)
+                )
+            parents[class_name] = supertypes
+        return parents
+
+    def defined_methods(self) -> set[str]:
+        _, method_flags, _ = self.member_flags()
+        return set(method_flags)
+
+    def member_flags(self) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+        """Return the access flags of each class, method, and field that this DEX file defines."""
         class_flags: dict[str, int] = {}
         method_flags: dict[str, int] = {}
+        field_flags: dict[str, int] = {}
         for class_index in range(self.class_defs_size):
             class_def_off = self.class_defs_off + class_index * 32
             class_idx = read_u32(self.data, class_def_off)
@@ -391,9 +446,13 @@ class DexFile:
             instance_fields_size, current = read_uleb128(self.data, current)
             direct_methods_size, current = read_uleb128(self.data, current)
             virtual_methods_size, current = read_uleb128(self.data, current)
-            for _ in range(static_fields_size + instance_fields_size):
-                _, current = read_uleb128(self.data, current)
-                _, current = read_uleb128(self.data, current)
+            for field_count in (static_fields_size, instance_fields_size):
+                field_index = 0
+                for _ in range(field_count):
+                    field_index_diff, current = read_uleb128(self.data, current)
+                    field_index += field_index_diff
+                    flags, current = read_uleb128(self.data, current)
+                    field_flags[self.field_signature(field_index)] = flags
             for method_count in (direct_methods_size, virtual_methods_size):
                 method_index = 0
                 for _ in range(method_count):
@@ -402,7 +461,7 @@ class DexFile:
                     flags, current = read_uleb128(self.data, current)
                     _, current = read_uleb128(self.data, current)
                     method_flags[self.method_signature(method_index)] = flags
-        return class_flags, method_flags
+        return class_flags, method_flags, field_flags
 
 
 def dex_entries(path: Path) -> list[tuple[str, bytes]]:
@@ -433,10 +492,39 @@ def collect_access_flags(path: Path) -> tuple[dict[str, int], dict[str, int]]:
     class_flags: dict[str, int] = {}
     method_flags: dict[str, int] = {}
     for name, data in entries:
-        dex_class_flags, dex_method_flags = DexFile(data, name).access_flags()
+        dex_class_flags, dex_method_flags, _ = DexFile(data, name).member_flags()
         class_flags.update(dex_class_flags)
         method_flags.update(dex_method_flags)
     return class_flags, method_flags
+
+
+def collect_parents(path: Path) -> dict[str, list[str]]:
+    parents: dict[str, list[str]] = {}
+    for name, data in dex_entries(path):
+        parents.update(DexFile(data, name).parents())
+    return parents
+
+
+def ancestors(class_name: str, parents: dict[str, list[str]]) -> Iterator[str]:
+    """Yield the class, then each superclass and interface once, as far as `parents` knows them."""
+    seen: set[str] = set()
+    pending = [class_name]
+    while pending:
+        current = pending.pop()
+        if current not in seen:
+            seen.add(current)
+            yield current
+            pending.extend(parents.get(current, []))
+
+
+def missing_supertypes(parents: dict[str, list[str]]) -> list[tuple[str, str]]:
+    """Return each (class, supertype) pair in REQUIRED_SUPERTYPES that the build does not keep."""
+    return [
+        (class_name, supertype)
+        for class_name, supertypes in REQUIRED_SUPERTYPES.items()
+        for supertype in supertypes
+        if supertype not in ancestors(class_name, parents)
+    ]
 
 
 def method_name(signature: str) -> str:
@@ -546,6 +634,7 @@ def check_abi(path: Path, baseline: Path | None = None) -> int:
         if class_flags.get(class_name, 0) & ACC_FINAL
     ]
     missing_non_final_methods, final_methods = non_final_method_violations(method_flags)
+    lost_supertypes = missing_supertypes(collect_parents(path))
 
     rows = baseline_rows(method_flags)
     lost: list[str] = []
@@ -559,6 +648,7 @@ def check_abi(path: Path, baseline: Path | None = None) -> int:
         and not final_classes
         and not missing_non_final_methods
         and not final_methods
+        and not lost_supertypes
         and not lost
         and not added
     ):
@@ -601,6 +691,10 @@ def check_abi(path: Path, baseline: Path | None = None) -> int:
             print(f"  {class_name}:")
             for signature in signatures:
                 print(f"    - {signature}")
+    if lost_supertypes:
+        print("\nextension receivers missing a required supertype:")
+        for class_name, supertype in lost_supertypes:
+            print(f"  - {class_name} does not implement {supertype}")
     if lost or added:
         print(
             "\nThe exported surface no longer matches the baseline. An installed "

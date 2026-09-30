@@ -11,7 +11,7 @@ import rx.Observable
 /**
  * A basic interface for creating a source. It could be an online source, a local source, etc.
  */
-interface MangaSource {
+interface MangaSource : Source {
 
     /**
      * ID for the source. Must be unique.
@@ -29,7 +29,7 @@ interface MangaSource {
     /**
      * Whether the source has support for latest updates.
      */
-    val supportsLatest: Boolean
+    override val supportsLatest: Boolean
 
     /**
      * Returns the list of filters for the source.
