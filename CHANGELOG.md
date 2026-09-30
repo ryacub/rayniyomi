@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Light-novel restore failures now appear in the backup completion result.
 
 ### Changed
 

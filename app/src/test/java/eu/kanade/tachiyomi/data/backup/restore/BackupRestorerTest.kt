@@ -14,6 +14,9 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
@@ -26,10 +29,16 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
+import java.lang.reflect.Method
 import java.util.Date
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class BackupRestorerTest {
 
@@ -122,7 +131,54 @@ class BackupRestorerTest {
         verify(exactly = 1) { notifier.showRestoreProgress("single", 1, 1, false) }
     }
 
-    private fun createRestorer(notifier: BackupNotifier = mockk(relaxed = true)): BackupRestorer {
+    @Test
+    fun `plugin rejection records a light novel restore error while success does not`() = runTest {
+        val metadata = byteArrayOf(1, 2, 3)
+        val rejectedDataSource = mockk<LightNovelBackupDataSource>(relaxed = true)
+        every { rejectedDataSource.isPluginInstalled() } returns true
+        coEvery { rejectedDataSource.restoreBackup(metadata) } returns false
+        val rejectedRestorer = createRestorer(lightNovelBackupDataSource = rejectedDataSource)
+
+        assertEquals(LightNovelRestoreOutcome.PluginRejected, rejectedRestorer.invokeRestoreLightNovels(metadata))
+
+        assertEquals(1, rejectedRestorer.getErrorCount())
+        assertTrue(rejectedRestorer.getErrorMessages().single().contains("retry", ignoreCase = true))
+        coVerify(exactly = 1) { rejectedDataSource.restoreBackup(metadata) }
+
+        val successfulDataSource = mockk<LightNovelBackupDataSource>(relaxed = true)
+        every { successfulDataSource.isPluginInstalled() } returns true
+        coEvery { successfulDataSource.restoreBackup(metadata) } returns true
+        val successfulRestorer = createRestorer(lightNovelBackupDataSource = successfulDataSource)
+
+        assertEquals(LightNovelRestoreOutcome.Restored, successfulRestorer.invokeRestoreLightNovels(metadata))
+
+        assertEquals(0, successfulRestorer.getErrorCount())
+        coVerify(exactly = 1) { successfulDataSource.restoreBackup(metadata) }
+    }
+
+    @Test
+    fun `missing plugin reports an error only when light novel metadata exists`() = runTest {
+        val metadata = byteArrayOf(4, 5, 6)
+        val dataSource = mockk<LightNovelBackupDataSource>(relaxed = true)
+        every { dataSource.isPluginInstalled() } returns false
+        val restorer = createRestorer(lightNovelBackupDataSource = dataSource)
+
+        assertEquals(LightNovelRestoreOutcome.NoMetadata, restorer.invokeRestoreLightNovels(null))
+
+        assertEquals(0, restorer.getErrorCount())
+        verify(exactly = 0) { dataSource.isPluginInstalled() }
+
+        assertEquals(LightNovelRestoreOutcome.PluginRequired, restorer.invokeRestoreLightNovels(metadata))
+
+        assertEquals(1, restorer.getErrorCount())
+        assertTrue(restorer.getErrorMessages().single().contains("install", ignoreCase = true))
+        coVerify(exactly = 0) { dataSource.restoreBackup(any()) }
+    }
+
+    private fun createRestorer(
+        notifier: BackupNotifier = mockk(relaxed = true),
+        lightNovelBackupDataSource: LightNovelBackupDataSource = mockk(relaxed = true),
+    ): BackupRestorer {
         return BackupRestorer(
             context = mockk<Context>(relaxed = true),
             notifier = notifier,
@@ -136,7 +192,7 @@ class BackupRestorerTest {
             animeRestorer = mockk<AnimeRestorer>(relaxed = true),
             mangaRestorer = mockk<MangaRestorer>(relaxed = true),
             extensionsRestorer = mockk<ExtensionsRestorer>(relaxed = true),
-            lightNovelBackupDataSource = mockk<LightNovelBackupDataSource>(relaxed = true),
+            lightNovelBackupDataSource = lightNovelBackupDataSource,
             animeStubSourceRepository = mockk<AnimeStubSourceRepository>(relaxed = true),
             mangaStubSourceRepository = mockk<MangaStubSourceRepository>(relaxed = true),
             mangaDownloadCache = mockk<MangaDownloadCache>(relaxed = true),
@@ -162,6 +218,21 @@ class BackupRestorerTest {
         method.invoke(this, message)
     }
 
+    private suspend fun BackupRestorer.invokeRestoreLightNovels(data: ByteArray?): LightNovelRestoreOutcome =
+        suspendCoroutine { continuation ->
+            val method = restoreLightNovelsMethod()
+            val result = method.invoke(this, data, continuation)
+            if (result !== COROUTINE_SUSPENDED) continuation.resume(result as LightNovelRestoreOutcome)
+        }
+
+    private fun restoreLightNovelsMethod(): Method {
+        return BackupRestorer::class.java.getDeclaredMethod(
+            "restoreLightNovels",
+            ByteArray::class.java,
+            Continuation::class.java,
+        ).apply { isAccessible = true }
+    }
+
     private fun BackupRestorer.getRestoreProgressValue(): Int {
         val field = BackupRestorer::class.java.getDeclaredField("restoreProgress")
         field.isAccessible = true
@@ -175,6 +246,16 @@ class BackupRestorerTest {
         val list = field.get(this) as MutableList<Pair<Date, String>>
         synchronized(list) {
             return list.size
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun BackupRestorer.getErrorMessages(): List<String> {
+        val field = BackupRestorer::class.java.getDeclaredField("errors")
+        field.isAccessible = true
+        val list = field.get(this) as MutableList<Pair<Date, String>>
+        synchronized(list) {
+            return list.map { it.second }
         }
     }
 }

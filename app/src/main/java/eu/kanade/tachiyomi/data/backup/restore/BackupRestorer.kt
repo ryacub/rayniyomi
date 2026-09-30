@@ -47,6 +47,14 @@ import java.util.Collections
 import java.util.Date
 import java.util.Locale
 
+internal sealed interface LightNovelRestoreOutcome {
+    data object NoMetadata : LightNovelRestoreOutcome
+    data object Restored : LightNovelRestoreOutcome
+    data object PluginRequired : LightNovelRestoreOutcome
+    data object PluginRejected : LightNovelRestoreOutcome
+    data class Failed(val message: String, val cause: Exception) : LightNovelRestoreOutcome
+}
+
 class BackupRestorer(
     private val context: Context,
     private val notifier: BackupNotifier,
@@ -319,25 +327,45 @@ class BackupRestorer(
         incrementProgressAndNotify(context.stringResource(MR.strings.source_settings))
     }
 
-    private suspend fun restoreLightNovels(lightNovelBackupData: ByteArray?) {
-        try {
-            val shouldAttemptRestore = lightNovelBackupData != null && isPluginInstalled()
-            val success = if (shouldAttemptRestore) {
-                lightNovelBackupDataSource.restoreBackup(lightNovelBackupData)
-            } else {
-                false
-            }
-
-            if (shouldAttemptRestore && !success) {
-                logcat(LogPriority.WARN) { "Light Novel metadata restore failed" }
+    private suspend fun restoreLightNovels(lightNovelBackupData: ByteArray?): LightNovelRestoreOutcome {
+        val outcome = try {
+            when {
+                lightNovelBackupData == null -> LightNovelRestoreOutcome.NoMetadata
+                !isPluginInstalled() -> LightNovelRestoreOutcome.PluginRequired
+                lightNovelBackupDataSource.restoreBackup(lightNovelBackupData) -> LightNovelRestoreOutcome.Restored
+                else -> LightNovelRestoreOutcome.PluginRejected
             }
         } catch (e: Exception) {
-            val errorMessage = "Failed to restore Light Novel metadata: ${e.message}"
-            logcat(LogPriority.ERROR, e) { errorMessage }
-            recordError(errorMessage)
+            LightNovelRestoreOutcome.Failed(
+                message = "Failed to restore Light Novel metadata: ${e.message}",
+                cause = e,
+            )
         } finally {
             incrementProgressAndNotify(context.stringResource(AYMR.strings.light_novel_library))
         }
+
+        when (outcome) {
+            LightNovelRestoreOutcome.NoMetadata,
+            LightNovelRestoreOutcome.Restored,
+            -> Unit
+
+            LightNovelRestoreOutcome.PluginRequired -> recordError(
+                "Light Novel metadata was not restored because the Light Novel plugin is not installed. " +
+                    "Install the plugin, then restore this backup again.",
+            )
+
+            LightNovelRestoreOutcome.PluginRejected -> {
+                logcat(LogPriority.WARN) { "Light Novel metadata restore failed" }
+                recordError("Light Novel metadata restore failed. Check the Light Novel plugin and retry the restore.")
+            }
+
+            is LightNovelRestoreOutcome.Failed -> {
+                logcat(LogPriority.ERROR, outcome.cause) { outcome.message }
+                recordError(outcome.message)
+            }
+        }
+
+        return outcome
     }
 
     private fun isPluginInstalled(): Boolean {
