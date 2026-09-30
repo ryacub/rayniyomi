@@ -116,6 +116,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             logcat(LogPriority.ERROR, e) { "Not allowed to set foreground job" }
         }
 
+        if (WORK_NAME_MANUAL in tags) notifier.cancelUpdateSkippedNotification()
         libraryPreferences.lastUpdatedTimestamp().set(Instant.now().toEpochMilli())
 
         val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
@@ -230,7 +231,6 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private fun reportSkippedUpdates() {
         val isManualRun = WORK_NAME_MANUAL in tags
         val skipped = skippedUpdatesForReport(isManualRun = isManualRun, skipped = skippedUpdates)
-        if (isManualRun) notifier.cancelUpdateSkippedNotification()
 
         val outcome = context.writeSkippedUpdateReport(SKIPPED_LOG_FILENAME, skipped)
         val file = (outcome as? ErrorLogWriteOutcome.Created)?.file?.takeIf(::hasShareableErrorLogFile)
