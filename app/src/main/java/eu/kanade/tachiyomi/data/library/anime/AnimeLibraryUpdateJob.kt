@@ -31,9 +31,8 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.SkippedUpdate
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
-import eu.kanade.tachiyomi.data.library.formatSkippedUpdateReport
-import eu.kanade.tachiyomi.data.library.labelRes
 import eu.kanade.tachiyomi.data.library.skippedUpdatesForReport
+import eu.kanade.tachiyomi.data.library.writeSkippedUpdateReport
 import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
@@ -269,23 +268,12 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         val skipped = skippedUpdatesForReport(isManualRun = isManualRun, skipped = skippedUpdates)
         if (isManualRun) notifier.cancelUpdateSkippedNotification()
 
-        val outcome = writeSkippedFile(skipped)
+        val outcome = context.writeSkippedUpdateReport(SKIPPED_LOG_FILENAME, skipped)
         val file = (outcome as? ErrorLogWriteOutcome.Created)?.file?.takeIf(::hasShareableErrorLogFile)
         if (file != null) {
             notifier.showUpdateSkippedNotification(skipped.size, file.getUriCompat(context))
         } else if (outcome is ErrorLogWriteOutcome.Failed) {
             logcat(LogPriority.WARN, outcome.cause) { "Failed to write anime library update skipped file" }
-        }
-    }
-
-    private fun writeSkippedFile(skipped: List<SkippedUpdate>): ErrorLogWriteOutcome {
-        return writeErrorLogOutcome(hasErrors = skipped.isNotEmpty()) {
-            val report = formatSkippedUpdateReport(
-                header = context.stringResource(MR.strings.library_skipped_help),
-                skipped = skipped,
-                reasonLabel = { context.stringResource(it.labelRes) },
-            )
-            context.createFileInCacheDir(SKIPPED_LOG_FILENAME).apply { writeText(report) }
         }
     }
 

@@ -1,6 +1,11 @@
 package eu.kanade.tachiyomi.data.library
 
+import android.content.Context
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
+import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
+import eu.kanade.tachiyomi.util.system.createFileInCacheDir
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 
 internal data class SkippedUpdate(
@@ -35,5 +40,16 @@ internal fun formatSkippedUpdateReport(
             append("  # ").append(source).append('\n')
             bySource.map { it.title }.sorted().forEach { append("    - ").append(it).append('\n') }
         }
+    }
+}
+
+internal fun Context.writeSkippedUpdateReport(fileName: String, skipped: List<SkippedUpdate>): ErrorLogWriteOutcome {
+    return writeErrorLogOutcome(hasErrors = skipped.isNotEmpty()) {
+        val report = formatSkippedUpdateReport(
+            header = stringResource(MR.strings.library_skipped_help),
+            skipped = skipped,
+            reasonLabel = { stringResource(it.labelRes) },
+        )
+        createFileInCacheDir(fileName).apply { writeText(report) }
     }
 }

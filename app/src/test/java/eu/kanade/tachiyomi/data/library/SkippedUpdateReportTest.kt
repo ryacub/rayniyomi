@@ -76,8 +76,8 @@ class SkippedUpdateReportTest {
         ).forEach { path ->
             val job = source(path)
             job shouldContain "isManualRun = WORK_NAME_MANUAL in tags"
-            job shouldContain "skippedUpdatesForReport("
-            job shouldContain "formatSkippedUpdateReport("
+            job shouldContain "skippedUpdatesForReport(isManualRun = isManualRun, skipped = skippedUpdates)"
+            job shouldContain "context.writeSkippedUpdateReport(SKIPPED_LOG_FILENAME, skipped)"
             job shouldContain "showUpdateSkippedNotification("
         }
     }
