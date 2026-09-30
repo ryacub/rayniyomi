@@ -2,6 +2,7 @@ package tachiyomi.data.entries.manga
 
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import data.Chapters
 import data.History
 import data.Mangas
 import eu.kanade.tachiyomi.source.model.SManga
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.data.Database
 import tachiyomi.data.DateColumnAdapter
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.entries.manga.MangaRepositoryImpl
 import tachiyomi.data.handlers.manga.AndroidMangaDatabaseHandler
@@ -165,7 +167,9 @@ private class CategoryFilterUpcomingMangaDb : AutoCloseable {
         mangasAdapter = Mangas.Adapter(
             genreAdapter = StringListColumnAdapter,
             update_strategyAdapter = MangaUpdateStrategyColumnAdapter,
+            memoAdapter = MemoColumnAdapter,
         ),
+        chaptersAdapter = Chapters.Adapter(memoAdapter = MemoColumnAdapter),
     )
 
     val handler = AndroidMangaDatabaseHandler(database, driver)

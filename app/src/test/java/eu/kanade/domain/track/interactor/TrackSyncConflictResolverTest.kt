@@ -1,5 +1,6 @@
 package eu.kanade.domain.track.interactor
 
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -174,6 +175,7 @@ class TrackSyncConflictResolverTest {
             scanlator = null,
             lastModifiedAt = 0,
             version = 1,
+            memo = JsonObject(emptyMap()),
         )
     }
 

@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.entries.manga.model.Manga
@@ -205,6 +206,7 @@ class MangaRepositoryImpl(
                 dateAdded = manga.dateAdded,
                 updateStrategy = manga.updateStrategy,
                 version = manga.version,
+                memo = manga.memo,
             )
             mangasQueries.selectLastInsertedRowId()
         }
@@ -256,6 +258,7 @@ class MangaRepositoryImpl(
                     updateStrategy = value.updateStrategy?.let(MangaUpdateStrategyColumnAdapter::encode),
                     version = value.version,
                     isSyncing = 0,
+                    memo = value.memo?.let(MemoColumnAdapter::encode),
                 )
             }
         }

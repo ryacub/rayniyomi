@@ -27,6 +27,10 @@
 -keep class com.google.android.gms.common.** { *; }
 -dontwarn com.google.android.gms.cast.**
 
+# Manga swaps itself for a JSON form during Java serialization (R1079). Only the runtime calls these.
+-keepclassmembers class tachiyomi.domain.entries.manga.model.Manga { private java.lang.Object writeReplace(); }
+-keepclassmembers class tachiyomi.domain.entries.manga.model.Manga$JsonForm { private java.lang.Object readResolve(); }
+
 # AndroidX Window optional vendor sidecar/extension APIs are absent on most devices.
 -dontwarn androidx.window.extensions.**
 -dontwarn androidx.window.sidecar.**

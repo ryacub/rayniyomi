@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
+import kotlinx.serialization.json.JsonObject
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
@@ -130,6 +131,7 @@ class MangaRestorer(
                 updateStrategy = manga.updateStrategy.let(MangaUpdateStrategyColumnAdapter::encode),
                 version = manga.version,
                 isSyncing = 1,
+                memo = null, // The live row keeps the source's memo (R1079).
             )
         }
         return manga
@@ -188,7 +190,15 @@ class MangaRestorer(
     }
 
     private fun Chapter.forComparison() =
-        this.copy(id = 0L, mangaId = 0L, dateFetch = 0L, dateUpload = 0L, lastModifiedAt = 0L, version = 0L)
+        this.copy(
+            id = 0L,
+            mangaId = 0L,
+            dateFetch = 0L,
+            dateUpload = 0L,
+            lastModifiedAt = 0L,
+            version = 0L,
+            memo = JsonObject(emptyMap()),
+        )
 
     private suspend fun insertNewChapters(chapters: List<Chapter>) {
         handler.await(true) {
@@ -206,6 +216,7 @@ class MangaRestorer(
                     chapter.dateFetch,
                     chapter.dateUpload,
                     chapter.version,
+                    chapter.memo,
                 )
             }
         }
@@ -229,6 +240,7 @@ class MangaRestorer(
                     chapterId = chapter.id,
                     version = chapter.version,
                     isSyncing = 0,
+                    memo = null, // The live row keeps the source's memo (R1079).
                 )
             }
         }
@@ -262,6 +274,7 @@ class MangaRestorer(
                 dateAdded = manga.dateAdded,
                 updateStrategy = manga.updateStrategy,
                 version = manga.version,
+                memo = manga.memo,
             )
             mangasQueries.selectLastInsertedRowId()
         }

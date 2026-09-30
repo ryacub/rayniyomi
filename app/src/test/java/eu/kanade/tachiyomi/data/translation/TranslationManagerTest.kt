@@ -25,6 +25,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -69,6 +70,7 @@ class TranslationManagerTest {
         scanlator = null,
         lastModifiedAt = 0L,
         version = 0L,
+        memo = JsonObject(emptyMap()),
     )
 
     private lateinit var manager: TranslationManager

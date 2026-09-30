@@ -2,12 +2,14 @@ package eu.kanade.tachiyomi.data.backup.models
 
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.protobuf.ProtoNumber
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.domain.entries.manga.model.Manga
 
 @Suppress("DEPRECATION")
 @Serializable
-data class BackupManga(
+class BackupManga(
     // in 1.x some of these values have different names
     @ProtoNumber(1) var source: Long,
     // url is called key in 1.x
@@ -40,6 +42,8 @@ data class BackupManga(
     @ProtoNumber(107) var favoriteModifiedAt: Long? = null,
     @ProtoNumber(108) var excludedScanlators: List<String> = emptyList(),
     @ProtoNumber(109) var version: Long = 0,
+    // 110 and 111 are Mihon's notes and initialized. This fork does not use them.
+    @ProtoNumber(112) var memo: ByteArray = MemoColumnAdapter.encode(JsonObject(emptyMap())),
 ) {
     fun getMangaImpl(): Manga {
         return Manga.create().copy(
@@ -60,6 +64,7 @@ data class BackupManga(
             lastModifiedAt = this@BackupManga.lastModifiedAt,
             favoriteModifiedAt = this@BackupManga.favoriteModifiedAt,
             version = this@BackupManga.version,
+            memo = MemoColumnAdapter.decode(this@BackupManga.memo),
         )
     }
 }

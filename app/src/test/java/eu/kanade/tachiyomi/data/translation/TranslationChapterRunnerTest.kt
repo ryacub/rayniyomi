@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -46,6 +47,7 @@ class TranslationChapterRunnerTest {
         scanlator = null,
         lastModifiedAt = 0L,
         version = 0L,
+        memo = JsonObject(emptyMap()),
     )
 
     /** The real renderer decodes bitmaps and cannot run on the JVM. */

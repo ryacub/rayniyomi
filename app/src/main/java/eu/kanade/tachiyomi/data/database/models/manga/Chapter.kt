@@ -49,5 +49,6 @@ fun Chapter.toDomainChapter(): DomainChapter {
         scanlator = scanlator,
         lastModifiedAt = last_modified,
         version = version,
+        memo = memo,
     )
 }
