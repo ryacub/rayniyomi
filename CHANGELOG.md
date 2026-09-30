@@ -28,6 +28,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### CI
 
 ### Other
+- Document and test the host Injekt bindings that extension APIs use before the Metro migration (#1256).
 
 
 ## [0.18.1.388] - 2026-09-29
