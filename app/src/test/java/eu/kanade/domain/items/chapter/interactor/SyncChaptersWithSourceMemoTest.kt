@@ -1,0 +1,77 @@
+package eu.kanade.domain.items.chapter.interactor
+
+import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.model.SChapter
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
+import tachiyomi.domain.items.chapter.interactor.ShouldUpdateDbChapter
+import tachiyomi.domain.items.chapter.interactor.UpdateChapter
+import tachiyomi.domain.items.chapter.model.Chapter
+import tachiyomi.domain.items.chapter.model.ChapterUpdate
+import tachiyomi.domain.library.service.LibraryPreferences
+
+/**
+ * A source can change the memo of a chapter the app already stores. The sync
+ * must write the new memo, or getChapterUrl keeps reading the old one
+ * (Mihon #3538, R1079).
+ */
+class SyncChaptersWithSourceMemoTest {
+
+    @Test
+    fun `a changed memo on a stored chapter is written`() = runTest {
+        val newMemo = JsonObject(mapOf("mangaSlug" to JsonPrimitive("series-9z")))
+        // Memo is the only field that differs from the source chapter.
+        val stored = Chapter.create().copy(
+            id = 5,
+            mangaId = 1,
+            url = "/chapter/1",
+            name = "Chapter 1",
+            chapterNumber = 1.0,
+            dateUpload = 0,
+        )
+        val remote = SChapter.create().apply {
+            url = "/chapter/1"
+            name = "Chapter 1"
+            chapter_number = 1f
+            memo = newMemo
+        }
+        val updateChapter = mockk<UpdateChapter>(relaxed = true)
+        val updates = slot<List<ChapterUpdate>>()
+        coEvery { updateChapter.awaitAll(capture(updates)) } returns Unit
+        val sync = SyncChaptersWithSource(
+            downloadManager = mockk(relaxed = true),
+            downloadProvider = mockk(relaxed = true),
+            chapterRepository = mockk(relaxed = true),
+            shouldUpdateDbChapter = ShouldUpdateDbChapter(),
+            updateManga = mockk(relaxed = true),
+            updateChapter = updateChapter,
+            getChaptersByMangaId = mockk<GetChaptersByMangaId> { coEvery { await(1, any()) } returns listOf(stored) },
+            getExcludedScanlators = mockk(relaxed = true),
+            libraryPreferences = mockk<LibraryPreferences> {
+                every { markDuplicateReadChapterAsRead().get() } returns emptySet()
+            },
+        )
+
+        sync.await(
+            listOf(remote),
+            Manga.create().copy(id = 1, title = "Series"),
+            mockk<MangaSource> {
+                every { id } returns
+                    1
+            },
+        )
+
+        coVerify(exactly = 1) { updateChapter.awaitAll(any()) }
+        assertEquals(newMemo, updates.captured.single().memo)
+    }
+}
