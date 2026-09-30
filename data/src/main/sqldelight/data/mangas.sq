@@ -30,7 +30,7 @@ CREATE TABLE mangas(
     version INTEGER NOT NULL DEFAULT 0,
     is_syncing INTEGER NOT NULL DEFAULT 0,
     normalized_title TEXT NOT NULL DEFAULT '',
-    memo BLOB AS JsonObject NOT NULL DEFAULT '{}'
+    memo TEXT AS JsonObject NOT NULL DEFAULT '{}'
 );
 
 CREATE INDEX library_favorite_index ON mangas(favorite) WHERE favorite = 1;

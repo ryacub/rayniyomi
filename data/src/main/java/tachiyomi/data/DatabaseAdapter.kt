@@ -4,9 +4,8 @@ import app.cash.sqldelight.ColumnAdapter
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import tachiyomi.core.common.util.lang.toByteArray
-import tachiyomi.core.common.util.lang.toJsonObject
 import java.util.Date
 
 object DateColumnAdapter : ColumnAdapter<Date, Long> {
@@ -48,7 +47,8 @@ object FetchTypeColumnAdapter : ColumnAdapter<FetchType, Long> {
     override fun encode(value: FetchType): Long = value.ordinal.toLong()
 }
 
-object MemoColumnAdapter : ColumnAdapter<JsonObject, ByteArray> {
-    override fun decode(databaseValue: ByteArray): JsonObject = databaseValue.toJsonObject()
-    override fun encode(value: JsonObject): ByteArray = value.toByteArray()
+// TEXT, not BLOB: the Android cursor returns a TEXT default from getBlob with a trailing NUL (R1079).
+object MemoColumnAdapter : ColumnAdapter<JsonObject, String> {
+    override fun decode(databaseValue: String): JsonObject = Json.decodeFromString<JsonObject>(databaseValue)
+    override fun encode(value: JsonObject): String = value.toString()
 }

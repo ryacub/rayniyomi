@@ -94,6 +94,32 @@ class MemoPersistenceTest {
         }
     }
 
+    @Test
+    fun `every memo row is stored as text`() = runTest {
+        // The Android cursor returns a TEXT value from getBlob with a trailing NUL, so a
+        // BLOB-typed column crashed the release build on migrated rows (R1079). The JDBC
+        // driver has no such NUL; the storage class is what these tests can check.
+        MemoDb().use { db ->
+            db.insertRawMangaAndChapter()
+            val mangas = MangaRepositoryImpl(db.handler)
+            val chapters = ChapterRepositoryImpl(db.handler)
+            val id = mangas.insertManga(newManga("/series/2", mangaMemo))!!
+            mangas.updateManga(MangaUpdate(id = 1, memo = mangaMemo))
+            chapters.addAllChapters(listOf(Chapter.create().copy(mangaId = id, url = "/ch/2", memo = chapterMemo)))
+            chapters.updateChapter(ChapterUpdate(id = 1, memo = chapterMemo))
+
+            assertEquals(listOf("text", "text"), db.memoTypes("mangas"))
+            assertEquals(listOf("text", "text"), db.memoTypes("chapters"))
+        }
+        MemoDb().use { migrated ->
+            migrated.dropMemoColumns()
+            migrated.insertRawMangaAndChapter()
+            Database.Schema.migrate(migrated.driver, oldVersion = 37, newVersion = 38)
+            assertEquals(listOf("text"), migrated.memoTypes("mangas"))
+            assertEquals(listOf("text"), migrated.memoTypes("chapters"))
+        }
+    }
+
     private fun newManga(url: String, memo: JsonObject): Manga =
         Manga.create().copy(source = 1, url = url, title = "Series", favorite = true, memo = memo)
 }
@@ -136,6 +162,20 @@ private class MemoDb : AutoCloseable {
                 "VALUES (1, 1, '/ch/1', '1', 0, 0, 0, 1.0, 0, 0, 0)",
             0,
         )
+    }
+
+    fun memoTypes(table: String): List<String> {
+        val rows = mutableListOf<String>()
+        driver.executeQuery(
+            identifier = null,
+            sql = "SELECT typeof(memo) FROM $table",
+            parameters = 0,
+            mapper = { cursor ->
+                while (cursor.next().value) rows += cursor.getString(0).toString()
+                QueryResult.Unit
+            },
+        )
+        return rows
     }
 
     /** Returns `name type notnull default` for each column, in table order. */
