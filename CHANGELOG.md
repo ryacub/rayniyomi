@@ -14,6 +14,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+- A manual library update now shows a low-priority notification when smart update skips titles. The notification opens a list of each skipped title with its reason and source (#1248).
+
 ### Improved
 
 ### Fixed
