@@ -7,6 +7,7 @@ import argparse
 import struct
 import sys
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 
 
@@ -425,14 +426,8 @@ class DexFile:
         return parents
 
     def defined_methods(self) -> set[str]:
-        methods: set[str] = set()
-        _, method_flags = self.access_flags()
-        methods.update(method_flags)
-        return methods
-
-    def access_flags(self) -> tuple[dict[str, int], dict[str, int]]:
-        class_flags, method_flags, _ = self.member_flags()
-        return class_flags, method_flags
+        _, method_flags, _ = self.member_flags()
+        return set(method_flags)
 
     def member_flags(self) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
         """Return the access flags of each class, method, and field that this DEX file defines."""
@@ -497,7 +492,7 @@ def collect_access_flags(path: Path) -> tuple[dict[str, int], dict[str, int]]:
     class_flags: dict[str, int] = {}
     method_flags: dict[str, int] = {}
     for name, data in entries:
-        dex_class_flags, dex_method_flags = DexFile(data, name).access_flags()
+        dex_class_flags, dex_method_flags, _ = DexFile(data, name).member_flags()
         class_flags.update(dex_class_flags)
         method_flags.update(dex_method_flags)
     return class_flags, method_flags
@@ -510,17 +505,16 @@ def collect_parents(path: Path) -> dict[str, list[str]]:
     return parents
 
 
-def implements(class_name: str, supertype: str, parents: dict[str, list[str]]) -> bool:
+def ancestors(class_name: str, parents: dict[str, list[str]]) -> Iterator[str]:
+    """Yield the class, then each superclass and interface once, as far as `parents` knows them."""
     seen: set[str] = set()
     pending = [class_name]
     while pending:
         current = pending.pop()
-        if current == supertype:
-            return True
         if current not in seen:
             seen.add(current)
+            yield current
             pending.extend(parents.get(current, []))
-    return False
 
 
 def missing_supertypes(parents: dict[str, list[str]]) -> list[tuple[str, str]]:
@@ -529,7 +523,7 @@ def missing_supertypes(parents: dict[str, list[str]]) -> list[tuple[str, str]]:
         (class_name, supertype)
         for class_name, supertypes in REQUIRED_SUPERTYPES.items()
         for supertype in supertypes
-        if not implements(class_name, supertype, parents)
+        if supertype not in ancestors(class_name, parents)
     ]
 
 

@@ -33,9 +33,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 try:
-    from scripts.check_release_extension_abi import DexFile, dex_entries
+    from scripts.check_release_extension_abi import DexFile, ancestors, dex_entries
 except ModuleNotFoundError:
-    from check_release_extension_abi import DexFile, dex_entries
+    from check_release_extension_abi import DexFile, ancestors, dex_entries
 
 # An array type has no class definition. Its methods, such as clone(), come from Object.
 PLATFORM_PREFIXES = (
@@ -94,13 +94,8 @@ def extension_references(path: Path) -> tuple[set[tuple[str, str]], set[str]]:
     return references, own_classes
 
 
-def resolves(class_name: str, member: str, host: HostSurface, seen: set[str]) -> bool:
-    if class_name in seen or class_name not in host.members:
-        return False
-    seen.add(class_name)
-    if member in host.members[class_name]:
-        return True
-    return any(resolves(parent, member, host, seen) for parent in host.parents.get(class_name, []))
+def resolves(class_name: str, member: str, host: HostSurface) -> bool:
+    return any(member in host.members.get(owner, ()) for owner in ancestors(class_name, host.parents))
 
 
 def unresolved_references(
@@ -113,7 +108,7 @@ def unresolved_references(
         for class_name, member in references
         if class_name not in own_classes
         and not class_name.startswith(PLATFORM_PREFIXES)
-        and not resolves(class_name, member, host, set())
+        and not resolves(class_name, member, host)
     )
 
 
