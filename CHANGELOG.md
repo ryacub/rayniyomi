@@ -32,6 +32,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 
+- Update the release ABI baseline for the Metro source-manager constructors and their generated classes (#1257).
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
