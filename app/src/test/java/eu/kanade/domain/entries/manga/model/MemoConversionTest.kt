@@ -11,10 +11,6 @@ import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 
-/**
- * The app hands a source the SManga and SChapter it builds from database rows,
- * and lib-1.6 sources read the memo in getMangaUrl and getChapterUrl (R1079).
- */
 class MemoConversionTest {
 
     private val memo = JsonObject(mapOf("slug" to JsonPrimitive("series-1a2b")))

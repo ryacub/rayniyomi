@@ -9,12 +9,6 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 
-/**
- * Voyager saves a screen that holds a Manga, for example the migration search
- * screen, with Java serialization when the app goes to the background.
- * JsonObject is not java.io.Serializable, so the memo must not break that
- * save (Mihon #3523, R1079).
- */
 class MangaJavaSerializationTest {
 
     @Test

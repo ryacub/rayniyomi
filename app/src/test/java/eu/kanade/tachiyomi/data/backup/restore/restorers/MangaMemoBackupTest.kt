@@ -21,11 +21,6 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.model.Chapter
 
-/**
- * Lib-1.6 extensions build URLs from the memo, so a restored library must keep
- * it (R1079). A backup from before the memo fields must still restore: Mihon
- * #3413 was a restore failure on exactly that input.
- */
 @OptIn(ExperimentalSerializationApi::class)
 class MangaMemoBackupTest {
 
@@ -131,7 +126,6 @@ class MangaMemoBackupTest {
     )
 }
 
-/** The wire shape of a backup that an app version without memo support wrote. */
 @Serializable
 private class LegacyBackupManga(
     @ProtoNumber(1) val source: Long,

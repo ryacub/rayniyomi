@@ -20,11 +20,6 @@ import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
 import tachiyomi.domain.library.service.LibraryPreferences
 
-/**
- * A source can change the memo of a chapter the app already stores. The sync
- * must write the new memo, or getChapterUrl keeps reading the old one
- * (Mihon #3538, R1079).
- */
 class SyncChaptersWithSourceMemoTest {
 
     @Test

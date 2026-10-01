@@ -23,12 +23,6 @@ import tachiyomi.domain.entries.manga.model.MangaUpdate
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
 
-/**
- * Lib-1.6 extensions store a memo on a manga or chapter and read it back in
- * getMangaUrl and getChapterUrl, after the app loads the entry from the
- * database (R1079). These tests prove the memo survives the database and the
- * schema migration.
- */
 class MemoPersistenceTest {
 
     private val empty = JsonObject(emptyMap())
@@ -96,9 +90,7 @@ class MemoPersistenceTest {
 
     @Test
     fun `every memo row is stored as text`() = runTest {
-        // The Android cursor returns a TEXT value from getBlob with a trailing NUL, so a
-        // BLOB-typed column crashed the release build on migrated rows (R1079). The JDBC
-        // driver has no such NUL; the storage class is what these tests can check.
+        // JDBC cannot reproduce the Android getBlob NUL; the storage class is the proxy (R1079).
         MemoDb().use { db ->
             db.insertRawMangaAndChapter()
             val mangas = MangaRepositoryImpl(db.handler)
@@ -141,7 +133,6 @@ private class MemoDb : AutoCloseable {
 
     val handler = AndroidMangaDatabaseHandler(database, driver)
 
-    /** Returns the database to the version-37 shape: the columns the migration adds are gone. */
     fun dropMemoColumns() {
         driver.execute(null, "ALTER TABLE mangas DROP COLUMN memo", 0)
         driver.execute(null, "ALTER TABLE chapters DROP COLUMN memo", 0)
@@ -178,7 +169,6 @@ private class MemoDb : AutoCloseable {
         return rows
     }
 
-    /** Returns `name type notnull default` for each column, in table order. */
     fun tableInfo(table: String): List<String> {
         val rows = mutableListOf<String>()
         driver.executeQuery(
