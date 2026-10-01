@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.defaultJson
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
 import okhttp3.Request
 import okhttp3.Response
 import org.junit.Assert.assertNull
@@ -75,6 +76,7 @@ class ExtensionInjektContractAndroidTest {
     fun exportedExtensionLookupsResolveHostBindings() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         assertSame(app, Injekt.get<Application>())
+        assertSame(appGraph.protoBuf, Injekt.get<ProtoBuf>())
 
         val mangaSource = MangaConfigurableProbe()
         assertSame(app.getSharedPreferences("source_101", Context.MODE_PRIVATE), mangaSource.getSourcePreferences())

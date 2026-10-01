@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.di
 import android.app.Application
 import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
 import tachiyomi.core.common.di.GraphProvider
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.InjektModule
@@ -23,6 +24,8 @@ class ReadOnlyExtensionInjektRegistrar(
         Application::class.java to { application },
 
         Json::class.java to { graph.json },
+
+        ProtoBuf::class.java to { graph.protoBuf },
 
         NetworkHelper::class.java to { graph.networkHelper },
     )
