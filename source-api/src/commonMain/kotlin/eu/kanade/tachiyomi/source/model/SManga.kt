@@ -27,19 +27,17 @@ interface SManga : Serializable {
 
     var initialized: Boolean
 
+    /**
+     * Extra metadata that the source attaches to the manga. The app does not show it.
+     *
+     * @since tachiyomix 1.6
+     */
+    var memo: JsonObject
+
     fun getGenres(): List<String>? {
         if (genre.isNullOrBlank()) return null
         return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
     }
-
-    /**
-     * Returns the memo object that newer extension builds expect.
-     *
-     * This app version stores no memo, so it returns an empty object. The member
-     * exists so an extension compiled against a newer SManga keeps working
-     * instead of failing with a missing-member error.
-     */
-    fun getMemo(): JsonObject = JsonObject(emptyMap())
 
     fun copy() = create().also {
         it.url = url
@@ -52,6 +50,7 @@ interface SManga : Serializable {
         it.thumbnail_url = thumbnail_url
         it.update_strategy = update_strategy
         it.initialized = initialized
+        it.memo = memo
     }
 
     companion object {

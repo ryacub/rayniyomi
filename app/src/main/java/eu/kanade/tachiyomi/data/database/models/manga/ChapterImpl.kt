@@ -2,6 +2,9 @@
 
 package eu.kanade.tachiyomi.data.database.models.manga
 
+import kotlinx.serialization.json.JsonObject
+import tachiyomi.core.common.util.lang.EmptyJsonObject
+
 class ChapterImpl(
     override var id: Long,
 ) : Chapter {
@@ -31,6 +34,8 @@ class ChapterImpl(
     override var last_modified: Long = 0
 
     override var version: Long = 0
+
+    override var memo: JsonObject = EmptyJsonObject
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

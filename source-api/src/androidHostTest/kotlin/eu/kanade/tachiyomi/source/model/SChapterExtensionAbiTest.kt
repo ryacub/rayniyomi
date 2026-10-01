@@ -2,6 +2,8 @@ package eu.kanade.tachiyomi.source.model
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test
 
 /**
@@ -32,6 +34,19 @@ class SChapterExtensionAbiTest {
     }
 
     @Test
+    fun `memo accessors resolve with exact JVM names and types`() {
+        val getter = SChapter::class.java.getMethod("getMemo")
+        getter.returnType shouldBe JsonObject::class.java
+        val setter = SChapter::class.java.getMethod("setMemo", JsonObject::class.java)
+        setter.returnType shouldBe java.lang.Void.TYPE
+
+        val chapter = SChapter.create()
+        getter.invoke(chapter) shouldBe JsonObject(emptyMap())
+        setter.invoke(chapter, memo)
+        getter.invoke(chapter) shouldBe memo
+    }
+
+    @Test
     fun `create resolves on the companion and builds a chapter`() {
         val create = SChapter.Companion::class.java.getMethod("create")
         create.returnType shouldBe SChapter::class.java
@@ -48,10 +63,14 @@ class SChapterExtensionAbiTest {
         val source = SChapter.create().apply {
             url = "https://example.com/ch/1"
             name = "Chapter 1"
+            memo = this@SChapterExtensionAbiTest.memo
         }
         val target = SChapter.create()
         copyFrom.invoke(target, source)
         target.url shouldBe source.url
         target.name shouldBe source.name
+        target.memo shouldBe memo
     }
+
+    private val memo = JsonObject(mapOf("id" to JsonPrimitive(42)))
 }

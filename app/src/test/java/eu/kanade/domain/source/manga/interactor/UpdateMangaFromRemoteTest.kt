@@ -3,17 +3,23 @@ package eu.kanade.domain.source.manga.interactor
 import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.util.lang.SourceLinkageException
 import tachiyomi.core.common.util.lang.SourceLinkageReporter
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.model.MangaUpdate
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.items.chapter.repository.ChapterRepository
 
@@ -51,6 +57,38 @@ class UpdateMangaFromRemoteTest {
             failure.shouldBeInstanceOf<SourceLinkageException>()
             failure.cause.shouldBeInstanceOf<NoSuchMethodError>()
             reported.single().sourceName shouldBe "Broken Manga Source"
+        }
+    }
+
+    @Test
+    fun `a details refresh stores the memo that the source returns`() {
+        runBlocking {
+            val memo = JsonObject(mapOf("slug" to JsonPrimitive("series-1a2b")))
+            val remote = SManga.create().apply {
+                url = "/series/1"
+                title = "Series"
+                this.memo = memo
+            }
+            val source = mockk<MangaSource> {
+                coEvery { getMangaUpdate(any(), any(), any(), any()) } returns SMangaUpdate(remote, emptyList())
+            }
+            val update = slot<MangaUpdate>()
+            val mangaRepository = mockk<MangaRepository>(relaxed = true) {
+                coEvery { updateManga(capture(update)) } returns true
+            }
+            val interactor = UpdateMangaFromRemote(
+                sourceManager = mockk(relaxed = true),
+                chapterRepository = mockk<ChapterRepository> {
+                    coEvery { getChapterByMangaId(any()) } returns emptyList()
+                },
+                mangaRepository = mangaRepository,
+                syncChaptersWithSource = mockk<SyncChaptersWithSource>(relaxed = true),
+                coverCache = mockk<MangaCoverCache>(relaxed = true),
+            )
+
+            interactor(source = source, manga = Manga.create().copy(id = 1, url = "/series/1"), fetchDetails = true)
+
+            update.captured.memo shouldBe memo
         }
     }
 }

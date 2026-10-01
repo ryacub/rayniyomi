@@ -21,6 +21,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Light-novel restore failures now appear in the backup completion result.
 - Manga extensions built on extension-lib 1.6 no longer fail when they call `runBlockingK`, `Job.cancel`, `Source.supportsLatest`, or `HttpException.code`. The app now updates kotlinx-coroutines to 1.11.0 (#1252).
+- Manga extensions built on extension-lib 1.6 no longer fail when they save extra data on a manga or chapter. The app now stores that data in the library and in backups (#1253).
 
 ### Changed
 

@@ -3,11 +3,17 @@ package tachiyomi.domain.entries.manga.model
 import androidx.compose.runtime.Immutable
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import tachiyomi.core.common.preference.TriState
+import tachiyomi.core.common.util.lang.EmptyJsonObject
 import tachiyomi.domain.entries.EntryModel
-import java.io.Serializable
+import java.io.ObjectStreamException
 import java.time.Instant
+import java.io.Serializable as JavaSerializable
 
+@Serializable
 @Immutable
 data class Manga(
     override val id: Long,
@@ -33,7 +39,8 @@ data class Manga(
     override val lastModifiedAt: Long,
     override val favoriteModifiedAt: Long?,
     override val version: Long,
-) : EntryModel, Serializable {
+    val memo: JsonObject,
+) : EntryModel, JavaSerializable {
 
     val expectedNextUpdate: Instant?
         get() = nextUpdate
@@ -127,6 +134,16 @@ data class Manga(
             lastModifiedAt = 0L,
             favoriteModifiedAt = null,
             version = 0L,
+            memo = EmptyJsonObject,
         )
+    }
+
+    // JsonObject is not java.io.Serializable, and Voyager saves screens that hold a Manga (Mihon #3523).
+    @Throws(ObjectStreamException::class)
+    private fun writeReplace(): Any = JsonForm(Json.encodeToString(serializer(), this))
+
+    private class JsonForm(private val json: String) : JavaSerializable {
+        @Throws(ObjectStreamException::class)
+        private fun readResolve(): Any = Json.decodeFromString(serializer(), json)
     }
 }

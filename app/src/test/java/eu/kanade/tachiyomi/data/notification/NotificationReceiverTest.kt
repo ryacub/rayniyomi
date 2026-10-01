@@ -11,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -257,6 +258,7 @@ class NotificationReceiverTest {
         lastModifiedAt = 0L,
         favoriteModifiedAt = null,
         version = 0L,
+        memo = JsonObject(emptyMap()),
     )
 
     private fun createTestChapter(
@@ -278,6 +280,7 @@ class NotificationReceiverTest {
         scanlator = null,
         lastModifiedAt = 0L,
         version = 0L,
+        memo = JsonObject(emptyMap()),
     )
 
     private fun createTestAnime(

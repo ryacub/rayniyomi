@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.backup.restore.restorers
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import data.Chapters
 import data.History
 import data.Mangas
 import dataanime.Animehistory
@@ -12,6 +13,7 @@ import tachiyomi.data.Database
 import tachiyomi.data.DateColumnAdapter
 import tachiyomi.data.FetchTypeColumnAdapter
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.handlers.anime.AndroidAnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.AndroidMangaDatabaseHandler
@@ -33,7 +35,9 @@ internal class InMemoryMangaDb : AutoCloseable {
         mangasAdapter = Mangas.Adapter(
             genreAdapter = StringListColumnAdapter,
             update_strategyAdapter = MangaUpdateStrategyColumnAdapter,
+            memoAdapter = MemoColumnAdapter,
         ),
+        chaptersAdapter = Chapters.Adapter(memoAdapter = MemoColumnAdapter),
     )
 
     val handler = AndroidMangaDatabaseHandler(database, driver)
