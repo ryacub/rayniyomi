@@ -7,21 +7,20 @@ import eu.kanade.domain.source.anime.interactor.GetLanguagesWithAnimeSources
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
 import eu.kanade.domain.source.interactor.ToggleLanguage
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.domain.source.anime.model.AnimeSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.SortedMap
 
 class AnimeSourcesFilterScreenModel(
-    private val preferences: SourcePreferences = Injekt.get(),
-    private val getLanguagesWithSources: GetLanguagesWithAnimeSources = Injekt.get(),
-    private val toggleSource: ToggleAnimeSource = Injekt.get(),
-    private val toggleLanguage: ToggleLanguage = Injekt.get(),
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
+    private val getLanguagesWithSources: GetLanguagesWithAnimeSources = appGraph.getLanguagesWithAnimeSources,
+    private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
+    private val toggleLanguage: ToggleLanguage = appGraph.toggleLanguage,
 ) : StateScreenModel<AnimeSourcesFilterScreenModel.State>(State.Loading) {
 
     init {

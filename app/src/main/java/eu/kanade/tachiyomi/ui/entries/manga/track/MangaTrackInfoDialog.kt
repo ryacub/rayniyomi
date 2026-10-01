@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.entries.manga.track
 
-import android.app.Application
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,7 +37,6 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.icerock.moko.resources.StringResource
-import eu.kanade.domain.track.manga.interactor.RefreshMangaTracks
 import eu.kanade.domain.track.manga.model.toDbTrack
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.track.TrackDateSelector
@@ -52,8 +50,8 @@ import eu.kanade.tachiyomi.data.track.DeletableMangaTracker
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.Tracker
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.convertEpochMillisZone
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -71,8 +69,6 @@ import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.entries.manga.interactor.GetManga
-import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.DeleteMangaTrack
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.domain.track.manga.model.MangaTrack
@@ -81,8 +77,6 @@ import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.AlertDialogContent
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -102,7 +96,7 @@ data class MangaTrackInfoDialogHomeScreen(
 
         val dateFormat = remember {
             UiPreferences.dateFormat(
-                Injekt.get<UiPreferences>().dateFormat().get(),
+                appGraph.uiPreferences.dateFormat().get(),
             )
         }
         val state by screenModel.state.collectAsStateWithLifecycle()
@@ -202,7 +196,7 @@ data class MangaTrackInfoDialogHomeScreen(
     private class Model(
         private val mangaId: Long,
         private val sourceId: Long,
-        private val getTracks: GetMangaTracks = Injekt.get(),
+        private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
     ) : StateScreenModel<Model.State>(State()) {
 
         init {
@@ -228,19 +222,19 @@ data class MangaTrackInfoDialogHomeScreen(
         fun registerEnhancedTracking(item: MangaTrackInfoItem) {
             val tracker = item.tracker as EnhancedMangaTracker
             screenModelScope.launchNonCancellable {
-                val manga = Injekt.get<GetManga>().await(mangaId) ?: return@launchNonCancellable
+                val manga = appGraph.getManga.await(mangaId) ?: return@launchNonCancellable
                 try {
                     val matchResult = tracker.match(manga) ?: throw Exception()
                     item.tracker.mangaService.register(matchResult, mangaId)
                 } catch (e: Exception) {
-                    withUIContext { Injekt.get<Application>().toast(MR.strings.error_no_match) }
+                    withUIContext { appGraph.application.toast(MR.strings.error_no_match) }
                 }
             }
         }
 
         private suspend fun refreshTrackers() {
-            val refreshTracks = Injekt.get<RefreshMangaTracks>()
-            val context = Injekt.get<Application>()
+            val refreshTracks = appGraph.refreshMangaTracks
+            val context = appGraph.application
 
             refreshTracks.await(mangaId)
                 .forEach { (track, e) ->
@@ -267,10 +261,10 @@ data class MangaTrackInfoDialogHomeScreen(
         }
 
         private fun List<MangaTrack>.mapToTrackItem(): List<MangaTrackInfoItem> {
-            val loggedInTrackers = Injekt.get<TrackerManager>().loggedInTrackers().filter {
+            val loggedInTrackers = appGraph.trackerManager.loggedInTrackers().filter {
                 it is MangaTracker
             }
-            val source = Injekt.get<MangaSourceManager>().getOrStub(sourceId)
+            val source = appGraph.mangaSourceManager.getOrStub(sourceId)
             return loggedInTrackers
                 // Map to TrackItem
                 .map { service ->
@@ -300,7 +294,7 @@ private data class TrackStatusSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
             )
@@ -357,7 +351,7 @@ private data class TrackChapterSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
             )
@@ -422,7 +416,7 @@ private data class TrackScoreSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
             )
@@ -536,7 +530,7 @@ private data class TrackDateSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
                 start = start,
@@ -613,7 +607,7 @@ private data class TrackDateRemoverScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
                 start = start,
@@ -706,7 +700,7 @@ data class TrackServiceSearchScreen(
                 mangaId = mangaId,
                 currentUrl = currentUrl,
                 initialQuery = initialQuery,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
             )
@@ -799,7 +793,7 @@ private data class TrackerMangaRemoveScreen(
             Model(
                 mangaId = mangaId,
                 track = track,
-                tracker = checkNotNull(Injekt.get<TrackerManager>().get(serviceId)) {
+                tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
                 },
             )
@@ -869,7 +863,7 @@ private data class TrackerMangaRemoveScreen(
         private val mangaId: Long,
         private val track: MangaTrack,
         private val tracker: Tracker,
-        private val deleteTrack: DeleteMangaTrack = Injekt.get(),
+        private val deleteTrack: DeleteMangaTrack = appGraph.deleteMangaTrack,
     ) : ScreenModel {
 
         fun getName() = tracker.name

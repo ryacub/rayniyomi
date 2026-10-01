@@ -20,6 +20,7 @@ import eu.kanade.presentation.entries.components.DuplicateEntryDialog
 import eu.kanade.presentation.history.HistoryDeleteAllDialog
 import eu.kanade.presentation.history.HistoryDeleteDialog
 import eu.kanade.presentation.history.anime.AnimeHistoryScreen
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.season.MigrateSeasonSelectScreen
 import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialog
 import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialogScreenModel
@@ -38,7 +39,6 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.injectLazy
 
 val resumeLastEpisodeSeenEvent = Channel<Unit>()
 
@@ -55,7 +55,7 @@ fun Screen.animeHistoryTab(
     val searchQuery by screenModel.query.collectAsStateWithLifecycle()
 
     suspend fun openEpisode(context: Context, episode: Episode?) {
-        val playerPreferences: PlayerPreferences by injectLazy()
+        val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
         val extPlayer = playerPreferences.alwaysUseExternalPlayer().get()
         if (episode != null) {
             MainActivity.startPlayerActivity(context, episode.animeId, episode.id, extPlayer)

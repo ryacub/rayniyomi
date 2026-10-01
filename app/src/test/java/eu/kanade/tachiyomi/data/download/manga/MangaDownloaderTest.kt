@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
+import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.system.notificationBuilder
@@ -54,8 +55,6 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 import java.io.FileNotFoundException
 import java.io.IOException
 
@@ -75,10 +74,10 @@ class MangaDownloaderTest {
         val sourcePreferences = mockk<SourcePreferences>(relaxed = true)
         every { sourcePreferences.dataSaverDownloader().get() } returns false
 
-        Injekt.addSingleton<MangaSourceManager>(mockk(relaxed = true))
-        Injekt.addSingleton<Json>(Json { ignoreUnknownKeys = true })
-        Injekt.addSingleton<GetManga>(mockk(relaxed = true))
-        Injekt.addSingleton<GetChapter>(mockk(relaxed = true))
+        every { testAppGraph.mangaSourceManager } returns mockk(relaxed = true)
+        every { testAppGraph.json } returns Json { ignoreUnknownKeys = true }
+        every { testAppGraph.getManga } returns mockk(relaxed = true)
+        every { testAppGraph.getChapter } returns mockk(relaxed = true)
 
         mockkObject(DiskUtil)
         every { DiskUtil.getAvailableStorageSpace(any<UniFile>()) } returns 1_000_000_000L

@@ -9,6 +9,7 @@ import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSourcePin
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.browse.anime.AnimeSourceUiModel
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.LAST_USED_KEY
 import eu.kanade.tachiyomi.util.system.PINNED_KEY
 import kotlinx.collections.immutable.ImmutableList
@@ -24,16 +25,14 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.model.AnimeSource
 import tachiyomi.domain.source.anime.model.Pin
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.TreeMap
 
 class AnimeSourcesScreenModel(
-    private val preferences: BasePreferences = Injekt.get(),
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
-    private val getEnabledAnimeSources: GetEnabledAnimeSources = Injekt.get(),
-    private val toggleSource: ToggleAnimeSource = Injekt.get(),
-    private val toggleSourcePin: ToggleAnimeSourcePin = Injekt.get(),
+    private val preferences: BasePreferences = appGraph.basePreferences,
+    private val sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val getEnabledAnimeSources: GetEnabledAnimeSources = appGraph.getEnabledAnimeSources,
+    private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
+    private val toggleSourcePin: ToggleAnimeSourcePin = appGraph.toggleAnimeSourcePin,
 ) : StateScreenModel<AnimeSourcesScreenModel.State>(State()) {
 
     private val _events = Channel<Event>(Int.MAX_VALUE)

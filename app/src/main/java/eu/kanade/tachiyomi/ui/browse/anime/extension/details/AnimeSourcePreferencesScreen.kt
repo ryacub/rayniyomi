@@ -10,14 +10,12 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.sourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.sourceprefs.SourcePreferencesContent
 import eu.kanade.tachiyomi.ui.browse.sourceprefs.buildSourcePreferenceScreen
 import tachiyomi.data.source.anime.AnimeSourceGateway
-import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeSourcePreferencesScreen(val sourceId: Long) : Screen() {
 
@@ -31,7 +29,7 @@ class AnimeSourcePreferencesScreen(val sourceId: Long) : Screen() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
         val source = remember(sourceId) {
-            Injekt.get<AnimeSourceManager>().getOrStub(sourceId)
+            appGraph.animeSourceManager.getOrStub(sourceId)
         }
 
         val sourcePrefs = remember(sourceId, source) {

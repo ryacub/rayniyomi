@@ -46,7 +46,6 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
-import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.domain.track.service.TrackerOAuthStateStore
 import eu.kanade.domain.track.service.TrackerSyncCoordinator
 import eu.kanade.domain.track.service.TrackerSyncResult
@@ -55,12 +54,12 @@ import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.Tracker
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.anilist.AnilistApi
 import eu.kanade.tachiyomi.data.track.bangumi.BangumiApi
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeListApi
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
 import eu.kanade.tachiyomi.data.track.simkl.SimklApi
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.setting.track.TrackerOAuthCallback
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
@@ -73,14 +72,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
-import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsTrackingScreen : SearchableSettings {
 
@@ -102,11 +97,11 @@ object SettingsTrackingScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val context = LocalContext.current
-        val trackPreferences = remember { Injekt.get<TrackPreferences>() }
+        val trackPreferences = remember { appGraph.trackPreferences }
         val oauthStateStore = remember { TrackerOAuthStateStore(trackPreferences) }
-        val trackerManager = remember { Injekt.get<TrackerManager>() }
-        val mangaSourceManager = remember { Injekt.get<MangaSourceManager>() }
-        val animeSourceManager = remember { Injekt.get<AnimeSourceManager>() }
+        val trackerManager = remember { appGraph.trackerManager }
+        val mangaSourceManager = remember { appGraph.mangaSourceManager }
+        val animeSourceManager = remember { appGraph.animeSourceManager }
         val syncScreenModel = rememberScreenModel { SettingsTrackingSyncScreenModel() }
         val autoTrackStatePref = trackPreferences.autoUpdateTrackOnMarkRead()
         val trackerSyncEnabled = trackPreferences.trackerSyncEnabled()
@@ -521,7 +516,7 @@ private data class LogoutDialog(
 )
 
 private class SettingsTrackingSyncScreenModel(
-    private val coordinator: TrackerSyncCoordinator = Injekt.get(),
+    private val coordinator: TrackerSyncCoordinator = appGraph.trackerSyncCoordinator,
 ) : ScreenModel {
 
     private val _state = MutableStateFlow(State())

@@ -21,6 +21,7 @@ import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -34,16 +35,14 @@ import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrateSeasonSelectScreenModel(
     private val anime: Anime,
-    sourceManager: AnimeSourceManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val networkToLocalAnime: NetworkToLocalAnime = Injekt.get(),
+    sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
 ) : StateScreenModel<MigrateSeasonSelectScreenModel.State>(State()) {
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(screenModelScope)

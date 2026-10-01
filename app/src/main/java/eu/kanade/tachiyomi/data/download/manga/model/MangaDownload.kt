@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,8 +20,6 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.atomic.AtomicLong
 
 data class MangaDownload(
@@ -118,9 +117,9 @@ data class MangaDownload(
     companion object {
         suspend fun fromChapterId(
             chapterId: Long,
-            getChapter: GetChapter = Injekt.get(),
-            getManga: GetManga = Injekt.get(),
-            sourceManager: MangaSourceManager = Injekt.get(),
+            getChapter: GetChapter = appGraph.getChapter,
+            getManga: GetManga = appGraph.getManga,
+            sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
         ): MangaDownload? {
             val chapter = getChapter.await(chapterId) ?: return null
             val manga = getManga.await(chapter.mangaId) ?: return null

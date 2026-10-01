@@ -11,6 +11,7 @@ import eu.kanade.domain.source.manga.interactor.ToggleMangaSourcePin
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver
 import eu.kanade.presentation.browse.manga.MangaSourceUiModel
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.LAST_USED_KEY
 import eu.kanade.tachiyomi.util.system.PINNED_KEY
 import kotlinx.collections.immutable.ImmutableList
@@ -28,18 +29,17 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.manga.model.Pin
 import tachiyomi.domain.source.manga.model.Source
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.TreeMap
 
 class MangaSourcesScreenModel(
-    private val preferences: BasePreferences = Injekt.get(),
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
-    private val getEnabledSources: GetEnabledMangaSources = Injekt.get(),
-    private val toggleSource: ToggleMangaSource = Injekt.get(),
-    private val toggleSourcePin: ToggleMangaSourcePin = Injekt.get(),
+    private val preferences: BasePreferences = appGraph.basePreferences,
+    private val sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val getEnabledSources: GetEnabledMangaSources = appGraph.getEnabledMangaSources,
+    private val toggleSource: ToggleMangaSource = appGraph.toggleMangaSource,
+    private val toggleSourcePin: ToggleMangaSourcePin = appGraph.toggleMangaSourcePin,
     // SY -->
-    private val toggleExcludeFromMangaDataSaver: ToggleExcludeFromMangaDataSaver = Injekt.get(),
+    private val toggleExcludeFromMangaDataSaver: ToggleExcludeFromMangaDataSaver =
+        appGraph.toggleExcludeFromMangaDataSaver,
     // SY <--
 ) : StateScreenModel<MangaSourcesScreenModel.State>(State()) {
 

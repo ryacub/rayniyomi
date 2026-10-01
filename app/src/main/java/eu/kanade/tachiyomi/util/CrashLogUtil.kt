@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.util
 import android.content.Context
 import android.os.Build
 import eu.kanade.tachiyomi.BuildConfig
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.util.storage.getUriCompat
@@ -12,8 +13,6 @@ import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.lang.withUIContext
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.OffsetDateTime
 import java.time.ZoneId
 
@@ -61,12 +60,12 @@ class CrashLogUtil(private val context: Context) {
 
     /**
      * Best-effort: DI is unavailable in the :error_handler process,
-     * so we silently skip extension info when Injekt has not been initialised.
+     * The error handler skips extension info when the app graph is absent.
      */
     private fun getExtensionsInfo(): String? = runCatching {
         val sections = listOfNotNull(
-            getMangaExtensionsInfo(Injekt.get()),
-            getAnimeExtensionsInfo(Injekt.get()),
+            getMangaExtensionsInfo(appGraph.mangaExtensionManager),
+            getAnimeExtensionsInfo(appGraph.animeExtensionManager),
         )
         sections.joinToString("\n\n").ifEmpty { null }
     }.getOrNull()

@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.data.track.simkl.dto.SimklSearchResult
 import eu.kanade.tachiyomi.data.track.simkl.dto.SimklSyncResult
 import eu.kanade.tachiyomi.data.track.simkl.dto.SimklSyncWatched
 import eu.kanade.tachiyomi.data.track.simkl.dto.SimklUser
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -25,11 +26,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 
 class SimklApi(private val client: OkHttpClient, interceptor: SimklInterceptor) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     private val authClient = client.newBuilder().addInterceptor(interceptor).build()
 

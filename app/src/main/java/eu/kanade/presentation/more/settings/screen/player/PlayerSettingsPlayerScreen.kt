@@ -11,6 +11,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.JUST_PLAYER
 import eu.kanade.tachiyomi.ui.player.MPV_KT
 import eu.kanade.tachiyomi.ui.player.MPV_KT_PREVIEW
@@ -35,8 +36,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.NumberFormat
 
 object PlayerSettingsPlayerScreen : SearchableSettings {
@@ -47,8 +46,8 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val playerPreferences = remember { Injekt.get<PlayerPreferences>() }
-        val basePreferences = remember { Injekt.get<BasePreferences>() }
+        val playerPreferences = remember { appGraph.playerPreferences }
+        val basePreferences = remember { appGraph.basePreferences }
         val deviceSupportsPip = basePreferences.deviceHasPip()
 
         return listOfNotNull(

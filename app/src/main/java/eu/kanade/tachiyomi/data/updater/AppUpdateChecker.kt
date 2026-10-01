@@ -5,14 +5,13 @@ import androidx.annotation.VisibleForTesting
 import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.tachiyomi.BuildConfig
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.model.Release
 import tachiyomi.domain.release.model.ReleaseQuality
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AppUpdateChecker {
     internal enum class DecisionReason {
@@ -28,7 +27,7 @@ class AppUpdateChecker {
 
     @VisibleForTesting
     internal var getApplicationRelease: GetApplicationRelease
-        get() = getApplicationReleaseOverride ?: Injekt.get()
+        get() = getApplicationReleaseOverride ?: appGraph.getApplicationRelease
         set(value) {
             getApplicationReleaseOverride = value
         }
@@ -37,7 +36,7 @@ class AppUpdateChecker {
 
     @VisibleForTesting
     internal var gatekeeper: UpdatePromptGatekeeper
-        get() = gatekeeperOverride ?: Injekt.get()
+        get() = gatekeeperOverride ?: appGraph.updatePromptGatekeeper
         set(value) {
             gatekeeperOverride = value
         }
@@ -46,7 +45,7 @@ class AppUpdateChecker {
 
     @VisibleForTesting
     internal var updatePromptPreferences: UpdatePromptPreferences
-        get() = updatePromptPreferencesOverride ?: Injekt.get()
+        get() = updatePromptPreferencesOverride ?: appGraph.updatePromptPreferences
         set(value) {
             updatePromptPreferencesOverride = value
         }

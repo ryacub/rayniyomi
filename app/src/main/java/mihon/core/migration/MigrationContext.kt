@@ -1,10 +1,9 @@
 package mihon.core.migration
 
-import uy.kohesive.injekt.Injekt
+import eu.kanade.tachiyomi.di.AppGraph
+import eu.kanade.tachiyomi.di.AppGraphHolder
 
-class MigrationContext(val dryrun: Boolean) {
-
-    inline fun <reified T> get(): T? {
-        return Injekt.getInstanceOrNull(T::class.java)
-    }
-}
+class MigrationContext(
+    val dryrun: Boolean,
+    val graph: AppGraph? = AppGraphHolder.graphOrNull,
+)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
@@ -34,8 +35,6 @@ import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -48,8 +47,8 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class MangaExtensionManager(
     private val context: Context,
-    private val preferences: SourcePreferences = Injekt.get(),
-    private val trustExtension: TrustMangaExtension = Injekt.get(),
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
+    private val trustExtension: TrustMangaExtension = appGraph.trustMangaExtension,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val scopeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {

@@ -1,19 +1,18 @@
 package eu.kanade.tachiyomi.ui.browse.manga.migration.search
 
 import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.MangaSearchScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.MangaSourceFilter
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.domain.entries.manga.interactor.GetManga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrateMangaSearchScreenModel(
     val mangaId: Long,
     initialExtensionFilter: String = "",
-    getManga: GetManga = Injekt.get(),
+    getManga: GetManga = appGraph.getManga,
 ) : MangaSearchScreenModel() {
 
     init {

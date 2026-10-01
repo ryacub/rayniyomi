@@ -8,9 +8,8 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.workManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.TimeUnit
 
 class PeriodicTrackerSyncJob(
@@ -19,7 +18,7 @@ class PeriodicTrackerSyncJob(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val coordinator = Injekt.get<TrackerSyncCoordinator>()
+        val coordinator = appGraph.trackerSyncCoordinator
         coordinator.await(TrackerSyncTrigger.PERIODIC)
         return Result.success()
     }
@@ -28,7 +27,7 @@ class PeriodicTrackerSyncJob(
         private const val TAG = "PeriodicTrackerSync"
 
         fun setupTask(context: Context) {
-            val trackPreferences = Injekt.get<TrackPreferences>()
+            val trackPreferences = appGraph.trackPreferences
             if (!trackPreferences.trackerSyncEnabled().get()) {
                 context.workManager.cancelUniqueWork(TAG)
                 return

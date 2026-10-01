@@ -28,7 +28,6 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.update.PromptCadence
-import eu.kanade.domain.update.UpdatePromptPreferences
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.more.LogoHeader
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
@@ -38,6 +37,7 @@ import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.more.AppUpdatePromptDialogHost
 import eu.kanade.tachiyomi.ui.more.rememberAppUpdatePromptStateHolder
 import eu.kanade.tachiyomi.util.CrashLogUtil
@@ -57,8 +57,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.icons.CustomIcons
 import tachiyomi.presentation.core.icons.Discord
 import tachiyomi.presentation.core.icons.Github
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -83,7 +81,7 @@ object AboutScreen : Screen() {
                 AppUpdateDownloadJob.hasValidDownloadedUpdate(context)
             }
         }
-        val updatePromptPreferences = remember { Injekt.get<UpdatePromptPreferences>() }
+        val updatePromptPreferences = remember { appGraph.updatePromptPreferences }
         val updateCheckInProgressA11y = stringResource(MR.strings.update_check_in_progress_a11y)
 
         Scaffold(
@@ -303,7 +301,7 @@ object AboutScreen : Screen() {
             )
                 .toDateTimestampString(
                     UiPreferences.dateFormat(
-                        Injekt.get<UiPreferences>().dateFormat().get(),
+                        appGraph.uiPreferences.dateFormat().get(),
                     ),
                 )
         } catch (e: Exception) {

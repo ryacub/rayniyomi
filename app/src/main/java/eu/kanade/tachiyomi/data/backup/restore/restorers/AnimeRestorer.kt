@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupAnimeHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupAnimeTracking
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupEpisode
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.FetchTypeColumnAdapter
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
@@ -19,21 +20,19 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.interactor.InsertAnimeTrack
 import tachiyomi.domain.track.anime.model.AnimeTrack
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.ZonedDateTime
 import java.util.Date
 import kotlin.math.max
 
 class AnimeRestorer(
-    private val handler: AnimeDatabaseHandler = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId = Injekt.get(),
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
-    private val getTracks: GetAnimeTracks = Injekt.get(),
-    private val insertTrack: InsertAnimeTrack = Injekt.get(),
-    fetchInterval: AnimeFetchInterval = Injekt.get(),
+    private val handler: AnimeDatabaseHandler = appGraph.animeDatabaseHandler,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId = appGraph.getAnimeByUrlAndSourceId,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
+    private val insertTrack: InsertAnimeTrack = appGraph.insertAnimeTrack,
+    fetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval,
 ) {
 
     private var now = ZonedDateTime.now()

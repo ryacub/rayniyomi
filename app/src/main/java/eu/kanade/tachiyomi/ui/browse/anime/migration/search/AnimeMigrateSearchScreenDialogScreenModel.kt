@@ -3,16 +3,15 @@ package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeMigrateSearchScreenDialogScreenModel(
     val animeId: Long,
-    getAnime: GetAnime = Injekt.get(),
+    getAnime: GetAnime = appGraph.getAnime,
 ) : StateScreenModel<AnimeMigrateSearchScreenDialogScreenModel.State>(State()) {
 
     init {

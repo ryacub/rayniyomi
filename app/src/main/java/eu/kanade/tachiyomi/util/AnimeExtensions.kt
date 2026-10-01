@@ -7,13 +7,12 @@ import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.source.local.entries.anime.isLocal
 import tachiyomi.source.local.image.anime.LocalAnimeBackgroundManager
 import tachiyomi.source.local.image.anime.LocalAnimeCoverManager
 import tachiyomi.source.local.image.anime.LocalEpisodeThumbnailManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.InputStream
 import java.time.Instant
 import eu.kanade.tachiyomi.data.database.models.anime.Episode as SEpisode
@@ -76,7 +75,7 @@ fun Anime.prepUpdateBackground(
     }
 }
 
-fun Anime.removeCovers(coverCache: AnimeCoverCache = Injekt.get()): Anime {
+fun Anime.removeCovers(coverCache: AnimeCoverCache = appGraph.animeCoverCache): Anime {
     if (isLocal()) return this
     return if (coverCache.deleteFromCache(this, true) > 0) {
         return copy(coverLastModified = Instant.now().toEpochMilli())
@@ -97,8 +96,8 @@ fun Anime.removeBackgrounds(backgroundCache: AnimeBackgroundCache): Anime {
 suspend fun Anime.editCover(
     coverManager: LocalAnimeCoverManager,
     stream: InputStream,
-    updateAnime: UpdateAnime = Injekt.get(),
-    coverCache: AnimeCoverCache = Injekt.get(),
+    updateAnime: UpdateAnime = appGraph.updateAnime,
+    coverCache: AnimeCoverCache = appGraph.animeCoverCache,
 ) {
     if (isLocal()) {
         coverManager.update(toSAnime(), stream)
@@ -112,8 +111,8 @@ suspend fun Anime.editCover(
 suspend fun Anime.editBackground(
     backgroundManager: LocalAnimeBackgroundManager,
     stream: InputStream,
-    updateAnime: UpdateAnime = Injekt.get(),
-    backgroundCache: AnimeBackgroundCache = Injekt.get(),
+    updateAnime: UpdateAnime = appGraph.updateAnime,
+    backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
 ) {
     if (isLocal()) {
         backgroundManager.update(toSAnime(), stream)

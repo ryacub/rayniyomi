@@ -23,6 +23,7 @@ import android.os.Environment
 import android.util.AttributeSet
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.player.controls.components.panels.toColorHexString
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
@@ -35,17 +36,16 @@ import `is`.xyz.mpv.KeyMapping
 import `is`.xyz.mpv.MPVLib
 import logcat.LogPriority
 import logcat.logcat
-import uy.kohesive.injekt.injectLazy
 import kotlin.reflect.KProperty
 
 class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(context, attributes) {
 
-    private val playerPreferences: PlayerPreferences by injectLazy()
-    private val decoderPreferences: DecoderPreferences by injectLazy()
-    private val subtitlePreferences: SubtitlePreferences by injectLazy()
-    private val audioPreferences: AudioPreferences by injectLazy()
-    private val advancedPreferences: AdvancedPlayerPreferences by injectLazy()
-    private val networkPreferences: NetworkPreferences by injectLazy()
+    private val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
+    private val decoderPreferences: DecoderPreferences by lazy { appGraph.decoderPreferences }
+    private val subtitlePreferences: SubtitlePreferences by lazy { appGraph.subtitlePreferences }
+    private val audioPreferences: AudioPreferences by lazy { appGraph.audioPreferences }
+    private val advancedPreferences: AdvancedPlayerPreferences by lazy { appGraph.advancedPlayerPreferences }
+    private val networkPreferences: NetworkPreferences by lazy { appGraph.networkPreferences }
 
     var isExiting = false
 

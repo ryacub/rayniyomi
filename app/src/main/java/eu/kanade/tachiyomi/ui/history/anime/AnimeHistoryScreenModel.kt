@@ -8,6 +8,7 @@ import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.presentation.history.anime.AnimeHistoryUiModel
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -44,22 +45,20 @@ import tachiyomi.domain.history.anime.model.AnimeHistoryWithRelations
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeHistoryScreenModel(
-    private val addTracks: AddAnimeTracks = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime = Injekt.get(),
-    private val getHistory: GetAnimeHistory = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val getNextEpisodes: GetNextEpisodes = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val removeHistory: RemoveAnimeHistory = Injekt.get(),
-    private val setAnimeCategories: SetAnimeCategories = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
+    private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime = appGraph.getDuplicateLibraryAnime,
+    private val getHistory: GetAnimeHistory = appGraph.getAnimeHistory,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val getNextEpisodes: GetNextEpisodes = appGraph.getNextEpisodes,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val removeHistory: RemoveAnimeHistory = appGraph.removeAnimeHistory,
+    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
 ) : StateScreenModel<AnimeHistoryScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)

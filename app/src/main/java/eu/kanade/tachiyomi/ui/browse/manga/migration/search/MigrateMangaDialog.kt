@@ -26,7 +26,7 @@ import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.manga.migration.MangaMigrationFlags
 import kotlinx.coroutines.flow.update
@@ -50,8 +50,6 @@ import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 
 @Composable
@@ -146,18 +144,18 @@ internal fun MigrateMangaDialog(
 }
 
 internal class MigrateMangaDialogScreenModel(
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
-    private val updateChapter: UpdateChapter = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val getTracks: GetMangaTracks = Injekt.get(),
-    private val insertTrack: InsertMangaTrack = Injekt.get(),
-    private val coverCache: MangaCoverCache = Injekt.get(),
-    private val preferenceStore: PreferenceStore = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val updateManga: UpdateManga = appGraph.updateManga,
+    private val getChaptersByMangaId: GetChaptersByMangaId = appGraph.getChaptersByMangaId,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
+    private val updateChapter: UpdateChapter = appGraph.updateChapter,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
+    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
+    private val insertTrack: InsertMangaTrack = appGraph.insertMangaTrack,
+    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
+    private val preferenceStore: PreferenceStore = appGraph.preferenceStore,
 ) : StateScreenModel<MigrateMangaDialogScreenModel.State>(State()) {
 
     val migrateFlags: Preference<Int> by lazy {
@@ -165,7 +163,7 @@ internal class MigrateMangaDialogScreenModel(
     }
 
     private val enhancedServices by lazy {
-        Injekt.get<TrackerManager>().trackers.filterIsInstance<EnhancedMangaTracker>()
+        appGraph.trackerManager.trackers.filterIsInstance<EnhancedMangaTracker>()
     }
 
     suspend fun migrateManga(

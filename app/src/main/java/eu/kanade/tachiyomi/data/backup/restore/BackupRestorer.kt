@@ -28,6 +28,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -40,8 +41,6 @@ import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
@@ -70,10 +69,10 @@ class BackupRestorer(
     private val mangaRestorer: MangaRestorer = MangaRestorer(),
     private val extensionsRestorer: ExtensionsRestorer = ExtensionsRestorer(context),
     private val lightNovelBackupDataSource: LightNovelBackupDataSource = LightNovelBackupDataSource(context),
-    private val animeStubSourceRepository: AnimeStubSourceRepository = Injekt.get(),
-    private val mangaStubSourceRepository: MangaStubSourceRepository = Injekt.get(),
-    private val mangaDownloadCache: MangaDownloadCache = Injekt.get(),
-    private val animeDownloadCache: AnimeDownloadCache = Injekt.get(),
+    private val animeStubSourceRepository: AnimeStubSourceRepository = appGraph.animeStubSourceRepository,
+    private val mangaStubSourceRepository: MangaStubSourceRepository = appGraph.mangaStubSourceRepository,
+    private val mangaDownloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
+    private val animeDownloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
 ) {
     companion object {
         internal const val RESTORE_ERROR_LOG_FILENAME = "rayniyomi_restore_error.txt"

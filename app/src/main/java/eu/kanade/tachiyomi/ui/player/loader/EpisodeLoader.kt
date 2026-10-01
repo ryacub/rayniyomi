@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.animesource.model.Hoster.Companion.toHosterList
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import kotlinx.coroutines.CancellationException
 import tachiyomi.data.source.anime.AnimeSourceGateway
@@ -14,8 +15,6 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
 import tachiyomi.source.local.io.anime.LocalAnimeSourceFileSystem
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Loader used to retrieve the hosters for a given episode.
@@ -47,7 +46,7 @@ class EpisodeLoader {
          * @param anime the anime of the episode.
          */
         fun isDownload(episode: Episode, anime: Anime): Boolean {
-            val downloadManager: AnimeDownloadManager = Injekt.get()
+            val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager
             return downloadManager.isEpisodeDownloaded(
                 episode.name,
                 episode.scanlator,
@@ -87,7 +86,7 @@ class EpisodeLoader {
             anime: Anime,
             source: AnimeSource,
         ): List<Hoster> {
-            val downloadManager: AnimeDownloadManager = Injekt.get()
+            val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager
             return try {
                 val video = downloadManager.buildVideo(source, anime, episode)
                 listOf(video).toHosterList()
@@ -106,7 +105,7 @@ class EpisodeLoader {
         ): List<Hoster> {
             return try {
                 val (animeDirName, episodeName) = episode.url.split('/', limit = 2)
-                val fileSystem: LocalAnimeSourceFileSystem = Injekt.get()
+                val fileSystem: LocalAnimeSourceFileSystem = appGraph.localAnimeSourceFileSystem
                 val videoFile = fileSystem.getBaseDirectory()
                     ?.findFile(animeDirName)
                     ?.findFile(episodeName)

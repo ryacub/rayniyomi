@@ -29,6 +29,7 @@ import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
 import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.util.storage.getUriCompat
@@ -67,8 +68,6 @@ import tachiyomi.domain.library.service.LibraryPreferences.Companion.DEVICE_ONLY
 import tachiyomi.domain.source.manga.model.SourceNotInstalledException
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.concurrent.CopyOnWriteArrayList
@@ -79,14 +78,14 @@ import java.util.concurrent.atomic.AtomicInteger
 class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
 
-    private val sourceManager: MangaSourceManager = Injekt.get()
-    private val libraryPreferences: LibraryPreferences = Injekt.get()
-    private val downloadManager: MangaDownloadManager = Injekt.get()
-    private val getLibraryManga: GetLibraryManga = Injekt.get()
-    private val getManga: GetManga = Injekt.get()
-    private val mangaFetchInterval: MangaFetchInterval = Injekt.get()
-    private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get()
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get()
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager
+    private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga
+    private val getManga: GetManga = appGraph.getManga
+    private val mangaFetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval
+    private val filterChaptersForDownload: FilterChaptersForDownload = appGraph.filterChaptersForDownload
+    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote
 
     private val notifier = MangaLibraryUpdateNotifier(context)
 
@@ -97,7 +96,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     override suspend fun doWork(): Result {
         if (tags.contains(WORK_NAME_AUTO)) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-                val preferences = Injekt.get<LibraryPreferences>()
+                val preferences = appGraph.libraryPreferences
                 val restrictions = preferences.autoUpdateDeviceRestrictions().get()
                 if ((DEVICE_ONLY_ON_WIFI in restrictions) && !context.isConnectedToWifi()) {
                     return Result.retry()
@@ -461,7 +460,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             context: Context,
             prefInterval: Int? = null,
         ) {
-            val preferences = Injekt.get<LibraryPreferences>()
+            val preferences = appGraph.libraryPreferences
             val interval = prefInterval ?: preferences.autoUpdateInterval().get()
             if (interval > 0) {
                 val restrictions = preferences.autoUpdateDeviceRestrictions().get()

@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.library
 
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.library.anime.AnimeLibraryItem
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryItem
@@ -18,8 +19,6 @@ import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.library.manga.LibraryManga
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -44,15 +43,13 @@ class LibrarySearchPerformanceTest {
 
     @BeforeEach
     fun setUp() {
-        Injekt.addSingleton(
-            SourcePreferences(
-                InMemoryPreferenceStore(
-                    sequenceOf(
-                        InMemoryPreferenceStore.InMemoryPreference(
-                            key = "source_languages",
-                            data = setOf("en"),
-                            defaultValue = emptySet<String>(),
-                        ),
+        every { testAppGraph.sourcePreferences } returns SourcePreferences(
+            InMemoryPreferenceStore(
+                sequenceOf(
+                    InMemoryPreferenceStore.InMemoryPreference(
+                        key = "source_languages",
+                        data = setOf("en"),
+                        defaultValue = emptySet<String>(),
                     ),
                 ),
             ),

@@ -54,6 +54,7 @@ import androidx.core.graphics.red
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.player.components.ExpandableCard
 import eu.kanade.presentation.player.components.TintedSliderItem
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.controls.CARDS_MAX_WIDTH
 import eu.kanade.tachiyomi.ui.player.controls.panelCardsColors
 import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
@@ -64,14 +65,12 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun SubtitleSettingsColorsCard(
     modifier: Modifier = Modifier,
 ) {
-    val preferences = remember { Injekt.get<SubtitlePreferences>() }
+    val preferences = remember { appGraph.subtitlePreferences }
     var isExpanded by remember { mutableStateOf(true) }
     ExpandableCard(
         isExpanded = isExpanded,

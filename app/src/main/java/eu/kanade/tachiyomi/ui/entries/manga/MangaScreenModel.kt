@@ -35,6 +35,7 @@ import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
 import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
@@ -86,45 +87,42 @@ import tachiyomi.domain.items.chapter.model.NoChaptersException
 import tachiyomi.domain.items.chapter.service.calculateChapterGap
 import tachiyomi.domain.items.chapter.service.getChapterSort
 import tachiyomi.domain.library.service.LibraryPreferences
-import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaScreenModel(
     private val context: Context,
     private val lifecycle: Lifecycle,
     private val mangaId: Long,
     private val isFromSource: Boolean,
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val trackPreferences: TrackPreferences = Injekt.get(),
-    readerPreferences: ReaderPreferences = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
-    private val trackChapter: TrackChapter = Injekt.get(),
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val downloadCache: MangaDownloadCache = Injekt.get(),
-    private val getMangaAndChapters: GetMangaWithChapters = Injekt.get(),
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
-    private val getAvailableScanlators: GetAvailableScanlators = Injekt.get(),
-    private val getExcludedScanlators: GetExcludedScanlators = Injekt.get(),
-    private val setExcludedScanlators: SetExcludedScanlators = Injekt.get(),
-    private val setMangaChapterFlags: SetMangaChapterFlags = Injekt.get(),
-    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = Injekt.get(),
-    private val setReadStatus: SetReadStatus = Injekt.get(),
-    private val updateChapter: UpdateChapter = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val getTracks: GetMangaTracks = Injekt.get(),
-    private val addTracks: AddMangaTracks = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val mangaRepository: MangaRepository = Injekt.get(),
-    private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
-    private val translationManager: TranslationManager = Injekt.get(),
-    private val mergeLibraryManga: MergeLibraryManga = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
+    readerPreferences: ReaderPreferences = appGraph.readerPreferences,
+    private val trackerManager: TrackerManager = appGraph.trackerManager,
+    private val trackChapter: TrackChapter = appGraph.trackChapter,
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
+    private val getMangaAndChapters: GetMangaWithChapters = appGraph.getMangaWithChapters,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = appGraph.getDuplicateLibraryManga,
+    private val getAvailableScanlators: GetAvailableScanlators = appGraph.getAvailableScanlators,
+    private val getExcludedScanlators: GetExcludedScanlators = appGraph.getExcludedScanlators,
+    private val setExcludedScanlators: SetExcludedScanlators = appGraph.setExcludedScanlators,
+    private val setMangaChapterFlags: SetMangaChapterFlags = appGraph.setMangaChapterFlags,
+    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = appGraph.setMangaDefaultChapterFlags,
+    private val setReadStatus: SetReadStatus = appGraph.setReadStatus,
+    private val updateChapter: UpdateChapter = appGraph.updateChapter,
+    private val updateManga: UpdateManga = appGraph.updateManga,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
+    private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
+    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
+    private val mangaRepository: MangaRepository = appGraph.mangaRepository,
+    private val filterChaptersForDownload: FilterChaptersForDownload = appGraph.filterChaptersForDownload,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
+    private val translationManager: TranslationManager = appGraph.translationManager,
+    private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<MangaScreenModel.State>(State.Loading) {
 
@@ -242,7 +240,7 @@ class MangaScreenModel(
             mutableState.update {
                 State.Success(
                     manga = manga,
-                    source = Injekt.get<MangaSourceManager>().getOrStub(manga.source),
+                    source = appGraph.mangaSourceManager.getOrStub(manga.source),
                     isFromSource = isFromSource,
                     chapters = chapterListItemMapper.map(
                         chapters = chapters,
@@ -783,7 +781,7 @@ class MangaScreenModel(
     }
 
     private suspend fun refreshTrackers(
-        refreshTracks: RefreshMangaTracks = Injekt.get(),
+        refreshTracks: RefreshMangaTracks = appGraph.refreshMangaTracks,
     ) {
         refreshTracks.await(mangaId)
             .filter { it.first != null }

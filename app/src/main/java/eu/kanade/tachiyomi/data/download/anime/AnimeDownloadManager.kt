@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationChecker
 import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationPromptRequest
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -40,8 +41,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
 import tachiyomi.source.local.io.ArchiveAnime
 import tachiyomi.source.local.io.anime.LocalAnimeSourceFileSystem
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to manage episode downloads in the application. It must be instantiated once
@@ -50,12 +49,12 @@ import uy.kohesive.injekt.api.get
  */
 class AnimeDownloadManager(
     private val context: Context,
-    private val storageManager: StorageManager = Injekt.get(),
-    private val provider: AnimeDownloadProvider = Injekt.get(),
-    private val cache: AnimeDownloadCache = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val storageManager: StorageManager = appGraph.storageManager,
+    private val provider: AnimeDownloadProvider = appGraph.animeDownloadProvider,
+    private val cache: AnimeDownloadCache = appGraph.animeDownloadCache,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
     private val batteryOptimizationChecker: BatteryOptimizationChecker = BatteryOptimizationChecker(
         context,
         context.getSystemService(Context.POWER_SERVICE) as? PowerManager,

@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.track.kavita.KavitaInterceptor
 import eu.kanade.tachiyomi.data.track.kavita.OAuth
 import eu.kanade.tachiyomi.data.track.kavita.requireNumber
 import eu.kanade.tachiyomi.data.track.simkl.dto.SimklSyncResult
+import eu.kanade.tachiyomi.di.testAppGraph
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -23,8 +24,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 
 class MalformedTrackerResponseTest {
 
@@ -35,7 +34,7 @@ class MalformedTrackerResponseTest {
     fun setUp() {
         server = MockWebServer()
         server.start()
-        Injekt.addSingleton<Json>(json)
+        every { testAppGraph.json } returns json
     }
 
     @AfterEach

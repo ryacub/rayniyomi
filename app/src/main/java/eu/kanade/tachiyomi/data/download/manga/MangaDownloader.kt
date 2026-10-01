@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -77,8 +78,6 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import java.util.Locale
 
@@ -95,14 +94,14 @@ class MangaDownloader(
     private val context: Context,
     private val provider: MangaDownloadProvider,
     private val cache: MangaDownloadCache,
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val chapterCache: ChapterCache = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val xml: XML = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val getMangaTracks: GetMangaTracks = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val chapterCache: ChapterCache = appGraph.chapterCache,
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
+    private val xml: XML = appGraph.xml,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val getMangaTracks: GetMangaTracks = appGraph.getMangaTracks,
     // SY -->
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
+    private val sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
     // SY <--
 ) {
 

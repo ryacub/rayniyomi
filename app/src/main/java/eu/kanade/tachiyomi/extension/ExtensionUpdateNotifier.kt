@@ -6,14 +6,13 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notify
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ExtensionUpdateNotifier(
     private val context: Context,
-    private val securityPreferences: SecurityPreferences = Injekt.get(),
+    private val securityPreferences: SecurityPreferences = appGraph.securityPreferences,
 ) {
 
     fun promptUpdates(names: List<String>, anime: Boolean = false) {

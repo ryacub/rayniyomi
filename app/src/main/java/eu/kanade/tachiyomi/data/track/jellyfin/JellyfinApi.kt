@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.jellyfin.dto.JFItem
 import eu.kanade.tachiyomi.data.track.jellyfin.dto.JFItemList
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -16,7 +17,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,7 +26,7 @@ class JellyfinApi(
     private val trackId: Long,
     private val client: OkHttpClient,
 ) {
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     suspend fun getTrackSearch(url: String): AnimeTrackSearch =
         withIOContext {

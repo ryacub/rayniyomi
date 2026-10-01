@@ -20,11 +20,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.domain.update.UpdatePromptGatekeeper
 import eu.kanade.presentation.more.AppUpdatePromptDialog
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.AppUpdatePermissionPolicy
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.canPostNotifications
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
@@ -39,8 +39,6 @@ import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.model.Release
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun AppUpdatePromptDialogHost(
@@ -158,7 +156,7 @@ class AppUpdatePromptStateHolder(
     private val scope: CoroutineScope,
 ) {
 
-    private val updatePromptGatekeeper = Injekt.get<UpdatePromptGatekeeper>()
+    private val updatePromptGatekeeper = appGraph.updatePromptGatekeeper
     private val mutableState = MutableStateFlow(State())
     val state: StateFlow<State> = mutableState.asStateFlow()
     private val appContext = context.applicationContext

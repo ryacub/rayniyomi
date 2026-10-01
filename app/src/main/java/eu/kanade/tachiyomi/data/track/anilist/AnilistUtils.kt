@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.data.track.anilist
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack
 import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack
-import uy.kohesive.injekt.injectLazy
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.track.anime.model.AnimeTrack as DomainAnimeTrack
 import tachiyomi.domain.track.manga.model.MangaTrack as DomainMangaTrack
 
@@ -27,7 +27,7 @@ fun AnimeTrack.toApiStatus() = when (status) {
     else -> throw NotImplementedError("Unknown status: $status")
 }
 
-private val preferences: TrackPreferences by injectLazy()
+private val preferences: TrackPreferences by lazy { appGraph.trackPreferences }
 
 private fun Double.toApiScore(): String = when (preferences.anilistScoreType().get()) {
     // 10 point

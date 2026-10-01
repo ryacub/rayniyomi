@@ -1,7 +1,7 @@
 package eu.kanade.domain.entries.manga.model
 
-import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
@@ -10,8 +10,6 @@ import tachiyomi.core.metadata.comicinfo.ComicInfo
 import tachiyomi.core.metadata.comicinfo.ComicInfoPublishingStatus
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 // TODO: move these into the domain model
 val Manga.readingMode: Long
@@ -22,7 +20,7 @@ val Manga.readerOrientation: Long
 
 val Manga.downloadedFilter: TriState
     get() {
-        if (Injekt.get<BasePreferences>().downloadedOnly().get()) return TriState.ENABLED_IS
+        if (appGraph.basePreferences.downloadedOnly().get()) return TriState.ENABLED_IS
         return when (downloadedFilterRaw) {
             Manga.CHAPTER_SHOW_DOWNLOADED -> TriState.ENABLED_IS
             Manga.CHAPTER_SHOW_NOT_DOWNLOADED -> TriState.ENABLED_NOT
@@ -88,7 +86,7 @@ fun SManga.toDomainManga(sourceId: Long): Manga {
     )
 }
 
-fun Manga.hasCustomCover(coverCache: MangaCoverCache = Injekt.get()): Boolean {
+fun Manga.hasCustomCover(coverCache: MangaCoverCache = appGraph.mangaCoverCache): Boolean {
     return coverCache.getCustomCoverFile(id).exists()
 }
 

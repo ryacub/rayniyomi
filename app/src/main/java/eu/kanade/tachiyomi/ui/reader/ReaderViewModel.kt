@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import android.app.Application
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
@@ -23,6 +22,7 @@ import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.loader.ChapterLoader
@@ -50,7 +50,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.lang.launchIO
@@ -70,8 +69,6 @@ import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.util.Date
 
@@ -80,26 +77,26 @@ import java.util.Date
  */
 class ReaderViewModel @JvmOverloads constructor(
     private val savedState: SavedStateHandle,
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val downloadProvider: MangaDownloadProvider = Injekt.get(),
-    private val imageSaver: ImageSaver = Injekt.get(),
-    val readerPreferences: ReaderPreferences = Injekt.get(),
-    private val basePreferences: BasePreferences = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val trackPreferences: TrackPreferences = Injekt.get(),
-    private val trackChapter: TrackChapter = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val getNextChapters: GetNextChapters = Injekt.get(),
-    private val upsertHistory: UpsertMangaHistory = Injekt.get(),
-    private val updateChapter: UpdateChapter = Injekt.get(),
-    private val setMangaViewerFlags: SetMangaViewerFlags = Injekt.get(),
-    private val getIncognitoState: GetMangaIncognitoState = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val translationStorageManager: TranslationStorageManager = Injekt.get(),
-    private val translationPreferences: TranslationPreferences = Injekt.get(),
-    private val translationManager: TranslationManager = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val downloadProvider: MangaDownloadProvider = appGraph.mangaDownloadProvider,
+    private val imageSaver: ImageSaver = appGraph.imageSaver,
+    val readerPreferences: ReaderPreferences = appGraph.readerPreferences,
+    private val basePreferences: BasePreferences = appGraph.basePreferences,
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
+    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
+    private val trackChapter: TrackChapter = appGraph.trackChapter,
+    private val getManga: GetManga = appGraph.getManga,
+    private val getChaptersByMangaId: GetChaptersByMangaId = appGraph.getChaptersByMangaId,
+    private val getNextChapters: GetNextChapters = appGraph.getNextChapters,
+    private val upsertHistory: UpsertMangaHistory = appGraph.upsertMangaHistory,
+    private val updateChapter: UpdateChapter = appGraph.updateChapter,
+    private val setMangaViewerFlags: SetMangaViewerFlags = appGraph.setMangaViewerFlags,
+    private val getIncognitoState: GetMangaIncognitoState = appGraph.getMangaIncognitoState,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val translationStorageManager: TranslationStorageManager = appGraph.translationStorageManager,
+    private val translationPreferences: TranslationPreferences = appGraph.translationPreferences,
+    private val translationManager: TranslationManager = appGraph.translationManager,
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(State())
@@ -297,7 +294,7 @@ class ReaderViewModel @JvmOverloads constructor(
                     mutableState.update { it.copy(manga = manga) }
                     if (chapterId == -1L) chapterId = initialChapterId
 
-                    val context = Injekt.get<Application>()
+                    val context = appGraph.application
                     val source = sourceManager.getOrStub(manga.source)
                     loader = ChapterLoader(context, downloadManager, downloadProvider, manga, source)
 
@@ -836,7 +833,7 @@ class ReaderViewModel @JvmOverloads constructor(
         if (!trackPreferences.autoUpdateTrack().get()) return
 
         val manga = manga ?: return
-        val context = Injekt.get<Application>()
+        val context = appGraph.application
 
         viewModelScope.launchNonCancellable {
             trackChapter.await(context, manga.id, readerChapter.chapter.chapter_number.toDouble())

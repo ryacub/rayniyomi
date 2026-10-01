@@ -20,11 +20,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.presentation.more.lightNovelInstallErrorMessageRes
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginManager
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CancellationException
@@ -34,8 +33,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsLightNovelScreen : SearchableSettings {
     @ReadOnlyComposable
@@ -47,9 +44,9 @@ object SettingsLightNovelScreen : SearchableSettings {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
 
-        val preferences = remember { Injekt.get<NovelFeaturePreferences>() }
-        val pluginManager = remember { Injekt.get<LightNovelPluginManager>() }
-        val stateManager = remember { Injekt.get<LightNovelPluginStateManager>() }
+        val preferences = remember { appGraph.novelFeaturePreferences }
+        val pluginManager = remember { appGraph.lightNovelPluginManager }
+        val stateManager = remember { appGraph.lightNovelPluginStateManager }
 
         val enableLightNovelsPref = remember { preferences.enableLightNovels() }
 

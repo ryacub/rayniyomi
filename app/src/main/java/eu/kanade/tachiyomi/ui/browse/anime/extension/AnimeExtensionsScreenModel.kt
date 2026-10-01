@@ -10,6 +10,7 @@ import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionsByType
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
@@ -38,18 +39,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
 class AnimeExtensionsScreenModel(
-    preferences: SourcePreferences = Injekt.get(),
-    basePreferences: BasePreferences = Injekt.get(),
-    private val extensionManager: AnimeExtensionManager = Injekt.get(),
-    private val getExtensions: GetAnimeExtensionsByType = Injekt.get(),
-    private val application: Application = Injekt.get(),
+    preferences: SourcePreferences = appGraph.sourcePreferences,
+    basePreferences: BasePreferences = appGraph.basePreferences,
+    private val extensionManager: AnimeExtensionManager = appGraph.animeExtensionManager,
+    private val getExtensions: GetAnimeExtensionsByType = appGraph.getAnimeExtensionsByType,
+    private val application: Application = appGraph.application,
     private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<AnimeExtensionsScreenModel.State>(State()) {
 

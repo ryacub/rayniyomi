@@ -29,6 +29,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
 import eu.kanade.tachiyomi.data.backup.models.BackupSource
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
@@ -41,8 +42,6 @@ import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -53,12 +52,12 @@ class BackupCreator(
     private val context: Context,
     private val isAutoBackup: Boolean,
 
-    private val parser: ProtoBuf = Injekt.get(),
-    private val getAnimeFavorites: GetAnimeFavorites = Injekt.get(),
-    private val getMangaFavorites: GetMangaFavorites = Injekt.get(),
-    private val backupPreferences: BackupPreferences = Injekt.get(),
-    private val mangaRepository: MangaRepository = Injekt.get(),
-    private val animeRepository: AnimeRepository = Injekt.get(),
+    private val parser: ProtoBuf = appGraph.protoBuf,
+    private val getAnimeFavorites: GetAnimeFavorites = appGraph.getAnimeFavorites,
+    private val getMangaFavorites: GetMangaFavorites = appGraph.getMangaFavorites,
+    private val backupPreferences: BackupPreferences = appGraph.backupPreferences,
+    private val mangaRepository: MangaRepository = appGraph.mangaRepository,
+    private val animeRepository: AnimeRepository = appGraph.animeRepository,
 
     private val animeCategoriesBackupCreator: AnimeCategoriesBackupCreator = AnimeCategoriesBackupCreator(),
     private val mangaCategoriesBackupCreator: MangaCategoriesBackupCreator = MangaCategoriesBackupCreator(),

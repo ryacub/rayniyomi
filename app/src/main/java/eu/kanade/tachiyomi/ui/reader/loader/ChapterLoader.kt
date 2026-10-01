@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -19,7 +20,6 @@ import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.i18n.MR
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 import tachiyomi.source.local.io.Format
-import uy.kohesive.injekt.injectLazy
 
 /**
  * Loader used to retrieve the [PageLoader] for a given chapter.
@@ -32,9 +32,9 @@ class ChapterLoader(
     private val source: MangaSource,
 ) {
 
-    private val readerPreferences: ReaderPreferences by injectLazy()
-    private val translationPreferences: TranslationPreferences by injectLazy()
-    private val translationStorageManager: TranslationStorageManager by injectLazy()
+    private val readerPreferences: ReaderPreferences by lazy { appGraph.readerPreferences }
+    private val translationPreferences: TranslationPreferences by lazy { appGraph.translationPreferences }
+    private val translationStorageManager: TranslationStorageManager by lazy { appGraph.translationStorageManager }
 
     /**
      * Assigns the chapter's page loader and loads the its pages. Returns immediately if the chapter

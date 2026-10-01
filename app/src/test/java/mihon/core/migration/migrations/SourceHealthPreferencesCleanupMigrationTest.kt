@@ -1,5 +1,6 @@
 package mihon.core.migration.migrations
 
+import eu.kanade.tachiyomi.di.testAppGraph
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -9,8 +10,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 
 class SourceHealthPreferencesCleanupMigrationTest {
 
@@ -24,7 +23,7 @@ class SourceHealthPreferencesCleanupMigrationTest {
             every { getBoolean("show_broken_manga_sources", any()) } returns mangaPreference
             every { getBoolean("show_broken_anime_sources", any()) } returns animePreference
         }
-        Injekt.addSingleton<PreferenceStore>(preferenceStore)
+        every { testAppGraph.preferenceStore } returns preferenceStore
 
         assertTrue(SourceHealthPreferencesCleanupMigration()(MigrationContext(dryrun = false)))
 

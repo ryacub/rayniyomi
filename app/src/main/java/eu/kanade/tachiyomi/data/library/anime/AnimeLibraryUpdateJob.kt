@@ -37,6 +37,7 @@ import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
 import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import eu.kanade.tachiyomi.util.system.isConnectedToWifi
@@ -77,8 +78,6 @@ import tachiyomi.domain.source.anime.model.AnimeSourceNotInstalledException
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.concurrent.CopyOnWriteArrayList
@@ -89,20 +88,20 @@ import java.util.concurrent.atomic.AtomicInteger
 class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
 
-    private val sourceManager: AnimeSourceManager = Injekt.get()
-    private val libraryPreferences: LibraryPreferences = Injekt.get()
-    private val downloadManager: AnimeDownloadManager = Injekt.get()
-    private val coverCache: AnimeCoverCache = Injekt.get()
-    private val backgroundCache: AnimeBackgroundCache = Injekt.get()
-    private val getLibraryAnime: GetLibraryAnime = Injekt.get()
-    private val getAnime: GetAnime = Injekt.get()
-    private val updateAnime: UpdateAnime = Injekt.get()
-    private val syncEpisodesWithSource: SyncEpisodesWithSource = Injekt.get()
-    private val populateFillerMarks: PopulateFillerMarks = Injekt.get()
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get()
-    private val animeFetchInterval: AnimeFetchInterval = Injekt.get()
-    private val filterEpisodesForDownload: FilterEpisodesForDownload = Injekt.get()
-    private val getAnimeSeasonsByParentId: GetAnimeSeasonsByParentId = Injekt.get()
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache
+    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache
+    private val getLibraryAnime: GetLibraryAnime = appGraph.getLibraryAnime
+    private val getAnime: GetAnime = appGraph.getAnime
+    private val updateAnime: UpdateAnime = appGraph.updateAnime
+    private val syncEpisodesWithSource: SyncEpisodesWithSource = appGraph.syncEpisodesWithSource
+    private val populateFillerMarks: PopulateFillerMarks = appGraph.populateFillerMarks
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId
+    private val animeFetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval
+    private val filterEpisodesForDownload: FilterEpisodesForDownload = appGraph.filterEpisodesForDownload
+    private val getAnimeSeasonsByParentId: GetAnimeSeasonsByParentId = appGraph.getAnimeSeasonsByParentId
 
     private val notifier = AnimeLibraryUpdateNotifier(context)
 
@@ -113,7 +112,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     override suspend fun doWork(): Result {
         if (tags.contains(WORK_NAME_AUTO)) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-                val preferences = Injekt.get<LibraryPreferences>()
+                val preferences = appGraph.libraryPreferences
                 val restrictions = preferences.autoUpdateDeviceRestrictions().get()
                 if ((DEVICE_ONLY_ON_WIFI in restrictions) && !context.isConnectedToWifi()) {
                     return Result.retry()
@@ -504,7 +503,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             context: Context,
             prefInterval: Int? = null,
         ) {
-            val preferences = Injekt.get<LibraryPreferences>()
+            val preferences = appGraph.libraryPreferences
             val interval = prefInterval ?: preferences.autoUpdateInterval().get()
             if (interval > 0) {
                 val restrictions = preferences.autoUpdateDeviceRestrictions().get()

@@ -4,12 +4,12 @@ import android.net.Uri
 import androidx.lifecycle.lifecycleScope
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.domain.track.service.TrackerOAuthStateStore
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.core.common.util.lang.launchIO
-import uy.kohesive.injekt.injectLazy
 
 class TrackLoginActivity : BaseOAuthLoginActivity() {
 
-    private val trackPreferences: TrackPreferences by injectLazy()
+    private val trackPreferences: TrackPreferences by lazy { appGraph.trackPreferences }
     private val oauthStateStore by lazy { TrackerOAuthStateStore(trackPreferences) }
 
     override fun handleResult(data: Uri?) {

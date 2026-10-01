@@ -68,6 +68,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.player.cast.CastError
@@ -97,8 +98,6 @@ import tachiyomi.domain.custombuttons.model.CustomButton
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 internal fun resolvePlayerSourceAfterInit(
     initResult: Result<Boolean>,
@@ -128,12 +127,12 @@ class PlayerActivity : BaseActivity() {
     private var mediaSession: MediaSession? = null
     private val gesturePreferences: GesturePreferences by lazy { viewModel.gesturePreferences }
     private val playerPreferences: PlayerPreferences by lazy { viewModel.playerPreferences }
-    private val audioPreferences: AudioPreferences = Injekt.get()
-    private val advancedPlayerPreferences: AdvancedPlayerPreferences = Injekt.get()
-    private val networkPreferences: NetworkPreferences = Injekt.get()
-    private val storageManager: StorageManager = Injekt.get()
+    private val audioPreferences: AudioPreferences = appGraph.audioPreferences
+    private val advancedPlayerPreferences: AdvancedPlayerPreferences = appGraph.advancedPlayerPreferences
+    private val networkPreferences: NetworkPreferences = appGraph.networkPreferences
+    private val storageManager: StorageManager = appGraph.storageManager
 
-    private val castManager: CastManager by lazy { Injekt.get() }
+    private val castManager: CastManager by lazy { appGraph.castManager }
 
     private val mpvLibProxy: MPVLibProxy = RealMPVLibProxy()
 

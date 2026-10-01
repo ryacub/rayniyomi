@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi.data.track
 
-import android.app.Application
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.domain.track.anime.model.toDomainTrack
 import eu.kanade.tachiyomi.data.database.models.anime.AnimeTrack
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
 import logcat.LogPriority
@@ -13,13 +13,10 @@ import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.track.anime.interactor.InsertAnimeTrack
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.anime.model.AnimeTrack as DomainAnimeTrack
 
-private val addTracks: AddAnimeTracks by injectLazy()
-private val insertTrack: InsertAnimeTrack by injectLazy()
+private val addTracks: AddAnimeTracks by lazy { appGraph.addAnimeTracks }
+private val insertTrack: InsertAnimeTrack by lazy { appGraph.insertAnimeTrack }
 
 interface AnimeTracker {
 
@@ -60,7 +57,7 @@ interface AnimeTracker {
         try {
             addTracks.bind(this, item, animeId)
         } catch (e: Throwable) {
-            withUIContext { Injekt.get<Application>().toast(e.message) }
+            withUIContext { appGraph.application.toast(e.message) }
         }
     }
 
@@ -115,7 +112,7 @@ interface AnimeTracker {
             }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Failed to update remote track data id=${track.id}" }
-            withUIContext { Injekt.get<Application>().toast(e.message) }
+            withUIContext { appGraph.application.toast(e.message) }
         }
     }
 

@@ -21,7 +21,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.AnimeTracker
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
@@ -51,9 +51,6 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.interactor.InsertAnimeTrack
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.util.Date
 
@@ -444,19 +441,19 @@ class ExternalIntents {
     }
 
     // List of all the required Injectable classes
-    private val upsertHistory: UpsertAnimeHistory = Injekt.get()
-    private val updateEpisode: UpdateEpisode = Injekt.get()
-    private val getAnime: GetAnime = Injekt.get()
-    private val sourceManager: AnimeSourceManager = Injekt.get()
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get()
-    private val getTracks: GetAnimeTracks = Injekt.get()
-    private val insertTrack: InsertAnimeTrack = Injekt.get()
-    private val downloadManager: AnimeDownloadManager by injectLazy()
-    private val delayedTrackingStore: DelayedAnimeTrackingStore = Injekt.get()
-    private val playerPreferences: PlayerPreferences = Injekt.get()
-    private val downloadPreferences: DownloadPreferences = Injekt.get()
-    private val trackPreferences: TrackPreferences = Injekt.get()
-    private val basePreferences: BasePreferences by injectLazy()
+    private val upsertHistory: UpsertAnimeHistory = appGraph.upsertAnimeHistory
+    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode
+    private val getAnime: GetAnime = appGraph.getAnime
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId
+    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks
+    private val insertTrack: InsertAnimeTrack = appGraph.insertAnimeTrack
+    private val downloadManager: AnimeDownloadManager by lazy { appGraph.animeDownloadManager }
+    private val delayedTrackingStore: DelayedAnimeTrackingStore = appGraph.delayedAnimeTrackingStore
+    private val playerPreferences: PlayerPreferences = appGraph.playerPreferences
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences
+    private val trackPreferences: TrackPreferences = appGraph.trackPreferences
+    private val basePreferences: BasePreferences by lazy { appGraph.basePreferences }
 
     /**
      * Saves this episode's last seen history if incognito mode isn't on.
@@ -549,8 +546,8 @@ class ExternalIntents {
     private suspend fun updateTrackEpisodeSeen(episodeNumber: Double, anime: Anime) {
         if (!trackPreferences.autoUpdateTrack().get()) return
 
-        val trackerManager = Injekt.get<TrackerManager>()
-        val context = Injekt.get<Application>()
+        val trackerManager = appGraph.trackerManager
+        val context = appGraph.application
 
         withIOContext {
             getTracks.await(anime.id)
@@ -623,7 +620,7 @@ class ExternalIntents {
 
     companion object {
 
-        val externalIntents: ExternalIntents by injectLazy()
+        val externalIntents: ExternalIntents by lazy { appGraph.externalIntents }
 
         /**
          * Start player activity (internal or external).
@@ -654,7 +651,7 @@ class ExternalIntents {
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e)
                     withUIContext {
-                        Injekt.get<Application>().toast(e.message)
+                        appGraph.application.toast(e.message)
                     }
                     null
                 } ?: return
@@ -663,7 +660,7 @@ class ExternalIntents {
                 if (!externalIntents.launchExternalPlayer(intent)) {
                     logcat(LogPriority.ERROR) { "Failed to launch external player - no active MainActivity" }
                     withUIContext {
-                        Injekt.get<Application>().toast("Cannot launch external player")
+                        appGraph.application.toast("Cannot launch external player")
                     }
                 }
             } else {

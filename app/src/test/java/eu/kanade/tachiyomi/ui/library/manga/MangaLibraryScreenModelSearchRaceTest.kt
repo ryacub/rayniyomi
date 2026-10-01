@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.test.awaitAssert
@@ -36,8 +37,6 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetTracksPerManga
 import tachiyomi.domain.track.manga.model.MangaTrack
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MangaLibraryScreenModelSearchRaceTest {
@@ -47,17 +46,15 @@ class MangaLibraryScreenModelSearchRaceTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
-        // The library item constructor resolves its sourceManager through Injekt, and the
-        // real getNameForMangaInfo() extension resolves SourcePreferences through Injekt.
-        Injekt.addSingleton(
-            SourcePreferences(
-                InMemoryPreferenceStore(
-                    sequenceOf(
-                        InMemoryPreferenceStore.InMemoryPreference(
-                            key = "source_languages",
-                            data = setOf("en"),
-                            defaultValue = emptySet<String>(),
-                        ),
+        // The library item constructor resolves its sourceManager through the app graph, and the
+        // real getNameForMangaInfo() extension resolves SourcePreferences through the app graph.
+        every { testAppGraph.sourcePreferences } returns SourcePreferences(
+            InMemoryPreferenceStore(
+                sequenceOf(
+                    InMemoryPreferenceStore.InMemoryPreference(
+                        key = "source_languages",
+                        data = setOf("en"),
+                        defaultValue = emptySet<String>(),
                     ),
                 ),
             ),
@@ -67,7 +64,7 @@ class MangaLibraryScreenModelSearchRaceTest {
         every { source.lang } returns "en"
         val sourceManager = mockk<MangaSourceManager>()
         every { sourceManager.getOrStub(any()) } returns source
-        Injekt.addSingleton(sourceManager)
+        every { testAppGraph.mangaSourceManager } returns sourceManager
     }
 
     @AfterEach

@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.storage.manga
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.storage.CommonStorageScreenModel
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
@@ -10,16 +11,14 @@ import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.library.manga.LibraryManga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaStorageScreenModel(
-    downloadCache: MangaDownloadCache = Injekt.get(),
-    private val getLibraries: GetLibraryManga = Injekt.get(),
-    getCategories: GetMangaCategories = Injekt.get(),
-    getVisibleCategories: GetVisibleMangaCategories = Injekt.get(),
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val sourceManager: MangaSourceManager = Injekt.get(),
+    downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
+    private val getLibraries: GetLibraryManga = appGraph.getLibraryManga,
+    getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    getVisibleCategories: GetVisibleMangaCategories = appGraph.getVisibleMangaCategories,
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
 ) : CommonStorageScreenModel<LibraryManga>(
     downloadCacheChanges = downloadCache.changes,
     downloadCacheIsInitializing = downloadCache.isInitializing,

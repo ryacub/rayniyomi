@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.ProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,8 +16,6 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.atomic.AtomicLong
 data class AnimeDownload(
     val source: AnimeHttpSource,
@@ -110,9 +109,9 @@ data class AnimeDownload(
     companion object {
         suspend fun fromEpisodeId(
             episodeId: Long,
-            getEpisode: GetEpisode = Injekt.get(),
-            getAnimeById: GetAnime = Injekt.get(),
-            sourceManager: AnimeSourceManager = Injekt.get(),
+            getEpisode: GetEpisode = appGraph.getEpisode,
+            getAnimeById: GetAnime = appGraph.getAnime,
+            sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
         ): AnimeDownload? {
             val episode = getEpisode.await(episodeId) ?: return null
             val anime = getAnimeById.await(episode.animeId) ?: return null

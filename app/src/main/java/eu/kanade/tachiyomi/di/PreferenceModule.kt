@@ -1,6 +1,10 @@
 package eu.kanade.tachiyomi.di
 
 import android.app.Application
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.BindingContainer
+import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.domain.source.service.SourcePreferences
@@ -25,78 +29,110 @@ import tachiyomi.domain.backup.service.BackupPreferences
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.storage.service.StoragePreferences
-import uy.kohesive.injekt.api.InjektModule
-import uy.kohesive.injekt.api.InjektRegistrar
-import uy.kohesive.injekt.api.addSingletonFactory
-import uy.kohesive.injekt.api.get
 
-class PreferenceModule(val app: Application) : InjektModule {
-    override fun InjektRegistrar.registerInjectables() {
-        addSingletonFactory<PreferenceStore> {
-            AndroidPreferenceStore(app)
-        }
-        addSingletonFactory {
-            NetworkPreferences(
-                preferenceStore = get(),
-                verboseLogging = isDebugBuildType,
-            )
-        }
-        addSingletonFactory {
-            SourcePreferences(get())
-        }
-        addSingletonFactory {
-            SecurityPreferences(SecurePreferenceStore(get()))
-        }
-        addSingletonFactory {
-            LibraryPreferences(get())
-        }
-        addSingletonFactory {
-            ReaderPreferences(get())
-        }
-        addSingletonFactory {
-            PlayerPreferences(get())
-        }
-        addSingletonFactory {
-            GesturePreferences(get())
-        }
-        addSingletonFactory {
-            DecoderPreferences(get())
-        }
-        addSingletonFactory {
-            SubtitlePreferences(get())
-        }
-        addSingletonFactory {
-            AudioPreferences(get())
-        }
-        addSingletonFactory {
-            AdvancedPlayerPreferences(get())
-        }
-        addSingletonFactory {
-            TrackPreferences(SecurePreferenceStore(get()))
-        }
-        addSingletonFactory {
-            DownloadPreferences(get())
-        }
-        addSingletonFactory {
-            BackupPreferences(get())
-        }
-        addSingletonFactory {
-            StoragePreferences(
-                folderProvider = get<AndroidStorageFolderProvider>(),
-                preferenceStore = get(),
-            )
-        }
-        addSingletonFactory {
-            UiPreferences(get())
-        }
-        addSingletonFactory {
-            BasePreferences(app, get())
-        }
-        addSingletonFactory {
-            TranslationPreferences(SecurePreferenceStore(get()))
-        }
-        addSingletonFactory {
-            NovelFeaturePreferences(get())
-        }
-    }
+@BindingContainer
+object PreferenceModule {
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providePreferenceStore(application: Application): PreferenceStore =
+        AndroidPreferenceStore(context = application)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideNetworkPreferences(preferenceStore: PreferenceStore): NetworkPreferences =
+        NetworkPreferences(preferenceStore = preferenceStore, verboseLogging = isDebugBuildType)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideSourcePreferences(preferenceStore: PreferenceStore): SourcePreferences =
+        SourcePreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideSecurityPreferences(preferenceStore: PreferenceStore): SecurityPreferences =
+        SecurityPreferences(SecurePreferenceStore(preferenceStore))
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideLibraryPreferences(preferenceStore: PreferenceStore): LibraryPreferences =
+        LibraryPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideReaderPreferences(preferenceStore: PreferenceStore): ReaderPreferences =
+        ReaderPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providePlayerPreferences(preferenceStore: PreferenceStore): PlayerPreferences =
+        PlayerPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideGesturePreferences(preferenceStore: PreferenceStore): GesturePreferences =
+        GesturePreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideDecoderPreferences(preferenceStore: PreferenceStore): DecoderPreferences =
+        DecoderPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideSubtitlePreferences(preferenceStore: PreferenceStore): SubtitlePreferences =
+        SubtitlePreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideAudioPreferences(preferenceStore: PreferenceStore): AudioPreferences =
+        AudioPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideAdvancedPlayerPreferences(preferenceStore: PreferenceStore): AdvancedPlayerPreferences =
+        AdvancedPlayerPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideTrackPreferences(preferenceStore: PreferenceStore): TrackPreferences =
+        TrackPreferences(SecurePreferenceStore(preferenceStore))
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideDownloadPreferences(preferenceStore: PreferenceStore): DownloadPreferences =
+        DownloadPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideBackupPreferences(preferenceStore: PreferenceStore): BackupPreferences =
+        BackupPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideStoragePreferences(
+        folderProvider: AndroidStorageFolderProvider,
+        preferenceStore: PreferenceStore,
+    ): StoragePreferences =
+        StoragePreferences(folderProvider = folderProvider, preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideUiPreferences(preferenceStore: PreferenceStore): UiPreferences =
+        UiPreferences(preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideBasePreferences(application: Application, preferenceStore: PreferenceStore): BasePreferences =
+        BasePreferences(context = application, preferenceStore = preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideTranslationPreferences(preferenceStore: PreferenceStore): TranslationPreferences =
+        TranslationPreferences(SecurePreferenceStore(preferenceStore))
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideNovelFeaturePreferences(preferenceStore: PreferenceStore): NovelFeaturePreferences =
+        NovelFeaturePreferences(preferenceStore = preferenceStore)
 }

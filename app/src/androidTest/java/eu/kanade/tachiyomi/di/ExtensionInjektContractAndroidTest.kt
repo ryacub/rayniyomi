@@ -25,10 +25,16 @@ import eu.kanade.tachiyomi.util.defaultJson
 import kotlinx.serialization.json.Json
 import okhttp3.Request
 import okhttp3.Response
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
+import tachiyomi.domain.source.manga.service.MangaSourceManager
 import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.InjektModule
+import uy.kohesive.injekt.api.InjektRegistrar
+import uy.kohesive.injekt.api.fullType
 import uy.kohesive.injekt.api.get
 import eu.kanade.tachiyomi.animesource.PreferenceScreen as AnimePreferenceScreen
 import eu.kanade.tachiyomi.animesource.sourcePreferences as configurableAnimeSourcePreferences
@@ -38,6 +44,32 @@ import eu.kanade.tachiyomi.source.sourcePreferences as configurableMangaSourcePr
 
 @RunWith(AndroidJUnit4::class)
 class ExtensionInjektContractAndroidTest {
+
+    @Test
+    fun extensionRegistryRejectsHostBindingsAndMutation() {
+        assertNull(Injekt.getInstanceOrNull<MangaSourceManager>(MangaSourceManager::class.java))
+        val type = fullType<RegistryProbe>()
+        val mutations = listOf<() -> Unit>(
+            { Injekt.addSingleton(type, RegistryProbe) },
+            { Injekt.addSingletonFactory(type) { RegistryProbe } },
+            { Injekt.addFactory(type) { RegistryProbe } },
+            { Injekt.addPerThreadFactory(type) { RegistryProbe } },
+            { Injekt.addPerKeyFactory<RegistryProbe, String>(type) { RegistryProbe } },
+            { Injekt.addPerThreadPerKeyFactory<RegistryProbe, String>(type) { RegistryProbe } },
+            { Injekt.addLoggerFactory(type, { RegistryProbe }, { RegistryProbe }) },
+            { Injekt.addAlias(type, fullType<Any>()) },
+            {
+                Injekt.importModule(object : InjektModule {
+                    override fun InjektRegistrar.registerInjectables() = Unit
+                })
+            },
+        )
+        mutations.forEach { mutation ->
+            assertThrows(UnsupportedOperationException::class.java) { mutation() }
+        }
+    }
+
+    private object RegistryProbe
 
     @Test
     fun exportedExtensionLookupsResolveHostBindings() {
@@ -79,9 +111,11 @@ class ExtensionInjektContractAndroidTest {
         )
 
         val hostJson = Injekt.get<Json>()
+        assertSame(appGraph.json, hostJson)
         assertSame(hostJson, defaultJson)
 
         val hostNetwork = Injekt.get<NetworkHelper>()
+        assertSame(appGraph.networkHelper, hostNetwork)
         assertSame(hostNetwork, MangaHttpProbe().resolvedNetwork())
         assertSame(hostNetwork, AnimeHttpProbe().resolvedNetwork())
     }

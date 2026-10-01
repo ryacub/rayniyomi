@@ -1,6 +1,5 @@
 package tachiyomi.presentation.widget.entries.anime
 
-import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
@@ -31,32 +30,26 @@ import coil3.request.transformations
 import coil3.size.Precision
 import coil3.size.Scale
 import coil3.transform.RoundedCornersTransformation
-import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.util.system.dpToPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.map
+import tachiyomi.core.common.di.metroGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.entries.anime.model.AnimeCover
-import tachiyomi.domain.updates.anime.interactor.GetAnimeUpdates
 import tachiyomi.domain.updates.anime.model.AnimeUpdatesWithRelations
 import tachiyomi.presentation.widget.R
 import tachiyomi.presentation.widget.components.anime.CoverHeight
 import tachiyomi.presentation.widget.components.anime.CoverWidth
 import tachiyomi.presentation.widget.components.anime.LockedAnimeWidget
 import tachiyomi.presentation.widget.components.anime.UpdatesAnimeWidget
+import tachiyomi.presentation.widget.di.WidgetGraph
 import tachiyomi.presentation.widget.util.appWidgetBackgroundRadius
 import tachiyomi.presentation.widget.util.calculateRowAndColumnCount
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 
-abstract class BaseAnimeUpdatesGridGlanceWidget(
-    private val context: Context = Injekt.get<Application>(),
-    private val getUpdates: GetAnimeUpdates = Injekt.get(),
-    private val preferences: SecurityPreferences = Injekt.get(),
-) : GlanceAppWidget() {
+abstract class BaseAnimeUpdatesGridGlanceWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Exact
 
@@ -66,7 +59,8 @@ abstract class BaseAnimeUpdatesGridGlanceWidget(
     abstract val bottomPadding: Dp
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val locked = preferences.useAuthenticator().get()
+        val graph = context.metroGraph<WidgetGraph>()
+        val locked = graph.securityPreferences.useAuthenticator().get()
         val containerModifier = GlanceModifier
             .fillMaxSize()
             .background(background)
@@ -92,10 +86,10 @@ abstract class BaseAnimeUpdatesGridGlanceWidget(
             }
 
             val flow = remember {
-                getUpdates
+                graph.getAnimeUpdates
                     .subscribe(false, DateLimit.toEpochMilli())
                     .map { rawData ->
-                        rawData.prepareData(rowCount, columnCount)
+                        rawData.prepareData(graph.application, rowCount, columnCount)
                     }
             }
             val data by flow.collectAsState(initial = null)
@@ -111,6 +105,7 @@ abstract class BaseAnimeUpdatesGridGlanceWidget(
 
     @OptIn(ExperimentalCoilApi::class)
     private suspend fun List<AnimeUpdatesWithRelations>.prepareData(
+        context: Context,
         rowCount: Int,
         columnCount: Int,
     ): ImmutableList<Pair<Long, Bitmap?>> {

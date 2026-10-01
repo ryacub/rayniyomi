@@ -1,23 +1,20 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import android.content.pm.ActivityInfo
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import eu.kanade.tachiyomi.ui.player.PlayerOrientation
-import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
-import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
 
 class VideoOrientationMigration : Migration {
     override val version = 127f
 
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
-        val playerPreferences = migrationContext.get<PlayerPreferences>() ?: return false
-        val preferenceStore = migrationContext.get<PreferenceStore>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
+        val playerPreferences = migrationContext.graph.playerPreferences
+        val preferenceStore = migrationContext.graph.preferenceStore
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         val oldPref = try {

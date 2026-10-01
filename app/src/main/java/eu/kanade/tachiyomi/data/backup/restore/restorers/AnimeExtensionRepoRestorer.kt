@@ -2,14 +2,13 @@ package eu.kanade.tachiyomi.data.backup.restore.restorers
 
 import eu.kanade.tachiyomi.data.backup.ExtensionRepoValidator
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
+import eu.kanade.tachiyomi.di.appGraph
 import mihon.domain.extensionrepo.anime.interactor.GetAnimeExtensionRepo
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeExtensionRepoRestorer(
-    private val animeHandler: AnimeDatabaseHandler = Injekt.get(),
-    private val getExtensionRepos: GetAnimeExtensionRepo = Injekt.get(),
+    private val animeHandler: AnimeDatabaseHandler = appGraph.animeDatabaseHandler,
+    private val getExtensionRepos: GetAnimeExtensionRepo = appGraph.getAnimeExtensionRepo,
 ) {
 
     suspend operator fun invoke(

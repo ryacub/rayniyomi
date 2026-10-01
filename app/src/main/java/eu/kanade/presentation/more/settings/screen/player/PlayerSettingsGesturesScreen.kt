@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.SingleActionGesture
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import kotlinx.collections.immutable.persistentListOf
@@ -29,8 +30,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.WheelTextPicker
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object PlayerSettingsGesturesScreen : SearchableSettings {
 
@@ -40,7 +39,7 @@ object PlayerSettingsGesturesScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val gesturePreferences = remember { Injekt.get<GesturePreferences>() }
+        val gesturePreferences = remember { appGraph.gesturePreferences }
 
         return listOf(
             getSlidersGroup(gesturePreferences = gesturePreferences),

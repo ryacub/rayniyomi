@@ -1,6 +1,7 @@
 import mihon.buildlogic.tasks.CheckNullAssertionsTask
 
 plugins {
+    alias(libs.plugins.metro) apply false
     alias(kotlinx.plugins.serialization) apply false
     alias(libs.plugins.aboutLibraries) apply false
     alias(libs.plugins.moko) apply false

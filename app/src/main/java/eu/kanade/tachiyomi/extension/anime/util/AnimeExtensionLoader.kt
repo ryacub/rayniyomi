@@ -13,6 +13,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.util.lang.Hash
@@ -23,7 +24,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 
 /**
@@ -32,8 +32,8 @@ import java.io.File
 @SuppressLint("PackageManagerGetSignatures")
 internal object AnimeExtensionLoader {
 
-    private val preferences: SourcePreferences by injectLazy()
-    private val trustExtension: TrustAnimeExtension by injectLazy()
+    private val preferences: SourcePreferences by lazy { appGraph.sourcePreferences }
+    private val trustExtension: TrustAnimeExtension by lazy { appGraph.trustAnimeExtension }
     private val loadNsfwSource by lazy {
         preferences.showNsfwSource().get()
     }

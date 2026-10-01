@@ -1,12 +1,9 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
-import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.getEnum
 
@@ -15,9 +12,9 @@ class MigrateTriStateMigration : Migration {
 
     // Migrate TriState usages to TriStateFilter enum
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
-        val trackerManager = migrationContext.get<TrackerManager>() ?: return false
-        val preferenceStore = migrationContext.get<PreferenceStore>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
+        val trackerManager = migrationContext.graph.trackerManager
+        val preferenceStore = migrationContext.graph.preferenceStore
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         val prefKeys = listOf(

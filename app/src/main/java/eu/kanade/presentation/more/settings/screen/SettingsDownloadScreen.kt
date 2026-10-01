@@ -26,6 +26,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.category.visualName
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.applicationLabelOrPackageName
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -33,8 +34,6 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toPersistentMap
-import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
-import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.i18n.MR
@@ -44,8 +43,6 @@ import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsDownloadScreen : SearchableSettings {
 
@@ -55,12 +52,12 @@ object SettingsDownloadScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val getMangaCategories = remember { Injekt.get<GetMangaCategories>() }
+        val getMangaCategories = remember { appGraph.getMangaCategories }
         val allMangaCategories by getMangaCategories.subscribe().collectAsStateWithLifecycle(initialValue = emptyList())
-        val getAnimeCategories = remember { Injekt.get<GetAnimeCategories>() }
+        val getAnimeCategories = remember { appGraph.getAnimeCategories }
         val allAnimeCategories by getAnimeCategories.subscribe().collectAsStateWithLifecycle(initialValue = emptyList())
-        val downloadPreferences = remember { Injekt.get<DownloadPreferences>() }
-        val basePreferences = remember { Injekt.get<BasePreferences>() }
+        val downloadPreferences = remember { appGraph.downloadPreferences }
+        val basePreferences = remember { appGraph.basePreferences }
         val speedLimit by downloadPreferences.downloadSpeedLimit().collectAsStateWithLifecycle()
         var currentSpeedLimit by remember { mutableIntStateOf(speedLimit) }
         var showDownloadLimitDialog by rememberSaveable { mutableStateOf(false) }

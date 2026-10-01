@@ -26,6 +26,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import logcat.LogPriority
@@ -42,8 +43,6 @@ import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class DuplicateScanScreen : Screen() {
 
@@ -159,8 +158,8 @@ private fun DuplicateCandidateRow(
 }
 
 class DuplicateScanScreenModel(
-    private val scanLibraryDuplicates: ScanLibraryDuplicates = Injekt.get(),
-    private val mergeLibraryManga: MergeLibraryManga = Injekt.get(),
+    private val scanLibraryDuplicates: ScanLibraryDuplicates = appGraph.scanLibraryDuplicates,
+    private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
 ) : StateScreenModel<DuplicateScanScreenModel.State>(State.Loading) {
 
     val snackbarHostState = SnackbarHostState()

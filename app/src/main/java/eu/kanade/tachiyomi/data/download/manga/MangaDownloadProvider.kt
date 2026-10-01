@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.download.manga
 import android.content.Context
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import logcat.LogPriority
@@ -14,8 +15,6 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to provide the directories where the downloads should be saved.
@@ -25,7 +24,7 @@ import uy.kohesive.injekt.api.get
  */
 class MangaDownloadProvider(
     private val context: Context,
-    private val storageManager: StorageManager = Injekt.get(),
+    private val storageManager: StorageManager = appGraph.storageManager,
 ) {
 
     private val downloadsDir: UniFile?

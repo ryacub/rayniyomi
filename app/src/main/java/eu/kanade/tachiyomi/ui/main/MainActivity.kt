@@ -81,6 +81,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.api.AnimeExtensionApi
 import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
@@ -120,23 +121,21 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 
 class MainActivity : BaseActivity() {
 
-    private val libraryPreferences: LibraryPreferences by injectLazy()
-    private val preferences: BasePreferences by injectLazy()
+    private val libraryPreferences: LibraryPreferences by lazy { appGraph.libraryPreferences }
+    private val preferences: BasePreferences by lazy { appGraph.basePreferences }
 
-    private val animeDownloadCache: AnimeDownloadCache by injectLazy()
-    private val downloadCache: MangaDownloadCache by injectLazy()
-    private val chapterCache: ChapterCache by injectLazy()
+    private val animeDownloadCache: AnimeDownloadCache by lazy { appGraph.animeDownloadCache }
+    private val downloadCache: MangaDownloadCache by lazy { appGraph.mangaDownloadCache }
+    private val chapterCache: ChapterCache by lazy { appGraph.chapterCache }
 
-    private val animeDownloadManager: AnimeDownloadManager by injectLazy()
-    private val mangaDownloadManager: MangaDownloadManager by injectLazy()
+    private val animeDownloadManager: AnimeDownloadManager by lazy { appGraph.animeDownloadManager }
+    private val mangaDownloadManager: MangaDownloadManager by lazy { appGraph.mangaDownloadManager }
 
-    private val getAnimeIncognitoState: GetAnimeIncognitoState by injectLazy()
-    private val getMangaIncognitoState: GetMangaIncognitoState by injectLazy()
+    private val getAnimeIncognitoState: GetAnimeIncognitoState by lazy { appGraph.getAnimeIncognitoState }
+    private val getMangaIncognitoState: GetMangaIncognitoState by lazy { appGraph.getMangaIncognitoState }
 
     // To be checked by splash screen. If true then splash screen will be removed.
     var ready = false

@@ -7,6 +7,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.util.size
@@ -54,8 +55,6 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.storage.service.StorageManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -87,10 +86,10 @@ internal fun chapterDirNameOrNull(file: UniFile): String? = when {
  */
 class MangaDownloadCache(
     private val context: Context,
-    private val provider: MangaDownloadProvider = Injekt.get(),
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val extensionManager: MangaExtensionManager = Injekt.get(),
-    private val storageManager: StorageManager = Injekt.get(),
+    private val provider: MangaDownloadProvider = appGraph.mangaDownloadProvider,
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
+    private val storageManager: StorageManager = appGraph.storageManager,
 ) {
 
     /** Application-lifetime scope. Uses SupervisorJob for failure isolation. */
@@ -547,7 +546,7 @@ private object UniFileAsStringSerializer : KSerializer<UniFile?> {
 
     override fun deserialize(decoder: Decoder): UniFile? {
         return if (decoder.decodeNotNullMark()) {
-            UniFile.fromUri(Injekt.get<Application>(), decoder.decodeString().toUri())
+            UniFile.fromUri(appGraph.application, decoder.decodeString().toUri())
         } else {
             decoder.decodeNull()
         }

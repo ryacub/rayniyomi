@@ -7,15 +7,14 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 internal class ThemeStep : OnboardingStep {
 
     override val isComplete: Boolean = true
 
-    private val uiPreferences: UiPreferences = Injekt.get()
+    private val uiPreferences: UiPreferences = appGraph.uiPreferences
 
     @Composable
     override fun Content() {

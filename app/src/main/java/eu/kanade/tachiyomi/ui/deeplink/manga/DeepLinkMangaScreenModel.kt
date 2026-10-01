@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -22,16 +23,14 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChapterByUrlAndMangaId
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class DeepLinkMangaScreenModel(
     query: String = "",
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = Injekt.get(),
-    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val networkToLocalManga: NetworkToLocalManga = appGraph.networkToLocalManga,
+    private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = appGraph.getChapterByUrlAndMangaId,
+    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = appGraph.getMangaByUrlAndSourceId,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<DeepLinkMangaScreenModel.State>(State.Loading) {
 

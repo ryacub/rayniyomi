@@ -1,13 +1,11 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import eu.kanade.domain.ui.model.NavStyle
 import eu.kanade.domain.ui.model.StartScreen
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
-import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
 
 class NavigationOptionsMigration : Migration {
@@ -15,8 +13,8 @@ class NavigationOptionsMigration : Migration {
 
     // Bring back navigation options
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
-        val preferenceStore = migrationContext.get<PreferenceStore>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
+        val preferenceStore = migrationContext.graph.preferenceStore
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         val bottomNavStyle = preferenceStore.getInt("bottom_nav_style", 0)

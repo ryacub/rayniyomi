@@ -1,11 +1,10 @@
 package eu.kanade.tachiyomi.util.chapter
 
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Returns a copy of the list with not downloaded chapters removed.
@@ -13,7 +12,7 @@ import uy.kohesive.injekt.api.get
 fun List<Chapter>.filterDownloadedChapters(manga: Manga): List<Chapter> {
     if (manga.isLocal()) return this
 
-    val downloadCache: MangaDownloadCache = Injekt.get()
+    val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache
 
     return filter {
         downloadCache.isChapterDownloaded(

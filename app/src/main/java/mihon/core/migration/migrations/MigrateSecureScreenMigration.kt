@@ -1,6 +1,5 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import androidx.preference.PreferenceManager
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
@@ -13,9 +12,9 @@ class MigrateSecureScreenMigration : Migration {
 
     // Allow disabling secure screen when incognito mode is on
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
-        val securityPreferences = migrationContext.get<SecurityPreferences>() ?: return false
-        val basePreferences = migrationContext.get<BasePreferences>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
+        val securityPreferences = migrationContext.graph.securityPreferences
+        val basePreferences = migrationContext.graph.basePreferences
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         val oldSecureScreen = prefs.getBoolean("secure_screen", false)

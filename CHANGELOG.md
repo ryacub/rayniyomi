@@ -34,6 +34,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
+- Move the host dependency graph to Metro and keep the extension Injekt registry read-only (#1257).
 - Document and test the host Injekt bindings that extension APIs use before the Metro migration (#1256).
 
 

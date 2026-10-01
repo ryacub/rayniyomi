@@ -17,10 +17,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import aniyomi.domain.anime.SeasonDisplayMode
-import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.model.seasonDownloadedFilter
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.domain.entries.anime.model.Anime
@@ -35,8 +35,6 @@ import tachiyomi.presentation.core.components.SliderItem
 import tachiyomi.presentation.core.components.SortItem
 import tachiyomi.presentation.core.components.TriStateItem
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun SeasonSettingsDialog(
@@ -76,7 +74,7 @@ fun SeasonSettingsDialog(
         )
     }
 
-    val downloadedOnly = remember { Injekt.get<BasePreferences>().downloadedOnly().get() }
+    val downloadedOnly = remember { appGraph.basePreferences.downloadedOnly().get() }
 
     TabbedDialog(
         onDismissRequest = onDismissRequest,

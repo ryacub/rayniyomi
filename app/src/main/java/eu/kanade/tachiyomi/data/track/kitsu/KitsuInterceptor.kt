@@ -3,15 +3,15 @@ package eu.kanade.tachiyomi.data.track.kitsu
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.track.kitsu.dto.KitsuOAuth
 import eu.kanade.tachiyomi.data.track.kitsu.dto.isExpired
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 import java.io.IOException
 
 class KitsuInterceptor(private val kitsu: Kitsu) : Interceptor {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     /**
      * OAuth object used for authenticated requests.

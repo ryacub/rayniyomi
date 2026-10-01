@@ -8,9 +8,9 @@ import android.content.IntentFilter
 import android.net.Uri
 import androidx.annotation.CallSuper
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
-import uy.kohesive.injekt.injectLazy
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
 
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 abstract class InstallerAnime(private val service: Service) {
 
-    private val extensionManager: AnimeExtensionManager by injectLazy()
+    private val extensionManager: AnimeExtensionManager by lazy { appGraph.animeExtensionManager }
 
     private var waitingInstall = AtomicReference<Entry>(null)
     private val queue = Collections.synchronizedList(mutableListOf<Entry>())

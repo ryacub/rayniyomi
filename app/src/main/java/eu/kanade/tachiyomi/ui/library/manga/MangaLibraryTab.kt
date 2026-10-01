@@ -41,6 +41,7 @@ import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
@@ -67,7 +68,6 @@ import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.injectLazy
 
 data object MangaLibraryTab : Tab {
 
@@ -128,7 +128,7 @@ data object MangaLibraryTab : Tab {
             null
         }
 
-        val libraryPreferences: LibraryPreferences by injectLazy()
+        val libraryPreferences: LibraryPreferences by lazy { appGraph.libraryPreferences }
         val libraryListSize by libraryPreferences.libraryListSize().collectAsStateWithLifecycle()
 
         val defaultTitle = stringResource(AYMR.strings.label_manga_library)

@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.getFilterListOrNull
 import eu.kanade.tachiyomi.util.removeBackgrounds
 import eu.kanade.tachiyomi.util.removeCovers
@@ -53,29 +54,27 @@ import tachiyomi.domain.items.episode.interactor.SetAnimeDefaultEpisodeFlags
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.interactor.GetRemoteAnime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter as AnimeSourceModelFilter
 
 class BrowseAnimeSourceScreenModel(
     private val sourceId: Long,
     listingQuery: String?,
-    sourceManager: AnimeSourceManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val coverCache: AnimeCoverCache = Injekt.get(),
-    private val backgroundCache: AnimeBackgroundCache = Injekt.get(),
-    private val getRemoteAnime: GetRemoteAnime = Injekt.get(),
-    private val getDuplicateAnimelibAnime: GetDuplicateLibraryAnime = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val setAnimeCategories: SetAnimeCategories = Injekt.get(),
-    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val networkToLocalAnime: NetworkToLocalAnime = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
-    private val addTracks: AddAnimeTracks = Injekt.get(),
-    private val getIncognitoState: GetAnimeIncognitoState = Injekt.get(),
+    sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
+    private val getRemoteAnime: GetRemoteAnime = appGraph.getRemoteAnime,
+    private val getDuplicateAnimelibAnime: GetDuplicateLibraryAnime = appGraph.getDuplicateLibraryAnime,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
+    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags = appGraph.setAnimeDefaultEpisodeFlags,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
+    private val getIncognitoState: GetAnimeIncognitoState = appGraph.getAnimeIncognitoState,
 ) : StateScreenModel<BrowseAnimeSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(screenModelScope)

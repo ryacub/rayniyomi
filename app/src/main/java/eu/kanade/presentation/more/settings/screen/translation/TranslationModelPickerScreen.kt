@@ -27,14 +27,13 @@ import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelPickerState
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolution
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolver
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class TranslationModelPickerScreen : Screen() {
 
@@ -99,8 +98,8 @@ class TranslationModelPickerScreen : Screen() {
 }
 
 internal class TranslationModelPickerScreenModel(
-    private val preferences: TranslationPreferences = Injekt.get(),
-    private val repository: TranslationModelCatalogRepository = Injekt.get(),
+    private val preferences: TranslationPreferences = appGraph.translationPreferences,
+    private val repository: TranslationModelCatalogRepository = appGraph.translationModelCatalogRepository,
     private val loadCatalog: suspend (TranslationProvider, String, Boolean) -> TranslationCatalogResult =
         repository::load,
 ) : StateScreenModel<TranslationModelPickerScreenModel.State>(State()) {

@@ -18,23 +18,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.screen.SettingsDataScreen
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.isTvBox
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.flow.collectLatest
-import tachiyomi.core.common.storage.AndroidStorageFolderProvider
-import tachiyomi.domain.storage.service.StoragePreferences
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.Button
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 internal class StorageStep : OnboardingStep {
 
-    private val storagePref = Injekt.get<StoragePreferences>().baseStorageDirectory()
-    private val folderProvider = Injekt.get<AndroidStorageFolderProvider>()
+    private val storagePref = appGraph.storagePreferences.baseStorageDirectory()
+    private val folderProvider = appGraph.androidStorageFolderProvider
 
     private var _isComplete by mutableStateOf(false)
 

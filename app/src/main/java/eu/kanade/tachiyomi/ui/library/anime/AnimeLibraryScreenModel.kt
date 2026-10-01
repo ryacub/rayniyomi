@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeBackgrounds
 import eu.kanade.tachiyomi.util.removeCovers
@@ -77,8 +78,6 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetTracksPerAnime
 import tachiyomi.domain.track.anime.model.AnimeTrack
 import tachiyomi.source.local.entries.anime.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.random.Random
 
 /**
@@ -87,22 +86,22 @@ import kotlin.random.Random
 typealias AnimeLibraryMap = Map<Category, List<AnimeLibraryItem>>
 
 class AnimeLibraryScreenModel(
-    private val getLibraryAnime: GetLibraryAnime = Injekt.get(),
-    private val getCategories: GetVisibleAnimeCategories = Injekt.get(),
-    private val getTracksPerAnime: GetTracksPerAnime = Injekt.get(),
-    private val getNextEpisodes: GetNextEpisodes = Injekt.get(),
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get(),
-    private val setSeenStatus: SetSeenStatus = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
-    private val setAnimeCategories: SetAnimeCategories = Injekt.get(),
-    private val preferences: BasePreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val coverCache: AnimeCoverCache = Injekt.get(),
-    private val backgroundCache: AnimeBackgroundCache = Injekt.get(),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
-    private val downloadCache: AnimeDownloadCache = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
+    private val getLibraryAnime: GetLibraryAnime = appGraph.getLibraryAnime,
+    private val getCategories: GetVisibleAnimeCategories = appGraph.getVisibleAnimeCategories,
+    private val getTracksPerAnime: GetTracksPerAnime = appGraph.getTracksPerAnime,
+    private val getNextEpisodes: GetNextEpisodes = appGraph.getNextEpisodes,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
+    private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
+    private val preferences: BasePreferences = appGraph.basePreferences,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    private val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
+    private val trackerManager: TrackerManager = appGraph.trackerManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<AnimeLibraryScreenModel.State>(State()) {
 

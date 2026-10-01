@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.utils
 
 import eu.kanade.tachiyomi.animesource.model.ChapterType
 import eu.kanade.tachiyomi.animesource.model.TimeStamp
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.jsonMime
@@ -12,12 +13,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
-import uy.kohesive.injekt.injectLazy
 
 class AniSkipApi(
     private val client: OkHttpClient = OkHttpClient(),
 ) {
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     // credits: https://github.com/saikou-app/saikou/blob/main/app/src/main/java/ani/saikou/others/AniSkip.kt
     fun getResult(malId: Int, episodeNumber: Double, episodeLength: Long): List<TimeStamp>? {

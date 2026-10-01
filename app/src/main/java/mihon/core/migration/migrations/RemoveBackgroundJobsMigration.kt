@@ -1,6 +1,5 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import eu.kanade.tachiyomi.util.system.workManager
@@ -12,7 +11,7 @@ class RemoveBackgroundJobsMigration : Migration {
 
     // Removed background jobs
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         context.workManager.cancelAllWorkByTag("UpdateChecker")

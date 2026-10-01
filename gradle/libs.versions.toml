@@ -48,7 +48,7 @@ sqlite-android = "com.github.requery:sqlite-android:3.49.0"
 preferencektx = "androidx.preference:preference-ktx:1.2.1"
 androidx-webkit = "androidx.webkit:webkit:1.16.0"
 
-injekt = "com.github.mihonapp:injekt:91edab2317"
+injekt = "uy.kohesive.injekt:injekt-core:1.16.1"
 
 coil-bom = { module = "io.coil-kt.coil3:coil-bom", version = "3.5.0" }
 coil-core = { module = "io.coil-kt.coil3:coil" }
@@ -108,6 +108,7 @@ spotless-gradle = { group = "com.diffplug.spotless", name = "spotless-plugin-gra
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 
 [plugins]
+metro = { id = "dev.zacsweers.metro", version = "0.11.4" }
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin", version.ref = "aboutlib_version" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google_services" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase_crashlytics_gradle" }

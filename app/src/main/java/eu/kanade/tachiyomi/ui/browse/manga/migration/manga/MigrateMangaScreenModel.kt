@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.browse.manga.migration.manga
 import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -20,13 +21,11 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrateMangaScreenModel(
     private val sourceId: Long,
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val getFavorites: GetMangaFavorites = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val getFavorites: GetMangaFavorites = appGraph.getMangaFavorites,
 ) : StateScreenModel<MigrateMangaScreenModel.State>(State()) {
 
     private val _events: Channel<MigrationMangaEvent> = Channel(Channel.BUFFERED)

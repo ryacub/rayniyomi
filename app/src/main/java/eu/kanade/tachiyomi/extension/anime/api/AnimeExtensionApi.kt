@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.anime.api
 
 import android.content.Context
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
@@ -23,18 +24,17 @@ import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
 
 internal class AnimeExtensionApi {
 
-    private val networkService: NetworkHelper by injectLazy()
-    private val preferenceStore: PreferenceStore by injectLazy()
-    private val getExtensionRepo: GetAnimeExtensionRepo by injectLazy()
-    private val updateExtensionRepo: UpdateAnimeExtensionRepo by injectLazy()
-    private val animeExtensionManager: AnimeExtensionManager by injectLazy()
-    private val json: Json by injectLazy()
+    private val networkService: NetworkHelper by lazy { appGraph.networkHelper }
+    private val preferenceStore: PreferenceStore by lazy { appGraph.preferenceStore }
+    private val getExtensionRepo: GetAnimeExtensionRepo by lazy { appGraph.getAnimeExtensionRepo }
+    private val updateExtensionRepo: UpdateAnimeExtensionRepo by lazy { appGraph.updateAnimeExtensionRepo }
+    private val animeExtensionManager: AnimeExtensionManager by lazy { appGraph.animeExtensionManager }
+    private val json: Json by lazy { appGraph.json }
 
     private val lastExtCheck: Preference<Long> by lazy {
         preferenceStore.getLong("last_ext_check", 0)

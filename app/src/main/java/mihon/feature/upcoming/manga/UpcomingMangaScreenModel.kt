@@ -7,6 +7,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.insertSeparatorsReversed
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
@@ -30,15 +31,13 @@ import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.library.service.LibraryPreferences
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.LocalDate
 import java.time.YearMonth
 
 class UpcomingMangaScreenModel(
-    private val getUpcomingManga: GetUpcomingManga = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val getUpcomingManga: GetUpcomingManga = appGraph.getUpcomingManga,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
 ) : StateScreenModel<UpcomingMangaScreenModel.State>(State()) {
 
     val categories: StateFlow<List<Category>> = getCategories.subscribe()

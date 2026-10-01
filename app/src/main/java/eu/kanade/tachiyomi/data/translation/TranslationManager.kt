@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.translation
 
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -19,8 +20,6 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -31,10 +30,10 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class TranslationManager(
     private val context: Context,
-    private val translationEngineFactory: TranslationEngineFactory = Injekt.get(),
-    private val translationPreferences: TranslationPreferences = Injekt.get(),
-    private val translationStorageManager: TranslationStorageManager = Injekt.get(),
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
+    private val translationEngineFactory: TranslationEngineFactory = appGraph.translationEngineFactory,
+    private val translationPreferences: TranslationPreferences = appGraph.translationPreferences,
+    private val translationStorageManager: TranslationStorageManager = appGraph.translationStorageManager,
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
     scope: CoroutineScope? = null,
     private val translationRunTelemetry: TranslationRunTelemetry = NoOpTranslationRunTelemetry,
     private val chapterRunner: TranslationChapterRunner = TranslationChapterRunner(

@@ -7,10 +7,10 @@ import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.injectLazy
 
 data class AnimeMigrationFlag(
     val flag: Int,
@@ -36,9 +36,9 @@ object AnimeMigrationFlags {
     private const val CUSTOM_COVER = 0b01000
     private const val DELETE_DOWNLOADED = 0b10000
 
-    private val coverCache: AnimeCoverCache by injectLazy()
-    private val backgroundCache: AnimeBackgroundCache by injectLazy()
-    private val downloadCache: AnimeDownloadCache by injectLazy()
+    private val coverCache: AnimeCoverCache by lazy { appGraph.animeCoverCache }
+    private val backgroundCache: AnimeBackgroundCache by lazy { appGraph.animeBackgroundCache }
+    private val downloadCache: AnimeDownloadCache by lazy { appGraph.animeDownloadCache }
 
     fun hasEpisodes(value: Int): Boolean {
         return value and EPISODES != 0

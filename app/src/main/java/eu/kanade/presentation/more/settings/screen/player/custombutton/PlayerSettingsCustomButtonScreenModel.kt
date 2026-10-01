@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -20,16 +21,14 @@ import tachiyomi.domain.custombuttons.interactor.UpdateCustomButton
 import tachiyomi.domain.custombuttons.model.CustomButton
 import tachiyomi.domain.custombuttons.model.CustomButtonUpdate
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class PlayerSettingsCustomButtonScreenModel(
-    private val getCustomButtons: GetCustomButtons = Injekt.get(),
-    private val createCustomButton: CreateCustomButton = Injekt.get(),
-    private val deleteCustomButton: DeleteCustomButton = Injekt.get(),
-    private val updateCustomButton: UpdateCustomButton = Injekt.get(),
-    private val reorderCustomButton: ReorderCustomButton = Injekt.get(),
-    private val toggleFavoriteCustomButton: ToggleFavoriteCustomButton = Injekt.get(),
+    private val getCustomButtons: GetCustomButtons = appGraph.getCustomButtons,
+    private val createCustomButton: CreateCustomButton = appGraph.createCustomButton,
+    private val deleteCustomButton: DeleteCustomButton = appGraph.deleteCustomButton,
+    private val updateCustomButton: UpdateCustomButton = appGraph.updateCustomButton,
+    private val reorderCustomButton: ReorderCustomButton = appGraph.reorderCustomButton,
+    private val toggleFavoriteCustomButton: ToggleFavoriteCustomButton = appGraph.toggleFavoriteCustomButton,
 ) : StateScreenModel<CustomButtonScreenState>(CustomButtonScreenState.Loading) {
 
     private val _events: Channel<CustomButtonEvent> = Channel(Channel.BUFFERED)

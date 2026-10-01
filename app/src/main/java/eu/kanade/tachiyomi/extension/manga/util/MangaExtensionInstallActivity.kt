@@ -3,12 +3,10 @@ package eu.kanade.tachiyomi.extension.manga.util
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
-import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.util.system.hasMiuiPackageInstaller
 import eu.kanade.tachiyomi.util.system.toast
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -66,7 +64,7 @@ class MangaExtensionInstallActivity : Activity() {
 
     private fun checkInstallationResult(resultCode: Int) {
         val downloadId = intent.extras!!.getLong(MangaExtensionInstaller.EXTRA_DOWNLOAD_ID)
-        val extensionManager = Injekt.get<MangaExtensionManager>()
+        val extensionManager = appGraph.mangaExtensionManager
         val newStep = when (resultCode) {
             RESULT_OK -> InstallStep.Installed
             RESULT_CANCELED -> InstallStep.Idle

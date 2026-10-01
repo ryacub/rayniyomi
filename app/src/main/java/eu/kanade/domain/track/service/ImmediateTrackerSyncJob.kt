@@ -8,9 +8,8 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.workManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ImmediateTrackerSyncJob(
     context: Context,
@@ -23,7 +22,7 @@ class ImmediateTrackerSyncJob(
         }
             .getOrDefault(TrackerSyncTrigger.MANUAL)
 
-        val coordinator = Injekt.get<TrackerSyncCoordinator>()
+        val coordinator = appGraph.trackerSyncCoordinator
         val result = coordinator.await(trigger)
 
         return Result.success(

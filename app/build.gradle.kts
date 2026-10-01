@@ -9,6 +9,7 @@ import mihon.buildlogic.getGitSha
 plugins {
     id("mihon.android.application")
     id("mihon.android.application.compose")
+    alias(libs.plugins.metro)
     alias(androidx.plugins.baselineprofile)
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)

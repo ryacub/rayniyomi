@@ -57,20 +57,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.player.components.LeftSideOvalShape
 import eu.kanade.presentation.player.components.RightSideOvalShape
 import eu.kanade.presentation.theme.playerRippleConfiguration
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.Panels
 import eu.kanade.tachiyomi.ui.player.PlayerUpdates
 import eu.kanade.tachiyomi.ui.player.PlayerViewModel
 import eu.kanade.tachiyomi.ui.player.controls.components.DoubleTapSeekTriangles
-import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
-import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
-import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.math.roundToInt
 
 private const val SPEED_BOOST_FACTOR = 2.0
@@ -81,9 +77,9 @@ fun GestureHandler(
     interactionSource: MutableInteractionSource,
     modifier: Modifier = Modifier,
 ) {
-    val playerPreferences = remember { Injekt.get<PlayerPreferences>() }
-    val gesturePreferences = remember { Injekt.get<GesturePreferences>() }
-    val audioPreferences = remember { Injekt.get<AudioPreferences>() }
+    val playerPreferences = remember { appGraph.playerPreferences }
+    val gesturePreferences = remember { appGraph.gesturePreferences }
+    val audioPreferences = remember { appGraph.audioPreferences }
 
     val panelShown by viewModel.panelShown.collectAsStateWithLifecycle()
     val allowGesturesInPanels by playerPreferences.allowGestures().collectAsStateWithLifecycle()

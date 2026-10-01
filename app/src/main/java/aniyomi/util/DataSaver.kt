@@ -5,12 +5,12 @@ import eu.kanade.domain.source.service.SourcePreferences.DataSaver.BANDWIDTH_HER
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver.NONE
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver.RESMUSH_IT
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver.WSRV_NL
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.MangaSource
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.preference.Preference
-import uy.kohesive.injekt.injectLazy
 import java.net.URLEncoder
 
 interface DataSaver {
@@ -104,7 +104,7 @@ private class WsrvNlDataSaver(preferences: SourcePreferences) : DataSaver {
 
 private class ReSmushItDataSaver(preferences: SourcePreferences) : DataSaver {
 
-    private val network: NetworkHelper by injectLazy()
+    private val network: NetworkHelper by lazy { appGraph.networkHelper }
 
     private val client: OkHttpClient
         get() = network.client

@@ -2,7 +2,6 @@ package mihon.core.migration.migrations
 
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
-import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
 
 class SourceHealthPreferencesCleanupMigration : Migration {
@@ -13,7 +12,7 @@ class SourceHealthPreferencesCleanupMigration : Migration {
     // R801 removed source health tracking. These keys outlive their accessors and would
     // otherwise keep riding along in backups, which copy every non-app-state preference.
     override suspend fun invoke(migrationContext: MigrationContext): Boolean = withIOContext {
-        val preferenceStore = migrationContext.get<PreferenceStore>() ?: return@withIOContext false
+        val preferenceStore = migrationContext.graph?.preferenceStore ?: return@withIOContext false
 
         listOf("show_broken_manga_sources", "show_broken_anime_sources")
             .forEach { preferenceStore.getBoolean(it).delete() }

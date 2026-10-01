@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 import eu.kanade.presentation.webview.WebViewScreenContent
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
@@ -25,13 +26,12 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 
 class WebViewActivity : BaseActivity() {
 
-    private val sourceManager: MangaSourceManager by injectLazy()
-    private val animeSourceManager: AnimeSourceManager by injectLazy()
-    private val network: NetworkHelper by injectLazy()
+    private val sourceManager: MangaSourceManager by lazy { appGraph.mangaSourceManager }
+    private val animeSourceManager: AnimeSourceManager by lazy { appGraph.animeSourceManager }
+    private val network: NetworkHelper by lazy { appGraph.networkHelper }
 
     private var assistUrl: String? = null
 

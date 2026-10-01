@@ -17,18 +17,16 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.translation.TranslationModelPickerScreen
 import eu.kanade.tachiyomi.data.translation.TargetLanguages
-import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogPrefetch
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsTranslationScreen : SearchableSettings {
 
@@ -39,7 +37,7 @@ object SettingsTranslationScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val navigator = LocalNavigator.currentOrThrow
-        val translationPreferences = remember { Injekt.get<TranslationPreferences>() }
+        val translationPreferences = remember { appGraph.translationPreferences }
         val uriHandler = LocalUriHandler.current
 
         val provider by translationPreferences.translationProvider().collectAsStateWithLifecycle()
@@ -53,7 +51,7 @@ object SettingsTranslationScreen : SearchableSettings {
         }
         val modelChoiceType by modelChoiceTypePreference.collectAsStateWithLifecycle()
         val catalogRepository: TranslationModelCatalogRepository =
-            remember { Injekt.get<TranslationModelCatalogRepository>() }
+            remember { appGraph.translationModelCatalogRepository }
 
         LaunchedEffect(provider, apiKey) {
             TranslationCatalogPrefetch.refreshAndResolveAutomatic(

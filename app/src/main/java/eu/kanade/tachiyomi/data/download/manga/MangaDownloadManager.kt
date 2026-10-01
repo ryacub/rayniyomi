@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
 import eu.kanade.tachiyomi.util.size
@@ -48,8 +49,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 import tachiyomi.source.local.io.ArchiveManga
 import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to manage chapter downloads in the application. It must be instantiated once
@@ -58,12 +57,12 @@ import uy.kohesive.injekt.api.get
  */
 class MangaDownloadManager(
     private val context: Context,
-    private val storageManager: StorageManager = Injekt.get(),
-    private val provider: MangaDownloadProvider = Injekt.get(),
-    private val cache: MangaDownloadCache = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val storageManager: StorageManager = appGraph.storageManager,
+    private val provider: MangaDownloadProvider = appGraph.mangaDownloadProvider,
+    private val cache: MangaDownloadCache = appGraph.mangaDownloadCache,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
     private val batteryOptimizationChecker: BatteryOptimizationChecker = BatteryOptimizationChecker(
         context,
         context.getSystemService(Context.POWER_SERVICE) as? PowerManager,

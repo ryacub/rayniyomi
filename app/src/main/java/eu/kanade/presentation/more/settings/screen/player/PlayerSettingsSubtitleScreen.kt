@@ -5,11 +5,9 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
-import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Locale
 import java.util.MissingResourceException
 
@@ -21,7 +19,7 @@ object PlayerSettingsSubtitleScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val subtitlePreferences = remember { Injekt.get<SubtitlePreferences>() }
+        val subtitlePreferences = remember { appGraph.subtitlePreferences }
 
         val langPref = subtitlePreferences.preferredSubLanguages()
         val whitelist = subtitlePreferences.subtitleWhitelist()

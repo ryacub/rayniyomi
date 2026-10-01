@@ -27,9 +27,7 @@ import coil3.request.allowRgb565
 import coil3.request.crossfade
 import coil3.util.DebugLogger
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import dev.mihon.injekt.patchInjekt
-import eu.kanade.domain.DomainModule
-import eu.kanade.domain.SYDomainModule
+import dev.zacsweers.metro.createGraphFactory
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.track.service.ImmediateTrackerSyncJob
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
@@ -50,8 +48,10 @@ import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationNotifier
-import eu.kanade.tachiyomi.di.AppModule
-import eu.kanade.tachiyomi.di.PreferenceModule
+import eu.kanade.tachiyomi.di.AppGraph
+import eu.kanade.tachiyomi.di.AppGraphHolder
+import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.installExtensionInjekt
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.security.PinHashMigration
@@ -77,6 +77,7 @@ import logcat.LogcatLogger
 import mihon.core.migration.Migrator
 import mihon.core.migration.migrations.migrations
 import org.conscrypt.Conscrypt
+import tachiyomi.core.common.di.GraphProvider
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
@@ -87,15 +88,32 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.widget.entries.anime.AnimeWidgetManager
 import tachiyomi.presentation.widget.entries.manga.MangaWidgetManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.security.Security
 
-class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factory, Configuration.Provider {
+class App :
+    Application(),
+    DefaultLifecycleObserver,
+    SingletonImageLoader.Factory,
+    Configuration.Provider,
+    GraphProvider<AppGraph> {
 
-    private val basePreferences: BasePreferences by injectLazy()
-    private val networkPreferences: NetworkPreferences by injectLazy()
+    override val graph: AppGraph get() = appGraph
+
+    private val basePreferences: BasePreferences by lazy { appGraph.basePreferences }
+    private val networkPreferences: NetworkPreferences by lazy { appGraph.networkPreferences }
+
+    private fun initializeGraph() {
+        ContextCompat.getMainExecutor(this).execute {
+            appGraph.networkHelper
+            appGraph.mangaSourceManager
+            appGraph.animeSourceManager
+            appGraph.database
+            appGraph.animeDatabase
+            appGraph.mangaDownloadManager
+            appGraph.animeDownloadManager
+            appGraph.lightNovelPluginManager
+        }
+    }
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
 
@@ -128,7 +146,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         // Secondary processes (e.g. :error_handler for crash UI) only need the above.
-        // WorkManager starts on first use: call it only after the Injekt imports below.
+        // WorkManager starts on first use. Call it only after the graph setup below.
         if (!isMainProcess()) return
 
         // Defer Firebase Crashlytics initialization to background thread to reduce cold start time
@@ -167,14 +185,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             TranslationApiKeyMigration.migrate(defaultPrefs, translationProviderAtStartup)
         }
 
-        patchInjekt()
-
-        Injekt.importModule(PreferenceModule(this))
-        Injekt.importModule(AppModule(this))
-        Injekt.importModule(DomainModule())
-        // SY -->
-        Injekt.importModule(SYDomainModule())
-        // SY <--
+        AppGraphHolder.graph = createGraphFactory<AppGraph.Factory>().create(this)
+        installExtensionInjekt(this, this)
+        initializeGraph()
 
         setupNotificationChannels()
 
@@ -219,7 +232,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             .onEach { ImageUtil.hardwareBitmapThreshold = it }
             .launchIn(scope)
 
-        val translationManager = Injekt.get<TranslationManager>()
+        val translationManager = appGraph.translationManager
         val translationNotifier = TranslationNotifier(this)
         combine(
             translationManager.translationStates,
@@ -228,7 +241,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             .onEach { (states, titles) -> translationNotifier.onStatesChanged(states, titles) }
             .launchIn(scope)
 
-        setAppCompatDelegateThemeMode(Injekt.get<UiPreferences>().themeMode().get())
+        setAppCompatDelegateThemeMode(appGraph.uiPreferences.themeMode().get())
 
         scope.launch(Dispatchers.IO) {
             setupWidgetManagers(this@App, scope)
@@ -243,7 +256,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     }
 
     private fun initializeMigrator() {
-        val preferenceStore = Injekt.get<PreferenceStore>()
+        val preferenceStore = appGraph.preferenceStore
         val preference = preferenceStore.getInt(Preference.appStateKey("last_version_code"), 0)
         logcat { "Migration from ${preference.get()} to ${BuildConfig.VERSION_CODE}" }
         Migrator.initialize(
@@ -259,7 +272,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun newImageLoader(context: Context): ImageLoader {
         return ImageLoader.Builder(this).apply {
-            val callFactoryLazy = lazy { Injekt.get<NetworkHelper>().client }
+            val callFactoryLazy = lazy { appGraph.networkHelper.client }
             components {
                 // NetworkFetcher.Factory
                 add(OkHttpNetworkFetcherFactory(callFactoryLazy::value))
@@ -304,7 +317,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     override fun onStart(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStart()
 
-        val trackPreferences = Injekt.get<TrackPreferences>()
+        val trackPreferences = appGraph.trackPreferences
         if (!trackPreferences.trackerSyncEnabled().get() || !trackPreferences.trackerSyncOnForeground().get()) {
             return
         }
