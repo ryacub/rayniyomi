@@ -10,11 +10,11 @@ import kotlinx.coroutines.job
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 
-/** Builds [VM] inside this store through the public ViewModelProvider API, as Compose does. */
+/** Builds [VM] in this store through the public ViewModelProvider API, as Compose does. */
 inline fun <reified VM : ViewModel> ViewModelStore.create(noinline factory: () -> VM): VM =
     ViewModelProvider.create(this, viewModelFactory { initializer { factory() } })[VM::class]
 
-/** Builds a model in a fresh store, clears the store, and asserts that its viewModelScope is cancelled. */
+/** Clears a fresh store holding the model and asserts its viewModelScope is cancelled. */
 inline fun <reified VM : ViewModel> assertClearingStoreCancelsScope(noinline factory: () -> VM) {
     val store = ViewModelStore()
     val job = store.create(factory).viewModelScope.coroutineContext.job

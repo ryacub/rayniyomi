@@ -23,11 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Characterization guard for R1077. A ViewModel built inside a Screen belongs to that Screen's
- * own store, and a pop clears only the popped Screen's store. It passes on the Voyager
- * ScreenModel base too, so it is not a failing-first test.
- */
+/** A ViewModel belongs to its own Screen, and a pop clears only that Screen's (R1077). */
 @RunWith(AndroidJUnit4::class)
 class ScreenViewModelScopingAndroidTest {
 
@@ -117,7 +113,6 @@ class ScreenViewModelScopingAndroidTest {
         composeRule.runOnIdle { navigator.pop() }
         composeRule.mainClock.advanceTimeByFrame()
 
-        // R1077 plan audit: record the count. The base commit sets the expected value.
         val builtForSecond = ProbeViewModel.constructed.count { it.id == 2 }
         assertEquals(1, builtForSecond)
     }

@@ -9,12 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.plus
 
-/**
- * A [ViewModel] that exposes one [StateFlow] of screen state.
- *
- * Create it only inside a Screen rendered by a Navigator. Outside one, `viewModel {}` binds to
- * the Activity store and the instance outlives the screen.
- */
+/** A [ViewModel] with one [StateFlow] of screen state. Create it only inside a Navigator Screen. */
 abstract class StateViewModel<S>(initialState: S) : ViewModel() {
     protected val mutableState: MutableStateFlow<S> = MutableStateFlow(initialState)
     val state: StateFlow<S> = mutableState.asStateFlow()
