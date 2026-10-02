@@ -160,7 +160,11 @@ class BackupRestorer(
                 )
             }
             if (options.appSettings) {
-                restoreAppPreferences(backup.backupPreferences, backup.backupCategories.takeIf { options.categories })
+                restoreAppPreferences(
+                    preferences = backup.backupPreferences,
+                    mangaCategories = backup.backupCategories.takeIf { options.categories },
+                    animeCategories = backup.backupAnimeCategories.takeIf { options.categories },
+                )
             }
             if (options.sourceSettings) {
                 restoreSourcePreferences(backup.backupSourcePreferences)
@@ -264,12 +268,14 @@ class BackupRestorer(
 
     private fun CoroutineScope.restoreAppPreferences(
         preferences: List<BackupPreference>,
-        categories: List<BackupCategory>?,
+        mangaCategories: List<BackupCategory>?,
+        animeCategories: List<BackupCategory>?,
     ) = launch {
         ensureActive()
         preferenceRestorer.restoreApp(
             preferences,
-            categories,
+            mangaCategories,
+            animeCategories,
         )
 
         incrementProgressAndNotify(context.stringResource(MR.strings.app_settings))
