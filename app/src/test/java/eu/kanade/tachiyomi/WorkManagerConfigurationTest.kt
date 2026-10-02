@@ -27,7 +27,7 @@ class WorkManagerConfigurationTest {
 
         val (exception, context) = requireNotNull(recorded)
         assertEquals("worker_initialization", context)
-        assertTrue(exception.message!!.contains("eu.kanade.tachiyomi.TestWorker"))
+        assertTrue(exception.message.orEmpty().contains("eu.kanade.tachiyomi.TestWorker"))
         assertSame(original, exception.cause)
     }
 }

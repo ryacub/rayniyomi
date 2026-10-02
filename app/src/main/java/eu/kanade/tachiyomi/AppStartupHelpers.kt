@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.work.Configuration
-import androidx.work.WorkerExceptionInfo
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.util.system.CrashlyticLogger
@@ -52,16 +51,11 @@ internal fun schedulePeriodicTrackerSync(context: Context) {
 internal fun buildWorkManagerConfiguration(
     record: (Exception, String) -> Unit = CrashlyticLogger::logException,
 ): Configuration = Configuration.Builder()
-    .setWorkerInitializationExceptionHandler { info -> reportWorkerInitializationFailure(info, record) }
+    .setWorkerInitializationExceptionHandler { info ->
+        val exception = Exception(
+            "Worker initialization failed for ${info.workerClassName}",
+            info.throwable,
+        )
+        record(exception, "worker_initialization")
+    }
     .build()
-
-internal fun reportWorkerInitializationFailure(
-    info: WorkerExceptionInfo,
-    record: (Exception, String) -> Unit,
-) {
-    val exception = Exception(
-        "Worker initialization failed for ${info.workerClassName}",
-        info.throwable,
-    )
-    record(exception, "worker_initialization")
-}
