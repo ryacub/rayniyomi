@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.setting
 
-import cafe.adriel.voyager.core.model.ScreenModel
+import androidx.lifecycle.ViewModel
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel
@@ -16,7 +16,7 @@ class ReaderSettingsScreenModel(
     val onChangeReadingMode: (ReadingMode) -> Unit,
     val onChangeOrientation: (ReaderOrientation) -> Unit,
     val preferences: ReaderPreferences = appGraph.readerPreferences,
-) : ScreenModel {
+) : ViewModel() {
 
     val viewerFlow = readerState
         .map { it.viewer }
