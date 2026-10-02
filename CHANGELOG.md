@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Background jobs no longer fail silently when Android starts the app to run them. WorkManager now starts after the app sets up its dependencies, and a job that still fails to start is reported to Crashlytics (#1271).
 - Light-novel restore failures now appear in the backup completion result.
 - Manga extensions built on extension-lib 1.6 no longer fail when they call `runBlockingK`, `Job.cancel`, `Source.supportsLatest`, or `HttpException.code`. The app now updates kotlinx-coroutines to 1.11.0 (#1252).
 - Manga extensions built on extension-lib 1.6 no longer fail when they save extra data on a manga or chapter. The app now stores that data in the library and in backups (#1253).
