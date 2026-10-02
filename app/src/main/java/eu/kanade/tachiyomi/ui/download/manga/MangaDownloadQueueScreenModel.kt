@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.ui.download.manga
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 class MangaDownloadQueueScreenModel(
     private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-) : ScreenModel {
+) : ViewModel() {
 
     private val _state = MutableStateFlow(emptyList<MangaDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
@@ -25,7 +25,7 @@ class MangaDownloadQueueScreenModel(
     private val collapsedSources = MutableStateFlow(emptySet<Long>())
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             downloadManager.queueState
                 .map { downloads ->
                     val collapsedIds = collapsedSources.value
@@ -123,10 +123,9 @@ class MangaDownloadQueueScreenModel(
         }
     }
 
-    override fun onDispose() {}
 
     val isDownloaderRunning = downloadManager.isDownloaderRunning
-        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun getDownloadStatusFlow() = downloadManager.statusFlow()
     fun getDownloadProgressFlow() = downloadManager.progressFlow()
@@ -144,7 +143,7 @@ class MangaDownloadQueueScreenModel(
     }
 
     fun reorder(downloadChapterIds: List<Long>) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             downloadManager.reorderQueueByChapterIds(downloadChapterIds)
         }
     }

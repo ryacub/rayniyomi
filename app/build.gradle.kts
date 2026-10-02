@@ -292,6 +292,8 @@ dependencies {
 
     implementation(androidx.bundles.lifecycle)
     implementation(androidx.lifecycle.runtimecompose)
+    implementation(androidx.lifecycle.viewmodel)
+    implementation(androidx.lifecycle.viewmodelcompose)
 
     // Job scheduling
     implementation(androidx.workmanager)

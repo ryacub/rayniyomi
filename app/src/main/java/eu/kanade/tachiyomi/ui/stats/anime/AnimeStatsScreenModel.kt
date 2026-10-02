@@ -3,8 +3,8 @@ package eu.kanade.tachiyomi.ui.stats.anime
 import androidx.compose.ui.util.fastDistinctBy
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastMapNotNull
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.util.fastCountNot
 import eu.kanade.core.util.fastFilterNot
 import eu.kanade.presentation.more.stats.StatsScreenState
@@ -34,12 +34,12 @@ class AnimeStatsScreenModel(
     private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
     private val preferences: LibraryPreferences = appGraph.libraryPreferences,
     private val trackerManager: TrackerManager = appGraph.trackerManager,
-) : StateScreenModel<StatsScreenState>(StatsScreenState.Loading) {
+) : StateViewModel<StatsScreenState>(StatsScreenState.Loading) {
 
     private val loggedInTrackers by lazy { trackerManager.loggedInTrackers().filter { it is AnimeTracker } }
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             val animelibAnime = getAnimelibAnime.await()
 
             val distinctLibraryAnime = animelibAnime.fastDistinctBy { it.id }

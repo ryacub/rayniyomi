@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.storage.anime
 
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.di.appGraph
@@ -38,7 +38,7 @@ class AnimeStorageScreenModel(
     getThumbnail = { anime.thumbnailUrl },
 ) {
     override fun deleteEntry(id: Long) {
-        screenModelScope.launchNonCancellable {
+        viewModelScope.launchNonCancellable {
             val anime = getLibraries.await().find {
                 it.id == id
             }?.anime ?: return@launchNonCancellable

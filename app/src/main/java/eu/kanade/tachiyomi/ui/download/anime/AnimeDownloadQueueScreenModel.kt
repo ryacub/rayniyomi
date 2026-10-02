@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.ui.download.anime
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 class AnimeDownloadQueueScreenModel(
     private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-) : ScreenModel {
+) : ViewModel() {
 
     private val _state = MutableStateFlow(emptyList<AnimeDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
@@ -25,7 +25,7 @@ class AnimeDownloadQueueScreenModel(
     private val collapsedSources = MutableStateFlow(emptySet<Long>())
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             downloadManager.queueState
                 .map { downloads ->
                     val collapsedIds = collapsedSources.value
@@ -123,10 +123,9 @@ class AnimeDownloadQueueScreenModel(
         }
     }
 
-    override fun onDispose() {}
 
     val isDownloaderRunning = downloadManager.isDownloaderRunning
-        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun getDownloadStatusFlow() = downloadManager.statusFlow()
     fun getDownloadProgressFlow() = downloadManager.progressFlow()
@@ -144,7 +143,7 @@ class AnimeDownloadQueueScreenModel(
     }
 
     fun reorder(downloadEpisodeIds: List<Long>) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             downloadManager.reorderQueueByEpisodeIds(downloadEpisodeIds)
         }
     }

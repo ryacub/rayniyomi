@@ -1,8 +1,10 @@
 package eu.kanade.tachiyomi.ui.download.manga
 
+import androidx.lifecycle.ViewModelStore
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.test.create
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.mockk.coVerify
@@ -242,5 +244,17 @@ class MangaDownloadQueueScreenModelTest {
         val slot = slot<List<Long>>()
         coVerify { manager.reorderQueueByChapterIds(capture(slot)) }
         slot.captured shouldContainExactly listOf(3L, 2L, 1L)
+    }
+
+    @Test
+    fun `clearing the store cancels the queue collection`() = runTest {
+        val queue = MutableStateFlow(emptyList<MangaDownload>())
+        val manager = createManager().also { every { it.queueState } returns queue }
+        val store = ViewModelStore()
+        store.create { MangaDownloadQueueScreenModel(manager) }
+
+        queue.subscriptionCount.value shouldBe 1
+        store.clear()
+        queue.subscriptionCount.value shouldBe 0
     }
 }
