@@ -303,10 +303,7 @@
             android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
-        <!--
-        WorkManager starts lazily on first use, after App.onCreate imports the Injekt
-        modules. Remove its startup initializer so it does not run before that.
-        -->
+        <!-- WorkManager starts on first use, after App.onCreate sets up DI. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

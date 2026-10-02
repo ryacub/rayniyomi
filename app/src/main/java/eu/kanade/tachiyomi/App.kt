@@ -99,10 +99,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
 
-    /**
-     * WorkManager starts lazily on first use, not from InitializationProvider.
-     * This keeps it from starting before [onCreate] imports the Injekt modules.
-     */
     override val workManagerConfiguration: Configuration by lazy { buildWorkManagerConfiguration() }
 
     @SuppressLint("LaunchActivityFromNotification")
@@ -132,9 +128,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         // Secondary processes (e.g. :error_handler for crash UI) only need the above.
-        // WorkManager starts lazily on first use. Every WorkManager call must stay
-        // after the Injekt module imports later in onCreate; secondary processes
-        // must not call WorkManager at all.
+        // WorkManager starts on first use: call it only after the Injekt imports below.
         if (!isMainProcess()) return
 
         // Defer Firebase Crashlytics initialization to background thread to reduce cold start time
