@@ -3,13 +3,13 @@ package eu.kanade.tachiyomi.ui.entries.manga
 import android.content.Context
 import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
@@ -38,17 +38,17 @@ class MangaCoverScreenModel(
     private val updateManga: UpdateManga = appGraph.updateManga,
 
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-) : StateScreenModel<Manga?>(null) {
+) : StateViewModel<Manga?>(null) {
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             getManga.subscribe(mangaId)
                 .collect { newManga -> mutableState.update { newManga } }
         }
     }
 
     fun saveCover(context: Context) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             try {
                 saveCoverInternal(context, temp = false)
                 snackbarHostState.showSnackbar(
@@ -66,7 +66,7 @@ class MangaCoverScreenModel(
     }
 
     fun shareCover(context: Context) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             try {
                 val uri = saveCoverInternal(context, temp = true) ?: return@launch
                 withUIContext {
@@ -118,7 +118,7 @@ class MangaCoverScreenModel(
      */
     fun editCover(context: Context, data: Uri) {
         val manga = state.value ?: return
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             context.contentResolver.openInputStream(data)?.use {
                 try {
                     manga.editCover(appGraph.localMangaCoverManager, it, updateManga, coverCache)
@@ -132,7 +132,7 @@ class MangaCoverScreenModel(
 
     fun deleteCustomCover(context: Context) {
         val mangaId = state.value?.id ?: return
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             try {
                 coverCache.deleteCustomCover(mangaId)
                 updateManga.awaitUpdateCoverLastModified(mangaId)
@@ -144,7 +144,7 @@ class MangaCoverScreenModel(
     }
 
     private fun notifyCoverUpdated(context: Context) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             snackbarHostState.showSnackbar(
                 context.stringResource(MR.strings.cover_updated),
                 withDismissAction = true,
@@ -153,7 +153,7 @@ class MangaCoverScreenModel(
     }
 
     private fun notifyFailedCoverUpdate(context: Context, e: Throwable) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             snackbarHostState.showSnackbar(
                 context.stringResource(MR.strings.notification_cover_update_failed),
                 withDismissAction = true,

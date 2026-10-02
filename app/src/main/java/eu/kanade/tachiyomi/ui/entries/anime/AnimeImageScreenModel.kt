@@ -4,13 +4,13 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.SnackbarHostState
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.saver.Image
@@ -43,13 +43,13 @@ class AnimeImageScreenModel(
     private val updateAnime: UpdateAnime = appGraph.updateAnime,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     val pagerState: PagerState = PagerState(pageCount = { 2 }),
-) : StateScreenModel<Anime?>(null) {
+) : StateViewModel<Anime?>(null) {
 
     private val isCover: Boolean
         get() = pagerState.currentPage != 1
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             getAnime.subscribe(animeId)
                 .collect { newAnime -> mutableState.update { newAnime } }
         }
@@ -66,7 +66,7 @@ class AnimeImageScreenModel(
         } else {
             AYMR.strings.error_saving_background
         }
-        screenModelScope.launch {
+        viewModelScope.launch {
             try {
                 saveImageInternal(context, temp = false)
                 snackbarHostState.showSnackbar(
@@ -89,7 +89,7 @@ class AnimeImageScreenModel(
         } else {
             AYMR.strings.error_sharing_background
         }
-        screenModelScope.launch {
+        viewModelScope.launch {
             try {
                 val uri = saveImageInternal(context, temp = true) ?: return@launch
                 withUIContext {
@@ -141,7 +141,7 @@ class AnimeImageScreenModel(
      */
     fun editImage(context: Context, data: Uri) {
         val anime = state.value ?: return
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             context.contentResolver.openInputStream(data)?.use {
                 try {
                     if (isCover) {
@@ -159,7 +159,7 @@ class AnimeImageScreenModel(
 
     fun deleteCustomImage(context: Context) {
         val animeId = state.value?.id ?: return
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             try {
                 if (isCover) {
                     coverCache.deleteCustomCover(animeId)
@@ -181,7 +181,7 @@ class AnimeImageScreenModel(
         } else {
             AYMR.strings.background_updated
         }
-        screenModelScope.launch {
+        viewModelScope.launch {
             snackbarHostState.showSnackbar(
                 context.stringResource(updatedStringResource),
                 withDismissAction = true,
@@ -195,7 +195,7 @@ class AnimeImageScreenModel(
         } else {
             AYMR.strings.notification_background_update_failed
         }
-        screenModelScope.launch {
+        viewModelScope.launch {
             snackbarHostState.showSnackbar(
                 context.stringResource(updateFailedStringResource),
                 withDismissAction = true,
