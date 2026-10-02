@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
@@ -24,7 +24,7 @@ class CodeEditScreenModel(
     private val context: Context,
     private val filePath: String,
     private val storageManager: StorageManager = appGraph.storageManager,
-) : StateScreenModel<CodeEditScreenState>(CodeEditScreenState.Loading) {
+) : StateViewModel<CodeEditScreenState>(CodeEditScreenState.Loading) {
     private val _hasModified = MutableStateFlow(false)
     val hasModified = _hasModified.asStateFlow()
 
@@ -34,7 +34,7 @@ class CodeEditScreenModel(
     private val currentFile = MutableStateFlow<UniFile?>(null)
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             try {
                 val file = storageManager.getMPVConfigDirectory()?.findFile(filePath)
                     ?: throw Exception("Unable to read file")

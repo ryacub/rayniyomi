@@ -1,5 +1,8 @@
 package eu.kanade.presentation.more.settings.screen.player.custombutton
 
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
+import eu.kanade.tachiyomi.test.create
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -8,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -72,5 +76,27 @@ class PlayerSettingsCustomButtonScreenModelTest {
         coVerify(exactly = 1) {
             createCustomButton.await("name", "content", "longPress", "startup")
         }
+    }
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest {
+        val getCustomButtons = mockk<GetCustomButtons>()
+        every { getCustomButtons.subscribeAll() } returns emptyFlow()
+        val store = ViewModelStore()
+        val model = store.create {
+            PlayerSettingsCustomButtonScreenModel(
+                getCustomButtons = getCustomButtons,
+                createCustomButton = mockk<CreateCustomButton>(relaxed = true),
+                deleteCustomButton = mockk<DeleteCustomButton>(relaxed = true),
+                updateCustomButton = mockk<UpdateCustomButton>(relaxed = true),
+                reorderCustomButton = mockk<ReorderCustomButton>(relaxed = true),
+                toggleFavoriteCustomButton = mockk<ToggleFavoriteCustomButton>(relaxed = true),
+            )
+        }
+        val job = model.viewModelScope.coroutineContext.job
+
+        assertEquals(false, job.isCancelled)
+        store.clear()
+        assertEquals(true, job.isCancelled)
     }
 }

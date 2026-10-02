@@ -7,7 +7,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.more.settings.screen.player.custombutton.components.CustomButtonCreateDialog
@@ -28,7 +28,7 @@ object PlayerSettingsCustomButtonScreen : Screen() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
         val uriHandler = LocalUriHandler.current
-        val screenModel = rememberScreenModel { PlayerSettingsCustomButtonScreenModel() }
+        val screenModel = viewModel { PlayerSettingsCustomButtonScreenModel() }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
 

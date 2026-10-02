@@ -29,15 +29,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.anime.components.AnimeSourceIcon
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
@@ -68,7 +68,7 @@ class ClearAnimeDatabaseScreen : Screen() {
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val model = rememberScreenModel { ClearAnimeDatabaseScreenModel() }
+        val model = viewModel { ClearAnimeDatabaseScreenModel() }
         val state by model.state.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
 
@@ -214,7 +214,7 @@ class ClearAnimeDatabaseScreen : Screen() {
     }
 }
 
-private class ClearAnimeDatabaseScreenModel : StateScreenModel<ClearAnimeDatabaseScreenModel.State>(
+private class ClearAnimeDatabaseScreenModel : StateViewModel<ClearAnimeDatabaseScreenModel.State>(
     State.Loading,
 ) {
     private val getSourcesWithNonLibraryAnime: GetAnimeSourcesWithNonLibraryAnime =
@@ -223,7 +223,7 @@ private class ClearAnimeDatabaseScreenModel : StateScreenModel<ClearAnimeDatabas
     private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             getSourcesWithNonLibraryAnime.subscribe()
                 .collectLatest { list ->
                     val items = list.groupBy { it.sourceId }

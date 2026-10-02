@@ -9,14 +9,14 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogResult
@@ -40,7 +40,7 @@ class TranslationModelPickerScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { TranslationModelPickerScreenModel() }
+        val screenModel = viewModel { TranslationModelPickerScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
         var expandedModelIds by rememberSaveable(
             stateSaver = listSaver<Set<String>, String>(
@@ -102,7 +102,7 @@ internal class TranslationModelPickerScreenModel(
     private val repository: TranslationModelCatalogRepository = appGraph.translationModelCatalogRepository,
     private val loadCatalog: suspend (TranslationProvider, String, Boolean) -> TranslationCatalogResult =
         repository::load,
-) : StateScreenModel<TranslationModelPickerScreenModel.State>(State()) {
+) : StateViewModel<TranslationModelPickerScreenModel.State>(State()) {
 
     data class State(
         val provider: TranslationProvider = TranslationProvider.NONE,
@@ -123,11 +123,11 @@ internal class TranslationModelPickerScreenModel(
                 selectedModelId = modelPreference.get(),
             )
         }
-        screenModelScope.launchIO { load(forceRefresh = false) }
+        viewModelScope.launchIO { load(forceRefresh = false) }
     }
 
     fun refresh() {
-        screenModelScope.launchIO { load(forceRefresh = true) }
+        viewModelScope.launchIO { load(forceRefresh = true) }
     }
 
     fun selectModel(modelId: String) {

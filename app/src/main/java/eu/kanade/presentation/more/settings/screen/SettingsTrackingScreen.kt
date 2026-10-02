@@ -40,9 +40,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
@@ -102,7 +102,7 @@ object SettingsTrackingScreen : SearchableSettings {
         val trackerManager = remember { appGraph.trackerManager }
         val mangaSourceManager = remember { appGraph.mangaSourceManager }
         val animeSourceManager = remember { appGraph.animeSourceManager }
-        val syncScreenModel = rememberScreenModel { SettingsTrackingSyncScreenModel() }
+        val syncScreenModel = viewModel { SettingsTrackingSyncScreenModel() }
         val autoTrackStatePref = trackPreferences.autoUpdateTrackOnMarkRead()
         val trackerSyncEnabled = trackPreferences.trackerSyncEnabled()
         val trackerSyncEnabledState by trackerSyncEnabled
@@ -517,14 +517,14 @@ private data class LogoutDialog(
 
 private class SettingsTrackingSyncScreenModel(
     private val coordinator: TrackerSyncCoordinator = appGraph.trackerSyncCoordinator,
-) : ScreenModel {
+) : ViewModel() {
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
     fun runManualSync() {
         if (_state.value.isSyncing) return
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             _state.value = State(isSyncing = true)
             val result = coordinator.await(TrackerSyncTrigger.MANUAL)
             _state.value = State(isSyncing = false, result = result)
