@@ -7,9 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -62,7 +62,7 @@ data object MoreTab : Tab {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { MoreScreenModel() }
+        val screenModel = viewModel { MoreScreenModel() }
         val downloadQueueState by screenModel.downloadQueueState.collectAsStateWithLifecycle()
         val navStyle = currentNavigationStyle()
         MoreScreen(
@@ -94,10 +94,10 @@ private class MoreScreenModel(
     preferences: BasePreferences = appGraph.basePreferences,
     private val pluginLauncher: LightNovelPluginLauncher = appGraph.lightNovelPluginLauncher,
     private val stateManager: LightNovelPluginStateManager = appGraph.lightNovelPluginStateManager,
-) : ScreenModel {
+) : ViewModel() {
 
-    var downloadedOnly by preferences.downloadedOnly().asState(screenModelScope)
-    var incognitoMode by preferences.incognitoMode().asState(screenModelScope)
+    var downloadedOnly by preferences.downloadedOnly().asState(viewModelScope)
+    var incognitoMode by preferences.incognitoMode().asState(viewModelScope)
 
     val lightNovelUiState: StateFlow<LightNovelPluginUiState> = stateManager.uiState
 
@@ -116,7 +116,7 @@ private class MoreScreenModel(
 
     init {
         // Handle running/paused status change and queue progress updating
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             combine(
                 downloadManager.isDownloaderRunning,
                 downloadManager.queueState,

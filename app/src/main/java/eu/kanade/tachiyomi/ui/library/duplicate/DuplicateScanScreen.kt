@@ -19,9 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
@@ -49,7 +49,7 @@ class DuplicateScanScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { DuplicateScanScreenModel() }
+        val screenModel = viewModel { DuplicateScanScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         Scaffold(
@@ -160,19 +160,19 @@ private fun DuplicateCandidateRow(
 class DuplicateScanScreenModel(
     private val scanLibraryDuplicates: ScanLibraryDuplicates = appGraph.scanLibraryDuplicates,
     private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
-) : StateScreenModel<DuplicateScanScreenModel.State>(State.Loading) {
+) : StateViewModel<DuplicateScanScreenModel.State>(State.Loading) {
 
     val snackbarHostState = SnackbarHostState()
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             val duplicates = scanLibraryDuplicates.await()
             mutableState.value = State.Success(duplicates.toImmutableList())
         }
     }
 
     fun merge(candidate: DuplicateCandidate) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             try {
                 mergeLibraryManga.await(keepId = candidate.winner.id, deleteId = candidate.loser.id)
                 val current = state.value
