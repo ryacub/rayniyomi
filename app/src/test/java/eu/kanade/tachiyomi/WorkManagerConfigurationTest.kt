@@ -4,7 +4,6 @@ import androidx.work.WorkerExceptionInfo
 import androidx.work.WorkerParameters
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -18,8 +17,7 @@ class WorkManagerConfigurationTest {
             recorded = exception to context
         }
 
-        val handler = configuration.workerInitializationExceptionHandler
-        assertNotNull(handler)
+        val handler = requireNotNull(configuration.workerInitializationExceptionHandler)
 
         val workerParameters = mockk<WorkerParameters>(relaxed = true)
         val original = IllegalStateException("boom")
@@ -27,7 +25,6 @@ class WorkManagerConfigurationTest {
 
         handler.accept(info)
 
-        assertNotNull(recorded)
         val (exception, context) = requireNotNull(recorded)
         assertEquals("worker_initialization", context)
         assertTrue(exception.message!!.contains("eu.kanade.tachiyomi.TestWorker"))

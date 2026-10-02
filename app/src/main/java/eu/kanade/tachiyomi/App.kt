@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
+import androidx.work.Configuration
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
@@ -91,12 +92,18 @@ import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 import java.security.Security
 
-class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factory {
+class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factory, Configuration.Provider {
 
     private val basePreferences: BasePreferences by injectLazy()
     private val networkPreferences: NetworkPreferences by injectLazy()
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
+
+    /**
+     * WorkManager starts lazily on first use, not from InitializationProvider.
+     * This keeps it from starting before [onCreate] imports the Injekt modules.
+     */
+    override val workManagerConfiguration: Configuration by lazy { buildWorkManagerConfiguration() }
 
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
@@ -125,8 +132,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         // Secondary processes (e.g. :error_handler for crash UI) only need the above.
-        // WorkManager and all DI singletons are only initialized in the main process via
-        // InitializationProvider — calling them in secondary processes causes a crash.
+        // WorkManager starts lazily on first use, after the Injekt modules above are
+        // imported. Any WorkManager call must stay after those imports; calling it in
+        // secondary processes causes a crash.
         if (!isMainProcess()) return
 
         // Defer Firebase Crashlytics initialization to background thread to reduce cold start time
