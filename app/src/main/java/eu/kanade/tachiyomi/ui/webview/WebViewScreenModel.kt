@@ -2,8 +2,8 @@ package eu.kanade.tachiyomi.ui.webview
 
 import android.content.Context
 import androidx.core.net.toUri
-import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.more.stats.StatsScreenState
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkHelper

@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi.ui.storage
 
 import androidx.compose.ui.graphics.Color
-import eu.kanade.presentation.util.StateViewModel
 import androidx.lifecycle.viewModelScope
 import eu.kanade.presentation.more.storage.StorageItem
 import eu.kanade.presentation.more.storage.StorageScreenState
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow

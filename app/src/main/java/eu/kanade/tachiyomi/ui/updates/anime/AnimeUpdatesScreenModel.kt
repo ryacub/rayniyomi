@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.updates.anime
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import eu.kanade.presentation.util.StateViewModel
 import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
@@ -11,6 +10,7 @@ import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.presentation.entries.anime.components.EpisodeDownloadAction
 import eu.kanade.presentation.updates.anime.AnimeUpdatesUiModel
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload

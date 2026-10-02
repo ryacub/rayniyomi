@@ -123,7 +123,6 @@ class AnimeDownloadQueueScreenModel(
         }
     }
 
-
     val isDownloaderRunning = downloadManager.isDownloaderRunning
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 

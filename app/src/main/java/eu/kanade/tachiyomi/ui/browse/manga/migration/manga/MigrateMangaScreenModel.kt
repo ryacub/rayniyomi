@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.manga.migration.manga
 
 import androidx.compose.runtime.Immutable
-import eu.kanade.presentation.util.StateViewModel
 import androidx.lifecycle.viewModelScope
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.collections.immutable.ImmutableList
