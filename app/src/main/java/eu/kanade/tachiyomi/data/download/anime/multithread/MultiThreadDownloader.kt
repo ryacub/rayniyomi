@@ -186,8 +186,7 @@ class MultiThreadDownloader(
         )
         val outputFileObj = File(outputFilePath)
 
-        // Track total downloaded bytes
-        val totalDownloaded = AtomicLong(progress.downloadedBytes)
+        val chunkState = ChunkStateTracker(progress.chunks)
 
         return try {
             // Create jobs for each incomplete chunk
@@ -201,12 +200,10 @@ class MultiThreadDownloader(
                             headers = headers,
                             tempDir = tempDirFile,
                             onChunkProgress = { bytes ->
-                                val newTotal = totalDownloaded.addAndGet(bytes)
-                                val updatedProgress = progress.copy(
-                                    downloadedBytes = newTotal,
-                                )
-                                onProgress(updatedProgress)
+                                chunkState.addBytes(chunk.index, bytes)
+                                onProgress(chunkState.applyTo(progress))
                             },
+                            onChunkComplete = { bytes -> chunkState.complete(chunk.index, bytes) },
                         )
                     }
                 }
@@ -231,8 +228,7 @@ class MultiThreadDownloader(
                 return DownloadResult.Error(DownloadError.IncompleteDownload("Not all chunks completed"))
             }
 
-            // Merge chunks
-            val updatedProgress = progress.copy(
+            val updatedProgress = chunkState.applyTo(progress).copy(
                 status = DownloadProgress.Status.COMPLETED,
             )
 
@@ -259,7 +255,7 @@ class MultiThreadDownloader(
             // Save progress for resume
             saveProgress(
                 progress.copy(
-                    downloadedBytes = totalDownloaded.get(),
+                    downloadedBytes = chunkState.totalBytes(),
                     status = DownloadProgress.Status.PAUSED,
                 ),
             )
@@ -284,6 +280,7 @@ class MultiThreadDownloader(
         headers: Headers?,
         tempDir: File,
         onChunkProgress: (Long) -> Unit,
+        onChunkComplete: (Long) -> Unit,
     ) {
         // Acquire semaphore to limit concurrent downloads
         ChunkDownloader.Companion.CONCURRENT_CHUNK_SEMAPHORE.acquire()
@@ -301,9 +298,7 @@ class MultiThreadDownloader(
             )
 
             when (result) {
-                is ChunkDownloader.ChunkDownloadResult.Success -> {
-                    // Chunk downloaded successfully
-                }
+                is ChunkDownloader.ChunkDownloadResult.Success -> onChunkComplete(result.bytesDownloaded)
                 is ChunkDownloader.ChunkDownloadResult.Error -> {
                     throw IOException("Chunk ${chunk.index} failed: ${result.error}")
                 }
@@ -342,6 +337,36 @@ class MultiThreadDownloader(
          */
         const val DOWNLOAD_TIMEOUT_MS = 2L * 60 * 60 * 1000
     }
+}
+
+/**
+ * Holds the byte count of each chunk for one download operation.
+ *
+ * An incomplete chunk starts at zero, because the downloader writes its temp file again from the start.
+ */
+private class ChunkStateTracker(chunks: List<ChunkProgress>) {
+    private val bytesByIndex = chunks.associate { chunk ->
+        chunk.index to AtomicLong(if (chunk.isComplete) chunk.downloadedBytes else 0L)
+    }
+
+    fun addBytes(index: Int, bytes: Long) {
+        bytesByIndex.getValue(index).addAndGet(bytes)
+    }
+
+    // The success count replaces the streamed count, which includes bytes from failed attempts.
+    fun complete(index: Int, bytes: Long) {
+        bytesByIndex.getValue(index).set(bytes)
+    }
+
+    fun totalBytes(): Long = bytesByIndex.values.sumOf { it.get() }
+
+    fun applyTo(progress: DownloadProgress): DownloadProgress = progress.copy(
+        downloadedBytes = totalBytes(),
+        chunks = progress.chunks.map { chunk ->
+            val updated = chunk.copy(downloadedBytes = bytesByIndex.getValue(chunk.index).get())
+            if (updated.isComplete) updated.copy(status = ChunkProgress.ChunkStatus.COMPLETED) else updated
+        },
+    )
 }
 
 /**
