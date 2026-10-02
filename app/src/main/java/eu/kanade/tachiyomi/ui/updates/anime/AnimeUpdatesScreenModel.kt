@@ -3,8 +3,8 @@ package eu.kanade.tachiyomi.ui.updates.anime
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
@@ -69,21 +69,21 @@ class AnimeUpdatesScreenModel(
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : StateScreenModel<AnimeUpdatesScreenModel.State>(State()) {
+) : StateViewModel<AnimeUpdatesScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Int.MAX_VALUE)
     val events: Flow<Event> = _events.receiveAsFlow()
 
-    val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(screenModelScope)
+    val lastUpdated by libraryPreferences.lastUpdatedTimestamp().asState(viewModelScope)
 
     val categories: StateFlow<List<Category>> = getCategories.subscribe()
-        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val includedCategoriesPref = libraryPreferences.filterAnimeUpdatesCategories()
     private val excludedCategoriesPref = libraryPreferences.filterAnimeUpdatesCategoriesExclude()
 
-    val includedCategories by includedCategoriesPref.asState(screenModelScope)
-    val excludedCategories by excludedCategoriesPref.asState(screenModelScope)
+    val includedCategories by includedCategoriesPref.asState(viewModelScope)
+    val excludedCategories by excludedCategoriesPref.asState(viewModelScope)
 
     val useExternalDownloader = downloadPreferences.useExternalDownloader().get()
 
@@ -92,7 +92,7 @@ class AnimeUpdatesScreenModel(
     private val selectedEpisodeIds: HashSet<Long> = HashSet()
 
     init {
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             // Set date limit for recent episodes
 
             val limit = ZonedDateTime.now().minusMonths(3).toInstant()
@@ -115,7 +115,7 @@ class AnimeUpdatesScreenModel(
                 }
         }
 
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             merge(downloadManager.statusFlow(), downloadManager.progressFlow())
                 .catch { logcat(LogPriority.ERROR, it) }
                 .collect(this@AnimeUpdatesScreenModel::updateDownloadState)
@@ -176,7 +176,7 @@ class AnimeUpdatesScreenModel(
 
     fun updateLibrary(): Boolean {
         val started = AnimeLibraryUpdateJob.startNow(appGraph.application)
-        screenModelScope.launch {
+        viewModelScope.launch {
             _events.send(Event.LibraryUpdateTriggered(started))
         }
         return started
@@ -205,7 +205,7 @@ class AnimeUpdatesScreenModel(
 
     fun downloadEpisodes(items: List<AnimeUpdatesItem>, action: EpisodeDownloadAction) {
         if (items.isEmpty()) return
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (action) {
                 EpisodeDownloadAction.START -> {
                     downloadEpisodes(items)
@@ -249,7 +249,7 @@ class AnimeUpdatesScreenModel(
      * @param seen whether to mark episodes as seen or unseen.
      */
     fun markUpdatesSeen(updates: List<AnimeUpdatesItem>, seen: Boolean) {
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             setSeenStatus.await(
                 seen = seen,
                 episodes = updates
@@ -265,7 +265,7 @@ class AnimeUpdatesScreenModel(
      * @param updates the list of episodes to bookmark.
      */
     fun bookmarkUpdates(updates: List<AnimeUpdatesItem>, bookmark: Boolean) {
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             updates
                 .filterNot { it.update.bookmark == bookmark }
                 .map { EpisodeUpdate(id = it.update.episodeId, bookmark = bookmark) }
@@ -279,7 +279,7 @@ class AnimeUpdatesScreenModel(
      * @param updates the list of episodes to fillermark.
      */
     fun fillermarkUpdates(updates: List<AnimeUpdatesItem>, fillermark: Boolean) {
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             updates
                 .filterNot { it.update.fillermark == fillermark }
                 .map { EpisodeUpdate(id = it.update.episodeId, fillermark = fillermark) }
@@ -293,7 +293,7 @@ class AnimeUpdatesScreenModel(
      * @param updatesItem the list of episodes to download.
      */
     private fun downloadEpisodes(updatesItem: List<AnimeUpdatesItem>, alt: Boolean = false) {
-        screenModelScope.launchNonCancellable {
+        viewModelScope.launchNonCancellable {
             val groupedUpdates = updatesItem.groupBy { it.update.animeId }.values
             for (updates in groupedUpdates) {
                 val animeId = updates.first().update.animeId
@@ -312,7 +312,7 @@ class AnimeUpdatesScreenModel(
      * @param updatesItem list of episodes
      */
     fun deleteEpisodes(updatesItem: List<AnimeUpdatesItem>) {
-        screenModelScope.launchNonCancellable {
+        viewModelScope.launchNonCancellable {
             updatesItem
                 .groupBy { it.update.animeId }
                 .entries

@@ -1,8 +1,11 @@
 package mihon.feature.upcoming.manga
 
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.test.awaitAssert
+import eu.kanade.tachiyomi.test.create
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.coEvery
 import io.mockk.every
@@ -11,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.runTest
 import mihon.domain.upcoming.manga.interactor.GetUpcomingManga
 import org.junit.jupiter.api.AfterEach
@@ -178,4 +182,17 @@ class UpcomingMangaScreenModelTest {
         status = SManga.ONGOING.toLong(),
         nextUpdate = nextUpdate,
     )
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        val env = TestEnvironment()
+        env.stubInteractor(flowOf(emptyList()))
+        val store = ViewModelStore()
+        val model = store.create { env.model() }
+        val job = model.viewModelScope.coroutineContext.job
+
+        assertEquals(false, job.isCancelled)
+        store.clear()
+        assertEquals(true, job.isCancelled)
+    }
 }

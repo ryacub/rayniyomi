@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.updates.manga
 
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.items.chapter.interactor.SetReadStatus
 import eu.kanade.presentation.updates.manga.MangaUpdatesUiModel
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
@@ -7,6 +9,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.test.awaitAssert
+import eu.kanade.tachiyomi.test.create
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.every
 import io.mockk.mockk
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -221,4 +225,17 @@ class MangaUpdatesScreenModelTest {
             lastModified = 0,
         ),
     )
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        val env = TestEnvironment()
+        env.stubInteractor(flowOf(emptyList()))
+        val store = ViewModelStore()
+        val model = store.create { env.model() }
+        val job = model.viewModelScope.coroutineContext.job
+
+        assertEquals(false, job.isCancelled)
+        store.clear()
+        assertEquals(true, job.isCancelled)
+    }
 }
