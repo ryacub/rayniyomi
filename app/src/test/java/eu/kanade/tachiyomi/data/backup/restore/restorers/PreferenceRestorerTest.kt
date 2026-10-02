@@ -29,7 +29,7 @@ class PreferenceRestorerTest {
 
     private val context = mockk<Context>(relaxed = true)
 
-    // Both databases contain both names, so a lookup through the wrong mapping gives a wrong ID.
+    // Each database has both names, so the wrong mapping gives a wrong ID.
     private val mangaCategories = mockk<GetMangaCategories> {
         coEvery { await() } returns listOf(category(id = 20, name = "Comics"), category(id = 21, name = "Watch"))
     }
@@ -37,7 +37,6 @@ class PreferenceRestorerTest {
         coEvery { await() } returns listOf(category(id = 30, name = "Watch"), category(id = 31, name = "Comics"))
     }
 
-    // The two backup lists use the same ID for categories with different names.
     private val backupMangaCategories = listOf(BackupCategory(id = 1, name = "Comics"))
     private val backupAnimeCategories = listOf(BackupCategory(id = 1, name = "Watch"))
 

@@ -136,9 +136,6 @@ class PreferenceRestorer(
     }
 }
 
-/**
- * Selects the category mapping of the database that owns a preference.
- */
 private class CategoryMappings(
     private val manga: CategoryMapping,
     private val anime: CategoryMapping,
@@ -158,9 +155,6 @@ private class CategoryMappings(
     }
 }
 
-/**
- * Maps a backup category ID to the ID of the destination category with the same name.
- */
 private class CategoryMapping(
     backupCategories: List<BackupCategory>,
     destinationCategories: List<Category>,
