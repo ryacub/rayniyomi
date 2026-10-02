@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,22 +22,30 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
+import tachiyomi.source.local.entries.anime.LocalAnimeFetchTypeManager
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
+import tachiyomi.source.local.image.anime.LocalAnimeBackgroundManager
+import tachiyomi.source.local.image.anime.LocalAnimeCoverManager
+import tachiyomi.source.local.image.anime.LocalEpisodeThumbnailManager
+import tachiyomi.source.local.io.anime.LocalAnimeSourceFileSystem
 import java.util.concurrent.ConcurrentHashMap
 
 class AndroidAnimeSourceManager(
     private val context: Context,
     private val extensionManager: AnimeExtensionManager,
     private val sourceRepository: AnimeStubSourceRepository,
+    private val localAnimeSourceFileSystem: LocalAnimeSourceFileSystem = appGraph.localAnimeSourceFileSystem,
+    private val localAnimeCoverManager: LocalAnimeCoverManager = appGraph.localAnimeCoverManager,
+    private val localAnimeBackgroundManager: LocalAnimeBackgroundManager = appGraph.localAnimeBackgroundManager,
+    private val localEpisodeThumbnailManager: LocalEpisodeThumbnailManager = appGraph.localEpisodeThumbnailManager,
+    private val localAnimeFetchTypeManager: LocalAnimeFetchTypeManager = appGraph.localAnimeFetchTypeManager,
+    downloadManagerProvider: Lazy<AnimeDownloadManager> = lazy { appGraph.animeDownloadManager },
 ) : AnimeSourceManager {
 
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
-    private val downloadManager: AnimeDownloadManager by injectLazy()
+    private val downloadManager by downloadManagerProvider
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -56,11 +65,11 @@ class AndroidAnimeSourceManager(
                         mapOf(
                             LocalAnimeSource.ID to LocalAnimeSource(
                                 context,
-                                Injekt.get(),
-                                Injekt.get(),
-                                Injekt.get(),
-                                Injekt.get(),
-                                Injekt.get(),
+                                localAnimeSourceFileSystem,
+                                localAnimeCoverManager,
+                                localAnimeBackgroundManager,
+                                localEpisodeThumbnailManager,
+                                localAnimeFetchTypeManager,
                             ),
                         ),
                     )

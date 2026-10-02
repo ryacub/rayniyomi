@@ -21,6 +21,7 @@ import mihon.core.archive.archiveReader
 import mihon.core.archive.epubReader
 import nl.adaptivity.xmlutil.core.AndroidXmlReader
 import nl.adaptivity.xmlutil.serialization.XML
+import tachiyomi.core.common.di.metroGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.storage.nameWithoutExtension
@@ -37,13 +38,13 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.service.ChapterRecognition
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.source.local.di.LocalSourceGraph
 import tachiyomi.source.local.filter.manga.MangaOrderBy
 import tachiyomi.source.local.image.manga.LocalMangaCoverManager
 import tachiyomi.source.local.io.ArchiveManga
 import tachiyomi.source.local.io.Format
 import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
 import tachiyomi.source.local.metadata.fillMetadata
-import uy.kohesive.injekt.injectLazy
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
@@ -57,8 +58,8 @@ actual class LocalMangaSource(
     private val coverManager: LocalMangaCoverManager,
 ) : MangaSource, UnmeteredSource {
 
-    private val json: Json by injectLazy()
-    private val xml: XML by injectLazy()
+    private val json: Json by lazy { context.metroGraph<LocalSourceGraph>().json }
+    private val xml: XML by lazy { context.metroGraph<LocalSourceGraph>().xml }
 
     @Suppress("PrivatePropertyName")
     private val PopularFilters = FilterList(MangaOrderBy.Popular(context))

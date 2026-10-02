@@ -12,6 +12,7 @@ import eu.kanade.presentation.more.stats.data.StatsData
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
@@ -25,16 +26,14 @@ import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_V
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.domain.track.manga.model.MangaTrack
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaStatsScreenModel(
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val getLibraryManga: GetLibraryManga = Injekt.get(),
-    private val getTotalReadDuration: GetTotalReadDuration = Injekt.get(),
-    private val getTracks: GetMangaTracks = Injekt.get(),
-    private val preferences: LibraryPreferences = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga,
+    private val getTotalReadDuration: GetTotalReadDuration = appGraph.getTotalReadDuration,
+    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
+    private val preferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val trackerManager: TrackerManager = appGraph.trackerManager,
 ) : StateScreenModel<StatsScreenState>(StatsScreenState.Loading) {
 
     private val loggedInTrackers by lazy { trackerManager.loggedInTrackers().filter { it is MangaTracker } }

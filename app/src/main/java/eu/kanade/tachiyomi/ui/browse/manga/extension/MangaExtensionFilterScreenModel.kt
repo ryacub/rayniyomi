@@ -6,6 +6,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.extension.manga.interactor.GetMangaExtensionLanguages
 import eu.kanade.domain.source.interactor.ToggleLanguage
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
@@ -21,13 +22,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaExtensionFilterScreenModel(
-    private val preferences: SourcePreferences = Injekt.get(),
-    private val getExtensionLanguages: GetMangaExtensionLanguages = Injekt.get(),
-    private val toggleLanguage: ToggleLanguage = Injekt.get(),
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
+    private val getExtensionLanguages: GetMangaExtensionLanguages = appGraph.getMangaExtensionLanguages,
+    private val toggleLanguage: ToggleLanguage = appGraph.toggleLanguage,
 ) : StateScreenModel<MangaExtensionFilterState>(MangaExtensionFilterState.Loading) {
 
     private val _events: Channel<MangaExtensionFilterEvent> = Channel()

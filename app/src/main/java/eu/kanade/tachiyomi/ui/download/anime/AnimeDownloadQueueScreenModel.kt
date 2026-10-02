@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,11 +14,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeDownloadQueueScreenModel(
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
 ) : ScreenModel {
 
     private val _state = MutableStateFlow(emptyList<AnimeDownloadUiHeaderItem>())

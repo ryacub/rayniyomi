@@ -17,7 +17,7 @@ import cafe.adriel.voyager.navigator.tab.TabOptions
 import eu.kanade.presentation.components.TabbedScreen
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import eu.kanade.tachiyomi.ui.browse.anime.extension.AnimeExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.anime.extension.animeExtensionsTab
@@ -38,8 +38,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 data object BrowseTab : Tab {
 
@@ -85,7 +83,7 @@ data object BrowseTab : Tab {
 
         val animeExtensionsScreenModel = rememberScreenModel { AnimeExtensionsScreenModel() }
         val animeExtensionsState by animeExtensionsScreenModel.state.collectAsStateWithLifecycle()
-        val lightNovelPluginStateManager = Injekt.get<LightNovelPluginStateManager>()
+        val lightNovelPluginStateManager = appGraph.lightNovelPluginStateManager
         val lightNovelUiState by lightNovelPluginStateManager.uiState.collectAsStateWithLifecycle()
 
         val tabs = buildList {

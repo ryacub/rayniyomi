@@ -38,13 +38,13 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabNavigator
-import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.NavStyle
 import eu.kanade.presentation.util.HomeNavigationLayout
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.currentWindowWidthClass
 import eu.kanade.presentation.util.homeNavigationLayoutFor
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
 import eu.kanade.tachiyomi.ui.download.DownloadsTab
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
@@ -61,16 +61,12 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import soup.compose.material.motion.animation.materialFadeThroughIn
 import soup.compose.material.motion.animation.materialFadeThroughOut
-import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.NavigationBar
 import tachiyomi.presentation.core.components.material.NavigationRail
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 
 object HomeScreen : Screen() {
 
@@ -81,7 +77,7 @@ object HomeScreen : Screen() {
     private const val TAB_FADE_DURATION = 200
     private const val TAB_NAVIGATOR_KEY = "HomeTabs"
 
-    private val uiPreferences: UiPreferences by injectLazy()
+    private val uiPreferences: UiPreferences by lazy { appGraph.uiPreferences }
     private val defaultTab = uiPreferences.startScreen().get().tab
     private val moreTab = uiPreferences.navStyle().get().moreTab
 
@@ -333,7 +329,7 @@ object HomeScreen : Screen() {
                 when {
                     UpdatesTab::class.isInstance(tab) -> {
                         val count by produceState(initialValue = 0) {
-                            val pref = Injekt.get<LibraryPreferences>()
+                            val pref = appGraph.libraryPreferences
                             combine(
                                 pref.newAnimeUpdatesCount().changes(),
                                 pref.newMangaUpdatesCount().changes(),
@@ -356,7 +352,7 @@ object HomeScreen : Screen() {
                     }
                     BrowseTab::class.isInstance(tab) -> {
                         val count by produceState(initialValue = 0) {
-                            val pref = Injekt.get<SourcePreferences>()
+                            val pref = appGraph.sourcePreferences
                             combine(
                                 pref.mangaExtensionUpdatesCount().changes(),
                                 pref.animeExtensionUpdatesCount().changes(),

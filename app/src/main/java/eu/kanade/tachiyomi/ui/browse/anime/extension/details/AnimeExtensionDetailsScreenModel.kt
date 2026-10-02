@@ -9,6 +9,7 @@ import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionSources
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeIncognito
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -29,18 +30,16 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeExtensionDetailsScreenModel(
     pkgName: String,
     context: Context,
-    private val network: NetworkHelper = Injekt.get(),
-    private val extensionManager: AnimeExtensionManager = Injekt.get(),
-    private val getExtensionSources: GetAnimeExtensionSources = Injekt.get(),
-    private val toggleSource: ToggleAnimeSource = Injekt.get(),
-    private val toggleIncognito: ToggleAnimeIncognito = Injekt.get(),
-    private val preferences: SourcePreferences = Injekt.get(),
+    private val network: NetworkHelper = appGraph.networkHelper,
+    private val extensionManager: AnimeExtensionManager = appGraph.animeExtensionManager,
+    private val getExtensionSources: GetAnimeExtensionSources = appGraph.getAnimeExtensionSources,
+    private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
+    private val toggleIncognito: ToggleAnimeIncognito = appGraph.toggleAnimeIncognito,
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
 ) : StateScreenModel<AnimeExtensionDetailsScreenModel.State>(State()) {
 
     private val _events: Channel<AnimeExtensionDetailsEvent> = Channel()

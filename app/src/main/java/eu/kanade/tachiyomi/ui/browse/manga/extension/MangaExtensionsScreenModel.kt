@@ -9,6 +9,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.extension.manga.interactor.GetMangaExtensionsByType
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.completeInstall
 import eu.kanade.tachiyomi.extension.dismissInstallError
@@ -38,18 +39,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
 class MangaExtensionsScreenModel(
-    preferences: SourcePreferences = Injekt.get(),
-    basePreferences: BasePreferences = Injekt.get(),
-    private val extensionManager: MangaExtensionManager = Injekt.get(),
-    private val getExtensions: GetMangaExtensionsByType = Injekt.get(),
-    private val application: Application = Injekt.get(),
+    preferences: SourcePreferences = appGraph.sourcePreferences,
+    basePreferences: BasePreferences = appGraph.basePreferences,
+    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
+    private val getExtensions: GetMangaExtensionsByType = appGraph.getMangaExtensionsByType,
+    private val application: Application = appGraph.application,
     private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<MangaExtensionsScreenModel.State>(State()) {
 

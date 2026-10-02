@@ -22,7 +22,6 @@
 
 package eu.kanade.tachiyomi.ui.player
 
-import android.app.Application
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
@@ -61,9 +60,9 @@ import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.cast.CastQueueController
 import eu.kanade.tachiyomi.ui.player.cast.CastQueuePlanner
@@ -137,8 +136,6 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import java.io.InputStream
 import java.util.Date
@@ -155,31 +152,31 @@ class PlayerViewModel @JvmOverloads internal constructor(
     private val activity: PlayerActivity,
     private val savedState: SavedStateHandle,
     private val host: PlayerHost = PlayerActivityHost(activity),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
-    private val imageSaver: ImageSaver = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val trackPreferences: TrackPreferences = Injekt.get(),
-    private val trackEpisode: TrackEpisode = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val getNextEpisodes: GetNextEpisodes = Injekt.get(),
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get(),
-    private val getAnimeCategories: GetAnimeCategories = Injekt.get(),
-    private val getTracks: GetAnimeTracks = Injekt.get(),
-    private val upsertHistory: UpsertAnimeHistory = Injekt.get(),
-    private val updateEpisode: UpdateEpisode = Injekt.get(),
-    private val setAnimeViewerFlags: SetAnimeViewerFlags = Injekt.get(),
-    internal val playerPreferences: PlayerPreferences = Injekt.get(),
-    internal val gesturePreferences: GesturePreferences = Injekt.get(),
-    private val basePreferences: BasePreferences = Injekt.get(),
-    private val getCustomButtons: GetCustomButtons = Injekt.get(),
-    private val trackSelect: TrackSelect = Injekt.get(),
-    private val getIncognitoState: GetAnimeIncognitoState = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    uiPreferences: UiPreferences = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    private val imageSaver: ImageSaver = appGraph.imageSaver,
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
+    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
+    private val trackEpisode: TrackEpisode = appGraph.trackEpisode,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val getNextEpisodes: GetNextEpisodes = appGraph.getNextEpisodes,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
+    private val getAnimeCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
+    private val upsertHistory: UpsertAnimeHistory = appGraph.upsertAnimeHistory,
+    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
+    private val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
+    internal val playerPreferences: PlayerPreferences = appGraph.playerPreferences,
+    internal val gesturePreferences: GesturePreferences = appGraph.gesturePreferences,
+    private val basePreferences: BasePreferences = appGraph.basePreferences,
+    private val getCustomButtons: GetCustomButtons = appGraph.getCustomButtons,
+    private val trackSelect: TrackSelect = appGraph.trackSelect,
+    private val getIncognitoState: GetAnimeIncognitoState = appGraph.getAnimeIncognitoState,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    uiPreferences: UiPreferences = appGraph.uiPreferences,
     private val aniSkipApi: AniSkipApi = AniSkipApi(),
     private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.applicationContext.cacheDir),
-    private val castManager: CastManager = Injekt.get(),
+    private val castManager: CastManager = appGraph.castManager,
 ) : ViewModel() {
 
     private val episodeListManager = PlayerEpisodeListManager(
@@ -414,7 +411,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                 delay(1000)
             }
             pause()
-            withUIContext { Injekt.get<Application>().toast(AYMR.strings.toast_sleep_timer_ended) }
+            withUIContext { appGraph.application.toast(AYMR.strings.toast_sleep_timer_ended) }
         }
     }
 
@@ -977,7 +974,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                 null -> {
                     if (currentAnime.value != null && !autoPlay) {
                         withUIContext {
-                            Injekt.get<Application>().toast(AYMR.strings.no_next_episode)
+                            appGraph.application.toast(AYMR.strings.no_next_episode)
                         }
                     }
                     isLoading.update { false }
@@ -1008,7 +1005,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
 
                     if (isInPictureInPictureMode && pipEpisodeToasts) {
                         withUIContext {
-                            Injekt.get<Application>().toast(switchMethod.episodeTitle)
+                            appGraph.application.toast(switchMethod.episodeTitle)
                         }
                     }
                 }
@@ -1544,7 +1541,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
     fun saveImage(imageStream: () -> InputStream, timePos: Int?) {
         val anime = currentAnime.value ?: return
 
-        val context = Injekt.get<Application>()
+        val context = appGraph.application
         val notifier = SaveImageNotifier(context)
         notifier.onClear()
 
@@ -1583,7 +1580,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
     fun shareImage(imageStream: () -> InputStream, timePos: Int?) {
         val anime = currentAnime.value ?: return
 
-        val context = Injekt.get<Application>()
+        val context = appGraph.application
         val destDir = context.cacheImageDir
 
         val seconds = timePos?.let { Utils.prettyTime(it) } ?: return
@@ -1616,9 +1613,13 @@ class PlayerViewModel @JvmOverloads internal constructor(
         viewModelScope.launchNonCancellable {
             val result = try {
                 when (artType) {
-                    ArtType.Cover -> anime.editCover(Injekt.get(), imageStream())
-                    ArtType.Background -> anime.editBackground(Injekt.get(), imageStream())
-                    ArtType.Thumbnail -> episode.editThumbnail(anime, Injekt.get(), imageStream())
+                    ArtType.Cover -> anime.editCover(appGraph.localAnimeCoverManager, imageStream())
+                    ArtType.Background -> anime.editBackground(appGraph.localAnimeBackgroundManager, imageStream())
+                    ArtType.Thumbnail -> episode.editThumbnail(
+                        anime,
+                        appGraph.localEpisodeThumbnailManager,
+                        imageStream(),
+                    )
                 }
 
                 if (anime.isLocal() || anime.favorite) {
@@ -1646,7 +1647,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
         if (!trackPreferences.autoUpdateTrack().get()) return
 
         val anime = currentAnime.value ?: return
-        val context = Injekt.get<Application>()
+        val context = appGraph.application
 
         viewModelScope.launchNonCancellable {
             trackEpisode.await(context, anime.id, episode.episode_number.toDouble())
@@ -1734,7 +1735,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
             return null
         }
 
-        val trackerManager = Injekt.get<TrackerManager>()
+        val trackerManager = appGraph.trackerManager
         val malId = resolveMalId(
             tracks = tracks,
             trackerKindForId = { trackerId ->

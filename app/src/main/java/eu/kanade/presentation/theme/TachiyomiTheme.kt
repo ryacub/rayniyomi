@@ -32,8 +32,7 @@ import eu.kanade.presentation.theme.colorscheme.TealTurqoiseColorScheme
 import eu.kanade.presentation.theme.colorscheme.TidalWaveColorScheme
 import eu.kanade.presentation.theme.colorscheme.YinYangColorScheme
 import eu.kanade.presentation.theme.colorscheme.YotsubaColorScheme
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import eu.kanade.tachiyomi.di.appGraph
 
 @Composable
 fun TachiyomiTheme(
@@ -41,10 +40,11 @@ fun TachiyomiTheme(
     amoled: Boolean? = null,
     content: @Composable () -> Unit,
 ) {
-    val uiPreferences = Injekt.get<UiPreferences>()
+    val uiPreferences = appGraph.uiPreferences
     BaseTachiyomiTheme(
         appTheme = appTheme ?: uiPreferences.appTheme().get(),
         isAmoled = amoled ?: uiPreferences.themeDarkAmoled().get(),
+        customAccentSeed = uiPreferences.customThemeAccentSeed().get(),
         content = content,
     )
 }
@@ -53,17 +53,19 @@ fun TachiyomiTheme(
 fun TachiyomiPreviewTheme(
     appTheme: AppTheme = AppTheme.DEFAULT,
     isAmoled: Boolean = false,
+    customAccentSeed: Int = UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET,
     content: @Composable () -> Unit,
-) = BaseTachiyomiTheme(appTheme, isAmoled, content)
+) = BaseTachiyomiTheme(appTheme, isAmoled, customAccentSeed, content)
 
 @Composable
 private fun BaseTachiyomiTheme(
     appTheme: AppTheme,
     isAmoled: Boolean,
+    customAccentSeed: Int,
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = getThemeColorScheme(appTheme, isAmoled),
+        colorScheme = getThemeColorScheme(appTheme, isAmoled, customAccentSeed),
         content = content,
     )
 }
@@ -73,12 +75,12 @@ private fun BaseTachiyomiTheme(
 private fun getThemeColorScheme(
     appTheme: AppTheme,
     isAmoled: Boolean,
+    customAccentSeed: Int,
 ): ColorScheme {
     val context = LocalContext.current
-    val uiPreferences = Injekt.get<UiPreferences>()
     val colorScheme = resolveBaseColorScheme(
         appTheme = appTheme,
-        customAccentSeed = uiPreferences.customThemeAccentSeed().get(),
+        customAccentSeed = customAccentSeed,
         context = context,
     )
     return colorScheme.getColorScheme(

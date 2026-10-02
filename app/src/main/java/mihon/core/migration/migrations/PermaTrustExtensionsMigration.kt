@@ -1,6 +1,5 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import mihon.core.migration.Migration
@@ -12,7 +11,7 @@ class PermaTrustExtensionsMigration : Migration {
 
     // Allow permanently trusting unofficial extensions by version code + signature
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         prefs.edit {

@@ -8,15 +8,11 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
-import eu.kanade.domain.track.anime.interactor.TrackEpisode
-import eu.kanade.domain.track.anime.store.DelayedAnimeTrackingStore
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.workManager
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 
@@ -28,10 +24,10 @@ class DelayedAnimeTrackingUpdateJob(private val context: Context, workerParams: 
             return Result.failure()
         }
 
-        val getTracks = Injekt.get<GetAnimeTracks>()
-        val trackEpisode = Injekt.get<TrackEpisode>()
+        val getTracks = appGraph.getAnimeTracks
+        val trackEpisode = appGraph.trackEpisode
 
-        val delayedTrackingStore = Injekt.get<DelayedAnimeTrackingStore>()
+        val delayedTrackingStore = appGraph.delayedAnimeTrackingStore
 
         withIOContext {
             delayedTrackingStore.getAnimeItems()

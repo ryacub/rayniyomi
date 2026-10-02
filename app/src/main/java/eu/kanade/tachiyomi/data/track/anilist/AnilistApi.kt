@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.data.track.anilist.dto.ALUserListEntryQueryResult
 import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
 import eu.kanade.tachiyomi.data.track.retryOnceOn429OrThrow
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.await
@@ -30,7 +31,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -40,7 +40,7 @@ import tachiyomi.domain.track.manga.model.MangaTrack as DomainMangaTrack
 
 class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     private val authClient = client.newBuilder()
         .addInterceptor(interceptor)

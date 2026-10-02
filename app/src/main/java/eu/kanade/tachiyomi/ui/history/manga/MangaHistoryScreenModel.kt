@@ -8,6 +8,7 @@ import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.presentation.history.manga.MangaHistoryUiModel
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -44,22 +45,20 @@ import tachiyomi.domain.history.manga.model.MangaHistoryWithRelations
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaHistoryScreenModel(
-    private val addTracks: AddMangaTracks = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
-    private val getHistory: GetMangaHistory = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getNextChapters: GetNextChapters = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val removeHistory: RemoveMangaHistory = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
+    private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = appGraph.getDuplicateLibraryManga,
+    private val getHistory: GetMangaHistory = appGraph.getMangaHistory,
+    private val getManga: GetManga = appGraph.getManga,
+    private val getNextChapters: GetNextChapters = appGraph.getNextChapters,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val removeHistory: RemoveMangaHistory = appGraph.removeMangaHistory,
+    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
+    private val updateManga: UpdateManga = appGraph.updateManga,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    private val sourceManager: MangaSourceManager = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
 ) : StateScreenModel<MangaHistoryScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)

@@ -10,6 +10,7 @@ import androidx.core.content.pm.PackageInfoCompat
 import dalvik.system.PathClassLoader
 import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.source.MangaSource
@@ -22,7 +23,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 
 /**
@@ -42,8 +42,8 @@ import java.io.File
 @SuppressLint("PackageManagerGetSignatures")
 internal object MangaExtensionLoader {
 
-    private val preferences: SourcePreferences by injectLazy()
-    private val trustExtension: TrustMangaExtension by injectLazy()
+    private val preferences: SourcePreferences by lazy { appGraph.sourcePreferences }
+    private val trustExtension: TrustMangaExtension by lazy { appGraph.trustMangaExtension }
     private val loadNsfwSource by lazy {
         preferences.showNsfwSource().get()
     }

@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.source.manga
 
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -21,21 +22,23 @@ import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.source.local.entries.manga.LocalMangaSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
+import tachiyomi.source.local.image.manga.LocalMangaCoverManager
+import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
 import java.util.concurrent.ConcurrentHashMap
 
 class AndroidMangaSourceManager(
     private val context: Context,
     private val extensionManager: MangaExtensionManager,
     private val sourceRepository: MangaStubSourceRepository,
+    private val localMangaSourceFileSystem: LocalMangaSourceFileSystem = appGraph.localMangaSourceFileSystem,
+    private val localMangaCoverManager: LocalMangaCoverManager = appGraph.localMangaCoverManager,
+    downloadManagerProvider: Lazy<MangaDownloadManager> = lazy { appGraph.mangaDownloadManager },
 ) : MangaSourceManager {
 
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
-    private val downloadManager: MangaDownloadManager by injectLazy()
+    private val downloadManager by downloadManagerProvider
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,8 +56,8 @@ class AndroidMangaSourceManager(
                         mapOf(
                             LocalMangaSource.ID to LocalMangaSource(
                                 context,
-                                Injekt.get(),
-                                Injekt.get(),
+                                localMangaSourceFileSystem,
+                                localMangaCoverManager,
                             ),
                         ),
                     )

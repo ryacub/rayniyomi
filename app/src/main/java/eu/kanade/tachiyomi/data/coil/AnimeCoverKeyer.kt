@@ -5,9 +5,8 @@ import coil3.request.Options
 import eu.kanade.domain.entries.anime.model.hasCustomBackground
 import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.anime.model.AnimeCover
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import tachiyomi.domain.entries.anime.model.Anime as DomainAnime
 
 class AnimeKeyer : Keyer<DomainAnime> {
@@ -22,7 +21,7 @@ class AnimeKeyer : Keyer<DomainAnime> {
 }
 
 class AnimeCoverKeyer(
-    private val coverCache: AnimeCoverCache = Injekt.get(),
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
 ) : Keyer<AnimeCover> {
     override fun key(data: AnimeCover, options: Options): String {
         return if (coverCache.getCustomCoverFile(data.animeId).exists()) {

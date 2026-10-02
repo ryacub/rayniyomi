@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -20,13 +21,11 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrateAnimeScreenModel(
     private val sourceId: Long,
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val getFavorites: GetAnimeFavorites = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val getFavorites: GetAnimeFavorites = appGraph.getAnimeFavorites,
 ) : StateScreenModel<MigrateAnimeScreenModel.State>(State()) {
 
     private val _events: Channel<MigrationAnimeEvent> = Channel(Channel.BUFFERED)

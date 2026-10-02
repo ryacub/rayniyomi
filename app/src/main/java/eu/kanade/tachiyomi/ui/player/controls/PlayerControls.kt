@@ -58,6 +58,7 @@ import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.more.settings.screen.player.custombutton.getButtons
 import eu.kanade.presentation.theme.playerRippleConfiguration
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.Dialogs
 import eu.kanade.tachiyomi.ui.player.Panels
 import eu.kanade.tachiyomi.ui.player.PlayerActivity
@@ -65,7 +66,6 @@ import eu.kanade.tachiyomi.ui.player.PlayerUpdates
 import eu.kanade.tachiyomi.ui.player.PlayerViewModel
 import eu.kanade.tachiyomi.ui.player.Sheets
 import eu.kanade.tachiyomi.ui.player.VideoAspect
-import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.cast.CastState
 import eu.kanade.tachiyomi.ui.player.cast.components.CastConversionDialog
 import eu.kanade.tachiyomi.ui.player.cast.components.CastMiniController
@@ -76,10 +76,6 @@ import eu.kanade.tachiyomi.ui.player.controls.components.SeekbarWithTimers
 import eu.kanade.tachiyomi.ui.player.controls.components.TextPlayerUpdate
 import eu.kanade.tachiyomi.ui.player.controls.components.VolumeSlider
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.toFixed
-import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
-import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
-import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
-import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
 import eu.kanade.tachiyomi.util.system.honorsOrientationRequests
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
@@ -89,8 +85,6 @@ import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Suppress("CompositionLocalAllowlist")
 val LocalPlayerButtonsClickEvent = staticCompositionLocalOf { {} }
@@ -102,10 +96,10 @@ fun PlayerControls(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.padding
-    val playerPreferences = remember { Injekt.get<PlayerPreferences>() }
-    val gesturePreferences = remember { Injekt.get<GesturePreferences>() }
-    val audioPreferences = remember { Injekt.get<AudioPreferences>() }
-    val subtitlePreferences = remember { Injekt.get<SubtitlePreferences>() }
+    val playerPreferences = remember { appGraph.playerPreferences }
+    val gesturePreferences = remember { appGraph.gesturePreferences }
+    val audioPreferences = remember { appGraph.audioPreferences }
+    val subtitlePreferences = remember { appGraph.subtitlePreferences }
     val interactionSource = remember { MutableInteractionSource() }
 
     val controlsShown by viewModel.controlsShown.collectAsStateWithLifecycle()
@@ -123,7 +117,7 @@ fun PlayerControls(
     val chapters by viewModel.chapters.collectAsStateWithLifecycle()
     val currentBrightness by viewModel.currentBrightness.collectAsStateWithLifecycle()
 
-    val castManager = remember { Injekt.get<CastManager>() }
+    val castManager = remember { appGraph.castManager }
     val castState by castManager.castState.collectAsStateWithLifecycle()
     val conversionState by castManager.conversionState.collectAsStateWithLifecycle()
     val isCasting = (castState == CastState.CONNECTED)

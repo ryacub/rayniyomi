@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.every
@@ -37,8 +38,6 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetTracksPerAnime
 import tachiyomi.domain.track.anime.model.AnimeTrack
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimeLibraryScreenModelSearchRaceTest {
@@ -48,17 +47,15 @@ class AnimeLibraryScreenModelSearchRaceTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
-        // The library item constructor resolves its sourceManager through Injekt, and the
-        // real getNameForAnimeInfo() extension resolves SourcePreferences through Injekt.
-        Injekt.addSingleton(
-            SourcePreferences(
-                InMemoryPreferenceStore(
-                    sequenceOf(
-                        InMemoryPreferenceStore.InMemoryPreference(
-                            key = "source_languages",
-                            data = setOf("en"),
-                            defaultValue = emptySet<String>(),
-                        ),
+        // The library item constructor resolves its sourceManager through the app graph, and the
+        // real getNameForAnimeInfo() extension resolves SourcePreferences through the app graph.
+        every { testAppGraph.sourcePreferences } returns SourcePreferences(
+            InMemoryPreferenceStore(
+                sequenceOf(
+                    InMemoryPreferenceStore.InMemoryPreference(
+                        key = "source_languages",
+                        data = setOf("en"),
+                        defaultValue = emptySet<String>(),
                     ),
                 ),
             ),
@@ -68,7 +65,7 @@ class AnimeLibraryScreenModelSearchRaceTest {
         every { source.lang } returns "en"
         val sourceManager = mockk<AnimeSourceManager>()
         every { sourceManager.getOrStub(any()) } returns source
-        Injekt.addSingleton(sourceManager)
+        every { testAppGraph.animeSourceManager } returns sourceManager
     }
 
     @AfterEach

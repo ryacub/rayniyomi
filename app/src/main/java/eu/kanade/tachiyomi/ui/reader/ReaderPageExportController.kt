@@ -1,10 +1,9 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import android.app.Application
-import android.net.Uri
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
@@ -15,14 +14,11 @@ import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import kotlinx.coroutines.CoroutineScope
 import logcat.LogPriority
-import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Exports the page shown in [Dialog.PageActions]: save to pictures with a notification,
@@ -70,7 +66,7 @@ class ReaderPageExportController(
     fun saveImage() {
         val (page, manga) = readyPageAndManga() ?: return
 
-        val context = Injekt.get<Application>()
+        val context = appGraph.application
         val notifier = SaveImageNotifier(context)
         notifier.onClear()
 
@@ -116,7 +112,7 @@ class ReaderPageExportController(
     fun shareImage(copyToClipboard: Boolean) {
         val (page, manga) = readyPageAndManga() ?: return
 
-        val context = Injekt.get<Application>()
+        val context = appGraph.application
         val destDir = context.cacheImageDir
 
         val filename = generateFilename(manga, page)
@@ -153,7 +149,7 @@ class ReaderPageExportController(
 
         scope.launchNonCancellable {
             val result = try {
-                manga.editCover(Injekt.get(), stream())
+                manga.editCover(appGraph.localMangaCoverManager, stream())
                 if (manga.isLocal() || manga.favorite) {
                     SetAsCoverResult.Success
                 } else {

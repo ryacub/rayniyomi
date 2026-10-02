@@ -1,10 +1,9 @@
 package eu.kanade.tachiyomi.ui.library.anime
 
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.anime.getNameForAnimeInfo
 import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 data class AnimeLibraryItem(
     val libraryAnime: LibraryAnime,
@@ -12,7 +11,7 @@ data class AnimeLibraryItem(
     var unseenCount: Long = -1,
     var isLocal: Boolean = false,
     var sourceLanguage: String = "",
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
 ) {
     val sourceName by lazy { sourceManager.getOrStub(libraryAnime.anime.source).getNameForAnimeInfo() }
 

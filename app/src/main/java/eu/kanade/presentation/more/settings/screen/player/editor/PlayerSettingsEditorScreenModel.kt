@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.size
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.system.toast
@@ -19,15 +20,13 @@ import tachiyomi.domain.storage.service.SCRIPTS_PATH
 import tachiyomi.domain.storage.service.SCRIPT_OPTS_PATH
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class PlayerSettingsEditorScreenModel(
     private val context: Context,
-    private val storageManager: StorageManager = Injekt.get(),
+    private val storageManager: StorageManager = appGraph.storageManager,
 ) : StateScreenModel<EditorScreenState>(EditorScreenState.Loading) {
     private val _selectedType = MutableStateFlow(EditorListType.SCRIPTS)
     val selectedType = _selectedType.asStateFlow()

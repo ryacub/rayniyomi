@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloader
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.util.lang.chop
@@ -37,16 +38,14 @@ import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.manga.LibraryManga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.math.RoundingMode
 import java.text.NumberFormat
 
 class MangaLibraryUpdateNotifier(
     private val context: Context,
 
-    private val securityPreferences: SecurityPreferences = Injekt.get(),
-    private val sourceManager: MangaSourceManager = Injekt.get(),
+    private val securityPreferences: SecurityPreferences = appGraph.securityPreferences,
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
 ) {
 
     private val percentFormatter = NumberFormat.getPercentInstance().apply {

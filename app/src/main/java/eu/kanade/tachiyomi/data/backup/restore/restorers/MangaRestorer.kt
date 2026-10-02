@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.core.common.util.lang.EmptyJsonObject
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
@@ -19,21 +20,19 @@ import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.domain.track.manga.interactor.InsertMangaTrack
 import tachiyomi.domain.track.manga.model.MangaTrack
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.ZonedDateTime
 import java.util.Date
 import kotlin.math.max
 
 class MangaRestorer(
-    private val handler: MangaDatabaseHandler = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val getTracks: GetMangaTracks = Injekt.get(),
-    private val insertTrack: InsertMangaTrack = Injekt.get(),
-    fetchInterval: MangaFetchInterval = Injekt.get(),
+    private val handler: MangaDatabaseHandler = appGraph.mangaDatabaseHandler,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = appGraph.getMangaByUrlAndSourceId,
+    private val getChaptersByMangaId: GetChaptersByMangaId = appGraph.getChaptersByMangaId,
+    private val updateManga: UpdateManga = appGraph.updateManga,
+    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
+    private val insertTrack: InsertMangaTrack = appGraph.insertMangaTrack,
+    fetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval,
 ) {
 
     private var now = ZonedDateTime.now()

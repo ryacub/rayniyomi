@@ -5,13 +5,12 @@ import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.source.local.entries.anime.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 
@@ -32,8 +31,8 @@ class UpdateAnime(
         localAnime: Anime,
         remoteAnime: SAnime,
         manualFetch: Boolean,
-        coverCache: AnimeCoverCache = Injekt.get(),
-        backgroundCache: AnimeBackgroundCache = Injekt.get(),
+        coverCache: AnimeCoverCache = appGraph.animeCoverCache,
+        backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
     ): Boolean {
         val remoteTitle = try {
             remoteAnime.title

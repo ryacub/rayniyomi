@@ -22,6 +22,7 @@ import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
@@ -39,8 +40,6 @@ import kotlinx.coroutines.flow.combine
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 data object MoreTab : Tab {
 
@@ -90,11 +89,11 @@ data object MoreTab : Tab {
 }
 
 private class MoreScreenModel(
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val animeDownloadManager: AnimeDownloadManager = Injekt.get(),
-    preferences: BasePreferences = Injekt.get(),
-    private val pluginLauncher: LightNovelPluginLauncher = Injekt.get(),
-    private val stateManager: LightNovelPluginStateManager = Injekt.get(),
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val animeDownloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    preferences: BasePreferences = appGraph.basePreferences,
+    private val pluginLauncher: LightNovelPluginLauncher = appGraph.lightNovelPluginLauncher,
+    private val stateManager: LightNovelPluginStateManager = appGraph.lightNovelPluginStateManager,
 ) : ScreenModel {
 
     var downloadedOnly by preferences.downloadedOnly().asState(screenModelScope)

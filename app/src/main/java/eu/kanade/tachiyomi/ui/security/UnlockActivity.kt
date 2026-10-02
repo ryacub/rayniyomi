@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.core.security.LockoutPolicy
 import eu.kanade.tachiyomi.core.security.LockoutState
 import eu.kanade.tachiyomi.core.security.PinHasher
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil
@@ -37,8 +38,6 @@ import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Base64
 
 /**
@@ -58,7 +57,7 @@ internal fun applyPreComposeSecurity(window: Window, securityPreferences: Securi
  */
 class UnlockActivity : BaseActivity() {
 
-    private val securityPreferences: SecurityPreferences by lazy { Injekt.get() }
+    private val securityPreferences: SecurityPreferences by lazy { appGraph.securityPreferences }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

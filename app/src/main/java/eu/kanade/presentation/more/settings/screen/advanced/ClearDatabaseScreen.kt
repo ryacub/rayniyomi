@@ -33,6 +33,7 @@ import eu.kanade.presentation.browse.manga.components.MangaSourceIcon
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.collectLatest
@@ -53,8 +54,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.selectedBackground
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ClearDatabaseScreen : Screen() {
 
@@ -189,8 +188,9 @@ class ClearDatabaseScreen : Screen() {
 private class ClearDatabaseScreenModel : StateScreenModel<ClearDatabaseScreenModel.State>(
     State.Loading,
 ) {
-    private val getSourcesWithNonLibraryManga: GetMangaSourcesWithNonLibraryManga = Injekt.get()
-    private val database: Database = Injekt.get()
+    private val getSourcesWithNonLibraryManga: GetMangaSourcesWithNonLibraryManga =
+        appGraph.getMangaSourcesWithNonLibraryManga
+    private val database: Database = appGraph.database
 
     init {
         screenModelScope.launchIO {

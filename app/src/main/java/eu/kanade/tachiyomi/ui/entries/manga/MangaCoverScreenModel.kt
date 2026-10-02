@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.toShareIntent
@@ -28,15 +29,13 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaCoverScreenModel(
     private val mangaId: Long,
-    private val getManga: GetManga = Injekt.get(),
-    private val imageSaver: ImageSaver = Injekt.get(),
-    private val coverCache: MangaCoverCache = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
+    private val getManga: GetManga = appGraph.getManga,
+    private val imageSaver: ImageSaver = appGraph.imageSaver,
+    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
+    private val updateManga: UpdateManga = appGraph.updateManga,
 
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<Manga?>(null) {
@@ -122,7 +121,7 @@ class MangaCoverScreenModel(
         screenModelScope.launchIO {
             context.contentResolver.openInputStream(data)?.use {
                 try {
-                    manga.editCover(Injekt.get(), it, updateManga, coverCache)
+                    manga.editCover(appGraph.localMangaCoverManager, it, updateManga, coverCache)
                     notifyCoverUpdated(context)
                 } catch (e: Exception) {
                     notifyFailedCoverUpdate(context, e)

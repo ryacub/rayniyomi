@@ -40,6 +40,7 @@ import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
@@ -67,7 +68,6 @@ import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import tachiyomi.source.local.entries.anime.isLocal
-import uy.kohesive.injekt.injectLazy
 
 data object AnimeLibraryTab : Tab {
 
@@ -115,12 +115,12 @@ data object AnimeLibraryTab : Tab {
         }
 
         suspend fun openEpisode(episode: Episode) {
-            val playerPreferences: PlayerPreferences by injectLazy()
+            val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
             val extPlayer = playerPreferences.alwaysUseExternalPlayer().get()
             MainActivity.startPlayerActivity(context, episode.animeId, episode.id, extPlayer)
         }
 
-        val libraryPreferences: LibraryPreferences by injectLazy()
+        val libraryPreferences: LibraryPreferences by lazy { appGraph.libraryPreferences }
         val libraryListSize by libraryPreferences.libraryListSize().collectAsStateWithLifecycle()
 
         val defaultTitle = stringResource(AYMR.strings.label_anime_library)

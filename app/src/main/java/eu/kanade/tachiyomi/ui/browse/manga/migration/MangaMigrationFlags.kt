@@ -4,9 +4,9 @@ import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.entries.manga.model.hasCustomCover
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 
 data class MangaMigrationFlag(
     val flag: Int,
@@ -31,8 +31,8 @@ object MangaMigrationFlags {
     private const val CUSTOM_COVER = 0b01000
     private const val DELETE_DOWNLOADED = 0b10000
 
-    private val coverCache: MangaCoverCache by injectLazy()
-    private val downloadCache: MangaDownloadCache by injectLazy()
+    private val coverCache: MangaCoverCache by lazy { appGraph.mangaCoverCache }
+    private val downloadCache: MangaDownloadCache by lazy { appGraph.mangaDownloadCache }
 
     fun hasChapters(value: Int): Boolean {
         return value and CHAPTERS != 0

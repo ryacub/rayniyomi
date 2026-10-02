@@ -38,6 +38,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
@@ -108,8 +109,6 @@ import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Calendar
 
 class AnimeScreenModel(
@@ -117,37 +116,37 @@ class AnimeScreenModel(
     private val lifecycle: Lifecycle,
     private val animeId: Long,
     private val isFromSource: Boolean,
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val trackPreferences: TrackPreferences = Injekt.get(),
-    internal val playerPreferences: PlayerPreferences = Injekt.get(),
-    internal val gesturePreferences: GesturePreferences = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
-    private val trackEpisode: TrackEpisode = Injekt.get(),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
-    private val downloadCache: AnimeDownloadCache = Injekt.get(),
-    private val getAnimeAndEpisodesAndSeasons: GetAnimeWithEpisodesAndSeasons = Injekt.get(),
-    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime = Injekt.get(),
-    private val setAnimeEpisodeFlags: SetAnimeEpisodeFlags = Injekt.get(),
-    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags = Injekt.get(),
-    private val setAnimeSeasonFlags: SetAnimeSeasonFlags = Injekt.get(),
-    private val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags = Injekt.get(),
-    private val setSeenStatus: SetSeenStatus = Injekt.get(),
-    private val populateFillerMarks: PopulateFillerMarks = Injekt.get(),
-    private val updateEpisode: UpdateEpisode = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
-    private val syncEpisodesWithSource: SyncEpisodesWithSource = Injekt.get(),
-    private val syncSeasonsWithSource: SyncSeasonsWithSource = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val getTracks: GetAnimeTracks = Injekt.get(),
-    private val addTracks: AddAnimeTracks = Injekt.get(),
-    private val setAnimeCategories: SetAnimeCategories = Injekt.get(),
-    private val animeRepository: AnimeRepository = Injekt.get(),
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get(),
-    private val filterEpisodesForDownload: FilterEpisodesForDownload = Injekt.get(),
-    internal val setAnimeViewerFlags: SetAnimeViewerFlags = Injekt.get(),
-    private val mergeLibraryAnime: MergeLibraryAnime = Injekt.get(),
+    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
+    internal val playerPreferences: PlayerPreferences = appGraph.playerPreferences,
+    internal val gesturePreferences: GesturePreferences = appGraph.gesturePreferences,
+    private val trackerManager: TrackerManager = appGraph.trackerManager,
+    private val trackEpisode: TrackEpisode = appGraph.trackEpisode,
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    private val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
+    private val getAnimeAndEpisodesAndSeasons: GetAnimeWithEpisodesAndSeasons = appGraph.getAnimeWithEpisodesAndSeasons,
+    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime = appGraph.getDuplicateLibraryAnime,
+    private val setAnimeEpisodeFlags: SetAnimeEpisodeFlags = appGraph.setAnimeEpisodeFlags,
+    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags = appGraph.setAnimeDefaultEpisodeFlags,
+    private val setAnimeSeasonFlags: SetAnimeSeasonFlags = appGraph.setAnimeSeasonFlags,
+    private val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags = appGraph.setAnimeDefaultSeasonFlags,
+    private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
+    private val populateFillerMarks: PopulateFillerMarks = appGraph.populateFillerMarks,
+    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    private val syncEpisodesWithSource: SyncEpisodesWithSource = appGraph.syncEpisodesWithSource,
+    private val syncSeasonsWithSource: SyncSeasonsWithSource = appGraph.syncSeasonsWithSource,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
+    private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
+    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
+    private val animeRepository: AnimeRepository = appGraph.animeRepository,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
+    private val filterEpisodesForDownload: FilterEpisodesForDownload = appGraph.filterEpisodesForDownload,
+    internal val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
+    private val mergeLibraryAnime: MergeLibraryAnime = appGraph.mergeLibraryAnime,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateScreenModel<AnimeScreenModel.State>(State.Loading) {
 
@@ -930,7 +929,7 @@ class AnimeScreenModel(
     }
 
     private suspend fun refreshTrackers(
-        refreshTracks: RefreshAnimeTracks = Injekt.get(),
+        refreshTracks: RefreshAnimeTracks = appGraph.refreshAnimeTracks,
     ) {
         refreshTracks.await(animeId)
             .filter { it.first != null }

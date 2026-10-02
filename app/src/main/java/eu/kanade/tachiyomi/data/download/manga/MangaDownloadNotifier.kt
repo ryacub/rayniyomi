@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.download.model.DownloadStatusTracker
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
 import eu.kanade.tachiyomi.util.system.cancelNotification
@@ -19,7 +20,6 @@ import eu.kanade.tachiyomi.util.system.notify
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.injectLazy
 import java.util.regex.Pattern
 
 /**
@@ -29,7 +29,7 @@ import java.util.regex.Pattern
  */
 internal class MangaDownloadNotifier(private val context: Context) {
 
-    private val preferences: SecurityPreferences by injectLazy()
+    private val preferences: SecurityPreferences by lazy { appGraph.securityPreferences }
 
     private val progressNotificationBuilder by lazy {
         context.notificationBuilder(Notifications.CHANNEL_DOWNLOADER_PROGRESS) {

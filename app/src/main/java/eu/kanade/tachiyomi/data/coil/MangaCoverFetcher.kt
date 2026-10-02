@@ -14,6 +14,7 @@ import coil3.request.Options
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.coil.MangaCoverFetcher.Companion.USE_CUSTOM_COVER_KEY
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.source.online.HttpSource
 import logcat.LogPriority
@@ -31,7 +32,6 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaCover
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.IOException
 
@@ -300,8 +300,8 @@ class MangaCoverFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<Manga> {
 
-        private val coverCache: MangaCoverCache by injectLazy()
-        private val sourceManager: MangaSourceManager by injectLazy()
+        private val coverCache: MangaCoverCache by lazy { appGraph.mangaCoverCache }
+        private val sourceManager: MangaSourceManager by lazy { appGraph.mangaSourceManager }
 
         override fun create(data: Manga, options: Options, imageLoader: ImageLoader): Fetcher {
             return MangaCoverFetcher(
@@ -322,8 +322,8 @@ class MangaCoverFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<MangaCover> {
 
-        private val coverCache: MangaCoverCache by injectLazy()
-        private val sourceManager: MangaSourceManager by injectLazy()
+        private val coverCache: MangaCoverCache by lazy { appGraph.mangaCoverCache }
+        private val sourceManager: MangaSourceManager by lazy { appGraph.mangaSourceManager }
 
         override fun create(data: MangaCover, options: Options, imageLoader: ImageLoader): Fetcher {
             return MangaCoverFetcher(

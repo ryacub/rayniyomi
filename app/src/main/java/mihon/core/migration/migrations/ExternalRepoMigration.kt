@@ -1,6 +1,5 @@
 package mihon.core.migration.migrations
 
-import eu.kanade.domain.source.service.SourcePreferences
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
 import tachiyomi.core.common.preference.getAndSet
@@ -10,7 +9,7 @@ class ExternalRepoMigration : Migration {
 
     // Clean up external repos
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val sourcePreferences = migrationContext.get<SourcePreferences>() ?: return false
+        val sourcePreferences = migrationContext.graph?.sourcePreferences ?: return false
 
         sourcePreferences.mangaExtensionRepos().getAndSet {
             it.map { repo -> "https://raw.githubusercontent.com/$repo/repo" }.toSet()

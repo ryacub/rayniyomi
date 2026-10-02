@@ -2,13 +2,12 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import androidx.core.content.edit
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Class used to keep a list of chapters for future deletion.
@@ -17,7 +16,7 @@ import uy.kohesive.injekt.api.get
  */
 class MangaDownloadPendingDeleter(
     context: Context,
-    private val json: Json = Injekt.get(),
+    private val json: Json = appGraph.json,
 ) {
 
     /**

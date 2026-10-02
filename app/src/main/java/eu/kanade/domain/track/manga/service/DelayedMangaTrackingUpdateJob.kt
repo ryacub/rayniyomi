@@ -8,15 +8,11 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
-import eu.kanade.domain.track.manga.interactor.TrackChapter
-import eu.kanade.domain.track.manga.store.DelayedMangaTrackingStore
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.workManager
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.track.manga.interactor.GetMangaTracks
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.TimeUnit
 
 class DelayedMangaTrackingUpdateJob(private val context: Context, workerParams: WorkerParameters) :
@@ -27,10 +23,10 @@ class DelayedMangaTrackingUpdateJob(private val context: Context, workerParams: 
             return Result.failure()
         }
 
-        val getTracks = Injekt.get<GetMangaTracks>()
-        val trackChapter = Injekt.get<TrackChapter>()
+        val getTracks = appGraph.getMangaTracks
+        val trackChapter = appGraph.trackChapter
 
-        val delayedTrackingStore = Injekt.get<DelayedMangaTrackingStore>()
+        val delayedTrackingStore = appGraph.delayedMangaTrackingStore
 
         withIOContext {
             delayedTrackingStore.getMangaItems()

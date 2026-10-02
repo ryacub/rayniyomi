@@ -52,7 +52,6 @@ import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.relativeDateTimeText
 import eu.kanade.presentation.entries.DownloadAction
 import eu.kanade.presentation.entries.EntryScreenItem
@@ -70,6 +69,7 @@ import eu.kanade.presentation.entries.manga.components.MangaTranslationSummaryCa
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.manga.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
@@ -91,8 +91,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 
 @Composable
@@ -157,7 +155,7 @@ fun MangaScreen(
     val onSettingsClicked: (() -> Unit)? = {
         navigator.push(MangaSourcePreferencesScreen(state.source.id))
     }.takeIf { state.source is ConfigurableSource }
-    val uiPreferences = remember { Injekt.get<UiPreferences>() }
+    val uiPreferences = remember { appGraph.uiPreferences }
     val dynamicCoverThemeEnabled by uiPreferences.dynamicEntryCoverTheming().collectAsStateWithLifecycle()
     val coverThemeCacheKey = remember(state.manga) {
         "manga;${state.manga.id};${state.manga.thumbnailUrl};${state.manga.coverLastModified}"

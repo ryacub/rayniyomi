@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.editBackground
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
@@ -32,16 +33,14 @@ import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeImageScreenModel(
     private val animeId: Long,
-    private val getAnime: GetAnime = Injekt.get(),
-    private val imageSaver: ImageSaver = Injekt.get(),
-    private val coverCache: AnimeCoverCache = Injekt.get(),
-    private val backgroundCache: AnimeBackgroundCache = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val imageSaver: ImageSaver = appGraph.imageSaver,
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     val pagerState: PagerState = PagerState(pageCount = { 2 }),
 ) : StateScreenModel<Anime?>(null) {
@@ -146,9 +145,9 @@ class AnimeImageScreenModel(
             context.contentResolver.openInputStream(data)?.use {
                 try {
                     if (isCover) {
-                        anime.editCover(Injekt.get(), it, updateAnime, coverCache)
+                        anime.editCover(appGraph.localAnimeCoverManager, it, updateAnime, coverCache)
                     } else {
-                        anime.editBackground(Injekt.get(), it, updateAnime, backgroundCache)
+                        anime.editBackground(appGraph.localAnimeBackgroundManager, it, updateAnime, backgroundCache)
                     }
                     notifyImageUpdated(context)
                 } catch (e: Exception) {

@@ -1,16 +1,15 @@
 package eu.kanade.tachiyomi.data.backup.restore.restorers
 
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.service.LibraryPreferences
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class CategoriesRestorer(
     private val getCategories: suspend () -> List<Category>,
     private val insertCategory: suspend (name: String, order: Long, flags: Long, parentId: Long?) -> Long,
     private val updateCategoryParent: suspend (categoryId: Long, parentId: Long?) -> Unit,
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
 ) {
 
     suspend operator fun invoke(backupCategories: List<BackupCategory>) {

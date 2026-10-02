@@ -11,8 +11,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
-import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.installer.InstallerManga
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.util.ExtensionDownloadRegistry
@@ -29,8 +29,6 @@ import kotlinx.coroutines.flow.transformWhile
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
@@ -58,7 +56,7 @@ internal class MangaExtensionInstaller(private val context: Context) {
      */
     private val downloadRegistry = ExtensionDownloadRegistry()
 
-    private val extensionInstaller = Injekt.get<BasePreferences>().extensionInstaller()
+    private val extensionInstaller = appGraph.basePreferences.extensionInstaller()
 
     /**
      * Adds the given extension to the downloads queue and returns an observable containing its
@@ -161,7 +159,7 @@ internal class MangaExtensionInstaller(private val context: Context) {
                 context.startActivity(intent)
             }
             BasePreferences.ExtensionInstaller.PRIVATE -> {
-                val extensionManager = Injekt.get<MangaExtensionManager>()
+                val extensionManager = appGraph.mangaExtensionManager
                 val tempFile = File(context.cacheDir, "temp_$downloadId")
 
                 if (tempFile.exists() && !tempFile.delete()) {

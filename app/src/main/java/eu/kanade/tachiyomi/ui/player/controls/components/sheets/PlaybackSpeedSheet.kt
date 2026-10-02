@@ -46,15 +46,12 @@ import androidx.compose.ui.Modifier
 import eu.kanade.presentation.player.components.PlayerSheet
 import eu.kanade.presentation.player.components.SliderItem
 import eu.kanade.presentation.player.components.SwitchPreference
-import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
-import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.di.appGraph
 import `is`.xyz.mpv.MPVLib
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -65,8 +62,8 @@ fun PlaybackSpeedSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val preferences = remember { Injekt.get<PlayerPreferences>() }
-    val audioPreferences = remember { Injekt.get<AudioPreferences>() }
+    val preferences = remember { appGraph.playerPreferences }
+    val audioPreferences = remember { appGraph.audioPreferences }
     PlayerSheet(onDismissRequest = onDismissRequest) {
         Column(
             modifier

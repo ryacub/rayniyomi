@@ -1,10 +1,9 @@
 package eu.kanade.tachiyomi.ui.library.manga
 
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.manga.getNameForMangaInfo
 import tachiyomi.domain.library.manga.LibraryManga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaLibraryItem(
     val libraryManga: LibraryManga,
@@ -12,7 +11,7 @@ class MangaLibraryItem(
     var unreadCount: Long = -1,
     var isLocal: Boolean = false,
     var sourceLanguage: String = "",
-    private val sourceManager: MangaSourceManager = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
 ) {
     val sourceName by lazy { sourceManager.getOrStub(libraryManga.manga.source).getNameForMangaInfo() }
 

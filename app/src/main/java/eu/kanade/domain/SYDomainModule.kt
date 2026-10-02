@@ -1,14 +1,14 @@
 package eu.kanade.domain
 
+import dev.zacsweers.metro.BindingContainer
+import dev.zacsweers.metro.Provides
 import eu.kanade.domain.source.manga.interactor.ToggleExcludeFromMangaDataSaver
-import uy.kohesive.injekt.api.InjektModule
-import uy.kohesive.injekt.api.InjektRegistrar
-import uy.kohesive.injekt.api.addFactory
-import uy.kohesive.injekt.api.get
+import eu.kanade.domain.source.service.SourcePreferences
 
-class SYDomainModule : InjektModule {
+@BindingContainer
+object SYDomainModule {
 
-    override fun InjektRegistrar.registerInjectables() {
-        addFactory { ToggleExcludeFromMangaDataSaver(get()) }
-    }
+    @Provides
+    fun provideToggleExcludeFromMangaDataSaver(preferences: SourcePreferences): ToggleExcludeFromMangaDataSaver =
+        ToggleExcludeFromMangaDataSaver(preferences = preferences)
 }

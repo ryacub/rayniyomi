@@ -6,6 +6,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.source.anime.interactor.GetAnimeSourcesWithFavoriteCount
 import eu.kanade.domain.source.interactor.SetMigrateSorting
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -20,13 +21,12 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.model.AnimeSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrateAnimeSourceScreenModel(
-    preferences: SourcePreferences = Injekt.get(),
-    private val getSourcesWithFavoriteCount: GetAnimeSourcesWithFavoriteCount = Injekt.get(),
-    private val setMigrateSorting: SetMigrateSorting = Injekt.get(),
+    preferences: SourcePreferences = appGraph.sourcePreferences,
+    private val getSourcesWithFavoriteCount: GetAnimeSourcesWithFavoriteCount =
+        appGraph.getAnimeSourcesWithFavoriteCount,
+    private val setMigrateSorting: SetMigrateSorting = appGraph.setMigrateSorting,
 ) : StateScreenModel<MigrateAnimeSourceScreenModel.State>(State()) {
 
     private val _channel = Channel<Event>(Int.MAX_VALUE)

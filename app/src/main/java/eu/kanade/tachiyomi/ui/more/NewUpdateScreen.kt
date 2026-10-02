@@ -26,6 +26,7 @@ import eu.kanade.presentation.more.NewUpdateScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
 import eu.kanade.tachiyomi.data.updater.AppUpdatePermissionPolicy
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.canPostNotifications
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
@@ -34,8 +35,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class NewUpdateScreen(
     private val versionName: String,
@@ -49,7 +48,7 @@ class NewUpdateScreen(
 
     @VisibleForTesting
     internal var gatekeeper: UpdatePromptGatekeeper
-        get() = gatekeeperOverride ?: Injekt.get()
+        get() = gatekeeperOverride ?: appGraph.updatePromptGatekeeper
         set(value) {
             gatekeeperOverride = value
         }

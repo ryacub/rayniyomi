@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.manga.api
 
 import android.content.Context
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
@@ -29,20 +30,19 @@ import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.days
 
 internal class MangaExtensionApi {
 
-    private val networkService: NetworkHelper by injectLazy()
-    private val preferenceStore: PreferenceStore by injectLazy()
-    private val getExtensionRepo: GetMangaExtensionRepo by injectLazy()
-    private val updateExtensionRepo: UpdateMangaExtensionRepo by injectLazy()
-    private val extensionManager: MangaExtensionManager by injectLazy()
-    private val json: Json by injectLazy()
-    private val protoBuf: ProtoBuf by injectLazy()
+    private val networkService: NetworkHelper by lazy { appGraph.networkHelper }
+    private val preferenceStore: PreferenceStore by lazy { appGraph.preferenceStore }
+    private val getExtensionRepo: GetMangaExtensionRepo by lazy { appGraph.getMangaExtensionRepo }
+    private val updateExtensionRepo: UpdateMangaExtensionRepo by lazy { appGraph.updateMangaExtensionRepo }
+    private val extensionManager: MangaExtensionManager by lazy { appGraph.mangaExtensionManager }
+    private val json: Json by lazy { appGraph.json }
+    private val protoBuf: ProtoBuf by lazy { appGraph.protoBuf }
 
     private val lastExtCheck: Preference<Long> by lazy {
         preferenceStore.getLong("last_ext_check", 0)

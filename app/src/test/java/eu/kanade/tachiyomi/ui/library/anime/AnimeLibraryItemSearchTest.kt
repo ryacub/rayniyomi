@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.library.anime
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.di.testAppGraph
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -17,8 +18,6 @@ import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.library.model.search.parseSearchQuery
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 import java.time.Instant
 import java.time.ZoneId
 
@@ -26,18 +25,16 @@ class AnimeLibraryItemSearchTest {
 
     @BeforeEach
     fun setUp() {
-        // The real getNameForAnimeInfo() extension reads SourcePreferences through Injekt and
+        // The real getNameForAnimeInfo() extension reads SourcePreferences through the app graph and
         // computes the displayed name from the enabled languages and the source's lang/name.
-        // Registering the preferences makes the extension deterministic in tests.
-        Injekt.addSingleton(
-            SourcePreferences(
-                InMemoryPreferenceStore(
-                    sequenceOf(
-                        InMemoryPreferenceStore.InMemoryPreference(
-                            key = "source_languages",
-                            data = setOf("en"),
-                            defaultValue = emptySet<String>(),
-                        ),
+        // The test preferences make the extension deterministic.
+        every { testAppGraph.sourcePreferences } returns SourcePreferences(
+            InMemoryPreferenceStore(
+                sequenceOf(
+                    InMemoryPreferenceStore.InMemoryPreference(
+                        key = "source_languages",
+                        data = setOf("en"),
+                        defaultValue = emptySet<String>(),
                     ),
                 ),
             ),

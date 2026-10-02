@@ -21,6 +21,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.util.getFilterListOrNull
@@ -51,28 +52,26 @@ import tachiyomi.domain.items.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.interactor.GetRemoteManga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import eu.kanade.tachiyomi.source.model.Filter as SourceModelFilter
 
 class BrowseMangaSourceScreenModel(
     private val sourceId: Long,
     listingQuery: String?,
-    sourceManager: MangaSourceManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val coverCache: MangaCoverCache = Injekt.get(),
-    private val getRemoteManga: GetRemoteManga = Injekt.get(),
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val addTracks: AddMangaTracks = Injekt.get(),
-    private val getIncognitoState: GetMangaIncognitoState = Injekt.get(),
+    sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
+    private val getRemoteManga: GetRemoteManga = appGraph.getRemoteManga,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = appGraph.getDuplicateLibraryManga,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
+    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = appGraph.setMangaDefaultChapterFlags,
+    private val getManga: GetManga = appGraph.getManga,
+    private val networkToLocalManga: NetworkToLocalManga = appGraph.networkToLocalManga,
+    private val updateManga: UpdateManga = appGraph.updateManga,
+    private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
+    private val getIncognitoState: GetMangaIncognitoState = appGraph.getMangaIncognitoState,
 ) : StateScreenModel<BrowseMangaSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(screenModelScope)

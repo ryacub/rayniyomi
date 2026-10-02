@@ -8,6 +8,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
 import kotlinx.collections.immutable.PersistentMap
@@ -31,17 +32,15 @@ import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 abstract class AnimeSearchScreenModel(
     initialState: State = State(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val extensionManager: AnimeExtensionManager = Injekt.get(),
-    private val networkToLocalAnime: NetworkToLocalAnime = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val preferences: SourcePreferences = Injekt.get(),
+    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val extensionManager: AnimeExtensionManager = appGraph.animeExtensionManager,
+    private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
     private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
 ) : StateScreenModel<AnimeSearchScreenModel.State>(initialState) {
 

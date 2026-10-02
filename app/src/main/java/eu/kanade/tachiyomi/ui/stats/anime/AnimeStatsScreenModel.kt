@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
@@ -25,16 +26,14 @@ import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_V
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.model.AnimeTrack
 import tachiyomi.source.local.entries.anime.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeStatsScreenModel(
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
-    private val getAnimelibAnime: GetLibraryAnime = Injekt.get(),
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get(),
-    private val getTracks: GetAnimeTracks = Injekt.get(),
-    private val preferences: LibraryPreferences = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    private val getAnimelibAnime: GetLibraryAnime = appGraph.getLibraryAnime,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
+    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
+    private val preferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val trackerManager: TrackerManager = appGraph.trackerManager,
 ) : StateScreenModel<StatsScreenState>(StatsScreenState.Loading) {
 
     private val loggedInTrackers by lazy { trackerManager.loggedInTrackers().filter { it is AnimeTracker } }

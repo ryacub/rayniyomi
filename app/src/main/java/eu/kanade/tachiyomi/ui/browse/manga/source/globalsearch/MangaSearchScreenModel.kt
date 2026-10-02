@@ -7,6 +7,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
@@ -31,17 +32,15 @@ import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 abstract class MangaSearchScreenModel(
     initialState: State = State(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val extensionManager: MangaExtensionManager = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val preferences: SourcePreferences = Injekt.get(),
+    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
+    private val networkToLocalManga: NetworkToLocalManga = appGraph.networkToLocalManga,
+    private val getManga: GetManga = appGraph.getManga,
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
     private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
 ) : StateScreenModel<MangaSearchScreenModel.State>(initialState) {
 

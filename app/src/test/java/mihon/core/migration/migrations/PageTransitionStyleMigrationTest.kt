@@ -1,8 +1,10 @@
 package mihon.core.migration.migrations
 
+import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
+import io.mockk.every
 import kotlinx.coroutines.runBlocking
 import mihon.core.migration.MigrationContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -12,8 +14,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addFactory
 
 class PageTransitionStyleMigrationTest {
 
@@ -26,11 +26,9 @@ class PageTransitionStyleMigrationTest {
 
     @BeforeEach
     fun setup() {
-        // addFactory, not addSingleton: addSingleton caches the first instance
-        // registered for a type, so whichever migration test ran first in this JVM
-        // would win and the other would silently read the wrong store.
-        Injekt.addFactory<PreferenceStore> { store }
-        assertSame(store, Injekt.getInstanceOrNull(PreferenceStore::class.java))
+        // Resolve this test store without another migration test's cached instance.
+        every { testAppGraph.preferenceStore } answers { store }
+        assertSame(store, testAppGraph.preferenceStore)
         store.getBoolean(OLD_KEY).delete()
         store.getEnum(NEW_KEY, PageTransitionStyle.SLIDE).delete()
     }

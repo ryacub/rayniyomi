@@ -3,13 +3,12 @@ package mihon.core.migration.migrations
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
 import tachiyomi.core.common.preference.Preference
-import tachiyomi.core.common.preference.PreferenceStore
 
 class PrivatePreferenceMigration : Migration {
     override val version = 116f
 
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val preferenceStore = migrationContext.get<PreferenceStore>() ?: return false
+        val preferenceStore = migrationContext.graph?.preferenceStore ?: return false
 
         replacePreferences(
             preferenceStore = preferenceStore,

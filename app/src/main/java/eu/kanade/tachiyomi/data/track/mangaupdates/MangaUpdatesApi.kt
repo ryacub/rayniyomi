@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MULoginResponse
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MURating
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MURecord
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MUSearchResult
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -25,14 +26,13 @@ import kotlinx.serialization.json.putJsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.manga.model.MangaTrack as DomainTrack
 
 class MangaUpdatesApi(
     interceptor: MangaUpdatesInterceptor,
     private val client: OkHttpClient,
 ) {
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     private val authClient by lazy {
         client.newBuilder()

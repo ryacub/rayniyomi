@@ -2,13 +2,12 @@ package eu.kanade.tachiyomi.data.download.anime
 
 import android.content.Context
 import androidx.core.content.edit
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Class used to keep a list of episodes for future deletion.
@@ -17,7 +16,7 @@ import uy.kohesive.injekt.api.get
  */
 class AnimeDownloadPendingDeleter(
     context: Context,
-    private val json: Json = Injekt.get(),
+    private val json: Json = appGraph.json,
 ) {
 
     /**

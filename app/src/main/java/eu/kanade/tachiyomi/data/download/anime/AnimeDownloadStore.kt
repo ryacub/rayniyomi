@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -12,18 +13,16 @@ import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to persist active downloads across application restarts.
  */
 class AnimeDownloadStore(
     context: Context,
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val json: Json = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val getEpisode: GetEpisode = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val json: Json = appGraph.json,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val getEpisode: GetEpisode = appGraph.getEpisode,
 ) : DownloadQueueStore<AnimeDownload> {
 
     /**

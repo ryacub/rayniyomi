@@ -3,20 +3,16 @@ package mihon.core.migration.migrations
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
 import tachiyomi.core.common.util.lang.withIOContext
-import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
-import tachiyomi.domain.category.manga.interactor.GetMangaCategories
-import tachiyomi.domain.download.service.DownloadPreferences
-import tachiyomi.domain.library.service.LibraryPreferences
 
 class CategoryPreferencesCleanupMigration : Migration {
     override val version: Float = 129f
 
     override suspend fun invoke(migrationContext: MigrationContext): Boolean = withIOContext {
-        val libraryPreferences = migrationContext.get<LibraryPreferences>() ?: return@withIOContext false
-        val downloadPreferences = migrationContext.get<DownloadPreferences>() ?: return@withIOContext false
+        val libraryPreferences = migrationContext.graph?.libraryPreferences ?: return@withIOContext false
+        val downloadPreferences = migrationContext.graph.downloadPreferences
 
-        val getAnimeCategories = migrationContext.get<GetAnimeCategories>() ?: return@withIOContext false
-        val getMangaCategories = migrationContext.get<GetMangaCategories>() ?: return@withIOContext false
+        val getAnimeCategories = migrationContext.graph.getAnimeCategories
+        val getMangaCategories = migrationContext.graph.getMangaCategories
         val allAnimeCategories = getAnimeCategories.await().map { it.id.toString() }.toSet()
         val allMangaCategories = getMangaCategories.await().map { it.id.toString() }.toSet()
 

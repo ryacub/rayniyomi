@@ -9,6 +9,7 @@ import eu.kanade.domain.extension.manga.interactor.MangaExtensionSourceItem
 import eu.kanade.domain.source.manga.interactor.ToggleMangaIncognito
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSource
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -29,18 +30,16 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaExtensionDetailsScreenModel(
     pkgName: String,
     context: Context,
-    private val network: NetworkHelper = Injekt.get(),
-    private val extensionManager: MangaExtensionManager = Injekt.get(),
-    private val getExtensionSources: GetExtensionSources = Injekt.get(),
-    private val toggleSource: ToggleMangaSource = Injekt.get(),
-    private val toggleIncognito: ToggleMangaIncognito = Injekt.get(),
-    private val preferences: SourcePreferences = Injekt.get(),
+    private val network: NetworkHelper = appGraph.networkHelper,
+    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
+    private val getExtensionSources: GetExtensionSources = appGraph.getExtensionSources,
+    private val toggleSource: ToggleMangaSource = appGraph.toggleMangaSource,
+    private val toggleIncognito: ToggleMangaIncognito = appGraph.toggleMangaIncognito,
+    private val preferences: SourcePreferences = appGraph.sourcePreferences,
 ) : StateScreenModel<MangaExtensionDetailsScreenModel.State>(State()) {
 
     private val _events: Channel<MangaExtensionDetailsEvent> = Channel()

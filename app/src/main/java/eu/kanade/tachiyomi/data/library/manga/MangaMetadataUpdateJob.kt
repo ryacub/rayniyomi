@@ -12,6 +12,7 @@ import androidx.work.WorkQuery
 import androidx.work.WorkerParameters
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.isRunning
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
@@ -28,17 +29,15 @@ import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.library.manga.LibraryManga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class MangaMetadataUpdateJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
 
-    private val sourceManager: MangaSourceManager = Injekt.get()
-    private val getLibraryManga: GetLibraryManga = Injekt.get()
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get()
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager
+    private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga
+    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote
 
     private val notifier = MangaLibraryUpdateNotifier(context)
 

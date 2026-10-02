@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
+import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.system.notificationBuilder
@@ -52,9 +53,6 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
-import uy.kohesive.injekt.api.get
 import java.io.FileNotFoundException
 import java.io.IOException
 
@@ -75,11 +73,11 @@ class AnimeDownloaderTest {
         every { downloadPreferences.numberOfDownloads().get() } returns 1
         every { downloadPreferences.multiThreadConnections().get() } returns 2
 
-        Injekt.addSingleton<DownloadPreferences>(downloadPreferences)
-        Injekt.addSingleton<AnimeSourceManager>(mockk(relaxed = true))
-        Injekt.addSingleton<Json>(Json { ignoreUnknownKeys = true })
-        Injekt.addSingleton<GetAnime>(mockk(relaxed = true))
-        Injekt.addSingleton<GetEpisode>(mockk(relaxed = true))
+        every { testAppGraph.downloadPreferences } returns downloadPreferences
+        every { testAppGraph.animeSourceManager } returns mockk(relaxed = true)
+        every { testAppGraph.json } returns Json { ignoreUnknownKeys = true }
+        every { testAppGraph.getAnime } returns mockk(relaxed = true)
+        every { testAppGraph.getEpisode } returns mockk(relaxed = true)
 
         mockkObject(DiskUtil)
         every { DiskUtil.getAvailableStorageSpace(any<UniFile>()) } returns 1_000_000_000L
@@ -121,7 +119,7 @@ class AnimeDownloaderTest {
 
     @AfterEach
     fun tearDown() {
-        every { Injekt.get<DownloadPreferences>().useExternalDownloader().get() } returns false
+        every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns false
         unmockkStatic("tachiyomi.core.common.i18n.LocalizeKt")
         unmockkStatic("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt")
         unmockkObject(NotificationHandler)
@@ -410,7 +408,7 @@ class AnimeDownloaderTest {
     fun `a storage location without a local path still hands the download to the external downloader`() = runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
 
-        val downloadPreferences: DownloadPreferences = Injekt.get()
+        val downloadPreferences: DownloadPreferences = testAppGraph.downloadPreferences
         every { downloadPreferences.useExternalDownloader().get() } returns true
         every { downloadPreferences.externalDownloaderSelection().get() } returns ""
 
@@ -457,7 +455,7 @@ class AnimeDownloaderTest {
     fun `ADM hand-off reports a named failure when the storage location has no local path`() = runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
 
-        val downloadPreferences: DownloadPreferences = Injekt.get()
+        val downloadPreferences: DownloadPreferences = testAppGraph.downloadPreferences
         every { downloadPreferences.useExternalDownloader().get() } returns true
         every { downloadPreferences.externalDownloaderSelection().get() } returns "com.dv.adm"
 

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -23,19 +24,18 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.isAlphabeticalCategorySortEnabled
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class AnimeCategoryScreenModel(
-    private val getAllCategories: GetAnimeCategories = Injekt.get(),
-    private val getVisibleCategories: GetVisibleAnimeCategories = Injekt.get(),
-    private val createCategoryWithName: CreateAnimeCategoryWithName = Injekt.get(),
-    private val hideCategory: HideAnimeCategory = Injekt.get(),
-    private val deleteCategory: DeleteAnimeCategory = Injekt.get(),
-    private val reorderCategory: ReorderAnimeCategory = Injekt.get(),
-    private val renameCategory: RenameAnimeCategory = Injekt.get(),
-    private val setAlphabeticalSortInteractor: SetAnimeCategoryAlphabeticalSort = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val getAllCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val getVisibleCategories: GetVisibleAnimeCategories = appGraph.getVisibleAnimeCategories,
+    private val createCategoryWithName: CreateAnimeCategoryWithName = appGraph.createAnimeCategoryWithName,
+    private val hideCategory: HideAnimeCategory = appGraph.hideAnimeCategory,
+    private val deleteCategory: DeleteAnimeCategory = appGraph.deleteAnimeCategory,
+    private val reorderCategory: ReorderAnimeCategory = appGraph.reorderAnimeCategory,
+    private val renameCategory: RenameAnimeCategory = appGraph.renameAnimeCategory,
+    private val setAlphabeticalSortInteractor: SetAnimeCategoryAlphabeticalSort =
+        appGraph.setAnimeCategoryAlphabeticalSort,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
 ) : StateScreenModel<AnimeCategoryScreenState>(AnimeCategoryScreenState.Loading) {
 
     private val _events: Channel<AnimeCategoryEvent> = Channel()

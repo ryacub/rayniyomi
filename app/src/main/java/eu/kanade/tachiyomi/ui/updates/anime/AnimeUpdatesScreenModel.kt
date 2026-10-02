@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.updates.anime
 
-import android.app.Application
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -16,6 +15,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.mutate
@@ -52,24 +52,22 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.updates.anime.interactor.GetAnimeUpdates
 import tachiyomi.domain.updates.anime.model.AnimeUpdatesWithRelations
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 
 class AnimeUpdatesScreenModel(
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
-    private val downloadCache: AnimeDownloadCache = Injekt.get(),
-    private val updateEpisode: UpdateEpisode = Injekt.get(),
-    private val setSeenStatus: SetSeenStatus = Injekt.get(),
-    private val getUpdates: GetAnimeUpdates = Injekt.get(),
-    private val getAnime: GetAnime = Injekt.get(),
-    private val getEpisode: GetEpisode = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    private val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
+    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
+    private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
+    private val getUpdates: GetAnimeUpdates = appGraph.getAnimeUpdates,
+    private val getAnime: GetAnime = appGraph.getAnime,
+    private val getEpisode: GetEpisode = appGraph.getEpisode,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    downloadPreferences: DownloadPreferences = Injekt.get(),
+    downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<AnimeUpdatesScreenModel.State>(State()) {
 
@@ -177,7 +175,7 @@ class AnimeUpdatesScreenModel(
     }
 
     fun updateLibrary(): Boolean {
-        val started = AnimeLibraryUpdateJob.startNow(Injekt.get<Application>())
+        val started = AnimeLibraryUpdateJob.startNow(appGraph.application)
         screenModelScope.launch {
             _events.send(Event.LibraryUpdateTriggered(started))
         }

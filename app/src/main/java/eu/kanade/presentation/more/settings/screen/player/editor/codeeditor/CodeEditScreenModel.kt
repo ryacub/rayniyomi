@@ -7,6 +7,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,14 +18,12 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.FileOutputStream
 
 class CodeEditScreenModel(
     private val context: Context,
     private val filePath: String,
-    private val storageManager: StorageManager = Injekt.get(),
+    private val storageManager: StorageManager = appGraph.storageManager,
 ) : StateScreenModel<CodeEditScreenState>(CodeEditScreenState.Loading) {
     private val _hasModified = MutableStateFlow(false)
     val hasModified = _hasModified.asStateFlow()

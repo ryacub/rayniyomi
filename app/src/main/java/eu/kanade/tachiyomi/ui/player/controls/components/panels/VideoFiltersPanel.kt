@@ -41,11 +41,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.constraintlayout.compose.ConstraintLayout
 import eu.kanade.presentation.player.components.SliderItem
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.VideoFilters
 import eu.kanade.tachiyomi.ui.player.controls.CARDS_MAX_WIDTH
 import eu.kanade.tachiyomi.ui.player.controls.components.ControlsButton
 import eu.kanade.tachiyomi.ui.player.controls.panelCardsColors
-import eu.kanade.tachiyomi.ui.player.settings.DecoderPreferences
 import `is`.xyz.mpv.MPVLib
 import tachiyomi.core.common.preference.deleteAndGet
 import tachiyomi.i18n.MR
@@ -53,8 +53,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun VideoFiltersPanel(
@@ -83,7 +81,7 @@ fun FiltersCard(
     modifier: Modifier = Modifier,
     onClose: () -> Unit,
 ) {
-    val decoderPreferences = remember { Injekt.get<DecoderPreferences>() }
+    val decoderPreferences = remember { appGraph.decoderPreferences }
     Card(
         colors = panelCardsColors(),
         modifier = modifier

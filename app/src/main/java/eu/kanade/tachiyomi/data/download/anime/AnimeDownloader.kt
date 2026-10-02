@@ -25,12 +25,12 @@ import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.ui.player.loader.EpisodeLoader
 import eu.kanade.tachiyomi.ui.player.loader.HosterLoader
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.system.copyToClipboard
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,9 +59,6 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.io.IOException
 
 /**
@@ -77,10 +74,10 @@ class AnimeDownloader(
     private val context: Context,
     private val provider: AnimeDownloadProvider,
     private val cache: AnimeDownloadCache,
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val stateStore: DownloadStateStore = Injekt.get(),
-    private val strategySelector: DownloadStrategySelector = Injekt.get(),
-    private val multiThreadDownloader: MultiThreadDownloader = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val stateStore: DownloadStateStore = appGraph.downloadStateStore,
+    private val strategySelector: DownloadStrategySelector = appGraph.downloadStrategySelector,
+    private val multiThreadDownloader: MultiThreadDownloader = appGraph.multiThreadDownloader,
 ) {
     /**
      * Queue where active downloads are kept.
@@ -164,7 +161,7 @@ class AnimeDownloader(
     /**
      * Preference for user's choice of external downloader
      */
-    private val preferences: DownloadPreferences by injectLazy()
+    private val preferences: DownloadPreferences by lazy { appGraph.downloadPreferences }
 
     private val videoDownloader by lazy {
         AnimeVideoDownloader(
@@ -179,7 +176,7 @@ class AnimeDownloader(
     /**
      * Network helper for HTTP client access.
      */
-    private val networkHelper: NetworkHelper by injectLazy()
+    private val networkHelper: NetworkHelper by lazy { appGraph.networkHelper }
 
     /**
      * Whether the downloader is running.

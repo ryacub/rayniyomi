@@ -16,6 +16,7 @@ import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.prepUpdateBackground
 import eu.kanade.tachiyomi.util.prepUpdateCover
 import eu.kanade.tachiyomi.util.system.isRunning
@@ -36,19 +37,17 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.toAnimeUpdate
 import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
 
-    private val sourceManager: AnimeSourceManager = Injekt.get()
-    private val coverCache: AnimeCoverCache = Injekt.get()
-    private val backgroundCache: AnimeBackgroundCache = Injekt.get()
-    private val getLibraryAnime: GetLibraryAnime = Injekt.get()
-    private val updateAnime: UpdateAnime = Injekt.get()
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache
+    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache
+    private val getLibraryAnime: GetLibraryAnime = appGraph.getLibraryAnime
+    private val updateAnime: UpdateAnime = appGraph.updateAnime
 
     private val notifier = AnimeLibraryUpdateNotifier(context)
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -12,18 +13,16 @@ import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to persist active downloads across application restarts.
  */
 class MangaDownloadStore(
     context: Context,
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val json: Json = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getChapter: GetChapter = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val json: Json = appGraph.json,
+    private val getManga: GetManga = appGraph.getManga,
+    private val getChapter: GetChapter = appGraph.getChapter,
 ) : DownloadQueueStore<MangaDownload> {
 
     /**

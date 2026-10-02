@@ -9,21 +9,17 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.browse.AnimeExtensionReposScreen
 import eu.kanade.presentation.more.settings.screen.browse.MangaExtensionReposScreen
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.authenticate
 import kotlinx.collections.immutable.persistentListOf
-import mihon.domain.extensionrepo.anime.interactor.GetAnimeExtensionRepoCount
-import mihon.domain.extensionrepo.manga.interactor.GetMangaExtensionRepoCount
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsBrowseScreen : SearchableSettings {
 
@@ -36,9 +32,9 @@ object SettingsBrowseScreen : SearchableSettings {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
 
-        val sourcePreferences = remember { Injekt.get<SourcePreferences>() }
-        val getMangaExtensionRepoCount = remember { Injekt.get<GetMangaExtensionRepoCount>() }
-        val getAnimeExtensionRepoCount = remember { Injekt.get<GetAnimeExtensionRepoCount>() }
+        val sourcePreferences = remember { appGraph.sourcePreferences }
+        val getMangaExtensionRepoCount = remember { appGraph.getMangaExtensionRepoCount }
+        val getAnimeExtensionRepoCount = remember { appGraph.getAnimeExtensionRepoCount }
 
         val mangaReposCount by getMangaExtensionRepoCount.subscribe().collectAsStateWithLifecycle(0)
         val animeReposCount by getAnimeExtensionRepoCount.subscribe().collectAsStateWithLifecycle(0)

@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.EntryDownloadDropdownMenu
 import eu.kanade.presentation.entries.DownloadAction
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -64,8 +65,6 @@ import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
@@ -91,7 +90,7 @@ fun EntryBottomActionMenu(
         exit = shrinkVertically(shrinkTowards = Alignment.Bottom),
     ) {
         val scope = rememberCoroutineScope()
-        val playerPreferences: PlayerPreferences = Injekt.get()
+        val playerPreferences: PlayerPreferences = appGraph.playerPreferences
         Surface(
             modifier = modifier,
             shape = MaterialTheme.shapes.large.copy(

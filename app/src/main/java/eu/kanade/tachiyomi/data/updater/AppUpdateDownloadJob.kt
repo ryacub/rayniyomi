@@ -12,6 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.ProgressListener
@@ -28,7 +29,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -36,7 +36,7 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
     CoroutineWorker(context, workerParams) {
 
     private val notifier = AppUpdateNotifier(context)
-    private val network: NetworkHelper by injectLazy()
+    private val network: NetworkHelper by lazy { appGraph.networkHelper }
     private val installStateRepository = AppUpdateInstallStateRepository(context)
 
     override suspend fun doWork(): Result {

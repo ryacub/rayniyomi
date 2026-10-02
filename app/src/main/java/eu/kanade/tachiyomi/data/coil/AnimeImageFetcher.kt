@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.coil.AnimeImageFetcher.Companion.USE_CUSTOM_COVER_KEY
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.await
 import logcat.LogPriority
 import okhttp3.CacheControl
@@ -32,7 +33,6 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.AnimeCover
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.IOException
 
@@ -301,9 +301,9 @@ class AnimeImageFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<Anime> {
 
-        private val coverCache: AnimeCoverCache by injectLazy()
-        private val backgroundCache: AnimeBackgroundCache by injectLazy()
-        private val sourceManager: AnimeSourceManager by injectLazy()
+        private val coverCache: AnimeCoverCache by lazy { appGraph.animeCoverCache }
+        private val backgroundCache: AnimeBackgroundCache by lazy { appGraph.animeBackgroundCache }
+        private val sourceManager: AnimeSourceManager by lazy { appGraph.animeSourceManager }
 
         override fun create(data: Anime, options: Options, imageLoader: ImageLoader): Fetcher {
             val isBackground = options.useBackground
@@ -339,8 +339,8 @@ class AnimeImageFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<AnimeCover> {
 
-        private val coverCache: AnimeCoverCache by injectLazy()
-        private val sourceManager: AnimeSourceManager by injectLazy()
+        private val coverCache: AnimeCoverCache by lazy { appGraph.animeCoverCache }
+        private val sourceManager: AnimeSourceManager by lazy { appGraph.animeSourceManager }
 
         override fun create(data: AnimeCover, options: Options, imageLoader: ImageLoader): Fetcher {
             return AnimeImageFetcher(

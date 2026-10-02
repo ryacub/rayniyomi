@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import eu.kanade.tachiyomi.data.backup.models.LegacyBackup
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.protobuf.ProtoBuf
 import okio.buffer
@@ -11,13 +12,11 @@ import okio.gzip
 import okio.source
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.IOException
 
 class BackupDecoder(
     private val context: Context,
-    private val parser: ProtoBuf = Injekt.get(),
+    private val parser: ProtoBuf = appGraph.protoBuf,
 ) {
     /**
      * Decode a potentially-gzipped backup.

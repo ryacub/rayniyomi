@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
+import eu.kanade.tachiyomi.di.testAppGraph
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -37,8 +38,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.addSingleton
 import java.io.File
 import java.io.FileInputStream
 
@@ -48,7 +47,7 @@ class BackupRestorerCacheInvalidationTest {
         @BeforeAll
         @JvmStatic
         fun registerProtoBuf() {
-            Injekt.addSingleton<ProtoBuf>(ProtoBuf)
+            every { testAppGraph.protoBuf } returns ProtoBuf
         }
     }
 

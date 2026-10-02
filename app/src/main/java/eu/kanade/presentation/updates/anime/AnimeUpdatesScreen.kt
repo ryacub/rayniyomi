@@ -17,6 +17,7 @@ import androidx.compose.ui.util.fastAny
 import eu.kanade.presentation.entries.anime.components.EpisodeDownloadAction
 import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.updates.anime.AnimeUpdatesItem
 import eu.kanade.tachiyomi.ui.updates.anime.AnimeUpdatesScreenModel
@@ -28,8 +29,6 @@ import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.LocalDate
 import kotlin.time.Duration.Companion.seconds
 
@@ -122,7 +121,7 @@ private fun AnimeUpdatesBottomBar(
     onMultiDeleteClicked: (List<AnimeUpdatesItem>) -> Unit,
     onOpenEpisode: (AnimeUpdatesItem, altPlayer: Boolean) -> Unit,
 ) {
-    val playerPreferences: PlayerPreferences = Injekt.get()
+    val playerPreferences: PlayerPreferences = appGraph.playerPreferences
     EntryBottomActionMenu(
         visible = selected.isNotEmpty(),
         modifier = Modifier.fillMaxWidth(),

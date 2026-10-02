@@ -1,18 +1,16 @@
 package mihon.core.migration.migrations
 
-import android.app.Application
 import eu.kanade.tachiyomi.data.backup.create.BackupCreateJob
 import mihon.core.migration.Migration
 import mihon.core.migration.MigrationContext
-import tachiyomi.domain.backup.service.BackupPreferences
 
 class EnableAutoBackupMigration : Migration {
     override val version = 84f
 
     // Always attempt automatic backup creation
     override suspend fun invoke(migrationContext: MigrationContext): Boolean {
-        val context = migrationContext.get<Application>() ?: return false
-        val backupPreferences = migrationContext.get<BackupPreferences>() ?: return false
+        val context = migrationContext.graph?.application ?: return false
+        val backupPreferences = migrationContext.graph.backupPreferences
 
         if (backupPreferences.backupInterval().get() == 0) {
             backupPreferences.backupInterval().set(12)

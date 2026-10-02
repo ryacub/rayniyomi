@@ -52,7 +52,7 @@ import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.Video
-import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.QualitySheetHosterContent
@@ -72,9 +72,7 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
-import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.i18n.MR
@@ -82,8 +80,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -140,7 +136,7 @@ class EpisodeOptionsDialogScreenModel(
     animeId: Long,
     sourceId: Long,
 ) : ScreenModel {
-    private val sourceManager: AnimeSourceManager = Injekt.get()
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
 
     private val _hosterState = MutableStateFlow<Result<List<HosterState>>?>(null)
     val hosterState = _hosterState.asStateFlow()
@@ -169,7 +165,7 @@ class EpisodeOptionsDialogScreenModel(
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
         screenModelScope.launchIO {
-            val episode = Injekt.get<GetEpisode>().await(episodeId)
+            val episode = appGraph.getEpisode.await(episodeId)
             if (episode == null) {
                 _hosterState.update { _ ->
                     Result.failure(IllegalStateException("Episode is no longer available"))
@@ -177,7 +173,7 @@ class EpisodeOptionsDialogScreenModel(
                 return@launchIO
             }
 
-            val anime = Injekt.get<GetAnime>().await(animeId)
+            val anime = appGraph.getAnime.await(animeId)
             if (anime == null) {
                 _hosterState.update { _ ->
                     Result.failure(IllegalStateException("Anime is no longer available"))
@@ -564,7 +560,7 @@ private fun VideoList(
     onClickVideo: (Int, Int) -> Unit,
     getHosterList: () -> List<Hoster>?,
 ) {
-    val downloadManager = Injekt.get<AnimeDownloadManager>()
+    val downloadManager = appGraph.animeDownloadManager
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

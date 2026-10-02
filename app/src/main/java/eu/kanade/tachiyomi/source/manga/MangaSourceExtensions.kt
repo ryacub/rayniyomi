@@ -1,23 +1,20 @@
 package eu.kanade.tachiyomi.source.manga
 
 import android.graphics.drawable.Drawable
-import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.source.local.entries.manga.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
-fun MangaSource.icon(): Drawable? = Injekt.get<MangaExtensionManager>().getAppIconForSource(this.id)
+fun MangaSource.icon(): Drawable? = appGraph.mangaExtensionManager.getAppIconForSource(this.id)
 
 fun MangaSource.getPreferenceKey(): String = "source_$id"
 
 fun MangaSource.toStubSource(): StubMangaSource = StubMangaSource(id = id, lang = lang, name = name)
 
 fun MangaSource.getNameForMangaInfo(): String {
-    val preferences = Injekt.get<SourcePreferences>()
+    val preferences = appGraph.sourcePreferences
     val enabledLanguages = preferences.enabledLanguages().get()
         .filterNot { it in listOf("all", "other") }
     val hasOneActiveLanguages = enabledLanguages.size == 1

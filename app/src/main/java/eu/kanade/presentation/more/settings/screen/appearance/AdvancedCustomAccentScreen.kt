@@ -25,11 +25,10 @@ import eu.kanade.presentation.more.settings.widget.hsvToAccentSeed
 import eu.kanade.presentation.more.settings.widget.normalizeAccentSeed
 import eu.kanade.presentation.more.settings.widget.seedToHsv
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 private const val DEFAULT_ADVANCED_ACCENT_SEED = 0xFF1E88E5.toInt()
 
@@ -39,7 +38,7 @@ class AdvancedCustomAccentScreen : Screen() {
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val uiPreferences = remember { Injekt.get<UiPreferences>() }
+        val uiPreferences = remember { appGraph.uiPreferences }
         val customAccentSeedPref = remember { uiPreferences.customThemeAccentSeed() }
         val currentSeed = remember(customAccentSeedPref) { customAccentSeedPref.get() }
         val initialSeed = remember(currentSeed) {

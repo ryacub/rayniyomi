@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriAnimeSearchPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaByIdPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriMangaSearchPayload
 import eu.kanade.tachiyomi.data.track.shikimori.dto.shikimoriUserRatesQueryPayload
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -32,7 +33,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.anime.model.AnimeTrack as DomainAnimeTrack
 import tachiyomi.domain.track.manga.model.MangaTrack as DomainMangaTrack
 
@@ -42,7 +42,7 @@ class ShikimoriApi(
     interceptor: ShikimoriInterceptor,
 ) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     private val authClient = client.newBuilder().addInterceptor(interceptor).build()
 

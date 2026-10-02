@@ -40,7 +40,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.anime.migration.AnimeMigrationFlags
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.preference.Preference
@@ -64,8 +64,6 @@ import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 
 @Composable
@@ -200,19 +198,19 @@ internal fun MigrateAnimeDialog(
 }
 
 internal class MigrateAnimeDialogScreenModel(
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val downloadManager: AnimeDownloadManager = Injekt.get(),
-    private val updateAnime: UpdateAnime = Injekt.get(),
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = Injekt.get(),
-    private val syncEpisodesWithSource: SyncEpisodesWithSource = Injekt.get(),
-    private val updateEpisode: UpdateEpisode = Injekt.get(),
-    private val getCategories: GetAnimeCategories = Injekt.get(),
-    private val setAnimeCategories: SetAnimeCategories = Injekt.get(),
-    private val getTracks: GetAnimeTracks = Injekt.get(),
-    private val insertTrack: InsertAnimeTrack = Injekt.get(),
-    private val coverCache: AnimeCoverCache = Injekt.get(),
-    private val backgroundCache: AnimeBackgroundCache = Injekt.get(),
-    private val preferenceStore: PreferenceStore = Injekt.get(),
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
+    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
+    private val syncEpisodesWithSource: SyncEpisodesWithSource = appGraph.syncEpisodesWithSource,
+    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
+    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
+    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
+    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
+    private val insertTrack: InsertAnimeTrack = appGraph.insertAnimeTrack,
+    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
+    private val preferenceStore: PreferenceStore = appGraph.preferenceStore,
 ) : StateScreenModel<MigrateAnimeDialogScreenModel.State>(State()) {
 
     val migrateFlags: Preference<Int> by lazy {
@@ -220,7 +218,7 @@ internal class MigrateAnimeDialogScreenModel(
     }
 
     private val enhancedServices by lazy {
-        Injekt.get<TrackerManager>().trackers.filterIsInstance<EnhancedAnimeTracker>()
+        appGraph.trackerManager.trackers.filterIsInstance<EnhancedAnimeTracker>()
     }
 
     suspend fun migrateAnime(

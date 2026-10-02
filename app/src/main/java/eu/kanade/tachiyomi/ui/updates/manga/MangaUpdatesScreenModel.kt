@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.updates.manga
 
-import android.app.Application
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -16,6 +15,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.mutate
@@ -51,22 +51,20 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.updates.manga.interactor.GetMangaUpdates
 import tachiyomi.domain.updates.manga.model.MangaUpdatesWithRelations
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 
 class MangaUpdatesScreenModel(
-    private val sourceManager: MangaSourceManager = Injekt.get(),
-    private val downloadManager: MangaDownloadManager = Injekt.get(),
-    private val downloadCache: MangaDownloadCache = Injekt.get(),
-    private val updateChapter: UpdateChapter = Injekt.get(),
-    private val setReadStatus: SetReadStatus = Injekt.get(),
-    private val getUpdates: GetMangaUpdates = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getChapter: GetChapter = Injekt.get(),
-    private val getCategories: GetMangaCategories = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
+    private val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
+    private val updateChapter: UpdateChapter = appGraph.updateChapter,
+    private val setReadStatus: SetReadStatus = appGraph.setReadStatus,
+    private val getUpdates: GetMangaUpdates = appGraph.getMangaUpdates,
+    private val getManga: GetManga = appGraph.getManga,
+    private val getChapter: GetChapter = appGraph.getChapter,
+    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
+    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateScreenModel<MangaUpdatesScreenModel.State>(State()) {
@@ -173,7 +171,7 @@ class MangaUpdatesScreenModel(
     }
 
     fun updateLibrary(): Boolean {
-        val started = MangaLibraryUpdateJob.startNow(Injekt.get<Application>())
+        val started = MangaLibraryUpdateJob.startNow(appGraph.application)
         screenModelScope.launch {
             _events.send(Event.LibraryUpdateTriggered(started))
         }

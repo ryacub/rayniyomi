@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.filler
 
 import android.content.Context
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -9,8 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 
 class AnimeFillerListSource internal constructor(
@@ -22,7 +21,7 @@ class AnimeFillerListSource internal constructor(
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val fetchHtml: suspend (String) -> String = { url ->
         withContext(Dispatchers.IO) {
-            requireNotNull(network ?: Injekt.get<NetworkHelper>())
+            requireNotNull(network ?: appGraph.networkHelper)
                 .client.newCall(GET(url)).awaitSuccess().use { it.body.string() }
         }
     },

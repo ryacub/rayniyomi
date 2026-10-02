@@ -12,6 +12,7 @@ import androidx.fragment.app.FragmentActivity
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.core.security.PinHasher
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.security.ChangePinDialog
 import eu.kanade.tachiyomi.ui.security.PinSetupDialog
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.authenticate
@@ -23,8 +24,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Base64
 
 object SettingsSecurityScreen : SearchableSettings {
@@ -36,7 +35,7 @@ object SettingsSecurityScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val context = LocalContext.current
-        val securityPreferences = remember { Injekt.get<SecurityPreferences>() }
+        val securityPreferences = remember { appGraph.securityPreferences }
         val authSupported = remember { context.isAuthenticationSupported() }
 
         val useAuthPref = securityPreferences.useAuthenticator()

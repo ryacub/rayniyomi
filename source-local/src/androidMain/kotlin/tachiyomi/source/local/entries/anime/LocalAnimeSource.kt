@@ -19,6 +19,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import logcat.LogPriority
 import rx.Observable
+import tachiyomi.core.common.di.metroGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.storage.nameWithoutExtension
@@ -29,13 +30,13 @@ import tachiyomi.core.metadata.tachiyomi.EpisodeDetails
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.service.EpisodeRecognition
 import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.source.local.di.LocalSourceGraph
 import tachiyomi.source.local.filter.anime.AnimeOrderBy
 import tachiyomi.source.local.image.anime.LocalAnimeBackgroundManager
 import tachiyomi.source.local.image.anime.LocalAnimeCoverManager
 import tachiyomi.source.local.image.anime.LocalEpisodeThumbnailManager
 import tachiyomi.source.local.io.ArchiveAnime
 import tachiyomi.source.local.io.anime.LocalAnimeSourceFileSystem
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.InputStream
 import java.text.SimpleDateFormat
@@ -52,7 +53,7 @@ actual class LocalAnimeSource(
     private val fetchTypeManager: LocalAnimeFetchTypeManager,
 ) : AnimeCatalogueSource, UnmeteredSource {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { context.metroGraph<LocalSourceGraph>().json }
 
     @Suppress("PrivatePropertyName")
     private val PopularFilters = AnimeFilterList(AnimeOrderBy.Popular(context))

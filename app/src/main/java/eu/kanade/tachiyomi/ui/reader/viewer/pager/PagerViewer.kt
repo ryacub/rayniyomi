@@ -13,6 +13,7 @@ import androidx.core.view.isVisible
 import androidx.viewpager.widget.ViewPager
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
@@ -24,7 +25,6 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import kotlin.math.min
 
 /**
@@ -33,7 +33,7 @@ import kotlin.math.min
 @Suppress("LeakingThis")
 abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
 
-    val downloadManager: MangaDownloadManager by injectLazy()
+    val downloadManager: MangaDownloadManager by lazy { appGraph.mangaDownloadManager }
 
     private val scope = MainScope()
 

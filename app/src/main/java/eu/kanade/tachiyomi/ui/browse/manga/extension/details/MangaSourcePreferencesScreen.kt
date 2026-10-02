@@ -8,16 +8,14 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.sourcePreferences
 import eu.kanade.tachiyomi.ui.browse.sourceprefs.SourcePreferencesContent
 import eu.kanade.tachiyomi.ui.browse.sourceprefs.buildSourcePreferenceScreen
 import tachiyomi.data.source.manga.MangaSourceGateway
-import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaSourcePreferencesScreen(val sourceId: Long) : Screen() {
 
@@ -31,7 +29,7 @@ class MangaSourcePreferencesScreen(val sourceId: Long) : Screen() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
         val source = remember(sourceId) {
-            Injekt.get<MangaSourceManager>().getOrStub(sourceId)
+            appGraph.mangaSourceManager.getOrStub(sourceId)
         }
 
         val sourcePrefs = remember(sourceId, source) {

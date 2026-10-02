@@ -25,6 +25,7 @@ import eu.kanade.presentation.entries.anime.EpisodeOptionsDialogScreen
 import eu.kanade.presentation.updates.UpdatesCategoryFilterDialog
 import eu.kanade.presentation.updates.UpdatesDeleteConfirmationDialog
 import eu.kanade.presentation.updates.anime.AnimeUpdateScreen
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -39,7 +40,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.theme.active
-import uy.kohesive.injekt.injectLazy
 
 @Composable
 fun Screen.animeUpdatesTab(
@@ -67,7 +67,7 @@ fun Screen.animeUpdatesTab(
     }
 
     suspend fun openEpisode(updateItem: AnimeUpdatesItem, altPlayer: Boolean = false) {
-        val playerPreferences: PlayerPreferences by injectLazy()
+        val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
         val update = updateItem.update
         val extPlayer = playerPreferences.alwaysUseExternalPlayer().get() != altPlayer
         MainActivity.startPlayerActivity(context, update.animeId, update.episodeId, extPlayer)

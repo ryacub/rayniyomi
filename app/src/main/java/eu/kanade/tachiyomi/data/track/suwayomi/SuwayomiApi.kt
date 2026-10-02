@@ -1,11 +1,10 @@
 package eu.kanade.tachiyomi.data.track.suwayomi
 
-import android.app.Application
 import android.content.SharedPreferences
 import eu.kanade.tachiyomi.data.database.models.manga.MangaTrack
 import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.PUT
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
@@ -16,16 +15,13 @@ import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.nio.charset.Charset
 import java.security.MessageDigest
 
 class SuwayomiApi(private val trackId: Long) {
 
-    private val network by injectLazy<NetworkHelper>()
-    private val json: Json by injectLazy()
+    private val network by lazy { appGraph.networkHelper }
+    private val json: Json by lazy { appGraph.json }
 
     private val client: OkHttpClient =
         network.client.newBuilder()
@@ -107,7 +103,7 @@ class SuwayomiApi(private val trackId: Long) {
     }
 
     private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$sourceId", 0x0000)
+        appGraph.application.getSharedPreferences("source_$sourceId", 0x0000)
     }
 
     private fun getPrefBaseUrl(): String = preferences.getString(ADDRESS_TITLE, ADDRESS_DEFAULT)!!

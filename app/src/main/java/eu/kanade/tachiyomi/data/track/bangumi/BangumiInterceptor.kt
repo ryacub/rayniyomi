@@ -3,15 +3,15 @@ package eu.kanade.tachiyomi.data.track.bangumi
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.track.bangumi.dto.BGMOAuth
 import eu.kanade.tachiyomi.data.track.bangumi.dto.isExpired
+import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 import java.io.IOException
 
 class BangumiInterceptor(private val bangumi: Bangumi) : Interceptor {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     /**
      * OAuth object used for authenticated requests.

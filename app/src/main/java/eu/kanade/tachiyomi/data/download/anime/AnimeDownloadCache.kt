@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CancellationException
@@ -52,8 +53,6 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.storage.service.StorageManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -68,10 +67,10 @@ private const val TAG = "AnimeDownloadCache"
  */
 class AnimeDownloadCache(
     private val context: Context,
-    private val provider: AnimeDownloadProvider = Injekt.get(),
-    private val sourceManager: AnimeSourceManager = Injekt.get(),
-    private val extensionManager: AnimeExtensionManager = Injekt.get(),
-    private val storageManager: StorageManager = Injekt.get(),
+    private val provider: AnimeDownloadProvider = appGraph.animeDownloadProvider,
+    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val extensionManager: AnimeExtensionManager = appGraph.animeExtensionManager,
+    private val storageManager: StorageManager = appGraph.storageManager,
 ) {
 
     /** Application-lifetime scope. Uses SupervisorJob for failure isolation. */
@@ -536,7 +535,7 @@ private object UniFileAsStringSerializer : KSerializer<UniFile?> {
 
     override fun deserialize(decoder: Decoder): UniFile? {
         return if (decoder.decodeNotNullMark()) {
-            UniFile.fromUri(Injekt.get<Application>(), decoder.decodeString().toUri())
+            UniFile.fromUri(appGraph.application, decoder.decodeString().toUri())
         } else {
             decoder.decodeNull()
         }

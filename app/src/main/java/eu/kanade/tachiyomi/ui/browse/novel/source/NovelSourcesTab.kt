@@ -23,19 +23,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.core.screen.Screen
 import eu.kanade.presentation.components.TabContent
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
-import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
 import kotlinx.coroutines.launch
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun Screen.novelSourcesTab(): TabContent {
-    val pluginLauncher = Injekt.get<LightNovelPluginLauncher>()
-    val stateManager = Injekt.get<LightNovelPluginStateManager>()
+    val pluginLauncher = appGraph.lightNovelPluginLauncher
+    val stateManager = appGraph.lightNovelPluginStateManager
     val pluginUiState by stateManager.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val launchFailedMessage = stringResource(AYMR.strings.light_novel_browse_launch_failed)

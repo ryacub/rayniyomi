@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALSearchResult
 import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALUser
 import eu.kanade.tachiyomi.data.track.myanimelist.dto.MALUserSearchResult
 import eu.kanade.tachiyomi.data.track.retryOnceOn429OrThrow
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.HttpException
@@ -37,7 +38,6 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
@@ -50,7 +50,7 @@ class MyAnimeListApi(
     interceptor: MyAnimeListInterceptor,
 ) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { appGraph.json }
 
     private val authClient = client.newBuilder()
         .addInterceptor(interceptor)

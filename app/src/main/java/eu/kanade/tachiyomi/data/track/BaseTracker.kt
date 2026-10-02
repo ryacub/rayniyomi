@@ -2,19 +2,19 @@ package eu.kanade.tachiyomi.data.track
 
 import androidx.annotation.CallSuper
 import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import okhttp3.OkHttpClient
-import uy.kohesive.injekt.injectLazy
 
 abstract class BaseTracker(
     override val id: Long,
     override val name: String,
 ) : Tracker {
 
-    val trackPreferences: TrackPreferences by injectLazy()
-    val networkService: NetworkHelper by injectLazy()
+    val trackPreferences: TrackPreferences by lazy { appGraph.trackPreferences }
+    val networkService: NetworkHelper by lazy { appGraph.networkHelper }
 
     override val client: OkHttpClient
         get() = networkService.client

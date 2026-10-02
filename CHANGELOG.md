@@ -21,6 +21,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Backup restore now keeps anime and manga category settings apart. Default categories and category filters no longer point to a category in the other library when the two use the same category ID (#1267).
 - Background jobs no longer fail silently when Android starts the app to run them. WorkManager now starts after the app sets up its dependencies, and a job that still fails to start is reported to Crashlytics (#1271).
+- Preserve the extension ProtoBuf binding after the Metro migration so MANGA Plus can decode its live catalog (#1257).
 - Light-novel restore failures now appear in the backup completion result.
 - Manga extensions built on extension-lib 1.6 no longer fail when they call `runBlockingK`, `Job.cancel`, `Source.supportsLatest`, or `HttpException.code`. The app now updates kotlinx-coroutines to 1.11.0 (#1252).
 - Manga extensions built on extension-lib 1.6 no longer fail when they save extra data on a manga or chapter. The app now stores that data in the library and in backups (#1253).
@@ -31,9 +32,11 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 
+- Update the release ABI baseline for the Metro source-manager constructors and their generated classes (#1257).
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
+- Move the host dependency graph to Metro and keep the extension Injekt registry read-only (#1257).
 - Document and test the host Injekt bindings that extension APIs use before the Metro migration (#1256).
 
 

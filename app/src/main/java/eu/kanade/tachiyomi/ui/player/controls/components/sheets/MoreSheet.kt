@@ -64,12 +64,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import eu.kanade.presentation.player.components.PlayerSheet
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.Decoder
 import eu.kanade.tachiyomi.ui.player.execute
 import eu.kanade.tachiyomi.ui.player.executeLongPress
-import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.AudioChannels
-import eu.kanade.tachiyomi.ui.player.settings.AudioPreferences
 import `is`.xyz.mpv.MPVLib
 import kotlinx.collections.immutable.ImmutableList
 import tachiyomi.domain.custombuttons.model.CustomButton
@@ -78,8 +77,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun MoreSheet(
@@ -92,8 +89,8 @@ fun MoreSheet(
     customButtons: ImmutableList<CustomButton>,
     modifier: Modifier = Modifier,
 ) {
-    val advancedPreferences = remember { Injekt.get<AdvancedPlayerPreferences>() }
-    val audioPreferences = remember { Injekt.get<AudioPreferences>() }
+    val advancedPreferences = remember { appGraph.advancedPlayerPreferences }
+    val audioPreferences = remember { appGraph.audioPreferences }
     val statisticsPage by advancedPreferences.playerStatisticsPage().collectAsState()
 
     PlayerSheet(

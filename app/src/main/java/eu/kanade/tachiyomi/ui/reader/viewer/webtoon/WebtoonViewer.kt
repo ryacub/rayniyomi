@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.WebtoonLayoutManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -22,9 +23,6 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import kotlin.math.max
 import kotlin.math.min
 
@@ -33,7 +31,7 @@ import kotlin.math.min
  */
 class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = true) : Viewer {
 
-    val downloadManager: MangaDownloadManager by injectLazy()
+    val downloadManager: MangaDownloadManager by lazy { appGraph.mangaDownloadManager }
 
     private val scope = MainScope()
 
@@ -81,11 +79,11 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
     private var currentPage: Any? = null
 
     private val threshold: Int =
-        Injekt.get<ReaderPreferences>()
+        appGraph.readerPreferences
             .readerHideThreshold()
             .get()
             .threshold
-    private val readerPreferences = Injekt.get<ReaderPreferences>()
+    private val readerPreferences = appGraph.readerPreferences
     private val autoScrollController = WebtoonAutoScrollController(
         scope = scope,
         canScrollDown = { recycler.canScrollVertically(1) },

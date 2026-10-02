@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
 import eu.kanade.tachiyomi.data.updater.AppUpdateDownloadJob
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
@@ -47,9 +48,6 @@ import tachiyomi.domain.items.episode.model.toEpisodeUpdate
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.i18n.aniyomi.AYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import eu.kanade.tachiyomi.BuildConfig.APPLICATION_ID as ID
 
 /**
@@ -59,14 +57,14 @@ import eu.kanade.tachiyomi.BuildConfig.APPLICATION_ID as ID
  */
 class NotificationReceiver : BroadcastReceiver() {
 
-    private val getManga: GetManga by injectLazy()
-    private val getAnime: GetAnime by injectLazy()
-    private val getChapter: GetChapter by injectLazy()
-    private val getEpisode: GetEpisode by injectLazy()
-    private val updateChapter: UpdateChapter by injectLazy()
-    private val updateEpisode: UpdateEpisode by injectLazy()
-    private val mangaDownloadManager: MangaDownloadManager by injectLazy()
-    private val animeDownloadManager: AnimeDownloadManager by injectLazy()
+    private val getManga: GetManga by lazy { appGraph.getManga }
+    private val getAnime: GetAnime by lazy { appGraph.getAnime }
+    private val getChapter: GetChapter by lazy { appGraph.getChapter }
+    private val getEpisode: GetEpisode by lazy { appGraph.getEpisode }
+    private val updateChapter: UpdateChapter by lazy { appGraph.updateChapter }
+    private val updateEpisode: UpdateEpisode by lazy { appGraph.updateEpisode }
+    private val mangaDownloadManager: MangaDownloadManager by lazy { appGraph.mangaDownloadManager }
+    private val animeDownloadManager: AnimeDownloadManager by lazy { appGraph.animeDownloadManager }
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -373,8 +371,8 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param pendingResult pending result from goAsync() to signal completion
      */
     private fun markAsRead(chapterUrls: Array<String>, mangaId: Long, pendingResult: PendingResult) {
-        val downloadPreferences: DownloadPreferences = Injekt.get()
-        val sourceManager: MangaSourceManager = Injekt.get()
+        val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences
+        val sourceManager: MangaSourceManager = appGraph.mangaSourceManager
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
@@ -418,8 +416,8 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param pendingResult pending result from goAsync() to signal completion
      */
     private fun markAsSeen(episodeUrls: Array<String>, animeId: Long, pendingResult: PendingResult) {
-        val downloadPreferences: DownloadPreferences = Injekt.get()
-        val sourceManager: AnimeSourceManager = Injekt.get()
+        val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences
+        val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
