@@ -1,17 +1,14 @@
 package eu.kanade.tachiyomi.ui.deeplink.manga
 
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
-import eu.kanade.tachiyomi.test.create
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.job
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -115,12 +112,6 @@ class DeepLinkMangaScreenModelTest {
 
     @Test
     fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
-        val store = ViewModelStore()
-        val model = store.create { createModel(RuntimeException("scope test")) }
-        val job = model.viewModelScope.coroutineContext.job
-
-        assertEquals(false, job.isCancelled)
-        store.clear()
-        assertEquals(true, job.isCancelled)
+        assertClearingStoreCancelsScope { createModel(RuntimeException("scope test")) }
     }
 }

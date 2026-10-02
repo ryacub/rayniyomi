@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.ui.library.manga
 
 import android.content.Context
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.items.chapter.interactor.SetReadStatus
@@ -15,18 +13,16 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
-import eu.kanade.tachiyomi.test.create
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.job
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
@@ -206,12 +202,6 @@ class MangaLibraryScreenModelSearchRaceTest {
 
     @Test
     fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
-        val store = ViewModelStore()
-        val model = store.create { createModel() }
-        val job = model.viewModelScope.coroutineContext.job
-
-        assertEquals(false, job.isCancelled)
-        store.clear()
-        assertEquals(true, job.isCancelled)
+        assertClearingStoreCancelsScope { createModel() }
     }
 }

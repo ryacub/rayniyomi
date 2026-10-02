@@ -1,8 +1,7 @@
 package eu.kanade.presentation.more.settings.screen.browse
 
-import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewModelScope
-import eu.kanade.tachiyomi.test.create
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -13,7 +12,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -122,12 +120,6 @@ class ExtensionReposScreenModelTest {
     @Test
     fun `clearing the store cancels the model scope`() = runTest {
         val deps = createMockDependencies(emptyFlow())
-        val store = ViewModelStore()
-        val model = store.create { ExtensionReposScreenModel(deps) }
-        val job = model.viewModelScope.coroutineContext.job
-
-        assertEquals(false, job.isCancelled)
-        store.clear()
-        assertEquals(true, job.isCancelled)
+        assertClearingStoreCancelsScope { ExtensionReposScreenModel(deps) }
     }
 }

@@ -1,15 +1,13 @@
 package eu.kanade.tachiyomi.ui.updates.anime
 
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.presentation.updates.anime.AnimeUpdatesUiModel
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
-import eu.kanade.tachiyomi.test.create
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.every
 import io.mockk.mockk
@@ -20,7 +18,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.job
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -235,12 +232,6 @@ class AnimeUpdatesScreenModelTest {
     fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
         val env = TestEnvironment()
         env.stubInteractor(flowOf(emptyList()))
-        val store = ViewModelStore()
-        val model = store.create { env.model() }
-        val job = model.viewModelScope.coroutineContext.job
-
-        assertEquals(false, job.isCancelled)
-        store.clear()
-        assertEquals(true, job.isCancelled)
+        assertClearingStoreCancelsScope { env.model() }
     }
 }

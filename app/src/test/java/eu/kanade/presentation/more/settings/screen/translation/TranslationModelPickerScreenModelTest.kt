@@ -1,7 +1,5 @@
 package eu.kanade.presentation.more.settings.screen.translation
 
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogResult
@@ -12,14 +10,13 @@ import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCost
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelStability
-import eu.kanade.tachiyomi.test.create
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -279,12 +276,6 @@ class TranslationModelPickerScreenModelTest {
     @Test
     fun `clearing the store cancels the model scope`() = runTest {
         val fixture = Fixture()
-        val store = ViewModelStore()
-        val model = store.create { fixture.model(success = success(emptyList())) }
-        val job = model.viewModelScope.coroutineContext.job
-
-        assertEquals(false, job.isCancelled)
-        store.clear()
-        assertEquals(true, job.isCancelled)
+        assertClearingStoreCancelsScope { fixture.model(success = success(emptyList())) }
     }
 }
