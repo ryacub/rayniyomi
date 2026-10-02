@@ -3,8 +3,8 @@ package eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.produceState
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.di.appGraph
@@ -42,7 +42,7 @@ abstract class MangaSearchScreenModel(
     private val getManga: GetManga = appGraph.getManga,
     private val preferences: SourcePreferences = appGraph.sourcePreferences,
     private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
-) : StateScreenModel<MangaSearchScreenModel.State>(initialState) {
+) : StateViewModel<MangaSearchScreenModel.State>(initialState) {
 
     private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
@@ -65,7 +65,7 @@ abstract class MangaSearchScreenModel(
     }
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             preferences.globalSearchFilterState().changes().collectLatest { state ->
                 mutableState.update { it.copy(onlyShowHasResults = state) }
             }
@@ -152,7 +152,7 @@ abstract class MangaSearchScreenModel(
                     .toPersistentMap(),
             )
         }
-        searchJob = screenModelScope.launch(searchDispatcher) {
+        searchJob = viewModelScope.launch(searchDispatcher) {
             sources.map { source ->
                 async {
                     if (state.value.items[source] !is MangaSearchItemResult.Loading) {

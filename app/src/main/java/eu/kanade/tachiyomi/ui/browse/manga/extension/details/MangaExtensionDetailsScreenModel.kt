@@ -2,8 +2,8 @@ package eu.kanade.tachiyomi.ui.browse.manga.extension.details
 
 import android.content.Context
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.extension.manga.interactor.GetExtensionSources
 import eu.kanade.domain.extension.manga.interactor.MangaExtensionSourceItem
 import eu.kanade.domain.source.manga.interactor.ToggleMangaIncognito
@@ -40,13 +40,13 @@ class MangaExtensionDetailsScreenModel(
     private val toggleSource: ToggleMangaSource = appGraph.toggleMangaSource,
     private val toggleIncognito: ToggleMangaIncognito = appGraph.toggleMangaIncognito,
     private val preferences: SourcePreferences = appGraph.sourcePreferences,
-) : StateScreenModel<MangaExtensionDetailsScreenModel.State>(State()) {
+) : StateViewModel<MangaExtensionDetailsScreenModel.State>(State()) {
 
     private val _events: Channel<MangaExtensionDetailsEvent> = Channel()
     val events: Flow<MangaExtensionDetailsEvent> = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             launch {
                 extensionManager.installedExtensionsFlow
                     .map { it.firstOrNull { extension -> extension.pkgName == pkgName } }

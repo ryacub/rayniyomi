@@ -1,7 +1,7 @@
 package eu.kanade.presentation.more.settings.screen.browse
 
 import androidx.compose.runtime.Composable
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.di.appGraph
 
@@ -11,7 +11,7 @@ class AnimeExtensionReposScreen(
 
     @Composable
     override fun Content() {
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             ExtensionReposScreenModel(
                 AnimeExtensionRepoDependencies(
                     getExtensionRepo = appGraph.getAnimeExtensionRepo,

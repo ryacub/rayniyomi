@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi.ui.webview
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.util.AssistContentScreen
@@ -23,7 +23,7 @@ class WebViewScreen(
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { WebViewScreenModel(sourceId) }
+        val screenModel = viewModel { WebViewScreenModel(sourceId) }
 
         WebViewScreenContent(
             onNavigateUp = { navigator.pop() },

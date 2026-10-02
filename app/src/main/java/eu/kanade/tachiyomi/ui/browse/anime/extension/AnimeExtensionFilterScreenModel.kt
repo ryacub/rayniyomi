@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.anime.extension
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionLanguages
 import eu.kanade.domain.source.interactor.ToggleLanguage
 import eu.kanade.domain.source.service.SourcePreferences
@@ -27,13 +27,13 @@ class AnimeExtensionFilterScreenModel(
     private val preferences: SourcePreferences = appGraph.sourcePreferences,
     private val getExtensionLanguages: GetAnimeExtensionLanguages = appGraph.getAnimeExtensionLanguages,
     private val toggleLanguage: ToggleLanguage = appGraph.toggleLanguage,
-) : StateScreenModel<AnimeExtensionFilterState>(AnimeExtensionFilterState.Loading) {
+) : StateViewModel<AnimeExtensionFilterState>(AnimeExtensionFilterState.Loading) {
 
     private val _events: Channel<AnimeExtensionFilterEvent> = Channel()
     val events: Flow<AnimeExtensionFilterEvent> = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             combine(
                 getExtensionLanguages.subscribe(),
                 preferences.enabledLanguages().changes(),

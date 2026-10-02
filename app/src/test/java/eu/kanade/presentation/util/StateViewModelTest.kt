@@ -4,9 +4,12 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.test.create
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -52,5 +55,22 @@ class StateViewModelTest {
         job.isCancelled shouldBe false
         store.clear()
         job.isCancelled shouldBe true
+    }
+
+    @Test
+    fun `ioCoroutineScope work is cancelled when the store is cleared`() = runTest {
+        val store = ViewModelStore()
+        val model = store.create { CounterViewModel() }
+        val started = CompletableDeferred<Unit>()
+        val work = model.ioCoroutineScope.launch {
+            started.complete(Unit)
+            awaitCancellation()
+        }
+        started.await()
+
+        store.clear()
+        work.join()
+
+        work.isCancelled shouldBe true
     }
 }

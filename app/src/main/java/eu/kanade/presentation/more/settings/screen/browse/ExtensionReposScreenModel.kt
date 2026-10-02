@@ -1,9 +1,9 @@
 package eu.kanade.presentation.more.settings.screen.browse
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.presentation.util.StateViewModel
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.channels.Channel
@@ -23,13 +23,13 @@ import tachiyomi.i18n.MR
  */
 class ExtensionReposScreenModel(
     private val deps: Dependencies,
-) : StateScreenModel<RepoScreenState>(RepoScreenState.Loading) {
+) : StateViewModel<RepoScreenState>(RepoScreenState.Loading) {
 
     private val _events: Channel<RepoEvent> = Channel(Channel.BUFFERED) // 64-event buffer, sufficient for UI events
     val events = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             deps.subscribeAll()
                 .collectLatest { repos ->
                     mutableState.update {
@@ -47,7 +47,7 @@ class ExtensionReposScreenModel(
      * @param baseUrl The baseUrl of the repo to create.
      */
     fun createRepo(baseUrl: String) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             when (val result = deps.createRepo(baseUrl)) {
                 CreateResult.InvalidUrl -> _events.send(RepoEvent.InvalidUrl)
                 CreateResult.RepoAlreadyExists -> _events.send(RepoEvent.RepoAlreadyExists)
@@ -68,7 +68,7 @@ class ExtensionReposScreenModel(
      * @param newRepo The repo to insert
      */
     fun replaceRepo(newRepo: ExtensionRepo) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             deps.replaceRepo(newRepo)
         }
     }
@@ -80,7 +80,7 @@ class ExtensionReposScreenModel(
         val status = state.value
 
         if (status is RepoScreenState.Success) {
-            screenModelScope.launchIO {
+            viewModelScope.launchIO {
                 deps.updateAll()
             }
         }
@@ -90,7 +90,7 @@ class ExtensionReposScreenModel(
      * Deletes the given repo from the database
      */
     fun deleteRepo(baseUrl: String) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             deps.deleteRepo(baseUrl)
         }
     }

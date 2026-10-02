@@ -19,7 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.hasCustomCover
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
@@ -156,7 +156,7 @@ internal class MigrateMangaDialogScreenModel(
     private val insertTrack: InsertMangaTrack = appGraph.insertMangaTrack,
     private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
     private val preferenceStore: PreferenceStore = appGraph.preferenceStore,
-) : StateScreenModel<MigrateMangaDialogScreenModel.State>(State()) {
+) : StateViewModel<MigrateMangaDialogScreenModel.State>(State()) {
 
     val migrateFlags: Preference<Int> by lazy {
         preferenceStore.getInt("migrate_flags", Int.MAX_VALUE)

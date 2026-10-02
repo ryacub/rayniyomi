@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.deeplink.manga
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.di.appGraph
@@ -32,10 +32,10 @@ class DeepLinkMangaScreenModel(
     private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = appGraph.getMangaByUrlAndSourceId,
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : StateScreenModel<DeepLinkMangaScreenModel.State>(State.Loading) {
+) : StateViewModel<DeepLinkMangaScreenModel.State>(State.Loading) {
 
     init {
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             try {
                 val source = sourceManager.getAll()
                     .filterIsInstance<ResolvableSource>()

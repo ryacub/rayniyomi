@@ -3,10 +3,10 @@ package eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.produceState
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -42,7 +42,7 @@ abstract class AnimeSearchScreenModel(
     private val getAnime: GetAnime = appGraph.getAnime,
     private val preferences: SourcePreferences = appGraph.sourcePreferences,
     private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
-) : StateScreenModel<AnimeSearchScreenModel.State>(initialState) {
+) : StateViewModel<AnimeSearchScreenModel.State>(initialState) {
 
     private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
@@ -65,7 +65,7 @@ abstract class AnimeSearchScreenModel(
     }
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             preferences.globalSearchFilterState().changes().collectLatest { state ->
                 mutableState.update { it.copy(onlyShowHasResults = state) }
             }
@@ -153,7 +153,7 @@ abstract class AnimeSearchScreenModel(
             )
         }
 
-        searchJob = screenModelScope.launch(searchDispatcher) {
+        searchJob = viewModelScope.launch(searchDispatcher) {
             sources.map { source ->
                 async {
                     if (state.value.items[source] !is AnimeSearchItemResult.Loading) {

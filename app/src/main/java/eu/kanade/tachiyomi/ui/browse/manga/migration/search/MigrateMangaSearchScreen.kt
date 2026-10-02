@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.ui.browse.manga.migration.search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.manga.MigrateMangaSearchScreen
@@ -16,10 +16,10 @@ class MigrateMangaSearchScreen(private val mangaId: Long) : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = rememberScreenModel { MigrateMangaSearchScreenModel(mangaId = mangaId) }
+        val screenModel = viewModel { MigrateMangaSearchScreenModel(mangaId = mangaId) }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
-        val dialogScreenModel = rememberScreenModel {
+        val dialogScreenModel = viewModel {
             MangaMigrateSearchScreenDialogScreenModel(
                 mangaId = mangaId,
             )
@@ -53,7 +53,7 @@ class MigrateMangaSearchScreen(private val mangaId: Long) : Screen() {
                 MigrateMangaDialog(
                     oldManga = dialogState.manga!!,
                     newManga = dialog.manga,
-                    screenModel = rememberScreenModel { MigrateMangaDialogScreenModel() },
+                    screenModel = viewModel { MigrateMangaDialogScreenModel() },
                     onDismissRequest = { dialogScreenModel.setDialog(null) },
                     onClickTitle = {
                         navigator.push(MangaScreen(dialog.manga.id, true))

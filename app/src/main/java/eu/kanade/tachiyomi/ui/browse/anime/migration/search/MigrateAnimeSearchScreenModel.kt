@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.AnimeSearchScreenModel
@@ -17,7 +17,7 @@ class MigrateAnimeSearchScreenModel(
 
     init {
         extensionFilter = initialExtensionFilter
-        screenModelScope.launch {
+        viewModelScope.launch {
             val anime = getAnime.await(animeId)!!
             mutableState.update {
                 it.copy(

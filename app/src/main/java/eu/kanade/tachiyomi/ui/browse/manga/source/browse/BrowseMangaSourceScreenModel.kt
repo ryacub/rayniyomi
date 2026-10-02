@@ -11,8 +11,8 @@ import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.toDomainManga
@@ -72,9 +72,9 @@ class BrowseMangaSourceScreenModel(
     private val updateManga: UpdateManga = appGraph.updateManga,
     private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
     private val getIncognitoState: GetMangaIncognitoState = appGraph.getMangaIncognitoState,
-) : StateScreenModel<BrowseMangaSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
+) : StateViewModel<BrowseMangaSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
-    var displayMode by sourcePreferences.sourceDisplayMode().asState(screenModelScope)
+    var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
 
     val source = sourceManager.getOrStub(sourceId)
 
@@ -245,7 +245,7 @@ class BrowseMangaSourceScreenModel(
      * @param manga the manga to update.
      */
     fun changeMangaFavorite(manga: Manga) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             var new = manga.copy(
                 favorite = !manga.favorite,
                 dateAdded = when (manga.favorite) {
@@ -266,7 +266,7 @@ class BrowseMangaSourceScreenModel(
     }
 
     fun addFavorite(manga: Manga) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             val categories = getCategories()
             val defaultCategoryId = libraryPreferences.defaultMangaCategory().get()
             val defaultCategory = categories.find { it.id == defaultCategoryId.toLong() }
@@ -321,7 +321,7 @@ class BrowseMangaSourceScreenModel(
     }
 
     fun moveMangaToCategories(manga: Manga, categoryIds: List<Long>) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             setMangaCategories.await(
                 mangaId = manga.id,
                 categoryIds = categoryIds.toList(),

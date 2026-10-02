@@ -13,8 +13,8 @@ import androidx.paging.PagingState
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
@@ -43,9 +43,9 @@ class MigrateSeasonSelectScreenModel(
     private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
     private val getAnime: GetAnime = appGraph.getAnime,
     private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
-) : StateScreenModel<MigrateSeasonSelectScreenModel.State>(State()) {
+) : StateViewModel<MigrateSeasonSelectScreenModel.State>(State()) {
 
-    var displayMode by sourcePreferences.sourceDisplayMode().asState(screenModelScope)
+    var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
     val source = sourceManager.getOrStub(anime.source)
 
     fun getColumnsPreference(orientation: Int): GridCells {

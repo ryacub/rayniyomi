@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.manga.source
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.source.interactor.ToggleLanguage
 import eu.kanade.domain.source.manga.interactor.GetLanguagesWithMangaSources
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSource
@@ -21,10 +21,10 @@ class MangaSourcesFilterScreenModel(
     private val getLanguagesWithSources: GetLanguagesWithMangaSources = appGraph.getLanguagesWithMangaSources,
     private val toggleSource: ToggleMangaSource = appGraph.toggleMangaSource,
     private val toggleLanguage: ToggleLanguage = appGraph.toggleLanguage,
-) : StateScreenModel<MangaSourcesFilterScreenModel.State>(State.Loading) {
+) : StateViewModel<MangaSourcesFilterScreenModel.State>(State.Loading) {
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             combine(
                 getLanguagesWithSources.subscribe(),
                 preferences.enabledLanguages().changes(),

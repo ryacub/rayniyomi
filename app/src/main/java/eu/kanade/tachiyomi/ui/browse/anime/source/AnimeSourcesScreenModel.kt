@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.anime.source
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.anime.interactor.GetEnabledAnimeSources
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
@@ -33,13 +33,13 @@ class AnimeSourcesScreenModel(
     private val getEnabledAnimeSources: GetEnabledAnimeSources = appGraph.getEnabledAnimeSources,
     private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
     private val toggleSourcePin: ToggleAnimeSourcePin = appGraph.toggleAnimeSourcePin,
-) : StateScreenModel<AnimeSourcesScreenModel.State>(State()) {
+) : StateViewModel<AnimeSourcesScreenModel.State>(State()) {
 
     private val _events = Channel<Event>(Int.MAX_VALUE)
     val events = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             getEnabledAnimeSources.subscribe()
                 .catch {
                     logcat(LogPriority.ERROR, it)

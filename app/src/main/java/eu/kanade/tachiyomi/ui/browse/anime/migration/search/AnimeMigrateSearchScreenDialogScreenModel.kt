@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -12,10 +12,10 @@ import tachiyomi.domain.entries.anime.model.Anime
 class AnimeMigrateSearchScreenDialogScreenModel(
     val animeId: Long,
     getAnime: GetAnime = appGraph.getAnime,
-) : StateScreenModel<AnimeMigrateSearchScreenDialogScreenModel.State>(State()) {
+) : StateViewModel<AnimeMigrateSearchScreenDialogScreenModel.State>(State()) {
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             val anime = getAnime.await(animeId)!!
 
             mutableState.update {

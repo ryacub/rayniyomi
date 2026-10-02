@@ -1,11 +1,14 @@
 package eu.kanade.tachiyomi.ui.deeplink.anime
 
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.test.awaitAssert
+import eu.kanade.tachiyomi.test.create
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -130,5 +134,16 @@ class DeepLinkAnimeScreenModelTest {
 
             override fun getStubSources(): List<StubAnimeSource> = emptyList()
         }
+    }
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        val store = ViewModelStore()
+        val model = store.create { createModel() }
+        val job = model.viewModelScope.coroutineContext.job
+
+        assertEquals(false, job.isCancelled)
+        store.clear()
+        assertEquals(true, job.isCancelled)
     }
 }

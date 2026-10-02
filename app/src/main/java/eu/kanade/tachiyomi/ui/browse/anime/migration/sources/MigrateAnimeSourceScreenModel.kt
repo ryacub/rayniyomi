@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.anime.migration.sources
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.source.anime.interactor.GetAnimeSourcesWithFavoriteCount
 import eu.kanade.domain.source.interactor.SetMigrateSorting
 import eu.kanade.domain.source.service.SourcePreferences
@@ -27,13 +27,13 @@ class MigrateAnimeSourceScreenModel(
     private val getSourcesWithFavoriteCount: GetAnimeSourcesWithFavoriteCount =
         appGraph.getAnimeSourcesWithFavoriteCount,
     private val setMigrateSorting: SetMigrateSorting = appGraph.setMigrateSorting,
-) : StateScreenModel<MigrateAnimeSourceScreenModel.State>(State()) {
+) : StateViewModel<MigrateAnimeSourceScreenModel.State>(State()) {
 
     private val _channel = Channel<Event>(Int.MAX_VALUE)
     val channel = _channel.receiveAsFlow()
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             getSourcesWithFavoriteCount.subscribe()
                 .catch {
                     logcat(LogPriority.ERROR, it)
@@ -51,11 +51,11 @@ class MigrateAnimeSourceScreenModel(
 
         preferences.migrationSortingDirection().changes()
             .onEach { mutableState.update { state -> state.copy(sortingDirection = it) } }
-            .launchIn(screenModelScope)
+            .launchIn(viewModelScope)
 
         preferences.migrationSortingMode().changes()
             .onEach { mutableState.update { state -> state.copy(sortingMode = it) } }
-            .launchIn(screenModelScope)
+            .launchIn(viewModelScope)
     }
 
     fun toggleSortingMode() {

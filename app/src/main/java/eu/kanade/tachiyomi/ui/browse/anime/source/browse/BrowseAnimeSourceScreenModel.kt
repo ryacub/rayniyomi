@@ -11,8 +11,8 @@ import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.presentation.util.StateViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toDomainAnime
@@ -75,9 +75,9 @@ class BrowseAnimeSourceScreenModel(
     private val updateAnime: UpdateAnime = appGraph.updateAnime,
     private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
     private val getIncognitoState: GetAnimeIncognitoState = appGraph.getAnimeIncognitoState,
-) : StateScreenModel<BrowseAnimeSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
+) : StateViewModel<BrowseAnimeSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
-    var displayMode by sourcePreferences.sourceDisplayMode().asState(screenModelScope)
+    var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
 
     val source = sourceManager.getOrStub(sourceId)
 
@@ -257,7 +257,7 @@ class BrowseAnimeSourceScreenModel(
      * @param anime the anime to update.
      */
     fun changeAnimeFavorite(anime: Anime) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             var new = anime.copy(
                 favorite = !anime.favorite,
                 dateAdded = when (anime.favorite) {
@@ -279,7 +279,7 @@ class BrowseAnimeSourceScreenModel(
     }
 
     fun addFavorite(anime: Anime) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             val categories = getCategories()
             val defaultCategoryId = libraryPreferences.defaultAnimeCategory().get()
             val defaultCategory = categories.find { it.id == defaultCategoryId.toLong() }
@@ -333,7 +333,7 @@ class BrowseAnimeSourceScreenModel(
     }
 
     fun moveAnimeToCategories(anime: Anime, categoryIds: List<Long>) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             setAnimeCategories.await(
                 animeId = anime.id,
                 categoryIds = categoryIds.toList(),
