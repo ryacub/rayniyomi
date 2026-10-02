@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.plus
 
 /**
- * A [ViewModel] that exposes one [StateFlow] of screen state, like Voyager's StateScreenModel.
+ * A [ViewModel] that exposes one [StateFlow] of screen state.
  *
  * Create it only inside a Screen rendered by a Navigator. Outside one, `viewModel {}` binds to
  * the Activity store and the instance outlives the screen.

@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test
 /**
  * Unit tests for ExtensionReposScreenModel.
  *
- * Note: Many tests are limited because the model extends Voyager's StateScreenModel,
- * which requires screenModelScope. Tests are focused on constructor and static behavior.
+ * Note: Many tests are limited because the model extends StateViewModel,
+ * which requires viewModelScope. Tests are focused on constructor and static behavior.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExtensionReposScreenModelTest {

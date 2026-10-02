@@ -6,16 +6,16 @@ all new screen-model tests.
 
 ## The pattern
 
-1. A class keeps its lifecycle scope (`screenModelScope`). Do not build a
+1. A class keeps its lifecycle scope (`viewModelScope`). Do not build a
    replacement scope and do not inject a `CoroutineScope`. The class takes a
    `CoroutineDispatcher` constructor parameter:
 
    ```kotlin
    class ExampleScreenModel(
        private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-   ) : ScreenModel {
+   ) : ViewModel() {
        init {
-           screenModelScope.launch(ioDispatcher) { ... }
+           viewModelScope.launch(ioDispatcher) { ... }
        }
    }
    ```
@@ -26,7 +26,7 @@ all new screen-model tests.
 3. Pass the dispatcher to each launch. Do not launch without it:
 
    ```kotlin
-   screenModelScope.launch(ioDispatcher) { ... }
+   viewModelScope.launch(ioDispatcher) { ... }
    ```
 
 4. In tests, inject one `StandardTestDispatcher` that shares the `runTest`
@@ -70,13 +70,13 @@ The runnable example lives in
 The model follows rules 1 to 3:
 
 ```kotlin
-private class FakeScreenModel(
+private class FakeViewModel(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : ScreenModel {
+) : ViewModel() {
     val started = CompletableDeferred<Unit>()
 
     init {
-        screenModelScope.launch(dispatcher) {
+        viewModelScope.launch(dispatcher) {
             started.complete(Unit)
         }
     }
@@ -90,7 +90,7 @@ drain (rules 4 and 6):
 @Test
 fun `a launch on the injected scheduler-owned dispatcher completes under advanceUntilIdle`() =
     runTest(vt.scheduler) {
-        val model = FakeScreenModel(dispatcher = vt.io)
+        val model = FakeViewModel(dispatcher = vt.io)
 
         advanceUntilIdle()
 
@@ -109,7 +109,7 @@ real thread: the work left the shared scheduler, and the drain ran none of it.
 fun `a launch that escapes to a foreign dispatcher is invisible to the shared scheduler`() =
     runTest(vt.scheduler) {
         val foreign = ForeignDispatcher()
-        val model = FakeScreenModel(dispatcher = foreign)
+        val model = FakeViewModel(dispatcher = foreign)
 
         advanceUntilIdle()
 
