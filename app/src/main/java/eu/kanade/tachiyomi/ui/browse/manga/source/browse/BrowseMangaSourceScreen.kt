@@ -287,7 +287,7 @@ data class BrowseMangaSourceScreen(
                 MigrateMangaDialog(
                     oldManga = dialog.oldManga,
                     newManga = dialog.newManga,
-                    screenModel = MigrateMangaDialogScreenModel(),
+                    screenModel = viewModel { MigrateMangaDialogScreenModel() },
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(MangaScreen(dialog.oldManga.id)) },
                     onPopScreen = {

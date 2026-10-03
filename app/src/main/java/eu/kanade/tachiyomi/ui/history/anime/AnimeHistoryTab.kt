@@ -140,7 +140,7 @@ fun Screen.animeHistoryTab(
                     MigrateAnimeDialog(
                         oldAnime = dialog.oldAnime,
                         newAnime = dialog.newAnime,
-                        screenModel = MigrateAnimeDialogScreenModel(),
+                        screenModel = viewModel { MigrateAnimeDialogScreenModel() },
                         onDismissRequest = onDismissRequest,
                         onClickTitle = { navigator.push(AnimeScreen(dialog.oldAnime.id)) },
                         onClickSeasons = {

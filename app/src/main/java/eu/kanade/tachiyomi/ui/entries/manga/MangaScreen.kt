@@ -233,7 +233,7 @@ class MangaScreen(
                 MigrateMangaDialog(
                     oldManga = dialog.oldManga,
                     newManga = dialog.newManga,
-                    screenModel = MigrateMangaDialogScreenModel(),
+                    screenModel = viewModel { MigrateMangaDialogScreenModel() },
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(MangaScreen(dialog.oldManga.id)) },
                     onPopScreen = { navigator.replace(MangaScreen(dialog.newManga.id)) },
