@@ -1,8 +1,12 @@
 package eu.kanade.tachiyomi.data.backup.restore
 
 import android.content.Context
+import android.net.Uri
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
+import eu.kanade.tachiyomi.data.backup.models.Backup
+import eu.kanade.tachiyomi.data.backup.models.BackupCategory
+import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeRestorer
@@ -24,16 +28,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import java.lang.reflect.Method
+import java.util.Collections
 import java.util.Date
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
@@ -175,22 +182,66 @@ class BackupRestorerTest {
         coVerify(exactly = 0) { dataSource.restoreBackup(any()) }
     }
 
+    @Test
+    fun `categories finish before library entries and app settings start`() = runTest {
+        val events = Collections.synchronizedList(mutableListOf<String>())
+        val mangaCategoriesRestorer = mockk<MangaCategoriesRestorer>(relaxed = true)
+        coEvery { mangaCategoriesRestorer(any()) } coAnswers {
+            delay(50)
+            events.add("manga-categories-done")
+        }
+        val mangaRestorer = mockk<MangaRestorer>(relaxed = true)
+        val backupManga = BackupManga(source = 1L, url = "/m", title = "m")
+        coEvery { mangaRestorer.sortByNew(any()) } returns listOf(backupManga)
+        coEvery { mangaRestorer.restore(any(), any()) } coAnswers { events.add("manga-restore") }
+        val preferenceRestorer = mockk<PreferenceRestorer>(relaxed = true)
+        coEvery { preferenceRestorer.restoreApp(any(), any(), any()) } coAnswers { events.add("app-prefs") }
+        val restorer = createRestorer(
+            mangaCategoriesRestorer = mangaCategoriesRestorer,
+            mangaRestorer = mangaRestorer,
+            preferenceRestorer = preferenceRestorer,
+        )
+        val backup = Backup(
+            backupManga = listOf(backupManga),
+            backupCategories = listOf(BackupCategory(name = "Reading", order = 0)),
+        )
+
+        withContext(Dispatchers.Default) {
+            restorer.restoreBackupData(
+                backup,
+                mockk<Uri>(relaxed = true),
+                RestoreOptions(
+                    sourceSettings = false,
+                    extensionRepoSettings = false,
+                    customButtons = false,
+                    lightNovels = false,
+                ),
+            )
+        }
+
+        assertEquals("manga-categories-done", events.first())
+        assertTrue(events.containsAll(listOf("manga-restore", "app-prefs")))
+    }
+
     private fun createRestorer(
         notifier: BackupNotifier = mockk(relaxed = true),
         lightNovelBackupDataSource: LightNovelBackupDataSource = mockk(relaxed = true),
+        mangaCategoriesRestorer: MangaCategoriesRestorer = mockk(relaxed = true),
+        mangaRestorer: MangaRestorer = mockk(relaxed = true),
+        preferenceRestorer: PreferenceRestorer = mockk(relaxed = true),
     ): BackupRestorer {
         return BackupRestorer(
             context = mockk<Context>(relaxed = true),
             notifier = notifier,
             isSync = false,
             animeCategoriesRestorer = mockk<AnimeCategoriesRestorer>(relaxed = true),
-            mangaCategoriesRestorer = mockk<MangaCategoriesRestorer>(relaxed = true),
-            preferenceRestorer = mockk<PreferenceRestorer>(relaxed = true),
+            mangaCategoriesRestorer = mangaCategoriesRestorer,
+            preferenceRestorer = preferenceRestorer,
             animeExtensionRepoRestorer = mockk<AnimeExtensionRepoRestorer>(relaxed = true),
             mangaExtensionRepoRestorer = mockk<MangaExtensionRepoRestorer>(relaxed = true),
             customButtonRestorer = mockk<CustomButtonRestorer>(relaxed = true),
             animeRestorer = mockk<AnimeRestorer>(relaxed = true),
-            mangaRestorer = mockk<MangaRestorer>(relaxed = true),
+            mangaRestorer = mangaRestorer,
             extensionsRestorer = mockk<ExtensionsRestorer>(relaxed = true),
             lightNovelBackupDataSource = lightNovelBackupDataSource,
             animeStubSourceRepository = mockk<AnimeStubSourceRepository>(relaxed = true),

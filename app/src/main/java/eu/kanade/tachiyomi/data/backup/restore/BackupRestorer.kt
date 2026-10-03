@@ -5,6 +5,7 @@ import android.net.Uri
 import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
+import eu.kanade.tachiyomi.data.backup.models.Backup
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
 import eu.kanade.tachiyomi.data.backup.models.BackupAnimeSource
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
@@ -113,8 +114,10 @@ class BackupRestorer(
     }
 
     private suspend fun restoreFromFile(uri: Uri, options: RestoreOptions) {
-        val backup = BackupDecoder(context).decode(uri)
+        restoreBackupData(BackupDecoder(context).decode(uri), uri, options)
+    }
 
+    internal suspend fun restoreBackupData(backup: Backup, uri: Uri, options: RestoreOptions) {
         // Store source mapping for error messages
         val backupAnimeMaps = backup.backupAnimeSources
         animeSourceMapping = backupAnimeMaps.associate { it.sourceId to it.name }
@@ -153,10 +156,11 @@ class BackupRestorer(
 
         coroutineScope {
             if (options.categories) {
+                // Library and preference restores look up category IDs, so categories must exist first (R1085).
                 restoreCategories(
                     backupAnimeCategories = backup.backupAnimeCategories,
                     backupMangaCategories = backup.backupCategories,
-                )
+                ).join()
             }
             if (options.appSettings) {
                 restoreAppPreferences(
