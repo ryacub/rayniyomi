@@ -72,9 +72,11 @@ class MultiThreadDownloaderTest {
 
         result.shouldBeInstanceOf<DownloadResult.Success>()
         output.readBytes().contentEquals(video) shouldBe true
-        progressUpdates.last().chunks.size shouldBe 2
-        progressUpdates.last().chunks.sumOf { it.downloadedBytes } shouldBe video.size.toLong()
-        progressUpdates.last().downloadedBytes shouldBe video.size.toLong()
+        // Chunk threads can append snapshots out of order, so select the newest by value.
+        val finalProgress = progressUpdates.maxBy { it.downloadedBytes }
+        finalProgress.chunks.size shouldBe 2
+        finalProgress.chunks.all { it.downloadedBytes == it.totalBytes } shouldBe true
+        finalProgress.downloadedBytes shouldBe video.size.toLong()
     }
 
     private fun uniFileAt(file: File): UniFile = mockk {
