@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Backup restore now creates categories before it restores library entries and app settings. A restore into an empty library no longer drops category memberships (#1266).
 - Backup restore now keeps anime and manga category settings apart. Default categories and category filters no longer point to a category in the other library when the two use the same category ID (#1267).
 - Background jobs no longer fail silently when Android starts the app to run them. WorkManager now starts after the app sets up its dependencies, and a job that still fails to start is reported to Crashlytics (#1271).
+- Opening a manga that already has details and chapters no longer calls the source. Some extensions showed a "nothing to fetch" error when they received a request for nothing (#1270).
 - Preserve the extension ProtoBuf binding after the Metro migration so MANGA Plus can decode its live catalog (#1257).
 - Light-novel restore failures now appear in the backup completion result.
 - Manga extensions built on extension-lib 1.6 no longer fail when they call `runBlockingK`, `Job.cancel`, `Source.supportsLatest`, or `HttpException.code`. The app now updates kotlinx-coroutines to 1.11.0 (#1252).
