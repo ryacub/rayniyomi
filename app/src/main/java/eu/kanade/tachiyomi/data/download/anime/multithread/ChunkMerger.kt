@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.anime.multithread
 
+import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,7 @@ class ChunkMerger {
          * Merge completed successfully.
          */
         data class Success(
-            val outputFile: File,
+            val outputFile: UniFile,
             val totalBytes: Long,
         ) : MergeResult()
 
@@ -56,14 +57,14 @@ class ChunkMerger {
      *
      * @param progress The download progress containing chunk information
      * @param tempDir The directory containing chunk files
-     * @param outputFile The final output file path
+     * @param outputFile The final output file, written through its stream because a SAF document has no file path
      * @param onProgress Callback for merge progress (bytes written)
      * @return [MergeResult] indicating success or failure
      */
     suspend fun mergeChunks(
         progress: DownloadProgress,
         tempDir: File,
-        outputFile: File,
+        outputFile: UniFile,
         onProgress: (Long) -> Unit = {},
     ): MergeResult {
         return withContext(Dispatchers.IO) {
@@ -73,14 +74,6 @@ class ChunkMerger {
             }
 
             try {
-                // Create output directory if needed
-                outputFile.parentFile?.mkdirs()
-
-                // Delete existing output file if present
-                if (outputFile.exists()) {
-                    outputFile.delete()
-                }
-
                 // Sort chunks by index to ensure correct order
                 val sortedChunks = progress.chunks.sortedBy { it.index }
 
@@ -108,7 +101,7 @@ class ChunkMerger {
                 // Perform the merge
                 var totalBytesWritten = 0L
 
-                outputFile.outputStream().sink().buffer().use { outputSink ->
+                outputFile.openOutputStream().sink().buffer().use { outputSink ->
                     for (chunk in sortedChunks) {
                         // Check for cancellation
                         if (!coroutineContext.isActive) {
@@ -141,9 +134,8 @@ class ChunkMerger {
                     }
                 }
 
-                // Validate merged file size
                 val expectedSize = progress.totalBytes
-                val actualSize = outputFile.length()
+                val actualSize = totalBytesWritten
                 if (expectedSize > 0 && actualSize != expectedSize) {
                     logcat(LogPriority.ERROR) {
                         "Merged file size mismatch: expected $expectedSize, got $actualSize"

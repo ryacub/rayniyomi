@@ -180,14 +180,7 @@ class MultiThreadDownloader(
             ),
         )
 
-        // Get output file as File
-        val outputFilePath = outputFile.filePath ?: return DownloadResult.Error(
-            DownloadError.InvalidOutputFile("Cannot access output file"),
-        )
-        val outputFileObj = File(outputFilePath)
-
-        // Track total downloaded bytes
-        val totalDownloaded = AtomicLong(progress.downloadedBytes)
+        val chunkState = ChunkStateTracker(progress.chunks)
 
         return try {
             // Create jobs for each incomplete chunk
@@ -201,11 +194,8 @@ class MultiThreadDownloader(
                             headers = headers,
                             tempDir = tempDirFile,
                             onChunkProgress = { bytes ->
-                                val newTotal = totalDownloaded.addAndGet(bytes)
-                                val updatedProgress = progress.copy(
-                                    downloadedBytes = newTotal,
-                                )
-                                onProgress(updatedProgress)
+                                chunkState.addBytes(chunk.index, bytes)
+                                onProgress(chunkState.applyTo(progress))
                             },
                         )
                     }
@@ -231,15 +221,14 @@ class MultiThreadDownloader(
                 return DownloadResult.Error(DownloadError.IncompleteDownload("Not all chunks completed"))
             }
 
-            // Merge chunks
-            val updatedProgress = progress.copy(
+            val updatedProgress = chunkState.applyTo(progress).copy(
                 status = DownloadProgress.Status.COMPLETED,
             )
 
             val mergeResult = chunkMerger.mergeChunks(
                 progress = updatedProgress,
                 tempDir = tempDirFile,
-                outputFile = outputFileObj,
+                outputFile = outputFile,
             )
 
             when (mergeResult) {
@@ -259,7 +248,7 @@ class MultiThreadDownloader(
             // Save progress for resume
             saveProgress(
                 progress.copy(
-                    downloadedBytes = totalDownloaded.get(),
+                    downloadedBytes = chunkState.totalBytes(),
                     status = DownloadProgress.Status.PAUSED,
                 ),
             )
@@ -342,6 +331,27 @@ class MultiThreadDownloader(
          */
         const val DOWNLOAD_TIMEOUT_MS = 2L * 60 * 60 * 1000
     }
+}
+
+// An incomplete chunk starts at zero because its temp file is written again from the start.
+private class ChunkStateTracker(chunks: List<ChunkProgress>) {
+    private val bytesByIndex = chunks.associate { chunk ->
+        chunk.index to AtomicLong(if (chunk.isComplete) chunk.downloadedBytes else 0L)
+    }
+
+    fun addBytes(index: Int, bytes: Long) {
+        bytesByIndex.getValue(index).addAndGet(bytes)
+    }
+
+    fun totalBytes(): Long = bytesByIndex.values.sumOf { it.get() }
+
+    fun applyTo(progress: DownloadProgress): DownloadProgress = progress.copy(
+        downloadedBytes = totalBytes(),
+        chunks = progress.chunks.map { chunk ->
+            val updated = chunk.copy(downloadedBytes = bytesByIndex.getValue(chunk.index).get())
+            if (updated.isComplete) updated.copy(status = ChunkProgress.ChunkStatus.COMPLETED) else updated
+        },
+    )
 }
 
 /**

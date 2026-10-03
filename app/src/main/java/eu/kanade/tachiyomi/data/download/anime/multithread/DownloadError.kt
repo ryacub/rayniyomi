@@ -18,7 +18,6 @@ sealed class DownloadError(message: String, cause: Throwable? = null) : Exceptio
 
     // Multi-thread downloader specific errors
     data class InvalidTempDirectory(val msg: String) : DownloadError(msg)
-    data class InvalidOutputFile(val msg: String) : DownloadError(msg)
     data class IncompleteDownload(val msg: String) : DownloadError(msg)
     data class MergeError(val msg: String) : DownloadError(msg)
     data class UnknownError(val error: Throwable) : DownloadError(error.message ?: "Unknown error", error)
