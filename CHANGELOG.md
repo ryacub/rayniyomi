@@ -22,7 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Multi-thread anime downloads no longer fail at the merge step. The downloader now records the bytes written for each chunk, and the merger writes the episode file through the storage folder instead of a raw file path (#1265).
 - A finished download queue no longer logs a download job failure, adds to the job crash count, or schedules a retry. The download job now lets the cancellation from the downloader pass through (#1265).
 - Multi-thread anime downloads now report a range error or a full disk to the downloader. The downloader falls back to FFmpeg on a range error and pauses on a full disk (#1268).
-- The "Refresh library covers" action in Advanced settings now refreshes manga metadata as well as anime metadata. The anime and manga metadata jobs now use separate WorkManager names, so one job no longer blocks or stops the other (#1269).
+- The "Refresh library covers" action in Advanced settings now refreshes manga metadata as well as anime metadata. The anime and manga metadata jobs now use separate WorkManager names, so one job no longer blocks the other (#1269).
 - Backup restore now creates categories before it restores library entries and app settings. A restore into an empty library no longer drops category memberships (#1266).
 - Backup restore now keeps anime and manga category settings apart. Default categories and category filters no longer point to a category in the other library when the two use the same category ID (#1267).
 - Background jobs no longer fail silently when Android starts the app to run them. WorkManager now starts after the app sets up its dependencies, and a job that still fails to start is reported to Crashlytics (#1271).
