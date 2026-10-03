@@ -11,15 +11,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import logcat.logcat
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
@@ -38,9 +37,9 @@ class MultiThreadDownloader(
     private val client: OkHttpClient,
     private val stateStore: DownloadStateStore,
     private val maxThreadsProvider: () -> Int = { DEFAULT_THREAD_COUNT },
+    private val chunkDownloader: ChunkDownloader = ChunkDownloader(client),
 ) {
     private val rangeRequestHandler = RangeRequestHandler(client)
-    private val chunkDownloader = ChunkDownloader(client, rangeRequestHandler)
     private val chunkMerger = ChunkMerger()
 
     /**
@@ -183,11 +182,11 @@ class MultiThreadDownloader(
         val chunkState = ChunkStateTracker(progress.chunks)
 
         return try {
-            // Create jobs for each incomplete chunk
+            // Each job returns its result. A failed child of a supervisor scope does not fail its siblings.
             val chunkJobs = progress.chunks
                 .filter { !it.isComplete }
                 .map { chunk ->
-                    scope.launch {
+                    scope.async {
                         downloadChunkWithRetry(
                             chunk = chunk,
                             videoUrl = progress.videoUrl,
@@ -203,8 +202,16 @@ class MultiThreadDownloader(
 
             activeJobs.addAll(chunkJobs)
 
-            // Wait for all chunks to complete
-            chunkJobs.joinAll()
+            val chunkResults = chunkJobs.awaitAll()
+
+            if (chunkResults.any { it === ChunkDownloader.ChunkDownloadResult.Cancelled }) {
+                throw CancellationException("Chunk cancelled")
+            }
+            chunkResults.firstFailure()?.let { error ->
+                logcat(LogPriority.ERROR) { "Chunk download failed: ${error.message}" }
+                saveProgress(chunkState.applyTo(progress).copy(status = DownloadProgress.Status.ERROR))
+                return DownloadResult.Error(error)
+            }
 
             // Check if all chunks completed successfully
             val allComplete = progress.chunks.all { chunk ->
@@ -273,14 +280,14 @@ class MultiThreadDownloader(
         headers: Headers?,
         tempDir: File,
         onChunkProgress: (Long) -> Unit,
-    ) {
+    ): ChunkDownloader.ChunkDownloadResult {
         // Acquire semaphore to limit concurrent downloads
         ChunkDownloader.Companion.CONCURRENT_CHUNK_SEMAPHORE.acquire()
 
         try {
             val tempFile = File(tempDir, chunk.tempFileName)
 
-            val result = chunkDownloader.downloadChunk(
+            return chunkDownloader.downloadChunk(
                 videoUrl = videoUrl,
                 chunk = ChunkRange(chunk.startByte, chunk.endByte),
                 headers = headers,
@@ -288,21 +295,17 @@ class MultiThreadDownloader(
                 isFirstChunk = chunk.index == 0,
                 onProgress = onChunkProgress,
             )
-
-            when (result) {
-                is ChunkDownloader.ChunkDownloadResult.Success -> {
-                    // Chunk downloaded successfully
-                }
-                is ChunkDownloader.ChunkDownloadResult.Error -> {
-                    throw IOException("Chunk ${chunk.index} failed: ${result.error}")
-                }
-                ChunkDownloader.ChunkDownloadResult.Cancelled -> {
-                    throw CancellationException("Chunk ${chunk.index} cancelled")
-                }
-            }
         } finally {
             ChunkDownloader.Companion.CONCURRENT_CHUNK_SEMAPHORE.release()
         }
+    }
+
+    // A full disk outranks a range error, because the caller must pause for it.
+    private fun List<ChunkDownloader.ChunkDownloadResult>.firstFailure(): DownloadError? {
+        val errors = filterIsInstance<ChunkDownloader.ChunkDownloadResult.Error>().map { it.error }
+        return errors.firstOrNull { it is DownloadError.DiskFull }
+            ?: errors.firstOrNull { it is DownloadError.InvalidRange }
+            ?: errors.firstOrNull()
     }
 
     /**
