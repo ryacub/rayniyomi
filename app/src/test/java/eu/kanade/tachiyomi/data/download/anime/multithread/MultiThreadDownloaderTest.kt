@@ -65,7 +65,7 @@ class MultiThreadDownloaderTest {
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
                 tmpDir = uniFileAt(chunkDir),
-                outputFile = uniFileAt(output),
+                outputFile = documentAt(output),
                 onProgress = { progressUpdates += it },
             )
         }
@@ -81,6 +81,13 @@ class MultiThreadDownloaderTest {
 
     private fun uniFileAt(file: File): UniFile = mockk {
         every { filePath } returns file.absolutePath
+    }
+
+    // A SAF document has no usable file path, so the app can only write it through its stream.
+    private fun documentAt(file: File): UniFile = mockk {
+        every { filePath } returns null
+        every { openOutputStream() } answers { file.outputStream() }
+        every { delete() } answers { file.delete() }
     }
 
     private class RangeDispatcher(private val body: ByteArray) : Dispatcher() {

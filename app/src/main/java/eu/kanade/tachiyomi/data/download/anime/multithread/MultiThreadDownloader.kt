@@ -180,12 +180,6 @@ class MultiThreadDownloader(
             ),
         )
 
-        // Get output file as File
-        val outputFilePath = outputFile.filePath ?: return DownloadResult.Error(
-            DownloadError.InvalidOutputFile("Cannot access output file"),
-        )
-        val outputFileObj = File(outputFilePath)
-
         val chunkState = ChunkStateTracker(progress.chunks)
 
         return try {
@@ -234,7 +228,7 @@ class MultiThreadDownloader(
             val mergeResult = chunkMerger.mergeChunks(
                 progress = updatedProgress,
                 tempDir = tempDirFile,
-                outputFile = outputFileObj,
+                outputFile = outputFile,
             )
 
             when (mergeResult) {
