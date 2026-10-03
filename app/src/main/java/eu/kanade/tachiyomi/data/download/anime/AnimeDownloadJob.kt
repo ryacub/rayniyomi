@@ -33,6 +33,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.download.service.DownloadPreferences
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * This worker is used to manage the downloader. The system can decide to stop the worker, in
@@ -86,6 +87,8 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 }
                 Result.success()
             }
+        } catch (e: CancellationException) {
+            throw e // The downloader cancels this worker through stop() when the queue completes.
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "AnimeDownloadJob failed" }
             downloadManager.incrementJobCrashCount()
