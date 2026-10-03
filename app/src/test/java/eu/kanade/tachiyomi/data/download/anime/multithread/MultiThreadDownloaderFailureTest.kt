@@ -112,7 +112,7 @@ class MultiThreadDownloaderFailureTest {
         return downloader.resume(progress, null, uniFileAt(chunkDir), documentAt(output))
     }
 
-    // A chunk that reports Success also leaves its full temp file behind, as the real downloader does.
+    // A Success chunk leaves its full temp file behind, like the real downloader.
     private fun stubChunks(vararg results: Pair<Int, ChunkDownloader.ChunkDownloadResult>) {
         val resultByStart = results.associate { (index, result) -> progress.chunks[index].startByte to result }
         coEvery {

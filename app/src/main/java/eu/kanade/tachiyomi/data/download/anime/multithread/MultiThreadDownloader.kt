@@ -182,8 +182,7 @@ class MultiThreadDownloader(
         val chunkState = ChunkStateTracker(progress.chunks)
 
         return try {
-            // Create jobs for each incomplete chunk. Each job returns its result, because a failed
-            // child of a supervisor scope does not fail the wait for its siblings.
+            // Each job returns its result. A failed child of a supervisor scope does not fail its siblings.
             val chunkJobs = progress.chunks
                 .filter { !it.isComplete }
                 .map { chunk ->
@@ -301,10 +300,7 @@ class MultiThreadDownloader(
         }
     }
 
-    /**
-     * Picks the failure that the caller recovers from. A full disk outranks a range error,
-     * because the caller must pause for it whatever the other chunks report.
-     */
+    // A full disk outranks a range error, because the caller must pause for it.
     private fun List<ChunkDownloader.ChunkDownloadResult>.firstFailure(): DownloadError? {
         val errors = filterIsInstance<ChunkDownloader.ChunkDownloadResult.Error>().map { it.error }
         return errors.firstOrNull { it is DownloadError.DiskFull }
