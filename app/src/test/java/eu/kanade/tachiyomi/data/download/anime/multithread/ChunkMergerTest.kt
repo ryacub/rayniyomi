@@ -53,7 +53,7 @@ class ChunkMergerTest {
         val result = merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
         )
 
         (result as ChunkMerger.MergeResult.Success).totalBytes shouldBe (chunk1Data.size + chunk2Data.size).toLong()
@@ -83,7 +83,7 @@ class ChunkMergerTest {
         val result = merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
         )
 
         result shouldBe ChunkMerger.MergeResult.Error(
@@ -115,7 +115,7 @@ class ChunkMergerTest {
         val result = merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
         )
 
         result shouldBe ChunkMerger.MergeResult.Error(
@@ -148,7 +148,7 @@ class ChunkMergerTest {
         val result = merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
         )
 
         result shouldBe ChunkMerger.MergeResult.Error(
@@ -182,7 +182,7 @@ class ChunkMergerTest {
         val result = merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
         )
 
         (result as ChunkMerger.MergeResult.Success).totalBytes shouldBe chunkData.size.toLong()
@@ -215,7 +215,7 @@ class ChunkMergerTest {
         merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
             onProgress = { bytes -> progressUpdates.add(bytes) },
         )
 
@@ -399,7 +399,7 @@ class ChunkMergerTest {
         val result = merger.mergeChunks(
             progress = progress,
             tempDir = tempChunksDir,
-            outputFile = UniFile.fromFile(outputFile)!!,
+            outputFile = outputFile.asUniFile(),
         )
 
         result shouldBe ChunkMerger.MergeResult.Error(
@@ -408,6 +408,8 @@ class ChunkMergerTest {
             ),
         )
     }
+
+    private fun File.asUniFile(): UniFile = requireNotNull(UniFile.fromFile(this)) { "No UniFile for $this" }
 
     private fun createTestProgress(
         chunks: List<ChunkProgress>,

@@ -97,7 +97,9 @@ class MultiThreadDownloaderTest {
                     .setHeader("Accept-Ranges", "bytes")
                     .setHeader("Content-Length", body.size)
             }
-            val (start, end) = request.getHeader("Range")!!
+            // A GET without a range gets the 200 that the downloader rejects as InvalidRange.
+            val range = request.getHeader("Range") ?: return MockResponse().setBody(Buffer().write(body))
+            val (start, end) = range
                 .removePrefix("bytes=")
                 .split("-")
                 .let { it[0].toInt() to (it[1].toIntOrNull() ?: (body.size - 1)) }
