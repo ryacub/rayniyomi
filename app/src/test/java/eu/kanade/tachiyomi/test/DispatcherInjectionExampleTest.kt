@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.test
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +20,7 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * The focused example for `docs/coroutine-test-dispatchers.md`. It shows how a screen model
- * keeps its Voyager lifecycle scope, launches on a constructor-injected [CoroutineDispatcher],
+ * keeps its ViewModel lifecycle scope, launches on a constructor-injected [CoroutineDispatcher],
  * and why a launch that escapes the injected dispatcher is invisible to the shared virtual-time
  * scheduler.
  */
@@ -40,17 +40,17 @@ class DispatcherInjectionExampleTest {
     }
 
     /**
-     * A minimal fake screen model. It extends Voyager [ScreenModel], keeps its lifecycle scope
-     * (`screenModelScope`), takes a [CoroutineDispatcher] constructor parameter with the
+     * A minimal fake screen model. It extends AndroidX [ViewModel], keeps its lifecycle scope
+     * (`viewModelScope`), takes a [CoroutineDispatcher] constructor parameter with the
      * production default, and launches exactly once on it.
      */
-    private class FakeScreenModel(
+    private class FakeViewModel(
         private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    ) : ScreenModel {
+    ) : ViewModel() {
         val started = CompletableDeferred<Unit>()
 
         init {
-            screenModelScope.launch(dispatcher) {
+            viewModelScope.launch(dispatcher) {
                 started.complete(Unit)
             }
         }
@@ -71,7 +71,7 @@ class DispatcherInjectionExampleTest {
     @Test
     fun `a launch on the injected scheduler-owned dispatcher completes under advanceUntilIdle`() =
         runTest(vt.scheduler) {
-            val model = FakeScreenModel(dispatcher = vt.io)
+            val model = FakeViewModel(dispatcher = vt.io)
 
             advanceUntilIdle()
 
@@ -83,7 +83,7 @@ class DispatcherInjectionExampleTest {
     fun `a launch that escapes to a foreign dispatcher is invisible to the shared scheduler`() =
         runTest(vt.scheduler) {
             val foreign = ForeignDispatcher()
-            val model = FakeScreenModel(dispatcher = foreign)
+            val model = FakeViewModel(dispatcher = foreign)
 
             advanceUntilIdle()
 

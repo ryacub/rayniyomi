@@ -1,9 +1,9 @@
 package eu.kanade.tachiyomi.ui.category.anime
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -36,13 +36,13 @@ class AnimeCategoryScreenModel(
     private val setAlphabeticalSortInteractor: SetAnimeCategoryAlphabeticalSort =
         appGraph.setAnimeCategoryAlphabeticalSort,
     private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-) : StateScreenModel<AnimeCategoryScreenState>(AnimeCategoryScreenState.Loading) {
+) : StateViewModel<AnimeCategoryScreenState>(AnimeCategoryScreenState.Loading) {
 
     private val _events: Channel<AnimeCategoryEvent> = Channel()
     val events = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             val allCategories = if (libraryPreferences.hideHiddenCategoriesSettings().get()) {
                 getVisibleCategories.subscribe()
             } else {
@@ -65,7 +65,7 @@ class AnimeCategoryScreenModel(
     }
 
     fun createCategory(name: String, parentId: Long?) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (createCategoryWithName.await(name, parentId)) {
                 CreateAnimeCategoryWithName.Result.InvalidParent -> _events.send(
                     AnimeCategoryEvent.InvalidParentCategory,
@@ -80,7 +80,7 @@ class AnimeCategoryScreenModel(
     }
 
     fun hideCategory(category: Category) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (hideCategory.await(category)) {
                 is HideAnimeCategory.Result.InternalError -> _events.send(
                     AnimeCategoryEvent.InternalError,
@@ -91,7 +91,7 @@ class AnimeCategoryScreenModel(
     }
 
     fun deleteCategory(categoryId: Long) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (deleteCategory.await(categoryId = categoryId)) {
                 is DeleteAnimeCategory.Result.InternalError -> _events.send(
                     AnimeCategoryEvent.InternalError,
@@ -104,7 +104,7 @@ class AnimeCategoryScreenModel(
     fun changeOrder(category: Category, newIndex: Int) {
         val currentState = state.value as? AnimeCategoryScreenState.Success ?: return
         if (currentState.alphabeticalSortEnabled) return
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (reorderCategory.await(category, newIndex)) {
                 is ReorderAnimeCategory.Result.InternalError -> _events.send(
                     AnimeCategoryEvent.InternalError,
@@ -115,7 +115,7 @@ class AnimeCategoryScreenModel(
     }
 
     fun renameCategory(category: Category, name: String) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (renameCategory.await(category, name)) {
                 is RenameAnimeCategory.Result.InternalError -> _events.send(
                     AnimeCategoryEvent.InternalError,
@@ -126,7 +126,7 @@ class AnimeCategoryScreenModel(
     }
 
     fun setAlphabeticalSort(enabled: Boolean) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             setAlphabeticalSortInteractor.await(enabled)
         }
     }

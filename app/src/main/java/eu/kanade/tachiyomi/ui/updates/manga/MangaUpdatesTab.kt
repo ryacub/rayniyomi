@@ -14,7 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -43,7 +43,7 @@ fun Screen.mangaUpdatesTab(
     fromMore: Boolean,
 ): TabContent {
     val navigator = LocalNavigator.currentOrThrow
-    val screenModel = rememberScreenModel { MangaUpdatesScreenModel() }
+    val screenModel = viewModel { MangaUpdatesScreenModel() }
     val state by screenModel.state.collectAsStateWithLifecycle()
 
     val hasActiveFilters = screenModel.includedCategories.isNotEmpty() ||

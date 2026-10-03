@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.anime.MigrateAnimeSearchScreen
@@ -17,10 +17,10 @@ class MigrateAnimeSearchScreen(private val animeId: Long) : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = rememberScreenModel { MigrateAnimeSearchScreenModel(animeId = animeId) }
+        val screenModel = viewModel { MigrateAnimeSearchScreenModel(animeId = animeId) }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
-        val dialogScreenModel = rememberScreenModel {
+        val dialogScreenModel = viewModel {
             AnimeMigrateSearchScreenDialogScreenModel(
                 animeId = animeId,
             )
@@ -54,7 +54,7 @@ class MigrateAnimeSearchScreen(private val animeId: Long) : Screen() {
                 MigrateAnimeDialog(
                     oldAnime = dialogState.anime!!,
                     newAnime = dialog.anime,
-                    screenModel = rememberScreenModel { MigrateAnimeDialogScreenModel() },
+                    screenModel = viewModel { MigrateAnimeDialogScreenModel() },
                     onDismissRequest = { dialogScreenModel.setDialog(null) },
                     onClickTitle = {
                         navigator.push(AnimeScreen(dialog.anime.id, true))

@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi.ui.storage
 
 import androidx.compose.ui.graphics.Color
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import eu.kanade.presentation.more.storage.StorageItem
 import eu.kanade.presentation.more.storage.StorageScreenState
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,12 +30,12 @@ abstract class CommonStorageScreenModel<T>(
     private val getTitle: T.() -> String,
     private val getThumbnail: T.() -> String?,
     private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-) : StateScreenModel<StorageScreenState>(StorageScreenState.Loading) {
+) : StateViewModel<StorageScreenState>(StorageScreenState.Loading) {
 
     private val selectedCategory = MutableStateFlow(AllCategory)
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             val hideHiddenCategories = libraryPreferences.hideHiddenCategoriesSettings().get()
 
             combine(

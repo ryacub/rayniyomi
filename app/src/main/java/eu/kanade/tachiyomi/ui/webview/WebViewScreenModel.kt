@@ -2,8 +2,8 @@ package eu.kanade.tachiyomi.ui.webview
 
 import android.content.Context
 import androidx.core.net.toUri
-import cafe.adriel.voyager.core.model.StateScreenModel
 import eu.kanade.presentation.more.stats.StatsScreenState
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -22,7 +22,7 @@ class WebViewScreenModel(
     private val MangaSourceManager: MangaSourceManager = appGraph.mangaSourceManager,
     private val AnimeSourceManager: AnimeSourceManager = appGraph.animeSourceManager,
     private val network: NetworkHelper = appGraph.networkHelper,
-) : StateScreenModel<StatsScreenState>(StatsScreenState.Loading) {
+) : StateViewModel<StatsScreenState>(StatsScreenState.Loading) {
 
     var headers = emptyMap<String, String>()
 

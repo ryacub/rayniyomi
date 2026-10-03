@@ -1,5 +1,7 @@
 package eu.kanade.presentation.more.settings.screen.browse
 
+import androidx.lifecycle.viewModelScope
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import mihon.domain.extensionrepo.model.ExtensionRepo
@@ -25,8 +28,8 @@ import org.junit.jupiter.api.Test
 /**
  * Unit tests for ExtensionReposScreenModel.
  *
- * Note: Many tests are limited because the model extends Voyager's StateScreenModel,
- * which requires screenModelScope. Tests are focused on constructor and static behavior.
+ * Note: Many tests are limited because the model extends StateViewModel,
+ * which requires viewModelScope. Tests are focused on constructor and static behavior.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExtensionReposScreenModelTest {
@@ -112,5 +115,11 @@ class ExtensionReposScreenModelTest {
             website = "https://example.com",
             signingKeyFingerprint = "ABC123",
         )
+    }
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest {
+        val deps = createMockDependencies(emptyFlow())
+        assertClearingStoreCancelsScope { ExtensionReposScreenModel(deps) }
     }
 }

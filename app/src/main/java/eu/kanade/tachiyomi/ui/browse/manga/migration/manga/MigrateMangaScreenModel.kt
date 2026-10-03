@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.manga.migration.manga
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.collections.immutable.ImmutableList
@@ -26,13 +26,13 @@ class MigrateMangaScreenModel(
     private val sourceId: Long,
     private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
     private val getFavorites: GetMangaFavorites = appGraph.getMangaFavorites,
-) : StateScreenModel<MigrateMangaScreenModel.State>(State()) {
+) : StateViewModel<MigrateMangaScreenModel.State>(State()) {
 
     private val _events: Channel<MigrationMangaEvent> = Channel(Channel.BUFFERED)
     val events: Flow<MigrationMangaEvent> = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             mutableState.update { state ->
                 state.copy(source = sourceManager.getOrStub(sourceId))
             }

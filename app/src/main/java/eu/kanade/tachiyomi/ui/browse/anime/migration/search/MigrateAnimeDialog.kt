@@ -26,13 +26,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.hasCustomBackground
 import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.presentation.components.IndicatorSize
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SEpisode
@@ -211,7 +211,7 @@ internal class MigrateAnimeDialogScreenModel(
     private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
     private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
     private val preferenceStore: PreferenceStore = appGraph.preferenceStore,
-) : StateScreenModel<MigrateAnimeDialogScreenModel.State>(State()) {
+) : StateViewModel<MigrateAnimeDialogScreenModel.State>(State()) {
 
     val migrateFlags: Preference<Int> by lazy {
         preferenceStore.getInt("migrate_flags", Int.MAX_VALUE)

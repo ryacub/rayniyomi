@@ -117,6 +117,7 @@ import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 
 class ReaderActivity : BaseActivity() {
 
@@ -446,7 +447,7 @@ class ReaderActivity : BaseActivity() {
 
         dialogRoot.setComposeContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
-            val settingsScreenModel = remember {
+            val settingsScreenModel = composeViewModel(key = "ReaderSettings:$hasCutout") {
                 ReaderSettingsScreenModel(
                     readerState = viewModel.state,
                     hasDisplayCutout = hasCutout,

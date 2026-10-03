@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCost
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelStability
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
@@ -270,4 +272,10 @@ class TranslationModelPickerScreenModelTest {
         stability = TranslationModelStability.STABLE,
         dataTerms = null,
     )
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest {
+        val fixture = Fixture()
+        assertClearingStoreCancelsScope { fixture.model(success = success(emptyList())) }
+    }
 }

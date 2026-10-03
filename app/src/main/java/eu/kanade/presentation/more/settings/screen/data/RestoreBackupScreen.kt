@@ -20,13 +20,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.backup.BackupFileValidator
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.backup.restore.RestoreOptions
@@ -48,7 +48,7 @@ class RestoreBackupScreen(
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val model = rememberScreenModel { RestoreBackupScreenModel(context, uri) }
+        val model = viewModel { RestoreBackupScreenModel(context, uri) }
         val state by model.state.collectAsStateWithLifecycle()
 
         Scaffold(
@@ -168,7 +168,7 @@ class RestoreBackupScreen(
 private class RestoreBackupScreenModel(
     private val context: Context,
     private val uri: String,
-) : StateScreenModel<RestoreBackupScreenModel.State>(State()) {
+) : StateViewModel<RestoreBackupScreenModel.State>(State()) {
 
     init {
         validate(uri.toUri())

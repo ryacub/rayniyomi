@@ -28,11 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -46,6 +45,7 @@ import eu.kanade.presentation.track.TrackStatusSelector
 import eu.kanade.presentation.track.manga.MangaTrackInfoDialogHome
 import eu.kanade.presentation.track.manga.MangaTrackerSearch
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.track.DeletableMangaTracker
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.MangaTracker
@@ -92,7 +92,7 @@ data class MangaTrackInfoDialogHomeScreen(
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { Model(mangaId, sourceId) }
+        val screenModel = viewModel { Model(mangaId, sourceId) }
 
         val dateFormat = remember {
             UiPreferences.dateFormat(
@@ -197,14 +197,14 @@ data class MangaTrackInfoDialogHomeScreen(
         private val mangaId: Long,
         private val sourceId: Long,
         private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
-    ) : StateScreenModel<Model.State>(State()) {
+    ) : StateViewModel<Model.State>(State()) {
 
         init {
-            screenModelScope.launch {
+            viewModelScope.launch {
                 refreshTrackers()
             }
 
-            screenModelScope.launch {
+            viewModelScope.launch {
                 getTracks.subscribe(mangaId)
                     .catch { logcat(LogPriority.ERROR, it) }
                     .distinctUntilChanged()
@@ -221,7 +221,7 @@ data class MangaTrackInfoDialogHomeScreen(
 
         fun registerEnhancedTracking(item: MangaTrackInfoItem) {
             val tracker = item.tracker as EnhancedMangaTracker
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 val manga = appGraph.getManga.await(mangaId) ?: return@launchNonCancellable
                 try {
                     val matchResult = tracker.match(manga) ?: throw Exception()
@@ -255,7 +255,7 @@ data class MangaTrackInfoDialogHomeScreen(
         }
 
         fun togglePrivate(item: MangaTrackInfoItem.Tracked) {
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 (item.tracker as? MangaTracker)?.setRemotePrivate(item.track.toDbTrack(), !item.track.private)
             }
         }
@@ -291,7 +291,7 @@ private data class TrackStatusSelectorScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 track = track,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
@@ -315,7 +315,7 @@ private data class TrackStatusSelectorScreen(
     private class Model(
         private val track: DbMangaTrack,
         private val tracker: Tracker,
-    ) : StateScreenModel<Model.State>(State(track.status)) {
+    ) : StateViewModel<Model.State>(State(track.status)) {
 
         fun getSelections(): Map<Long, StringResource?> {
             return tracker.mangaService.getStatusListManga().associateWith {
@@ -328,7 +328,7 @@ private data class TrackStatusSelectorScreen(
         }
 
         fun setStatus() {
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 tracker.mangaService.setRemoteMangaStatus(track.toDbTrack(), state.value.selection)
             }
         }
@@ -348,7 +348,7 @@ private data class TrackChapterSelectorScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 track = track,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
@@ -374,7 +374,7 @@ private data class TrackChapterSelectorScreen(
     private class Model(
         private val track: DbMangaTrack,
         private val tracker: Tracker,
-    ) : StateScreenModel<Model.State>(State(track.lastChapterRead.toInt())) {
+    ) : StateViewModel<Model.State>(State(track.lastChapterRead.toInt())) {
 
         fun getRange(): Iterable<Int> {
             val endRange = if (track.totalChapters > 0) {
@@ -390,7 +390,7 @@ private data class TrackChapterSelectorScreen(
         }
 
         fun setChapter() {
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 tracker.mangaService.setRemoteLastChapterRead(
                     track.toDbTrack(),
                     state.value.selection,
@@ -413,7 +413,7 @@ private data class TrackScoreSelectorScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 track = track,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
@@ -438,7 +438,7 @@ private data class TrackScoreSelectorScreen(
     private class Model(
         private val track: DbMangaTrack,
         private val tracker: Tracker,
-    ) : StateScreenModel<Model.State>(State(tracker.mangaService.displayScore(track))) {
+    ) : StateViewModel<Model.State>(State(tracker.mangaService.displayScore(track))) {
 
         fun getSelections(): ImmutableList<String> {
             return tracker.mangaService.getScoreList()
@@ -449,7 +449,7 @@ private data class TrackScoreSelectorScreen(
         }
 
         fun setScore() {
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 tracker.mangaService.setRemoteScore(track.toDbTrack(), state.value.selection)
             }
         }
@@ -527,7 +527,7 @@ private data class TrackDateSelectorScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 track = track,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
@@ -563,7 +563,7 @@ private data class TrackDateSelectorScreen(
         private val track: DbMangaTrack,
         private val tracker: Tracker,
         private val start: Boolean,
-    ) : ScreenModel {
+    ) : ViewModel() {
 
         // In UTC
         val initialSelection: Long
@@ -580,7 +580,7 @@ private data class TrackDateSelectorScreen(
             // Convert to local time
             val localMillis =
                 millis.convertEpochMillisZone(ZoneOffset.UTC, ZoneOffset.systemDefault())
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 if (start) {
                     tracker.mangaService.setRemoteStartDate(track.toDbTrack(), localMillis)
                 } else {
@@ -604,7 +604,7 @@ private data class TrackDateRemoverScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 track = track,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
@@ -669,12 +669,12 @@ private data class TrackDateRemoverScreen(
         private val track: DbMangaTrack,
         private val tracker: Tracker,
         private val start: Boolean,
-    ) : ScreenModel {
+    ) : ViewModel() {
 
         fun getName() = tracker.name
 
         fun removeDate() {
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 if (start) {
                     tracker.mangaService.setRemoteStartDate(track.toDbTrack(), 0)
                 } else {
@@ -695,7 +695,7 @@ data class TrackServiceSearchScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 mangaId = mangaId,
                 currentUrl = currentUrl,
@@ -731,7 +731,7 @@ data class TrackServiceSearchScreen(
         private val currentUrl: String? = null,
         initialQuery: String,
         private val tracker: Tracker,
-    ) : StateScreenModel<Model.State>(State()) {
+    ) : StateViewModel<Model.State>(State()) {
 
         val supportsPrivateTracking = tracker.supportsPrivateTracking
 
@@ -743,7 +743,7 @@ data class TrackServiceSearchScreen(
         }
 
         fun trackingSearch(query: String) {
-            screenModelScope.launch {
+            viewModelScope.launch {
                 // To show loading state
                 mutableState.update { it.copy(queryResult = null, selected = null) }
 
@@ -765,7 +765,7 @@ data class TrackServiceSearchScreen(
         }
 
         fun registerTracking(item: MangaTrackSearch) {
-            screenModelScope.launchNonCancellable { tracker.mangaService.register(item, mangaId) }
+            viewModelScope.launchNonCancellable { tracker.mangaService.register(item, mangaId) }
         }
 
         fun updateSelection(selected: MangaTrackSearch) {
@@ -789,7 +789,7 @@ private data class TrackerMangaRemoveScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel {
+        val screenModel = viewModel {
             Model(
                 mangaId = mangaId,
                 track = track,
@@ -864,14 +864,14 @@ private data class TrackerMangaRemoveScreen(
         private val track: MangaTrack,
         private val tracker: Tracker,
         private val deleteTrack: DeleteMangaTrack = appGraph.deleteMangaTrack,
-    ) : ScreenModel {
+    ) : ViewModel() {
 
         fun getName() = tracker.name
 
         fun isDeletable() = tracker is DeletableMangaTracker
 
         fun deleteMangaFromService() {
-            screenModelScope.launchNonCancellable {
+            viewModelScope.launchNonCancellable {
                 try {
                     (tracker as DeletableMangaTracker).delete(track)
                 } catch (e: Exception) {
@@ -881,7 +881,7 @@ private data class TrackerMangaRemoveScreen(
         }
 
         fun unregisterTracking(serviceId: Long) {
-            screenModelScope.launchNonCancellable { deleteTrack.await(mangaId, serviceId) }
+            viewModelScope.launchNonCancellable { deleteTrack.await(mangaId, serviceId) }
         }
     }
 }

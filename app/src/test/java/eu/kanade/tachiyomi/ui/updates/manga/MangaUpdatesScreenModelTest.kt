@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.every
@@ -221,4 +222,11 @@ class MangaUpdatesScreenModelTest {
             lastModified = 0,
         ),
     )
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        val env = TestEnvironment()
+        env.stubInteractor(flowOf(emptyList()))
+        assertClearingStoreCancelsScope { env.model() }
+    }
 }

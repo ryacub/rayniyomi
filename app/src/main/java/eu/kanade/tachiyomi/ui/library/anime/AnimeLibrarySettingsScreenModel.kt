@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.ui.library.anime
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.appGraph
@@ -25,11 +25,11 @@ class AnimeLibrarySettingsScreenModel(
     private val setAnimeDisplayMode: SetAnimeDisplayMode = appGraph.setAnimeDisplayMode,
     private val setSortModeForCategory: SetSortModeForAnimeCategory = appGraph.setSortModeForAnimeCategory,
     trackerManager: TrackerManager = appGraph.trackerManager,
-) : ScreenModel {
+) : ViewModel() {
 
     val trackersFlow = trackerManager.loggedInTrackersFlow()
         .stateIn(
-            scope = screenModelScope,
+            scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5.seconds.inWholeMilliseconds),
             initialValue = trackerManager.loggedInTrackers(),
         )
@@ -53,7 +53,7 @@ class AnimeLibrarySettingsScreenModel(
         mode: AnimeLibrarySort.Type,
         direction: AnimeLibrarySort.Direction,
     ) {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             setSortModeForCategory.await(category, mode, direction)
         }
     }

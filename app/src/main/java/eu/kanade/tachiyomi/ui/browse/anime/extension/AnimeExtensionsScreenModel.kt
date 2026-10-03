@@ -2,13 +2,13 @@ package eu.kanade.tachiyomi.ui.browse.anime.extension
 
 import android.app.Application
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionsByType
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
@@ -50,7 +50,7 @@ class AnimeExtensionsScreenModel(
     private val getExtensions: GetAnimeExtensionsByType = appGraph.getAnimeExtensionsByType,
     private val application: Application = appGraph.application,
     private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : StateScreenModel<AnimeExtensionsScreenModel.State>(State()) {
+) : StateViewModel<AnimeExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())
     private val activeInstallations = ConcurrentHashMap<String, Job>()
@@ -100,7 +100,7 @@ class AnimeExtensionsScreenModel(
             }
         }
 
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             combine(
                 state.map { it.searchQuery }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MILLIS),
                 currentDownloads,
@@ -152,15 +152,15 @@ class AnimeExtensionsScreenModel(
                     }
                 }
         }
-        screenModelScope.launchIO { findAvailableExtensions() }
+        viewModelScope.launchIO { findAvailableExtensions() }
 
         preferences.animeExtensionUpdatesCount().changes()
             .onEach { mutableState.update { state -> state.copy(updates = it) } }
-            .launchIn(screenModelScope)
+            .launchIn(viewModelScope)
 
         basePreferences.extensionInstaller().changes()
             .onEach { mutableState.update { state -> state.copy(installer = it) } }
-            .launchIn(screenModelScope)
+            .launchIn(viewModelScope)
     }
 
     fun search(query: String?) {
@@ -170,7 +170,7 @@ class AnimeExtensionsScreenModel(
     }
 
     fun updateAllExtensions() {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             state.value.items.values.flatten()
                 .map { it.extension }
                 .filterIsInstance<AnimeExtension.Installed>()
@@ -188,7 +188,7 @@ class AnimeExtensionsScreenModel(
     }
 
     private fun startInstall(extension: AnimeExtension, flow: () -> Flow<InstallStep>) {
-        val job = screenModelScope.launch(installDispatcher, CoroutineStart.LAZY) {
+        val job = viewModelScope.launch(installDispatcher, CoroutineStart.LAZY) {
             try {
                 flow().collectToInstallUpdate(extension)
             } finally {
@@ -272,7 +272,7 @@ class AnimeExtensionsScreenModel(
     }
 
     fun findAvailableExtensions() {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             mutableState.update { it.copy(isRefreshing = true) }
             extensionManager.findAvailableExtensions()
 
@@ -284,7 +284,7 @@ class AnimeExtensionsScreenModel(
     }
 
     fun trustExtension(extension: AnimeExtension.Untrusted) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             extensionManager.trust(extension)
         }
     }

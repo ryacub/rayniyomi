@@ -24,15 +24,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.manga.components.MangaSourceIcon
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
@@ -61,7 +61,7 @@ class ClearDatabaseScreen : Screen() {
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val model = rememberScreenModel { ClearDatabaseScreenModel() }
+        val model = viewModel { ClearDatabaseScreenModel() }
         val state by model.state.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
 
@@ -185,7 +185,7 @@ class ClearDatabaseScreen : Screen() {
     }
 }
 
-private class ClearDatabaseScreenModel : StateScreenModel<ClearDatabaseScreenModel.State>(
+private class ClearDatabaseScreenModel : StateViewModel<ClearDatabaseScreenModel.State>(
     State.Loading,
 ) {
     private val getSourcesWithNonLibraryManga: GetMangaSourcesWithNonLibraryManga =
@@ -193,7 +193,7 @@ private class ClearDatabaseScreenModel : StateScreenModel<ClearDatabaseScreenMod
     private val database: Database = appGraph.database
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             getSourcesWithNonLibraryManga.subscribe()
                 .collectLatest { list ->
                     mutableState.update { old ->

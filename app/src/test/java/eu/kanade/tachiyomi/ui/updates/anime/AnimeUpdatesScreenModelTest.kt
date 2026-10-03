@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.every
@@ -226,4 +227,11 @@ class AnimeUpdatesScreenModelTest {
             lastModified = 0,
         ),
     )
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        val env = TestEnvironment()
+        env.stubInteractor(flowOf(emptyList()))
+        assertClearingStoreCancelsScope { env.model() }
+    }
 }

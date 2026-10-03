@@ -2,9 +2,9 @@ package eu.kanade.presentation.more.settings.screen.player.editor
 
 import android.content.Context
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.size
 import eu.kanade.tachiyomi.util.storage.DiskUtil
@@ -27,7 +27,7 @@ import java.util.Locale
 class PlayerSettingsEditorScreenModel(
     private val context: Context,
     private val storageManager: StorageManager = appGraph.storageManager,
-) : StateScreenModel<EditorScreenState>(EditorScreenState.Loading) {
+) : StateViewModel<EditorScreenState>(EditorScreenState.Loading) {
     private val _selectedType = MutableStateFlow(EditorListType.SCRIPTS)
     val selectedType = _selectedType.asStateFlow()
 
@@ -35,7 +35,7 @@ class PlayerSettingsEditorScreenModel(
     val dialogShown = _dialogShown.asStateFlow()
 
     init {
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             _selectedType.collectLatest { type ->
                 updateItems(type)
             }

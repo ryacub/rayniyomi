@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.anime.migration.anime
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
@@ -26,13 +26,13 @@ class MigrateAnimeScreenModel(
     private val sourceId: Long,
     private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
     private val getFavorites: GetAnimeFavorites = appGraph.getAnimeFavorites,
-) : StateScreenModel<MigrateAnimeScreenModel.State>(State()) {
+) : StateViewModel<MigrateAnimeScreenModel.State>(State()) {
 
     private val _events: Channel<MigrationAnimeEvent> = Channel(Channel.BUFFERED)
     val events: Flow<MigrationAnimeEvent> = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             mutableState.update { state ->
                 state.copy(source = sourceManager.getOrStub(sourceId))
             }

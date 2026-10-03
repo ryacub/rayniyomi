@@ -1,5 +1,6 @@
 package eu.kanade.presentation.more.settings.screen.player.custombutton
 
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -71,6 +72,22 @@ class PlayerSettingsCustomButtonScreenModelTest {
         assertEquals(CustomButtonEvent.InternalError, event)
         coVerify(exactly = 1) {
             createCustomButton.await("name", "content", "longPress", "startup")
+        }
+    }
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest {
+        val getCustomButtons = mockk<GetCustomButtons>()
+        every { getCustomButtons.subscribeAll() } returns emptyFlow()
+        assertClearingStoreCancelsScope {
+            PlayerSettingsCustomButtonScreenModel(
+                getCustomButtons = getCustomButtons,
+                createCustomButton = mockk<CreateCustomButton>(relaxed = true),
+                deleteCustomButton = mockk<DeleteCustomButton>(relaxed = true),
+                updateCustomButton = mockk<UpdateCustomButton>(relaxed = true),
+                reorderCustomButton = mockk<ReorderCustomButton>(relaxed = true),
+                toggleFavoriteCustomButton = mockk<ToggleFavoriteCustomButton>(relaxed = true),
+            )
         }
     }
 }

@@ -3,10 +3,10 @@ package mihon.feature.upcoming.manga
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.util.fastMap
 import androidx.compose.ui.util.fastMapIndexedNotNull
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.insertSeparatorsReversed
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
@@ -38,19 +38,19 @@ class UpcomingMangaScreenModel(
     private val getUpcomingManga: GetUpcomingManga = appGraph.getUpcomingManga,
     private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
     private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-) : StateScreenModel<UpcomingMangaScreenModel.State>(State()) {
+) : StateViewModel<UpcomingMangaScreenModel.State>(State()) {
 
     val categories: StateFlow<List<Category>> = getCategories.subscribe()
-        .stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val includedCategoriesPref = libraryPreferences.filterMangaUpcomingCategories()
     private val excludedCategoriesPref = libraryPreferences.filterMangaUpcomingCategoriesExclude()
 
-    val includedCategories by includedCategoriesPref.asState(screenModelScope)
-    val excludedCategories by excludedCategoriesPref.asState(screenModelScope)
+    val includedCategories by includedCategoriesPref.asState(viewModelScope)
+    val excludedCategories by excludedCategoriesPref.asState(viewModelScope)
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             categoryFilterFlow().collectLatest {
                 mutableState.update { state ->
                     val upcomingItems = it.toUpcomingMangaUIModels()

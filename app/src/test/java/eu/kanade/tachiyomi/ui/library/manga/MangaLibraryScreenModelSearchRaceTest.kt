@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.every
 import io.mockk.mockk
@@ -198,4 +199,9 @@ class MangaLibraryScreenModelSearchRaceTest {
     }
 
     private fun category() = Category(id = 0L, name = "Default", order = 0L, flags = 0L, hidden = false)
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        assertClearingStoreCancelsScope { createModel() }
+    }
 }

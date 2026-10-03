@@ -9,7 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -50,7 +50,7 @@ fun Screen.animeHistoryTab(
     val snackbarHostState = SnackbarHostState()
 
     val navigator = LocalNavigator.currentOrThrow
-    val screenModel = rememberScreenModel { AnimeHistoryScreenModel() }
+    val screenModel = viewModel { AnimeHistoryScreenModel() }
     val state by screenModel.state.collectAsStateWithLifecycle()
     val searchQuery by screenModel.query.collectAsStateWithLifecycle()
 
@@ -140,7 +140,7 @@ fun Screen.animeHistoryTab(
                     MigrateAnimeDialog(
                         oldAnime = dialog.oldAnime,
                         newAnime = dialog.newAnime,
-                        screenModel = MigrateAnimeDialogScreenModel(),
+                        screenModel = viewModel { MigrateAnimeDialogScreenModel() },
                         onDismissRequest = onDismissRequest,
                         onClickTitle = { navigator.push(AnimeScreen(dialog.oldAnime.id)) },
                         onClickSeasons = {

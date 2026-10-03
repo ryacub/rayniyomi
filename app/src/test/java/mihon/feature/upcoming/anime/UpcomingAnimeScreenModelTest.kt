@@ -2,6 +2,7 @@ package mihon.feature.upcoming.anime
 
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
 import io.mockk.coEvery
@@ -182,4 +183,11 @@ class UpcomingAnimeScreenModelTest {
         status = SAnime.ONGOING.toLong(),
         nextUpdate = nextUpdate,
     )
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        val env = TestEnvironment()
+        env.stubInteractor(flowOf(emptyList()))
+        assertClearingStoreCancelsScope { env.model() }
+    }
 }

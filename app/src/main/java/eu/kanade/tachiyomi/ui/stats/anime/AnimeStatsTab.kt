@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.ui.stats.anime
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -17,7 +17,7 @@ import tachiyomi.presentation.core.screens.LoadingScreen
 fun Screen.animeStatsTab(): TabContent {
     val navigator = LocalNavigator.currentOrThrow
 
-    val screenModel = rememberScreenModel { AnimeStatsScreenModel() }
+    val screenModel = viewModel { AnimeStatsScreenModel() }
     val state by screenModel.state.collectAsStateWithLifecycle()
 
     if (state is StatsScreenState.Loading) {

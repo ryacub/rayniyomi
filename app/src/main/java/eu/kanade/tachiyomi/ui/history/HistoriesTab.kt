@@ -8,7 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
@@ -54,10 +54,10 @@ data object HistoriesTab : Tab {
         val context = LocalContext.current
         val fromMore = currentNavigationStyle() == NavStyle.MOVE_HISTORY_TO_MORE
         // Hoisted for history tab's search bar
-        val mangaHistoryScreenModel = rememberScreenModel { MangaHistoryScreenModel() }
+        val mangaHistoryScreenModel = viewModel { MangaHistoryScreenModel() }
         val mangaSearchQuery by mangaHistoryScreenModel.query.collectAsStateWithLifecycle()
 
-        val animeHistoryScreenModel = rememberScreenModel { AnimeHistoryScreenModel() }
+        val animeHistoryScreenModel = viewModel { AnimeHistoryScreenModel() }
         val animeSearchQuery by animeHistoryScreenModel.query.collectAsStateWithLifecycle()
 
         TabbedScreen(

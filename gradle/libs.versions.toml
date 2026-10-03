@@ -11,7 +11,7 @@ richtext = "0.20.0"
 shizuku_version = "13.1.0"
 sqldelight = "2.3.2"
 sqlite = "2.6.2"
-voyager = "1.1.0-beta03"
+voyager = "2.2.21-1.10.3"
 spotless = "8.2.1"
 ktlint-core = "1.7.1"
 
@@ -100,7 +100,6 @@ kotest-assertions = "io.kotest:kotest-assertions-core:6.2.1"
 mockk = "io.mockk:mockk:1.14.11"
 
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
-voyager-screenmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager" }
 voyager-tab-navigator = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager" }
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
 
@@ -123,6 +122,6 @@ sqlite = ["sqlite-framework", "sqlite-ktx", "sqlite-android"]
 coil = ["coil-core", "coil-gif", "coil-compose", "coil-network-okhttp"]
 shizuku = ["shizuku-api", "shizuku-provider"]
 sqldelight = ["sqldelight-android-driver", "sqldelight-coroutines"]
-voyager = ["voyager-navigator", "voyager-screenmodel", "voyager-tab-navigator", "voyager-transitions"]
+voyager = ["voyager-navigator", "voyager-tab-navigator", "voyager-transitions"]
 richtext = ["richtext-commonmark", "richtext-m3"]
 test = ["junit", "kotest-assertions", "mockk"]

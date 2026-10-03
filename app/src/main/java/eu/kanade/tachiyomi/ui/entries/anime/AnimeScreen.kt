@@ -17,7 +17,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -97,7 +97,7 @@ class AnimeScreen(
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
         val screenModel =
-            rememberScreenModel { AnimeScreenModel(context, lifecycleOwner.lifecycle, animeId, fromSource) }
+            viewModel { AnimeScreenModel(context, lifecycleOwner.lifecycle, animeId, fromSource) }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         if (state is AnimeScreenModel.State.Loading) {
@@ -264,7 +264,7 @@ class AnimeScreen(
                 MigrateAnimeDialog(
                     oldAnime = dialog.oldAnime,
                     newAnime = dialog.newAnime,
-                    screenModel = MigrateAnimeDialogScreenModel(),
+                    screenModel = viewModel { MigrateAnimeDialogScreenModel() },
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(AnimeScreen(dialog.oldAnime.id)) },
                     onClickSeasons = { navigator.push(MigrateSeasonSelectScreen(dialog.oldAnime, dialog.newAnime)) },
@@ -316,7 +316,7 @@ class AnimeScreen(
                 )
             }
             AnimeScreenModel.Dialog.FullImages -> {
-                val sm = rememberScreenModel { AnimeImageScreenModel(successState.anime.id) }
+                val sm = viewModel { AnimeImageScreenModel(successState.anime.id) }
                 val anime by sm.state.collectAsStateWithLifecycle()
                 if (anime != null) {
                     val getContent = rememberLauncherForActivityResult(

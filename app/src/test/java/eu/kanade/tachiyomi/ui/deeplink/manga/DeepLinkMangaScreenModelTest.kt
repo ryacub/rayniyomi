@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.deeplink.manga
 
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.every
 import io.mockk.mockk
@@ -107,5 +108,10 @@ class DeepLinkMangaScreenModelTest {
             updateMangaFromRemote = mockk<UpdateMangaFromRemote>(),
             ioDispatcher = vt.io,
         )
+    }
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        assertClearingStoreCancelsScope { createModel(RuntimeException("scope test")) }
     }
 }

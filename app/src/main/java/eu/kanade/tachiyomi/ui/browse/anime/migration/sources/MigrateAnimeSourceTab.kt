@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -23,7 +23,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 fun Screen.migrateAnimeSourceTab(): TabContent {
     val uriHandler = LocalUriHandler.current
     val navigator = LocalNavigator.currentOrThrow
-    val screenModel = rememberScreenModel { MigrateAnimeSourceScreenModel() }
+    val screenModel = viewModel { MigrateAnimeSourceScreenModel() }
     val state by screenModel.state.collectAsStateWithLifecycle()
 
     return TabContent(

@@ -43,10 +43,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.tachiyomi.animesource.AnimeSource
@@ -93,7 +93,7 @@ class EpisodeOptionsDialogScreen(
 
     @Composable
     override fun Content() {
-        val sm = rememberScreenModel {
+        val sm = viewModel {
             EpisodeOptionsDialogScreenModel(
                 episodeId = episodeId,
                 animeId = animeId,
@@ -135,7 +135,7 @@ class EpisodeOptionsDialogScreenModel(
     episodeId: Long,
     animeId: Long,
     sourceId: Long,
-) : ScreenModel {
+) : ViewModel() {
     private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
 
     private val _hosterState = MutableStateFlow<Result<List<HosterState>>?>(null)
@@ -164,7 +164,7 @@ class EpisodeOptionsDialogScreenModel(
     init {
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             val episode = appGraph.getEpisode.await(episodeId)
             if (episode == null) {
                 _hosterState.update { _ ->
@@ -388,7 +388,7 @@ class EpisodeOptionsDialogScreenModel(
 
                 _hosterState.updateAt(hosterIndex, HosterState.Loading(hosterName))
 
-                screenModelScope.launchIO {
+                viewModelScope.launchIO {
                     val newHosterState = EpisodeLoader.loadHosterVideos(
                         source ?: return@launchIO,
                         hoster,
@@ -407,7 +407,7 @@ class EpisodeOptionsDialogScreenModel(
             ?: return
         val source = _source.value ?: return
 
-        screenModelScope.launchIO {
+        viewModelScope.launchIO {
             val success = loadVideo(source, video, hosterIndex, videoIndex)
             if (success) {
                 _showAllQualities.update { _ -> false }

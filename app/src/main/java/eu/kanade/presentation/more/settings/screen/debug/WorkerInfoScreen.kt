@@ -17,11 +17,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.WorkInfo
 import androidx.work.WorkQuery
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.ui.UiPreferences
@@ -56,7 +56,7 @@ class WorkerInfoScreen : Screen() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = rememberScreenModel { Model(context) }
+        val screenModel = viewModel { Model(context) }
         val enqueued by screenModel.enqueued.collectAsStateWithLifecycle()
         val finished by screenModel.finished.collectAsStateWithLifecycle()
         val running by screenModel.running.collectAsStateWithLifecycle()
@@ -120,7 +120,7 @@ class WorkerInfoScreen : Screen() {
         )
     }
 
-    private class Model(context: Context) : ScreenModel {
+    private class Model(context: Context) : ViewModel() {
         private val workManager = context.workManager
 
         val finished = workManager

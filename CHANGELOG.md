@@ -33,6 +33,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Changed
 
+- Moved screen state holders to AndroidX ViewModel and upgraded Voyager to 2.2.21-1.10.3 (R1077).
+
 ### Removed
 
 ### CI

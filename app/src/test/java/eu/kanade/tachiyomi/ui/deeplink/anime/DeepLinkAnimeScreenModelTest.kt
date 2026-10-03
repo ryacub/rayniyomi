@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
@@ -130,5 +131,10 @@ class DeepLinkAnimeScreenModelTest {
 
             override fun getStubSources(): List<StubAnimeSource> = emptyList()
         }
+    }
+
+    @Test
+    fun `clearing the store cancels the model scope`() = runTest(vt.scheduler) {
+        assertClearingStoreCancelsScope { createModel() }
     }
 }

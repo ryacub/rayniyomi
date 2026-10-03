@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi.ui.deeplink.anime
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
@@ -33,10 +33,10 @@ class DeepLinkAnimeScreenModel(
     private val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId = appGraph.getAnimeByUrlAndSourceId,
     private val syncEpisodesWithSource: SyncEpisodesWithSource = appGraph.syncEpisodesWithSource,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : StateScreenModel<DeepLinkAnimeScreenModel.State>(State.Loading) {
+) : StateViewModel<DeepLinkAnimeScreenModel.State>(State.Loading) {
 
     init {
-        screenModelScope.launch(ioDispatcher) {
+        viewModelScope.launch(ioDispatcher) {
             try {
                 val source = sourceManager.getCatalogueSources()
                     .filterIsInstance<ResolvableAnimeSource>()

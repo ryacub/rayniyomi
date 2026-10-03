@@ -1,9 +1,9 @@
 package eu.kanade.presentation.more.settings.screen.player.custombutton
 
 import androidx.compose.runtime.Immutable
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -29,13 +29,13 @@ class PlayerSettingsCustomButtonScreenModel(
     private val updateCustomButton: UpdateCustomButton = appGraph.updateCustomButton,
     private val reorderCustomButton: ReorderCustomButton = appGraph.reorderCustomButton,
     private val toggleFavoriteCustomButton: ToggleFavoriteCustomButton = appGraph.toggleFavoriteCustomButton,
-) : StateScreenModel<CustomButtonScreenState>(CustomButtonScreenState.Loading) {
+) : StateViewModel<CustomButtonScreenState>(CustomButtonScreenState.Loading) {
 
     private val _events: Channel<CustomButtonEvent> = Channel(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
-        screenModelScope.launch {
+        viewModelScope.launch {
             getCustomButtons.subscribeAll()
                 .collectLatest { customButtons ->
                     mutableState.update {
@@ -48,7 +48,7 @@ class PlayerSettingsCustomButtonScreenModel(
     }
 
     fun createCustomButton(name: String, content: String, longPressContent: String, onStartup: String) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (createCustomButton.await(name, content, longPressContent, onStartup)) {
                 is CreateCustomButton.Result.InternalError -> _events.send(
                     CustomButtonEvent.InternalError,
@@ -59,7 +59,7 @@ class PlayerSettingsCustomButtonScreenModel(
     }
 
     fun togglePrimaryButton(customButton: CustomButton) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (toggleFavoriteCustomButton.await(customButton)) {
                 is ToggleFavoriteCustomButton.Result.InternalError -> _events.send(
                     CustomButtonEvent.InternalError,
@@ -70,7 +70,7 @@ class PlayerSettingsCustomButtonScreenModel(
     }
 
     fun editCustomButton(customButtonUpdate: CustomButtonUpdate) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (updateCustomButton.await(customButtonUpdate)) {
                 is UpdateCustomButton.Result.InternalError -> _events.send(
                     CustomButtonEvent.InternalError,
@@ -81,7 +81,7 @@ class PlayerSettingsCustomButtonScreenModel(
     }
 
     fun deleteCustomButton(customButton: CustomButton) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (deleteCustomButton.await(customButton.id)) {
                 is DeleteCustomButton.Result.InternalError -> _events.send(
                     CustomButtonEvent.InternalError,
@@ -92,7 +92,7 @@ class PlayerSettingsCustomButtonScreenModel(
     }
 
     fun changeOrder(customButton: CustomButton, newIndex: Int) {
-        screenModelScope.launch {
+        viewModelScope.launch {
             when (reorderCustomButton.changeOrder(customButton, newIndex)) {
                 is ReorderCustomButton.Result.InternalError -> _events.send(
                     CustomButtonEvent.InternalError,
