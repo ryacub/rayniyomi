@@ -49,6 +49,8 @@ import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -58,6 +60,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
 import tachiyomi.core.common.i18n.stringResource
@@ -65,7 +68,6 @@ import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
-import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
@@ -123,6 +125,7 @@ class MangaScreenModel(
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
     private val translationManager: TranslationManager = appGraph.translationManager,
     private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<MangaScreenModel.State>(State.Loading) {
 
@@ -222,7 +225,7 @@ class MangaScreenModel(
 
         observeDownloads()
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             val manga = getMangaAndChapters.awaitManga(mangaId)
             val chapters = getMangaAndChapters.awaitChapters(mangaId, applyScanlatorFilter = true)
 
@@ -259,7 +262,8 @@ class MangaScreenModel(
             observeTrackers()
 
             // Fetch info-chapters when needed
-            if (viewModelScope.isActive) {
+            // A combined-API extension can reject a call that requests nothing (R1089).
+            if (viewModelScope.isActive && (needRefreshInfo || needRefreshChapter)) {
                 fetchAllFromSource(
                     manualFetch = false,
                     fetchDetails = needRefreshInfo,
@@ -293,7 +297,7 @@ class MangaScreenModel(
     ) {
         val state = successState ?: return
         try {
-            withIOContext {
+            withContext(ioDispatcher) {
                 val update = updateMangaFromRemote(
                     source = state.source,
                     manga = state.manga,

@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -16,6 +17,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import tachiyomi.core.common.util.lang.SourceLinkageException
 import tachiyomi.core.common.util.lang.SourceLinkageReporter
 import tachiyomi.domain.entries.manga.model.Manga
@@ -89,6 +92,34 @@ class UpdateMangaFromRemoteTest {
             interactor(source = source, manga = Manga.create().copy(id = 1, url = "/series/1"), fetchDetails = true)
 
             update.captured.memo shouldBe memo
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("true, false", "false, true", "true, true")
+    fun `the source receives the requested fetch flags unchanged`(fetchDetails: Boolean, fetchChapters: Boolean) {
+        runBlocking {
+            val source = mockk<MangaSource> {
+                coEvery { getMangaUpdate(any(), any(), any(), any()) } answers { SMangaUpdate(firstArg(), secondArg()) }
+            }
+            val interactor = UpdateMangaFromRemote(
+                sourceManager = mockk(relaxed = true),
+                chapterRepository = mockk<ChapterRepository> {
+                    coEvery { getChapterByMangaId(any()) } returns emptyList()
+                },
+                mangaRepository = mockk<MangaRepository>(relaxed = true),
+                syncChaptersWithSource = mockk<SyncChaptersWithSource>(relaxed = true),
+                coverCache = mockk<MangaCoverCache>(relaxed = true),
+            )
+
+            interactor(
+                source = source,
+                manga = Manga.create().copy(id = 1),
+                fetchDetails = fetchDetails,
+                fetchChapters = fetchChapters,
+            )
+
+            coVerify(exactly = 1) { source.getMangaUpdate(any(), any(), fetchDetails, fetchChapters) }
         }
     }
 }
