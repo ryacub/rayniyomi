@@ -203,7 +203,6 @@ class MultiThreadDownloader(
                                 chunkState.addBytes(chunk.index, bytes)
                                 onProgress(chunkState.applyTo(progress))
                             },
-                            onChunkComplete = { bytes -> chunkState.complete(chunk.index, bytes) },
                         )
                     }
                 }
@@ -280,7 +279,6 @@ class MultiThreadDownloader(
         headers: Headers?,
         tempDir: File,
         onChunkProgress: (Long) -> Unit,
-        onChunkComplete: (Long) -> Unit,
     ) {
         // Acquire semaphore to limit concurrent downloads
         ChunkDownloader.Companion.CONCURRENT_CHUNK_SEMAPHORE.acquire()
@@ -298,7 +296,9 @@ class MultiThreadDownloader(
             )
 
             when (result) {
-                is ChunkDownloader.ChunkDownloadResult.Success -> onChunkComplete(result.bytesDownloaded)
+                is ChunkDownloader.ChunkDownloadResult.Success -> {
+                    // Chunk downloaded successfully
+                }
                 is ChunkDownloader.ChunkDownloadResult.Error -> {
                     throw IOException("Chunk ${chunk.index} failed: ${result.error}")
                 }
@@ -339,11 +339,7 @@ class MultiThreadDownloader(
     }
 }
 
-/**
- * Holds the byte count of each chunk for one download operation.
- *
- * An incomplete chunk starts at zero, because the downloader writes its temp file again from the start.
- */
+// An incomplete chunk starts at zero because its temp file is written again from the start.
 private class ChunkStateTracker(chunks: List<ChunkProgress>) {
     private val bytesByIndex = chunks.associate { chunk ->
         chunk.index to AtomicLong(if (chunk.isComplete) chunk.downloadedBytes else 0L)
@@ -351,11 +347,6 @@ private class ChunkStateTracker(chunks: List<ChunkProgress>) {
 
     fun addBytes(index: Int, bytes: Long) {
         bytesByIndex.getValue(index).addAndGet(bytes)
-    }
-
-    // The success count replaces the streamed count, which includes bytes from failed attempts.
-    fun complete(index: Int, bytes: Long) {
-        bytesByIndex.getValue(index).set(bytes)
     }
 
     fun totalBytes(): Long = bytesByIndex.values.sumOf { it.get() }

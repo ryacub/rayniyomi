@@ -30,7 +30,7 @@ class MultiThreadDownloaderTest {
 
     private lateinit var server: MockWebServer
 
-    // Two 25 MiB minimum chunks plus a remainder, so the downloader splits the file in two.
+    // Over 50 MiB, so the downloader makes two chunks.
     private val video = ByteArray(50 * 1024 * 1024 + 4096) { (it % 251).toByte() }.apply {
         MP4_HEADER.copyInto(this)
     }
@@ -58,7 +58,7 @@ class MultiThreadDownloaderTest {
         val progressUpdates = Collections.synchronizedList(mutableListOf<DownloadProgress>())
         val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 2 })
 
-        // Real dispatcher, so the chunk timeouts run on wall-clock time, not on virtual time.
+        // Virtual time would fire the chunk timeouts at once.
         val result = withContext(Dispatchers.IO) {
             downloader.download(
                 episodeId = EPISODE_ID,
@@ -72,7 +72,7 @@ class MultiThreadDownloaderTest {
 
         result.shouldBeInstanceOf<DownloadResult.Success>()
         output.readBytes().contentEquals(video) shouldBe true
-        // Chunk threads can append snapshots out of order, so select the newest by value.
+        // Chunk threads can append snapshots out of order.
         val finalProgress = progressUpdates.maxBy { it.downloadedBytes }
         finalProgress.chunks.size shouldBe 2
         finalProgress.chunks.all { it.downloadedBytes == it.totalBytes } shouldBe true
@@ -104,7 +104,7 @@ class MultiThreadDownloaderTest {
     private companion object {
         const val EPISODE_ID = 42L
 
-        // An ISO BMFF "ftyp" box, so the first chunk passes the video signature check.
+        // MP4 "ftyp" box for the signature check.
         val MP4_HEADER =
             byteArrayOf(0, 0, 0, 0x18, 'f'.code.toByte(), 't'.code.toByte(), 'y'.code.toByte(), 'p'.code.toByte())
     }
