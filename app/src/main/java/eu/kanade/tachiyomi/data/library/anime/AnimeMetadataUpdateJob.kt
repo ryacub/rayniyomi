@@ -178,8 +178,8 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     }
 
     companion object {
-        private const val TAG = "MetadataUpdate"
-        private const val WORK_NAME_MANUAL = "MetadataUpdate"
+        private const val TAG = "AnimeMetadataUpdate"
+        private const val WORK_NAME_MANUAL = "AnimeMetadataUpdate-manual"
 
         private const val MANGA_PER_SOURCE_QUEUE_WARNING_THRESHOLD = 60
 
