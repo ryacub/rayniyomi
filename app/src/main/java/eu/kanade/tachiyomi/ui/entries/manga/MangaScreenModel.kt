@@ -1152,19 +1152,18 @@ class MangaScreenModel(
             }
 
             val isListOutdated by lazy {
-                !isRefreshingData && autoUpdatePolicy != null && isEntryListOutdated(
-                    candidate = AutoUpdateCandidate(
-                        alwaysUpdate = manga.updateStrategy == UpdateStrategy.ALWAYS_UPDATE,
-                        isCompleted = manga.status == SManga.COMPLETED.toLong(),
-                        hasUnviewed = chapters.fastAny { !it.chapter.read },
-                        hasStarted = chapters.fastAny { it.chapter.read },
-                        totalCount = chapters.size.toLong(),
-                        nextUpdate = manga.nextUpdate,
-                    ),
-                    isFavorite = manga.favorite,
-                    policy = autoUpdatePolicy,
-                )
+                val policy = autoUpdatePolicy ?: return@lazy false
+                !isRefreshingData && isEntryListOutdated(autoUpdateCandidate(), manga.favorite, policy)
             }
+
+            private fun autoUpdateCandidate() = AutoUpdateCandidate(
+                alwaysUpdate = manga.updateStrategy == UpdateStrategy.ALWAYS_UPDATE,
+                isCompleted = manga.status == SManga.COMPLETED.toLong(),
+                hasUnviewed = chapters.fastAny { !it.chapter.read },
+                hasStarted = chapters.fastAny { it.chapter.read },
+                totalCount = chapters.size.toLong(),
+                nextUpdate = manga.nextUpdate,
+            )
 
             val chapterListItems by lazy {
                 EntryListGapSeparator.withMissingCount(

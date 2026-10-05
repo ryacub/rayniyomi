@@ -18,14 +18,15 @@ internal fun isInAutoUpdateCategories(
     return categoryIds.none { it in excluded }
 }
 
-// A manual refresh keeps a nextUpdate inside the fetch window, so only one before the window is overdue.
 internal fun isEntryListOutdated(
     candidate: AutoUpdateCandidate,
     isFavorite: Boolean,
     policy: AutoUpdatePolicy,
 ): Boolean {
     if (!isFavorite || !policy.isInUpdateCategories || candidate.isCompleted) return false
-    val (windowStart, windowEnd) = policy.fetchWindow
-    if (candidate.nextUpdate <= 0L || candidate.nextUpdate >= windowStart) return false
-    return evaluateAutoUpdateCandidate(candidate, policy.restrictions, windowEnd) == null
+    if (!isBeforeFetchWindow(candidate.nextUpdate, policy.fetchWindow)) return false
+    return evaluateAutoUpdateCandidate(candidate, policy.restrictions, policy.fetchWindow.second) == null
 }
+
+private fun isBeforeFetchWindow(nextUpdate: Long, fetchWindow: Pair<Long, Long>): Boolean =
+    nextUpdate in 1..<fetchWindow.first

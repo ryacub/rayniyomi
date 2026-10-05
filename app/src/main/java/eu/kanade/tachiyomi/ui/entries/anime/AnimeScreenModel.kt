@@ -1609,22 +1609,19 @@ class AnimeScreenModel(
         ) : State {
 
             val isListOutdated by lazy {
-                !isRefreshingData &&
-                    anime.fetchType == FetchType.Episodes &&
-                    autoUpdatePolicy != null &&
-                    isEntryListOutdated(
-                        candidate = AutoUpdateCandidate(
-                            alwaysUpdate = anime.updateStrategy == AnimeUpdateStrategy.ALWAYS_UPDATE,
-                            isCompleted = anime.status == SAnime.COMPLETED.toLong(),
-                            hasUnviewed = episodes.any { !it.episode.seen },
-                            hasStarted = episodes.any { it.episode.seen },
-                            totalCount = episodes.size.toLong(),
-                            nextUpdate = anime.nextUpdate,
-                        ),
-                        isFavorite = anime.favorite,
-                        policy = autoUpdatePolicy,
-                    )
+                val policy = autoUpdatePolicy ?: return@lazy false
+                if (isRefreshingData || anime.fetchType == FetchType.Seasons) return@lazy false
+                isEntryListOutdated(autoUpdateCandidate(), anime.favorite, policy)
             }
+
+            private fun autoUpdateCandidate() = AutoUpdateCandidate(
+                alwaysUpdate = anime.updateStrategy == AnimeUpdateStrategy.ALWAYS_UPDATE,
+                isCompleted = anime.status == SAnime.COMPLETED.toLong(),
+                hasUnviewed = episodes.any { !it.episode.seen },
+                hasStarted = episodes.any { it.episode.seen },
+                totalCount = episodes.size.toLong(),
+                nextUpdate = anime.nextUpdate,
+            )
 
             val processedSeasons by lazy {
                 seasons.applySeasonFilters(anime).toList()
