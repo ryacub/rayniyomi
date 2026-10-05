@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.util.fastAll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.WorkManager
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -36,10 +37,13 @@ import eu.kanade.presentation.library.anime.AnimeLibraryContent
 import eu.kanade.presentation.library.anime.AnimeLibrarySettingsDialog
 import eu.kanade.presentation.library.components.LibrarySearchHelpDialog
 import eu.kanade.presentation.library.components.LibraryToolbar
+import eu.kanade.presentation.library.components.LibraryToolbarProgress
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
+import eu.kanade.tachiyomi.data.library.launchLibraryUpdateCancellation
+import eu.kanade.tachiyomi.data.library.toLibraryUpdateProgressOrNull
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
@@ -50,6 +54,7 @@ import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.i18n.stringResource
@@ -102,6 +107,11 @@ data object AnimeLibraryTab : Tab {
         val screenModel = viewModel { AnimeLibraryScreenModel() }
         val settingsScreenModel = viewModel { AnimeLibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
+        val updateProgressFlow = remember(context) {
+            WorkManager.getInstance(context).getWorkInfosByTagFlow(AnimeLibraryUpdateJob.TAG)
+                .map { it.toLibraryUpdateProgressOrNull() }
+        }
+        val updateProgress by updateProgressFlow.collectAsStateWithLifecycle(initialValue = null)
 
         val snackbarHostState = remember { SnackbarHostState() }
 
@@ -167,6 +177,12 @@ data object AnimeLibraryTab : Tab {
                     searchQuery = state.searchQuery,
                     onSearchQueryChange = screenModel::search,
                     scrollBehavior = scrollBehavior.takeIf { !tabVisible }, // For scroll overlay when no tab
+                    updateProgress = updateProgress?.let {
+                        LibraryToolbarProgress(it.activeTitles, it.completed, it.total)
+                    },
+                    onClickCancelUpdate = {
+                        scope.launchLibraryUpdateCancellation { AnimeLibraryUpdateJob.stop(context) }
+                    },
                 )
             },
             bottomBar = {

@@ -29,6 +29,8 @@ import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.LibraryUpdateProgress
+import eu.kanade.tachiyomi.data.library.LibraryUpdateProgressTracker
 import eu.kanade.tachiyomi.data.library.SkippedUpdate
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.skippedUpdatesForReport
@@ -49,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -83,7 +86,6 @@ import java.time.ZonedDateTime
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 
 class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
@@ -286,8 +288,25 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
      */
     private suspend fun CoroutineScope.updateEpisodeList() {
         val semaphore = Semaphore(5)
-        val progressCount = AtomicInteger(0)
-        val currentlyUpdatingAnime = CopyOnWriteArrayList<Anime>()
+        val progressTracker = LibraryUpdateProgressTracker(
+            total = animeToUpdate.size,
+            title = { it.title },
+            onProgress = { updatingAnime, progress ->
+                notifier.showProgressNotification(
+                    updatingAnime,
+                    progress.completed,
+                    progress.total,
+                )
+                setProgress(progress.toWorkData())
+            },
+        )
+        setProgress(
+            LibraryUpdateProgress(
+                activeTitles = emptyList(),
+                completed = 0,
+                total = animeToUpdate.size,
+            ).toWorkData(),
+        )
         val newUpdates = CopyOnWriteArrayList<Pair<Anime, Array<Episode>>>()
         val failedUpdates = CopyOnWriteArrayList<Pair<Anime, String?>>()
         val hasDownloads = AtomicBoolean(false)
@@ -308,8 +327,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                                 }
 
                                 withUpdateNotification(
-                                    currentlyUpdatingAnime,
-                                    progressCount,
+                                    progressTracker,
                                     anime,
                                 ) {
                                     try {
@@ -423,31 +441,17 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     }
 
     private suspend fun withUpdateNotification(
-        updatingAnime: CopyOnWriteArrayList<Anime>,
-        completed: AtomicInteger,
+        progressTracker: LibraryUpdateProgressTracker<Anime>,
         anime: Anime,
         block: suspend () -> Unit,
     ) = coroutineScope {
-        ensureActive()
-
-        updatingAnime.add(anime)
-        notifier.showProgressNotification(
-            updatingAnime,
-            completed.get(),
-            animeToUpdate.size,
-        )
+        currentCoroutineContext().ensureActive()
+        progressTracker.entryStarted(anime)
 
         block()
 
-        ensureActive()
-
-        updatingAnime.remove(anime)
-        completed.getAndIncrement()
-        notifier.showProgressNotification(
-            updatingAnime,
-            completed.get(),
-            animeToUpdate.size,
-        )
+        currentCoroutineContext().ensureActive()
+        progressTracker.entryCompleted(anime)
     }
 
     /**
@@ -480,7 +484,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     }
 
     companion object {
-        private const val TAG = "AnimeLibraryUpdate"
+        internal const val TAG = "AnimeLibraryUpdate"
         private const val WORK_NAME_AUTO = "AnimeLibraryUpdate-auto"
         private const val WORK_NAME_MANUAL = "AnimeLibraryUpdate-manual"
 
