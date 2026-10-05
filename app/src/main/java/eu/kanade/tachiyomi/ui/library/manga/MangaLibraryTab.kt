@@ -35,12 +35,15 @@ import eu.kanade.presentation.entries.components.LibraryBottomActionMenu
 import eu.kanade.presentation.library.DeleteLibraryEntryDialog
 import eu.kanade.presentation.library.components.LibrarySearchHelpDialog
 import eu.kanade.presentation.library.components.LibraryToolbar
+import eu.kanade.presentation.library.components.LibraryToolbarProgress
 import eu.kanade.presentation.library.manga.MangaLibraryContent
 import eu.kanade.presentation.library.manga.MangaLibrarySettingsDialog
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
+import eu.kanade.tachiyomi.data.library.launchLibraryUpdateCancellation
+import eu.kanade.tachiyomi.data.library.toLibraryUpdateProgressOrNull
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
@@ -48,9 +51,11 @@ import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
+import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import tachiyomi.core.common.i18n.stringResource
@@ -102,6 +107,11 @@ data object MangaLibraryTab : Tab {
         val screenModel = viewModel { MangaLibraryScreenModel() }
         val settingsScreenModel = viewModel { MangaLibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
+        val updateProgressFlow = remember(context) {
+            context.workManager.getWorkInfosByTagFlow(MangaLibraryUpdateJob.TAG)
+                .map { it.toLibraryUpdateProgressOrNull() }
+        }
+        val updateProgress by updateProgressFlow.collectAsStateWithLifecycle(initialValue = null)
 
         val snackbarHostState = remember { SnackbarHostState() }
 
@@ -176,6 +186,12 @@ data object MangaLibraryTab : Tab {
                     onSearchQueryChange = screenModel::search,
                     scrollBehavior = scrollBehavior.takeIf { !tabVisible }, // For scroll overlay when no tab
                     navigateUp = navigateUp,
+                    updateProgress = updateProgress?.let {
+                        LibraryToolbarProgress(it.activeTitles, it.completed, it.total)
+                    },
+                    onClickCancelUpdate = {
+                        scope.launchLibraryUpdateCancellation { MangaLibraryUpdateJob.stop(context) }
+                    },
                 )
             },
             bottomBar = {

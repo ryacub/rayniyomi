@@ -1,6 +1,7 @@
 package eu.kanade.presentation.library.components
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
@@ -42,26 +43,38 @@ fun LibraryToolbar(
     onSearchQueryChange: (String?) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior?,
     navigateUp: (() -> Unit)? = null,
-) = when {
-    selectedCount > 0 -> LibrarySelectionToolbar(
-        selectedCount = selectedCount,
-        onClickUnselectAll = onClickUnselectAll,
-        onClickSelectAll = onClickSelectAll,
-        onClickInvertSelection = onClickInvertSelection,
-    )
-    else -> LibraryRegularToolbar(
-        title = title,
-        hasFilters = hasActiveFilters,
-        searchQuery = searchQuery,
-        onSearchQueryChange = onSearchQueryChange,
-        onClickFilter = onClickFilter,
-        onClickSearchHelp = onClickSearchHelp,
-        onClickRefresh = onClickRefresh,
-        onClickGlobalUpdate = onClickGlobalUpdate,
-        onClickOpenRandomEntry = onClickOpenRandomEntry,
-        scrollBehavior = scrollBehavior,
-        navigateUp = navigateUp,
-    )
+    updateProgress: LibraryToolbarProgress? = null,
+    onClickCancelUpdate: () -> Unit = {},
+) {
+    Column {
+        when {
+            selectedCount > 0 -> LibrarySelectionToolbar(
+                selectedCount = selectedCount,
+                onClickUnselectAll = onClickUnselectAll,
+                onClickSelectAll = onClickSelectAll,
+                onClickInvertSelection = onClickInvertSelection,
+            )
+            else -> LibraryRegularToolbar(
+                title = title,
+                hasFilters = hasActiveFilters,
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
+                onClickFilter = onClickFilter,
+                onClickSearchHelp = onClickSearchHelp,
+                onClickRefresh = onClickRefresh,
+                onClickGlobalUpdate = onClickGlobalUpdate,
+                onClickOpenRandomEntry = onClickOpenRandomEntry,
+                scrollBehavior = scrollBehavior,
+                navigateUp = navigateUp,
+            )
+        }
+        if (updateProgress != null) {
+            LibraryUpdateProgressRow(
+                progress = updateProgress,
+                onClickCancelUpdate = onClickCancelUpdate,
+            )
+        }
+    }
 }
 
 @Composable
