@@ -261,7 +261,7 @@ class MangaScreenModel(
             // Start observe tracking since it only needs mangaId
             observeTrackers()
 
-            // Some extensions reject a fetch that requests nothing (R1089).
+            // Some extensions reject a fetch that requests nothing.
             if (viewModelScope.isActive && (needRefreshInfo || needRefreshChapter)) {
                 fetchAllFromSource(
                     manualFetch = false,
