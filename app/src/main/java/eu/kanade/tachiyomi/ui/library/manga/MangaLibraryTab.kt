@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.util.fastAll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.WorkManager
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -41,8 +42,8 @@ import eu.kanade.presentation.library.manga.MangaLibrarySettingsDialog
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
 import eu.kanade.tachiyomi.data.library.launchLibraryUpdateCancellation
+import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
 import eu.kanade.tachiyomi.data.library.toLibraryUpdateProgressOrNull
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
@@ -51,7 +52,6 @@ import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
-import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -108,7 +108,7 @@ data object MangaLibraryTab : Tab {
         val settingsScreenModel = viewModel { MangaLibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
         val updateProgressFlow = remember(context) {
-            context.workManager.getWorkInfosByTagFlow(MangaLibraryUpdateJob.TAG)
+            WorkManager.getInstance(context).getWorkInfosByTagFlow(MangaLibraryUpdateJob.TAG)
                 .map { it.toLibraryUpdateProgressOrNull() }
         }
         val updateProgress by updateProgressFlow.collectAsStateWithLifecycle(initialValue = null)

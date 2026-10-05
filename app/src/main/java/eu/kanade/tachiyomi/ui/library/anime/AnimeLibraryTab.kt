@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.util.fastAll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.WorkManager
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -50,7 +51,6 @@ import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
-import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -108,7 +108,7 @@ data object AnimeLibraryTab : Tab {
         val settingsScreenModel = viewModel { AnimeLibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsStateWithLifecycle()
         val updateProgressFlow = remember(context) {
-            context.workManager.getWorkInfosByTagFlow(AnimeLibraryUpdateJob.TAG)
+            WorkManager.getInstance(context).getWorkInfosByTagFlow(AnimeLibraryUpdateJob.TAG)
                 .map { it.toLibraryUpdateProgressOrNull() }
         }
         val updateProgress by updateProgressFlow.collectAsStateWithLifecycle(initialValue = null)
