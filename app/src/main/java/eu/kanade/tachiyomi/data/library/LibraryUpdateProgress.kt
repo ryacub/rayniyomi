@@ -2,13 +2,6 @@ package eu.kanade.tachiyomi.data.library
 
 import androidx.work.Data
 import androidx.work.WorkInfo
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 internal data class LibraryUpdateProgress(
     val activeTitles: List<String>,
@@ -44,49 +37,6 @@ internal data class LibraryUpdateProgress(
 
 internal fun List<WorkInfo>.toLibraryUpdateProgressOrNull(): LibraryUpdateProgress? =
     firstNotNullOfOrNull(LibraryUpdateProgress::from)
-
-internal class LibraryUpdateProgressTracker<T>(
-    private val total: Int,
-    private val title: (T) -> String,
-    private val onProgress: suspend (List<T>, LibraryUpdateProgress) -> Unit,
-) {
-
-    private val mutex = Mutex()
-    private val activeEntries = mutableListOf<T>()
-    private var completed = 0
-
-    suspend fun entryStarted(entry: T) {
-        mutex.withLock {
-            activeEntries.add(entry)
-            publishProgress()
-        }
-    }
-
-    suspend fun entryCompleted(entry: T) {
-        mutex.withLock {
-            activeEntries.remove(entry)
-            completed += 1
-            publishProgress()
-        }
-    }
-
-    private suspend fun publishProgress() {
-        val entries = activeEntries.toList()
-        val progress = LibraryUpdateProgress(
-            activeTitles = entries.map(title),
-            completed = completed,
-            total = total,
-        )
-        onProgress(entries, progress)
-    }
-}
-
-internal fun CoroutineScope.launchLibraryUpdateCancellation(
-    dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    action: suspend () -> Unit,
-): Job = launch(dispatcher) {
-    action()
-}
 
 private const val KEY_ACTIVE_TITLES = "libraryUpdateActiveTitles"
 private const val KEY_COMPLETED = "libraryUpdateCompleted"
