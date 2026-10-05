@@ -39,6 +39,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.tachiyomi.BuildConfig
+import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.getHtml
@@ -222,9 +223,7 @@ fun WebViewScreenContent(
                                 modifier = Modifier
                                     .clip(MaterialTheme.shapes.small)
                                     .clickable {
-                                        uriHandler.openUri(
-                                            "https://aniyomi.org/docs/guides/troubleshooting/#cloudflare",
-                                        )
+                                        uriHandler.openUri(Constants.URL_HELP_CLOUDFLARE)
                                     },
                             )
                         }

@@ -197,8 +197,10 @@ internal class HttpPageLoader(
             }
 
             page.stream = { chapterCache.getImageFile(imageUrl).inputStream() }
+            page.error = null
             page.status = Page.State.READY
         } catch (e: Throwable) {
+            page.error = e
             page.status = Page.State.ERROR
             if (e is CancellationException) {
                 throw e

@@ -5,6 +5,7 @@ import android.content.Context
 import android.view.Gravity
 import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
+import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -15,6 +16,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.canOpenReaderPageInWebView
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
+import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
@@ -313,6 +315,7 @@ class PagerPageHolder(
             ReaderErrorSurface(
                 state = ReaderErrorUiState(
                     showOpenInWebView = openInWebView,
+                    showMigrate = viewer.activity.canMigrateManga(),
                 ),
                 actions = ReaderErrorUiActions(
                     onRetry = {
@@ -324,6 +327,8 @@ class PagerPageHolder(
                             context.startActivity(intent)
                         }
                     },
+                    onHelp = { context.openInBrowser(sourceHelpUrl(page.error)) },
+                    onMigrate = viewer.activity::openMangaMigration,
                     onActionPressChanged = { isPressed ->
                         val claim = GestureInputGate.Claim.DIALOG_PRESS
                         if (isPressed) {

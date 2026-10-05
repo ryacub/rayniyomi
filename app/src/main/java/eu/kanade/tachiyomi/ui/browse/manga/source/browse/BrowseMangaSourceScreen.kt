@@ -46,9 +46,10 @@ import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.entries.components.DuplicateEntryDialog
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
-import eu.kanade.tachiyomi.core.common.Constants
+import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
+import eu.kanade.tachiyomi.ui.browse.manga.migration.manga.MigrateMangaScreen
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaDialog
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaDialogScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreenModel.Listing
@@ -86,6 +87,7 @@ data class BrowseMangaSourceScreen(
 
         val screenModel = viewModel { BrowseMangaSourceScreenModel(sourceId, listingQuery) }
         val state by screenModel.state.collectAsStateWithLifecycle()
+        val hasLibraryEntries by screenModel.hasLibraryEntries.collectAsStateWithLifecycle()
 
         val navigator = LocalNavigator.currentOrThrow
         val navigateUp: () -> Unit = {
@@ -233,8 +235,9 @@ data class BrowseMangaSourceScreen(
                 snackbarHostState = snackbarHostState,
                 contentPadding = paddingValues,
                 onWebViewClick = onWebViewClick,
-                onHelpClick = { uriHandler.openUri(Constants.URL_HELP) },
+                onHelpClick = { uriHandler.openUri(sourceHelpUrl(it)) },
                 onLocalSourceHelpClick = onHelpClick,
+                onMigrateClick = { navigator.push(MigrateMangaScreen(sourceId)) }.takeIf { hasLibraryEntries },
                 onMangaClick = { navigator.push((MangaScreen(it.id, true))) },
                 onMangaLongClick = { manga ->
                     scope.launchIO {

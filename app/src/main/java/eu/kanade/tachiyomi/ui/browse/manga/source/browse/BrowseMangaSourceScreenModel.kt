@@ -45,6 +45,7 @@ import tachiyomi.domain.category.manga.interactor.SetMangaCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetManga
+import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.toMangaUpdate
@@ -72,6 +73,7 @@ class BrowseMangaSourceScreenModel(
     private val updateManga: UpdateManga = appGraph.updateManga,
     private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
     private val getIncognitoState: GetMangaIncognitoState = appGraph.getMangaIncognitoState,
+    getFavorites: GetMangaFavorites = appGraph.getMangaFavorites,
 ) : StateViewModel<BrowseMangaSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
@@ -106,6 +108,10 @@ class BrowseMangaSourceScreenModel(
             sourcePreferences.lastUsedMangaSource().set(source.id)
         }
     }
+
+    val hasLibraryEntries = getFavorites.subscribe(sourceId)
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /**
      * Flow of Pager flow tied to [State.listing]

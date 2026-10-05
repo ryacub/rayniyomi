@@ -11,6 +11,7 @@ import eu.kanade.presentation.browse.GlobalSearchResultItem
 import eu.kanade.presentation.browse.anime.components.GlobalAnimeSearchCardRow
 import eu.kanade.presentation.browse.anime.components.GlobalAnimeSearchToolbar
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.AnimeSearchItemResult
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.AnimeSearchScreenModel
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.AnimeSourceFilter
@@ -28,6 +29,8 @@ fun GlobalAnimeSearchScreen(
     onToggleResults: () -> Unit,
     getAnime: @Composable (Anime) -> State<Anime>,
     onClickSource: (AnimeCatalogueSource) -> Unit,
+    onRetrySource: (AnimeCatalogueSource) -> Unit,
+    onWebViewSource: (AnimeCatalogueSource) -> Unit,
     onClickItem: (Anime) -> Unit,
     onLongClickItem: (Anime) -> Unit,
 ) {
@@ -53,6 +56,8 @@ fun GlobalAnimeSearchScreen(
             contentPadding = paddingValues,
             getAnime = getAnime,
             onClickSource = onClickSource,
+            onRetrySource = onRetrySource,
+            onWebViewSource = onWebViewSource,
             onClickItem = onClickItem,
             onLongClickItem = onLongClickItem,
         )
@@ -65,6 +70,8 @@ internal fun GlobalSearchContent(
     contentPadding: PaddingValues,
     getAnime: @Composable (Anime) -> State<Anime>,
     onClickSource: (AnimeCatalogueSource) -> Unit,
+    onRetrySource: (AnimeCatalogueSource) -> Unit,
+    onWebViewSource: (AnimeCatalogueSource) -> Unit,
     onClickItem: (Anime) -> Unit,
     onLongClickItem: (Anime) -> Unit,
     fromSourceId: Long? = null,
@@ -95,7 +102,11 @@ internal fun GlobalSearchContent(
                             )
                         }
                         is AnimeSearchItemResult.Error -> {
-                            GlobalSearchErrorResultItem(message = result.throwable.message)
+                            GlobalSearchErrorResultItem(
+                                message = result.throwable.message,
+                                onRetry = { onRetrySource(source) },
+                                onOpenInWebView = { onWebViewSource(source) }.takeIf { source is AnimeHttpSource },
+                            )
                         }
                     }
                 }

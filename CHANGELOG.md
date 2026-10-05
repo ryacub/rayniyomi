@@ -14,6 +14,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+- Source error screens now offer Help and Migrate. A failed reader page adds both buttons for a library manga. A failed browse source adds Migrate when the source has library entries. Help opens the Cloudflare section of the troubleshooting page for a Cloudflare block. A failed source row in global search and migration search now has Retry and, for an HTTP source, Open in WebView (#1281).
 - A manual library update now shows a low-priority notification when smart update skips titles. The notification opens a list of each skipped title with its reason and source (#1248).
 
 ### Improved

@@ -35,4 +35,6 @@ internal class SearchRequestCoordinator {
      * @return true if this is the latest request, false if superseded by a newer request
      */
     fun isLatest(requestId: Long): Boolean = latestRequestId.get() == requestId
+
+    fun latestRequestId(): Long = latestRequestId.get()
 }

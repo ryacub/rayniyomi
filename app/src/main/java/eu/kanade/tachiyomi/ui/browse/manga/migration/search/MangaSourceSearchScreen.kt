@@ -21,7 +21,7 @@ import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.presentation.browse.manga.BrowseSourceContent
 import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.util.Screen
-import eu.kanade.tachiyomi.core.common.Constants
+import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.SourceFilterMangaDialog
@@ -101,7 +101,7 @@ data class MangaSourceSearchScreen(
                         ),
                     )
                 },
-                onHelpClick = { uriHandler.openUri(Constants.URL_HELP) },
+                onHelpClick = { uriHandler.openUri(sourceHelpUrl(it)) },
                 onLocalSourceHelpClick = { uriHandler.openUri(LocalMangaSource.HELP_URL) },
                 onMangaClick = openMigrateDialog,
                 onMangaLongClick = { navigator.push(MangaScreen(it.id, true)) },

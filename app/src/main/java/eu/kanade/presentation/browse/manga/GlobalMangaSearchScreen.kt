@@ -11,6 +11,7 @@ import eu.kanade.presentation.browse.GlobalSearchResultItem
 import eu.kanade.presentation.browse.manga.components.GlobalMangaSearchCardRow
 import eu.kanade.presentation.browse.manga.components.GlobalMangaSearchToolbar
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.MangaSearchItemResult
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.MangaSearchScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.MangaSourceFilter
@@ -28,6 +29,8 @@ fun GlobalMangaSearchScreen(
     onToggleResults: () -> Unit,
     getManga: @Composable (Manga) -> State<Manga>,
     onClickSource: (MangaSource) -> Unit,
+    onRetrySource: (MangaSource) -> Unit,
+    onWebViewSource: (MangaSource) -> Unit,
     onClickItem: (Manga) -> Unit,
     onLongClickItem: (Manga) -> Unit,
 ) {
@@ -53,6 +56,8 @@ fun GlobalMangaSearchScreen(
             contentPadding = paddingValues,
             getManga = getManga,
             onClickSource = onClickSource,
+            onRetrySource = onRetrySource,
+            onWebViewSource = onWebViewSource,
             onClickItem = onClickItem,
             onLongClickItem = onLongClickItem,
         )
@@ -65,6 +70,8 @@ internal fun GlobalSearchContent(
     contentPadding: PaddingValues,
     getManga: @Composable (Manga) -> State<Manga>,
     onClickSource: (MangaSource) -> Unit,
+    onRetrySource: (MangaSource) -> Unit,
+    onWebViewSource: (MangaSource) -> Unit,
     onClickItem: (Manga) -> Unit,
     onLongClickItem: (Manga) -> Unit,
     fromSourceId: Long? = null,
@@ -95,7 +102,11 @@ internal fun GlobalSearchContent(
                             )
                         }
                         is MangaSearchItemResult.Error -> {
-                            GlobalSearchErrorResultItem(message = result.throwable.message)
+                            GlobalSearchErrorResultItem(
+                                message = result.throwable.message,
+                                onRetry = { onRetrySource(source) },
+                                onOpenInWebView = { onWebViewSource(source) }.takeIf { source is HttpSource },
+                            )
                         }
                     }
                 }

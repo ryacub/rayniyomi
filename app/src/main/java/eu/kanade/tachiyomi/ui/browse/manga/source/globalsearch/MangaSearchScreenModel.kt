@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
@@ -158,31 +159,39 @@ abstract class MangaSearchScreenModel(
                     if (state.value.items[source] !is MangaSearchItemResult.Loading) {
                         return@async
                     }
-                    try {
-                        val page = withContext(searchDispatcher) {
-                            MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
-                        }
-
-                        val titles = page.mangas.map {
-                            networkToLocalManga.await(it.toDomainManga(source.id))
-                        }
-
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, MangaSearchItemResult.Success(titles))
-                        }
-                    } catch (e: LinkageError) {
-                        // A defective extension fails to link against the app's shared libraries.
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, MangaSearchItemResult.Error(e))
-                        }
-                    } catch (e: Exception) {
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, MangaSearchItemResult.Error(e))
-                        }
-                    }
+                    searchSource(source, query, requestId)
                 }
             }
                 .awaitAll()
+        }
+    }
+
+    fun retrySource(source: MangaSource) {
+        val query = lastQuery ?: return
+        if (state.value.items[source] !is MangaSearchItemResult.Error) return
+
+        val requestId = requestCoordinator.latestRequestId()
+        updateItem(source, MangaSearchItemResult.Loading)
+        viewModelScope.launch(searchDispatcher) {
+            searchSource(source, query, requestId)
+        }
+    }
+
+    private suspend fun searchSource(source: MangaSource, query: String, requestId: Long) {
+        val result = try {
+            val page = withContext(searchDispatcher) {
+                MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
+            }
+            MangaSearchItemResult.Success(page.mangas.map { networkToLocalManga.await(it.toDomainManga(source.id)) })
+        } catch (e: LinkageError) {
+            // A defective extension fails to link against the app's shared libraries.
+            MangaSearchItemResult.Error(e)
+        } catch (e: Exception) {
+            MangaSearchItemResult.Error(e)
+        }
+
+        if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+            updateItem(source, result)
         }
     }
 

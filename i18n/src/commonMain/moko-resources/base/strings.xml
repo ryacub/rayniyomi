@@ -914,6 +914,7 @@
     <string name="chapter_progress">Page: %1$d</string>
     <string name="no_next_chapter">Next chapter not found</string>
     <string name="decode_image_error">The image couldn\'t be loaded</string>
+    <string name="source_error_guidance">If the source does not work, read the help page or migrate to a different source.</string>
     <string name="confirm_set_image_as_cover">Use this image as cover art?</string>
     <string name="pref_category_for_this_series">For this series</string>
     <string name="viewer">Reading mode</string>
