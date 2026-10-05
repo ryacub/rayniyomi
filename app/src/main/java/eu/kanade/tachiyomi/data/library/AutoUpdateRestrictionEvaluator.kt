@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.library
 
+import kotlinx.serialization.Serializable
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_HAS_UNVIEWED
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_COMPLETED
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_NON_VIEWED
@@ -14,6 +15,7 @@ internal data class AutoUpdateCandidate(
     val nextUpdate: Long,
 )
 
+@Serializable
 internal enum class AutoUpdateSkipReason {
     NOT_ALWAYS_UPDATE,
     COMPLETED,

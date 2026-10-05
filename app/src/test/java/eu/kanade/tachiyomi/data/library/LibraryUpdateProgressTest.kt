@@ -13,6 +13,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -105,6 +106,7 @@ class LibraryUpdateProgressTest {
             WorkInfo(animeWorkId, WorkInfo.State.RUNNING, setOf(AnimeLibraryUpdateJob.TAG)),
         )
         val workManager = mockk<WorkManager>()
+        val summaryStore = mockk<LibraryUpdateSummaryStore>(relaxed = true)
         val queriedTags = CopyOnWriteArrayList<Set<String>>()
         val canceledWorkIds = CopyOnWriteArrayList<UUID>()
         var mangaStoppedOnIo = false
@@ -129,11 +131,11 @@ class LibraryUpdateProgressTest {
 
             val mangaCancellation = launchLibraryUpdateCancellation {
                 mangaStoppedOnIo = currentCoroutineContext()[ContinuationInterceptor] === Dispatchers.IO
-                MangaLibraryUpdateJob.stop(context)
+                MangaLibraryUpdateJob.stop(context, summaryStore)
             }
             val animeCancellation = launchLibraryUpdateCancellation {
                 animeStoppedOnIo = currentCoroutineContext()[ContinuationInterceptor] === Dispatchers.IO
-                AnimeLibraryUpdateJob.stop(context)
+                AnimeLibraryUpdateJob.stop(context, summaryStore)
             }
             mangaCancellation.join()
             animeCancellation.join()
@@ -143,6 +145,10 @@ class LibraryUpdateProgressTest {
                 queriedTags.toSet(),
             )
             assertEquals(setOf(mangaWorkId, animeWorkId), canceledWorkIds.toSet())
+            verify {
+                summaryStore.requestUserCancellation(LibraryUpdateMedia.MANGA, mangaWorkId.toString())
+                summaryStore.requestUserCancellation(LibraryUpdateMedia.ANIME, animeWorkId.toString())
+            }
             assertTrue(mangaStoppedOnIo)
             assertTrue(animeStoppedOnIo)
         } finally {
