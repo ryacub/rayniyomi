@@ -31,12 +31,18 @@ import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.AutoUpdatePolicy
+import eu.kanade.tachiyomi.data.library.isEntryListOutdated
+import eu.kanade.tachiyomi.data.library.isInAutoUpdateCategories
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
 import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
 import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
@@ -56,7 +62,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -76,6 +85,7 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.applyFilter
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
 import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.model.DuplicateConfidence
@@ -93,6 +103,7 @@ import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.manga.isLocal
+import java.time.ZonedDateTime
 
 class MangaScreenModel(
     private val context: Context,
@@ -125,6 +136,7 @@ class MangaScreenModel(
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
     private val translationManager: TranslationManager = appGraph.translationManager,
     private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
+    private val fetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<MangaScreenModel.State>(State.Loading) {
@@ -136,6 +148,25 @@ class MangaScreenModel(
 
     val manga: Manga?
         get() = successState?.manga
+
+    private val autoUpdatePolicy = combine(
+        libraryPreferences.autoUpdateItemRestrictions().changes(),
+        libraryPreferences.mangaUpdateCategories().changes(),
+        libraryPreferences.mangaUpdateCategoriesExclude().changes(),
+        getCategories.subscribe(mangaId),
+    ) { restrictions, included, excluded, categories ->
+        AutoUpdatePolicy(
+            restrictions = restrictions,
+            isInUpdateCategories = isInAutoUpdateCategories(
+                entryCategoryIds = categories.map { it.id },
+                included = included.mapTo(HashSet()) { it.toLong() },
+                excluded = excluded.mapTo(HashSet()) { it.toLong() },
+            ),
+            fetchWindow = fetchInterval.getWindow(ZonedDateTime.now()),
+        )
+    }
+        .flowOn(ioDispatcher)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val source: MangaSource?
         get() = successState?.source
@@ -223,6 +254,12 @@ class MangaScreenModel(
                 }
         }
 
+        viewModelScope.launchIO {
+            autoUpdatePolicy.collectLatest { policy ->
+                updateSuccessState { it.copy(autoUpdatePolicy = policy) }
+            }
+        }
+
         observeDownloads()
 
         viewModelScope.launch(ioDispatcher) {
@@ -256,6 +293,7 @@ class MangaScreenModel(
                     excludedScanlators = getExcludedScanlators.await(mangaId),
                     isRefreshingData = needRefreshInfo || needRefreshChapter,
                     dialog = null,
+                    autoUpdatePolicy = autoUpdatePolicy.value,
                 )
             }
             // Start observe tracking since it only needs mangaId
@@ -1103,6 +1141,7 @@ class MangaScreenModel(
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
             val translationSummary: TranslationSummary? = null,
+            val autoUpdatePolicy: AutoUpdatePolicy? = null,
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()
@@ -1110,6 +1149,21 @@ class MangaScreenModel(
 
             val isAnySelected by lazy {
                 chapters.fastAny { it.selected }
+            }
+
+            val isListOutdated by lazy {
+                !isRefreshingData && autoUpdatePolicy != null && isEntryListOutdated(
+                    candidate = AutoUpdateCandidate(
+                        alwaysUpdate = manga.updateStrategy == UpdateStrategy.ALWAYS_UPDATE,
+                        isCompleted = manga.status == SManga.COMPLETED.toLong(),
+                        hasUnviewed = chapters.fastAny { !it.chapter.read },
+                        hasStarted = chapters.fastAny { it.chapter.read },
+                        totalCount = chapters.size.toLong(),
+                        nextUpdate = manga.nextUpdate,
+                    ),
+                    isFavorite = manga.favorite,
+                    policy = autoUpdatePolicy,
+                )
             }
 
             val chapterListItems by lazy {
