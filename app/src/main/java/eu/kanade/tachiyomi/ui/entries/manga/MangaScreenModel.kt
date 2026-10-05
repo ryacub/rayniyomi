@@ -261,8 +261,7 @@ class MangaScreenModel(
             // Start observe tracking since it only needs mangaId
             observeTrackers()
 
-            // Fetch info-chapters when needed
-            // A combined-API extension can reject a call that requests nothing (R1089).
+            // Some extensions reject a fetch that requests nothing (R1089).
             if (viewModelScope.isActive && (needRefreshInfo || needRefreshChapter)) {
                 fetchAllFromSource(
                     manualFetch = false,

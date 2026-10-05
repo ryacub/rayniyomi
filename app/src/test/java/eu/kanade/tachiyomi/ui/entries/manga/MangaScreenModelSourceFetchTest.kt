@@ -30,7 +30,6 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 
-// UpdateMangaFromRemote passes both flags to MangaSource.getMangaUpdate unchanged.
 @OptIn(ExperimentalCoroutinesApi::class)
 class MangaScreenModelSourceFetchTest {
 
@@ -40,7 +39,6 @@ class MangaScreenModelSourceFetchTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
-        // The initial load resolves the source through the app graph.
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true)
         coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } answers {
             Result.success(RemoteMangaUpdate(manga = secondArg(), newChapters = emptyList()))
