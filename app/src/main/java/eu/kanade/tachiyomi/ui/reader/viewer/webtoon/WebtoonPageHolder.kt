@@ -10,6 +10,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updateMargins
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorSurface
@@ -20,6 +21,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.canOpenReaderPageInWebView
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.dpToPx
+import eu.kanade.tachiyomi.util.system.openInBrowser
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -316,6 +318,7 @@ class WebtoonPageHolder(
             ReaderErrorSurface(
                 state = ReaderErrorUiState(
                     showOpenInWebView = openInWebView,
+                    showMigrate = viewer.activity.canMigrateManga(),
                 ),
                 actions = ReaderErrorUiActions(
                     onRetry = {
@@ -329,6 +332,8 @@ class WebtoonPageHolder(
                             context.startActivity(intent)
                         }
                     },
+                    onHelp = { context.openInBrowser(sourceHelpUrl(page?.error)) },
+                    onMigrate = viewer.activity::openMangaMigration,
                 ),
             )
         }

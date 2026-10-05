@@ -87,6 +87,7 @@ import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.browse.anime.source.browse.BrowseAnimeSourceScreen
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.GlobalAnimeSearchScreen
+import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaSearchScreen
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.deeplink.DeepLinkScreenType
@@ -511,6 +512,13 @@ class MainActivity : BaseActivity() {
                 val idToOpen = intent.extras?.getLong(Constants.MANGA_EXTRA) ?: return false
                 navigator.popUntilRoot()
                 HomeScreen.Tab.Library(idToOpen)
+            }
+            Constants.SHORTCUT_MIGRATE_MANGA -> {
+                val idToOpen = intent.extras?.getLong(Constants.MANGA_EXTRA) ?: return false
+                navigator.popUntilRoot()
+                navigator.push(MangaScreen(idToOpen))
+                navigator.push(MigrateMangaSearchScreen(idToOpen))
+                null
             }
             Constants.SHORTCUT_ANIME -> {
                 val idToOpen = intent.extras?.getLong(Constants.ANIME_EXTRA) ?: return false

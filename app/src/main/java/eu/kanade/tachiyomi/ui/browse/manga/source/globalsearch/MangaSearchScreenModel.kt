@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
@@ -46,6 +47,7 @@ abstract class MangaSearchScreenModel(
 
     private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
+    private var currentRequestId = 0L
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()
     private val disabledSources = sourcePreferences.disabledMangaSources().get()
@@ -135,6 +137,7 @@ abstract class MangaSearchScreenModel(
 
         searchJob?.cancel()
         val requestId = requestCoordinator.nextRequestId()
+        currentRequestId = requestId
         val sources = getSelectedSources()
 
         // Reuse previous results if possible
@@ -158,31 +161,47 @@ abstract class MangaSearchScreenModel(
                     if (state.value.items[source] !is MangaSearchItemResult.Loading) {
                         return@async
                     }
-                    try {
-                        val page = withContext(searchDispatcher) {
-                            MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
-                        }
-
-                        val titles = page.mangas.map {
-                            networkToLocalManga.await(it.toDomainManga(source.id))
-                        }
-
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, MangaSearchItemResult.Success(titles))
-                        }
-                    } catch (e: LinkageError) {
-                        // A defective extension fails to link against the app's shared libraries.
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, MangaSearchItemResult.Error(e))
-                        }
-                    } catch (e: Exception) {
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, MangaSearchItemResult.Error(e))
-                        }
-                    }
+                    searchSource(source, query, requestId)
                 }
             }
                 .awaitAll()
+        }
+    }
+
+    /** Searches one failed source again with the last query. */
+    fun retrySource(source: MangaSource) {
+        val query = lastQuery ?: return
+        if (state.value.items[source] !is MangaSearchItemResult.Error) return
+
+        val requestId = currentRequestId
+        updateItem(source, MangaSearchItemResult.Loading)
+        viewModelScope.launch(searchDispatcher) {
+            searchSource(source, query, requestId)
+        }
+    }
+
+    private suspend fun searchSource(source: MangaSource, query: String, requestId: Long) {
+        try {
+            val page = withContext(searchDispatcher) {
+                MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
+            }
+
+            val titles = page.mangas.map {
+                networkToLocalManga.await(it.toDomainManga(source.id))
+            }
+
+            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+                updateItem(source, MangaSearchItemResult.Success(titles))
+            }
+        } catch (e: LinkageError) {
+            // A defective extension fails to link against the app's shared libraries.
+            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+                updateItem(source, MangaSearchItemResult.Error(e))
+            }
+        } catch (e: Exception) {
+            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+                updateItem(source, MangaSearchItemResult.Error(e))
+            }
         }
     }
 

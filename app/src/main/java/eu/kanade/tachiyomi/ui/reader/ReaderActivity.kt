@@ -712,6 +712,21 @@ class ReaderActivity : BaseActivity() {
         }
     }
 
+    /** Migrate needs a library entry, so the error screen hides it for other manga. */
+    fun canMigrateManga(): Boolean = viewModel.manga?.favorite == true
+
+    fun openMangaMigration() {
+        viewModel.manga?.id?.let { id ->
+            startActivity(
+                Intent(this, MainActivity::class.java).apply {
+                    action = Constants.SHORTCUT_MIGRATE_MANGA
+                    putExtra(Constants.MANGA_EXTRA, id)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                },
+            )
+        }
+    }
+
     private fun openChapterInWebView() {
         val manga = viewModel.manga ?: return
         val source = viewModel.getSource() ?: return

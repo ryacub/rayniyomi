@@ -46,6 +46,7 @@ import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.anime.interactor.GetAnime
+import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
@@ -75,6 +76,7 @@ class BrowseAnimeSourceScreenModel(
     private val updateAnime: UpdateAnime = appGraph.updateAnime,
     private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
     private val getIncognitoState: GetAnimeIncognitoState = appGraph.getAnimeIncognitoState,
+    getFavorites: GetAnimeFavorites = appGraph.getAnimeFavorites,
 ) : StateViewModel<BrowseAnimeSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
@@ -111,6 +113,11 @@ class BrowseAnimeSourceScreenModel(
             sourcePreferences.lastUsedAnimeSource().set(source.id)
         }
     }
+
+    /** Migrate on the error screen needs library entries from this source. */
+    val hasLibraryEntries = getFavorites.subscribe(sourceId)
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /**
      * Flow of Pager flow tied to [State.listing]

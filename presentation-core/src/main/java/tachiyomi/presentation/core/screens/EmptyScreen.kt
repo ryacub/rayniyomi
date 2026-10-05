@@ -53,6 +53,7 @@ fun EmptyScreen(
     message: String,
     modifier: Modifier = Modifier,
     actions: ImmutableList<EmptyScreenAction>? = null,
+    footer: String? = null,
 ) {
     val face = remember { getRandomErrorFace() }
     Column(
@@ -95,6 +96,17 @@ fun EmptyScreen(
                     )
                 }
             }
+        }
+
+        if (footer != null) {
+            Text(
+                text = footer,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .secondaryItemAlpha(),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

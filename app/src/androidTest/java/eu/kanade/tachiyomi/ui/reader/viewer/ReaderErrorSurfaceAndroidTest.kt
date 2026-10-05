@@ -32,10 +32,12 @@ class ReaderErrorSurfaceAndroidTest {
         composeRule.setContent {
             MaterialTheme {
                 ReaderErrorSurface(
-                    state = ReaderErrorUiState(showOpenInWebView = false),
+                    state = ReaderErrorUiState(showOpenInWebView = false, showMigrate = false),
                     actions = ReaderErrorUiActions(
                         onRetry = {},
                         onOpenInWebView = {},
+                        onHelp = {},
+                        onMigrate = {},
                     ),
                 )
             }
@@ -50,6 +52,34 @@ class ReaderErrorSurfaceAndroidTest {
             )
         composeRule.onNodeWithText(context.stringResource(MR.strings.action_retry)).assertExists()
         composeRule.onNodeWithText(context.stringResource(MR.strings.action_open_in_web_view)).assertDoesNotExist()
+        composeRule.onNodeWithText(context.stringResource(MR.strings.label_help)).assertExists()
+        composeRule.onNodeWithText(context.stringResource(MR.strings.action_migrate)).assertDoesNotExist()
+    }
+
+    @Test
+    fun help_and_migrate_call_their_actions() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var helped = false
+        var migrated = false
+        composeRule.setContent {
+            MaterialTheme {
+                ReaderErrorSurface(
+                    state = ReaderErrorUiState(showOpenInWebView = false, showMigrate = true),
+                    actions = ReaderErrorUiActions(
+                        onRetry = {},
+                        onOpenInWebView = {},
+                        onHelp = { helped = true },
+                        onMigrate = { migrated = true },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(context.stringResource(MR.strings.label_help)).performClick()
+        composeRule.onNodeWithText(context.stringResource(MR.strings.action_migrate)).performClick()
+
+        assertTrue(helped)
+        assertTrue(migrated)
     }
 
     @Test
@@ -60,10 +90,12 @@ class ReaderErrorSurfaceAndroidTest {
         composeRule.setContent {
             MaterialTheme {
                 ReaderErrorSurface(
-                    state = ReaderErrorUiState(showOpenInWebView = true),
+                    state = ReaderErrorUiState(showOpenInWebView = true, showMigrate = false),
                     actions = ReaderErrorUiActions(
                         onRetry = { retried = true },
                         onOpenInWebView = { opened = true },
+                        onHelp = {},
+                        onMigrate = {},
                     ),
                 )
             }
@@ -82,10 +114,12 @@ class ReaderErrorSurfaceAndroidTest {
         composeRule.setContent {
             MaterialTheme {
                 ReaderErrorSurface(
-                    state = ReaderErrorUiState(showOpenInWebView = true),
+                    state = ReaderErrorUiState(showOpenInWebView = true, showMigrate = false),
                     actions = ReaderErrorUiActions(
                         onRetry = {},
                         onOpenInWebView = {},
+                        onHelp = {},
+                        onMigrate = {},
                     ),
                 )
             }

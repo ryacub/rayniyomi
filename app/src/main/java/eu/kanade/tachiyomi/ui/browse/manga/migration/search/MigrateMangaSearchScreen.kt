@@ -8,7 +8,9 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.manga.MigrateMangaSearchScreen
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 
 class MigrateMangaSearchScreen(private val mangaId: Long) : Screen() {
 
@@ -35,6 +37,12 @@ class MigrateMangaSearchScreen(private val mangaId: Long) : Screen() {
             getManga = { screenModel.getManga(it) },
             onChangeSearchFilter = screenModel::setSourceFilter,
             onToggleResults = screenModel::toggleFilterResults,
+            onRetrySource = screenModel::retrySource,
+            onWebViewSource = { source ->
+                (source as? HttpSource)?.let {
+                    navigator.push(WebViewScreen(url = it.getHomeUrl(), initialTitle = it.name, sourceId = it.id))
+                }
+            },
             onClickSource = {
                 navigator.push(
                     MangaSourceSearchScreen(dialogState.manga!!, it.id, state.searchQuery),

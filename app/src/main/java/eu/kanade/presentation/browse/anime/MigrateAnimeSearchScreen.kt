@@ -20,6 +20,8 @@ fun MigrateAnimeSearchScreen(
     onToggleResults: () -> Unit,
     getAnime: @Composable (Anime) -> State<Anime>,
     onClickSource: (AnimeCatalogueSource) -> Unit,
+    onRetrySource: (AnimeCatalogueSource) -> Unit,
+    onWebViewSource: (AnimeCatalogueSource) -> Unit,
     onClickItem: (Anime) -> Unit,
     onLongClickItem: (Anime) -> Unit,
 ) {
@@ -46,6 +48,8 @@ fun MigrateAnimeSearchScreen(
             contentPadding = paddingValues,
             getAnime = getAnime,
             onClickSource = onClickSource,
+            onRetrySource = onRetrySource,
+            onWebViewSource = onWebViewSource,
             onClickItem = onClickItem,
             onLongClickItem = onLongClickItem,
         )

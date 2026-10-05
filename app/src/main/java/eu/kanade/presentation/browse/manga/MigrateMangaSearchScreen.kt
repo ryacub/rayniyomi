@@ -20,6 +20,8 @@ fun MigrateMangaSearchScreen(
     onToggleResults: () -> Unit,
     getManga: @Composable (Manga) -> State<Manga>,
     onClickSource: (MangaSource) -> Unit,
+    onRetrySource: (MangaSource) -> Unit,
+    onWebViewSource: (MangaSource) -> Unit,
     onClickItem: (Manga) -> Unit,
     onLongClickItem: (Manga) -> Unit,
 ) {
@@ -46,6 +48,8 @@ fun MigrateMangaSearchScreen(
             contentPadding = paddingValues,
             getManga = getManga,
             onClickSource = onClickSource,
+            onRetrySource = onRetrySource,
+            onWebViewSource = onWebViewSource,
             onClickItem = onClickItem,
             onLongClickItem = onLongClickItem,
         )

@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
@@ -46,6 +47,7 @@ abstract class AnimeSearchScreenModel(
 
     private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
+    private var currentRequestId = 0L
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()
     private val disabledSources = sourcePreferences.disabledAnimeSources().get()
@@ -135,6 +137,7 @@ abstract class AnimeSearchScreenModel(
 
         searchJob?.cancel()
         val requestId = requestCoordinator.nextRequestId()
+        currentRequestId = requestId
         val sources = getSelectedSources()
 
         // Reuse previous results if possible
@@ -159,31 +162,47 @@ abstract class AnimeSearchScreenModel(
                     if (state.value.items[source] !is AnimeSearchItemResult.Loading) {
                         return@async
                     }
-                    try {
-                        val page = withContext(searchDispatcher) {
-                            AnimeSourceGateway.search(source, 1, query, AnimeSourceGateway.filters(source))
-                        }
-
-                        val titles = page.animes.map {
-                            networkToLocalAnime.await(it.toDomainAnime(source.id))
-                        }
-
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, AnimeSearchItemResult.Success(titles))
-                        }
-                    } catch (e: LinkageError) {
-                        // A defective extension fails to link against the app's shared libraries.
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, AnimeSearchItemResult.Error(e))
-                        }
-                    } catch (e: Exception) {
-                        if (isActive && requestCoordinator.isLatest(requestId)) {
-                            updateItem(source, AnimeSearchItemResult.Error(e))
-                        }
-                    }
+                    searchSource(source, query, requestId)
                 }
             }
                 .awaitAll()
+        }
+    }
+
+    /** Searches one failed source again with the last query. */
+    fun retrySource(source: AnimeCatalogueSource) {
+        val query = lastQuery ?: return
+        if (state.value.items[source] !is AnimeSearchItemResult.Error) return
+
+        val requestId = currentRequestId
+        updateItem(source, AnimeSearchItemResult.Loading)
+        viewModelScope.launch(searchDispatcher) {
+            searchSource(source, query, requestId)
+        }
+    }
+
+    private suspend fun searchSource(source: AnimeCatalogueSource, query: String, requestId: Long) {
+        try {
+            val page = withContext(searchDispatcher) {
+                AnimeSourceGateway.search(source, 1, query, AnimeSourceGateway.filters(source))
+            }
+
+            val titles = page.animes.map {
+                networkToLocalAnime.await(it.toDomainAnime(source.id))
+            }
+
+            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+                updateItem(source, AnimeSearchItemResult.Success(titles))
+            }
+        } catch (e: LinkageError) {
+            // A defective extension fails to link against the app's shared libraries.
+            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+                updateItem(source, AnimeSearchItemResult.Error(e))
+            }
+        } catch (e: Exception) {
+            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+                updateItem(source, AnimeSearchItemResult.Error(e))
+            }
         }
     }
 

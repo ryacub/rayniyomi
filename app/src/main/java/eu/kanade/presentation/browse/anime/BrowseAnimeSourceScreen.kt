@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -20,9 +18,13 @@ import eu.kanade.presentation.browse.anime.components.BrowseAnimeSourceComfortab
 import eu.kanade.presentation.browse.anime.components.BrowseAnimeSourceCompactGrid
 import eu.kanade.presentation.browse.anime.components.BrowseAnimeSourceList
 import eu.kanade.presentation.components.AppBar
+import eu.kanade.presentation.util.SourceErrorAction
+import eu.kanade.presentation.util.browseSourceErrorActions
 import eu.kanade.presentation.util.formattedMessage
+import eu.kanade.presentation.util.toEmptyScreenAction
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.entries.anime.model.Anime
@@ -47,10 +49,11 @@ fun BrowseAnimeSourceContent(
     snackbarHostState: SnackbarHostState,
     contentPadding: PaddingValues,
     onWebViewClick: () -> Unit,
-    onHelpClick: () -> Unit,
+    onHelpClick: (Throwable) -> Unit,
     onLocalAnimeSourceHelpClick: () -> Unit,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongClick: (Anime) -> Unit,
+    onMigrateClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
 
@@ -76,6 +79,7 @@ fun BrowseAnimeSourceContent(
     }
 
     if (animeList.itemCount <= 0 && errorState != null && errorState is LoadState.Error) {
+        val onErrorHelpClick = { onHelpClick(errorState.error) }
         EmptyScreen(
             modifier = Modifier.padding(contentPadding),
             message = getErrorMessage(errorState),
@@ -88,24 +92,20 @@ fun BrowseAnimeSourceContent(
                     ),
                 )
             } else {
-                persistentListOf(
-                    EmptyScreenAction(
-                        stringRes = MR.strings.action_retry,
-                        icon = Icons.Outlined.Refresh,
-                        onClick = animeList::refresh,
-                    ),
-                    EmptyScreenAction(
-                        stringRes = MR.strings.action_open_in_web_view,
-                        icon = Icons.Outlined.Public,
-                        onClick = onWebViewClick,
-                    ),
-                    EmptyScreenAction(
-                        stringRes = MR.strings.label_help,
-                        icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                        onClick = onHelpClick,
-                    ),
-                )
+                browseSourceErrorActions(canMigrate = onMigrateClick != null)
+                    .map { action ->
+                        action.toEmptyScreenAction(
+                            onClick = when (action) {
+                                SourceErrorAction.Retry -> animeList::refresh
+                                SourceErrorAction.OpenInWebView -> onWebViewClick
+                                SourceErrorAction.Help -> onErrorHelpClick
+                                SourceErrorAction.Migrate -> checkNotNull(onMigrateClick)
+                            },
+                        )
+                    }
+                    .toImmutableList()
             },
+            footer = stringResource(MR.strings.source_error_guidance).takeIf { source !is LocalAnimeSource },
         )
 
         return

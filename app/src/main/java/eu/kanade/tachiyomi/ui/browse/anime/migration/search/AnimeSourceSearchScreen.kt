@@ -21,8 +21,8 @@ import eu.kanade.core.util.ifAnimeSourcesLoaded
 import eu.kanade.presentation.browse.anime.BrowseAnimeSourceContent
 import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.season.MigrateSeasonSelectScreen
 import eu.kanade.tachiyomi.ui.browse.anime.source.browse.BrowseAnimeSourceScreenModel
 import eu.kanade.tachiyomi.ui.browse.anime.source.browse.SourceFilterAnimeDialog
@@ -102,7 +102,7 @@ data class AnimeSourceSearchScreen(
                         ),
                     )
                 },
-                onHelpClick = { uriHandler.openUri(Constants.URL_HELP) },
+                onHelpClick = { uriHandler.openUri(sourceHelpUrl(it)) },
                 onLocalAnimeSourceHelpClick = { uriHandler.openUri(LocalAnimeSource.HELP_URL) },
                 onAnimeClick = openMigrateDialog,
                 onAnimeLongClick = { navigator.push(AnimeScreen(it.id, true)) },

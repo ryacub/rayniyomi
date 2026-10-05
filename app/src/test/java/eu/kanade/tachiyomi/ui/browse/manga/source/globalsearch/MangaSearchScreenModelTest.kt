@@ -34,6 +34,7 @@ import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MangaSearchScreenModelTest {
@@ -75,6 +76,85 @@ class MangaSearchScreenModelTest {
             }
         }
 
+        val model = createModel(source)
+
+        model.updateSearchQuery("old")
+        model.search()
+        advanceUntilIdle()
+
+        model.updateSearchQuery("new")
+        model.search()
+
+        advanceUntilIdle()
+        awaitAssert({ model.state.value.items[source] }) { result ->
+            (result as? MangaSearchItemResult.Success)?.result?.singleOrNull()?.title == "New title"
+        }
+
+        releaseOldRequest.complete(Unit)
+        advanceUntilIdle()
+
+        val finalResult = model.state.value.items[source]
+        val success = assertInstanceOf(MangaSearchItemResult.Success::class.java, finalResult)
+        assertEquals("New title", success.result.single().title)
+    }
+
+    @Test
+    fun `retrySource searches a failed source again`() = runTest(vt.scheduler) {
+        val source = mockk<CatalogueSource>()
+        var calls = 0
+
+        every { source.id } returns 300L
+        every { source.name } returns "Flaky source"
+        every { source.lang } returns "en"
+        every { source.supportsLatest } returns true
+        every { source.getFilterList() } returns FilterList()
+        coEvery { source.getSearchManga(1, "query", any()) } coAnswers {
+            calls++
+            if (calls == 1) throw IOException("blocked")
+            MangasPage(listOf(createSManga("Found", "/found")), false)
+        }
+
+        val model = createModel(source)
+        model.updateSearchQuery("query")
+        model.search()
+        advanceUntilIdle()
+        assertInstanceOf(MangaSearchItemResult.Error::class.java, model.state.value.items[source])
+
+        model.retrySource(source)
+        advanceUntilIdle()
+
+        val success = assertInstanceOf(MangaSearchItemResult.Success::class.java, model.state.value.items[source])
+        assertEquals("Found", success.result.single().title)
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun `retrySource ignores a source that did not fail`() = runTest(vt.scheduler) {
+        val source = mockk<CatalogueSource>()
+        var calls = 0
+
+        every { source.id } returns 301L
+        every { source.name } returns "Working source"
+        every { source.lang } returns "en"
+        every { source.supportsLatest } returns true
+        every { source.getFilterList() } returns FilterList()
+        coEvery { source.getSearchManga(1, "query", any()) } coAnswers {
+            calls++
+            MangasPage(listOf(createSManga("Found", "/found")), false)
+        }
+
+        val model = createModel(source)
+        model.updateSearchQuery("query")
+        model.search()
+        advanceUntilIdle()
+
+        model.retrySource(source)
+        advanceUntilIdle()
+
+        assertEquals(1, calls)
+    }
+
+    private fun createModel(source: CatalogueSource): MangaSearchScreenModel {
         val sourceManager = object : MangaSourceManager {
             override val isInitialized: StateFlow<Boolean> = MutableStateFlow(true)
             override val sources: Flow<List<MangaSource>> = flowOf(listOf(source))
@@ -98,7 +178,7 @@ class MangaSearchScreenModelTest {
         }
 
         val sourcePreferences = testSourcePreferences()
-        val model = object : MangaSearchScreenModel(
+        return object : MangaSearchScreenModel(
             sourcePreferences = sourcePreferences,
             sourceManager = sourceManager,
             extensionManager = mockk<MangaExtensionManager>(relaxed = true),
@@ -107,25 +187,6 @@ class MangaSearchScreenModelTest {
             preferences = sourcePreferences,
             searchDispatcher = vt.io,
         ) {}
-
-        model.updateSearchQuery("old")
-        model.search()
-        advanceUntilIdle()
-
-        model.updateSearchQuery("new")
-        model.search()
-
-        advanceUntilIdle()
-        awaitAssert({ model.state.value.items[source] }) { result ->
-            (result as? MangaSearchItemResult.Success)?.result?.singleOrNull()?.title == "New title"
-        }
-
-        releaseOldRequest.complete(Unit)
-        advanceUntilIdle()
-
-        val finalResult = model.state.value.items[source]
-        val success = assertInstanceOf(MangaSearchItemResult.Success::class.java, finalResult)
-        assertEquals("New title", success.result.single().title)
     }
 
     private fun testSourcePreferences(): SourcePreferences {
