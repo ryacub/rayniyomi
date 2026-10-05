@@ -36,6 +36,5 @@ internal class SearchRequestCoordinator {
      */
     fun isLatest(requestId: Long): Boolean = latestRequestId.get() == requestId
 
-    /** The ID of the most recent request, for work that joins it late, such as a retry. */
     fun latestRequestId(): Long = latestRequestId.get()
 }

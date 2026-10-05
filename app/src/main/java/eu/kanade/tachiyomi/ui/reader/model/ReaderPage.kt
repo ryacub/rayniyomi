@@ -12,6 +12,5 @@ open class ReaderPage(
 
     open lateinit var chapter: ReaderChapter
 
-    /** The failure behind the last [Page.State.ERROR], so the error screen can pick its help page. */
     var error: Throwable? = null
 }

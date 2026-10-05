@@ -166,7 +166,6 @@ abstract class MangaSearchScreenModel(
         }
     }
 
-    /** Searches one failed source again with the last query. */
     fun retrySource(source: MangaSource) {
         val query = lastQuery ?: return
         if (state.value.items[source] !is MangaSearchItemResult.Error) return

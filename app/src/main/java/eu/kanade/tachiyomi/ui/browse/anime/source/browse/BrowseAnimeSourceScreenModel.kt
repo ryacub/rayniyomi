@@ -114,7 +114,6 @@ class BrowseAnimeSourceScreenModel(
         }
     }
 
-    /** Migrate on the error screen needs library entries from this source. */
     val hasLibraryEntries = getFavorites.subscribe(sourceId)
         .map { it.isNotEmpty() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

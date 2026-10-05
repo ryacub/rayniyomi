@@ -712,7 +712,6 @@ class ReaderActivity : BaseActivity() {
         }
     }
 
-    /** Migrate needs a library entry, so the error screen hides it for other manga. */
     fun canMigrateManga(): Boolean = viewModel.manga?.favorite == true
 
     fun openMangaMigration() {

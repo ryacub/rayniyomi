@@ -167,7 +167,6 @@ abstract class AnimeSearchScreenModel(
         }
     }
 
-    /** Searches one failed source again with the last query. */
     fun retrySource(source: AnimeCatalogueSource) {
         val query = lastQuery ?: return
         if (state.value.items[source] !is AnimeSearchItemResult.Error) return

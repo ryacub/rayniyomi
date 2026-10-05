@@ -11,9 +11,6 @@ import eu.kanade.tachiyomi.network.interceptor.CloudflareBypassException
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.EmptyScreenAction
 
-/**
- * The actions that a source error screen can offer, in display order.
- */
 enum class SourceErrorAction(val labelRes: StringResource) {
     Retry(MR.strings.action_retry),
     OpenInWebView(MR.strings.action_open_in_web_view),
@@ -31,9 +28,6 @@ fun SourceErrorAction.toEmptyScreenAction(onClick: () -> Unit): EmptyScreenActio
     return EmptyScreenAction(stringRes = labelRes, icon = icon, onClick = onClick)
 }
 
-/**
- * The actions for a failed browse listing. Migrate needs library entries from the source.
- */
 fun browseSourceErrorActions(canMigrate: Boolean): List<SourceErrorAction> {
     return buildList {
         add(SourceErrorAction.Retry)
@@ -43,9 +37,6 @@ fun browseSourceErrorActions(canMigrate: Boolean): List<SourceErrorAction> {
     }
 }
 
-/**
- * The troubleshooting page for [error]. A failed Cloudflare bypass opens its own section.
- */
 fun sourceHelpUrl(error: Throwable?): String {
     val isCloudflareBlock = generateSequence(error) { it.cause }
         .any { it is CloudflareBypassException }
