@@ -476,6 +476,7 @@ private fun MangaScreenSmallImpl(
                             missingItemsCount = missingChaptersCount,
                             onClick = onFilterClicked,
                             isManga = true,
+                            onRefreshOutdatedList = onRefresh.takeIf { state.isListOutdated },
                         )
                     }
 
@@ -738,6 +739,7 @@ fun MangaScreenLargeImpl(
                                     missingItemsCount = missingChaptersCount,
                                     onClick = onFilterButtonClicked,
                                     isManga = true,
+                                    onRefreshOutdatedList = onRefresh.takeIf { state.isListOutdated },
                                 )
                             }
 

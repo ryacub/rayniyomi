@@ -3,11 +3,14 @@ package eu.kanade.presentation.entries.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +31,7 @@ fun ItemHeader(
     isManga: Boolean,
     modifier: Modifier = Modifier,
     fetchType: FetchType = FetchType.Episodes,
+    onRefreshOutdatedList: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -59,6 +63,24 @@ fun ItemHeader(
         )
 
         MissingItemsWarning(missingItemsCount)
+        onRefreshOutdatedList?.let { OutdatedListHint(isManga = isManga, onRefresh = it) }
+    }
+}
+
+@Composable
+private fun OutdatedListHint(isManga: Boolean, onRefresh: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(
+                if (isManga) AYMR.strings.chapter_list_outdated else AYMR.strings.episode_list_outdated,
+            ),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onRefresh) {
+            Text(text = stringResource(AYMR.strings.action_refresh))
+        }
     }
 }
 
