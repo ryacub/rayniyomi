@@ -179,27 +179,20 @@ abstract class AnimeSearchScreenModel(
     }
 
     private suspend fun searchSource(source: AnimeCatalogueSource, query: String, requestId: Long) {
-        try {
+        val result = try {
             val page = withContext(searchDispatcher) {
                 AnimeSourceGateway.search(source, 1, query, AnimeSourceGateway.filters(source))
             }
-
-            val titles = page.animes.map {
-                networkToLocalAnime.await(it.toDomainAnime(source.id))
-            }
-
-            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
-                updateItem(source, AnimeSearchItemResult.Success(titles))
-            }
+            AnimeSearchItemResult.Success(page.animes.map { networkToLocalAnime.await(it.toDomainAnime(source.id)) })
         } catch (e: LinkageError) {
             // A defective extension fails to link against the app's shared libraries.
-            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
-                updateItem(source, AnimeSearchItemResult.Error(e))
-            }
+            AnimeSearchItemResult.Error(e)
         } catch (e: Exception) {
-            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
-                updateItem(source, AnimeSearchItemResult.Error(e))
-            }
+            AnimeSearchItemResult.Error(e)
+        }
+
+        if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+            updateItem(source, result)
         }
     }
 

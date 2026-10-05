@@ -715,15 +715,13 @@ class ReaderActivity : BaseActivity() {
     fun canMigrateManga(): Boolean = viewModel.manga?.favorite == true
 
     fun openMangaMigration() {
-        viewModel.manga?.id?.let { id ->
-            startActivity(
-                Intent(this, MainActivity::class.java).apply {
-                    action = Constants.SHORTCUT_MIGRATE_MANGA
-                    putExtra(Constants.MANGA_EXTRA, id)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                },
-            )
+        val mangaId = viewModel.manga?.id ?: return
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = Constants.SHORTCUT_MIGRATE_MANGA
+            putExtra(Constants.MANGA_EXTRA, mangaId)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
+        startActivity(intent)
     }
 
     private fun openChapterInWebView() {

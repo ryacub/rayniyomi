@@ -178,27 +178,20 @@ abstract class MangaSearchScreenModel(
     }
 
     private suspend fun searchSource(source: MangaSource, query: String, requestId: Long) {
-        try {
+        val result = try {
             val page = withContext(searchDispatcher) {
                 MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
             }
-
-            val titles = page.mangas.map {
-                networkToLocalManga.await(it.toDomainManga(source.id))
-            }
-
-            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
-                updateItem(source, MangaSearchItemResult.Success(titles))
-            }
+            MangaSearchItemResult.Success(page.mangas.map { networkToLocalManga.await(it.toDomainManga(source.id)) })
         } catch (e: LinkageError) {
             // A defective extension fails to link against the app's shared libraries.
-            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
-                updateItem(source, MangaSearchItemResult.Error(e))
-            }
+            MangaSearchItemResult.Error(e)
         } catch (e: Exception) {
-            if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
-                updateItem(source, MangaSearchItemResult.Error(e))
-            }
+            MangaSearchItemResult.Error(e)
+        }
+
+        if (currentCoroutineContext().isActive && requestCoordinator.isLatest(requestId)) {
+            updateItem(source, result)
         }
     }
 
