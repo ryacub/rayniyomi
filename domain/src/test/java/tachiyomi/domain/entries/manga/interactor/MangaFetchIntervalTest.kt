@@ -2,9 +2,11 @@ package tachiyomi.domain.entries.manga.interactor
 
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
+import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -130,6 +132,23 @@ class MangaFetchIntervalTest {
             chapterWithTime(chapter, (43 * it).hours)
         }
         fetchInterval.calculateInterval(chapters, testZoneId) shouldBe 1
+    }
+
+    @Test
+    fun `keeps a next update that is inside the fetch window`() = runTest {
+        val window = fetchInterval.getWindow(testTime)
+        val manga = Manga.create().copy(fetchInterval = -7, nextUpdate = window.first)
+
+        fetchInterval.toMangaUpdate(manga, testTime, window).nextUpdate shouldBe window.first
+    }
+
+    @Test
+    fun `moves a next update from before the fetch window to the future`() = runTest {
+        val window = fetchInterval.getWindow(testTime)
+        val manga = Manga.create().copy(fetchInterval = -7, nextUpdate = window.first - 1)
+
+        val nextUpdate = fetchInterval.toMangaUpdate(manga, testTime, window).nextUpdate ?: 0L
+        (nextUpdate > testTime.toEpochSecond() * 1000) shouldBe true
     }
 
     private fun chapterWithTime(chapter: Chapter, duration: Duration): Chapter {
