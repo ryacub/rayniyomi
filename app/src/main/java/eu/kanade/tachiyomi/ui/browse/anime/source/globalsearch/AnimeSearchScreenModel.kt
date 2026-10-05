@@ -47,7 +47,6 @@ abstract class AnimeSearchScreenModel(
 
     private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
-    private var currentRequestId = 0L
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()
     private val disabledSources = sourcePreferences.disabledAnimeSources().get()
@@ -137,7 +136,6 @@ abstract class AnimeSearchScreenModel(
 
         searchJob?.cancel()
         val requestId = requestCoordinator.nextRequestId()
-        currentRequestId = requestId
         val sources = getSelectedSources()
 
         // Reuse previous results if possible
@@ -174,7 +172,7 @@ abstract class AnimeSearchScreenModel(
         val query = lastQuery ?: return
         if (state.value.items[source] !is AnimeSearchItemResult.Error) return
 
-        val requestId = currentRequestId
+        val requestId = requestCoordinator.latestRequestId()
         updateItem(source, AnimeSearchItemResult.Loading)
         viewModelScope.launch(searchDispatcher) {
             searchSource(source, query, requestId)

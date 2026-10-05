@@ -13,10 +13,9 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifAnimeSourcesLoaded
 import eu.kanade.presentation.browse.anime.GlobalAnimeSearchScreen
 import eu.kanade.presentation.util.Screen
-import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.browse.anime.source.browse.BrowseAnimeSourceScreen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
-import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import eu.kanade.tachiyomi.ui.webview.sourceWebViewScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 
 class GlobalAnimeSearchScreen(
@@ -74,11 +73,7 @@ class GlobalAnimeSearchScreen(
                 onChangeSearchFilter = screenModel::setSourceFilter,
                 onToggleResults = screenModel::toggleFilterResults,
                 onRetrySource = screenModel::retrySource,
-                onWebViewSource = { source ->
-                    (source as? AnimeHttpSource)?.let {
-                        navigator.push(WebViewScreen(url = it.baseUrl, initialTitle = it.name, sourceId = it.id))
-                    }
-                },
+                onWebViewSource = { source -> sourceWebViewScreen(source)?.let(navigator::push) },
                 onClickSource = {
                     navigator.push(BrowseAnimeSourceScreen(it.id, state.searchQuery))
                 },

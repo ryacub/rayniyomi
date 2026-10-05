@@ -13,10 +13,9 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.presentation.browse.manga.GlobalMangaSearchScreen
 import eu.kanade.presentation.util.Screen
-import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
-import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import eu.kanade.tachiyomi.ui.webview.sourceWebViewScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 
 class GlobalMangaSearchScreen(
@@ -74,11 +73,7 @@ class GlobalMangaSearchScreen(
                 onChangeSearchFilter = screenModel::setSourceFilter,
                 onToggleResults = screenModel::toggleFilterResults,
                 onRetrySource = screenModel::retrySource,
-                onWebViewSource = { source ->
-                    (source as? HttpSource)?.let {
-                        navigator.push(WebViewScreen(url = it.getHomeUrl(), initialTitle = it.name, sourceId = it.id))
-                    }
-                },
+                onWebViewSource = { source -> sourceWebViewScreen(source)?.let(navigator::push) },
                 onClickSource = {
                     navigator.push(BrowseMangaSourceScreen(it.id, state.searchQuery))
                 },

@@ -47,7 +47,6 @@ abstract class MangaSearchScreenModel(
 
     private val requestCoordinator = SearchRequestCoordinator()
     private var searchJob: Job? = null
-    private var currentRequestId = 0L
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()
     private val disabledSources = sourcePreferences.disabledMangaSources().get()
@@ -137,7 +136,6 @@ abstract class MangaSearchScreenModel(
 
         searchJob?.cancel()
         val requestId = requestCoordinator.nextRequestId()
-        currentRequestId = requestId
         val sources = getSelectedSources()
 
         // Reuse previous results if possible
@@ -173,7 +171,7 @@ abstract class MangaSearchScreenModel(
         val query = lastQuery ?: return
         if (state.value.items[source] !is MangaSearchItemResult.Error) return
 
-        val requestId = currentRequestId
+        val requestId = requestCoordinator.latestRequestId()
         updateItem(source, MangaSearchItemResult.Loading)
         viewModelScope.launch(searchDispatcher) {
             searchSource(source, query, requestId)
