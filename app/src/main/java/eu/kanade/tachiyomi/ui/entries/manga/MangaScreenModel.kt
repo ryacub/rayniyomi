@@ -254,7 +254,7 @@ class MangaScreenModel(
                 }
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             autoUpdatePolicy.collectLatest { policy ->
                 updateSuccessState { it.copy(autoUpdatePolicy = policy) }
             }
