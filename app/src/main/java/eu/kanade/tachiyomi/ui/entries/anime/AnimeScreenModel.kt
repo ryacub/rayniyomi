@@ -30,12 +30,17 @@ import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.UnmeteredSource
+import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.AutoUpdatePolicy
+import eu.kanade.tachiyomi.data.library.isEntryListOutdated
+import eu.kanade.tachiyomi.data.library.isInAutoUpdateCategories
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.appGraph
@@ -63,7 +68,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -82,6 +90,7 @@ import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
@@ -109,6 +118,7 @@ import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
+import java.time.ZonedDateTime
 import java.util.Calendar
 
 class AnimeScreenModel(
@@ -147,6 +157,7 @@ class AnimeScreenModel(
     private val filterEpisodesForDownload: FilterEpisodesForDownload = appGraph.filterEpisodesForDownload,
     internal val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
     private val mergeLibraryAnime: MergeLibraryAnime = appGraph.mergeLibraryAnime,
+    private val fetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
 
@@ -155,6 +166,25 @@ class AnimeScreenModel(
 
     val anime: Anime?
         get() = successState?.anime
+
+    private val autoUpdatePolicy = combine(
+        libraryPreferences.autoUpdateItemRestrictions().changes(),
+        libraryPreferences.animeUpdateCategories().changes(),
+        libraryPreferences.animeUpdateCategoriesExclude().changes(),
+        getCategories.subscribe(animeId),
+    ) { restrictions, included, excluded, categories ->
+        AutoUpdatePolicy(
+            restrictions = restrictions,
+            isInUpdateCategories = isInAutoUpdateCategories(
+                entryCategoryIds = categories.map { it.id },
+                included = included.mapTo(HashSet()) { it.toLong() },
+                excluded = excluded.mapTo(HashSet()) { it.toLong() },
+            ),
+            fetchWindow = fetchInterval.getWindow(ZonedDateTime.now()),
+        )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val source: AnimeSource?
         get() = successState?.source
@@ -212,6 +242,12 @@ class AnimeScreenModel(
                 }
         }
 
+        viewModelScope.launchIO {
+            autoUpdatePolicy.collectLatest { policy ->
+                updateSuccessState { it.copy(autoUpdatePolicy = policy) }
+            }
+        }
+
         observeDownloads()
 
         viewModelScope.launchIO {
@@ -251,6 +287,7 @@ class AnimeScreenModel(
                     seasons = seasons,
                     isRefreshingData = needRefreshInfo || needRefreshEpisode || needRefreshSeason,
                     dialog = null,
+                    autoUpdatePolicy = autoUpdatePolicy.value,
                 )
             }
             // Start observe tracking since it only needs animeId
@@ -1568,7 +1605,26 @@ class AnimeScreenModel(
                 anime.nextEpisodeToAir,
                 anime.nextEpisodeAiringAt,
             ),
+            val autoUpdatePolicy: AutoUpdatePolicy? = null,
         ) : State {
+
+            val isListOutdated by lazy {
+                !isRefreshingData &&
+                    anime.fetchType == FetchType.Episodes &&
+                    autoUpdatePolicy != null &&
+                    isEntryListOutdated(
+                        candidate = AutoUpdateCandidate(
+                            alwaysUpdate = anime.updateStrategy == AnimeUpdateStrategy.ALWAYS_UPDATE,
+                            isCompleted = anime.status == SAnime.COMPLETED.toLong(),
+                            hasUnviewed = episodes.any { !it.episode.seen },
+                            hasStarted = episodes.any { it.episode.seen },
+                            totalCount = episodes.size.toLong(),
+                            nextUpdate = anime.nextUpdate,
+                        ),
+                        isFavorite = anime.favorite,
+                        policy = autoUpdatePolicy,
+                    )
+            }
 
             val processedSeasons by lazy {
                 seasons.applySeasonFilters(anime).toList()
