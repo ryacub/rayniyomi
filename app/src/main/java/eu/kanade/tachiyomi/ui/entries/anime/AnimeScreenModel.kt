@@ -38,9 +38,8 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
-import eu.kanade.tachiyomi.data.library.AutoUpdatePolicy
+import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.isEntryListOutdated
-import eu.kanade.tachiyomi.data.library.isInAutoUpdateCategories
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.appGraph
@@ -52,6 +51,8 @@ import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
 import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
 import eu.kanade.tachiyomi.ui.entries.common.EntryTrackingSummaryObserver
 import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
+import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
+import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.util.AniChartApi
@@ -71,6 +72,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -118,7 +120,7 @@ import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
-import java.time.ZonedDateTime
+import java.time.Clock
 import java.util.Calendar
 
 class AnimeScreenModel(
@@ -158,6 +160,7 @@ class AnimeScreenModel(
     internal val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
     private val mergeLibraryAnime: MergeLibraryAnime = appGraph.mergeLibraryAnime,
     private val fetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval,
+    private val clock: Clock = Clock.systemDefaultZone(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
 
@@ -167,22 +170,13 @@ class AnimeScreenModel(
     val anime: Anime?
         get() = successState?.anime
 
-    private val autoUpdatePolicy = combine(
-        libraryPreferences.autoUpdateItemRestrictions().changes(),
-        libraryPreferences.animeUpdateCategories().changes(),
-        libraryPreferences.animeUpdateCategoriesExclude().changes(),
-        getCategories.subscribe(animeId),
-    ) { restrictions, included, excluded, categories ->
-        AutoUpdatePolicy(
-            restrictions = restrictions,
-            isInUpdateCategories = isInAutoUpdateCategories(
-                entryCategoryIds = categories.map { it.id },
-                included = included.mapTo(HashSet()) { it.toLong() },
-                excluded = excluded.mapTo(HashSet()) { it.toLong() },
-            ),
-            fetchWindow = fetchInterval.getWindow(ZonedDateTime.now()),
-        )
-    }
+    private val updateContext = entryUpdateContextFlow(
+        restrictions = libraryPreferences.autoUpdateItemRestrictions().changes(),
+        includedCategories = libraryPreferences.animeUpdateCategories().changes(),
+        excludedCategories = libraryPreferences.animeUpdateCategoriesExclude().changes(),
+        entryCategoryIds = getCategories.subscribe(animeId).map { categories -> categories.map { it.id } },
+        fetchWindow = fetchWindowFlow(fetchInterval::getWindow, clock, lifecycle),
+    )
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -243,8 +237,8 @@ class AnimeScreenModel(
         }
 
         viewModelScope.launchIO {
-            autoUpdatePolicy.collectLatest { policy ->
-                updateSuccessState { it.copy(autoUpdatePolicy = policy) }
+            updateContext.collectLatest { context ->
+                updateSuccessState { it.copy(updateContext = context) }
             }
         }
 
@@ -287,7 +281,7 @@ class AnimeScreenModel(
                     seasons = seasons,
                     isRefreshingData = needRefreshInfo || needRefreshEpisode || needRefreshSeason,
                     dialog = null,
-                    autoUpdatePolicy = autoUpdatePolicy.value,
+                    updateContext = updateContext.value,
                 )
             }
             // Start observe tracking since it only needs animeId
@@ -1605,13 +1599,13 @@ class AnimeScreenModel(
                 anime.nextEpisodeToAir,
                 anime.nextEpisodeAiringAt,
             ),
-            val autoUpdatePolicy: AutoUpdatePolicy? = null,
+            val updateContext: EntryUpdateContext? = null,
         ) : State {
 
             val isListOutdated by lazy {
-                val policy = autoUpdatePolicy ?: return@lazy false
+                val context = updateContext ?: return@lazy false
                 if (isRefreshingData || anime.fetchType == FetchType.Seasons) return@lazy false
-                isEntryListOutdated(autoUpdateCandidate(), anime.favorite, policy)
+                isEntryListOutdated(autoUpdateCandidate(), anime.favorite, context)
             }
 
             private fun autoUpdateCandidate() = AutoUpdateCandidate(

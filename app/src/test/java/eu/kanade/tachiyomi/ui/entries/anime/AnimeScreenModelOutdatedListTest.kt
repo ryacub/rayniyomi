@@ -3,7 +3,8 @@ package eu.kanade.tachiyomi.ui.entries.anime
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
-import eu.kanade.tachiyomi.data.library.AutoUpdatePolicy
+import eu.kanade.tachiyomi.data.library.EntryUpdateContext
+import eu.kanade.tachiyomi.data.library.FetchWindow
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
@@ -39,17 +40,17 @@ class AnimeScreenModelOutdatedListTest {
     }
 
     @Test
-    fun `an anime without a loaded policy shows no hint`() {
-        state(policy = null).isListOutdated shouldBe false
+    fun `an anime without a loaded update context shows no hint`() {
+        state(context = null).isListOutdated shouldBe false
     }
 
     private fun state(
         anime: Anime = staleAnime(),
         seen: Boolean = true,
-        policy: AutoUpdatePolicy? = AutoUpdatePolicy(
+        context: EntryUpdateContext? = EntryUpdateContext(
             restrictions = setOf(ENTRY_HAS_UNVIEWED),
             isInUpdateCategories = true,
-            fetchWindow = WINDOW_START to WINDOW_END,
+            fetchWindow = FetchWindow(WINDOW_START, WINDOW_END),
         ),
     ) = AnimeScreenModel.State.Success(
         anime = anime,
@@ -63,7 +64,7 @@ class AnimeScreenModelOutdatedListTest {
             ),
         ),
         seasons = emptyList(),
-        autoUpdatePolicy = policy,
+        updateContext = context,
     )
 
     private fun staleAnime() = Anime.create().copy(id = 1L, favorite = true, nextUpdate = WINDOW_START - 1)

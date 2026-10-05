@@ -2,10 +2,16 @@ package eu.kanade.tachiyomi.data.library
 
 import tachiyomi.domain.category.model.Category
 
-data class AutoUpdatePolicy(
+data class FetchWindow(val start: Long, val end: Long) {
+    companion object {
+        fun from(window: Pair<Long, Long>) = FetchWindow(start = window.first, end = window.second)
+    }
+}
+
+data class EntryUpdateContext(
     val restrictions: Set<String>,
     val isInUpdateCategories: Boolean,
-    val fetchWindow: Pair<Long, Long>,
+    val fetchWindow: FetchWindow,
 )
 
 internal fun isInAutoUpdateCategories(
@@ -18,15 +24,21 @@ internal fun isInAutoUpdateCategories(
     return categoryIds.none { it in excluded }
 }
 
+internal fun isPastFetchWindow(nextUpdate: Long, window: FetchWindow): Boolean =
+    nextUpdate in 1..<window.start
+
+internal fun isAutoUpdateEligible(
+    candidate: AutoUpdateCandidate,
+    isFavorite: Boolean,
+    context: EntryUpdateContext,
+): Boolean {
+    if (!isFavorite || !context.isInUpdateCategories || candidate.isCompleted) return false
+    return evaluateAutoUpdateCandidate(candidate, context.restrictions, context.fetchWindow.end) == null
+}
+
 internal fun isEntryListOutdated(
     candidate: AutoUpdateCandidate,
     isFavorite: Boolean,
-    policy: AutoUpdatePolicy,
-): Boolean {
-    if (!isFavorite || !policy.isInUpdateCategories || candidate.isCompleted) return false
-    if (!isBeforeFetchWindow(candidate.nextUpdate, policy.fetchWindow)) return false
-    return evaluateAutoUpdateCandidate(candidate, policy.restrictions, policy.fetchWindow.second) == null
-}
-
-private fun isBeforeFetchWindow(nextUpdate: Long, fetchWindow: Pair<Long, Long>): Boolean =
-    nextUpdate in 1..<fetchWindow.first
+    context: EntryUpdateContext,
+): Boolean = isPastFetchWindow(candidate.nextUpdate, context.fetchWindow) &&
+    isAutoUpdateEligible(candidate, isFavorite, context)

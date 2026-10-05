@@ -81,6 +81,56 @@ class EntryListOutdatedTest {
         isInAutoUpdateCategories(emptyList(), included = emptySet(), excluded = uncategorized) shouldBe false
     }
 
+    @Test
+    fun `a next update at the window start is not past the window`() {
+        isPastFetchWindow(WINDOW_START, window) shouldBe false
+    }
+
+    @Test
+    fun `a next update one before the window start is past the window`() {
+        isPastFetchWindow(WINDOW_START - 1, window) shouldBe true
+    }
+
+    @Test
+    fun `a zero next update is not past the window`() {
+        isPastFetchWindow(0L, window) shouldBe false
+    }
+
+    @Test
+    fun `a favorite caught-up entry in the update categories is eligible`() {
+        isAutoUpdateEligible(candidate(), isFavorite = true, context = updateContext()) shouldBe true
+    }
+
+    @Test
+    fun `an entry outside the library is not eligible`() {
+        isAutoUpdateEligible(candidate(), isFavorite = false, context = updateContext()) shouldBe false
+    }
+
+    @Test
+    fun `an entry outside the update categories is not eligible`() {
+        isAutoUpdateEligible(
+            candidate(),
+            isFavorite = true,
+            context = updateContext(isInUpdateCategories = false),
+        ) shouldBe false
+    }
+
+    @Test
+    fun `a completed entry is not eligible`() {
+        isAutoUpdateEligible(candidate(isCompleted = true), isFavorite = true, context = updateContext()) shouldBe false
+    }
+
+    @Test
+    fun `an entry the update would skip is not eligible`() {
+        isAutoUpdateEligible(
+            candidate(hasUnviewed = true),
+            isFavorite = true,
+            context = updateContext(),
+        ) shouldBe false
+    }
+
+    private val window = FetchWindow(WINDOW_START, WINDOW_END)
+
     private fun isOutdated(
         nextUpdate: Long = WINDOW_START - 1,
         isFavorite: Boolean = true,
@@ -100,11 +150,29 @@ class EntryListOutdatedTest {
             nextUpdate = nextUpdate,
         ),
         isFavorite = isFavorite,
-        policy = AutoUpdatePolicy(
-            restrictions = restrictions,
-            isInUpdateCategories = isInUpdateCategories,
-            fetchWindow = WINDOW_START to WINDOW_END,
-        ),
+        context = updateContext(restrictions, isInUpdateCategories),
+    )
+
+    private fun updateContext(
+        restrictions: Set<String> = setOf(ENTRY_HAS_UNVIEWED, ENTRY_NON_VIEWED),
+        isInUpdateCategories: Boolean = true,
+    ) = EntryUpdateContext(
+        restrictions = restrictions,
+        isInUpdateCategories = isInUpdateCategories,
+        fetchWindow = FetchWindow(WINDOW_START, WINDOW_END),
+    )
+
+    private fun candidate(
+        nextUpdate: Long = WINDOW_START - 1,
+        isCompleted: Boolean = false,
+        hasUnviewed: Boolean = false,
+    ) = AutoUpdateCandidate(
+        alwaysUpdate = true,
+        isCompleted = isCompleted,
+        hasUnviewed = hasUnviewed,
+        hasStarted = true,
+        totalCount = 3,
+        nextUpdate = nextUpdate,
     )
 
     private companion object {

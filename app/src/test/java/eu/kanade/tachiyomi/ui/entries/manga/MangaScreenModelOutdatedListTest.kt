@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.entries.manga
 
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.testing.TestLifecycleOwner
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -30,13 +31,20 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MangaScreenModelOutdatedListTest {
 
     private val vt = VirtualTime()
     private val fetchInterval = MangaFetchInterval(mockk())
+    private val clock = MutableClock(Instant.parse("2026-03-10T12:00:00Z"))
+    private val owner = TestLifecycleOwner(Lifecycle.State.RESUMED, vt.main)
 
     @BeforeEach
     fun setUp() {
@@ -81,10 +89,36 @@ class MangaScreenModelOutdatedListTest {
         model.successState().isListOutdated shouldBe false
     }
 
+    @Test
+    fun `the fetch window advances when the screen resumes`() = runTest(vt.scheduler) {
+        val (windowStart, _) = fetchInterval.getWindow(ZonedDateTime.now(clock))
+        val model = createModel(staleManga().copy(nextUpdate = windowStart))
+        advanceUntilIdle()
+        model.successState().isListOutdated shouldBe false
+
+        owner.currentState = Lifecycle.State.CREATED
+        advanceUntilIdle()
+        clock.advance(1, ChronoUnit.DAYS)
+        owner.currentState = Lifecycle.State.RESUMED
+        advanceUntilIdle()
+
+        model.successState().isListOutdated shouldBe true
+    }
+
+    private class MutableClock(private var now: Instant) : Clock() {
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+        override fun withZone(zone: ZoneId): Clock = this
+        override fun instant(): Instant = now
+
+        fun advance(amount: Long, unit: ChronoUnit) {
+            now = now.plus(amount, unit)
+        }
+    }
+
     private fun MangaScreenModel.successState() = state.value as MangaScreenModel.State.Success
 
     private fun staleManga(): Manga {
-        val (windowStart, _) = fetchInterval.getWindow(ZonedDateTime.now())
+        val (windowStart, _) = fetchInterval.getWindow(ZonedDateTime.now(clock))
         return Manga.create().copy(
             id = 1L,
             source = 1L,
@@ -103,7 +137,7 @@ class MangaScreenModelOutdatedListTest {
         }
         return MangaScreenModel(
             context = mockk(relaxed = true),
-            lifecycle = mockk<Lifecycle>(relaxed = true),
+            lifecycle = owner.lifecycle,
             mangaId = manga.id,
             isFromSource = false,
             libraryPreferences = LibraryPreferences(InMemoryPreferenceStore()),
@@ -122,6 +156,7 @@ class MangaScreenModelOutdatedListTest {
                 every { translationStates } returns MutableStateFlow(emptyMap())
             },
             fetchInterval = fetchInterval,
+            clock = clock,
             ioDispatcher = vt.io,
         )
     }
