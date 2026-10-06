@@ -11,7 +11,7 @@ internal class InFlightRefreshes<T>(private val scope: CoroutineScope) {
 
     @Synchronized
     fun join(entryId: Long, refresh: suspend () -> T): Deferred<T> {
-        running[entryId]?.let { return it }
+        running[entryId]?.takeUnless { it.isCompleted }?.let { return it }
         val deferred = scope.async(start = CoroutineStart.LAZY) { refresh() }
         running[entryId] = deferred
         deferred.invokeOnCompletion { forget(entryId, deferred) }
