@@ -42,7 +42,7 @@ Before you start, please note that the ability to use following technologies is 
 - Emulator or phone with developer options enabled to test changes.
 - **JDK 21** is required to build and run tests.
   - Recommended: [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21) (matches CI environment)
-  - `AndroidConfig.kt` sets the bytecode level to Java 17 (`GradleJavaVersion.VERSION_17`) in `buildSrc/src/main/kotlin/mihon/buildlogic/AndroidConfig.kt`.
+  - `buildSrc/src/main/kotlin/mihon/buildlogic/AndroidConfig.kt` sets the bytecode level to Java 17 (`GradleJavaVersion.VERSION_17`).
 
 ## Getting help
 
