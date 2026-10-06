@@ -54,6 +54,7 @@ import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -256,6 +257,7 @@ class AnimeScreenModel(
             val needRefreshInfo = !anime.initialized
             val needRefreshEpisode = episodes.isEmpty() && anime.fetchType == FetchType.Episodes
             val needRefreshSeason = seasons.isEmpty() && anime.fetchType == FetchType.Seasons
+            val runningRefresh = entryRefresher.running(animeId)
 
             // Show what we have earlier
             mutableState.update {
@@ -265,7 +267,8 @@ class AnimeScreenModel(
                     isFromSource = isFromSource,
                     episodes = episodes,
                     seasons = seasons,
-                    isRefreshingData = needRefreshInfo || needRefreshEpisode || needRefreshSeason,
+                    isRefreshingData = needRefreshInfo || needRefreshEpisode || needRefreshSeason ||
+                        runningRefresh != null,
                     dialog = null,
                     updateContext = updateContext.value,
                 )
@@ -281,6 +284,7 @@ class AnimeScreenModel(
                 )
                 fetchFromSourceTasks.awaitAll()
             }
+            runningRefresh?.let { showRefresh(it) }
 
             // Initial loading finished
             updateSuccessState { it.copy(isRefreshingData = false) }
@@ -288,16 +292,18 @@ class AnimeScreenModel(
     }
 
     fun fetchAllFromSource() {
-        val state = successState ?: return
+        val state = successState?.takeUnless { it.isRefreshingData } ?: return
         val refresh = entryRefresher.refresh(state.source, state.anime, state.trackItems)
-        viewModelScope.launch {
-            updateSuccessState { it.copy(isRefreshingData = true) }
-            val result = refresh.await()
-            result.detailsError?.let(::showDetailsFetchError)
-            result.itemsError?.let { showItemsFetchError(it) }
-            updateSuccessState {
-                it.copy(isRefreshingData = false, nextAiringEpisode = result.nextAiringEpisode)
-            }
+        viewModelScope.launch { showRefresh(refresh) }
+    }
+
+    private suspend fun showRefresh(refresh: Deferred<AnimeRefreshResult>) {
+        updateSuccessState { it.copy(isRefreshingData = true) }
+        val result = refresh.await()
+        result.detailsError?.let(::showDetailsFetchError)
+        result.itemsError?.let { showItemsFetchError(it) }
+        updateSuccessState {
+            it.copy(isRefreshingData = false, nextAiringEpisode = result.nextAiringEpisode)
         }
     }
 

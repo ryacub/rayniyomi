@@ -57,6 +57,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.SharingStarted
@@ -265,6 +266,7 @@ class MangaScreenModel(
 
             val needRefreshInfo = !manga.initialized
             val needRefreshChapter = chapters.isEmpty()
+            val runningRefresh = entryRefresher.running(mangaId)
 
             // Show what we have earlier
             // One-shot initial render before any flow has emitted; the combine above corrects it
@@ -284,7 +286,7 @@ class MangaScreenModel(
                     translationSummary = translationSummaryFrom(translationStates, chapters),
                     availableScanlators = getAvailableScanlators.await(mangaId),
                     excludedScanlators = getExcludedScanlators.await(mangaId),
-                    isRefreshingData = needRefreshInfo || needRefreshChapter,
+                    isRefreshingData = needRefreshInfo || needRefreshChapter || runningRefresh != null,
                     dialog = null,
                     updateContext = updateContext.value,
                 )
@@ -299,6 +301,7 @@ class MangaScreenModel(
                     fetchChapters = needRefreshChapter,
                 )
             }
+            runningRefresh?.let { showRefresh(it) }
 
             // Initial loading finished
             updateSuccessState { it.copy(isRefreshingData = false) }
@@ -306,13 +309,15 @@ class MangaScreenModel(
     }
 
     fun fetchAllFromSource() {
-        val state = successState ?: return
+        val state = successState?.takeUnless { it.isRefreshingData } ?: return
         val refresh = entryRefresher.refresh(state.source, state.manga)
-        viewModelScope.launch {
-            updateSuccessState { it.copy(isRefreshingData = true) }
-            refresh.await().onFailure(::showFetchError)
-            updateSuccessState { it.copy(isRefreshingData = false) }
-        }
+        viewModelScope.launch { showRefresh(refresh) }
+    }
+
+    private suspend fun showRefresh(refresh: Deferred<Result<Unit>>) {
+        updateSuccessState { it.copy(isRefreshingData = true) }
+        refresh.await().onFailure(::showFetchError)
+        updateSuccessState { it.copy(isRefreshingData = false) }
     }
 
     // Manga info - start

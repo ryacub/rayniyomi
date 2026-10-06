@@ -49,6 +49,14 @@ class MangaScreenModelSourceFetchTest {
         every { statusFlow() } returns emptyFlow()
         every { progressFlow() } returns emptyFlow()
     }
+    private val entryRefresher by lazy {
+        MangaEntryRefresher(
+            updateMangaFromRemote = updateMangaFromRemote,
+            filterChaptersForDownload = filterChaptersForDownload,
+            downloadManager = downloadManager,
+            dispatcher = vt.io,
+        )
+    }
 
     @BeforeEach
     fun setUp() {
@@ -164,6 +172,41 @@ class MangaScreenModelSourceFetchTest {
         coVerify(exactly = 1) { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) }
     }
 
+    @Test
+    fun `reopening the screen while a refresh runs shows the indicator until it ends`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        sourceReturnsAfter(gate)
+        val closed = createModel(manga = manga(initialized = true), chapters = listOf(chapter()))
+        advanceUntilIdle()
+        closed.fetchAllFromSource()
+        advanceUntilIdle()
+        closed.viewModelScope.cancel()
+
+        val reopened = createModel(manga = manga(initialized = true), chapters = listOf(chapter()))
+        advanceUntilIdle()
+        val whileRunning = reopened.successState().isRefreshingData
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        whileRunning shouldBe true
+        reopened.successState().isRefreshingData shouldBe false
+        coVerify(exactly = 1) { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a manual refresh during the initial load does not fetch again`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        sourceReturnsAfter(gate)
+        val model = createModel(manga = manga(initialized = false), chapters = listOf(chapter()))
+        advanceUntilIdle()
+
+        model.fetchAllFromSource()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) }
+    }
+
     private fun sourceReturnsAfter(gate: CompletableDeferred<Unit>, newChapters: List<Chapter> = emptyList()) {
         coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } coAnswers {
             gate.await()
@@ -192,12 +235,7 @@ class MangaScreenModelSourceFetchTest {
             getMangaAndChapters = getMangaAndChapters,
             getTracks = mockk<GetMangaTracks> { every { subscribe(any<Long>()) } returns emptyFlow() },
             updateMangaFromRemote = updateMangaFromRemote,
-            entryRefresher = MangaEntryRefresher(
-                updateMangaFromRemote = updateMangaFromRemote,
-                filterChaptersForDownload = filterChaptersForDownload,
-                downloadManager = downloadManager,
-                dispatcher = vt.io,
-            ),
+            entryRefresher = entryRefresher,
             translationManager = mockk<TranslationManager> {
                 every { translationStates } returns MutableStateFlow(emptyMap())
             },

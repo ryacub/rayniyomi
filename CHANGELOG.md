@@ -23,7 +23,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
-- A pull-to-refresh on an anime or manga entry now finishes after you leave the screen. The new chapters, episodes, and seasons are saved, new items are queued for download when the download settings apply, and the anime airing time is updated. A second refresh of the same entry joins the running one (#1280).
+- A pull-to-refresh on an anime or manga entry now finishes after you leave the screen. The new chapters, episodes, and seasons are saved, new items are queued for download when the download settings apply, and the anime airing time is updated. If you come back while the refresh runs, the entry shows the refresh indicator until it ends, and you cannot start another refresh until then (#1280).
 - Multi-thread anime downloads no longer fail at the merge step. The downloader now records the bytes written for each chunk, and the merger writes the episode file through the storage folder instead of a raw file path (#1265).
 - A finished download queue no longer logs a download job failure, adds to the job crash count, or schedules a retry. The download job now lets the cancellation from the downloader pass through (#1265).
 - Multi-thread anime downloads now report a range error or a full disk to the downloader. The downloader falls back to FFmpeg on a range error and pauses on a full disk (#1268).

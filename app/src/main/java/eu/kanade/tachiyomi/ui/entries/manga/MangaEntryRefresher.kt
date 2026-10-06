@@ -21,6 +21,8 @@ class MangaEntryRefresher(
 ) {
     private val refreshes = InFlightRefreshes<Result<Unit>>(CoroutineScope(SupervisorJob() + dispatcher))
 
+    fun running(mangaId: Long): Deferred<Result<Unit>>? = refreshes.running(mangaId)
+
     fun refresh(source: MangaSource, manga: Manga): Deferred<Result<Unit>> =
         refreshes.join(manga.id) {
             updateMangaFromRemote(

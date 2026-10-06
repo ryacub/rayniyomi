@@ -10,8 +10,11 @@ internal class InFlightRefreshes<T>(private val scope: CoroutineScope) {
     private val running = HashMap<Long, Deferred<T>>()
 
     @Synchronized
+    fun running(entryId: Long): Deferred<T>? = running[entryId]?.takeUnless { it.isCompleted }
+
+    @Synchronized
     fun join(entryId: Long, refresh: suspend () -> T): Deferred<T> {
-        running[entryId]?.takeUnless { it.isCompleted }?.let { return it }
+        running(entryId)?.let { return it }
         val deferred = scope.async(start = CoroutineStart.LAZY) { refresh() }
         running[entryId] = deferred
         deferred.invokeOnCompletion { forget(entryId, deferred) }

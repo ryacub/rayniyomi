@@ -59,6 +59,8 @@ class AnimeEntryRefresher(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val refreshes = InFlightRefreshes<AnimeRefreshResult>(scope)
 
+    fun running(animeId: Long): Deferred<AnimeRefreshResult>? = refreshes.running(animeId)
+
     fun refresh(
         source: AnimeSource,
         anime: Anime,

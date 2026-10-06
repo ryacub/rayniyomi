@@ -147,6 +147,25 @@ class AnimeEntryRefresherTest {
         coVerify(exactly = 1) { syncEpisodesWithSource.await(any(), any(), any(), any(), any()) }
     }
 
+    @Test
+    fun `the running refresh of an entry is found until it ends`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { source.getEpisodeList(any()) } coAnswers {
+            gate.await()
+            listOf(SEpisode.create())
+        }
+        val refresher = refresher()
+
+        val refresh = refresher.refresh(source, anime, emptyList())
+        advanceUntilIdle()
+        val whileRunning = refresher.running(anime.id)
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        (whileRunning === refresh) shouldBe true
+        refresher.running(anime.id) shouldBe null
+    }
+
     private fun TestScope.refresher() = AnimeEntryRefresher(
         updateAnime = updateAnime,
         syncEpisodesWithSource = syncEpisodesWithSource,
