@@ -15,8 +15,10 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
 import eu.kanade.tachiyomi.util.system.cancelNotification
+import eu.kanade.tachiyomi.util.system.clearLiveUpdate
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import eu.kanade.tachiyomi.util.system.setLiveUpdate
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -64,6 +66,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
      * those can only be dismissed by the user.
      */
     fun dismissProgress() {
+        if (isDownloading) progressNotificationBuilder.clearLiveUpdate()
         context.cancelNotification(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
     }
 
@@ -122,6 +125,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
 
             setProgress(download.pages!!.size, download.downloadedImages, false)
             setOngoing(true)
+            setLiveUpdate(context, "${download.downloadedImages}/${download.pages!!.size}")
 
             show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
         }
@@ -151,6 +155,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
             setSmallIcon(R.drawable.ic_pause_24dp)
             setProgress(0, 0, false)
             setOngoing(false)
+            clearLiveUpdate()
             clearActions()
             // Open download manager when clicked
             setContentIntent(NotificationHandler.openDownloadManagerPendingActivity(context))
@@ -193,6 +198,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
      * Only works on Android 8+.
      */
     fun onWarning(reason: String, timeout: Long? = null, contentIntent: PendingIntent? = null, mangaId: Long? = null) {
+        demoteProgress()
         with(errorNotificationBuilder) {
             setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
             setStyle(NotificationCompat.BigTextStyle().bigText(reason))
@@ -222,6 +228,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
      * Called when the download job crash threshold is exceeded.
      */
     fun onCrashThresholdExceeded() {
+        demoteProgress()
         with(errorNotificationBuilder) {
             setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
             setContentText(context.stringResource(MR.strings.download_notifier_crash_threshold_exceeded))
@@ -236,6 +243,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
     }
 
     fun onError(error: String? = null, chapter: String? = null, mangaTitle: String? = null, mangaId: Long? = null) {
+        demoteProgress()
         // Create notification
         with(errorNotificationBuilder) {
             setContentTitle(
@@ -261,5 +269,11 @@ internal class MangaDownloadNotifier(private val context: Context) {
 
         // Reset download information
         isDownloading = false
+    }
+
+    private fun demoteProgress() {
+        if (isDownloading) {
+            progressNotificationBuilder.clearLiveUpdate().show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
+        }
     }
 }

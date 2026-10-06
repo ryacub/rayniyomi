@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloader
+import eu.kanade.tachiyomi.data.library.LibraryUpdateNotificationMode
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -30,6 +31,7 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import eu.kanade.tachiyomi.util.system.setLiveUpdate
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -46,6 +48,7 @@ class MangaLibraryUpdateNotifier(
 
     private val securityPreferences: SecurityPreferences = appGraph.securityPreferences,
     private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val notificationMode: LibraryUpdateNotificationMode = LibraryUpdateNotificationMode.Standard,
 ) {
 
     private val percentFormatter = NumberFormat.getPercentInstance().apply {
@@ -104,6 +107,12 @@ class MangaLibraryUpdateNotifier(
         if (!securityPreferences.hideNotificationContent().get()) {
             val updatingText = manga.joinToString("\n") { it.title.chop(40) }
             progressNotificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(updatingText))
+        } else {
+            progressNotificationBuilder.setStyle(null)
+        }
+
+        if (notificationMode == LibraryUpdateNotificationMode.Live) {
+            progressNotificationBuilder.setLiveUpdate(context, "$current/$total")
         }
 
         context.notify(

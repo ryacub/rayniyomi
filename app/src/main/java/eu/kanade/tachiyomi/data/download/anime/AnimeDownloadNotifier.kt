@@ -14,9 +14,11 @@ import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
+import eu.kanade.tachiyomi.util.system.clearLiveUpdate
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notificationManager
 import eu.kanade.tachiyomi.util.system.notify
+import eu.kanade.tachiyomi.util.system.setLiveUpdate
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -64,6 +66,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
      * those can only be dismissed by the user.
      */
     fun dismissProgress() {
+        if (isDownloading) progressNotificationBuilder.clearLiveUpdate()
         context.notificationManager.cancel(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
     }
 
@@ -123,6 +126,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
                 setProgress(100, download.progress, false)
             }
             setOngoing(true)
+            setLiveUpdate(context, download.progress.takeIf { it > 0 }?.let { "$it%" })
 
             show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
         }
@@ -152,6 +156,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
             setSmallIcon(R.drawable.ic_pause_24dp)
             setProgress(0, 0, false)
             setOngoing(false)
+            clearLiveUpdate()
             clearActions()
             // Open download manager when clicked
             setContentIntent(NotificationHandler.openAnimeDownloadManagerPendingActivity(context))
@@ -193,6 +198,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
      * @param animeId the id of the entry being warned about
      */
     fun onWarning(reason: String, timeout: Long? = null, contentIntent: PendingIntent? = null, animeId: Long? = null) {
+        demoteProgress()
         with(errorNotificationBuilder) {
             setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
             setStyle(NotificationCompat.BigTextStyle().bigText(reason))
@@ -222,6 +228,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
      * Called when the download job crash threshold is exceeded.
      */
     fun onCrashThresholdExceeded() {
+        demoteProgress()
         with(errorNotificationBuilder) {
             setContentTitle(context.stringResource(MR.strings.download_notifier_downloader_title))
             setContentText(context.stringResource(MR.strings.download_notifier_crash_threshold_exceeded))
@@ -244,6 +251,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
      * @param animeId the id of the entry that the error occurred on
      */
     fun onError(error: String? = null, episode: String? = null, animeTitle: String? = null, animeId: Long? = null) {
+        demoteProgress()
         // Create notification
         with(errorNotificationBuilder) {
             setContentTitle(
@@ -269,5 +277,11 @@ internal class AnimeDownloadNotifier(private val context: Context) {
 
         // Reset download information
         isDownloading = false
+    }
+
+    private fun demoteProgress() {
+        if (isDownloading) {
+            progressNotificationBuilder.clearLiveUpdate().show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
+        }
     }
 }

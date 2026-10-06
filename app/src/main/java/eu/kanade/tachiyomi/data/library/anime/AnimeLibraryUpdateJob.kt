@@ -29,6 +29,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.LibraryUpdateNotificationMode
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgress
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgressTracker
 import eu.kanade.tachiyomi.data.library.SkippedUpdate
@@ -105,7 +106,14 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private val filterEpisodesForDownload: FilterEpisodesForDownload = appGraph.filterEpisodesForDownload
     private val getAnimeSeasonsByParentId: GetAnimeSeasonsByParentId = appGraph.getAnimeSeasonsByParentId
 
-    private val notifier = AnimeLibraryUpdateNotifier(context)
+    private val notifier = AnimeLibraryUpdateNotifier(
+        context,
+        notificationMode = if (WORK_NAME_MANUAL in tags) {
+            LibraryUpdateNotificationMode.Live
+        } else {
+            LibraryUpdateNotificationMode.Standard
+        },
+    )
 
     private var animeToUpdate: List<LibraryAnime> = mutableListOf()
 

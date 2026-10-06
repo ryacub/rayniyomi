@@ -27,6 +27,7 @@
         tools:ignore="QueryAllPackagesPermission" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission
         android:name="android.permission.READ_APP_SPECIFIC_LOCALES"
         tools:ignore="ProtectedPermissions" />
