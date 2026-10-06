@@ -57,6 +57,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,7 +74,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
-import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
@@ -134,8 +134,8 @@ class MangaScreenModel(
     private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
     private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
     private val mangaRepository: MangaRepository = appGraph.mangaRepository,
-    private val filterChaptersForDownload: FilterChaptersForDownload = appGraph.filterChaptersForDownload,
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
+    private val entryRefresher: MangaEntryRefresher = appGraph.mangaEntryRefresher,
     private val translationManager: TranslationManager = appGraph.translationManager,
     private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
     private val fetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval,
@@ -266,6 +266,7 @@ class MangaScreenModel(
 
             val needRefreshInfo = !manga.initialized
             val needRefreshChapter = chapters.isEmpty()
+            val runningRefresh = entryRefresher.running(mangaId)
 
             // Show what we have earlier
             // One-shot initial render before any flow has emitted; the combine above corrects it
@@ -285,7 +286,7 @@ class MangaScreenModel(
                     translationSummary = translationSummaryFrom(translationStates, chapters),
                     availableScanlators = getAvailableScanlators.await(mangaId),
                     excludedScanlators = getExcludedScanlators.await(mangaId),
-                    isRefreshingData = needRefreshInfo || needRefreshChapter,
+                    isRefreshingData = needRefreshInfo || needRefreshChapter || runningRefresh != null,
                     dialog = null,
                     updateContext = updateContext.value,
                 )
@@ -295,66 +296,61 @@ class MangaScreenModel(
 
             // Some extensions reject a fetch that requests nothing.
             if (viewModelScope.isActive && (needRefreshInfo || needRefreshChapter)) {
-                fetchAllFromSource(
-                    manualFetch = false,
+                fetchMissingFromSource(
                     fetchDetails = needRefreshInfo,
                     fetchChapters = needRefreshChapter,
                 )
             }
+            runningRefresh?.let { showRefresh(it) }
 
             // Initial loading finished
             updateSuccessState { it.copy(isRefreshingData = false) }
         }
     }
 
-    fun fetchAllFromSource(manualFetch: Boolean = true) {
-        viewModelScope.launch {
-            updateSuccessState { it.copy(isRefreshingData = true) }
-            fetchAllFromSource(
-                manualFetch = manualFetch,
-                fetchDetails = true,
-                fetchChapters = true,
-            )
-            updateSuccessState { it.copy(isRefreshingData = false) }
-        }
+    fun fetchAllFromSource() {
+        val state = successState?.takeUnless { it.isRefreshingData } ?: return
+        val refresh = entryRefresher.refresh(state.source, state.manga)
+        viewModelScope.launch { showRefresh(refresh) }
+    }
+
+    private suspend fun showRefresh(refresh: Deferred<Result<Unit>>) {
+        updateSuccessState { it.copy(isRefreshingData = true) }
+        refresh.await().onFailure(::showFetchError)
+        updateSuccessState { it.copy(isRefreshingData = false) }
     }
 
     // Manga info - start
 
-    private suspend fun fetchAllFromSource(
-        manualFetch: Boolean,
-        fetchDetails: Boolean,
-        fetchChapters: Boolean,
-    ) {
+    private suspend fun fetchMissingFromSource(fetchDetails: Boolean, fetchChapters: Boolean) {
         val state = successState ?: return
         try {
             withContext(ioDispatcher) {
-                val update = updateMangaFromRemote(
+                updateMangaFromRemote(
                     source = state.source,
                     manga = state.manga,
                     fetchDetails = fetchDetails,
                     fetchChapters = fetchChapters,
-                    manualFetch = manualFetch,
                 )
                     .getOrThrow()
-
-                if (manualFetch) {
-                    downloadNewChapters(update.newChapters)
-                }
             }
         } catch (_: CancellationException) {
             // ignore
         } catch (e: Exception) {
-            val message = if (e is NoChaptersException) {
-                context.stringResource(MR.strings.no_chapters_error)
-            } else {
-                logcat(LogPriority.ERROR, e)
-                with(context) { e.formattedMessage }
-            }
+            showFetchError(e)
+        }
+    }
 
-            viewModelScope.launch {
-                snackbarHostState.showSnackbar(message = message)
-            }
+    private fun showFetchError(e: Throwable) {
+        val message = if (e is NoChaptersException) {
+            context.stringResource(MR.strings.no_chapters_error)
+        } else {
+            logcat(LogPriority.ERROR, e)
+            with(context) { e.formattedMessage }
+        }
+
+        viewModelScope.launch {
+            snackbarHostState.showSnackbar(message = message)
         }
     }
 
@@ -877,17 +873,6 @@ class MangaScreenModel(
                 }
             } catch (e: Throwable) {
                 logcat(LogPriority.ERROR, e)
-            }
-        }
-    }
-
-    private fun downloadNewChapters(chapters: List<Chapter>) {
-        viewModelScope.launchNonCancellable {
-            val manga = successState?.manga ?: return@launchNonCancellable
-            val chaptersToDownload = filterChaptersForDownload.await(manga, chapters)
-
-            if (chaptersToDownload.isNotEmpty()) {
-                downloadChapters(chaptersToDownload)
             }
         }
     }

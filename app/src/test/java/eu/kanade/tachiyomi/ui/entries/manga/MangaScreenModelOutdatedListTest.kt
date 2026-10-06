@@ -152,6 +152,7 @@ class MangaScreenModelOutdatedListTest {
             getMangaAndChapters = getMangaAndChapters,
             getCategories = mockk<GetMangaCategories> { every { subscribe(manga.id) } returns flowOf(emptyList()) },
             getTracks = mockk { every { subscribe(any<Long>()) } returns emptyFlow() },
+            entryRefresher = mockk<MangaEntryRefresher> { every { running(any()) } returns null },
             translationManager = mockk<TranslationManager> {
                 every { translationStates } returns MutableStateFlow(emptyMap())
             },
