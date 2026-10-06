@@ -27,6 +27,7 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.util.lang.chop
+import eu.kanade.tachiyomi.util.system.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
@@ -54,6 +55,14 @@ class MangaLibraryUpdateNotifier(
     private val percentFormatter = NumberFormat.getPercentInstance().apply {
         roundingMode = RoundingMode.DOWN
         maximumFractionDigits = 0
+    }
+
+    private val liveUpdateSession = lazy {
+        LiveUpdateNotificationSession(context, Notifications.ID_LIBRARY_PROGRESS)
+    }
+
+    fun onUpdateStarted() {
+        if (notificationMode == LibraryUpdateNotificationMode.Live) liveUpdateSession.value.reset()
     }
 
     /**
@@ -115,12 +124,12 @@ class MangaLibraryUpdateNotifier(
             progressNotificationBuilder.setLiveUpdate(context, "$current/$total")
         }
 
-        context.notify(
-            Notifications.ID_LIBRARY_PROGRESS,
-            progressNotificationBuilder
-                .setProgress(total, current, false)
-                .build(),
-        )
+        progressNotificationBuilder.setProgress(total, current, false)
+        if (notificationMode == LibraryUpdateNotificationMode.Live) {
+            liveUpdateSession.value.show(progressNotificationBuilder)
+        } else {
+            context.notify(Notifications.ID_LIBRARY_PROGRESS, progressNotificationBuilder.build())
+        }
     }
 
     /**
@@ -335,6 +344,7 @@ class MangaLibraryUpdateNotifier(
      * Cancels the progress notification.
      */
     fun cancelProgressNotification() {
+        if (liveUpdateSession.isInitialized()) liveUpdateSession.value.finish()
         context.cancelNotification(Notifications.ID_LIBRARY_PROGRESS)
     }
 

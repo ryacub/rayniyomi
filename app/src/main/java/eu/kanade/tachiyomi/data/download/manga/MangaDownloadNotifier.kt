@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
+import eu.kanade.tachiyomi.util.system.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.clearLiveUpdate
 import eu.kanade.tachiyomi.util.system.notificationBuilder
@@ -52,13 +53,25 @@ internal class MangaDownloadNotifier(private val context: Context) {
      */
     private var isDownloading = false
 
+    private val liveUpdateSession by lazy {
+        LiveUpdateNotificationSession(context, Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
+    }
+
+    fun onDownloadStarted() {
+        liveUpdateSession.reset()
+    }
+
     /**
      * Shows a notification from this builder.
      *
      * @param id the id of the notification.
      */
     private fun NotificationCompat.Builder.show(id: Int) {
-        context.notify(id, build())
+        if (id == Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS) {
+            liveUpdateSession.show(this)
+        } else {
+            context.notify(id, build())
+        }
     }
 
     /**
@@ -66,6 +79,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
      * those can only be dismissed by the user.
      */
     fun dismissProgress() {
+        liveUpdateSession.finish()
         if (isDownloading) progressNotificationBuilder.clearLiveUpdate()
         context.cancelNotification(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
     }

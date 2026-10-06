@@ -18,6 +18,7 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.PlayerActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
+import eu.kanade.tachiyomi.util.system.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getParcelableExtraCompat
 import eu.kanade.tachiyomi.util.system.notificationManager
@@ -68,6 +69,9 @@ class NotificationReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
+            ACTION_DISMISS_LIVE_UPDATE -> LiveUpdateNotificationSession.dismiss(
+                intent.getStringExtra(EXTRA_LIVE_UPDATE_TOKEN),
+            )
             // Dismiss notification
             ACTION_DISMISS_NOTIFICATION -> dismissNotification(
                 context,
@@ -554,6 +558,9 @@ class NotificationReceiver : BroadcastReceiver() {
         private const val ACTION_CLEAR_ANIME_DOWNLOADS = "$ID.$NAME.ACTION_CLEAR_ANIME_DOWNLOADS"
 
         private const val ACTION_DISMISS_NOTIFICATION = "$ID.$NAME.ACTION_DISMISS_NOTIFICATION"
+        private const val ACTION_DISMISS_LIVE_UPDATE = "$ID.$NAME.ACTION_DISMISS_LIVE_UPDATE"
+
+        private const val EXTRA_LIVE_UPDATE_TOKEN = "$ID.$NAME.LIVE_UPDATE_TOKEN"
 
         private const val EXTRA_URI = "$ID.$NAME.URI"
         private const val EXTRA_NOTIFICATION_ID = "$ID.$NAME.NOTIFICATION_ID"
@@ -561,6 +568,20 @@ class NotificationReceiver : BroadcastReceiver() {
         private const val EXTRA_MANGA_ID = "$ID.$NAME.EXTRA_MANGA_ID"
         private const val EXTRA_CHAPTER_ID = "$ID.$NAME.EXTRA_CHAPTER_ID"
         private const val EXTRA_CHAPTER_URL = "$ID.$NAME.EXTRA_CHAPTER_URL"
+
+        internal fun dismissLiveUpdatePendingBroadcast(context: Context, token: String): PendingIntent {
+            val intent = Intent(context, NotificationReceiver::class.java).apply {
+                action = ACTION_DISMISS_LIVE_UPDATE
+                data = token.toUri()
+                putExtra(EXTRA_LIVE_UPDATE_TOKEN, token)
+            }
+            return PendingIntent.getBroadcast(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
 
         /**
          * Returns a [PendingIntent] that resumes the download of a chapter

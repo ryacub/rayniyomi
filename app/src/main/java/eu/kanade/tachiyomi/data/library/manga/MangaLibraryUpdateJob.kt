@@ -133,6 +133,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         return withIOContext {
             try {
+                notifier.onUpdateStarted()
                 updateChapterList()
                 reportSkippedUpdates()
                 Result.success()

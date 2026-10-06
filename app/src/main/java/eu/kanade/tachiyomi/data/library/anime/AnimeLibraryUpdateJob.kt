@@ -149,6 +149,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         return withIOContext {
             try {
+                notifier.onUpdateStarted()
                 updateEpisodeList()
                 reportSkippedUpdates()
                 Result.success()
