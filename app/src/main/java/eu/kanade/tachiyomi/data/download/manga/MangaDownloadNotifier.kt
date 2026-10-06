@@ -3,23 +3,23 @@ package eu.kanade.tachiyomi.data.download.manga
 import android.app.PendingIntent
 import android.content.Context
 import android.graphics.drawable.Icon
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadStatusTracker
+import eu.kanade.tachiyomi.data.notification.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.notification.clearLiveUpdate
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
-import eu.kanade.tachiyomi.util.system.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.util.system.cancelNotification
-import eu.kanade.tachiyomi.util.system.clearLiveUpdate
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
-import eu.kanade.tachiyomi.util.system.setLiveUpdate
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -30,7 +30,10 @@ import java.util.regex.Pattern
  *
  * @param context context of application
  */
-internal class MangaDownloadNotifier(private val context: Context) {
+internal class MangaDownloadNotifier(
+    private val context: Context,
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
+) {
 
     private val preferences: SecurityPreferences by lazy { appGraph.securityPreferences }
 
@@ -54,7 +57,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
     private var isDownloading = false
 
     private val liveUpdateSession by lazy {
-        LiveUpdateNotificationSession(context, Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
+        LiveUpdateNotificationSession(context, Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS, sdkInt)
     }
 
     fun onDownloadStarted() {
@@ -80,7 +83,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
      */
     fun dismissProgress() {
         liveUpdateSession.finish()
-        if (isDownloading) progressNotificationBuilder.clearLiveUpdate()
+        if (isDownloading) progressNotificationBuilder.clearLiveUpdate(sdkInt)
         context.cancelNotification(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
     }
 
@@ -139,7 +142,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
 
             setProgress(download.pages!!.size, download.downloadedImages, false)
             setOngoing(true)
-            setLiveUpdate(context, "${download.downloadedImages}/${download.pages!!.size}")
+            liveUpdateSession.applyLiveUpdate(this, "${download.downloadedImages}/${download.pages!!.size}")
 
             show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
         }
@@ -169,7 +172,7 @@ internal class MangaDownloadNotifier(private val context: Context) {
             setSmallIcon(R.drawable.ic_pause_24dp)
             setProgress(0, 0, false)
             setOngoing(false)
-            clearLiveUpdate()
+            clearLiveUpdate(sdkInt)
             clearActions()
             // Open download manager when clicked
             setContentIntent(NotificationHandler.openDownloadManagerPendingActivity(context))
@@ -286,8 +289,8 @@ internal class MangaDownloadNotifier(private val context: Context) {
     }
 
     private fun demoteProgress() {
-        if (isDownloading) {
-            progressNotificationBuilder.clearLiveUpdate().show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
+        if (sdkInt >= Build.VERSION_CODES.BAKLAVA && isDownloading) {
+            progressNotificationBuilder.clearLiveUpdate(sdkInt).show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)
         }
     }
 }

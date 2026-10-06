@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.data.notification
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadNotifier
@@ -16,14 +15,15 @@ import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.di.AppGraph
 import eu.kanade.tachiyomi.di.AppGraphHolder
 import eu.kanade.tachiyomi.util.system.cancelNotification
-import eu.kanade.tachiyomi.util.system.clearLiveUpdate
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
-import eu.kanade.tachiyomi.util.system.setLiveUpdate
+import io.mockk.clearConstructorMockk
 import io.mockk.clearMocks
+import io.mockk.clearStaticMockk
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.runs
@@ -33,6 +33,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.entries.anime.model.Anime
@@ -52,7 +53,6 @@ class PromotedProgressNotifiersTest {
     fun setUp() {
         mockkStatic("tachiyomi.core.common.i18n.LocalizeKt")
         mockkStatic("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt")
-        mockkStatic("eu.kanade.tachiyomi.util.system.LiveUpdateNotificationKt")
         mockkObject(NotificationReceiver, NotificationHandler, AppGraphHolder)
         val graph = mockk<AppGraph>(relaxed = true)
         every { AppGraphHolder.graph } returns graph
@@ -74,6 +74,7 @@ class PromotedProgressNotifiersTest {
         every { NotificationReceiver.resumeAnimeDownloadsPendingBroadcast(context) } returns mockk()
         every { NotificationReceiver.clearDownloadsPendingBroadcast(context) } returns mockk()
         every { NotificationReceiver.clearAnimeDownloadsPendingBroadcast(context) } returns mockk()
+        every { NotificationReceiver.dismissLiveUpdatePendingBroadcast(context, any()) } returns mockk()
         every { NotificationHandler.openDownloadManagerPendingActivity(context) } returns mockk()
         every { NotificationHandler.openAnimeDownloadManagerPendingActivity(context) } returns mockk()
         every { context.notificationBuilder(any(), any()) } answers {
@@ -91,12 +92,6 @@ class PromotedProgressNotifiersTest {
             chipText = firstArg()
             builder
         }
-        every { builder.setLiveUpdate(context, any(), Build.VERSION.SDK_INT) } answers {
-            builder.setLiveUpdate(context, arg(2), sdkInt = 36)
-        }
-        every { builder.clearLiveUpdate(Build.VERSION.SDK_INT) } answers {
-            builder.clearLiveUpdate(sdkInt = 36)
-        }
     }
 
     @AfterEach
@@ -107,6 +102,10 @@ class PromotedProgressNotifiersTest {
     @ParameterizedTest
     @ValueSource(strings = ["manga", "anime"])
     fun `library progress promotes live mode and clears private titles`(media: String) {
+        mockkConstructor(LiveUpdateNotificationSession::class)
+        every { anyConstructed<LiveUpdateNotificationSession>().applyLiveUpdate(builder, any()) } answers {
+            builder.setLiveUpdate(true, secondArg(), sdkInt = 36)
+        }
         val manga = mockk<Manga>(relaxed = true) { every { title } returns "Manga title" }
         val anime = mockk<Anime>(relaxed = true) { every { title } returns "Anime title" }
         val show: (Int) -> Unit = when (media) {
@@ -117,6 +116,7 @@ class PromotedProgressNotifiersTest {
                     mockk(),
                     LibraryUpdateNotificationMode.Live,
                 )
+                notifier.onUpdateStarted()
                 val update: (Int) -> Unit = { current ->
                     notifier.showProgressNotification(listOf(manga), current, 19)
                 }
@@ -129,6 +129,7 @@ class PromotedProgressNotifiersTest {
                     mockk(),
                     LibraryUpdateNotificationMode.Live,
                 )
+                notifier.onUpdateStarted()
                 val update: (Int) -> Unit = { current ->
                     notifier.showProgressNotification(listOf(anime), current, 19)
                 }
@@ -136,6 +137,7 @@ class PromotedProgressNotifiersTest {
             }
         }
         show(2)
+        verify(exactly = 1) { anyConstructed<LiveUpdateNotificationSession>().reset() }
         assertEquals(true, promoted)
         assertEquals("2/19", chipText)
         verify { builder.setProgress(19, 2, false) }
@@ -145,6 +147,7 @@ class PromotedProgressNotifiersTest {
         verify { builder.setStyle(null) }
 
         clearMocks(builder, answers = false)
+        clearConstructorMockk(LiveUpdateNotificationSession::class, answers = false)
         when (media) {
             "manga" -> MangaLibraryUpdateNotifier(context, security, mockk())
                 .showProgressNotification(listOf(manga), 2, 19)
@@ -153,6 +156,42 @@ class PromotedProgressNotifiersTest {
         }
         verify(exactly = 0) { builder.setRequestPromotedOngoing(any()) }
         verify(exactly = 0) { builder.setShortCriticalText(any()) }
+        verify(exactly = 0) { anyConstructed<LiveUpdateNotificationSession>().reset() }
+        verify(exactly = 0) { anyConstructed<LiveUpdateNotificationSession>().applyLiveUpdate(any(), any()) }
+    }
+
+    @ParameterizedTest
+    @CsvSource("manga, warning", "manga, error", "manga, crash", "anime, warning", "anime, error", "anime, crash")
+    fun `older Android does not repost progress before a failure notice`(media: String, failure: String) {
+        val mangaNotifier = MangaDownloadNotifier(context, sdkInt = 35)
+        val animeNotifier = AnimeDownloadNotifier(context, sdkInt = 35)
+        val progressId = when (media) {
+            "manga" -> {
+                val download = mockk<MangaDownload>(relaxed = true) {
+                    every { pages } returns List(19) { mockk(relaxed = true) }
+                }
+                mangaNotifier.onProgressChange(download)
+                Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS
+            }
+            else -> {
+                animeNotifier.onProgressChange(mockk(relaxed = true))
+                Notifications.ID_DOWNLOAD_EPISODE_PROGRESS
+            }
+        }
+        clearStaticMockk(
+            Class.forName("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt").kotlin,
+            answers = false,
+        )
+        when (media to failure) {
+            "manga" to "warning" -> mangaNotifier.onWarning("No network")
+            "manga" to "error" -> mangaNotifier.onError("Failed")
+            "manga" to "crash" -> mangaNotifier.onCrashThresholdExceeded()
+            "anime" to "warning" -> animeNotifier.onWarning("No network")
+            "anime" to "error" -> animeNotifier.onError("Failed")
+            else -> animeNotifier.onCrashThresholdExceeded()
+        }
+        verify(exactly = 0) { context.notify(progressId, any<Notification>()) }
+        verify(exactly = 1) { context.notify(neq(progressId), any<Notification>()) }
     }
 
     @ParameterizedTest
@@ -169,8 +208,12 @@ class PromotedProgressNotifiersTest {
             every { this@mockk.anime.title } returns "Anime title"
             every { episode.name } returns "Episode 1"
         }
-        val mangaNotifier = MangaDownloadNotifier(context)
-        val animeNotifier = AnimeDownloadNotifier(context)
+        val mangaNotifier = MangaDownloadNotifier(context, sdkInt = 36)
+        val animeNotifier = AnimeDownloadNotifier(context, sdkInt = 36)
+        when (media) {
+            "manga" -> mangaNotifier.onDownloadStarted()
+            else -> animeNotifier.onDownloadStarted()
+        }
         fun progress() = when (media) {
             "manga" -> mangaNotifier.onProgressChange(manga)
             else -> animeNotifier.onProgressChange(anime)

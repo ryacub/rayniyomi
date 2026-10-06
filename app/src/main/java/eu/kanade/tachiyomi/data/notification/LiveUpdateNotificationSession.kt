@@ -1,16 +1,19 @@
-package eu.kanade.tachiyomi.util.system
+package eu.kanade.tachiyomi.data.notification
 
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import eu.kanade.tachiyomi.data.notification.NotificationReceiver
+import eu.kanade.tachiyomi.util.system.notificationManager
+import eu.kanade.tachiyomi.util.system.notify
 import java.util.UUID
 
 internal class LiveUpdateNotificationSession(
     private val context: Context,
     private val notificationId: Int,
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
 ) {
     private var token = UUID.randomUUID().toString()
+    private var promotionPermitted = false
     private var dismissed = false
     private var finished = false
     private var postedTokens = emptyList<String>()
@@ -20,11 +23,17 @@ internal class LiveUpdateNotificationSession(
         token = UUID.randomUUID().toString()
         dismissed = false
         finished = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) sessions[token] = this
+        promotionPermitted = sdkInt >= Build.VERSION_CODES.BAKLAVA &&
+            context.notificationManager.canPostPromotedNotifications()
+        if (sdkInt >= Build.VERSION_CODES.BAKLAVA) sessions[token] = this
+    }
+
+    fun applyLiveUpdate(builder: NotificationCompat.Builder, shortText: String?) {
+        builder.setLiveUpdate(promotionPermitted, shortText, sdkInt)
     }
 
     fun show(builder: NotificationCompat.Builder) = synchronized(sessions) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+        if (sdkInt < Build.VERSION_CODES.BAKLAVA) {
             context.notify(notificationId, builder.build())
             return@synchronized
         }

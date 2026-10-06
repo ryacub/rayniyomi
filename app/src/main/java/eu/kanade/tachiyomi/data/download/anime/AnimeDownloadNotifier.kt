@@ -3,23 +3,23 @@ package eu.kanade.tachiyomi.data.download.anime
 import android.app.PendingIntent
 import android.content.Context
 import android.graphics.drawable.Icon
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadStatusTracker
+import eu.kanade.tachiyomi.data.notification.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.notification.clearLiveUpdate
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.download.displayReasonText
 import eu.kanade.tachiyomi.util.lang.chop
-import eu.kanade.tachiyomi.util.system.LiveUpdateNotificationSession
-import eu.kanade.tachiyomi.util.system.clearLiveUpdate
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notificationManager
 import eu.kanade.tachiyomi.util.system.notify
-import eu.kanade.tachiyomi.util.system.setLiveUpdate
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -30,7 +30,10 @@ import java.util.regex.Pattern
  *
  * @param context context of application
  */
-internal class AnimeDownloadNotifier(private val context: Context) {
+internal class AnimeDownloadNotifier(
+    private val context: Context,
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
+) {
 
     private val preferences: SecurityPreferences by lazy { appGraph.securityPreferences }
 
@@ -54,7 +57,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
     private var isDownloading = false
 
     private val liveUpdateSession by lazy {
-        LiveUpdateNotificationSession(context, Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
+        LiveUpdateNotificationSession(context, Notifications.ID_DOWNLOAD_EPISODE_PROGRESS, sdkInt)
     }
 
     fun onDownloadStarted() {
@@ -80,7 +83,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
      */
     fun dismissProgress() {
         liveUpdateSession.finish()
-        if (isDownloading) progressNotificationBuilder.clearLiveUpdate()
+        if (isDownloading) progressNotificationBuilder.clearLiveUpdate(sdkInt)
         context.notificationManager.cancel(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
     }
 
@@ -140,7 +143,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
                 setProgress(100, download.progress, false)
             }
             setOngoing(true)
-            setLiveUpdate(context, download.progress.takeIf { it > 0 }?.let { "$it%" })
+            liveUpdateSession.applyLiveUpdate(this, download.progress.takeIf { it > 0 }?.let { "$it%" })
 
             show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
         }
@@ -170,7 +173,7 @@ internal class AnimeDownloadNotifier(private val context: Context) {
             setSmallIcon(R.drawable.ic_pause_24dp)
             setProgress(0, 0, false)
             setOngoing(false)
-            clearLiveUpdate()
+            clearLiveUpdate(sdkInt)
             clearActions()
             // Open download manager when clicked
             setContentIntent(NotificationHandler.openAnimeDownloadManagerPendingActivity(context))
@@ -294,8 +297,8 @@ internal class AnimeDownloadNotifier(private val context: Context) {
     }
 
     private fun demoteProgress() {
-        if (isDownloading) {
-            progressNotificationBuilder.clearLiveUpdate().show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
+        if (sdkInt >= Build.VERSION_CODES.BAKLAVA && isDownloading) {
+            progressNotificationBuilder.clearLiveUpdate(sdkInt).show(Notifications.ID_DOWNLOAD_EPISODE_PROGRESS)
         }
     }
 }

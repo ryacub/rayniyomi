@@ -20,6 +20,7 @@ import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloader
 import eu.kanade.tachiyomi.data.library.LibraryUpdateNotificationMode
+import eu.kanade.tachiyomi.data.notification.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -27,12 +28,10 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.util.lang.chop
-import eu.kanade.tachiyomi.util.system.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
-import eu.kanade.tachiyomi.util.system.setLiveUpdate
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -115,7 +114,7 @@ class AnimeLibraryUpdateNotifier(
         }
 
         if (notificationMode == LibraryUpdateNotificationMode.Live) {
-            progressNotificationBuilder.setLiveUpdate(context, "$current/$total")
+            liveUpdateSession.value.applyLiveUpdate(progressNotificationBuilder, "$current/$total")
         }
 
         progressNotificationBuilder.setProgress(total, current, false)
