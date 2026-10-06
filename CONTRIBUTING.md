@@ -40,9 +40,9 @@ Before you start, please note that the ability to use following technologies is 
 
 - [Android Studio](https://developer.android.com/studio)
 - Emulator or phone with developer options enabled to test changes.
-- **JDK 17** is required for building and running tests.
-  - Recommended: [Eclipse Temurin 17](https://adoptium.net/temurin/releases/?version=17) (matches CI environment)
-  - The project uses `GradleJavaVersion.VERSION_17` as defined in `buildSrc/src/main/kotlin/mihon/buildlogic/AndroidConfig.kt`
+- **JDK 21** is required to build and run tests.
+  - Recommended: [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21) (matches CI environment)
+  - `AndroidConfig.kt` sets the bytecode level to Java 17 (`GradleJavaVersion.VERSION_17`) in `buildSrc/src/main/kotlin/mihon/buildlogic/AndroidConfig.kt`.
 
 ## Getting help
 
