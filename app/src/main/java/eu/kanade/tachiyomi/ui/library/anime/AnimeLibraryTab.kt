@@ -151,9 +151,10 @@ data object AnimeLibraryTab : Tab {
 
         val defaultTitle = stringResource(AYMR.strings.label_anime_library)
 
-        if (showUpdateSummary && updateSummary != null) {
+        val visibleSummary = updateSummary.takeIf { showUpdateSummary }
+        if (visibleSummary != null) {
             LibraryUpdateSummarySheet(
-                summary = updateSummary!!,
+                summary = visibleSummary,
                 onDismissRequest = { showUpdateSummary = false },
                 onOpenEntry = { id ->
                     showUpdateSummary = false
