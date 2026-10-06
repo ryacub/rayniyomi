@@ -88,6 +88,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.filler.AnimeFillerSource
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSummaryStore
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
@@ -346,6 +347,7 @@ interface AppGraph : LocalSourceGraph, WidgetGraph {
     val externalIntents: ExternalIntents
     val castManager: CastManager
     val preferenceStore: PreferenceStore
+    val libraryUpdateSummaryStore: LibraryUpdateSummaryStore
     val networkPreferences: NetworkPreferences
     val sourcePreferences: SourcePreferences
     override val securityPreferences: SecurityPreferences

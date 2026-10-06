@@ -37,6 +37,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.filler.AnimeFillerListSource
 import eu.kanade.tachiyomi.data.filler.AnimeFillerSource
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSummaryStore
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
@@ -68,6 +69,7 @@ import nl.adaptivity.xmlutil.XmlDeclMode.Charset
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.OkHttpClient
+import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.storage.AndroidStorageFolderProvider
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.Database
@@ -221,6 +223,13 @@ object AppModule {
             ignoreUnknownKeys = true
             explicitNulls = false
         }
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideLibraryUpdateSummaryStore(
+        preferenceStore: PreferenceStore,
+        json: Json,
+    ): LibraryUpdateSummaryStore = LibraryUpdateSummaryStore(preferenceStore, json)
 
     @Provides
     @SingleIn(AppScope::class)

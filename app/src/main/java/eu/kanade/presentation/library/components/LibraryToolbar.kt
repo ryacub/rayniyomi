@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.SearchToolbar
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSummary
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.Pill
@@ -27,7 +28,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.theme.active
 
 @Composable
-fun LibraryToolbar(
+internal fun LibraryToolbar(
     hasActiveFilters: Boolean,
     selectedCount: Int,
     title: LibraryToolbarTitle,
@@ -44,7 +45,10 @@ fun LibraryToolbar(
     scrollBehavior: TopAppBarScrollBehavior?,
     navigateUp: (() -> Unit)? = null,
     updateProgress: LibraryToolbarProgress? = null,
+    updateSummary: LibraryUpdateSummary? = null,
     onClickCancelUpdate: () -> Unit = {},
+    onClickUpdateSummaryInfo: () -> Unit = {},
+    onClickCloseUpdateSummary: () -> Unit = {},
 ) {
     Column {
         when {
@@ -72,6 +76,12 @@ fun LibraryToolbar(
             LibraryUpdateProgressRow(
                 progress = updateProgress,
                 onClickCancelUpdate = onClickCancelUpdate,
+            )
+        } else if (updateSummary != null) {
+            LibraryUpdateSummaryRow(
+                summary = updateSummary,
+                onClickInfo = onClickUpdateSummaryInfo,
+                onClickClose = onClickCloseUpdateSummary,
             )
         }
     }

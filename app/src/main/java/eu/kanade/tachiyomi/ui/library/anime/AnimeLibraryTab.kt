@@ -14,8 +14,11 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -38,9 +41,12 @@ import eu.kanade.presentation.library.anime.AnimeLibrarySettingsDialog
 import eu.kanade.presentation.library.components.LibrarySearchHelpDialog
 import eu.kanade.presentation.library.components.LibraryToolbar
 import eu.kanade.presentation.library.components.LibraryToolbarProgress
+import eu.kanade.presentation.library.components.LibraryUpdateSummarySheet
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
+import eu.kanade.presentation.more.settings.screen.SettingsLibraryScreen
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.data.library.LibraryUpdateMedia
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
 import eu.kanade.tachiyomi.data.library.launchLibraryUpdateCancellation
 import eu.kanade.tachiyomi.data.library.toLibraryUpdateProgressOrNull
@@ -112,6 +118,16 @@ data object AnimeLibraryTab : Tab {
                 .map { it.toLibraryUpdateProgressOrNull() }
         }
         val updateProgress by updateProgressFlow.collectAsStateWithLifecycle(initialValue = null)
+        val summaryStore = remember { appGraph.libraryUpdateSummaryStore }
+        val updateSummaryFlow = remember(summaryStore) { summaryStore.changes(LibraryUpdateMedia.ANIME) }
+        val updateSummary by updateSummaryFlow.collectAsStateWithLifecycle(
+            initialValue = summaryStore.get(LibraryUpdateMedia.ANIME),
+        )
+        var showUpdateSummary by rememberSaveable { mutableStateOf(false) }
+
+        LaunchedEffect(updateSummary?.executionId) {
+            if (updateSummary == null) showUpdateSummary = false
+        }
 
         val snackbarHostState = remember { SnackbarHostState() }
 
@@ -134,6 +150,22 @@ data object AnimeLibraryTab : Tab {
         val libraryListSize by libraryPreferences.libraryListSize().collectAsStateWithLifecycle()
 
         val defaultTitle = stringResource(AYMR.strings.label_anime_library)
+
+        val visibleSummary = updateSummary.takeIf { showUpdateSummary }
+        if (visibleSummary != null) {
+            LibraryUpdateSummarySheet(
+                summary = visibleSummary,
+                onDismissRequest = { showUpdateSummary = false },
+                onOpenEntry = { id ->
+                    showUpdateSummary = false
+                    navigator.push(AnimeScreen(id))
+                },
+                onOpenSettings = {
+                    showUpdateSummary = false
+                    navigator.push(SettingsLibraryScreen)
+                },
+            )
+        }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -180,8 +212,15 @@ data object AnimeLibraryTab : Tab {
                     updateProgress = updateProgress?.let {
                         LibraryToolbarProgress(it.activeTitles, it.completed, it.total)
                     },
+                    updateSummary = updateSummary,
                     onClickCancelUpdate = {
                         scope.launchLibraryUpdateCancellation { AnimeLibraryUpdateJob.stop(context) }
+                    },
+                    onClickUpdateSummaryInfo = { showUpdateSummary = true },
+                    onClickCloseUpdateSummary = {
+                        updateSummary?.let {
+                            summaryStore.close(LibraryUpdateMedia.ANIME, it.executionId)
+                        }
                     },
                 )
             },

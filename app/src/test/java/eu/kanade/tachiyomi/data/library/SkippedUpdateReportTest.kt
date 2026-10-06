@@ -15,7 +15,7 @@ class SkippedUpdateReportTest {
     @ParameterizedTest
     @EnumSource(AutoUpdateSkipReason::class)
     internal fun `manual report lists reason, source, and title for every skip reason`(reason: AutoUpdateSkipReason) {
-        val skipped = listOf(SkippedUpdate(reason, source = "Source A", title = "Title A"))
+        val skipped = listOf(SkippedUpdate(id = 1L, reason = reason, source = "Source A", title = "Title A"))
 
         val report = formatSkippedUpdateReport(
             header = "Header",
@@ -33,14 +33,14 @@ class SkippedUpdateReportTest {
 
     @Test
     fun `automatic run has no report even with skips`() {
-        val skipped = AutoUpdateSkipReason.entries.map { SkippedUpdate(it, "Source", "Title") }
+        val skipped = AutoUpdateSkipReason.entries.map { SkippedUpdate(1L, it, "Source", "Title") }
 
         skippedUpdatesForReport(isManualRun = false, skipped = skipped).shouldBeEmpty()
     }
 
     @Test
     fun `manual run keeps every skipped item`() {
-        val skipped = AutoUpdateSkipReason.entries.map { SkippedUpdate(it, "Source", "Title ${it.name}") }
+        val skipped = AutoUpdateSkipReason.entries.map { SkippedUpdate(1L, it, "Source", "Title ${it.name}") }
 
         skippedUpdatesForReport(isManualRun = true, skipped = skipped) shouldContainExactly skipped
     }
@@ -48,10 +48,10 @@ class SkippedUpdateReportTest {
     @Test
     fun `report groups by reason then source with sorted titles`() {
         val skipped = listOf(
-            SkippedUpdate(AutoUpdateSkipReason.OUTSIDE_RELEASE_PERIOD, "Source B", "Zeta"),
-            SkippedUpdate(AutoUpdateSkipReason.COMPLETED, "Source B", "Beta"),
-            SkippedUpdate(AutoUpdateSkipReason.COMPLETED, "Source A", "Gamma"),
-            SkippedUpdate(AutoUpdateSkipReason.COMPLETED, "Source B", "Alpha"),
+            SkippedUpdate(1L, AutoUpdateSkipReason.OUTSIDE_RELEASE_PERIOD, "Source B", "Zeta"),
+            SkippedUpdate(2L, AutoUpdateSkipReason.COMPLETED, "Source B", "Beta"),
+            SkippedUpdate(3L, AutoUpdateSkipReason.COMPLETED, "Source A", "Gamma"),
+            SkippedUpdate(4L, AutoUpdateSkipReason.COMPLETED, "Source B", "Alpha"),
         )
 
         val report = formatSkippedUpdateReport("H", skipped) { it.name }

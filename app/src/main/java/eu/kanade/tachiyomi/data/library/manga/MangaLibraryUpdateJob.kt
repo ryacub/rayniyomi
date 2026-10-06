@@ -21,8 +21,13 @@ import androidx.work.workDataOf
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.LibraryUpdateMedia
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgress
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgressTracker
+import eu.kanade.tachiyomi.data.library.LibraryUpdateResultAccumulator
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSkippedEntry
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSummaryEntry
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSummaryStore
 import eu.kanade.tachiyomi.data.library.SkippedUpdate
 import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.skippedUpdatesForReport
@@ -42,6 +47,7 @@ import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -50,6 +56,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
 import tachiyomi.core.common.i18n.stringResource
@@ -88,6 +95,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private val mangaFetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval
     private val filterChaptersForDownload: FilterChaptersForDownload = appGraph.filterChaptersForDownload
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote
+    private val summaryStore = appGraph.libraryUpdateSummaryStore
 
     private val notifier = MangaLibraryUpdateNotifier(context)
 
@@ -111,35 +119,73 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             }
         }
 
-        try {
-            setForeground(getForegroundInfo())
-        } catch (e: IllegalStateException) {
-            logcat(LogPriority.ERROR, e) { "Not allowed to set foreground job" }
-        }
+        val executionId = id.toString()
+        val resultAccumulator = LibraryUpdateResultAccumulator()
+        var skippedLogPath: String? = null
+        var errorLogPath: String? = null
+        summaryStore.start(LibraryUpdateMedia.MANGA, executionId)
 
-        if (WORK_NAME_MANUAL in tags) notifier.cancelUpdateSkippedNotification()
-        libraryPreferences.lastUpdatedTimestamp().set(Instant.now().toEpochMilli())
-
-        val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
-        addMangaToQueue(categoryId)
-
-        return withIOContext {
+        return try {
             try {
-                updateChapterList()
-                reportSkippedUpdates()
-                Result.success()
-            } catch (e: Exception) {
-                if (e is CancellationException) {
-                    // Assume success although cancelled
-                    Result.success()
-                } else {
-                    logcat(LogPriority.ERROR, e)
-                    Result.failure()
-                }
-            } finally {
-                notifier.cancelProgressNotification()
+                setForeground(getForegroundInfo())
+            } catch (e: IllegalStateException) {
+                if (e is CancellationException) throw e
+                logcat(LogPriority.ERROR, e) { "Not allowed to set foreground job" }
             }
+
+            if (WORK_NAME_MANUAL in tags) notifier.cancelUpdateSkippedNotification()
+            libraryPreferences.lastUpdatedTimestamp().set(Instant.now().toEpochMilli())
+
+            withIOContext {
+                val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
+                addMangaToQueue(categoryId)
+                errorLogPath = updateChapterList(resultAccumulator)
+                skippedLogPath = reportSkippedUpdates()
+                finishSummary(
+                    executionId = executionId,
+                    resultAccumulator = resultAccumulator,
+                    skippedLogPath = skippedLogPath,
+                    errorLogPath = errorLogPath,
+                )
+                Result.success()
+            }
+        } catch (e: Exception) {
+            if (e !is CancellationException) {
+                logcat(LogPriority.ERROR, e)
+            }
+            withContext(NonCancellable) {
+                finishSummary(
+                    executionId = executionId,
+                    resultAccumulator = resultAccumulator,
+                    skippedLogPath = skippedLogPath,
+                    errorLogPath = errorLogPath,
+                    interrupted = true,
+                )
+            }
+            if (e is CancellationException) Result.success() else Result.failure()
+        } finally {
+            notifier.cancelProgressNotification()
         }
+    }
+
+    private fun finishSummary(
+        executionId: String,
+        resultAccumulator: LibraryUpdateResultAccumulator,
+        skippedLogPath: String?,
+        errorLogPath: String?,
+        interrupted: Boolean = false,
+    ) {
+        summaryStore.finish(
+            media = LibraryUpdateMedia.MANGA,
+            executionId = executionId,
+            result = resultAccumulator.snapshot(
+                skipped = skippedUpdates.toSummaryEntries(),
+                skippedLogPath = skippedLogPath,
+                errorLogPath = errorLogPath,
+            ),
+            finishedAt = Instant.now().toEpochMilli(),
+            interrupted = interrupted,
+        )
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
@@ -208,7 +254,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
                 if (skipReason != null) {
                     val source = sourceManager.getOrStub(it.manga.source).toString()
-                    skipped.add(SkippedUpdate(skipReason, source, it.manga.title))
+                    skipped.add(SkippedUpdate(it.manga.id, skipReason, source, it.manga.title))
                     false
                 } else {
                     true
@@ -229,7 +275,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         }
     }
 
-    private fun reportSkippedUpdates() {
+    private fun reportSkippedUpdates(): String? {
         val isManualRun = WORK_NAME_MANUAL in tags
         val skipped = skippedUpdatesForReport(isManualRun = isManualRun, skipped = skippedUpdates)
 
@@ -240,6 +286,14 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         } else if (outcome is ErrorLogWriteOutcome.Failed) {
             logcat(LogPriority.WARN, outcome.cause) { "Failed to write manga library update skipped file" }
         }
+        return (outcome as? ErrorLogWriteOutcome.Created)?.file?.absolutePath
+    }
+
+    private fun List<SkippedUpdate>.toSummaryEntries() = map {
+        LibraryUpdateSkippedEntry(
+            entry = LibraryUpdateSummaryEntry(it.id, it.title),
+            reason = it.reason,
+        )
     }
 
     /**
@@ -250,7 +304,9 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
      *
      * @return an observable delivering the progress of each update.
      */
-    private suspend fun CoroutineScope.updateChapterList() {
+    private suspend fun CoroutineScope.updateChapterList(
+        resultAccumulator: LibraryUpdateResultAccumulator,
+    ): String? {
         val semaphore = Semaphore(5)
         val progressTracker = LibraryUpdateProgressTracker(
             total = mangaToUpdate.size,
@@ -309,17 +365,24 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
                                             // Convert to the manga that contains new chapters
                                             newUpdates.add(manga to newChapters.toTypedArray())
+                                            resultAccumulator.addUpdated(
+                                                LibraryUpdateSummaryEntry(manga.id, manga.title),
+                                            )
                                         }
                                     } catch (e: Throwable) {
-                                        val errorMessage = when (e) {
-                                            is NoChaptersException -> context.stringResource(
-                                                MR.strings.no_chapters_error,
-                                            )
-                                            // failedUpdates will already have the source, don't need to copy it into the message
-                                            is SourceNotInstalledException -> context.stringResource(
-                                                MR.strings.loader_not_implemented_error,
-                                            )
-                                            else -> e.message
+                                        val errorMessage = resultAccumulator.addFailed(
+                                            entry = LibraryUpdateSummaryEntry(manga.id, manga.title),
+                                            throwable = e,
+                                        ) { failure ->
+                                            when (failure) {
+                                                is NoChaptersException -> context.stringResource(
+                                                    MR.strings.no_chapters_error,
+                                                )
+                                                is SourceNotInstalledException -> context.stringResource(
+                                                    MR.strings.loader_not_implemented_error,
+                                                )
+                                                else -> failure.message
+                                            }
                                         }
                                         failedUpdates.add(manga to errorMessage)
                                     }
@@ -345,9 +408,11 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             }
         }
 
+        var errorLogPath: String? = null
         if (failedUpdates.isNotEmpty()) {
             when (val errorLogOutcome = writeErrorFile(failedUpdates)) {
                 is ErrorLogWriteOutcome.Created -> {
+                    errorLogPath = errorLogOutcome.file.absolutePath
                     val shareableErrorFile = errorLogOutcome.file.takeIf(::hasShareableErrorLogFile)
                     if (shareableErrorFile != null) {
                         notifier.showUpdateErrorNotification(
@@ -368,6 +433,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
                 }
             }
         }
+        return errorLogPath
     }
 
     private fun downloadChapters(manga: Manga, chapters: List<Chapter>) {
@@ -533,6 +599,10 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
         }
 
         fun stop(context: Context) {
+            stop(context, appGraph.libraryUpdateSummaryStore)
+        }
+
+        internal fun stop(context: Context, summaryStore: LibraryUpdateSummaryStore) {
             val wm = context.workManager
             val workQuery = WorkQuery.Builder.fromTags(listOf(TAG))
                 .addStates(listOf(WorkInfo.State.RUNNING))
@@ -540,6 +610,10 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             wm.getWorkInfos(workQuery).get()
                 // Should only return one work but just in case
                 .forEach {
+                    summaryStore.requestUserCancellation(
+                        LibraryUpdateMedia.MANGA,
+                        it.id.toString(),
+                    )
                     wm.cancelWorkById(it.id)
 
                     // Re-enqueue cancelled scheduled work
