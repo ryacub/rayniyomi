@@ -4,6 +4,7 @@ import android.app.Application
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metrox.viewmodel.ViewModelGraph
 import eu.kanade.domain.CategoryBindings
 import eu.kanade.domain.DomainModule
 import eu.kanade.domain.EntryBindings
@@ -292,7 +293,7 @@ import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
         SYDomainModule::class,
     ],
 )
-interface AppGraph : LocalSourceGraph, WidgetGraph {
+interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
 
     override val application: Application
     val database: Database

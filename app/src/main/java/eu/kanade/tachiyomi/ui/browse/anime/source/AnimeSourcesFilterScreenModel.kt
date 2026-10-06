@@ -1,13 +1,18 @@
 package eu.kanade.tachiyomi.ui.browse.anime.source
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.source.anime.interactor.GetLanguagesWithAnimeSources
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
 import eu.kanade.domain.source.interactor.ToggleLanguage
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -16,11 +21,14 @@ import kotlinx.coroutines.launch
 import tachiyomi.domain.source.anime.model.AnimeSource
 import java.util.SortedMap
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeSourcesFilterScreenModel(
-    private val preferences: SourcePreferences = appGraph.sourcePreferences,
-    private val getLanguagesWithSources: GetLanguagesWithAnimeSources = appGraph.getLanguagesWithAnimeSources,
-    private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
-    private val toggleLanguage: ToggleLanguage = appGraph.toggleLanguage,
+    private val preferences: SourcePreferences,
+    private val getLanguagesWithSources: GetLanguagesWithAnimeSources,
+    private val toggleSource: ToggleAnimeSource,
+    private val toggleLanguage: ToggleLanguage,
 ) : StateViewModel<AnimeSourcesFilterScreenModel.State>(State.Loading) {
 
     init {

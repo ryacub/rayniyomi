@@ -294,6 +294,8 @@ dependencies {
     implementation(androidx.lifecycle.runtimecompose)
     implementation(androidx.lifecycle.viewmodel)
     implementation(androidx.lifecycle.viewmodelcompose)
+    implementation(libs.metrox.viewmodel)
+    implementation(libs.metrox.viewmodel.compose)
 
     // Job scheduling
     implementation(androidx.workmanager)

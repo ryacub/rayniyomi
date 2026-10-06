@@ -2,9 +2,15 @@ package eu.kanade.tachiyomi.ui.browse.anime.migration.anime
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeSource
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -22,11 +28,19 @@ import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
+@AssistedInject
 class MigrateAnimeScreenModel(
-    private val sourceId: Long,
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val getFavorites: GetAnimeFavorites = appGraph.getAnimeFavorites,
+    @Assisted private val sourceId: Long,
+    private val sourceManager: AnimeSourceManager,
+    private val getFavorites: GetAnimeFavorites,
 ) : StateViewModel<MigrateAnimeScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(sourceId: Long): MigrateAnimeScreenModel
+    }
 
     private val _events: Channel<MigrationAnimeEvent> = Channel(Channel.BUFFERED)
     val events: Flow<MigrationAnimeEvent> = _events.receiveAsFlow()
