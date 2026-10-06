@@ -31,18 +31,25 @@ import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.EntryUpdateContext
+import eu.kanade.tachiyomi.data.library.isEntryListOutdated
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
 import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
 import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
 import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
 import eu.kanade.tachiyomi.ui.entries.common.EntryTrackingSummaryObserver
 import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
+import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
+import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
@@ -52,11 +59,15 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -76,6 +87,7 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.applyFilter
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
 import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.model.DuplicateConfidence
@@ -93,6 +105,7 @@ import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.manga.isLocal
+import java.time.Clock
 
 class MangaScreenModel(
     private val context: Context,
@@ -125,6 +138,8 @@ class MangaScreenModel(
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
     private val translationManager: TranslationManager = appGraph.translationManager,
     private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
+    private val fetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval,
+    private val clock: Clock = Clock.systemDefaultZone(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<MangaScreenModel.State>(State.Loading) {
@@ -136,6 +151,16 @@ class MangaScreenModel(
 
     val manga: Manga?
         get() = successState?.manga
+
+    private val updateContext = entryUpdateContextFlow(
+        restrictions = libraryPreferences.autoUpdateItemRestrictions().changes(),
+        includedCategories = libraryPreferences.mangaUpdateCategories().changes(),
+        excludedCategories = libraryPreferences.mangaUpdateCategoriesExclude().changes(),
+        entryCategoryIds = getCategories.subscribe(mangaId).map { categories -> categories.map { it.id } },
+        fetchWindow = fetchWindowFlow(fetchInterval::getWindow, clock, lifecycle),
+    )
+        .flowOn(ioDispatcher)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val source: MangaSource?
         get() = successState?.source
@@ -176,7 +201,7 @@ class MangaScreenModel(
     }
 
     init {
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             combine(
                 getMangaAndChapters.subscribe(mangaId, applyScanlatorFilter = true).distinctUntilChanged(),
                 downloadCache.changes,
@@ -201,7 +226,7 @@ class MangaScreenModel(
                 }
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             getExcludedScanlators.subscribe(mangaId)
                 .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
@@ -212,7 +237,7 @@ class MangaScreenModel(
                 }
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             getAvailableScanlators.subscribe(mangaId)
                 .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
@@ -221,6 +246,12 @@ class MangaScreenModel(
                         it.copy(availableScanlators = availableScanlators)
                     }
                 }
+        }
+
+        viewModelScope.launch(ioDispatcher) {
+            updateContext.collectLatest { context ->
+                updateSuccessState { it.copy(updateContext = context) }
+            }
         }
 
         observeDownloads()
@@ -256,6 +287,7 @@ class MangaScreenModel(
                     excludedScanlators = getExcludedScanlators.await(mangaId),
                     isRefreshingData = needRefreshInfo || needRefreshChapter,
                     dialog = null,
+                    updateContext = updateContext.value,
                 )
             }
             // Start observe tracking since it only needs mangaId
@@ -536,7 +568,7 @@ class MangaScreenModel(
     // Chapters list - start
 
     private fun observeDownloads() {
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             downloadManager.statusFlow()
                 .filter { it.manga.id == successState?.manga?.id }
                 .catch { error -> logcat(LogPriority.ERROR, error) }
@@ -548,7 +580,7 @@ class MangaScreenModel(
                 }
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             downloadManager.progressFlow()
                 .filter { it.manga.id == successState?.manga?.id }
                 .catch { error -> logcat(LogPriority.ERROR, error) }
@@ -1006,7 +1038,7 @@ class MangaScreenModel(
     private fun observeTrackers() {
         val manga = successState?.manga ?: return
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             combine(
                 getTracks.subscribe(manga.id).catch { logcat(LogPriority.ERROR, it) },
                 trackerManager.loggedInTrackersFlow(),
@@ -1103,6 +1135,7 @@ class MangaScreenModel(
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
             val translationSummary: TranslationSummary? = null,
+            val updateContext: EntryUpdateContext? = null,
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()
@@ -1111,6 +1144,20 @@ class MangaScreenModel(
             val isAnySelected by lazy {
                 chapters.fastAny { it.selected }
             }
+
+            val isListOutdated by lazy {
+                val context = updateContext ?: return@lazy false
+                !isRefreshingData && isEntryListOutdated(autoUpdateCandidate(), manga.favorite, context)
+            }
+
+            private fun autoUpdateCandidate() = AutoUpdateCandidate(
+                alwaysUpdate = manga.updateStrategy == UpdateStrategy.ALWAYS_UPDATE,
+                isCompleted = manga.status == SManga.COMPLETED.toLong(),
+                hasUnviewed = chapters.fastAny { !it.chapter.read },
+                hasStarted = chapters.fastAny { it.chapter.read },
+                totalCount = chapters.size.toLong(),
+                nextUpdate = manga.nextUpdate,
+            )
 
             val chapterListItems by lazy {
                 EntryListGapSeparator.withMissingCount(

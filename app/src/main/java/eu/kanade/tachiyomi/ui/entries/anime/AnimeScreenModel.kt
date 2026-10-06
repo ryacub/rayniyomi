@@ -30,12 +30,16 @@ import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.UnmeteredSource
+import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
+import eu.kanade.tachiyomi.data.library.EntryUpdateContext
+import eu.kanade.tachiyomi.data.library.isEntryListOutdated
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.appGraph
@@ -47,6 +51,8 @@ import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
 import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
 import eu.kanade.tachiyomi.ui.entries.common.EntryTrackingSummaryObserver
 import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
+import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
+import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.util.AniChartApi
@@ -59,11 +65,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -82,6 +92,7 @@ import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
@@ -109,6 +120,7 @@ import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
+import java.time.Clock
 import java.util.Calendar
 
 class AnimeScreenModel(
@@ -147,6 +159,8 @@ class AnimeScreenModel(
     private val filterEpisodesForDownload: FilterEpisodesForDownload = appGraph.filterEpisodesForDownload,
     internal val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
     private val mergeLibraryAnime: MergeLibraryAnime = appGraph.mergeLibraryAnime,
+    private val fetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval,
+    private val clock: Clock = Clock.systemDefaultZone(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
 
@@ -155,6 +169,16 @@ class AnimeScreenModel(
 
     val anime: Anime?
         get() = successState?.anime
+
+    private val updateContext = entryUpdateContextFlow(
+        restrictions = libraryPreferences.autoUpdateItemRestrictions().changes(),
+        includedCategories = libraryPreferences.animeUpdateCategories().changes(),
+        excludedCategories = libraryPreferences.animeUpdateCategoriesExclude().changes(),
+        entryCategoryIds = getCategories.subscribe(animeId).map { categories -> categories.map { it.id } },
+        fetchWindow = fetchWindowFlow(fetchInterval::getWindow, clock, lifecycle),
+    )
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val source: AnimeSource?
         get() = successState?.source
@@ -212,6 +236,12 @@ class AnimeScreenModel(
                 }
         }
 
+        viewModelScope.launchIO {
+            updateContext.collectLatest { context ->
+                updateSuccessState { it.copy(updateContext = context) }
+            }
+        }
+
         observeDownloads()
 
         viewModelScope.launchIO {
@@ -251,6 +281,7 @@ class AnimeScreenModel(
                     seasons = seasons,
                     isRefreshingData = needRefreshInfo || needRefreshEpisode || needRefreshSeason,
                     dialog = null,
+                    updateContext = updateContext.value,
                 )
             }
             // Start observe tracking since it only needs animeId
@@ -1568,7 +1599,23 @@ class AnimeScreenModel(
                 anime.nextEpisodeToAir,
                 anime.nextEpisodeAiringAt,
             ),
+            val updateContext: EntryUpdateContext? = null,
         ) : State {
+
+            val isListOutdated by lazy {
+                val context = updateContext ?: return@lazy false
+                if (isRefreshingData || anime.fetchType == FetchType.Seasons) return@lazy false
+                isEntryListOutdated(autoUpdateCandidate(), anime.favorite, context)
+            }
+
+            private fun autoUpdateCandidate() = AutoUpdateCandidate(
+                alwaysUpdate = anime.updateStrategy == AnimeUpdateStrategy.ALWAYS_UPDATE,
+                isCompleted = anime.status == SAnime.COMPLETED.toLong(),
+                hasUnviewed = episodes.any { !it.episode.seen },
+                hasStarted = episodes.any { it.episode.seen },
+                totalCount = episodes.size.toLong(),
+                nextUpdate = anime.nextUpdate,
+            )
 
             val processedSeasons by lazy {
                 seasons.applySeasonFilters(anime).toList()

@@ -8,6 +8,9 @@
     <string name="action_reorganize_by">Reorder</string>
     <string name="relative_time_now">Now</string>
     <string name="action_stop">Stop</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="chapter_list_outdated">Chapter list may be outdated</string>
+    <string name="episode_list_outdated">Episode list may be outdated</string>
     <string name="action_continue">Continue</string>
     <!-- Changed from mihon -->
     <string name="manga">Manga</string>

@@ -551,6 +551,7 @@ private fun AnimeScreenSmallImpl(
                             onClick = onFilterClicked,
                             isManga = false,
                             fetchType = state.anime.fetchType,
+                            onRefreshOutdatedList = onRefresh.takeIf { state.isListOutdated },
                             modifier = Modifier.ignorePadding(offsetGridPaddingPx),
                         )
                     }
@@ -876,6 +877,7 @@ fun AnimeScreenLargeImpl(
                                     onClick = onFilterButtonClicked,
                                     isManga = false,
                                     fetchType = state.anime.fetchType,
+                                    onRefreshOutdatedList = onRefresh.takeIf { state.isListOutdated },
                                     modifier = Modifier.ignorePadding(offsetGridPaddingPx),
                                 )
                             }
