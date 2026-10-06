@@ -11,14 +11,10 @@ import androidx.lifecycle.viewModelScope
 import aniyomi.domain.anime.SeasonAnime
 import aniyomi.domain.anime.SeasonDisplayMode
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
-import eu.kanade.domain.entries.anime.interactor.SyncSeasonsWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.downloadedFilter
 import eu.kanade.domain.entries.anime.model.seasonDownloadedFilter
-import eu.kanade.domain.entries.anime.model.toSAnime
-import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
-import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
@@ -29,7 +25,6 @@ import eu.kanade.presentation.entries.anime.components.EpisodeDownloadAction
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.animesource.AnimeSource
-import eu.kanade.tachiyomi.animesource.UnmeteredSource
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -55,16 +50,13 @@ import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
 import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
-import eu.kanade.tachiyomi.util.AniChartApi
 import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -78,16 +70,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import logcat.LogPriority
-import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
-import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
 import tachiyomi.domain.category.model.Category
@@ -145,21 +134,18 @@ class AnimeScreenModel(
     private val setAnimeSeasonFlags: SetAnimeSeasonFlags = appGraph.setAnimeSeasonFlags,
     private val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags = appGraph.setAnimeDefaultSeasonFlags,
     private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
-    private val populateFillerMarks: PopulateFillerMarks = appGraph.populateFillerMarks,
     private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
     private val updateAnime: UpdateAnime = appGraph.updateAnime,
-    private val syncEpisodesWithSource: SyncEpisodesWithSource = appGraph.syncEpisodesWithSource,
-    private val syncSeasonsWithSource: SyncSeasonsWithSource = appGraph.syncSeasonsWithSource,
     private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
     private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
     private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
     private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
     private val animeRepository: AnimeRepository = appGraph.animeRepository,
     private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
-    private val filterEpisodesForDownload: FilterEpisodesForDownload = appGraph.filterEpisodesForDownload,
     internal val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
     private val mergeLibraryAnime: MergeLibraryAnime = appGraph.mergeLibraryAnime,
     private val fetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval,
+    private val entryRefresher: AnimeEntryRefresher = appGraph.animeEntryRefresher,
     private val clock: Clock = Clock.systemDefaultZone(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
@@ -301,39 +287,38 @@ class AnimeScreenModel(
         }
     }
 
-    fun fetchAllFromSource(manualFetch: Boolean = true) {
+    fun fetchAllFromSource() {
+        val state = successState ?: return
+        val refresh = entryRefresher.refresh(state.source, state.anime, state.trackItems)
         viewModelScope.launch {
             updateSuccessState { it.copy(isRefreshingData = true) }
-            val fetchFromSourceTasks = listOf(
-                async { fetchAnimeFromSource(manualFetch) },
-                async { fetchEpisodesAndSeasonsFromSource(manualFetch) },
-            )
-            fetchFromSourceTasks.awaitAll()
-            updateSuccessState { it.copy(isRefreshingData = false) }
-            successState?.let { updateAiringTime(it.anime, it.trackItems, manualFetch) }
+            val result = refresh.await()
+            result.detailsError?.let(::showDetailsFetchError)
+            result.itemsError?.let { showItemsFetchError(it) }
+            updateSuccessState {
+                it.copy(isRefreshingData = false, nextAiringEpisode = result.nextAiringEpisode)
+            }
         }
     }
 
     // Anime info - start
 
-    /**
-     * Fetch anime information from source.
-     */
-    private suspend fun fetchAnimeFromSource(manualFetch: Boolean = false) {
+    private suspend fun fetchAnimeFromSource() {
         val state = successState ?: return
         try {
-            withIOContext {
-                val networkAnime = AnimeSourceGateway.details(state.source, state.anime.toSAnime())
-                updateAnime.awaitUpdateFromSource(state.anime, networkAnime, manualFetch)
-            }
+            entryRefresher.fetchDetails(state.source, state.anime, manualFetch = false)
         } catch (e: Throwable) {
-            // Ignore early hints "errors" that aren't handled by OkHttp
-            if (e is HttpException && e.code == 103) return
+            showDetailsFetchError(e)
+        }
+    }
 
-            logcat(LogPriority.ERROR, e)
-            viewModelScope.launch {
-                snackbarHostState.showSnackbar(message = with(context) { e.formattedMessage })
-            }
+    private fun showDetailsFetchError(e: Throwable) {
+        // Ignore early hints "errors" that aren't handled by OkHttp
+        if (e is HttpException && e.code == 103) return
+
+        logcat(LogPriority.ERROR, e)
+        viewModelScope.launch {
+            snackbarHostState.showSnackbar(message = with(context) { e.formattedMessage })
         }
     }
 
@@ -630,125 +615,30 @@ class AnimeScreenModel(
         }
     }
 
-    private suspend fun fetchEpisodesFromSource(manualFetch: Boolean = false) {
+    private suspend fun fetchEpisodesAndSeasonsFromSource() {
         val state = successState ?: return
         try {
-            withIOContext {
-                updateEpisodesFromSource(state.anime, state.source, manualFetch)
-            }
+            entryRefresher.fetchItems(state.source, state.anime, manualFetch = false)
         } catch (e: Throwable) {
-            val message = if (e is NoEpisodesException) {
-                context.stringResource(AYMR.strings.no_episodes_error)
-            } else {
+            showItemsFetchError(e)
+        }
+    }
+
+    private suspend fun showItemsFetchError(e: Throwable) {
+        val message = when (e) {
+            is NoEpisodesException -> context.stringResource(AYMR.strings.no_episodes_error)
+            is NoSeasonsException -> context.stringResource(AYMR.strings.no_seasons_error)
+            else -> {
                 logcat(LogPriority.ERROR, e)
                 with(context) { e.formattedMessage }
             }
-
-            viewModelScope.launch {
-                snackbarHostState.showSnackbar(message = message)
-            }
-            val newAnime = animeRepository.getAnimeById(animeId)
-            updateSuccessState { it.copy(anime = newAnime, isRefreshingData = false) }
-        }
-    }
-
-    private suspend fun updateEpisodesFromSource(
-        anime: Anime,
-        source: AnimeSource,
-        manualFetch: Boolean = false,
-    ) {
-        val episodes = AnimeSourceGateway.episodes(source, anime.toSAnime())
-
-        val newEpisodes = syncEpisodesWithSource.await(
-            episodes,
-            anime,
-            source,
-            manualFetch,
-        )
-
-        viewModelScope.launchIO {
-            populateFillerMarks.await(anime, getEpisodesByAnimeId.await(anime.id))
         }
 
-        if (manualFetch) {
-            downloadNewEpisodes(newEpisodes)
+        viewModelScope.launch {
+            snackbarHostState.showSnackbar(message = message)
         }
-    }
-
-    private suspend fun fetchSeasonsFromSource(manualFetch: Boolean = false) {
-        val state = successState ?: return
-        try {
-            withIOContext {
-                val seasons = AnimeSourceGateway.seasons(state.source, state.anime.toSAnime())
-
-                val newSeasons = syncSeasonsWithSource.await(
-                    seasons,
-                    state.anime,
-                    state.source,
-                )
-
-                if (libraryPreferences.updateSeasonOnRefresh().get()) {
-                    fetchEpisodesFromSeasons(newSeasons, manualFetch)
-                }
-            }
-        } catch (e: Throwable) {
-            val message = if (e is NoSeasonsException) {
-                context.stringResource(AYMR.strings.no_seasons_error)
-            } else {
-                logcat(LogPriority.ERROR, e)
-                with(context) { e.formattedMessage }
-            }
-
-            viewModelScope.launch {
-                snackbarHostState.showSnackbar(message = message)
-            }
-            val newAnime = animeRepository.getAnimeById(animeId)
-            updateSuccessState { it.copy(anime = newAnime, isRefreshingData = false) }
-        }
-    }
-
-    /**
-     * Requests an updated list of episodes and seasons from the source.
-     */
-    private suspend fun fetchEpisodesAndSeasonsFromSource(manualFetch: Boolean = false) {
-        val state = successState ?: return
-
-        when (state.anime.fetchType) {
-            FetchType.Seasons -> fetchSeasonsFromSource(manualFetch)
-            FetchType.Episodes -> fetchEpisodesFromSource(manualFetch)
-        }
-    }
-
-    /**
-     * Fetch episodes from all seasons of an anime.
-     */
-    private suspend fun CoroutineScope.fetchEpisodesFromSeasons(seasons: List<Anime>, manualFetch: Boolean) {
-        val state = successState ?: return
-
-        val fetch: suspend (Anime) -> Unit = { s ->
-            // Only fetch seasons with `Episodes` fetch type and only for non completed, unless they
-            // haven't been fetched at all.
-            if (s.fetchType === FetchType.Episodes && (s.lastUpdate == 0L || s.status.toInt() != SAnime.COMPLETED)) {
-                try {
-                    updateEpisodesFromSource(s, state.source, manualFetch)
-                } catch (e: Throwable) {
-                    logcat(LogPriority.ERROR, e)
-                }
-            }
-        }
-
-        if (state.source is UnmeteredSource) {
-            seasons.map { s ->
-                async(Dispatchers.IO) {
-                    fetch(s)
-                }
-            }.awaitAll()
-        } else {
-            seasons.forEach { s ->
-                ensureActive()
-                fetch(s)
-            }
-        }
+        val newAnime = animeRepository.getAnimeById(animeId)
+        updateSuccessState { it.copy(anime = newAnime, isRefreshingData = false) }
     }
 
     /**
@@ -1039,17 +929,6 @@ class AnimeScreenModel(
                 }
             } catch (e: Throwable) {
                 logcat(LogPriority.ERROR, e)
-            }
-        }
-    }
-
-    private fun downloadNewEpisodes(episodes: List<Episode>) {
-        viewModelScope.launchNonCancellable {
-            val anime = successState?.anime ?: return@launchNonCancellable
-            val episodesToDownload = filterEpisodesForDownload.await(anime, episodes)
-
-            if (episodesToDownload.isNotEmpty()) {
-                downloadEpisodes(episodesToDownload)
             }
         }
     }
@@ -1509,8 +1388,7 @@ class AnimeScreenModel(
         trackItems: List<AnimeTrackItem>,
         manualFetch: Boolean,
     ) {
-        val airingEpisodeData = AniChartApi().loadAiringTime(anime, trackItems, manualFetch)
-        setAnimeViewerFlags.awaitSetNextEpisodeAiring(anime.id, airingEpisodeData)
+        val airingEpisodeData = entryRefresher.updateAiringTime(anime, trackItems, manualFetch)
         updateSuccessState { it.copy(nextAiringEpisode = airingEpisodeData) }
     }
 
