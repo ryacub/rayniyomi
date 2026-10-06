@@ -5,9 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.browse.manga.MigrateMangaScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaSearchScreen
@@ -25,7 +25,9 @@ data class MigrateMangaScreen(
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = viewModel { MigrateMangaScreenModel(sourceId) }
+        val screenModel = assistedMetroViewModel<MigrateMangaScreenModel, MigrateMangaScreenModel.Factory> {
+            create(sourceId)
+        }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
 

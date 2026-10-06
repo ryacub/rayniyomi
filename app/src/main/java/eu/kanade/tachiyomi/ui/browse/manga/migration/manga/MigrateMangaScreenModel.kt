@@ -2,8 +2,14 @@ package eu.kanade.tachiyomi.ui.browse.manga.migration.manga
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -22,11 +28,19 @@ import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
+@AssistedInject
 class MigrateMangaScreenModel(
-    private val sourceId: Long,
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val getFavorites: GetMangaFavorites = appGraph.getMangaFavorites,
+    @Assisted private val sourceId: Long,
+    private val sourceManager: MangaSourceManager,
+    private val getFavorites: GetMangaFavorites,
 ) : StateViewModel<MigrateMangaScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(sourceId: Long): MigrateMangaScreenModel
+    }
 
     private val _events: Channel<MigrationMangaEvent> = Channel(Channel.BUFFERED)
     val events: Flow<MigrationMangaEvent> = _events.receiveAsFlow()

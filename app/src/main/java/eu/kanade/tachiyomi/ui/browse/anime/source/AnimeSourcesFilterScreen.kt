@@ -5,9 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.browse.anime.AnimeSourcesFilterScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.util.system.toast
@@ -19,7 +19,7 @@ class AnimeSourcesFilterScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = viewModel { AnimeSourcesFilterScreenModel() }
+        val screenModel = metroViewModel<AnimeSourcesFilterScreenModel>()
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         if (state is AnimeSourcesFilterScreenModel.State.Loading) {

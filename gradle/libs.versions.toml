@@ -5,6 +5,7 @@ google_services = "4.4.4"
 firebase_crashlytics_gradle = "3.0.6"
 leakcanary = "2.14"
 mediarouter = "1.8.1"
+metro = "1.4.5"
 moko = "0.26.0"
 okhttp = "5.4.0"
 richtext = "0.20.0"
@@ -49,6 +50,8 @@ preferencektx = "androidx.preference:preference-ktx:1.2.1"
 androidx-webkit = "androidx.webkit:webkit:1.16.0"
 
 injekt = "uy.kohesive.injekt:injekt-core:1.16.1"
+metrox-viewmodel = { module = "dev.zacsweers.metro:metrox-viewmodel", version.ref = "metro" }
+metrox-viewmodel-compose = { module = "dev.zacsweers.metro:metrox-viewmodel-compose", version.ref = "metro" }
 
 coil-bom = { module = "io.coil-kt.coil3:coil-bom", version = "3.5.0" }
 coil-core = { module = "io.coil-kt.coil3:coil" }
@@ -107,7 +110,7 @@ spotless-gradle = { group = "com.diffplug.spotless", name = "spotless-plugin-gra
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 
 [plugins]
-metro = { id = "dev.zacsweers.metro", version = "0.11.4" }
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin", version.ref = "aboutlib_version" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google_services" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase_crashlytics_gradle" }
