@@ -15,9 +15,15 @@ import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.Qualifier
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
+import eu.kanade.domain.entries.anime.interactor.SyncSeasonsWithSource
+import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.extension.anime.interactor.TrustAnimeExtension
 import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
+import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
+import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.domain.novel.NovelFeaturePreferences
+import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.anime.store.DelayedAnimeTrackingStore
 import eu.kanade.domain.track.manga.store.DelayedMangaTrackingStore
@@ -37,6 +43,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.filler.AnimeFillerListSource
 import eu.kanade.tachiyomi.data.filler.AnimeFillerSource
+import eu.kanade.tachiyomi.data.library.LibraryUpdateSummaryStore
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
@@ -58,16 +65,21 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.source.anime.AndroidAnimeSourceManager
 import eu.kanade.tachiyomi.source.manga.AndroidMangaSourceManager
+import eu.kanade.tachiyomi.ui.entries.anime.AnimeEntryRefresher
+import eu.kanade.tachiyomi.ui.entries.manga.MangaEntryRefresher
 import eu.kanade.tachiyomi.ui.player.ExternalIntents
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
+import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
 import nl.adaptivity.xmlutil.XmlDeclMode.Charset
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.OkHttpClient
+import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.storage.AndroidStorageFolderProvider
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.Database
@@ -83,6 +95,9 @@ import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.entries.anime.repository.AnimeRepository
+import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
@@ -221,6 +236,13 @@ object AppModule {
             ignoreUnknownKeys = true
             explicitNulls = false
         }
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideLibraryUpdateSummaryStore(
+        preferenceStore: PreferenceStore,
+        json: Json,
+    ): LibraryUpdateSummaryStore = LibraryUpdateSummaryStore(preferenceStore, json)
 
     @Provides
     @SingleIn(AppScope::class)
@@ -642,4 +664,44 @@ object AppModule {
         playerPreferences: PlayerPreferences,
     ): CastManager =
         CastManager(context = application, network = network, playerPreferences = playerPreferences)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideMangaEntryRefresher(
+        updateMangaFromRemote: UpdateMangaFromRemote,
+        filterChaptersForDownload: FilterChaptersForDownload,
+        downloadManager: MangaDownloadManager,
+    ): MangaEntryRefresher =
+        MangaEntryRefresher(
+            updateMangaFromRemote = updateMangaFromRemote,
+            filterChaptersForDownload = filterChaptersForDownload,
+            downloadManager = downloadManager,
+        )
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideAnimeEntryRefresher(
+        updateAnime: UpdateAnime,
+        syncEpisodesWithSource: SyncEpisodesWithSource,
+        syncSeasonsWithSource: SyncSeasonsWithSource,
+        populateFillerMarks: PopulateFillerMarks,
+        getEpisodesByAnimeId: GetEpisodesByAnimeId,
+        filterEpisodesForDownload: FilterEpisodesForDownload,
+        downloadManager: AnimeDownloadManager,
+        libraryPreferences: LibraryPreferences,
+        animeRepository: AnimeRepository,
+        setAnimeViewerFlags: SetAnimeViewerFlags,
+    ): AnimeEntryRefresher =
+        AnimeEntryRefresher(
+            updateAnime = updateAnime,
+            syncEpisodesWithSource = syncEpisodesWithSource,
+            syncSeasonsWithSource = syncSeasonsWithSource,
+            populateFillerMarks = populateFillerMarks,
+            getEpisodesByAnimeId = getEpisodesByAnimeId,
+            filterEpisodesForDownload = filterEpisodesForDownload,
+            downloadManager = downloadManager,
+            libraryPreferences = libraryPreferences,
+            animeRepository = animeRepository,
+            setAnimeViewerFlags = setAnimeViewerFlags,
+        )
 }

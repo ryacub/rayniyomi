@@ -17,12 +17,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Manual library updates and downloads can now show progress as Android 16 Live Updates, with the existing Cancel and Pause actions. Dismissed progress stays hidden for the current run (#1285).
 - Source error screens now offer Help and Migrate. A failed reader page adds both buttons for a library manga. A failed browse source adds Migrate when the source has library entries. Help opens the Cloudflare section of the troubleshooting page for a Cloudflare block. A failed source row in global search and migration search now has Retry and, for an HTTP source, Open in WebView (#1281).
 - Library updates now show their active title and progress in the anime and manga libraries, with an action to cancel the update (#1282).
+- Finished library updates now leave a summary in the anime and manga libraries. It shows updated, skipped, and failed entries until dismissed (#1283).
 - The anime and manga entry screens now show "Chapter list may be outdated" or "Episode list may be outdated" with a Refresh button when a library entry is past its expected update. Entries that the library update skips show no hint (#1284).
 - A manual library update now shows a low-priority notification when smart update skips titles. The notification opens a list of each skipped title with its reason and source (#1248).
 
 ### Improved
 
 ### Fixed
+- A pull-to-refresh on an anime or manga entry now finishes after you leave the screen. The new chapters, episodes, and seasons are saved, new items are queued for download when the download settings apply, and the anime airing time is updated. If you come back while the refresh runs, the entry shows the refresh indicator until it ends, and you cannot start another refresh until then (#1280).
 - Multi-thread anime downloads no longer fail at the merge step. The downloader now records the bytes written for each chunk, and the merger writes the episode file through the storage folder instead of a raw file path (#1265).
 - A finished download queue no longer logs a download job failure, adds to the job crash count, or schedules a retry. The download job now lets the cancellation from the downloader pass through (#1265).
 - Multi-thread anime downloads now report a range error or a full disk to the downloader. The downloader falls back to FFmpeg on a range error and pauses on a full disk (#1268).

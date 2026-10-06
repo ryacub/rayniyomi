@@ -932,6 +932,15 @@
     <!-- Updates -->
     <string name="updating_library">Updating library</string>
     <string name="update_already_running">An update is already running</string>
+    <string name="library_update_summary_completed">Update complete: %1$d updated, %2$d skipped, %3$d failed</string>
+    <string name="library_update_summary_cancelled">Update cancelled: %1$d updated, %2$d skipped, %3$d failed</string>
+    <string name="library_update_summary_interrupted">Update interrupted: %1$d updated, %2$d skipped, %3$d failed</string>
+    <string name="library_update_summary_details">Library update results</string>
+    <string name="library_update_summary_finished">Finished %s</string>
+    <string name="library_update_summary_updated">Updated (%d)</string>
+    <string name="library_update_summary_skipped">Skipped (%d)</string>
+    <string name="library_update_summary_failed">Failed (%d)</string>
+    <string name="library_update_summary_settings">Smart update settings</string>
     <string name="cant_open_last_read_chapter">Unable to open last read chapter</string>
     <string name="updates_last_update_info">Library last updated: %s</string>
     <string name="updates_last_update_info_just_now">Just now</string>

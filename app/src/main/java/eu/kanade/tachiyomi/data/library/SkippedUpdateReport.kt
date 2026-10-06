@@ -9,6 +9,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 
 internal data class SkippedUpdate(
+    val id: Long,
     val reason: AutoUpdateSkipReason,
     val source: String,
     val title: String,
