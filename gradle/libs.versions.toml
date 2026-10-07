@@ -39,7 +39,7 @@ quickjs-android = "com.github.zhanghai.quickjs-java:quickjs-android:547f5b1597"
 jsoup = "org.jsoup:jsoup:1.22.2"
 
 disklrucache = "com.jakewharton:disklrucache:2.0.2"
-unifile = "com.github.tachiyomiorg:unifile:a9de196cc7"
+unifile = "com.github.mihon:unifile:08f224c8f9"
 libarchive = "me.zhanghai.android.libarchive:library:1.1.6"
 
 sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "sqlite" }
