@@ -19,17 +19,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.WorkInfo
 import androidx.work.WorkQuery
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.ioCoroutineScope
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.workManager
@@ -56,7 +62,7 @@ class WorkerInfoScreen : Screen() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = viewModel { Model(context) }
+        val screenModel = assistedMetroViewModel<Model, Model.Factory> { create(context) }
         val enqueued by screenModel.enqueued.collectAsStateWithLifecycle()
         val finished by screenModel.finished.collectAsStateWithLifecycle()
         val running by screenModel.running.collectAsStateWithLifecycle()
@@ -120,7 +126,19 @@ class WorkerInfoScreen : Screen() {
         )
     }
 
-    private class Model(context: Context) : ViewModel() {
+    @AssistedInject
+    internal class Model(
+        @Assisted context: Context,
+        private val uiPreferences: UiPreferences,
+    ) : ViewModel() {
+
+        @AssistedFactory
+        @ManualViewModelAssistedFactoryKey
+        @ContributesIntoMap(AppScope::class)
+        fun interface Factory : ManualViewModelAssistedFactory {
+            fun create(@Assisted context: Context): Model
+        }
+
         private val workManager = context.workManager
 
         val finished = workManager
@@ -158,7 +176,7 @@ class WorkerInfoScreen : Screen() {
                         )
                             .toDateTimestampString(
                                 UiPreferences.dateFormat(
-                                    appGraph.uiPreferences.dateFormat().get(),
+                                    uiPreferences.dateFormat().get(),
                                 ),
                             )
                         appendLine("Next scheduled run: $timestamp")

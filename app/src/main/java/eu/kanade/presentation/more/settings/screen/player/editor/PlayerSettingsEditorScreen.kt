@@ -4,9 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.more.settings.screen.player.editor.codeeditor.CodeEditScreen
 import eu.kanade.presentation.more.settings.screen.player.editor.components.EditorScreen
 import eu.kanade.presentation.more.settings.screen.player.editor.components.FileCreateDialog
@@ -19,7 +19,10 @@ object PlayerSettingsEditorScreen : Screen() {
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = viewModel { PlayerSettingsEditorScreenModel(context) }
+        val screenModel =
+            assistedMetroViewModel<PlayerSettingsEditorScreenModel, PlayerSettingsEditorScreenModel.Factory> {
+                create(context)
+            }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
         val dialog by screenModel.dialogShown.collectAsStateWithLifecycle()

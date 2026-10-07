@@ -4,8 +4,14 @@ import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.size
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.system.toast
@@ -24,10 +30,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@AssistedInject
 class PlayerSettingsEditorScreenModel(
-    private val context: Context,
-    private val storageManager: StorageManager = appGraph.storageManager,
+    @Assisted private val context: Context,
+    private val storageManager: StorageManager,
 ) : StateViewModel<EditorScreenState>(EditorScreenState.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted context: Context): PlayerSettingsEditorScreenModel
+    }
+
     private val _selectedType = MutableStateFlow(EditorListType.SCRIPTS)
     val selectedType = _selectedType.asStateFlow()
 

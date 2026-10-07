@@ -46,8 +46,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Hoster
@@ -72,7 +79,9 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.i18n.MR
@@ -93,8 +102,8 @@ class EpisodeOptionsDialogScreen(
 
     @Composable
     override fun Content() {
-        val sm = viewModel {
-            EpisodeOptionsDialogScreenModel(
+        val sm = assistedMetroViewModel<EpisodeOptionsDialogScreenModel, EpisodeOptionsDialogScreenModel.Factory> {
+            create(
                 episodeId = episodeId,
                 animeId = animeId,
                 sourceId = sourceId,
@@ -131,12 +140,26 @@ class EpisodeOptionsDialogScreen(
     }
 }
 
+@AssistedInject
 class EpisodeOptionsDialogScreenModel(
-    episodeId: Long,
-    animeId: Long,
-    sourceId: Long,
+    @Assisted episodeId: Long,
+    @Assisted animeId: Long,
+    @Assisted sourceId: Long,
+    private val sourceManager: AnimeSourceManager,
+    private val getEpisode: GetEpisode,
+    private val getAnime: GetAnime,
 ) : ViewModel() {
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted episodeId: Long,
+            @Assisted animeId: Long,
+            @Assisted sourceId: Long,
+        ): EpisodeOptionsDialogScreenModel
+    }
 
     private val _hosterState = MutableStateFlow<Result<List<HosterState>>?>(null)
     val hosterState = _hosterState.asStateFlow()
@@ -165,7 +188,7 @@ class EpisodeOptionsDialogScreenModel(
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
         viewModelScope.launchIO {
-            val episode = appGraph.getEpisode.await(episodeId)
+            val episode = getEpisode.await(episodeId)
             if (episode == null) {
                 _hosterState.update { _ ->
                     Result.failure(IllegalStateException("Episode is no longer available"))
@@ -173,7 +196,7 @@ class EpisodeOptionsDialogScreenModel(
                 return@launchIO
             }
 
-            val anime = appGraph.getAnime.await(animeId)
+            val anime = getAnime.await(animeId)
             if (anime == null) {
                 _hosterState.update { _ ->
                     Result.failure(IllegalStateException("Anime is no longer available"))
