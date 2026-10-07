@@ -6,6 +6,8 @@ interpolator_version = "1.0.0"
 
 [libraries]
 gradle = { module = "com.android.tools.build:gradle", version.ref = "agp_version" }
+# AGP 9.0.1 bundles R8 9.0.32, which cannot read Kotlin 2.4 metadata. Remove when AGP bundles R8 9.1.29+.
+r8 = "com.android.tools:r8:9.1.56"
 
 annotation = "androidx.annotation:annotation:1.9.1"
 windowcore = "androidx.window:window-core:1.5.1"

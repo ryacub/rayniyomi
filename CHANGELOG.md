@@ -50,7 +50,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
-- Upgrade Kotlin to 2.4.20 (#1339).
+- Upgrade Kotlin to 2.4.20 and build release APKs with R8 9.1.56, which reads Kotlin 2.4 metadata (#1339).
 - Use MetroX injection for the remaining app ViewModels, including reader and player construction (#1300).
 - Use MetroX injection for the manga and anime statistics ViewModels (#1297).
 - Use MetroX injection for the manga and anime migration source-list ViewModels (#1296).
