@@ -3,11 +3,16 @@ package mihon.feature.upcoming.manga
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.util.fastMap
 import androidx.compose.ui.util.fastMapIndexedNotNull
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.insertSeparatorsReversed
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
@@ -34,10 +39,13 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import java.time.LocalDate
 import java.time.YearMonth
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class UpcomingMangaScreenModel(
-    private val getUpcomingManga: GetUpcomingManga = appGraph.getUpcomingManga,
-    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val getUpcomingManga: GetUpcomingManga,
+    private val getCategories: GetMangaCategories,
+    private val libraryPreferences: LibraryPreferences,
 ) : StateViewModel<UpcomingMangaScreenModel.State>(State()) {
 
     val categories: StateFlow<List<Category>> = getCategories.subscribe()

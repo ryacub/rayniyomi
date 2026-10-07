@@ -9,12 +9,17 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.more.MoreScreen
@@ -22,7 +27,6 @@ import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginLauncher
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.feature.novel.LightNovelPluginUiState
@@ -62,7 +66,7 @@ data object MoreTab : Tab {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = viewModel { MoreScreenModel() }
+        val screenModel = metroViewModel<MoreScreenModel>()
         val downloadQueueState by screenModel.downloadQueueState.collectAsStateWithLifecycle()
         val navStyle = currentNavigationStyle()
         MoreScreen(
@@ -88,12 +92,15 @@ data object MoreTab : Tab {
     }
 }
 
-private class MoreScreenModel(
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val animeDownloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    preferences: BasePreferences = appGraph.basePreferences,
-    private val pluginLauncher: LightNovelPluginLauncher = appGraph.lightNovelPluginLauncher,
-    private val stateManager: LightNovelPluginStateManager = appGraph.lightNovelPluginStateManager,
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
+internal class MoreScreenModel(
+    private val downloadManager: MangaDownloadManager,
+    private val animeDownloadManager: AnimeDownloadManager,
+    preferences: BasePreferences,
+    private val pluginLauncher: LightNovelPluginLauncher,
+    private val stateManager: LightNovelPluginStateManager,
 ) : ViewModel() {
 
     var downloadedOnly by preferences.downloadedOnly().asState(viewModelScope)

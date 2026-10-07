@@ -1,12 +1,17 @@
 package eu.kanade.tachiyomi.ui.browse.manga.extension
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.extension.manga.interactor.GetMangaExtensionLanguages
 import eu.kanade.domain.source.interactor.ToggleLanguage
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
@@ -23,10 +28,13 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaExtensionFilterScreenModel(
-    private val preferences: SourcePreferences = appGraph.sourcePreferences,
-    private val getExtensionLanguages: GetMangaExtensionLanguages = appGraph.getMangaExtensionLanguages,
-    private val toggleLanguage: ToggleLanguage = appGraph.toggleLanguage,
+    private val preferences: SourcePreferences,
+    private val getExtensionLanguages: GetMangaExtensionLanguages,
+    private val toggleLanguage: ToggleLanguage,
 ) : StateViewModel<MangaExtensionFilterState>(MangaExtensionFilterState.Loading) {
 
     private val _events: Channel<MangaExtensionFilterEvent> = Channel()

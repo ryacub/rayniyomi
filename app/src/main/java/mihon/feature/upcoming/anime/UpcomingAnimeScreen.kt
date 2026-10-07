@@ -3,9 +3,9 @@ package mihon.feature.upcoming.anime
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.updates.UpdatesCategoryFilterDialog
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
@@ -18,7 +18,7 @@ class UpcomingAnimeScreen : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = viewModel { UpcomingAnimeScreenModel() }
+        val screenModel = metroViewModel<UpcomingAnimeScreenModel>()
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         val hasActiveFilters = screenModel.includedCategories.isNotEmpty() ||

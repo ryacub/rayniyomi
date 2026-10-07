@@ -2,9 +2,13 @@ package eu.kanade.tachiyomi.ui.library.anime
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import tachiyomi.core.common.preference.Preference
@@ -19,12 +23,15 @@ import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.service.LibraryPreferences
 import kotlin.time.Duration.Companion.seconds
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeLibrarySettingsScreenModel(
-    val preferences: BasePreferences = appGraph.basePreferences,
-    val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val setAnimeDisplayMode: SetAnimeDisplayMode = appGraph.setAnimeDisplayMode,
-    private val setSortModeForCategory: SetSortModeForAnimeCategory = appGraph.setSortModeForAnimeCategory,
-    trackerManager: TrackerManager = appGraph.trackerManager,
+    val preferences: BasePreferences,
+    val libraryPreferences: LibraryPreferences,
+    private val setAnimeDisplayMode: SetAnimeDisplayMode,
+    private val setSortModeForCategory: SetSortModeForAnimeCategory,
+    trackerManager: TrackerManager,
 ) : ViewModel() {
 
     val trackersFlow = trackerManager.loggedInTrackersFlow()

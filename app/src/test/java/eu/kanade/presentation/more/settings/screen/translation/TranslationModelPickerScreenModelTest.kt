@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogResult
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCapabilities
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalog
-import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCost
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
@@ -222,8 +221,6 @@ class TranslationModelPickerScreenModelTest {
             every { translationModel(any()) } returns modelPref
             every { translationModelChoiceType(any()) } returns choicePref
         }
-        private val repository = mockk<TranslationModelCatalogRepository>(relaxed = true)
-
         fun model(
             success: TranslationCatalogResult? = null,
             successes: List<TranslationCatalogResult> = emptyList(),
@@ -238,7 +235,6 @@ class TranslationModelPickerScreenModelTest {
                 }
             return TranslationModelPickerScreenModel(
                 preferences = preferences,
-                repository = repository,
                 loadCatalog = loader,
             )
         }
