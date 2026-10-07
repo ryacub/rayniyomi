@@ -18,15 +18,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import logcat.LogPriority
@@ -49,7 +54,7 @@ class DuplicateScanScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = viewModel { DuplicateScanScreenModel() }
+        val screenModel = metroViewModel<DuplicateScanScreenModel>()
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         Scaffold(
@@ -157,9 +162,12 @@ private fun DuplicateCandidateRow(
     }
 }
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class DuplicateScanScreenModel(
-    private val scanLibraryDuplicates: ScanLibraryDuplicates = appGraph.scanLibraryDuplicates,
-    private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
+    private val scanLibraryDuplicates: ScanLibraryDuplicates,
+    private val mergeLibraryManga: MergeLibraryManga,
 ) : StateViewModel<DuplicateScanScreenModel.State>(State.Loading) {
 
     val snackbarHostState = SnackbarHostState()

@@ -28,18 +28,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.browse.anime.components.AnimeSourceIcon
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.model.FetchType
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.collectLatest
@@ -68,7 +73,7 @@ class ClearAnimeDatabaseScreen : Screen() {
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val model = viewModel { ClearAnimeDatabaseScreenModel() }
+        val model = metroViewModel<ClearAnimeDatabaseScreenModel>()
         val state by model.state.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
 
@@ -214,13 +219,16 @@ class ClearAnimeDatabaseScreen : Screen() {
     }
 }
 
-private class ClearAnimeDatabaseScreenModel : StateViewModel<ClearAnimeDatabaseScreenModel.State>(
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
+internal class ClearAnimeDatabaseScreenModel(
+    private val getSourcesWithNonLibraryAnime: GetAnimeSourcesWithNonLibraryAnime,
+    private val database: AnimeDatabase,
+    private val sourceManager: AnimeSourceManager,
+) : StateViewModel<ClearAnimeDatabaseScreenModel.State>(
     State.Loading,
 ) {
-    private val getSourcesWithNonLibraryAnime: GetAnimeSourcesWithNonLibraryAnime =
-        appGraph.getAnimeSourcesWithNonLibraryAnime
-    private val database: AnimeDatabase = appGraph.animeDatabase
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
 
     init {
         viewModelScope.launchIO {

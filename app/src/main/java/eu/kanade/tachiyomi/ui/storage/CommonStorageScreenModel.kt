@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import eu.kanade.presentation.more.storage.StorageItem
 import eu.kanade.presentation.more.storage.StorageScreenState
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,7 +28,7 @@ abstract class CommonStorageScreenModel<T>(
     private val getCategoryId: T.() -> Long,
     private val getTitle: T.() -> String,
     private val getThumbnail: T.() -> String?,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val libraryPreferences: LibraryPreferences,
 ) : StateViewModel<StorageScreenState>(StorageScreenState.Loading) {
 
     private val selectedCategory = MutableStateFlow(AllCategory)

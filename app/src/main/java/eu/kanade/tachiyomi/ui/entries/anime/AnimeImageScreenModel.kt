@@ -4,11 +4,19 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.SnackbarHostState
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
@@ -16,7 +24,6 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.editBackground
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
@@ -33,17 +40,29 @@ import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.source.local.image.anime.LocalAnimeBackgroundManager
+import tachiyomi.source.local.image.anime.LocalAnimeCoverManager
 
+@AssistedInject
 class AnimeImageScreenModel(
-    private val animeId: Long,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val imageSaver: ImageSaver = appGraph.imageSaver,
-    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
-    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
-    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    @Assisted private val animeId: Long,
+    private val getAnime: GetAnime,
+    private val imageSaver: ImageSaver,
+    private val coverCache: AnimeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache,
+    private val updateAnime: UpdateAnime,
+    private val localCoverManager: LocalAnimeCoverManager,
+    private val localBackgroundManager: LocalAnimeBackgroundManager,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     val pagerState: PagerState = PagerState(pageCount = { 2 }),
 ) : StateViewModel<Anime?>(null) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted animeId: Long): AnimeImageScreenModel
+    }
 
     private val isCover: Boolean
         get() = pagerState.currentPage != 1
@@ -145,9 +164,9 @@ class AnimeImageScreenModel(
             context.contentResolver.openInputStream(data)?.use {
                 try {
                     if (isCover) {
-                        anime.editCover(appGraph.localAnimeCoverManager, it, updateAnime, coverCache)
+                        anime.editCover(localCoverManager, it, updateAnime, coverCache)
                     } else {
-                        anime.editBackground(appGraph.localAnimeBackgroundManager, it, updateAnime, backgroundCache)
+                        anime.editBackground(localBackgroundManager, it, updateAnime, backgroundCache)
                     }
                     notifyImageUpdated(context)
                 } catch (e: Exception) {

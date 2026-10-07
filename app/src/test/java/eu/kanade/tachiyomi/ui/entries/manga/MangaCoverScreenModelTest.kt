@@ -30,6 +30,7 @@ class MangaCoverScreenModelTest {
                     imageSaver = mockk(relaxed = true),
                     coverCache = mockk(relaxed = true),
                     updateManga = mockk(relaxed = true),
+                    localCoverManager = mockk(relaxed = true),
                 )
             }
             awaitSubscribers(mangaFlow, expected = 1)
