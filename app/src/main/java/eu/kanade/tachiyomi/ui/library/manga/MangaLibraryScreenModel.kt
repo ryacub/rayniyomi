@@ -8,7 +8,13 @@ import androidx.compose.ui.util.fastDistinctBy
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastMap
 import androidx.compose.ui.util.fastMapNotNull
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.preference.PreferenceMutableState
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.fastFilterNot
@@ -24,7 +30,7 @@ import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
@@ -83,23 +89,26 @@ import kotlin.random.Random
  */
 typealias MangaLibraryMap = Map<Category, List<MangaLibraryItem>>
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaLibraryScreenModel(
-    private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga,
-    private val getCategories: GetVisibleMangaCategories = appGraph.getVisibleMangaCategories,
-    private val getTracksPerManga: GetTracksPerManga = appGraph.getTracksPerManga,
-    private val getNextChapters: GetNextChapters = appGraph.getNextChapters,
-    private val getChaptersByMangaId: GetChaptersByMangaId = appGraph.getChaptersByMangaId,
-    private val setReadStatus: SetReadStatus = appGraph.setReadStatus,
-    private val updateManga: UpdateManga = appGraph.updateManga,
-    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
-    private val preferences: BasePreferences = appGraph.basePreferences,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
-    private val trackerManager: TrackerManager = appGraph.trackerManager,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val getLibraryManga: GetLibraryManga,
+    private val getCategories: GetVisibleMangaCategories,
+    private val getTracksPerManga: GetTracksPerManga,
+    private val getNextChapters: GetNextChapters,
+    private val getChaptersByMangaId: GetChaptersByMangaId,
+    private val setReadStatus: SetReadStatus,
+    private val updateManga: UpdateManga,
+    private val setMangaCategories: SetMangaCategories,
+    private val preferences: BasePreferences,
+    private val libraryPreferences: LibraryPreferences,
+    private val coverCache: MangaCoverCache,
+    private val sourceManager: MangaSourceManager,
+    private val downloadManager: MangaDownloadManager,
+    private val downloadCache: MangaDownloadCache,
+    private val trackerManager: TrackerManager,
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<MangaLibraryScreenModel.State>(State()) {
 
     var activeCategoryIndex: Int by libraryPreferences.lastUsedMangaCategory().asState(

@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.updates.manga
 
+import android.app.Application
 import eu.kanade.domain.items.chapter.interactor.SetReadStatus
 import eu.kanade.presentation.updates.manga.MangaUpdatesUiModel
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
@@ -179,6 +180,7 @@ class MangaUpdatesScreenModelTest {
 
         fun model(): MangaUpdatesScreenModel {
             return MangaUpdatesScreenModel(
+                application = mockk<Application>(relaxed = true),
                 sourceManager = mockk<MangaSourceManager>(relaxed = true),
                 downloadManager = downloadManager,
                 downloadCache = downloadCache,

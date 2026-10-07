@@ -26,13 +26,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.util.fastAll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.WorkManager
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.entries.components.LibraryBottomActionMenu
 import eu.kanade.presentation.library.DeleteLibraryEntryDialog
@@ -110,8 +110,8 @@ data object AnimeLibraryTab : Tab {
         val scope = rememberCoroutineScope()
         val haptic = LocalHapticFeedback.current
 
-        val screenModel = viewModel { AnimeLibraryScreenModel() }
-        val settingsScreenModel = viewModel { AnimeLibrarySettingsScreenModel() }
+        val screenModel = metroViewModel<AnimeLibraryScreenModel>()
+        val settingsScreenModel = metroViewModel<AnimeLibrarySettingsScreenModel>()
         val state by screenModel.state.collectAsStateWithLifecycle()
         val updateProgressFlow = remember(context) {
             WorkManager.getInstance(context).getWorkInfosByTagFlow(AnimeLibraryUpdateJob.TAG)
