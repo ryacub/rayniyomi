@@ -3,18 +3,25 @@ package eu.kanade.tachiyomi.ui.entries.manga
 import android.content.Context
 import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.toShareIntent
@@ -29,16 +36,26 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.i18n.MR
+import tachiyomi.source.local.image.manga.LocalMangaCoverManager
 
+@AssistedInject
 class MangaCoverScreenModel(
-    private val mangaId: Long,
-    private val getManga: GetManga = appGraph.getManga,
-    private val imageSaver: ImageSaver = appGraph.imageSaver,
-    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
-    private val updateManga: UpdateManga = appGraph.updateManga,
+    @Assisted private val mangaId: Long,
+    private val getManga: GetManga,
+    private val imageSaver: ImageSaver,
+    private val coverCache: MangaCoverCache,
+    private val updateManga: UpdateManga,
+    private val localCoverManager: LocalMangaCoverManager,
 
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<Manga?>(null) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted mangaId: Long): MangaCoverScreenModel
+    }
 
     init {
         viewModelScope.launchIO {
@@ -121,7 +138,7 @@ class MangaCoverScreenModel(
         viewModelScope.launchIO {
             context.contentResolver.openInputStream(data)?.use {
                 try {
-                    manga.editCover(appGraph.localMangaCoverManager, it, updateManga, coverCache)
+                    manga.editCover(localCoverManager, it, updateManga, coverCache)
                     notifyCoverUpdated(context)
                 } catch (e: Exception) {
                     notifyFailedCoverUpdate(context, e)

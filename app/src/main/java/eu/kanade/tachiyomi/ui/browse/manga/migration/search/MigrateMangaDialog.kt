@@ -18,7 +18,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.hasCustomCover
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
@@ -26,7 +32,7 @@ import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.manga.migration.MangaMigrationFlags
 import kotlinx.coroutines.flow.update
@@ -143,19 +149,23 @@ internal fun MigrateMangaDialog(
     }
 }
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 internal class MigrateMangaDialogScreenModel(
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val updateManga: UpdateManga = appGraph.updateManga,
-    private val getChaptersByMangaId: GetChaptersByMangaId = appGraph.getChaptersByMangaId,
-    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
-    private val updateChapter: UpdateChapter = appGraph.updateChapter,
-    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
-    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
-    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
-    private val insertTrack: InsertMangaTrack = appGraph.insertMangaTrack,
-    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
-    private val preferenceStore: PreferenceStore = appGraph.preferenceStore,
+    private val sourceManager: MangaSourceManager,
+    private val downloadManager: MangaDownloadManager,
+    private val updateManga: UpdateManga,
+    private val getChaptersByMangaId: GetChaptersByMangaId,
+    private val updateMangaFromRemote: UpdateMangaFromRemote,
+    private val updateChapter: UpdateChapter,
+    private val getCategories: GetMangaCategories,
+    private val setMangaCategories: SetMangaCategories,
+    private val getTracks: GetMangaTracks,
+    private val insertTrack: InsertMangaTrack,
+    private val coverCache: MangaCoverCache,
+    private val preferenceStore: PreferenceStore,
+    private val trackerManager: TrackerManager,
 ) : StateViewModel<MigrateMangaDialogScreenModel.State>(State()) {
 
     val migrateFlags: Preference<Int> by lazy {
@@ -163,7 +173,7 @@ internal class MigrateMangaDialogScreenModel(
     }
 
     private val enhancedServices by lazy {
-        appGraph.trackerManager.trackers.filterIsInstance<EnhancedMangaTracker>()
+        trackerManager.trackers.filterIsInstance<EnhancedMangaTracker>()
     }
 
     suspend fun migrateManga(

@@ -1,24 +1,34 @@
 package eu.kanade.tachiyomi.ui.storage.anime
 
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.storage.CommonStorageScreenModel
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.GetVisibleAnimeCategories
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.library.anime.LibraryAnime
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeStorageScreenModel(
-    downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
-    private val getLibraries: GetLibraryAnime = appGraph.getLibraryAnime,
-    getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    getVisibleCategories: GetVisibleAnimeCategories = appGraph.getVisibleAnimeCategories,
-    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    downloadCache: AnimeDownloadCache,
+    private val getLibraries: GetLibraryAnime,
+    getCategories: GetAnimeCategories,
+    getVisibleCategories: GetVisibleAnimeCategories,
+    private val downloadManager: AnimeDownloadManager,
+    private val sourceManager: AnimeSourceManager,
+    libraryPreferences: LibraryPreferences,
 ) : CommonStorageScreenModel<LibraryAnime>(
     downloadCacheChanges = downloadCache.changes,
     downloadCacheIsInitializing = downloadCache.isInitializing,
@@ -36,6 +46,7 @@ class AnimeStorageScreenModel(
     getCategoryId = { category },
     getTitle = { anime.title },
     getThumbnail = { anime.thumbnailUrl },
+    libraryPreferences = libraryPreferences,
 ) {
     override fun deleteEntry(id: Long) {
         viewModelScope.launchNonCancellable {

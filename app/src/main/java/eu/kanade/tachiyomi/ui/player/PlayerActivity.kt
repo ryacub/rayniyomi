@@ -54,6 +54,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.media.AudioAttributesCompat
 import androidx.media.AudioFocusRequestCompat
 import androidx.media.AudioManagerCompat
@@ -115,7 +116,15 @@ internal fun resolvePlayerSourceAfterInit(
 }
 
 class PlayerActivity : BaseActivity() {
-    private val viewModel by viewModels<PlayerViewModel>(factoryProducer = { PlayerViewModelProviderFactory(this) })
+    private val viewModel by viewModels<PlayerViewModel>(
+        factoryProducer = { appGraph.metroViewModelFactory },
+        extrasProducer = {
+            MutableCreationExtras(defaultViewModelCreationExtras).apply {
+                set(ACTIVITY_KEY, this@PlayerActivity)
+                set(HOST_KEY, PlayerActivityHost(this@PlayerActivity))
+            }
+        },
+    )
     private val playerObserver by lazy { PlayerObserver(this) }
     private lateinit var playerView: AniyomiMPVView
     private lateinit var rootView: View

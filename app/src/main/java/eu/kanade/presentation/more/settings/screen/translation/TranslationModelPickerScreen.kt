@@ -8,11 +8,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.util.Screen
@@ -20,14 +26,13 @@ import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.data.translation.TranslationProvider
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationCatalogResult
-import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoice
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelChoiceType
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelEntry
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelPickerState
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolution
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelResolver
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.TranslationCatalogLoader
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
@@ -40,7 +45,7 @@ class TranslationModelPickerScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = viewModel { TranslationModelPickerScreenModel() }
+        val screenModel = metroViewModel<TranslationModelPickerScreenModel>()
         val state by screenModel.state.collectAsStateWithLifecycle()
         var expandedModelIds by rememberSaveable(
             stateSaver = listSaver<Set<String>, String>(
@@ -97,11 +102,13 @@ class TranslationModelPickerScreen : Screen() {
     }
 }
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 internal class TranslationModelPickerScreenModel(
-    private val preferences: TranslationPreferences = appGraph.translationPreferences,
-    private val repository: TranslationModelCatalogRepository = appGraph.translationModelCatalogRepository,
-    private val loadCatalog: suspend (TranslationProvider, String, Boolean) -> TranslationCatalogResult =
-        repository::load,
+    private val preferences: TranslationPreferences,
+    @TranslationCatalogLoader
+    private val loadCatalog: suspend (TranslationProvider, String, Boolean) -> TranslationCatalogResult,
 ) : StateViewModel<TranslationModelPickerScreenModel.State>(State()) {
 
     data class State(

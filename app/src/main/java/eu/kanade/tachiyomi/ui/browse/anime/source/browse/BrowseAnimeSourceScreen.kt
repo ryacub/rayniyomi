@@ -34,9 +34,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.core.util.ifAnimeSourcesLoaded
 import eu.kanade.presentation.browse.RemoveEntryDialog
 import eu.kanade.presentation.browse.anime.BrowseAnimeSourceContent
@@ -87,7 +88,10 @@ data class BrowseAnimeSourceScreen(
             return
         }
 
-        val screenModel = viewModel { BrowseAnimeSourceScreenModel(sourceId, listingQuery) }
+        val screenModel =
+            assistedMetroViewModel<BrowseAnimeSourceScreenModel, BrowseAnimeSourceScreenModel.Factory> {
+                create(sourceId = sourceId, listingQuery = listingQuery)
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
         val hasLibraryEntries by screenModel.hasLibraryEntries.collectAsStateWithLifecycle()
 
@@ -292,7 +296,7 @@ data class BrowseAnimeSourceScreen(
                 MigrateAnimeDialog(
                     oldAnime = dialog.oldAnime,
                     newAnime = dialog.newAnime,
-                    screenModel = viewModel { MigrateAnimeDialogScreenModel() },
+                    screenModel = metroViewModel<MigrateAnimeDialogScreenModel>(),
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(AnimeScreen(dialog.oldAnime.id)) },
                     onClickSeasons = { navigator.push(MigrateSeasonSelectScreen(dialog.oldAnime, dialog.newAnime)) },

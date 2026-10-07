@@ -1,9 +1,16 @@
 package eu.kanade.tachiyomi.ui.updates.manga
 
+import android.app.Application
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
@@ -15,7 +22,7 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.mutate
@@ -54,19 +61,23 @@ import tachiyomi.domain.updates.manga.model.MangaUpdatesWithRelations
 import java.time.Instant
 import java.time.ZonedDateTime
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaUpdatesScreenModel(
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
-    private val updateChapter: UpdateChapter = appGraph.updateChapter,
-    private val setReadStatus: SetReadStatus = appGraph.setReadStatus,
-    private val getUpdates: GetMangaUpdates = appGraph.getMangaUpdates,
-    private val getManga: GetManga = appGraph.getManga,
-    private val getChapter: GetChapter = appGraph.getChapter,
-    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val sourceManager: MangaSourceManager,
+    private val downloadManager: MangaDownloadManager,
+    private val downloadCache: MangaDownloadCache,
+    private val updateChapter: UpdateChapter,
+    private val setReadStatus: SetReadStatus,
+    private val getUpdates: GetMangaUpdates,
+    private val getManga: GetManga,
+    private val getChapter: GetChapter,
+    private val getCategories: GetMangaCategories,
+    private val libraryPreferences: LibraryPreferences,
+    private val application: Application,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<MangaUpdatesScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Int.MAX_VALUE)
@@ -171,7 +182,7 @@ class MangaUpdatesScreenModel(
     }
 
     fun updateLibrary(): Boolean {
-        val started = MangaLibraryUpdateJob.startNow(appGraph.application)
+        val started = MangaLibraryUpdateJob.startNow(application)
         viewModelScope.launch {
             _events.send(Event.LibraryUpdateTriggered(started))
         }

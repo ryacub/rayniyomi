@@ -19,10 +19,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.domain.entries.manga.model.hasCustomCover
 import eu.kanade.domain.entries.manga.model.toSManga
@@ -91,7 +92,9 @@ class MangaScreen(
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
         val screenModel =
-            viewModel { MangaScreenModel(context, lifecycleOwner.lifecycle, mangaId, fromSource) }
+            assistedMetroViewModel<MangaScreenModel, MangaScreenModel.Factory> {
+                create(context, lifecycleOwner.lifecycle, mangaId, fromSource)
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         if (state is MangaScreenModel.State.Loading) {
@@ -233,7 +236,7 @@ class MangaScreen(
                 MigrateMangaDialog(
                     oldManga = dialog.oldManga,
                     newManga = dialog.newManga,
-                    screenModel = viewModel { MigrateMangaDialogScreenModel() },
+                    screenModel = metroViewModel<MigrateMangaDialogScreenModel>(),
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(MangaScreen(dialog.oldManga.id)) },
                     onPopScreen = { navigator.replace(MangaScreen(dialog.newManga.id)) },
@@ -264,7 +267,9 @@ class MangaScreen(
                 )
             }
             MangaScreenModel.Dialog.FullCover -> {
-                val sm = viewModel { MangaCoverScreenModel(successState.manga.id) }
+                val sm = assistedMetroViewModel<MangaCoverScreenModel, MangaCoverScreenModel.Factory> {
+                    create(successState.manga.id)
+                }
                 val manga by sm.state.collectAsStateWithLifecycle()
                 if (manga != null) {
                     val getContent = rememberLauncherForActivityResult(

@@ -57,6 +57,7 @@ import androidx.window.layout.WindowMetricsCalculator
 import com.google.android.material.elevation.SurfaceColors
 import com.google.android.material.transition.platform.MaterialContainerTransform
 import dev.chrisbanes.insetter.applyInsetter
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.presentation.reader.DisplayRefreshHost
 import eu.kanade.presentation.reader.OrientationSelectDialog
@@ -117,7 +118,6 @@ import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 
 class ReaderActivity : BaseActivity() {
 
@@ -144,7 +144,7 @@ class ReaderActivity : BaseActivity() {
     private lateinit var dialogRoot: ComposeView
     private lateinit var navigationOverlay: ReaderNavigationOverlayView
 
-    val viewModel by viewModels<ReaderViewModel>()
+    val viewModel by viewModels<ReaderViewModel>(factoryProducer = { appGraph.metroViewModelFactory })
 
     private val hasCutout by lazy { hasDisplayCutout() }
 
@@ -447,14 +447,17 @@ class ReaderActivity : BaseActivity() {
 
         dialogRoot.setComposeContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
-            val settingsScreenModel = composeViewModel(key = "ReaderSettings:$hasCutout") {
-                ReaderSettingsScreenModel(
-                    readerState = viewModel.state,
-                    hasDisplayCutout = hasCutout,
-                    onChangeReadingMode = viewModel::setMangaReadingMode,
-                    onChangeOrientation = viewModel::setMangaOrientationType,
-                )
-            }
+            val settingsScreenModel =
+                assistedMetroViewModel<ReaderSettingsScreenModel, ReaderSettingsScreenModel.Factory>(
+                    key = "ReaderSettings:$hasCutout",
+                ) {
+                    create(
+                        readerState = viewModel.state,
+                        hasDisplayCutout = hasCutout,
+                        onChangeReadingMode = viewModel::setMangaReadingMode,
+                        onChangeOrientation = viewModel::setMangaOrientationType,
+                    )
+                }
 
             if (!ifMangaSourcesLoaded()) {
                 return@setComposeContent

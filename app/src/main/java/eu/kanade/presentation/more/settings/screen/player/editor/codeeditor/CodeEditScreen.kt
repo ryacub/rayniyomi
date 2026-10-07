@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.PredictiveBackHandlerCompat
@@ -57,7 +57,9 @@ class CodeEditScreen(private val filePath: String) : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = viewModel { CodeEditScreenModel(context, filePath) }
+        val screenModel = assistedMetroViewModel<CodeEditScreenModel, CodeEditScreenModel.Factory> {
+            create(context, filePath)
+        }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
         val dialogShown by screenModel.dialogShown.collectAsStateWithLifecycle()

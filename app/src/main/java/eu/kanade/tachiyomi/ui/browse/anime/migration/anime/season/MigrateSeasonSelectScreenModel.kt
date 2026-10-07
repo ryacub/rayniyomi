@@ -14,6 +14,13 @@ import androidx.paging.PagingState
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
@@ -21,7 +28,6 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.animesource.model.SAnime
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -36,14 +42,22 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
+@AssistedInject
 class MigrateSeasonSelectScreenModel(
-    private val anime: Anime,
-    sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
+    @Assisted private val anime: Anime,
+    sourceManager: AnimeSourceManager,
+    sourcePreferences: SourcePreferences,
+    private val libraryPreferences: LibraryPreferences,
+    private val getAnime: GetAnime,
+    private val networkToLocalAnime: NetworkToLocalAnime,
 ) : StateViewModel<MigrateSeasonSelectScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted anime: Anime): MigrateSeasonSelectScreenModel
+    }
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
     val source = sourceManager.getOrStub(anime.source)

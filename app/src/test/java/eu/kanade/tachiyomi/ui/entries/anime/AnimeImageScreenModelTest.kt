@@ -31,6 +31,8 @@ class AnimeImageScreenModelTest {
                     coverCache = mockk(relaxed = true),
                     backgroundCache = mockk(relaxed = true),
                     updateAnime = mockk(relaxed = true),
+                    localCoverManager = mockk(relaxed = true),
+                    localBackgroundManager = mockk(relaxed = true),
                     pagerState = mockk(relaxed = true),
                 )
             }

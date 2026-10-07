@@ -6,10 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.TabContent
 import tachiyomi.i18n.aniyomi.AYMR
 
@@ -18,7 +18,7 @@ fun Screen.animeDownloadTab(
     nestedScrollConnection: NestedScrollConnection,
 ): TabContent {
     val navigator = LocalNavigator.currentOrThrow
-    val screenModel = viewModel { AnimeDownloadQueueScreenModel() }
+    val screenModel = metroViewModel<AnimeDownloadQueueScreenModel>()
     val downloadList by screenModel.state.collectAsStateWithLifecycle()
     val downloadCount by remember {
         derivedStateOf { downloadList.sumOf { it.downloads.size } }

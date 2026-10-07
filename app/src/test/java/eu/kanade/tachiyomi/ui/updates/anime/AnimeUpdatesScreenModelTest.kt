@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.updates.anime
 
+import android.app.Application
 import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.presentation.updates.anime.AnimeUpdatesUiModel
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
@@ -181,6 +182,7 @@ class AnimeUpdatesScreenModelTest {
 
         fun model(): AnimeUpdatesScreenModel {
             return AnimeUpdatesScreenModel(
+                application = mockk<Application>(relaxed = true),
                 sourceManager = mockk<AnimeSourceManager>(relaxed = true),
                 downloadManager = downloadManager,
                 downloadCache = downloadCache,

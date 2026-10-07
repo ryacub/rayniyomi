@@ -2,14 +2,20 @@ package eu.kanade.tachiyomi.ui.browse.manga.extension
 
 import android.app.Application
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.extension.manga.interactor.GetMangaExtensionsByType
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.completeInstall
 import eu.kanade.tachiyomi.extension.dismissInstallError
@@ -43,13 +49,16 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaExtensionsScreenModel(
-    preferences: SourcePreferences = appGraph.sourcePreferences,
-    basePreferences: BasePreferences = appGraph.basePreferences,
-    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
-    private val getExtensions: GetMangaExtensionsByType = appGraph.getMangaExtensionsByType,
-    private val application: Application = appGraph.application,
-    private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    preferences: SourcePreferences,
+    basePreferences: BasePreferences,
+    private val extensionManager: MangaExtensionManager,
+    private val getExtensions: GetMangaExtensionsByType,
+    private val application: Application,
+    @ViewModelIoDispatcher private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<MangaExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())

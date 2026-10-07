@@ -49,11 +49,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.DropdownMenu
@@ -93,8 +93,8 @@ data object DownloadsTab : Tab {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
-        val animeScreenModel = viewModel { AnimeDownloadQueueScreenModel() }
-        val mangaScreenModel = viewModel { MangaDownloadQueueScreenModel() }
+        val animeScreenModel = metroViewModel<AnimeDownloadQueueScreenModel>()
+        val mangaScreenModel = metroViewModel<MangaDownloadQueueScreenModel>()
         val animeDownloadList by animeScreenModel.state.collectAsStateWithLifecycle()
         val mangaDownloadList by mangaScreenModel.state.collectAsStateWithLifecycle()
         val animeDownloadCount by remember {

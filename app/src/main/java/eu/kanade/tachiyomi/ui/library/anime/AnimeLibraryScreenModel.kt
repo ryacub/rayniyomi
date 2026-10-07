@@ -8,7 +8,13 @@ import androidx.compose.ui.util.fastDistinctBy
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastMap
 import androidx.compose.ui.util.fastMapNotNull
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.preference.PreferenceMutableState
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.fastFilterNot
@@ -26,7 +32,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeBackgrounds
 import eu.kanade.tachiyomi.util.removeCovers
@@ -85,24 +91,27 @@ import kotlin.random.Random
  */
 typealias AnimeLibraryMap = Map<Category, List<AnimeLibraryItem>>
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeLibraryScreenModel(
-    private val getLibraryAnime: GetLibraryAnime = appGraph.getLibraryAnime,
-    private val getCategories: GetVisibleAnimeCategories = appGraph.getVisibleAnimeCategories,
-    private val getTracksPerAnime: GetTracksPerAnime = appGraph.getTracksPerAnime,
-    private val getNextEpisodes: GetNextEpisodes = appGraph.getNextEpisodes,
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
-    private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
-    private val updateAnime: UpdateAnime = appGraph.updateAnime,
-    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
-    private val preferences: BasePreferences = appGraph.basePreferences,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
-    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    private val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
-    private val trackerManager: TrackerManager = appGraph.trackerManager,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val getLibraryAnime: GetLibraryAnime,
+    private val getCategories: GetVisibleAnimeCategories,
+    private val getTracksPerAnime: GetTracksPerAnime,
+    private val getNextEpisodes: GetNextEpisodes,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
+    private val setSeenStatus: SetSeenStatus,
+    private val updateAnime: UpdateAnime,
+    private val setAnimeCategories: SetAnimeCategories,
+    private val preferences: BasePreferences,
+    private val libraryPreferences: LibraryPreferences,
+    private val coverCache: AnimeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache,
+    private val sourceManager: AnimeSourceManager,
+    private val downloadManager: AnimeDownloadManager,
+    private val downloadCache: AnimeDownloadCache,
+    private val trackerManager: TrackerManager,
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<AnimeLibraryScreenModel.State>(State()) {
 
     var activeCategoryIndex: Int by libraryPreferences.lastUsedAnimeCategory().asState(

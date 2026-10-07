@@ -6,8 +6,14 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.viewModelScope
 import com.hippo.unifile.UniFile
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,11 +26,23 @@ import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.aniyomi.AYMR
 import java.io.FileOutputStream
 
+@AssistedInject
 class CodeEditScreenModel(
-    private val context: Context,
-    private val filePath: String,
-    private val storageManager: StorageManager = appGraph.storageManager,
+    @Assisted private val context: Context,
+    @Assisted private val filePath: String,
+    private val storageManager: StorageManager,
 ) : StateViewModel<CodeEditScreenState>(CodeEditScreenState.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted context: Context,
+            @Assisted filePath: String,
+        ): CodeEditScreenModel
+    }
+
     private val _hasModified = MutableStateFlow(false)
     val hasModified = _hasModified.asStateFlow()
 

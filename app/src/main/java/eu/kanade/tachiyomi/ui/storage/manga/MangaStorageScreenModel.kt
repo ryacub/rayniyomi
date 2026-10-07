@@ -1,24 +1,34 @@
 package eu.kanade.tachiyomi.ui.storage.manga
 
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.storage.CommonStorageScreenModel
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.library.manga.LibraryManga
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaStorageScreenModel(
-    downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
-    private val getLibraries: GetLibraryManga = appGraph.getLibraryManga,
-    getCategories: GetMangaCategories = appGraph.getMangaCategories,
-    getVisibleCategories: GetVisibleMangaCategories = appGraph.getVisibleMangaCategories,
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    downloadCache: MangaDownloadCache,
+    private val getLibraries: GetLibraryManga,
+    getCategories: GetMangaCategories,
+    getVisibleCategories: GetVisibleMangaCategories,
+    private val downloadManager: MangaDownloadManager,
+    private val sourceManager: MangaSourceManager,
+    libraryPreferences: LibraryPreferences,
 ) : CommonStorageScreenModel<LibraryManga>(
     downloadCacheChanges = downloadCache.changes,
     downloadCacheIsInitializing = downloadCache.isInitializing,
@@ -36,6 +46,7 @@ class MangaStorageScreenModel(
     getCategoryId = { category },
     getTitle = { manga.title },
     getThumbnail = { manga.thumbnailUrl },
+    libraryPreferences = libraryPreferences,
 ) {
     override fun deleteEntry(id: Long) {
         viewModelScope.launchNonCancellable {

@@ -1,7 +1,13 @@
 package eu.kanade.tachiyomi.ui.browse.anime.source
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.anime.interactor.GetEnabledAnimeSources
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
@@ -9,7 +15,6 @@ import eu.kanade.domain.source.anime.interactor.ToggleAnimeSourcePin
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.browse.anime.AnimeSourceUiModel
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.LAST_USED_KEY
 import eu.kanade.tachiyomi.util.system.PINNED_KEY
 import kotlinx.collections.immutable.ImmutableList
@@ -27,12 +32,15 @@ import tachiyomi.domain.source.anime.model.AnimeSource
 import tachiyomi.domain.source.anime.model.Pin
 import java.util.TreeMap
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeSourcesScreenModel(
-    private val preferences: BasePreferences = appGraph.basePreferences,
-    private val sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val getEnabledAnimeSources: GetEnabledAnimeSources = appGraph.getEnabledAnimeSources,
-    private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
-    private val toggleSourcePin: ToggleAnimeSourcePin = appGraph.toggleAnimeSourcePin,
+    private val preferences: BasePreferences,
+    private val sourcePreferences: SourcePreferences,
+    private val getEnabledAnimeSources: GetEnabledAnimeSources,
+    private val toggleSource: ToggleAnimeSource,
+    private val toggleSourcePin: ToggleAnimeSourcePin,
 ) : StateViewModel<AnimeSourcesScreenModel.State>(State()) {
 
     private val _events = Channel<Event>(Int.MAX_VALUE)

@@ -50,6 +50,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
+- Use MetroX injection for the remaining app ViewModels, including reader and player construction (#1300).
 - Use MetroX injection for the manga and anime statistics ViewModels (#1297).
 - Use MetroX injection for the manga and anime migration source-list ViewModels (#1296).
 - Build with JDK 21 instead of JDK 17. App bytecode still targets Java 17 (#1293).

@@ -9,10 +9,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
@@ -50,7 +50,7 @@ fun Screen.animeHistoryTab(
     val snackbarHostState = SnackbarHostState()
 
     val navigator = LocalNavigator.currentOrThrow
-    val screenModel = viewModel { AnimeHistoryScreenModel() }
+    val screenModel = metroViewModel<AnimeHistoryScreenModel>()
     val state by screenModel.state.collectAsStateWithLifecycle()
     val searchQuery by screenModel.query.collectAsStateWithLifecycle()
 
@@ -140,7 +140,7 @@ fun Screen.animeHistoryTab(
                     MigrateAnimeDialog(
                         oldAnime = dialog.oldAnime,
                         newAnime = dialog.newAnime,
-                        screenModel = viewModel { MigrateAnimeDialogScreenModel() },
+                        screenModel = metroViewModel<MigrateAnimeDialogScreenModel>(),
                         onDismissRequest = onDismissRequest,
                         onClickTitle = { navigator.push(AnimeScreen(dialog.oldAnime.id)) },
                         onClickSeasons = {

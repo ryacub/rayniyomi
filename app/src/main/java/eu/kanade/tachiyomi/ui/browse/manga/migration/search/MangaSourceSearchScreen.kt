@@ -14,9 +14,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.presentation.browse.manga.BrowseSourceContent
 import eu.kanade.presentation.components.SearchToolbar
@@ -55,7 +56,10 @@ data class MangaSourceSearchScreen(
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
 
-        val screenModel = viewModel { BrowseMangaSourceScreenModel(sourceId, query) }
+        val screenModel =
+            assistedMetroViewModel<BrowseMangaSourceScreenModel, BrowseMangaSourceScreenModel.Factory> {
+                create(sourceId = sourceId, listingQuery = query)
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         val snackbarHostState = remember { SnackbarHostState() }
@@ -123,7 +127,7 @@ data class MangaSourceSearchScreen(
                 MigrateMangaDialog(
                     oldManga = oldManga,
                     newManga = dialog.newManga,
-                    screenModel = viewModel { MigrateMangaDialogScreenModel() },
+                    screenModel = metroViewModel<MigrateMangaDialogScreenModel>(),
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(MangaScreen(dialog.newManga.id)) },
                     onPopScreen = {

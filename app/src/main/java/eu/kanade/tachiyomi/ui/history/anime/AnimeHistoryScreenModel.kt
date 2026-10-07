@@ -2,13 +2,18 @@ package eu.kanade.tachiyomi.ui.history.anime
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.presentation.history.anime.AnimeHistoryUiModel
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -46,19 +51,22 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeHistoryScreenModel(
-    private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
-    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime = appGraph.getDuplicateLibraryAnime,
-    private val getHistory: GetAnimeHistory = appGraph.getAnimeHistory,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val getNextEpisodes: GetNextEpisodes = appGraph.getNextEpisodes,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val removeHistory: RemoveAnimeHistory = appGraph.removeAnimeHistory,
-    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
-    private val updateAnime: UpdateAnime = appGraph.updateAnime,
+    private val addTracks: AddAnimeTracks,
+    private val getCategories: GetAnimeCategories,
+    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime,
+    private val getHistory: GetAnimeHistory,
+    private val getAnime: GetAnime,
+    private val getNextEpisodes: GetNextEpisodes,
+    private val libraryPreferences: LibraryPreferences,
+    private val removeHistory: RemoveAnimeHistory,
+    private val setAnimeCategories: SetAnimeCategories,
+    private val updateAnime: UpdateAnime,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
+    private val sourceManager: AnimeSourceManager,
 ) : StateViewModel<AnimeHistoryScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)

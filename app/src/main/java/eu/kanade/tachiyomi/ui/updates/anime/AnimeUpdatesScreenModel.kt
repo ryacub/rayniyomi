@@ -1,9 +1,16 @@
 package eu.kanade.tachiyomi.ui.updates.anime
 
+import android.app.Application
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
@@ -15,7 +22,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.mutate
@@ -55,20 +62,24 @@ import tachiyomi.domain.updates.anime.model.AnimeUpdatesWithRelations
 import java.time.Instant
 import java.time.ZonedDateTime
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeUpdatesScreenModel(
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    private val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
-    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
-    private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
-    private val getUpdates: GetAnimeUpdates = appGraph.getAnimeUpdates,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val getEpisode: GetEpisode = appGraph.getEpisode,
-    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val sourceManager: AnimeSourceManager,
+    private val downloadManager: AnimeDownloadManager,
+    private val downloadCache: AnimeDownloadCache,
+    private val updateEpisode: UpdateEpisode,
+    private val setSeenStatus: SetSeenStatus,
+    private val getUpdates: GetAnimeUpdates,
+    private val getAnime: GetAnime,
+    private val getEpisode: GetEpisode,
+    private val getCategories: GetAnimeCategories,
+    private val libraryPreferences: LibraryPreferences,
+    private val application: Application,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    downloadPreferences: DownloadPreferences,
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<AnimeUpdatesScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Int.MAX_VALUE)
@@ -175,7 +186,7 @@ class AnimeUpdatesScreenModel(
     }
 
     fun updateLibrary(): Boolean {
-        val started = AnimeLibraryUpdateJob.startNow(appGraph.application)
+        val started = AnimeLibraryUpdateJob.startNow(application)
         viewModelScope.launch {
             _events.send(Event.LibraryUpdateTriggered(started))
         }

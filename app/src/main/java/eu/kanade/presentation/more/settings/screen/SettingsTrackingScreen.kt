@@ -42,8 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.domain.track.service.PeriodicTrackerSyncJob
 import eu.kanade.domain.track.service.TrackerOAuthStateStore
@@ -102,7 +107,7 @@ object SettingsTrackingScreen : SearchableSettings {
         val trackerManager = remember { appGraph.trackerManager }
         val mangaSourceManager = remember { appGraph.mangaSourceManager }
         val animeSourceManager = remember { appGraph.animeSourceManager }
-        val syncScreenModel = viewModel { SettingsTrackingSyncScreenModel() }
+        val syncScreenModel = metroViewModel<SettingsTrackingSyncScreenModel>()
         val autoTrackStatePref = trackPreferences.autoUpdateTrackOnMarkRead()
         val trackerSyncEnabled = trackPreferences.trackerSyncEnabled()
         val trackerSyncEnabledState by trackerSyncEnabled
@@ -515,8 +520,11 @@ private data class LogoutDialog(
     val tracker: Tracker,
 )
 
-private class SettingsTrackingSyncScreenModel(
-    private val coordinator: TrackerSyncCoordinator = appGraph.trackerSyncCoordinator,
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
+internal class SettingsTrackingSyncScreenModel(
+    private val coordinator: TrackerSyncCoordinator,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(State())

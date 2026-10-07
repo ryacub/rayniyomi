@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelSearchDispatcher
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
@@ -36,13 +36,13 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 abstract class MangaSearchScreenModel(
     initialState: State = State(),
-    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
-    private val networkToLocalManga: NetworkToLocalManga = appGraph.networkToLocalManga,
-    private val getManga: GetManga = appGraph.getManga,
-    private val preferences: SourcePreferences = appGraph.sourcePreferences,
-    private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
+    sourcePreferences: SourcePreferences,
+    private val sourceManager: MangaSourceManager,
+    private val extensionManager: MangaExtensionManager,
+    private val networkToLocalManga: NetworkToLocalManga,
+    private val getManga: GetManga,
+    private val preferences: SourcePreferences,
+    @ViewModelSearchDispatcher private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
 ) : StateViewModel<MangaSearchScreenModel.State>(initialState) {
 
     private val requestCoordinator = SearchRequestCoordinator()

@@ -2,10 +2,17 @@ package eu.kanade.tachiyomi.ui.deeplink.manga
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.entries.manga.model.toDomainManga
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -24,15 +31,23 @@ import tachiyomi.domain.items.chapter.interactor.GetChapterByUrlAndMangaId
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
+@AssistedInject
 class DeepLinkMangaScreenModel(
-    query: String = "",
-    private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val networkToLocalManga: NetworkToLocalManga = appGraph.networkToLocalManga,
-    private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = appGraph.getChapterByUrlAndMangaId,
-    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = appGraph.getMangaByUrlAndSourceId,
-    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    @Assisted query: String = "",
+    private val sourceManager: MangaSourceManager,
+    private val networkToLocalManga: NetworkToLocalManga,
+    private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId,
+    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId,
+    private val updateMangaFromRemote: UpdateMangaFromRemote,
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<DeepLinkMangaScreenModel.State>(State.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted query: String): DeepLinkMangaScreenModel
+    }
 
     init {
         viewModelScope.launch(ioDispatcher) {

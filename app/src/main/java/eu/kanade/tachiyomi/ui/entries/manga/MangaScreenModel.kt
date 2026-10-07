@@ -10,6 +10,13 @@ import androidx.compose.ui.util.fastAny
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.manga.interactor.GetExcludedScanlators
 import eu.kanade.domain.entries.manga.interactor.SetExcludedScanlators
@@ -38,7 +45,7 @@ import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
@@ -101,48 +108,59 @@ import tachiyomi.domain.items.chapter.model.NoChaptersException
 import tachiyomi.domain.items.chapter.service.calculateChapterGap
 import tachiyomi.domain.items.chapter.service.getChapterSort
 import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.manga.isLocal
 import java.time.Clock
 
+@AssistedInject
 class MangaScreenModel(
-    private val context: Context,
-    private val lifecycle: Lifecycle,
-    private val mangaId: Long,
-    private val isFromSource: Boolean,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
-    readerPreferences: ReaderPreferences = appGraph.readerPreferences,
-    private val trackerManager: TrackerManager = appGraph.trackerManager,
-    private val trackChapter: TrackChapter = appGraph.trackChapter,
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
-    private val getMangaAndChapters: GetMangaWithChapters = appGraph.getMangaWithChapters,
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = appGraph.getDuplicateLibraryManga,
-    private val getAvailableScanlators: GetAvailableScanlators = appGraph.getAvailableScanlators,
-    private val getExcludedScanlators: GetExcludedScanlators = appGraph.getExcludedScanlators,
-    private val setExcludedScanlators: SetExcludedScanlators = appGraph.setExcludedScanlators,
-    private val setMangaChapterFlags: SetMangaChapterFlags = appGraph.setMangaChapterFlags,
-    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = appGraph.setMangaDefaultChapterFlags,
-    private val setReadStatus: SetReadStatus = appGraph.setReadStatus,
-    private val updateChapter: UpdateChapter = appGraph.updateChapter,
-    private val updateManga: UpdateManga = appGraph.updateManga,
-    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
-    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
-    private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
-    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
-    private val mangaRepository: MangaRepository = appGraph.mangaRepository,
-    private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote,
-    private val entryRefresher: MangaEntryRefresher = appGraph.mangaEntryRefresher,
-    private val translationManager: TranslationManager = appGraph.translationManager,
-    private val mergeLibraryManga: MergeLibraryManga = appGraph.mergeLibraryManga,
-    private val fetchInterval: MangaFetchInterval = appGraph.mangaFetchInterval,
+    @Assisted private val context: Context,
+    @Assisted private val lifecycle: Lifecycle,
+    @Assisted private val mangaId: Long,
+    @Assisted private val isFromSource: Boolean,
+    private val libraryPreferences: LibraryPreferences,
+    private val trackPreferences: TrackPreferences,
+    readerPreferences: ReaderPreferences,
+    private val trackerManager: TrackerManager,
+    private val trackChapter: TrackChapter,
+    private val downloadManager: MangaDownloadManager,
+    private val downloadCache: MangaDownloadCache,
+    private val getMangaAndChapters: GetMangaWithChapters,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga,
+    private val getAvailableScanlators: GetAvailableScanlators,
+    private val getExcludedScanlators: GetExcludedScanlators,
+    private val setExcludedScanlators: SetExcludedScanlators,
+    private val setMangaChapterFlags: SetMangaChapterFlags,
+    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags,
+    private val setReadStatus: SetReadStatus,
+    private val updateChapter: UpdateChapter,
+    private val updateManga: UpdateManga,
+    private val getCategories: GetMangaCategories,
+    private val getTracks: GetMangaTracks,
+    private val addTracks: AddMangaTracks,
+    private val setMangaCategories: SetMangaCategories,
+    private val mangaRepository: MangaRepository,
+    private val updateMangaFromRemote: UpdateMangaFromRemote,
+    private val entryRefresher: MangaEntryRefresher,
+    private val translationManager: TranslationManager,
+    private val mergeLibraryManga: MergeLibraryManga,
+    private val fetchInterval: MangaFetchInterval,
     private val clock: Clock = Clock.systemDefaultZone(),
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
+    private val refreshTracksInteractor: RefreshMangaTracks,
+    private val sourceManager: MangaSourceManager,
 ) : StateViewModel<MangaScreenModel.State>(State.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(context: Context, lifecycle: Lifecycle, mangaId: Long, isFromSource: Boolean): MangaScreenModel
+    }
 
     private val chapterListItemMapper = MangaChapterListItemMapper(downloadManager)
 
@@ -275,7 +293,7 @@ class MangaScreenModel(
             mutableState.update {
                 State.Success(
                     manga = manga,
-                    source = appGraph.mangaSourceManager.getOrStub(manga.source),
+                    source = sourceManager.getOrStub(manga.source),
                     isFromSource = isFromSource,
                     chapters = chapterListItemMapper.map(
                         chapters = chapters,
@@ -812,7 +830,7 @@ class MangaScreenModel(
     }
 
     private suspend fun refreshTrackers(
-        refreshTracks: RefreshMangaTracks = appGraph.refreshMangaTracks,
+        refreshTracks: RefreshMangaTracks = refreshTracksInteractor,
     ) {
         refreshTracks.await(mangaId)
             .filter { it.first != null }

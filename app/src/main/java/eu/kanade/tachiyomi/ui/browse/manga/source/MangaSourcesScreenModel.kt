@@ -1,7 +1,13 @@
 package eu.kanade.tachiyomi.ui.browse.manga.source
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.manga.interactor.GetEnabledMangaSources
 import eu.kanade.domain.source.manga.interactor.ToggleExcludeFromMangaDataSaver
@@ -11,7 +17,6 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver
 import eu.kanade.presentation.browse.manga.MangaSourceUiModel
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.LAST_USED_KEY
 import eu.kanade.tachiyomi.util.system.PINNED_KEY
 import kotlinx.collections.immutable.ImmutableList
@@ -31,15 +36,17 @@ import tachiyomi.domain.source.manga.model.Pin
 import tachiyomi.domain.source.manga.model.Source
 import java.util.TreeMap
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaSourcesScreenModel(
-    private val preferences: BasePreferences = appGraph.basePreferences,
-    private val sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val getEnabledSources: GetEnabledMangaSources = appGraph.getEnabledMangaSources,
-    private val toggleSource: ToggleMangaSource = appGraph.toggleMangaSource,
-    private val toggleSourcePin: ToggleMangaSourcePin = appGraph.toggleMangaSourcePin,
+    private val preferences: BasePreferences,
+    private val sourcePreferences: SourcePreferences,
+    private val getEnabledSources: GetEnabledMangaSources,
+    private val toggleSource: ToggleMangaSource,
+    private val toggleSourcePin: ToggleMangaSourcePin,
     // SY -->
-    private val toggleExcludeFromMangaDataSaver: ToggleExcludeFromMangaDataSaver =
-        appGraph.toggleExcludeFromMangaDataSaver,
+    private val toggleExcludeFromMangaDataSaver: ToggleExcludeFromMangaDataSaver,
     // SY <--
 ) : StateViewModel<MangaSourcesScreenModel.State>(State()) {
 

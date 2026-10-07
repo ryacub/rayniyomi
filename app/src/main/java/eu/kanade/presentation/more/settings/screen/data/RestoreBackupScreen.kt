@@ -19,10 +19,18 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.core.net.toUri
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.presentation.util.Screen
@@ -48,7 +56,9 @@ class RestoreBackupScreen(
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        val model = viewModel { RestoreBackupScreenModel(context, uri) }
+        val model = assistedMetroViewModel<RestoreBackupScreenModel, RestoreBackupScreenModel.Factory> {
+            create(context = context, uri = uri)
+        }
         val state by model.state.collectAsStateWithLifecycle()
 
         Scaffold(
@@ -165,10 +175,21 @@ class RestoreBackupScreen(
     }
 }
 
-private class RestoreBackupScreenModel(
-    private val context: Context,
-    private val uri: String,
+@AssistedInject
+internal class RestoreBackupScreenModel(
+    @Assisted private val context: Context,
+    @Assisted private val uri: String,
 ) : StateViewModel<RestoreBackupScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted context: Context,
+            @Assisted uri: String,
+        ): RestoreBackupScreenModel
+    }
 
     init {
         validate(uri.toUri())

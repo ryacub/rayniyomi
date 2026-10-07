@@ -2,9 +2,9 @@ package eu.kanade.tachiyomi.ui.webview
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.webview.WebViewScreenContent
@@ -23,7 +23,7 @@ class WebViewScreen(
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = viewModel { WebViewScreenModel(sourceId) }
+        val screenModel = assistedMetroViewModel<WebViewScreenModel, WebViewScreenModel.Factory> { create(sourceId) }
 
         WebViewScreenContent(
             onNavigateUp = { navigator.pop() },

@@ -1,10 +1,15 @@
 package eu.kanade.presentation.more.settings.screen.player.custombutton
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -22,13 +27,16 @@ import tachiyomi.domain.custombuttons.model.CustomButton
 import tachiyomi.domain.custombuttons.model.CustomButtonUpdate
 import tachiyomi.i18n.MR
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class PlayerSettingsCustomButtonScreenModel(
-    private val getCustomButtons: GetCustomButtons = appGraph.getCustomButtons,
-    private val createCustomButton: CreateCustomButton = appGraph.createCustomButton,
-    private val deleteCustomButton: DeleteCustomButton = appGraph.deleteCustomButton,
-    private val updateCustomButton: UpdateCustomButton = appGraph.updateCustomButton,
-    private val reorderCustomButton: ReorderCustomButton = appGraph.reorderCustomButton,
-    private val toggleFavoriteCustomButton: ToggleFavoriteCustomButton = appGraph.toggleFavoriteCustomButton,
+    private val getCustomButtons: GetCustomButtons,
+    private val createCustomButton: CreateCustomButton,
+    private val deleteCustomButton: DeleteCustomButton,
+    private val updateCustomButton: UpdateCustomButton,
+    private val reorderCustomButton: ReorderCustomButton,
+    private val toggleFavoriteCustomButton: ToggleFavoriteCustomButton,
 ) : StateViewModel<CustomButtonScreenState>(CustomButtonScreenState.Loading) {
 
     private val _events: Channel<CustomButtonEvent> = Channel(Channel.BUFFERED)

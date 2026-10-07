@@ -7,9 +7,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.more.settings.screen.player.custombutton.components.CustomButtonCreateDialog
 import eu.kanade.presentation.more.settings.screen.player.custombutton.components.CustomButtonDeleteDialog
 import eu.kanade.presentation.more.settings.screen.player.custombutton.components.CustomButtonEditDialog
@@ -28,7 +28,7 @@ object PlayerSettingsCustomButtonScreen : Screen() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
         val uriHandler = LocalUriHandler.current
-        val screenModel = viewModel { PlayerSettingsCustomButtonScreenModel() }
+        val screenModel = metroViewModel<PlayerSettingsCustomButtonScreenModel>()
 
         val state by screenModel.state.collectAsStateWithLifecycle()
 
