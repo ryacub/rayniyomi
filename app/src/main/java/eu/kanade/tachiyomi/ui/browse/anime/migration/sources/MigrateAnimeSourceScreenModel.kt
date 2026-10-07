@@ -1,12 +1,17 @@
 package eu.kanade.tachiyomi.ui.browse.anime.migration.sources
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.source.anime.interactor.GetAnimeSourcesWithFavoriteCount
 import eu.kanade.domain.source.interactor.SetMigrateSorting
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -22,11 +27,13 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.model.AnimeSource
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MigrateAnimeSourceScreenModel(
-    preferences: SourcePreferences = appGraph.sourcePreferences,
-    private val getSourcesWithFavoriteCount: GetAnimeSourcesWithFavoriteCount =
-        appGraph.getAnimeSourcesWithFavoriteCount,
-    private val setMigrateSorting: SetMigrateSorting = appGraph.setMigrateSorting,
+    preferences: SourcePreferences,
+    private val getSourcesWithFavoriteCount: GetAnimeSourcesWithFavoriteCount,
+    private val setMigrateSorting: SetMigrateSorting,
 ) : StateViewModel<MigrateAnimeSourceScreenModel.State>(State()) {
 
     private val _channel = Channel<Event>(Int.MAX_VALUE)
