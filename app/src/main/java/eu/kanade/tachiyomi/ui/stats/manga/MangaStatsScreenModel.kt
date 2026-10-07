@@ -3,7 +3,13 @@ package eu.kanade.tachiyomi.ui.stats.manga
 import androidx.compose.ui.util.fastDistinctBy
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastMapNotNull
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.util.fastCountNot
 import eu.kanade.core.util.fastFilterNot
 import eu.kanade.presentation.more.stats.StatsScreenState
@@ -12,7 +18,6 @@ import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
@@ -27,13 +32,16 @@ import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.domain.track.manga.model.MangaTrack
 import tachiyomi.source.local.entries.manga.isLocal
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaStatsScreenModel(
-    private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
-    private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga,
-    private val getTotalReadDuration: GetTotalReadDuration = appGraph.getTotalReadDuration,
-    private val getTracks: GetMangaTracks = appGraph.getMangaTracks,
-    private val preferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val trackerManager: TrackerManager = appGraph.trackerManager,
+    private val downloadManager: MangaDownloadManager,
+    private val getLibraryManga: GetLibraryManga,
+    private val getTotalReadDuration: GetTotalReadDuration,
+    private val getTracks: GetMangaTracks,
+    private val preferences: LibraryPreferences,
+    private val trackerManager: TrackerManager,
 ) : StateViewModel<StatsScreenState>(StatsScreenState.Loading) {
 
     private val loggedInTrackers by lazy { trackerManager.loggedInTrackers().filter { it is MangaTracker } }
