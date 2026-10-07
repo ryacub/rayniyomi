@@ -211,6 +211,7 @@ class AnimeDownloader(
             it.lastErrorReason = null
         }
 
+        notifier.onDownloadStarted()
         launchDownloaderJob()
 
         return pending.isNotEmpty()

@@ -22,6 +22,7 @@ import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.LibraryUpdateMedia
+import eu.kanade.tachiyomi.data.library.LibraryUpdateNotificationMode
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgress
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgressTracker
 import eu.kanade.tachiyomi.data.library.LibraryUpdateResultAccumulator
@@ -97,7 +98,14 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote
     private val summaryStore = appGraph.libraryUpdateSummaryStore
 
-    private val notifier = MangaLibraryUpdateNotifier(context)
+    private val notifier = MangaLibraryUpdateNotifier(
+        context,
+        notificationMode = if (WORK_NAME_MANUAL in tags) {
+            LibraryUpdateNotificationMode.Live
+        } else {
+            LibraryUpdateNotificationMode.Standard
+        },
+    )
 
     private var mangaToUpdate: List<LibraryManga> = mutableListOf()
 
@@ -139,6 +147,7 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             withIOContext {
                 val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
                 addMangaToQueue(categoryId)
+                notifier.onUpdateStarted()
                 errorLogPath = updateChapterList(resultAccumulator)
                 skippedLogPath = reportSkippedUpdates()
                 finishSummary(

@@ -19,6 +19,8 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloader
+import eu.kanade.tachiyomi.data.library.LibraryUpdateNotificationMode
+import eu.kanade.tachiyomi.data.notification.LiveUpdateNotificationSession
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -46,11 +48,20 @@ class MangaLibraryUpdateNotifier(
 
     private val securityPreferences: SecurityPreferences = appGraph.securityPreferences,
     private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
+    private val notificationMode: LibraryUpdateNotificationMode = LibraryUpdateNotificationMode.Standard,
 ) {
 
     private val percentFormatter = NumberFormat.getPercentInstance().apply {
         roundingMode = RoundingMode.DOWN
         maximumFractionDigits = 0
+    }
+
+    private val liveUpdateSession = lazy {
+        LiveUpdateNotificationSession(context, Notifications.ID_LIBRARY_PROGRESS)
+    }
+
+    fun onUpdateStarted() {
+        if (notificationMode == LibraryUpdateNotificationMode.Live) liveUpdateSession.value.reset()
     }
 
     /**
@@ -104,14 +115,20 @@ class MangaLibraryUpdateNotifier(
         if (!securityPreferences.hideNotificationContent().get()) {
             val updatingText = manga.joinToString("\n") { it.title.chop(40) }
             progressNotificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(updatingText))
+        } else {
+            progressNotificationBuilder.setStyle(null)
         }
 
-        context.notify(
-            Notifications.ID_LIBRARY_PROGRESS,
-            progressNotificationBuilder
-                .setProgress(total, current, false)
-                .build(),
-        )
+        if (notificationMode == LibraryUpdateNotificationMode.Live) {
+            liveUpdateSession.value.applyLiveUpdate(progressNotificationBuilder, "$current/$total")
+        }
+
+        progressNotificationBuilder.setProgress(total, current, false)
+        if (notificationMode == LibraryUpdateNotificationMode.Live) {
+            liveUpdateSession.value.show(progressNotificationBuilder)
+        } else {
+            context.notify(Notifications.ID_LIBRARY_PROGRESS, progressNotificationBuilder.build())
+        }
     }
 
     /**
@@ -326,6 +343,7 @@ class MangaLibraryUpdateNotifier(
      * Cancels the progress notification.
      */
     fun cancelProgressNotification() {
+        if (liveUpdateSession.isInitialized()) liveUpdateSession.value.finish()
         context.cancelNotification(Notifications.ID_LIBRARY_PROGRESS)
     }
 

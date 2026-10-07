@@ -30,6 +30,7 @@ import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.LibraryUpdateMedia
+import eu.kanade.tachiyomi.data.library.LibraryUpdateNotificationMode
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgress
 import eu.kanade.tachiyomi.data.library.LibraryUpdateProgressTracker
 import eu.kanade.tachiyomi.data.library.LibraryUpdateResultAccumulator
@@ -113,7 +114,14 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private val getAnimeSeasonsByParentId: GetAnimeSeasonsByParentId = appGraph.getAnimeSeasonsByParentId
     private val summaryStore = appGraph.libraryUpdateSummaryStore
 
-    private val notifier = AnimeLibraryUpdateNotifier(context)
+    private val notifier = AnimeLibraryUpdateNotifier(
+        context,
+        notificationMode = if (WORK_NAME_MANUAL in tags) {
+            LibraryUpdateNotificationMode.Live
+        } else {
+            LibraryUpdateNotificationMode.Standard
+        },
+    )
 
     private var animeToUpdate: List<LibraryAnime> = mutableListOf()
 
@@ -155,6 +163,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             withIOContext {
                 val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
                 addAnimeToQueue(categoryId)
+                notifier.onUpdateStarted()
                 errorLogPath = updateEpisodeList(resultAccumulator)
                 skippedLogPath = reportSkippedUpdates()
                 finishSummary(

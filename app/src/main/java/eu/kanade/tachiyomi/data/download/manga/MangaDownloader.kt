@@ -219,6 +219,7 @@ class MangaDownloader(
 
         isPaused = false
 
+        notifier.onDownloadStarted()
         launchDownloaderJob()
         notifier.onQueueStatusSummary(queueState.value)
 
