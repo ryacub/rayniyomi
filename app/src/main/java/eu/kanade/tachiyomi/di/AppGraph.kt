@@ -15,57 +15,32 @@ import eu.kanade.domain.TrackingBindings
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.download.anime.interactor.DeleteEpisodeDownload
 import eu.kanade.domain.download.manga.interactor.DeleteChapterDownload
-import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
 import eu.kanade.domain.entries.anime.interactor.SyncSeasonsWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
-import eu.kanade.domain.entries.manga.interactor.GetExcludedScanlators
-import eu.kanade.domain.entries.manga.interactor.SetExcludedScanlators
-import eu.kanade.domain.entries.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
-import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionLanguages
-import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionSources
-import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionsByType
 import eu.kanade.domain.extension.anime.interactor.TrustAnimeExtension
-import eu.kanade.domain.extension.manga.interactor.GetExtensionSources
-import eu.kanade.domain.extension.manga.interactor.GetMangaExtensionLanguages
-import eu.kanade.domain.extension.manga.interactor.GetMangaExtensionsByType
 import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
-import eu.kanade.domain.items.chapter.interactor.GetAvailableScanlators
-import eu.kanade.domain.items.chapter.interactor.SetReadStatus
 import eu.kanade.domain.items.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
-import eu.kanade.domain.items.episode.interactor.SetSeenStatus
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.domain.novel.NovelFeaturePreferences
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
 import eu.kanade.domain.source.anime.interactor.GetAnimeSourcesWithFavoriteCount
-import eu.kanade.domain.source.anime.interactor.GetEnabledAnimeSources
 import eu.kanade.domain.source.anime.interactor.GetLanguagesWithAnimeSources
-import eu.kanade.domain.source.anime.interactor.ToggleAnimeIncognito
-import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
-import eu.kanade.domain.source.anime.interactor.ToggleAnimeSourcePin
 import eu.kanade.domain.source.interactor.SetMigrateSorting
-import eu.kanade.domain.source.interactor.ToggleLanguage
-import eu.kanade.domain.source.manga.interactor.GetEnabledMangaSources
 import eu.kanade.domain.source.manga.interactor.GetLanguagesWithMangaSources
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.source.manga.interactor.GetMangaSourcesWithFavoriteCount
-import eu.kanade.domain.source.manga.interactor.ToggleExcludeFromMangaDataSaver
-import eu.kanade.domain.source.manga.interactor.ToggleMangaIncognito
-import eu.kanade.domain.source.manga.interactor.ToggleMangaSource
-import eu.kanade.domain.source.manga.interactor.ToggleMangaSourcePin
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
-import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
 import eu.kanade.domain.track.anime.interactor.SyncEpisodeProgressWithTrack
 import eu.kanade.domain.track.anime.interactor.TrackEpisode
 import eu.kanade.domain.track.anime.store.DelayedAnimeTrackingStore
 import eu.kanade.domain.track.interactor.TrackSyncConflictResolver
 import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
-import eu.kanade.domain.track.manga.interactor.RefreshMangaTracks
 import eu.kanade.domain.track.manga.interactor.SyncChapterProgressWithTrack
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.manga.store.DelayedMangaTrackingStore
@@ -90,7 +65,6 @@ import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.filler.AnimeFillerSource
 import eu.kanade.tachiyomi.data.library.LibraryUpdateSummaryStore
-import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
 import eu.kanade.tachiyomi.data.translation.TranslationManager
@@ -108,8 +82,6 @@ import eu.kanade.tachiyomi.feature.novel.LightNovelPluginStateManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
-import eu.kanade.tachiyomi.ui.entries.anime.AnimeEntryRefresher
-import eu.kanade.tachiyomi.ui.entries.manga.MangaEntryRefresher
 import eu.kanade.tachiyomi.ui.player.ExternalIntents
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.settings.AdvancedPlayerPreferences
@@ -118,7 +90,6 @@ import eu.kanade.tachiyomi.ui.player.settings.DecoderPreferences
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
-import eu.kanade.tachiyomi.ui.player.utils.TrackSelect
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -139,8 +110,6 @@ import mihon.domain.extensionrepo.manga.repository.MangaExtensionRepoRepository
 import mihon.domain.extensionrepo.service.ExtensionRepoService
 import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
-import mihon.domain.upcoming.anime.interactor.GetUpcomingAnime
-import mihon.domain.upcoming.manga.interactor.GetUpcomingManga
 import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.preference.PreferenceStore
@@ -149,119 +118,66 @@ import tachiyomi.data.Database
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.backup.service.BackupPreferences
-import tachiyomi.domain.category.anime.interactor.CreateAnimeCategoryWithName
-import tachiyomi.domain.category.anime.interactor.DeleteAnimeCategory
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
-import tachiyomi.domain.category.anime.interactor.GetVisibleAnimeCategories
-import tachiyomi.domain.category.anime.interactor.HideAnimeCategory
-import tachiyomi.domain.category.anime.interactor.RenameAnimeCategory
-import tachiyomi.domain.category.anime.interactor.ReorderAnimeCategory
 import tachiyomi.domain.category.anime.interactor.ResetAnimeCategoryFlags
-import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
-import tachiyomi.domain.category.anime.interactor.SetAnimeCategoryAlphabeticalSort
-import tachiyomi.domain.category.anime.interactor.SetAnimeDisplayMode
-import tachiyomi.domain.category.anime.interactor.SetSortModeForAnimeCategory
 import tachiyomi.domain.category.anime.interactor.UpdateAnimeCategory
 import tachiyomi.domain.category.anime.repository.AnimeCategoryRepository
-import tachiyomi.domain.category.manga.interactor.CreateMangaCategoryWithName
-import tachiyomi.domain.category.manga.interactor.DeleteMangaCategory
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
-import tachiyomi.domain.category.manga.interactor.GetVisibleMangaCategories
-import tachiyomi.domain.category.manga.interactor.HideMangaCategory
-import tachiyomi.domain.category.manga.interactor.RenameMangaCategory
-import tachiyomi.domain.category.manga.interactor.ReorderMangaCategory
 import tachiyomi.domain.category.manga.interactor.ResetMangaCategoryFlags
-import tachiyomi.domain.category.manga.interactor.SetMangaCategories
-import tachiyomi.domain.category.manga.interactor.SetMangaCategoryAlphabeticalSort
-import tachiyomi.domain.category.manga.interactor.SetMangaDisplayMode
-import tachiyomi.domain.category.manga.interactor.SetSortModeForMangaCategory
 import tachiyomi.domain.category.manga.interactor.UpdateMangaCategory
 import tachiyomi.domain.category.manga.repository.MangaCategoryRepository
-import tachiyomi.domain.custombuttons.interactor.CreateCustomButton
-import tachiyomi.domain.custombuttons.interactor.DeleteCustomButton
 import tachiyomi.domain.custombuttons.interactor.GetCustomButtons
-import tachiyomi.domain.custombuttons.interactor.ReorderCustomButton
-import tachiyomi.domain.custombuttons.interactor.ToggleFavoriteCustomButton
-import tachiyomi.domain.custombuttons.interactor.UpdateCustomButton
 import tachiyomi.domain.custombuttons.repository.CustomButtonRepository
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
-import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
-import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
-import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.interactor.ResetAnimeViewerFlags
-import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
-import tachiyomi.domain.entries.anime.interactor.SetAnimeSeasonFlags
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
-import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
-import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
-import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.interactor.ResetMangaViewerFlags
-import tachiyomi.domain.entries.manga.interactor.ScanLibraryDuplicates
-import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.history.anime.interactor.GetAnimeHistory
-import tachiyomi.domain.history.anime.interactor.GetNextEpisodes
-import tachiyomi.domain.history.anime.interactor.RemoveAnimeHistory
 import tachiyomi.domain.history.anime.interactor.UpsertAnimeHistory
 import tachiyomi.domain.history.anime.repository.AnimeHistoryRepository
 import tachiyomi.domain.history.manga.interactor.GetMangaHistory
-import tachiyomi.domain.history.manga.interactor.GetNextChapters
 import tachiyomi.domain.history.manga.interactor.GetTotalReadDuration
-import tachiyomi.domain.history.manga.interactor.RemoveMangaHistory
-import tachiyomi.domain.history.manga.interactor.UpsertMangaHistory
 import tachiyomi.domain.history.manga.repository.MangaHistoryRepository
 import tachiyomi.domain.items.chapter.interactor.GetChapter
-import tachiyomi.domain.items.chapter.interactor.GetChapterByUrlAndMangaId
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
-import tachiyomi.domain.items.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.items.chapter.interactor.ShouldUpdateDbChapter
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.repository.ChapterRepository
 import tachiyomi.domain.items.episode.interactor.GetEpisode
-import tachiyomi.domain.items.episode.interactor.GetEpisodeByUrlAndAnimeId
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
-import tachiyomi.domain.items.episode.interactor.SetAnimeDefaultEpisodeFlags
 import tachiyomi.domain.items.episode.interactor.ShouldUpdateDbEpisode
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
 import tachiyomi.domain.items.episode.repository.EpisodeRepository
 import tachiyomi.domain.items.season.interactor.GetAnimeSeasonsByParentId
-import tachiyomi.domain.items.season.interactor.SetAnimeDefaultSeasonFlags
 import tachiyomi.domain.items.season.interactor.ShouldUpdateDbSeason
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.service.ReleaseService
-import tachiyomi.domain.source.anime.interactor.GetAnimeSourcesWithNonLibraryAnime
-import tachiyomi.domain.source.anime.interactor.GetRemoteAnime
 import tachiyomi.domain.source.anime.repository.AnimeSourceRepository
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import tachiyomi.domain.source.manga.interactor.GetMangaSourcesWithNonLibraryManga
-import tachiyomi.domain.source.manga.interactor.GetRemoteManga
 import tachiyomi.domain.source.manga.repository.MangaSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.domain.storage.service.StoragePreferences
-import tachiyomi.domain.track.anime.interactor.DeleteAnimeTrack
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
-import tachiyomi.domain.track.anime.interactor.GetTracksPerAnime
 import tachiyomi.domain.track.anime.interactor.InsertAnimeTrack
 import tachiyomi.domain.track.anime.repository.AnimeTrackRepository
-import tachiyomi.domain.track.manga.interactor.DeleteMangaTrack
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
-import tachiyomi.domain.track.manga.interactor.GetTracksPerManga
 import tachiyomi.domain.track.manga.interactor.InsertMangaTrack
 import tachiyomi.domain.track.manga.repository.MangaTrackRepository
 import tachiyomi.domain.updates.anime.interactor.GetAnimeUpdates
@@ -321,8 +237,6 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val animeDownloadProvider: AnimeDownloadProvider
     val animeDownloadManager: AnimeDownloadManager
     val animeDownloadCache: AnimeDownloadCache
-    val mangaEntryRefresher: MangaEntryRefresher
-    val animeEntryRefresher: AnimeEntryRefresher
     val animeFillerSource: AnimeFillerSource
     val downloadStateStore: DownloadStateStore
     val downloadStrategySelector: DownloadStrategySelector
@@ -330,7 +244,6 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val trackerManager: TrackerManager
     val delayedAnimeTrackingStore: DelayedAnimeTrackingStore
     val delayedMangaTrackingStore: DelayedMangaTrackingStore
-    val imageSaver: ImageSaver
     val androidStorageFolderProvider: AndroidStorageFolderProvider
     val localMangaSourceFileSystem: LocalMangaSourceFileSystem
     val localMangaCoverManager: LocalMangaCoverManager
@@ -375,74 +288,33 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val novelFeaturePreferences: NovelFeaturePreferences
     val animeCategoryRepository: AnimeCategoryRepository
     val getAnimeCategories: GetAnimeCategories
-    val getVisibleAnimeCategories: GetVisibleAnimeCategories
     val resetAnimeCategoryFlags: ResetAnimeCategoryFlags
-    val setAnimeDisplayMode: SetAnimeDisplayMode
-    val setSortModeForAnimeCategory: SetSortModeForAnimeCategory
-    val setAnimeCategoryAlphabeticalSort: SetAnimeCategoryAlphabeticalSort
-    val createAnimeCategoryWithName: CreateAnimeCategoryWithName
-    val renameAnimeCategory: RenameAnimeCategory
-    val reorderAnimeCategory: ReorderAnimeCategory
     val updateAnimeCategory: UpdateAnimeCategory
-    val hideAnimeCategory: HideAnimeCategory
-    val deleteAnimeCategory: DeleteAnimeCategory
     val mangaCategoryRepository: MangaCategoryRepository
     val getMangaCategories: GetMangaCategories
-    val getVisibleMangaCategories: GetVisibleMangaCategories
     val resetMangaCategoryFlags: ResetMangaCategoryFlags
-    val setMangaDisplayMode: SetMangaDisplayMode
-    val setSortModeForMangaCategory: SetSortModeForMangaCategory
-    val setMangaCategoryAlphabeticalSort: SetMangaCategoryAlphabeticalSort
-    val createMangaCategoryWithName: CreateMangaCategoryWithName
-    val renameMangaCategory: RenameMangaCategory
-    val reorderMangaCategory: ReorderMangaCategory
     val updateMangaCategory: UpdateMangaCategory
-    val hideMangaCategory: HideMangaCategory
-    val deleteMangaCategory: DeleteMangaCategory
     val animeRepository: AnimeRepository
-    val getDuplicateLibraryAnime: GetDuplicateLibraryAnime
-    val mergeLibraryAnime: MergeLibraryAnime
     val getAnimeFavorites: GetAnimeFavorites
     val getLibraryAnime: GetLibraryAnime
-    val getAnimeWithEpisodesAndSeasons: GetAnimeWithEpisodesAndSeasons
     val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId
     val getAnime: GetAnime
     val getAnimeSeasonsByParentId: GetAnimeSeasonsByParentId
-    val getNextEpisodes: GetNextEpisodes
-    val getUpcomingAnime: GetUpcomingAnime
     val resetAnimeViewerFlags: ResetAnimeViewerFlags
-    val setAnimeEpisodeFlags: SetAnimeEpisodeFlags
-    val setAnimeSeasonFlags: SetAnimeSeasonFlags
     val animeFetchInterval: AnimeFetchInterval
-    val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags
-    val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags
-    val setAnimeViewerFlags: SetAnimeViewerFlags
     val networkToLocalAnime: NetworkToLocalAnime
     val updateAnime: UpdateAnime
-    val setAnimeCategories: SetAnimeCategories
     val shouldUpdateDbSeason: ShouldUpdateDbSeason
     val syncSeasonsWithSource: SyncSeasonsWithSource
     val mangaRepository: MangaRepository
-    val getDuplicateLibraryManga: GetDuplicateLibraryManga
-    val mergeLibraryManga: MergeLibraryManga
-    val scanLibraryDuplicates: ScanLibraryDuplicates
     val getMangaFavorites: GetMangaFavorites
     val getLibraryManga: GetLibraryManga
-    val getMangaWithChapters: GetMangaWithChapters
     val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId
     val getManga: GetManga
-    val getNextChapters: GetNextChapters
-    val getUpcomingManga: GetUpcomingManga
     val resetMangaViewerFlags: ResetMangaViewerFlags
-    val setMangaChapterFlags: SetMangaChapterFlags
     val mangaFetchInterval: MangaFetchInterval
-    val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags
-    val setMangaViewerFlags: SetMangaViewerFlags
     val networkToLocalManga: NetworkToLocalManga
     val updateManga: UpdateManga
-    val setMangaCategories: SetMangaCategories
-    val getExcludedScanlators: GetExcludedScanlators
-    val setExcludedScanlators: SetExcludedScanlators
     val releaseService: ReleaseService
     val getApplicationRelease: GetApplicationRelease
     val updatePromptPreferences: UpdatePromptPreferences
@@ -450,18 +322,12 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val animeTrackRepository: AnimeTrackRepository
     val trackEpisode: TrackEpisode
     val addAnimeTracks: AddAnimeTracks
-    val refreshAnimeTracks: RefreshAnimeTracks
-    val deleteAnimeTrack: DeleteAnimeTrack
-    val getTracksPerAnime: GetTracksPerAnime
     val getAnimeTracks: GetAnimeTracks
     val insertAnimeTrack: InsertAnimeTrack
     val syncEpisodeProgressWithTrack: SyncEpisodeProgressWithTrack
     val mangaTrackRepository: MangaTrackRepository
     val trackChapter: TrackChapter
     val addMangaTracks: AddMangaTracks
-    val refreshMangaTracks: RefreshMangaTracks
-    val deleteMangaTrack: DeleteMangaTrack
-    val getTracksPerManga: GetTracksPerManga
     val getMangaTracks: GetMangaTracks
     val insertMangaTrack: InsertMangaTrack
     val syncChapterProgressWithTrack: SyncChapterProgressWithTrack
@@ -472,64 +338,39 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val episodeRepository: EpisodeRepository
     val getEpisode: GetEpisode
     val getEpisodesByAnimeId: GetEpisodesByAnimeId
-    val getEpisodeByUrlAndAnimeId: GetEpisodeByUrlAndAnimeId
     val updateEpisode: UpdateEpisode
     val populateFillerMarks: PopulateFillerMarks
-    val setSeenStatus: SetSeenStatus
     val shouldUpdateDbEpisode: ShouldUpdateDbEpisode
     val syncEpisodesWithSource: SyncEpisodesWithSource
     val filterEpisodesForDownload: FilterEpisodesForDownload
     val chapterRepository: ChapterRepository
     val getChapter: GetChapter
     val getChaptersByMangaId: GetChaptersByMangaId
-    val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId
     val updateChapter: UpdateChapter
-    val setReadStatus: SetReadStatus
     val shouldUpdateDbChapter: ShouldUpdateDbChapter
     val syncChaptersWithSource: SyncChaptersWithSource
-    val getAvailableScanlators: GetAvailableScanlators
     val filterChaptersForDownload: FilterChaptersForDownload
     val animeHistoryRepository: AnimeHistoryRepository
     val getAnimeHistory: GetAnimeHistory
     val upsertAnimeHistory: UpsertAnimeHistory
-    val removeAnimeHistory: RemoveAnimeHistory
     val deleteEpisodeDownload: DeleteEpisodeDownload
-    val getAnimeExtensionsByType: GetAnimeExtensionsByType
-    val getAnimeExtensionSources: GetAnimeExtensionSources
-    val getAnimeExtensionLanguages: GetAnimeExtensionLanguages
     val mangaHistoryRepository: MangaHistoryRepository
     val getMangaHistory: GetMangaHistory
-    val upsertMangaHistory: UpsertMangaHistory
-    val removeMangaHistory: RemoveMangaHistory
     val getTotalReadDuration: GetTotalReadDuration
     val deleteChapterDownload: DeleteChapterDownload
-    val getMangaExtensionsByType: GetMangaExtensionsByType
-    val getExtensionSources: GetExtensionSources
-    val getMangaExtensionLanguages: GetMangaExtensionLanguages
     val animeUpdatesRepository: AnimeUpdatesRepository
     override val getAnimeUpdates: GetAnimeUpdates
     val mangaUpdatesRepository: MangaUpdatesRepository
     override val getMangaUpdates: GetMangaUpdates
     val animeSourceRepository: AnimeSourceRepository
     val animeStubSourceRepository: AnimeStubSourceRepository
-    val getEnabledAnimeSources: GetEnabledAnimeSources
     val getLanguagesWithAnimeSources: GetLanguagesWithAnimeSources
-    val getRemoteAnime: GetRemoteAnime
     val getAnimeSourcesWithFavoriteCount: GetAnimeSourcesWithFavoriteCount
-    val getAnimeSourcesWithNonLibraryAnime: GetAnimeSourcesWithNonLibraryAnime
-    val toggleAnimeSource: ToggleAnimeSource
-    val toggleAnimeSourcePin: ToggleAnimeSourcePin
     val mangaSourceRepository: MangaSourceRepository
     val mangaStubSourceRepository: MangaStubSourceRepository
-    val getEnabledMangaSources: GetEnabledMangaSources
     val getLanguagesWithMangaSources: GetLanguagesWithMangaSources
-    val getRemoteManga: GetRemoteManga
     val getMangaSourcesWithFavoriteCount: GetMangaSourcesWithFavoriteCount
-    val getMangaSourcesWithNonLibraryManga: GetMangaSourcesWithNonLibraryManga
     val setMigrateSorting: SetMigrateSorting
-    val toggleLanguage: ToggleLanguage
-    val toggleMangaSource: ToggleMangaSource
-    val toggleMangaSourcePin: ToggleMangaSourcePin
     val trustAnimeExtension: TrustAnimeExtension
     val trustMangaExtension: TrustMangaExtension
     val extensionRepoService: ExtensionRepoService
@@ -540,7 +381,6 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val deleteAnimeExtensionRepo: DeleteAnimeExtensionRepo
     val replaceAnimeExtensionRepo: ReplaceAnimeExtensionRepo
     val updateAnimeExtensionRepo: UpdateAnimeExtensionRepo
-    val toggleAnimeIncognito: ToggleAnimeIncognito
     val getAnimeIncognitoState: GetAnimeIncognitoState
     val mangaExtensionRepoRepository: MangaExtensionRepoRepository
     val getMangaExtensionRepo: GetMangaExtensionRepo
@@ -549,18 +389,10 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val deleteMangaExtensionRepo: DeleteMangaExtensionRepo
     val replaceMangaExtensionRepo: ReplaceMangaExtensionRepo
     val updateMangaExtensionRepo: UpdateMangaExtensionRepo
-    val toggleMangaIncognito: ToggleMangaIncognito
     val getMangaIncognitoState: GetMangaIncognitoState
     val updateMangaFromRemote: UpdateMangaFromRemote
     val customButtonRepository: CustomButtonRepository
-    val createCustomButton: CreateCustomButton
-    val deleteCustomButton: DeleteCustomButton
     val getCustomButtons: GetCustomButtons
-    val updateCustomButton: UpdateCustomButton
-    val reorderCustomButton: ReorderCustomButton
-    val toggleFavoriteCustomButton: ToggleFavoriteCustomButton
-    val trackSelect: TrackSelect
-    val toggleExcludeFromMangaDataSaver: ToggleExcludeFromMangaDataSaver
 
     @DependencyGraph.Factory
     fun interface Factory {
