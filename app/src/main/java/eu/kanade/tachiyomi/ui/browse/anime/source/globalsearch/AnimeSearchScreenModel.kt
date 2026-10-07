@@ -8,7 +8,7 @@ import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
-import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.di.ViewModelSearchDispatcher
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
 import kotlinx.collections.immutable.PersistentMap
@@ -36,13 +36,13 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
 abstract class AnimeSearchScreenModel(
     initialState: State = State(),
-    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val extensionManager: AnimeExtensionManager = appGraph.animeExtensionManager,
-    private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val preferences: SourcePreferences = appGraph.sourcePreferences,
-    private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
+    sourcePreferences: SourcePreferences,
+    private val sourceManager: AnimeSourceManager,
+    private val extensionManager: AnimeExtensionManager,
+    private val networkToLocalAnime: NetworkToLocalAnime,
+    private val getAnime: GetAnime,
+    private val preferences: SourcePreferences,
+    @ViewModelSearchDispatcher private val searchDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(5),
 ) : StateViewModel<AnimeSearchScreenModel.State>(initialState) {
 
     private val requestCoordinator = SearchRequestCoordinator()

@@ -1,8 +1,16 @@
 package eu.kanade.presentation.more.settings.screen.browse
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.toImmutableSet
@@ -21,9 +29,17 @@ import tachiyomi.i18n.MR
  * Consolidated screen model for extension repo management.
  * Supports both Anime and Manga repos via dependency injection.
  */
+@AssistedInject
 class ExtensionReposScreenModel(
-    private val deps: Dependencies,
+    @Assisted private val deps: Dependencies,
 ) : StateViewModel<RepoScreenState>(RepoScreenState.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted deps: Dependencies): ExtensionReposScreenModel
+    }
 
     private val _events: Channel<RepoEvent> = Channel(Channel.BUFFERED) // 64-event buffer, sufficient for UI events
     val events = _events.receiveAsFlow()

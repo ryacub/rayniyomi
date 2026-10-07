@@ -3,9 +3,10 @@ package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.browse.anime.MigrateAnimeSearchScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.season.MigrateSeasonSelectScreen
@@ -18,13 +19,17 @@ class MigrateAnimeSearchScreen(private val animeId: Long) : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
 
-        val screenModel = viewModel { MigrateAnimeSearchScreenModel(animeId = animeId) }
+        val screenModel =
+            assistedMetroViewModel<MigrateAnimeSearchScreenModel, MigrateAnimeSearchScreenModel.Factory> {
+                create(animeId = animeId, initialExtensionFilter = "")
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
-        val dialogScreenModel = viewModel {
-            AnimeMigrateSearchScreenDialogScreenModel(
-                animeId = animeId,
-            )
+        val dialogScreenModel = assistedMetroViewModel<
+            AnimeMigrateSearchScreenDialogScreenModel,
+            AnimeMigrateSearchScreenDialogScreenModel.Factory,
+            > {
+            create(animeId = animeId)
         }
         val dialogState by dialogScreenModel.state.collectAsStateWithLifecycle()
 
@@ -57,7 +62,7 @@ class MigrateAnimeSearchScreen(private val animeId: Long) : Screen() {
                 MigrateAnimeDialog(
                     oldAnime = dialogState.anime!!,
                     newAnime = dialog.anime,
-                    screenModel = viewModel { MigrateAnimeDialogScreenModel() },
+                    screenModel = metroViewModel<MigrateAnimeDialogScreenModel>(),
                     onDismissRequest = { dialogScreenModel.setDialog(null) },
                     onClickTitle = {
                         navigator.push(AnimeScreen(dialog.anime.id, true))

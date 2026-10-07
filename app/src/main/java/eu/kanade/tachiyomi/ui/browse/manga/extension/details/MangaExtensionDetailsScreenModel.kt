@@ -2,14 +2,21 @@ package eu.kanade.tachiyomi.ui.browse.manga.extension.details
 
 import android.content.Context
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.extension.manga.interactor.GetExtensionSources
 import eu.kanade.domain.extension.manga.interactor.MangaExtensionSourceItem
 import eu.kanade.domain.source.manga.interactor.ToggleMangaIncognito
 import eu.kanade.domain.source.manga.interactor.ToggleMangaSource
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -31,16 +38,27 @@ import logcat.LogPriority
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.core.common.util.system.logcat
 
+@AssistedInject
 class MangaExtensionDetailsScreenModel(
-    pkgName: String,
-    context: Context,
-    private val network: NetworkHelper = appGraph.networkHelper,
-    private val extensionManager: MangaExtensionManager = appGraph.mangaExtensionManager,
-    private val getExtensionSources: GetExtensionSources = appGraph.getExtensionSources,
-    private val toggleSource: ToggleMangaSource = appGraph.toggleMangaSource,
-    private val toggleIncognito: ToggleMangaIncognito = appGraph.toggleMangaIncognito,
-    private val preferences: SourcePreferences = appGraph.sourcePreferences,
+    @Assisted pkgName: String,
+    @Assisted context: Context,
+    private val network: NetworkHelper,
+    private val extensionManager: MangaExtensionManager,
+    private val getExtensionSources: GetExtensionSources,
+    private val toggleSource: ToggleMangaSource,
+    private val toggleIncognito: ToggleMangaIncognito,
+    private val preferences: SourcePreferences,
 ) : StateViewModel<MangaExtensionDetailsScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted pkgName: String,
+            @Assisted context: Context,
+        ): MangaExtensionDetailsScreenModel
+    }
 
     private val _events: Channel<MangaExtensionDetailsEvent> = Channel()
     val events: Flow<MangaExtensionDetailsEvent> = _events.receiveAsFlow()

@@ -5,9 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.browse.manga.MangaExtensionDetailsScreen
 import eu.kanade.presentation.util.Screen
 import kotlinx.coroutines.flow.collectLatest
@@ -20,12 +20,10 @@ data class MangaExtensionDetailsScreen(
     @Composable
     override fun Content() {
         val context = LocalContext.current
-        val screenModel = viewModel {
-            MangaExtensionDetailsScreenModel(
-                pkgName = pkgName,
-                context = context,
-            )
-        }
+        val screenModel =
+            assistedMetroViewModel<MangaExtensionDetailsScreenModel, MangaExtensionDetailsScreenModel.Factory> {
+                create(pkgName = pkgName, context = context)
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         if (state.isLoading) {

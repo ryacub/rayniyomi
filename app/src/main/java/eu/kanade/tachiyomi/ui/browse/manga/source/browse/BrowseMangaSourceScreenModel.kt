@@ -12,6 +12,13 @@ import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import eu.kanade.domain.entries.manga.model.toDomainManga
@@ -21,7 +28,6 @@ import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.util.getFilterListOrNull
@@ -56,25 +62,36 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 import java.time.Instant
 import eu.kanade.tachiyomi.source.model.Filter as SourceModelFilter
 
+@AssistedInject
 class BrowseMangaSourceScreenModel(
-    private val sourceId: Long,
-    listingQuery: String?,
-    sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val coverCache: MangaCoverCache = appGraph.mangaCoverCache,
-    private val getRemoteManga: GetRemoteManga = appGraph.getRemoteManga,
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = appGraph.getDuplicateLibraryManga,
-    private val getCategories: GetMangaCategories = appGraph.getMangaCategories,
-    private val setMangaCategories: SetMangaCategories = appGraph.setMangaCategories,
-    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = appGraph.setMangaDefaultChapterFlags,
-    private val getManga: GetManga = appGraph.getManga,
-    private val networkToLocalManga: NetworkToLocalManga = appGraph.networkToLocalManga,
-    private val updateManga: UpdateManga = appGraph.updateManga,
-    private val addTracks: AddMangaTracks = appGraph.addMangaTracks,
-    private val getIncognitoState: GetMangaIncognitoState = appGraph.getMangaIncognitoState,
-    getFavorites: GetMangaFavorites = appGraph.getMangaFavorites,
+    @Assisted private val sourceId: Long,
+    @Assisted listingQuery: String?,
+    sourceManager: MangaSourceManager,
+    sourcePreferences: SourcePreferences,
+    private val libraryPreferences: LibraryPreferences,
+    private val coverCache: MangaCoverCache,
+    private val getRemoteManga: GetRemoteManga,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga,
+    private val getCategories: GetMangaCategories,
+    private val setMangaCategories: SetMangaCategories,
+    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags,
+    private val getManga: GetManga,
+    private val networkToLocalManga: NetworkToLocalManga,
+    private val updateManga: UpdateManga,
+    private val addTracks: AddMangaTracks,
+    private val getIncognitoState: GetMangaIncognitoState,
+    getFavorites: GetMangaFavorites,
 ) : StateViewModel<BrowseMangaSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted sourceId: Long,
+            @Assisted listingQuery: String?,
+        ): BrowseMangaSourceScreenModel
+    }
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
 

@@ -1,7 +1,7 @@
 package eu.kanade.presentation.more.settings.screen.browse
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.di.appGraph
 
@@ -11,8 +11,8 @@ class MangaExtensionReposScreen(
 
     @Composable
     override fun Content() {
-        val screenModel = viewModel {
-            ExtensionReposScreenModel(
+        val screenModel = assistedMetroViewModel<ExtensionReposScreenModel, ExtensionReposScreenModel.Factory> {
+            create(
                 MangaExtensionRepoDependencies(
                     getExtensionRepo = appGraph.getMangaExtensionRepo,
                     createExtensionRepo = appGraph.createMangaExtensionRepo,

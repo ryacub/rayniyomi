@@ -34,9 +34,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.core.util.ifMangaSourcesLoaded
 import eu.kanade.presentation.browse.RemoveEntryDialog
 import eu.kanade.presentation.browse.manga.BrowseSourceContent
@@ -85,7 +86,10 @@ data class BrowseMangaSourceScreen(
             return
         }
 
-        val screenModel = viewModel { BrowseMangaSourceScreenModel(sourceId, listingQuery) }
+        val screenModel =
+            assistedMetroViewModel<BrowseMangaSourceScreenModel, BrowseMangaSourceScreenModel.Factory> {
+                create(sourceId = sourceId, listingQuery = listingQuery)
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
         val hasLibraryEntries by screenModel.hasLibraryEntries.collectAsStateWithLifecycle()
 
@@ -290,7 +294,7 @@ data class BrowseMangaSourceScreen(
                 MigrateMangaDialog(
                     oldManga = dialog.oldManga,
                     newManga = dialog.newManga,
-                    screenModel = viewModel { MigrateMangaDialogScreenModel() },
+                    screenModel = metroViewModel<MigrateMangaDialogScreenModel>(),
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(MangaScreen(dialog.oldManga.id)) },
                     onPopScreen = {

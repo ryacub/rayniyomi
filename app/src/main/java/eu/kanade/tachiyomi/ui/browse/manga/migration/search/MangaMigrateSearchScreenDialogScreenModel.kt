@@ -2,17 +2,31 @@ package eu.kanade.tachiyomi.ui.browse.manga.migration.search
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
 
+@AssistedInject
 class MangaMigrateSearchScreenDialogScreenModel(
-    val mangaId: Long,
-    getManga: GetManga = appGraph.getManga,
+    @Assisted val mangaId: Long,
+    private val getManga: GetManga,
 ) : StateViewModel<MangaMigrateSearchScreenDialogScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted mangaId: Long): MangaMigrateSearchScreenDialogScreenModel
+    }
 
     init {
         viewModelScope.launch {

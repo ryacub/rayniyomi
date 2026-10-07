@@ -2,14 +2,21 @@ package eu.kanade.tachiyomi.ui.browse.anime.extension.details
 
 import android.content.Context
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.extension.anime.interactor.AnimeExtensionSourceItem
 import eu.kanade.domain.extension.anime.interactor.GetAnimeExtensionSources
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeIncognito
 import eu.kanade.domain.source.anime.interactor.ToggleAnimeSource
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -31,16 +38,27 @@ import logcat.LogPriority
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.core.common.util.system.logcat
 
+@AssistedInject
 class AnimeExtensionDetailsScreenModel(
-    pkgName: String,
-    context: Context,
-    private val network: NetworkHelper = appGraph.networkHelper,
-    private val extensionManager: AnimeExtensionManager = appGraph.animeExtensionManager,
-    private val getExtensionSources: GetAnimeExtensionSources = appGraph.getAnimeExtensionSources,
-    private val toggleSource: ToggleAnimeSource = appGraph.toggleAnimeSource,
-    private val toggleIncognito: ToggleAnimeIncognito = appGraph.toggleAnimeIncognito,
-    private val preferences: SourcePreferences = appGraph.sourcePreferences,
+    @Assisted pkgName: String,
+    @Assisted context: Context,
+    private val network: NetworkHelper,
+    private val extensionManager: AnimeExtensionManager,
+    private val getExtensionSources: GetAnimeExtensionSources,
+    private val toggleSource: ToggleAnimeSource,
+    private val toggleIncognito: ToggleAnimeIncognito,
+    private val preferences: SourcePreferences,
 ) : StateViewModel<AnimeExtensionDetailsScreenModel.State>(State()) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted pkgName: String,
+            @Assisted context: Context,
+        ): AnimeExtensionDetailsScreenModel
+    }
 
     private val _events: Channel<AnimeExtensionDetailsEvent> = Channel()
     val events: Flow<AnimeExtensionDetailsEvent> = _events.receiveAsFlow()

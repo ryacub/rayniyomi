@@ -12,6 +12,13 @@ import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toDomainAnime
@@ -24,7 +31,6 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.getFilterListOrNull
 import eu.kanade.tachiyomi.util.removeBackgrounds
 import eu.kanade.tachiyomi.util.removeCovers
@@ -58,26 +64,37 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import java.time.Instant
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter as AnimeSourceModelFilter
 
+@AssistedInject
 class BrowseAnimeSourceScreenModel(
-    private val sourceId: Long,
-    listingQuery: String?,
-    sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    sourcePreferences: SourcePreferences = appGraph.sourcePreferences,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val coverCache: AnimeCoverCache = appGraph.animeCoverCache,
-    private val backgroundCache: AnimeBackgroundCache = appGraph.animeBackgroundCache,
-    private val getRemoteAnime: GetRemoteAnime = appGraph.getRemoteAnime,
-    private val getDuplicateAnimelibAnime: GetDuplicateLibraryAnime = appGraph.getDuplicateLibraryAnime,
-    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
-    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags = appGraph.setAnimeDefaultEpisodeFlags,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val networkToLocalAnime: NetworkToLocalAnime = appGraph.networkToLocalAnime,
-    private val updateAnime: UpdateAnime = appGraph.updateAnime,
-    private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
-    private val getIncognitoState: GetAnimeIncognitoState = appGraph.getAnimeIncognitoState,
-    getFavorites: GetAnimeFavorites = appGraph.getAnimeFavorites,
+    @Assisted private val sourceId: Long,
+    @Assisted listingQuery: String?,
+    sourceManager: AnimeSourceManager,
+    sourcePreferences: SourcePreferences,
+    private val libraryPreferences: LibraryPreferences,
+    private val coverCache: AnimeCoverCache,
+    private val backgroundCache: AnimeBackgroundCache,
+    private val getRemoteAnime: GetRemoteAnime,
+    private val getDuplicateAnimelibAnime: GetDuplicateLibraryAnime,
+    private val getCategories: GetAnimeCategories,
+    private val setAnimeCategories: SetAnimeCategories,
+    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags,
+    private val getAnime: GetAnime,
+    private val networkToLocalAnime: NetworkToLocalAnime,
+    private val updateAnime: UpdateAnime,
+    private val addTracks: AddAnimeTracks,
+    private val getIncognitoState: GetAnimeIncognitoState,
+    getFavorites: GetAnimeFavorites,
 ) : StateViewModel<BrowseAnimeSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(
+            @Assisted sourceId: Long,
+            @Assisted listingQuery: String?,
+        ): BrowseAnimeSourceScreenModel
+    }
 
     var displayMode by sourcePreferences.sourceDisplayMode().asState(viewModelScope)
 

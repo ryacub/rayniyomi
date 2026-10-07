@@ -10,10 +10,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.TabbedScreen
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
@@ -78,10 +78,10 @@ data object BrowseTab : Tab {
         val context = LocalContext.current
 
         // Hoisted for extensions tab's search bar
-        val mangaExtensionsScreenModel = viewModel { MangaExtensionsScreenModel() }
+        val mangaExtensionsScreenModel = metroViewModel<MangaExtensionsScreenModel>()
         val mangaExtensionsState by mangaExtensionsScreenModel.state.collectAsStateWithLifecycle()
 
-        val animeExtensionsScreenModel = viewModel { AnimeExtensionsScreenModel() }
+        val animeExtensionsScreenModel = metroViewModel<AnimeExtensionsScreenModel>()
         val animeExtensionsState by animeExtensionsScreenModel.state.collectAsStateWithLifecycle()
         val lightNovelPluginStateManager = appGraph.lightNovelPluginStateManager
         val lightNovelUiState by lightNovelPluginStateManager.uiState.collectAsStateWithLifecycle()

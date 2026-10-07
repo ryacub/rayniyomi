@@ -2,10 +2,16 @@ package eu.kanade.tachiyomi.ui.webview
 
 import android.content.Context
 import androidx.core.net.toUri
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.more.stats.StatsScreenState
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -17,24 +23,32 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
+@AssistedInject
 class WebViewScreenModel(
-    val sourceId: Long?,
-    private val MangaSourceManager: MangaSourceManager = appGraph.mangaSourceManager,
-    private val AnimeSourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val network: NetworkHelper = appGraph.networkHelper,
+    @Assisted val sourceId: Long?,
+    private val mangaSourceManager: MangaSourceManager,
+    private val animeSourceManager: AnimeSourceManager,
+    private val network: NetworkHelper,
 ) : StateViewModel<StatsScreenState>(StatsScreenState.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(@Assisted sourceId: Long?): WebViewScreenModel
+    }
 
     var headers = emptyMap<String, String>()
 
     init {
-        sourceId?.let { MangaSourceManager.get(it) as? HttpSource }?.let { mangasource ->
+        sourceId?.let { mangaSourceManager.get(it) as? HttpSource }?.let { mangasource ->
             try {
                 headers = mangasource.headers.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Failed to build headers" }
             }
         }
-        sourceId?.let { AnimeSourceManager.get(it) as? AnimeHttpSource }?.let { animesource ->
+        sourceId?.let { animeSourceManager.get(it) as? AnimeHttpSource }?.let { animesource ->
             try {
                 headers = animesource.headers.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }
             } catch (e: Exception) {
