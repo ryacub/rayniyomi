@@ -10,6 +10,13 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.viewModelScope
 import aniyomi.domain.anime.SeasonAnime
 import aniyomi.domain.anime.SeasonDisplayMode
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.downloadedFilter
@@ -37,7 +44,6 @@ import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.isEntryListOutdated
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
@@ -113,43 +119,52 @@ import tachiyomi.source.local.entries.anime.isLocal
 import java.time.Clock
 import java.util.Calendar
 
+@AssistedInject
 class AnimeScreenModel(
-    private val context: Context,
-    private val lifecycle: Lifecycle,
-    private val animeId: Long,
-    private val isFromSource: Boolean,
-    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
-    internal val playerPreferences: PlayerPreferences = appGraph.playerPreferences,
-    internal val gesturePreferences: GesturePreferences = appGraph.gesturePreferences,
-    private val trackerManager: TrackerManager = appGraph.trackerManager,
-    private val trackEpisode: TrackEpisode = appGraph.trackEpisode,
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    private val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
-    private val getAnimeAndEpisodesAndSeasons: GetAnimeWithEpisodesAndSeasons = appGraph.getAnimeWithEpisodesAndSeasons,
-    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime = appGraph.getDuplicateLibraryAnime,
-    private val setAnimeEpisodeFlags: SetAnimeEpisodeFlags = appGraph.setAnimeEpisodeFlags,
-    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags = appGraph.setAnimeDefaultEpisodeFlags,
-    private val setAnimeSeasonFlags: SetAnimeSeasonFlags = appGraph.setAnimeSeasonFlags,
-    private val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags = appGraph.setAnimeDefaultSeasonFlags,
-    private val setSeenStatus: SetSeenStatus = appGraph.setSeenStatus,
-    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
-    private val updateAnime: UpdateAnime = appGraph.updateAnime,
-    private val getCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
-    private val addTracks: AddAnimeTracks = appGraph.addAnimeTracks,
-    private val setAnimeCategories: SetAnimeCategories = appGraph.setAnimeCategories,
-    private val animeRepository: AnimeRepository = appGraph.animeRepository,
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
-    internal val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
-    private val mergeLibraryAnime: MergeLibraryAnime = appGraph.mergeLibraryAnime,
-    private val fetchInterval: AnimeFetchInterval = appGraph.animeFetchInterval,
-    private val entryRefresher: AnimeEntryRefresher = appGraph.animeEntryRefresher,
+    @Assisted private val context: Context,
+    @Assisted private val lifecycle: Lifecycle,
+    @Assisted private val animeId: Long,
+    @Assisted private val isFromSource: Boolean,
+    private val downloadPreferences: DownloadPreferences,
+    private val libraryPreferences: LibraryPreferences,
+    private val trackPreferences: TrackPreferences,
+    internal val playerPreferences: PlayerPreferences,
+    internal val gesturePreferences: GesturePreferences,
+    private val trackerManager: TrackerManager,
+    private val trackEpisode: TrackEpisode,
+    private val sourceManager: AnimeSourceManager,
+    private val downloadManager: AnimeDownloadManager,
+    private val downloadCache: AnimeDownloadCache,
+    private val getAnimeAndEpisodesAndSeasons: GetAnimeWithEpisodesAndSeasons,
+    private val getDuplicateLibraryAnime: GetDuplicateLibraryAnime,
+    private val setAnimeEpisodeFlags: SetAnimeEpisodeFlags,
+    private val setAnimeDefaultEpisodeFlags: SetAnimeDefaultEpisodeFlags,
+    private val setAnimeSeasonFlags: SetAnimeSeasonFlags,
+    private val setAnimeDefaultSeasonFlags: SetAnimeDefaultSeasonFlags,
+    private val setSeenStatus: SetSeenStatus,
+    private val updateEpisode: UpdateEpisode,
+    private val updateAnime: UpdateAnime,
+    private val getCategories: GetAnimeCategories,
+    private val getTracks: GetAnimeTracks,
+    private val addTracks: AddAnimeTracks,
+    private val setAnimeCategories: SetAnimeCategories,
+    private val animeRepository: AnimeRepository,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
+    internal val setAnimeViewerFlags: SetAnimeViewerFlags,
+    private val mergeLibraryAnime: MergeLibraryAnime,
+    private val fetchInterval: AnimeFetchInterval,
+    private val entryRefresher: AnimeEntryRefresher,
     private val clock: Clock = Clock.systemDefaultZone(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
+    private val refreshTracksInteractor: RefreshAnimeTracks,
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(context: Context, lifecycle: Lifecycle, animeId: Long, isFromSource: Boolean): AnimeScreenModel
+    }
 
     private val successState: State.Success?
         get() = state.value as? State.Success
@@ -856,7 +871,7 @@ class AnimeScreenModel(
     }
 
     private suspend fun refreshTrackers(
-        refreshTracks: RefreshAnimeTracks = appGraph.refreshAnimeTracks,
+        refreshTracks: RefreshAnimeTracks = refreshTracksInteractor,
     ) {
         refreshTracks.await(animeId)
             .filter { it.first != null }

@@ -17,10 +17,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.core.util.ifAnimeSourcesLoaded
 import eu.kanade.domain.entries.anime.model.hasCustomBackground
 import eu.kanade.domain.entries.anime.model.hasCustomCover
@@ -97,7 +98,9 @@ class AnimeScreen(
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
         val screenModel =
-            viewModel { AnimeScreenModel(context, lifecycleOwner.lifecycle, animeId, fromSource) }
+            assistedMetroViewModel<AnimeScreenModel, AnimeScreenModel.Factory> {
+                create(context, lifecycleOwner.lifecycle, animeId, fromSource)
+            }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         if (state is AnimeScreenModel.State.Loading) {
@@ -264,7 +267,7 @@ class AnimeScreen(
                 MigrateAnimeDialog(
                     oldAnime = dialog.oldAnime,
                     newAnime = dialog.newAnime,
-                    screenModel = viewModel { MigrateAnimeDialogScreenModel() },
+                    screenModel = metroViewModel<MigrateAnimeDialogScreenModel>(),
                     onDismissRequest = onDismissRequest,
                     onClickTitle = { navigator.push(AnimeScreen(dialog.oldAnime.id)) },
                     onClickSeasons = { navigator.push(MigrateSeasonSelectScreen(dialog.oldAnime, dialog.newAnime)) },
@@ -316,7 +319,9 @@ class AnimeScreen(
                 )
             }
             AnimeScreenModel.Dialog.FullImages -> {
-                val sm = viewModel { AnimeImageScreenModel(successState.anime.id) }
+                val sm = assistedMetroViewModel<AnimeImageScreenModel, AnimeImageScreenModel.Factory> {
+                    create(successState.anime.id)
+                }
                 val anime by sm.state.collectAsStateWithLifecycle()
                 if (anime != null) {
                     val getContent = rememberLauncherForActivityResult(

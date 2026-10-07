@@ -22,6 +22,7 @@
 
 package eu.kanade.tachiyomi.ui.player
 
+import android.app.Application
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
@@ -32,11 +33,17 @@ import android.view.inputmethod.InputMethodManager
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactoryKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
 import eu.kanade.domain.source.anime.interactor.GetAnimeIncognitoState
@@ -60,9 +67,9 @@ import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
+import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
-import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.player.cast.CastManager
 import eu.kanade.tachiyomi.ui.player.cast.CastQueueController
 import eu.kanade.tachiyomi.ui.player.cast.CastQueuePlanner
@@ -136,48 +143,63 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.source.local.entries.anime.isLocal
+import tachiyomi.source.local.image.anime.LocalAnimeBackgroundManager
+import tachiyomi.source.local.image.anime.LocalAnimeCoverManager
+import tachiyomi.source.local.image.anime.LocalEpisodeThumbnailManager
 import java.io.File
 import java.io.InputStream
 import java.util.Date
 
-class PlayerViewModelProviderFactory(
-    private val activity: PlayerActivity,
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-        return PlayerViewModel(activity, extras.createSavedStateHandle()) as T
-    }
-}
-
-class PlayerViewModel @JvmOverloads internal constructor(
-    private val activity: PlayerActivity,
-    private val savedState: SavedStateHandle,
-    private val host: PlayerHost = PlayerActivityHost(activity),
-    private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
-    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    private val imageSaver: ImageSaver = appGraph.imageSaver,
-    private val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences,
-    private val trackPreferences: TrackPreferences = appGraph.trackPreferences,
-    private val trackEpisode: TrackEpisode = appGraph.trackEpisode,
-    private val getAnime: GetAnime = appGraph.getAnime,
-    private val getNextEpisodes: GetNextEpisodes = appGraph.getNextEpisodes,
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
-    private val getAnimeCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
-    private val upsertHistory: UpsertAnimeHistory = appGraph.upsertAnimeHistory,
-    private val updateEpisode: UpdateEpisode = appGraph.updateEpisode,
-    private val setAnimeViewerFlags: SetAnimeViewerFlags = appGraph.setAnimeViewerFlags,
-    internal val playerPreferences: PlayerPreferences = appGraph.playerPreferences,
-    internal val gesturePreferences: GesturePreferences = appGraph.gesturePreferences,
-    private val basePreferences: BasePreferences = appGraph.basePreferences,
-    private val getCustomButtons: GetCustomButtons = appGraph.getCustomButtons,
-    private val trackSelect: TrackSelect = appGraph.trackSelect,
-    private val getIncognitoState: GetAnimeIncognitoState = appGraph.getAnimeIncognitoState,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
-    uiPreferences: UiPreferences = appGraph.uiPreferences,
-    private val aniSkipApi: AniSkipApi = AniSkipApi(),
-    private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.applicationContext.cacheDir),
-    private val castManager: CastManager = appGraph.castManager,
+@AssistedInject
+class PlayerViewModel internal constructor(
+    @Assisted private val activity: PlayerActivity,
+    @Assisted private val savedState: SavedStateHandle,
+    @Assisted private val host: PlayerHost,
+    private val sourceManager: AnimeSourceManager,
+    private val downloadManager: AnimeDownloadManager,
+    private val imageSaver: ImageSaver,
+    private val downloadPreferences: DownloadPreferences,
+    private val trackPreferences: TrackPreferences,
+    private val trackEpisode: TrackEpisode,
+    private val getAnime: GetAnime,
+    private val getNextEpisodes: GetNextEpisodes,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
+    private val getAnimeCategories: GetAnimeCategories,
+    private val getTracks: GetAnimeTracks,
+    private val upsertHistory: UpsertAnimeHistory,
+    private val updateEpisode: UpdateEpisode,
+    private val setAnimeViewerFlags: SetAnimeViewerFlags,
+    internal val playerPreferences: PlayerPreferences,
+    internal val gesturePreferences: GesturePreferences,
+    private val basePreferences: BasePreferences,
+    private val getCustomButtons: GetCustomButtons,
+    private val trackSelect: TrackSelect,
+    private val getIncognitoState: GetAnimeIncognitoState,
+    private val libraryPreferences: LibraryPreferences,
+    uiPreferences: UiPreferences,
+    private val castManager: CastManager,
+    private val application: Application,
+    private val localAnimeCoverManager: LocalAnimeCoverManager,
+    private val localAnimeBackgroundManager: LocalAnimeBackgroundManager,
+    private val localEpisodeThumbnailManager: LocalEpisodeThumbnailManager,
+    private val trackerManager: TrackerManager,
 ) : ViewModel() {
+
+    private val aniSkipApi = AniSkipApi()
+    private val aniSkipCache: AniSkipCache = AniSkipDiskCache(activity.applicationContext.cacheDir)
+
+    @AssistedFactory
+    @ViewModelAssistedFactoryKey(PlayerViewModel::class)
+    @ContributesIntoMap(AppScope::class)
+    internal interface Factory : ViewModelAssistedFactory {
+        fun create(activity: PlayerActivity, savedState: SavedStateHandle, host: PlayerHost): PlayerViewModel
+
+        override fun create(extras: CreationExtras): PlayerViewModel = create(
+            activity = checkNotNull(extras[ACTIVITY_KEY]),
+            savedState = extras.createSavedStateHandle(),
+            host = checkNotNull(extras[HOST_KEY]),
+        )
+    }
 
     private val episodeListManager = PlayerEpisodeListManager(
         getEpisodesByAnimeId = getEpisodesByAnimeId,
@@ -411,7 +433,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                 delay(1000)
             }
             pause()
-            withUIContext { appGraph.application.toast(AYMR.strings.toast_sleep_timer_ended) }
+            withUIContext { application.toast(AYMR.strings.toast_sleep_timer_ended) }
         }
     }
 
@@ -974,7 +996,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
                 null -> {
                     if (currentAnime.value != null && !autoPlay) {
                         withUIContext {
-                            appGraph.application.toast(AYMR.strings.no_next_episode)
+                            application.toast(AYMR.strings.no_next_episode)
                         }
                     }
                     isLoading.update { false }
@@ -1005,7 +1027,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
 
                     if (isInPictureInPictureMode && pipEpisodeToasts) {
                         withUIContext {
-                            appGraph.application.toast(switchMethod.episodeTitle)
+                            application.toast(switchMethod.episodeTitle)
                         }
                     }
                 }
@@ -1541,7 +1563,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
     fun saveImage(imageStream: () -> InputStream, timePos: Int?) {
         val anime = currentAnime.value ?: return
 
-        val context = appGraph.application
+        val context = application
         val notifier = SaveImageNotifier(context)
         notifier.onClear()
 
@@ -1580,7 +1602,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
     fun shareImage(imageStream: () -> InputStream, timePos: Int?) {
         val anime = currentAnime.value ?: return
 
-        val context = appGraph.application
+        val context = application
         val destDir = context.cacheImageDir
 
         val seconds = timePos?.let { Utils.prettyTime(it) } ?: return
@@ -1613,11 +1635,11 @@ class PlayerViewModel @JvmOverloads internal constructor(
         viewModelScope.launchNonCancellable {
             val result = try {
                 when (artType) {
-                    ArtType.Cover -> anime.editCover(appGraph.localAnimeCoverManager, imageStream())
-                    ArtType.Background -> anime.editBackground(appGraph.localAnimeBackgroundManager, imageStream())
+                    ArtType.Cover -> anime.editCover(localAnimeCoverManager, imageStream())
+                    ArtType.Background -> anime.editBackground(localAnimeBackgroundManager, imageStream())
                     ArtType.Thumbnail -> episode.editThumbnail(
                         anime,
-                        appGraph.localEpisodeThumbnailManager,
+                        localEpisodeThumbnailManager,
                         imageStream(),
                     )
                 }
@@ -1647,7 +1669,7 @@ class PlayerViewModel @JvmOverloads internal constructor(
         if (!trackPreferences.autoUpdateTrack().get()) return
 
         val anime = currentAnime.value ?: return
-        val context = appGraph.application
+        val context = application
 
         viewModelScope.launchNonCancellable {
             trackEpisode.await(context, anime.id, episode.episode_number.toDouble())
@@ -1735,7 +1757,6 @@ class PlayerViewModel @JvmOverloads internal constructor(
             return null
         }
 
-        val trackerManager = appGraph.trackerManager
         val malId = resolveMalId(
             tracks = tracks,
             trackerKindForId = { trackerId ->
@@ -1909,3 +1930,6 @@ fun CustomButton.executeLongPress() {
 fun Float.normalize(inMin: Float, inMax: Float, outMin: Float, outMax: Float): Float {
     return (this - inMin) * (outMax - outMin) / (inMax - inMin) + outMin
 }
+
+internal val ACTIVITY_KEY = object : CreationExtras.Key<PlayerActivity> {}
+internal val HOST_KEY = object : CreationExtras.Key<PlayerHost> {}
