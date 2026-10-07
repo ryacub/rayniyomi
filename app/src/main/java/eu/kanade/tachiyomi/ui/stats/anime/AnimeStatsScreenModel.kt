@@ -3,7 +3,13 @@ package eu.kanade.tachiyomi.ui.stats.anime
 import androidx.compose.ui.util.fastDistinctBy
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastMapNotNull
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.util.fastCountNot
 import eu.kanade.core.util.fastFilterNot
 import eu.kanade.presentation.more.stats.StatsScreenState
@@ -13,7 +19,6 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
@@ -27,13 +32,16 @@ import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.model.AnimeTrack
 import tachiyomi.source.local.entries.anime.isLocal
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeStatsScreenModel(
-    private val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager,
-    private val getAnimelibAnime: GetLibraryAnime = appGraph.getLibraryAnime,
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId,
-    private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks,
-    private val preferences: LibraryPreferences = appGraph.libraryPreferences,
-    private val trackerManager: TrackerManager = appGraph.trackerManager,
+    private val downloadManager: AnimeDownloadManager,
+    private val getAnimelibAnime: GetLibraryAnime,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
+    private val getTracks: GetAnimeTracks,
+    private val preferences: LibraryPreferences,
+    private val trackerManager: TrackerManager,
 ) : StateViewModel<StatsScreenState>(StatsScreenState.Loading) {
 
     private val loggedInTrackers by lazy { trackerManager.loggedInTrackers().filter { it is AnimeTracker } }
