@@ -6,10 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.category.CategoryScreen
 import eu.kanade.presentation.category.components.CategoryCreateDialog
 import eu.kanade.presentation.category.components.CategoryDeleteDialog
@@ -26,7 +26,7 @@ import tachiyomi.presentation.core.screens.LoadingScreen
 @Composable
 fun Screen.mangaCategoryTab(): TabContent {
     val navigator = LocalNavigator.currentOrThrow
-    val screenModel = viewModel { MangaCategoryScreenModel() }
+    val screenModel = metroViewModel<MangaCategoryScreenModel>()
 
     val state by screenModel.state.collectAsStateWithLifecycle()
 

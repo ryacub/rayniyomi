@@ -1,10 +1,15 @@
 package eu.kanade.tachiyomi.ui.category.anime
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -25,17 +30,19 @@ import tachiyomi.domain.category.model.isAlphabeticalCategorySortEnabled
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeCategoryScreenModel(
-    private val getAllCategories: GetAnimeCategories = appGraph.getAnimeCategories,
-    private val getVisibleCategories: GetVisibleAnimeCategories = appGraph.getVisibleAnimeCategories,
-    private val createCategoryWithName: CreateAnimeCategoryWithName = appGraph.createAnimeCategoryWithName,
-    private val hideCategory: HideAnimeCategory = appGraph.hideAnimeCategory,
-    private val deleteCategory: DeleteAnimeCategory = appGraph.deleteAnimeCategory,
-    private val reorderCategory: ReorderAnimeCategory = appGraph.reorderAnimeCategory,
-    private val renameCategory: RenameAnimeCategory = appGraph.renameAnimeCategory,
-    private val setAlphabeticalSortInteractor: SetAnimeCategoryAlphabeticalSort =
-        appGraph.setAnimeCategoryAlphabeticalSort,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val getAllCategories: GetAnimeCategories,
+    private val getVisibleCategories: GetVisibleAnimeCategories,
+    private val createCategoryWithName: CreateAnimeCategoryWithName,
+    private val hideCategory: HideAnimeCategory,
+    private val deleteCategory: DeleteAnimeCategory,
+    private val reorderCategory: ReorderAnimeCategory,
+    private val renameCategory: RenameAnimeCategory,
+    private val setAlphabeticalSortInteractor: SetAnimeCategoryAlphabeticalSort,
+    private val libraryPreferences: LibraryPreferences,
 ) : StateViewModel<AnimeCategoryScreenState>(AnimeCategoryScreenState.Loading) {
 
     private val _events: Channel<AnimeCategoryEvent> = Channel()

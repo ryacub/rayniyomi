@@ -1,10 +1,15 @@
 package eu.kanade.tachiyomi.ui.category.manga
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -25,17 +30,19 @@ import tachiyomi.domain.category.model.isAlphabeticalCategorySortEnabled
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaCategoryScreenModel(
-    private val getAllCategories: GetMangaCategories = appGraph.getMangaCategories,
-    private val getVisibleCategories: GetVisibleMangaCategories = appGraph.getVisibleMangaCategories,
-    private val createCategoryWithName: CreateMangaCategoryWithName = appGraph.createMangaCategoryWithName,
-    private val hideCategory: HideMangaCategory = appGraph.hideMangaCategory,
-    private val deleteCategory: DeleteMangaCategory = appGraph.deleteMangaCategory,
-    private val reorderCategory: ReorderMangaCategory = appGraph.reorderMangaCategory,
-    private val renameCategory: RenameMangaCategory = appGraph.renameMangaCategory,
-    private val setAlphabeticalSortInteractor: SetMangaCategoryAlphabeticalSort =
-        appGraph.setMangaCategoryAlphabeticalSort,
-    private val libraryPreferences: LibraryPreferences = appGraph.libraryPreferences,
+    private val getAllCategories: GetMangaCategories,
+    private val getVisibleCategories: GetVisibleMangaCategories,
+    private val createCategoryWithName: CreateMangaCategoryWithName,
+    private val hideCategory: HideMangaCategory,
+    private val deleteCategory: DeleteMangaCategory,
+    private val reorderCategory: ReorderMangaCategory,
+    private val renameCategory: RenameMangaCategory,
+    private val setAlphabeticalSortInteractor: SetMangaCategoryAlphabeticalSort,
+    private val libraryPreferences: LibraryPreferences,
 ) : StateViewModel<MangaCategoryScreenState>(MangaCategoryScreenState.Loading) {
 
     private val _events: Channel<MangaCategoryEvent> = Channel()

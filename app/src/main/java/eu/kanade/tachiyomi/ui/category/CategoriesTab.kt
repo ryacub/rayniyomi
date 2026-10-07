@@ -7,9 +7,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.TabbedScreen
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
@@ -53,8 +53,8 @@ data object CategoriesTab : Tab {
     override fun Content() {
         val context = LocalContext.current
 
-        val animeCategoryScreenModel = viewModel { AnimeCategoryScreenModel() }
-        val mangaCategoryScreenModel = viewModel { MangaCategoryScreenModel() }
+        val animeCategoryScreenModel = metroViewModel<AnimeCategoryScreenModel>()
+        val mangaCategoryScreenModel = metroViewModel<MangaCategoryScreenModel>()
 
         val tabs = persistentListOf(
             animeCategoryTab(),

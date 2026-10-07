@@ -283,6 +283,7 @@ import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
     scope = AppScope::class,
     bindingContainers = [
         AppModule::class,
+        ViewModelBindings::class,
         PreferenceModule::class,
         DomainModule::class,
         CategoryBindings::class,
