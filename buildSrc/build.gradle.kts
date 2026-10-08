@@ -3,7 +3,6 @@ plugins {
 }
 
 dependencies {
-    implementation(androidx.r8)
     implementation(androidx.gradle)
     implementation(androidx.benchmark.gradle)
     implementation(kotlinx.gradle)
