@@ -20,7 +20,7 @@ configure<KotlinMultiplatformExtension> {
     }
 
     compilerOptions {
-        freeCompilerArgs.addAll("-Xcontext-parameters", "-opt-in=kotlin.RequiresOptIn")
+        freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
         val warningsAsErrors: String? by project
         allWarningsAsErrors.set(warningsAsErrors.toBoolean())
     }

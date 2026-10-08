@@ -42,10 +42,7 @@ internal fun Project.configureAndroid(commonExtension: CommonExtension) {
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
             jvmTarget.set(AndroidConfig.JvmTarget)
-            freeCompilerArgs.addAll(
-                "-Xcontext-parameters",
-                "-opt-in=kotlin.RequiresOptIn",
-            )
+            freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
 
             // Treat all Kotlin warnings as errors (disabled by default)
             // Override by setting warningsAsErrors=true in your ~/.gradle/gradle.properties

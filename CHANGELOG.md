@@ -24,6 +24,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- The onboarding storage step now shows the selected folder right after you pick it. Before, it kept showing "No storage location set" even though the app had saved the folder.
 - A pull-to-refresh on an anime or manga entry now finishes after you leave the screen. The new chapters, episodes, and seasons are saved, new items are queued for download when the download settings apply, and the anime airing time is updated. If you come back while the refresh runs, the entry shows the refresh indicator until it ends, and you cannot start another refresh until then (#1280).
 - Multi-thread anime downloads no longer fail at the merge step. The downloader now records the bytes written for each chunk, and the merger writes the episode file through the storage folder instead of a raw file path (#1265).
 - A finished download queue no longer logs a download job failure, adds to the job crash count, or schedules a retry. The download job now lets the cancellation from the downloader pass through (#1265).
@@ -50,6 +51,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
 
 ### Other
+- Upgrade Kotlin to 2.4.20 and build release APKs with R8 9.1.56, which reads Kotlin 2.4 metadata (#1339).
 - Use MetroX injection for the remaining app ViewModels, including reader and player construction (#1300).
 - Use MetroX injection for the manga and anime statistics ViewModels (#1297).
 - Use MetroX injection for the manga and anime migration source-list ViewModels (#1296).
