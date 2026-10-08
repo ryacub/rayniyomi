@@ -52,6 +52,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Main CI runs format, unit tests, the baseline profile check and the release build as parallel jobs. A tag release publishes only after all four pass. PR jobs read the Gradle cache that main writes and no longer save their own. `WebtoonAutoScrollControllerTest` no longer leaves its scroll loop running, which cut 60 s of `runTest` timeout from every unit test run (#1343).
 
 ### Other
+- Upgrade AGP to 9.2.1 and Gradle to 9.4.1 for SDK 37 support. Use AGP's bundled R8 9.2.14 (#1342).
 - Upgrade Kotlin to 2.4.20 and build release APKs with R8 9.1.56, which reads Kotlin 2.4 metadata (#1339).
 - Use MetroX injection for the remaining app ViewModels, including reader and player construction (#1300).
 - Use MetroX injection for the manga and anime statistics ViewModels (#1297).
