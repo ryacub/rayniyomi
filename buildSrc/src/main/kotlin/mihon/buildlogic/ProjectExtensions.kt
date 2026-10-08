@@ -90,7 +90,6 @@ internal fun Project.configureCompose(commonExtension: CommonExtension) {
 internal fun Project.configureTest() {
     tasks.withType<Test> {
         useJUnitPlatform()
-        maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
         testLogging {
             events(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
         }

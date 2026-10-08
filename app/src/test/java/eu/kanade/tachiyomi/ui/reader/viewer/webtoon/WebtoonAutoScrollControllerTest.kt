@@ -32,6 +32,7 @@ class WebtoonAutoScrollControllerTest {
         assertTrue(controller.isRunning())
         assertTrue(deltas.sum() > 0)
         assertEquals(listOf(true), stateChanges)
+        controller.pause()
     }
 
     @Test

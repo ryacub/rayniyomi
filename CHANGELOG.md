@@ -49,7 +49,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 - Update the release ABI baseline for the Metro source-manager constructors and their generated classes (#1257).
 - `scripts/check_extension_links.py` lists the host members that extension APKs call and a release APK does not define. The release ABI check now requires the five members from R1078.
-- Main CI runs format, unit tests, the baseline profile check and the release build as parallel jobs. A tag release publishes only after all four pass. PR jobs read the Gradle cache that main writes and no longer save their own. Unit tests run in one JVM fork per two CPU cores (#1343).
+- Main CI runs format, unit tests, the baseline profile check and the release build as parallel jobs. A tag release publishes only after all four pass. PR jobs read the Gradle cache that main writes and no longer save their own. `WebtoonAutoScrollControllerTest` no longer leaves its scroll loop running, which cut 60 s of `runTest` timeout from every unit test run (#1343).
 
 ### Other
 - Upgrade Kotlin to 2.4.20 and build release APKs with R8 9.1.56, which reads Kotlin 2.4 metadata (#1339).
