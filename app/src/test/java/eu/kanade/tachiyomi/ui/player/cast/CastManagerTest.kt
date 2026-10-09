@@ -17,14 +17,14 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import java.net.InetAddress
 
 class CastManagerTest {
@@ -49,10 +49,12 @@ class CastManagerTest {
                 addressProvider = { InetAddress.getLoopbackAddress() },
                 tokenProvider = { "queue-${++token}" },
             ).use { proxy ->
-                CastManager::class.java.getDeclaredField("streamProxy").apply {
-                    isAccessible = true
-                    set(castManager, proxy)
-                }
+                castManager = CastManager(
+                    mockContext,
+                    mockNetwork,
+                    mockPlayerPreferences,
+                    streamProxy = proxy,
+                )
                 val client = mockk<RemoteMediaClient>(relaxed = true)
                 val session = mockk<CastSession>()
                 every { session.remoteMediaClient } returns client
@@ -100,10 +102,12 @@ class CastManagerTest {
                 addressProvider = { InetAddress.getLoopbackAddress() },
                 tokenProvider = { "queue-${++token}" },
             ).use { proxy ->
-                CastManager::class.java.getDeclaredField("streamProxy").apply {
-                    isAccessible = true
-                    set(castManager, proxy)
-                }
+                castManager = CastManager(
+                    mockContext,
+                    mockNetwork,
+                    mockPlayerPreferences,
+                    streamProxy = proxy,
+                )
                 val client = mockk<RemoteMediaClient>(relaxed = true)
                 val session = mockk<CastSession>()
                 every { session.remoteMediaClient } returns client
@@ -236,4 +240,3 @@ class CastManagerTest {
         assertEquals(false, castManager.isDownloadedVideo(video))
     }
 }
-

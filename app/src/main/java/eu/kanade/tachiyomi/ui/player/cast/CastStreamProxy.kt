@@ -80,8 +80,18 @@ class CastStreamProxy(
                 server = it
             }
             val token = tokenProvider()
-            activeServer.replaceRoute(token, route)
+            activeServer.addRoute(token, route)
             "http://${address.hostAddress}:${activeServer.port}/cast/$token"
+        }
+    }
+
+    internal fun routeUrls(): List<String> = synchronized(lock) {
+        server?.routeUrls().orEmpty()
+    }
+
+    internal fun removeRoutes(contentIds: Collection<String>) {
+        synchronized(lock) {
+            server?.removeRoutes(contentIds)
         }
     }
 
@@ -147,10 +157,20 @@ class CastStreamProxy(
             }
         }
 
-        fun replaceRoute(token: String, route: ProxyRoute) {
-            routes.clear()
+        fun addRoute(token: String, route: ProxyRoute) {
             routes[token] = route
         }
+
+        fun routeUrls(): List<String> = routes.keys.map { routePrefix + it }
+
+        fun removeRoutes(contentIds: Collection<String>) {
+            contentIds.filter { it.startsWith(routePrefix) }.forEach { contentId ->
+                routes.remove(contentId.removePrefix(routePrefix))
+            }
+        }
+
+        private val routePrefix: String
+            get() = "http://${socket.inetAddress.hostAddress}:$port/cast/"
 
         override fun close() {
             routes.clear()

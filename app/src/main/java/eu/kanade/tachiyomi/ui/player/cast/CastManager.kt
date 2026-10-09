@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import okhttp3.Headers
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
+import java.util.concurrent.atomic.AtomicLong
 
 enum class CastState {
     DISCONNECTED,
@@ -57,6 +58,10 @@ class CastManager(
     private val network: NetworkHelper,
     private val playerPreferences: PlayerPreferences,
     private val converter: CastVideoConverter = CastVideoConverter(context),
+    private val streamProxy: CastStreamProxy = CastStreamProxy(
+        client = network.client,
+        localFileProvider = { uri -> UniFile.fromUri(context, uri.toUri()) },
+    ),
 ) {
 
     private val _castState = MutableStateFlow(CastState.DISCONNECTED)
@@ -76,10 +81,7 @@ class CastManager(
     val subtitleWarning: StateFlow<Boolean> = _subtitleWarning.asStateFlow()
     private var pendingSubtitleLoad: CastLoadRequest? = null
 
-    private val streamProxy = CastStreamProxy(
-        client = network.client,
-        localFileProvider = { uri -> UniFile.fromUri(context, uri.toUri()) },
-    )
+    private val queueGeneration = AtomicLong()
     private val mediaBuilder = CastMediaBuilder(streamProxy)
     private val sessionListener = CastSessionListener(this)
 
@@ -186,6 +188,9 @@ class CastManager(
 
     fun loadQueue(items: List<MediaQueueItem>, startPositionMs: Long) {
         val client = castSession?.remoteMediaClient ?: return
+        val generation = queueGeneration.incrementAndGet()
+        val contentIds = items.mapNotNull { it.media?.contentId }
+        val previousRoutes = streamProxy.routeUrls() - contentIds.toSet()
         client.queueLoad(
             items.toTypedArray(),
             0,
@@ -193,18 +198,42 @@ class CastManager(
             startPositionMs,
             null,
         ).addStatusListener { status ->
-            if (!status.isSuccess) {
+            if (generation != queueGeneration.get()) return@addStatusListener
+            if (status.isSuccess) {
+                streamProxy.removeRoutes(previousRoutes)
+            } else {
+                streamProxy.removeRoutes(contentIds)
                 _castError.tryEmit(CastError.LoadFailed("Media load failed: ${status.statusCode}"))
             }
         }
     }
 
     fun appendToQueue(item: MediaQueueItem) {
-        castSession?.remoteMediaClient?.queueAppendItem(item, null)
+        val contentIds = listOfNotNull(item.media?.contentId)
+        val client = castSession?.remoteMediaClient
+        if (client == null) {
+            streamProxy.removeRoutes(contentIds)
+            return
+        }
+        val generation = queueGeneration.get()
+        client.queueAppendItem(item, null).addStatusListener { status ->
+            if (generation == queueGeneration.get() && !status.isSuccess) streamProxy.removeRoutes(contentIds)
+        }
     }
 
-    fun removeQueueItems(itemIds: List<Int>) {
-        castSession?.remoteMediaClient?.queueRemoveItems(itemIds.toIntArray(), null)
+    fun removeQueueItems(itemIds: List<Int>, onRemoved: () -> Unit = {}) {
+        val client = castSession?.remoteMediaClient ?: return
+        val generation = queueGeneration.get()
+        val contentIds = client.mediaStatus?.queueItems.orEmpty()
+            .filter { it.itemId in itemIds }
+            .mapNotNull { it.media?.contentId }
+        client.queueRemoveItems(itemIds.toIntArray(), null).addStatusListener { status ->
+            if (generation != queueGeneration.get()) return@addStatusListener
+            if (status.isSuccess) {
+                streamProxy.removeRoutes(contentIds)
+                onRemoved()
+            }
+        }
     }
 
     fun itemIdForContentId(contentId: String): Int? {
@@ -316,10 +345,6 @@ class CastManager(
         releaseConvertedFile(except = fileToKeep)
 
         val proxyHeaders = headers?.takeIf { it.size > 0 && requiresProxy(it) }
-        if (proxyHeaders == null) {
-            streamProxy.stop()
-        }
-
         val mediaInfo = try {
             mediaBuilder.build(video, episode, anime, proxyHeaders)
         } catch (e: Exception) {
@@ -328,6 +353,9 @@ class CastManager(
             return
         }
 
+        val generation = queueGeneration.incrementAndGet()
+        val contentIds = listOf(mediaInfo.contentId)
+        val previousRoutes = streamProxy.routeUrls() - contentIds.toSet()
         val loadOptions = MediaLoadOptions.Builder()
             .setPlayPosition(startPositionMs)
             .setPlaybackRate(CastPlaybackRate.clamp(request.playbackRate.toFloat()).toDouble())
@@ -335,7 +363,11 @@ class CastManager(
 
         client.load(mediaInfo, loadOptions)
             .addStatusListener { status ->
-                if (!status.isSuccess) {
+                if (generation != queueGeneration.get()) return@addStatusListener
+                if (status.isSuccess) {
+                    streamProxy.removeRoutes(previousRoutes)
+                } else {
+                    streamProxy.removeRoutes(contentIds)
                     _castError.tryEmit(CastError.LoadFailed("Media load failed: ${status.statusCode}"))
                     releaseConvertedFile()
                 }
@@ -343,6 +375,7 @@ class CastManager(
     }
 
     private fun stopMediaPreparation() {
+        queueGeneration.incrementAndGet()
         conversionJob?.cancel()
         conversionJob = null
         pendingLoad = null

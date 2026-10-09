@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Cast queues now keep protected stream URLs available until their items leave the queue (#1350).
 - Restore anime without backup IDs as separate entries and remap season links to the restored parent.
 - Tracker sync no longer unlinks an entry when a refresh fails. It reports the failure instead (#1352).
 - Startup now warms network and download dependencies on a background thread to avoid main-thread storage queries (#1346).
