@@ -15,6 +15,7 @@ import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
@@ -57,38 +58,33 @@ class AnimeRestorer(
     suspend fun restore(
         backupAnime: BackupAnime,
         backupCategories: List<BackupCategory>,
-        backupSeasons: List<BackupAnime>,
-    ) {
-        handler.await(inTransaction = true) {
-            val dbAnime = findExistingAnime(backupAnime)
-            val anime = backupAnime.getAnimeImpl()
-            val restoredAnime = if (dbAnime == null) {
-                restoreNewAnime(anime)
-            } else {
-                restoreExistingAnime(anime, dbAnime)
+    ): Long = handler.await(inTransaction = true) {
+        val dbAnime = findExistingAnime(backupAnime)
+        val anime = backupAnime.getAnimeImpl().copy(parentId = null)
+        val restoredAnime = if (dbAnime == null) {
+            restoreNewAnime(anime)
+        } else {
+            if (dbAnime.parentId != null) {
+                animesQueries.removeParentIdByIds(listOf(dbAnime.id))
             }
-
-            backupSeasons.forEach { bs ->
-                val dbAnime = findExistingAnime(bs)
-                val anime = bs.getAnimeImpl().copy(
-                    parentId = restoredAnime.id,
-                )
-                if (dbAnime == null) {
-                    restoreNewAnime(anime)
-                } else {
-                    restoreExistingAnime(anime, dbAnime)
-                }
-            }
-
-            restoreAnimeDetails(
-                anime = restoredAnime,
-                episodes = backupAnime.episodes,
-                categories = backupAnime.categories,
-                backupCategories = backupCategories,
-                history = backupAnime.history,
-                tracks = backupAnime.tracking,
-            )
+            restoreExistingAnime(anime, dbAnime)
         }
+
+        restoreAnimeDetails(
+            anime = restoredAnime,
+            episodes = backupAnime.episodes,
+            categories = backupAnime.categories,
+            backupCategories = backupCategories,
+            history = backupAnime.history,
+            tracks = backupAnime.tracking,
+        )
+        restoredAnime.id
+    }
+
+    suspend fun restoreParentLinks(parentIds: Map<Long, Long>) {
+        if (parentIds.isEmpty()) return
+        val updates = parentIds.map { (id, parentId) -> AnimeUpdate(id = id, parentId = parentId) }
+        check(updateAnime.awaitAll(updates)) { "Could not restore anime season links" }
     }
 
     private suspend fun findExistingAnime(backupAnime: BackupAnime): Anime? {

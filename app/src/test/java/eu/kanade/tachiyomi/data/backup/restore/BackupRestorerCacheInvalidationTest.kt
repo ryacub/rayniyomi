@@ -171,9 +171,10 @@ class BackupRestorerCacheInvalidationTest {
         val gate = CompletableDeferred<Unit>()
         coEvery { mangaRestorer.sortByNew(any()) } returns backup.backupManga
         coEvery { animeRestorer.sortByNew(any()) } returns backup.backupAnime
-        coEvery { animeRestorer.restore(any(), any(), any()) } coAnswers {
+        coEvery { animeRestorer.restore(any(), any()) } coAnswers {
             started.send(Unit)
             gate.await()
+            1L
         }
 
         val job = launch(Dispatchers.Default) {
