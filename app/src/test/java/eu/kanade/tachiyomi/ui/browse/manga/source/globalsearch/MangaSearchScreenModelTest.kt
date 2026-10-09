@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch
 
+import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.CatalogueSource
@@ -14,8 +15,13 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +29,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -35,6 +42,9 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import java.io.IOException
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MangaSearchScreenModelTest {
@@ -154,10 +164,62 @@ class MangaSearchScreenModelTest {
         assertEquals(1, calls)
     }
 
-    private fun createModel(source: CatalogueSource): MangaSearchScreenModel {
+    @Test
+    fun `concurrent source completions retain every result`() = runTest(vt.scheduler) {
+        Executors.newFixedThreadPool(5).asCoroutineDispatcher().use { dispatcher ->
+            val releaseSources = CompletableDeferred<Unit>()
+            val resultSorting = CyclicBarrier(5)
+            val firstResultSort = ThreadLocal.withInitial { false }
+            val sources = List(5) { index ->
+                mockk<CatalogueSource> {
+                    every { id } returns 400L + index
+                    every { name } answers {
+                        if (firstResultSort.get()) {
+                            firstResultSort.set(false)
+                            resultSorting.await(10, TimeUnit.SECONDS)
+                        }
+                        "Source $index"
+                    }
+                    every { lang } returns "en"
+                    every { supportsLatest } returns true
+                    every { getFilterList() } returns FilterList()
+                    coEvery { getSearchManga(1, "query", any()) } coAnswers {
+                        releaseSources.await()
+                        firstResultSort.set(true)
+                        MangasPage(emptyList(), false)
+                    }
+                }
+            }
+            val model = createModel(sources, dispatcher)
+            try {
+                val initialJobs = model.viewModelScope.coroutineContext[Job]!!.children.toSet()
+                model.updateSearchQuery("query")
+                model.search()
+                val searchJob = model.viewModelScope.coroutineContext[Job]!!.children.single { it !in initialJobs }
+                releaseSources.complete(Unit)
+                withContext(Dispatchers.IO) {
+                    withTimeout(15_000) { searchJob.join() }
+                }
+
+                assertEquals(sources.size, model.state.value.progress)
+                sources.forEach { source ->
+                    assertInstanceOf(MangaSearchItemResult.Success::class.java, model.state.value.items[source])
+                }
+            } finally {
+                model.viewModelScope.cancel()
+            }
+        }
+    }
+
+    private fun createModel(source: CatalogueSource): MangaSearchScreenModel = createModel(listOf(source))
+
+    private fun createModel(
+        sources: List<CatalogueSource>,
+        dispatcher: CoroutineDispatcher = vt.io,
+    ): MangaSearchScreenModel {
         val sourceManager = object : MangaSourceManager {
             override val isInitialized: StateFlow<Boolean> = MutableStateFlow(true)
-            override val sources: Flow<List<MangaSource>> = flowOf(listOf(source))
+            override val sources: Flow<List<MangaSource>> = flowOf(sources)
 
             override fun get(sourceKey: Long): MangaSource? = null
 
@@ -165,7 +227,7 @@ class MangaSearchScreenModelTest {
                 error("Not used in this test")
             }
 
-            override fun getAll(): List<MangaSource> = listOf(source)
+            override fun getAll(): List<MangaSource> = sources
 
             override fun getOnlineSources(): List<HttpSource> = emptyList()
 
@@ -185,7 +247,7 @@ class MangaSearchScreenModelTest {
             networkToLocalManga = networkToLocalManga,
             getManga = mockk<GetManga>(relaxed = true),
             preferences = sourcePreferences,
-            searchDispatcher = vt.io,
+            searchDispatcher = dispatcher,
         ) {}
     }
 

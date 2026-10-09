@@ -12,7 +12,6 @@ import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
 import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
 import kotlinx.coroutines.CoroutineDispatcher
@@ -138,20 +137,12 @@ abstract class MangaSearchScreenModel(
         val requestId = requestCoordinator.nextRequestId()
         val sources = getSelectedSources()
 
-        // Reuse previous results if possible
-        if (sameQuery) {
-            val existingResults = state.value.items
-            updateItems(
-                sources
-                    .associateWith { existingResults[it] ?: MangaSearchItemResult.Loading }
-                    .toPersistentMap(),
-            )
-        } else {
-            updateItems(
-                sources
-                    .associateWith { MangaSearchItemResult.Loading }
-                    .toPersistentMap(),
-            )
+        updateItems { current ->
+            sources
+                .associateWith { source ->
+                    if (sameQuery) current[source] ?: MangaSearchItemResult.Loading else MangaSearchItemResult.Loading
+                }
+                .toPersistentMap()
         }
         searchJob = viewModelScope.launch(searchDispatcher) {
             sources.map { source ->
@@ -195,9 +186,14 @@ abstract class MangaSearchScreenModel(
         }
     }
 
-    private fun updateItems(items: PersistentMap<MangaSource, MangaSearchItemResult>) {
-        mutableState.update {
-            it.copy(
+    private fun updateItems(
+        transform: (
+            PersistentMap<MangaSource, MangaSearchItemResult>,
+        ) -> PersistentMap<MangaSource, MangaSearchItemResult>,
+    ) {
+        mutableState.update { state ->
+            val items = transform(state.items)
+            state.copy(
                 items = items
                     .toSortedMap(sortComparator(items))
                     .toPersistentMap(),
@@ -206,10 +202,7 @@ abstract class MangaSearchScreenModel(
     }
 
     private fun updateItem(source: MangaSource, result: MangaSearchItemResult) {
-        val newItems = state.value.items.mutate {
-            it[source] = result
-        }
-        updateItems(newItems)
+        updateItems { it.put(source, result) }
     }
 
     @Immutable
