@@ -70,6 +70,14 @@ class CastManagerTest {
                 fun item(url: String): MediaQueueItem = mockk {
                     every { media } returns mockk<MediaInfo> { every { contentId } returns url }
                 }
+                castManager.resetForNewActivity()
+                val abandonedUrl = route()
+                castManager.loadQueue(listOf(item(abandonedUrl)), 0L)
+                upstream.enqueue(MockResponse().setBody("episode"))
+                OkHttpClient().newCall(Request.Builder().url(abandonedUrl).build()).execute().use {
+                    assertEquals(404, it.code)
+                }
+                castManager.onSessionConnected(session)
                 val oldUrl = route()
                 castManager.loadQueue(listOf(item(oldUrl)), 0L)
                 completed!!.onComplete(Status.RESULT_SUCCESS)
@@ -116,6 +124,10 @@ class CastManagerTest {
                 val removal = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
                 every { removal.addStatusListener(any()) } answers { completed = firstArg() }
                 every { client.queueRemoveItems(any(), any()) } returns removal
+                val liveUrl = proxy.urlFor(
+                    upstream.url("/live.mp4").toString(),
+                    Headers.headersOf("Referer", "https://example.com/"),
+                )
                 repeat(5) { index ->
                     val url = proxy.urlFor(
                         upstream.url("/episode-$index.mp4").toString(),
@@ -149,6 +161,11 @@ class CastManagerTest {
                     OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use {
                         assertEquals(404, it.code)
                     }
+                    upstream.enqueue(MockResponse().setBody("live"))
+                    OkHttpClient().newCall(Request.Builder().url(liveUrl).build()).execute().use {
+                        assertEquals(200, it.code)
+                    }
+                    assertEquals(listOf(liveUrl), proxy.routeUrls())
                 }
             }
         }
