@@ -58,6 +58,32 @@ class CastStreamProxyTest {
     }
 
     @Test
+    fun `queued routes keep earlier tokens reachable`() {
+        proxy.stop()
+        var token = 0
+        proxy = CastStreamProxy(
+            client = OkHttpClient(),
+            addressProvider = { InetAddress.getLoopbackAddress() },
+            tokenProvider = { "queue-${++token}" },
+        )
+        val urls = (1..3).map { episode ->
+            proxy.urlFor(
+                upstream.url("/episode-$episode.mp4").toString(),
+                Headers.headersOf("Referer", "https://example.com/"),
+            )
+        }
+
+        urls.take(2).forEachIndexed { index, url ->
+            upstream.enqueue(MockResponse().setBody("episode-${index + 1}"))
+            OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use {
+                assertEquals(200, it.code)
+                assertEquals("episode-${index + 1}", it.body.string())
+            }
+            assertEquals("/episode-${index + 1}.mp4", upstream.takeRequest().path)
+        }
+    }
+
+    @Test
     fun `proxy forwards range requests and partial responses`() {
         upstream.enqueue(
             MockResponse()

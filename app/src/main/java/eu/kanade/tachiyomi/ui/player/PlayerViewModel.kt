@@ -1882,10 +1882,16 @@ class PlayerViewModel internal constructor(
             )
             staleIds.forEach { episodeId ->
                 val contentId = castQueueController.contentIdForEpisode(episodeId) ?: return@forEach
-                castManager.itemIdForContentId(contentId)?.let { itemId ->
-                    castManager.removeQueueItems(listOf(itemId))
+                val itemId = castManager.itemIdForContentId(contentId) ?: return@forEach
+                castManager.removeQueueItems(listOf(itemId)) {
+                    viewModelScope.launchIO {
+                        castQueueMutex.withLock {
+                            if (castQueueController.contentIdForEpisode(episodeId) == contentId) {
+                                castQueueController.unregisterEpisode(episodeId)
+                            }
+                        }
+                    }
                 }
-                castQueueController.unregisterEpisode(episodeId)
             }
         }
     }
