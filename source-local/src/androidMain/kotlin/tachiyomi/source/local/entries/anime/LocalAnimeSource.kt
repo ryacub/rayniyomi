@@ -347,15 +347,15 @@ actual class LocalAnimeSource(
     }
 
     private fun extractImage(episodeFile: UniFile, outputFile: File) {
-        val episodeFilename = episodeFile.toFFmpegString(context)
+        val episodeFilename = { episodeFile.toFFmpegString(context) }
         val ffProbe = FFprobeKit.execute(
-            "-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"$episodeFilename\"",
+            "-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"${episodeFilename()}\"",
         )
         val duration = ffProbe.allLogsAsString.trim().toFloat()
         val second = duration.toInt() / 2
 
         FFmpegKit.execute(
-            "-ss $second -i \"$episodeFilename\" -frames:v 1 -update true \"${outputFile.path}\" -y",
+            "-ss $second -i \"${episodeFilename()}\" -frames:v 1 -update true \"${outputFile.path}\" -y",
         )
     }
 
