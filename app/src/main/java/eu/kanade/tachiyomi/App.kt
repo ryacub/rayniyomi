@@ -66,6 +66,7 @@ import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
@@ -101,19 +102,6 @@ class App :
 
     private val basePreferences: BasePreferences by lazy { appGraph.basePreferences }
     private val networkPreferences: NetworkPreferences by lazy { appGraph.networkPreferences }
-
-    private fun initializeGraph() {
-        ContextCompat.getMainExecutor(this).execute {
-            appGraph.networkHelper
-            appGraph.mangaSourceManager
-            appGraph.animeSourceManager
-            appGraph.database
-            appGraph.animeDatabase
-            appGraph.mangaDownloadManager
-            appGraph.animeDownloadManager
-            appGraph.lightNovelPluginManager
-        }
-    }
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
 
@@ -185,15 +173,14 @@ class App :
             TranslationApiKeyMigration.migrate(defaultPrefs, translationProviderAtStartup)
         }
 
+        val scope = ProcessLifecycleOwner.get().lifecycleScope
         AppGraphHolder.graph = createGraphFactory<AppGraph.Factory>().create(this)
         installExtensionInjekt(this, this)
-        initializeGraph()
+        appGraph.warmUp(scope, TranslationNotifier(this))
 
         setupNotificationChannels()
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
-
-        val scope = ProcessLifecycleOwner.get().lifecycleScope
 
         // Show notification to disable Incognito Mode when it's enabled
         basePreferences.incognitoMode().changes()
@@ -230,15 +217,6 @@ class App :
 
         basePreferences.hardwareBitmapThreshold().changes()
             .onEach { ImageUtil.hardwareBitmapThreshold = it }
-            .launchIn(scope)
-
-        val translationManager = appGraph.translationManager
-        val translationNotifier = TranslationNotifier(this)
-        combine(
-            translationManager.translationStates,
-            translationManager.chapterTitles,
-        ) { states, titles -> states to titles }
-            .onEach { (states, titles) -> translationNotifier.onStatesChanged(states, titles) }
             .launchIn(scope)
 
         setAppCompatDelegateThemeMode(appGraph.uiPreferences.themeMode().get())
@@ -419,3 +397,21 @@ class App :
 }
 
 private const val ACTION_DISABLE_INCOGNITO_MODE = "tachi.action.DISABLE_INCOGNITO_MODE"
+
+internal fun AppGraph.warmUp(scope: CoroutineScope, translationNotifier: TranslationNotifier) = scope.launch(
+    Dispatchers.IO,
+) {
+    networkHelper
+    mangaSourceManager
+    animeSourceManager
+    database
+    animeDatabase
+    mangaDownloadManager
+    animeDownloadManager
+    lightNovelPluginManager
+
+    val manager = translationManager
+    combine(manager.translationStates, manager.chapterTitles) { states, titles -> states to titles }
+        .onEach { (states, titles) -> translationNotifier.onStatesChanged(states, titles) }
+        .launchIn(scope)
+}
