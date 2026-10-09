@@ -1,6 +1,8 @@
 package tachiyomi.source.local.entries.anime
 
 import android.content.Context
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFprobeKit
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
@@ -260,8 +262,12 @@ actual class LocalAnimeSource(
                         }
                     }
 
-                    // Generate the preview from the episode if not available
-                    if (this.preview_url == null) {
+                    preview_url = thumbnailManager.find(
+                        anime.url,
+                        "$name-${DEFAULT_THUMBNAIL_NAME.substringBeforeLast('.')}",
+                    )?.uri?.toString()
+
+                    if (preview_url == null) {
                         try {
                             val tempFileSuffix = anime.title + this.name + DEFAULT_THUMBNAIL_NAME
                             val updateThumbnail: (InputStream) -> Unit = { thumbnailManager.update(anime, this, it) }
@@ -326,30 +332,31 @@ actual class LocalAnimeSource(
         tempFileSuffix: String,
         updateImage: (InputStream) -> Unit,
     ) {
-        val tempFile = File.createTempFile(
-            "tmp_",
-            tempFileSuffix,
-        )
-        val outFile = tempFile.path
+        val tempFile = File.createTempFile("tmp_", tempFileSuffix)
+        try {
+            val episodeName = episode.url.split('/', limit = 2).last()
+            val animeDir = fileSystem.getAnimeDirectory(anime.url)!!
+            val episodeFile = animeDir.findFile(episodeName)!!
+            extractImage(episodeFile, tempFile)
+            if (tempFile.length() > 0L) {
+                tempFile.inputStream().use(updateImage)
+            }
+        } finally {
+            tempFile.delete()
+        }
+    }
 
-        val episodeName = episode.url.split('/', limit = 2).last()
-        val animeDir = fileSystem.getAnimeDirectory(anime.url)!!
-        val episodeFile = animeDir.findFile(episodeName)!!
-        val episodeFilename = { episodeFile.toFFmpegString(context) }
-
-        val ffProbe = com.arthenica.ffmpegkit.FFprobeKit.execute(
-            "-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"${episodeFilename()}\"",
+    private fun extractImage(episodeFile: UniFile, outputFile: File) {
+        val episodeFilename = episodeFile.toFFmpegString(context)
+        val ffProbe = FFprobeKit.execute(
+            "-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"$episodeFilename\"",
         )
         val duration = ffProbe.allLogsAsString.trim().toFloat()
         val second = duration.toInt() / 2
 
-        com.arthenica.ffmpegkit.FFmpegKit.execute(
-            "-ss $second -i \"${episodeFilename()}\" -frames:v 1 -update true \"$outFile\" -y",
+        FFmpegKit.execute(
+            "-ss $second -i \"$episodeFilename\" -frames:v 1 -update true \"${outputFile.path}\" -y",
         )
-
-        if (tempFile.length() > 0L) {
-            updateImage(tempFile.inputStream())
-        }
     }
 
     companion object {
