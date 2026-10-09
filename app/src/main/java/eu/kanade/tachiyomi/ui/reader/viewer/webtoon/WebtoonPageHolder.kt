@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorUiState
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.canOpenReaderPageInWebView
+import eu.kanade.tachiyomi.ui.reader.viewer.readerPageAnalysisKey
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.dpToPx
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -200,7 +201,7 @@ class WebtoonPageHolder(
 
         val currentPage = page ?: return
         val streamFn = currentPage.stream ?: return
-        val sourceCacheKey = buildSourceCacheKey(currentPage)
+        val sourceCacheKey = readerPageAnalysisKey(currentPage, viewer.config)
 
         try {
             val (source, isAnimated) = withIOContext {
@@ -252,17 +253,6 @@ class WebtoonPageHolder(
             ImageUtil.rotateImage(imageSource, rotation)
         } else {
             imageSource
-        }
-    }
-
-    private fun buildSourceCacheKey(page: ReaderPage): String {
-        val base = page.imageUrl ?: page.url
-        return buildString {
-            append(base)
-            append("|rotate=").append(viewer.config.dualPageRotateToFit)
-            append("|rotateInvert=").append(viewer.config.dualPageRotateToFitInvert)
-            append("|split=").append(viewer.config.dualPageSplit)
-            append("|invert=").append(viewer.config.dualPageInvert)
         }
     }
 

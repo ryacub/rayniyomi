@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Restore anime without backup IDs as separate entries and remap season links to the restored parent.
+- The reader now checks each page of a downloaded or local chapter for its own size. Before, it used the first page's result for all pages, so tall webtoon strips could load the wrong way (#1349).
 - Tracker sync no longer unlinks an entry when a refresh fails. It reports the failure instead (#1352).
 - Startup now warms network and download dependencies on a background thread to avoid main-thread storage queries (#1346).
 
