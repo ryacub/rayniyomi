@@ -135,7 +135,16 @@ class CastManagerTest {
                     }
                     completed?.onComplete(Status.RESULT_INTERNAL_ERROR)
                     castManager.removeQueueItems(listOf(index))
-                    completed?.onComplete(Status.RESULT_SUCCESS)
+                    val removed = completed
+                    if (index == 0) {
+                        val replacement = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
+                        var loaded: StatusListener? = null
+                        every { replacement.addStatusListener(any()) } answers { loaded = firstArg() }
+                        every { client.queueLoad(any(), any(), any(), any<Long>(), any()) } returns replacement
+                        castManager.loadQueue(emptyList(), 0L)
+                        loaded!!.onComplete(Status.RESULT_INTERNAL_ERROR)
+                    }
+                    removed!!.onComplete(Status.RESULT_SUCCESS)
                     upstream.enqueue(MockResponse().setBody("episode"))
                     OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use {
                         assertEquals(404, it.code)
