@@ -457,7 +457,6 @@ object SettingsTrackingScreen : SearchableSettings {
         val summary = context.stringResource(
             MR.strings.tracker_sync_complete_summary,
             result.syncedItems,
-            result.unlinkedItems,
             result.failedCount,
         )
         if (result.failedItems.isEmpty()) {

@@ -29,7 +29,6 @@ class ImmediateTrackerSyncJob(
             workDataOf(
                 OUTPUT_SYNCED_COUNT to result.syncedItems,
                 OUTPUT_FAILED_COUNT to result.failedCount,
-                OUTPUT_UNLINKED_COUNT to result.unlinkedItems,
             ),
         )
     }
@@ -40,7 +39,6 @@ class ImmediateTrackerSyncJob(
         const val INPUT_TRIGGER = "input_trigger"
         const val OUTPUT_SYNCED_COUNT = "output_synced_count"
         const val OUTPUT_FAILED_COUNT = "output_failed_count"
-        const val OUTPUT_UNLINKED_COUNT = "output_unlinked_count"
 
         fun startNow(
             context: Context,

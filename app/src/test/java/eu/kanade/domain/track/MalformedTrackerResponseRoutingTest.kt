@@ -11,7 +11,6 @@ import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -25,10 +24,8 @@ import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
-import tachiyomi.domain.track.anime.interactor.DeleteAnimeTrack
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.interactor.InsertAnimeTrack
-import tachiyomi.domain.track.manga.interactor.DeleteMangaTrack
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.domain.track.manga.interactor.InsertMangaTrack
 import tachiyomi.domain.track.anime.model.AnimeTrack as DomainAnimeTrack
@@ -43,7 +40,6 @@ class MalformedTrackerResponseRoutingTest {
         val animeTracker = tracker as AnimeTracker
         val trackerManager = mockk<TrackerManager>()
         val getTracks = mockk<GetAnimeTracks>()
-        val deleteTrack = mockk<DeleteAnimeTrack>(relaxed = true)
         val localTrack = animeTrack()
 
         every { tracker.isLoggedIn } returns true
@@ -55,13 +51,11 @@ class MalformedTrackerResponseRoutingTest {
             getTracks = getTracks,
             trackerManager = trackerManager,
             insertTrack = mockk<InsertAnimeTrack>(relaxed = true),
-            deleteTrack = deleteTrack,
             getEpisodesByAnimeId = mockk<GetEpisodesByAnimeId>(relaxed = true),
             updateEpisode = mockk<UpdateEpisode>(relaxed = true),
             conflictResolver = mockk<TrackSyncConflictResolver>(relaxed = true),
         ).await()
 
-        coVerify(exactly = 0) { deleteTrack.await(any(), any()) }
         val failure = result.failures.single()
         assertSame(tracker, failure.tracker)
         assertEquals(MediaType.ANIME, failure.mediaType)
@@ -76,7 +70,6 @@ class MalformedTrackerResponseRoutingTest {
         val mangaTracker = tracker as MangaTracker
         val trackerManager = mockk<TrackerManager>()
         val getTracks = mockk<GetMangaTracks>()
-        val deleteTrack = mockk<DeleteMangaTrack>(relaxed = true)
         val localTrack = mangaTrack()
 
         every { tracker.isLoggedIn } returns true
@@ -88,13 +81,11 @@ class MalformedTrackerResponseRoutingTest {
             getTracks = getTracks,
             trackerManager = trackerManager,
             insertTrack = mockk<InsertMangaTrack>(relaxed = true),
-            deleteTrack = deleteTrack,
             getChaptersByMangaId = mockk<GetChaptersByMangaId>(relaxed = true),
             updateChapter = mockk<UpdateChapter>(relaxed = true),
             conflictResolver = mockk<TrackSyncConflictResolver>(relaxed = true),
         ).await()
 
-        coVerify(exactly = 0) { deleteTrack.await(any(), any()) }
         val failure = result.failures.single()
         assertSame(tracker, failure.tracker)
         assertEquals(MediaType.MANGA, failure.mediaType)

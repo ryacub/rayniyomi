@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Tracker sync no longer unlinks an entry when a refresh fails. It reports the failure instead (#1352).
 - Startup now warms network and download dependencies on a background thread to avoid main-thread storage queries (#1346).
 
 ### Changed

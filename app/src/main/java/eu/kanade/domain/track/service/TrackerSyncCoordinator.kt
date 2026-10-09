@@ -17,7 +17,6 @@ class TrackerSyncCoordinator(
                 trigger = trigger,
                 syncedItems = 0,
                 failedItems = emptyList(),
-                unlinkedItems = 0,
             )
         }
 
@@ -33,7 +32,6 @@ class TrackerSyncCoordinator(
             trigger = trigger,
             syncedItems = mangaResult.syncedCount + animeResult.syncedCount,
             failedItems = mangaResult.failures + animeResult.failures,
-            unlinkedItems = mangaResult.unlinkedCount + animeResult.unlinkedCount,
         )
     }
 }

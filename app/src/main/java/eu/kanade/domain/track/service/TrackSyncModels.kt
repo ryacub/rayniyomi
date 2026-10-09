@@ -24,7 +24,6 @@ data class TrackerSyncResult(
     val trigger: TrackerSyncTrigger,
     val syncedItems: Int,
     val failedItems: List<TrackerSyncFailure>,
-    val unlinkedItems: Int,
 ) {
     val failedCount: Int
         get() = failedItems.size
