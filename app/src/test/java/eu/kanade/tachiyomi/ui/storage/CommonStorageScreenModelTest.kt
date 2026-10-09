@@ -23,7 +23,7 @@ class CommonStorageScreenModelTest {
 
     private val vt = VirtualTime()
 
-    private data class Entry(val id: Long, val size: Long)
+    private data class Entry(val id: Long, val size: Long, val categoryId: Long = category.id)
 
     private class TestStorageScreenModel(
         libraries: List<Entry>,
@@ -36,11 +36,11 @@ class CommonStorageScreenModelTest {
             librariesGate.await()
             emit(libraries)
         },
-        categories = { flowOf(listOf(category)) },
+        categories = { flowOf(listOf(category, otherCategory)) },
         getDownloadSize = getDownloadSize,
         getDownloadCount = { 1 },
         getId = { id },
-        getCategoryId = { category.id },
+        getCategoryId = { categoryId },
         getTitle = { "entry $id" },
         getThumbnail = { null },
         libraryPreferences = mockk<LibraryPreferences> {
@@ -74,6 +74,26 @@ class CommonStorageScreenModelTest {
         assertEquals(listOf(30L, 20L, 10L), state.items.map { it.size })
     }
 
+    @Test
+    fun `selected category shows before the new sizes are computed`() = runBlocking {
+        val entries = listOf(Entry(1, 10), Entry(2, 30, categoryId = otherCategory.id))
+        val gate = CompletableDeferred<Unit>()
+        val categoryIdsSeenBySizeCalls = CopyOnWriteArrayList<Long?>()
+        lateinit var model: TestStorageScreenModel
+        model = TestStorageScreenModel(entries, gate) {
+            categoryIdsSeenBySizeCalls += (model.state.value as? StorageScreenState.Success)?.selectedCategory?.id
+            size
+        }
+        gate.complete(Unit)
+        awaitItems(model, count = 2)
+        categoryIdsSeenBySizeCalls.clear()
+
+        model.setSelectedCategory(otherCategory)
+        awaitItems(model, count = 1)
+
+        assertEquals(listOf(otherCategory.id), categoryIdsSeenBySizeCalls.toList())
+    }
+
     private suspend fun awaitItems(model: TestStorageScreenModel, count: Int): StorageScreenState.Success =
         withTimeout(5_000) {
             model.state.first { it is StorageScreenState.Success && it.items.size == count }
@@ -82,5 +102,6 @@ class CommonStorageScreenModelTest {
 
     private companion object {
         val category = Category(id = 1L, name = "Default", order = 0L, flags = 0L, hidden = false)
+        val otherCategory = Category(id = 2L, name = "Other", order = 1L, flags = 0L, hidden = false)
     }
 }
