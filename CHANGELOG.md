@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 
 ### Fixed
 - Cast queues now keep protected stream URLs available until their items leave the queue (#1350).

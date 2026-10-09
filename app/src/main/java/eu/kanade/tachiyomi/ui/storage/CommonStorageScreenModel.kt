@@ -44,16 +44,7 @@ abstract class CommonStorageScreenModel<T>(
                 flow4 = categories(hideHiddenCategories),
                 flow5 = selectedCategory,
                 transform = { _, _, libraries, categories, selectedCategory ->
-                    // initialize the screen with an empty state
-                    mutableState.update {
-                        StorageScreenState.Success(
-                            selectedCategory = selectedCategory,
-                            categories = listOf(AllCategory, *categories.toTypedArray()),
-                            items = emptyList(),
-                        )
-                    }
-
-                    val distinctLibraries = libraries.distinctBy {
+                    val items = libraries.distinctBy {
                         it.getId()
                     }.filter { item ->
                         val categoryId = item.getCategoryId()
@@ -68,35 +59,35 @@ abstract class CommonStorageScreenModel<T>(
                             else -> categoryId == selectedCategory.id
                         }
                     }
+                        .map { it.toStorageItem() }
+                        .sortedByDescending { it.size }
 
-                    distinctLibraries.forEach { library ->
-                        val random = Random(library.getId())
-                        val item = StorageItem(
-                            id = library.getId(),
-                            title = library.getTitle(),
-                            size = library.getDownloadSize(),
-                            thumbnail = library.getThumbnail(),
-                            entriesCount = library.getDownloadCount(),
-                            color = Color(
-                                random.nextInt(255),
-                                random.nextInt(255),
-                                random.nextInt(255),
-                            ),
+                    mutableState.update {
+                        StorageScreenState.Success(
+                            selectedCategory = selectedCategory,
+                            categories = listOf(AllCategory, *categories.toTypedArray()),
+                            items = items,
                         )
-
-                        mutableState.update { state ->
-                            when (state) {
-                                is StorageScreenState.Success -> state.copy(
-                                    items = (state.items + item).sortedByDescending { it.size },
-                                )
-
-                                else -> state
-                            }
-                        }
                     }
                 },
             ).collectLatest {}
         }
+    }
+
+    private fun T.toStorageItem(): StorageItem {
+        val random = Random(getId())
+        return StorageItem(
+            id = getId(),
+            title = getTitle(),
+            size = getDownloadSize(),
+            thumbnail = getThumbnail(),
+            entriesCount = getDownloadCount(),
+            color = Color(
+                random.nextInt(255),
+                random.nextInt(255),
+                random.nextInt(255),
+            ),
+        )
     }
 
     fun setSelectedCategory(category: Category) {
