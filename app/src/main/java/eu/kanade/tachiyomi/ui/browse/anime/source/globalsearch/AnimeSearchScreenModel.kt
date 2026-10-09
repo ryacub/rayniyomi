@@ -207,10 +207,14 @@ abstract class AnimeSearchScreenModel(
     }
 
     private fun updateItem(source: AnimeCatalogueSource, result: AnimeSearchItemResult) {
-        val newItems = state.value.items.mutate {
-            it[source] = result
+        mutableState.update { state ->
+            val items = state.items.mutate { it[source] = result }
+            state.copy(
+                items = items
+                    .toSortedMap(sortComparator(items))
+                    .toPersistentMap(),
+            )
         }
-        updateItems(newItems)
     }
 
     @Immutable
