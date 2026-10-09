@@ -44,28 +44,35 @@ abstract class CommonStorageScreenModel<T>(
                 flow4 = categories(hideHiddenCategories),
                 flow5 = selectedCategory,
                 transform = { _, _, libraries, categories, selectedCategory ->
-                    val items = libraries.distinctBy {
-                        it.getId()
-                    }.filter { item ->
-                        val categoryId = item.getCategoryId()
-                        when {
-                            // if all is selected, we want to make sure to include all entries
-                            // from only visible categories
-                            selectedCategory == AllCategory -> categories.find {
-                                it.id == categoryId
-                            } != null
-
-                            // else include only entries from the selected category
-                            else -> categoryId == selectedCategory.id
-                        }
+                    val categoryOptions = listOf(AllCategory, *categories.toTypedArray())
+                    mutableState.update { state ->
+                        (state as? StorageScreenState.Success)
+                            ?.copy(selectedCategory = selectedCategory, categories = categoryOptions)
+                            ?: state
                     }
+
+                    val items = libraries
+                        .distinctBy { it.getId() }
+                        .filter { item ->
+                            val categoryId = item.getCategoryId()
+                            when {
+                                // if all is selected, we want to make sure to include all entries
+                                // from only visible categories
+                                selectedCategory == AllCategory -> categories.find {
+                                    it.id == categoryId
+                                } != null
+
+                                // else include only entries from the selected category
+                                else -> categoryId == selectedCategory.id
+                            }
+                        }
                         .map { it.toStorageItem() }
                         .sortedByDescending { it.size }
 
                     mutableState.update {
                         StorageScreenState.Success(
                             selectedCategory = selectedCategory,
-                            categories = listOf(AllCategory, *categories.toTypedArray()),
+                            categories = categoryOptions,
                             items = items,
                         )
                     }
