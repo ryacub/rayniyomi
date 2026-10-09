@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ReaderErrorUiState
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.canOpenReaderPageInWebView
+import eu.kanade.tachiyomi.ui.reader.viewer.readerPageAnalysisKey
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
@@ -156,7 +157,12 @@ class PagerPageHolder(
         progressIndicator?.setProgress(0)
 
         val streamFn = page.stream ?: return
-        val sourceCacheKey = buildSourceCacheKey(item)
+        val sourceCacheKey = readerPageAnalysisKey(
+            item,
+            viewer.config,
+            "insert" to (item is InsertPage),
+            "l2r" to (viewer is L2RPagerViewer),
+        )
 
         try {
             val (source, isAnimated, background) = withIOContext {
@@ -250,19 +256,6 @@ class PagerPageHolder(
     private fun onPageSplit(page: ReaderPage) {
         val newPage = InsertPage(page)
         viewer.onPageSplit(page, newPage)
-    }
-
-    private fun buildSourceCacheKey(page: ReaderPage): String {
-        val base = page.imageUrl ?: page.url
-        return buildString {
-            append(base)
-            append("|rotate=").append(viewer.config.dualPageRotateToFit)
-            append("|rotateInvert=").append(viewer.config.dualPageRotateToFitInvert)
-            append("|split=").append(viewer.config.dualPageSplit)
-            append("|invert=").append(viewer.config.dualPageInvert)
-            append("|insert=").append(page is InsertPage)
-            append("|l2r=").append(viewer is L2RPagerViewer)
-        }
     }
 
     /**
