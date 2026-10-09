@@ -234,20 +234,34 @@ class BackupRestorer(
         backupAnimes: List<BackupAnime>,
         backupAnimeCategories: List<BackupCategory>,
     ) = launch {
+        val restoredIds = mutableMapOf<Long, Long>()
+        val requestedParentIds = mutableMapOf<Long, Long>()
         animeRestorer.sortByNew(backupAnimes)
-            .forEach {
+            .forEach { backupAnime ->
                 ensureActive()
 
-                val seasons = backupAnimes.filter { s -> s.parentId == it.id }
                 try {
-                    animeRestorer.restore(it, backupAnimeCategories, seasons)
+                    val restoredId = animeRestorer.restore(backupAnime, backupAnimeCategories)
+                    backupAnime.id?.let { restoredIds[it] = restoredId }
+                    backupAnime.parentId?.let { requestedParentIds[restoredId] = it }
                 } catch (e: Exception) {
-                    val sourceName = animeSourceMapping[it.source] ?: it.source.toString()
-                    recordError("${it.title} [$sourceName]: ${e.message}")
+                    val sourceName = animeSourceMapping[backupAnime.source] ?: backupAnime.source.toString()
+                    recordError("${backupAnime.title} [$sourceName]: ${e.message}")
                 }
 
-                incrementProgressAndNotify(it.title)
+                incrementProgressAndNotify(backupAnime.title)
             }
+
+        ensureActive()
+        try {
+            val parentIds = requestedParentIds.mapNotNull { (id, parentId) ->
+                restoredIds[parentId]?.let { id to it }
+            }.toMap()
+            animeRestorer.restoreParentLinks(parentIds)
+        } catch (e: Exception) {
+            ensureActive()
+            recordError("Anime season links: ${e.message}")
+        }
     }
 
     private fun CoroutineScope.restoreManga(
