@@ -7,7 +7,7 @@ internal fun readerPageAnalysisKey(
     config: ViewerConfig,
     vararg viewerFlags: Pair<String, Boolean>,
 ): String = buildString {
-    append(page.imageUrl ?: page.url)
+    append(page.imageUrl ?: page.url.ifEmpty { "chapter=${page.chapter.chapter.id}|page=${page.index}" })
     append("|rotate=").append(config.dualPageRotateToFit)
     append("|rotateInvert=").append(config.dualPageRotateToFitInvert)
     append("|split=").append(config.dualPageSplit)
