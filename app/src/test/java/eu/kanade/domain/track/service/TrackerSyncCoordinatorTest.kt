@@ -24,12 +24,10 @@ class TrackerSyncCoordinatorTest {
         every { preferences.trackerSyncLastRunMillis().set(any()) } just Runs
         coEvery { refreshManga.await() } returns RefreshAllMangaTracks.Result(
             syncedCount = 2,
-            unlinkedCount = 1,
             failures = emptyList(),
         )
         coEvery { refreshAnime.await() } returns RefreshAllAnimeTracks.Result(
             syncedCount = 3,
-            unlinkedCount = 2,
             failures = emptyList(),
         )
 
@@ -37,7 +35,6 @@ class TrackerSyncCoordinatorTest {
             .await(TrackerSyncTrigger.MANUAL)
 
         assertEquals(5, result.syncedItems)
-        assertEquals(3, result.unlinkedItems)
         assertEquals(TrackerSyncTrigger.MANUAL, result.trigger)
         coVerify(exactly = 1) { refreshManga.await() }
         coVerify(exactly = 1) { refreshAnime.await() }
@@ -55,7 +52,6 @@ class TrackerSyncCoordinatorTest {
             .await(TrackerSyncTrigger.PERIODIC)
 
         assertEquals(0, result.syncedItems)
-        assertEquals(0, result.unlinkedItems)
         assertEquals(TrackerSyncTrigger.PERIODIC, result.trigger)
         coVerify(exactly = 0) { refreshManga.await() }
         coVerify(exactly = 0) { refreshAnime.await() }

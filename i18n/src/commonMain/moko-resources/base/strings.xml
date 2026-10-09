@@ -598,7 +598,7 @@
     <string name="pref_tracker_sync_now">Sync now</string>
     <string name="pref_tracker_sync_now_summary">Run an immediate tracker sync and announce results.</string>
     <string name="tracker_sync_in_progress">Syncing tracker progress…</string>
-    <string name="tracker_sync_complete_summary">%1$d items synced, %2$d unlinked, %3$d failed.</string>
+    <string name="tracker_sync_complete_summary">%1$d items synced, %2$d failed.</string>
     <string name="tracker_sync_failed_services">Failed trackers: %1$s</string>
     <string name="tracker_sync_every_hour">Every 1 hour</string>
     <string name="tracker_sync_every_2_hours">Every 2 hours</string>
