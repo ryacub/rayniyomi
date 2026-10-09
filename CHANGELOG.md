@@ -14,6 +14,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.418] - 2026-10-09
+
+### Added
+
 - Manual library updates and downloads can now show progress as Android 16 Live Updates, with the existing Cancel and Pause actions. Dismissed progress stays hidden for the current run (#1285).
 - Source error screens now offer Help and Migrate. A failed reader page adds both buttons for a library manga. A failed browse source adds Migrate when the source has library entries. Help opens the Cloudflare section of the troubleshooting page for a Cloudflare block. A failed source row in global search and migration search now has Retry and, for an HTTP source, Open in WebView (#1281).
 - Library updates now show their active title and progress in the anime and manga libraries, with an action to cancel the update (#1282).
