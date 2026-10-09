@@ -9,6 +9,7 @@ import com.arthenica.ffmpegkit.FFprobeSession
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.util.storage.toFFmpegString
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -63,6 +64,8 @@ class LocalAnimeSourceTest {
         every { episodeFile.lastModified() } returns 1L
         every { episodeFile.uri } returns uri
         every { episodeFile.filePath } returns "/fixture/Episode 1.mp4"
+        mockkStatic("eu.kanade.tachiyomi.util.storage.FFmpegUtilsKt")
+        every { episodeFile.toFFmpegString(context) } returnsMany listOf("saf:1", "saf:2")
         val directory = mockk<UniFile>()
         every { directory.findFile("Episode 1.mp4") } returns episodeFile
         every { fileSystem.getFilesInAnimeDirectory(anime.url) } returns listOf(episodeFile)
@@ -108,6 +111,8 @@ class LocalAnimeSourceTest {
         assertEquals(first.preview_url, second.preview_url)
         verify(exactly = 1) { FFprobeKit.execute(any()) }
         verify(exactly = 1) { FFmpegKit.execute(any()) }
+        verify { FFprobeKit.execute(match { it.contains("saf:1") }) }
+        verify { FFmpegKit.execute(match { it.contains("saf:2") }) }
         assertEquals(1, outputFiles.size)
         assertFalse(outputFiles.single().exists(), "Extraction must delete its temporary output")
     }
