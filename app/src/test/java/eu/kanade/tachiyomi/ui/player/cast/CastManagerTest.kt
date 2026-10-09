@@ -30,6 +30,7 @@ import java.net.InetAddress
 class CastManagerTest {
 
     private lateinit var castManager: CastManager
+    private val httpClient = OkHttpClient()
     private val mockContext: Context = mockk(relaxed = true)
     private val mockNetwork: NetworkHelper = mockk(relaxed = true)
     private val mockPlayerPreferences: PlayerPreferences = mockk(relaxed = true)
@@ -41,77 +42,84 @@ class CastManagerTest {
 
     @Test
     fun `successful replacement retires old routes and preserves pending append routes`() {
-        MockWebServer().use { upstream ->
-            upstream.start()
-            var token = 0
-            CastStreamProxy(
-                OkHttpClient(),
-                addressProvider = { InetAddress.getLoopbackAddress() },
-                tokenProvider = { "queue-${++token}" },
-            ).use { proxy ->
-                castManager = CastManager(
-                    mockContext,
-                    mockNetwork,
-                    mockPlayerPreferences,
-                    streamProxy = proxy,
-                )
-                val client = mockk<RemoteMediaClient>(relaxed = true)
-                val session = mockk<CastSession>()
-                every { session.remoteMediaClient } returns client
-                castManager.onSessionConnected(session)
-                var completed: StatusListener? = null
-                val load = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
-                every { load.addStatusListener(any()) } answers { completed = firstArg() }
-                every { client.queueLoad(any(), any(), any(), any<Long>(), any()) } returns load
-                fun route(): String = proxy.urlFor(
-                    upstream.url("/episode.mp4").toString(),
-                    Headers.headersOf("Referer", "https://example.com/"),
-                )
-                fun item(url: String): MediaQueueItem = mockk {
-                    every { media } returns mockk<MediaInfo> { every { contentId } returns url }
-                }
-                castManager.resetForNewActivity()
-                val abandonedUrl = route()
-                castManager.loadQueue(listOf(item(abandonedUrl)), 0L)
-                upstream.enqueue(MockResponse().setBody("episode"))
-                OkHttpClient().newCall(Request.Builder().url(abandonedUrl).build()).execute().use {
-                    assertEquals(404, it.code)
-                }
-                castManager.onSessionConnected(session)
-                val oldUrl = route()
-                castManager.loadQueue(listOf(item(oldUrl)), 0L)
-                completed!!.onComplete(Status.RESULT_SUCCESS)
-                val currentUrl = route()
-                castManager.loadQueue(listOf(item(currentUrl)), 0L)
-                val pendingUrl = route()
-                castManager.appendToQueue(item(pendingUrl))
-                val acceptedLoad = completed
-                val rejectedUrl = route()
-                castManager.loadQueue(listOf(item(rejectedUrl)), 0L)
-                completed!!.onComplete(Status.RESULT_INTERNAL_ERROR)
-                acceptedLoad!!.onComplete(Status.RESULT_SUCCESS)
+        withProxySession { upstream, proxy, client, session ->
+            var completed: StatusListener? = null
+            val load = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
+            every { load.addStatusListener(any()) } answers { completed = firstArg() }
+            every { client.queueLoad(any(), any(), any(), any<Long>(), any()) } returns load
+            fun route(): String = proxyRoute(upstream, proxy)
+            fun item(url: String): MediaQueueItem = mockk {
+                every { media } returns mockk<MediaInfo> { every { contentId } returns url }
+            }
+            castManager.resetForNewActivity()
+            val abandonedUrl = route()
+            castManager.loadQueue(listOf(item(abandonedUrl)), 0L)
+            assertResponse(upstream, abandonedUrl, 404)
+            castManager.onSessionConnected(session)
+            val oldUrl = route()
+            castManager.loadQueue(listOf(item(oldUrl)), 0L)
+            completed!!.onComplete(Status.RESULT_SUCCESS)
+            val currentUrl = route()
+            castManager.loadQueue(listOf(item(currentUrl)), 0L)
+            val pendingUrl = route()
+            castManager.appendToQueue(item(pendingUrl))
+            val acceptedLoad = completed
+            val rejectedUrl = route()
+            castManager.loadQueue(listOf(item(rejectedUrl)), 0L)
+            completed!!.onComplete(Status.RESULT_INTERNAL_ERROR)
+            acceptedLoad!!.onComplete(Status.RESULT_SUCCESS)
 
-                upstream.enqueue(MockResponse().setBody("episode"))
-                OkHttpClient().newCall(Request.Builder().url(oldUrl).build()).execute().use {
-                    assertEquals(404, it.code)
-                }
-                listOf(currentUrl, pendingUrl).forEach { url ->
-                    upstream.enqueue(MockResponse().setBody("episode"))
-                    OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use {
-                        assertEquals(200, it.code)
-                    }
-                }
+            assertResponse(upstream, oldUrl, 404)
+            listOf(currentUrl, pendingUrl).forEach { url ->
+                assertResponse(upstream, url, 200)
             }
         }
     }
 
     @Test
     fun `successful stale removal releases only removed routes across repeated queue advances`() {
+        withProxySession { upstream, proxy, client, _ ->
+            var completed: StatusListener? = null
+            val removal = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
+            every { removal.addStatusListener(any()) } answers { completed = firstArg() }
+            every { client.queueRemoveItems(any(), any()) } returns removal
+            val liveUrl = proxyRoute(upstream, proxy, "/live.mp4")
+            repeat(2) { index ->
+                val url = proxyRoute(upstream, proxy, "/episode-$index.mp4")
+                val queuedItem = mockk<MediaQueueItem> {
+                    every { itemId } returns index
+                    every { media } returns mockk<MediaInfo> { every { contentId } returns url }
+                }
+                every { client.mediaStatus } returns mockk<MediaStatus> {
+                    every { queueItems } returns listOf(queuedItem)
+                }
+                castManager.removeQueueItems(listOf(index))
+                assertResponse(upstream, url, 200)
+                completed?.onComplete(Status.RESULT_INTERNAL_ERROR)
+                castManager.removeQueueItems(listOf(index))
+                val removed = completed
+                if (index == 0) {
+                    val replacement = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
+                    var loaded: StatusListener? = null
+                    every { replacement.addStatusListener(any()) } answers { loaded = firstArg() }
+                    every { client.queueLoad(any(), any(), any(), any<Long>(), any()) } returns replacement
+                    castManager.loadQueue(emptyList(), 0L)
+                    loaded!!.onComplete(Status.RESULT_INTERNAL_ERROR)
+                }
+                removed!!.onComplete(Status.RESULT_SUCCESS)
+                assertResponse(upstream, url, 404)
+                assertEquals(listOf(liveUrl), proxy.routeUrls())
+            }
+            assertResponse(upstream, liveUrl, 200)
+        }
+    }
+
+    private fun withProxySession(block: (MockWebServer, CastStreamProxy, RemoteMediaClient, CastSession) -> Unit) {
         MockWebServer().use { upstream ->
             upstream.start()
             var token = 0
             CastStreamProxy(
-                OkHttpClient(),
+                httpClient,
                 addressProvider = { InetAddress.getLoopbackAddress() },
                 tokenProvider = { "queue-${++token}" },
             ).use { proxy ->
@@ -125,54 +133,18 @@ class CastManagerTest {
                 val session = mockk<CastSession>()
                 every { session.remoteMediaClient } returns client
                 castManager.onSessionConnected(session)
-                var completed: StatusListener? = null
-                val removal = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
-                every { removal.addStatusListener(any()) } answers { completed = firstArg() }
-                every { client.queueRemoveItems(any(), any()) } returns removal
-                val liveUrl = proxy.urlFor(
-                    upstream.url("/live.mp4").toString(),
-                    Headers.headersOf("Referer", "https://example.com/"),
-                )
-                repeat(5) { index ->
-                    val url = proxy.urlFor(
-                        upstream.url("/episode-$index.mp4").toString(),
-                        Headers.headersOf("Referer", "https://example.com/"),
-                    )
-                    val queuedItem = mockk<MediaQueueItem> {
-                        every { itemId } returns index
-                        every { media } returns mockk<MediaInfo> { every { contentId } returns url }
-                    }
-                    every { client.mediaStatus } returns mockk<MediaStatus> {
-                        every { queueItems } returns listOf(queuedItem)
-                    }
-                    castManager.removeQueueItems(listOf(index))
-                    upstream.enqueue(MockResponse().setBody("episode"))
-                    OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use {
-                        assertEquals(200, it.code)
-                    }
-                    completed?.onComplete(Status.RESULT_INTERNAL_ERROR)
-                    castManager.removeQueueItems(listOf(index))
-                    val removed = completed
-                    if (index == 0) {
-                        val replacement = mockk<PendingResult<RemoteMediaClient.MediaChannelResult>>()
-                        var loaded: StatusListener? = null
-                        every { replacement.addStatusListener(any()) } answers { loaded = firstArg() }
-                        every { client.queueLoad(any(), any(), any(), any<Long>(), any()) } returns replacement
-                        castManager.loadQueue(emptyList(), 0L)
-                        loaded!!.onComplete(Status.RESULT_INTERNAL_ERROR)
-                    }
-                    removed!!.onComplete(Status.RESULT_SUCCESS)
-                    upstream.enqueue(MockResponse().setBody("episode"))
-                    OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use {
-                        assertEquals(404, it.code)
-                    }
-                    upstream.enqueue(MockResponse().setBody("live"))
-                    OkHttpClient().newCall(Request.Builder().url(liveUrl).build()).execute().use {
-                        assertEquals(200, it.code)
-                    }
-                    assertEquals(listOf(liveUrl), proxy.routeUrls())
-                }
+                block(upstream, proxy, client, session)
             }
+        }
+    }
+
+    private fun proxyRoute(upstream: MockWebServer, proxy: CastStreamProxy, path: String = "/episode.mp4"): String =
+        proxy.urlFor(upstream.url(path).toString(), Headers.headersOf("Referer", "https://example.com/"))
+
+    private fun assertResponse(upstream: MockWebServer, url: String, expectedStatus: Int) {
+        upstream.enqueue(MockResponse().setBody("episode"))
+        httpClient.newCall(Request.Builder().url(url).build()).execute().use {
+            assertEquals(expectedStatus, it.code)
         }
     }
 
