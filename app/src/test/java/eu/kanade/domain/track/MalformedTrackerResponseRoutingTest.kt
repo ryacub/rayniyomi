@@ -3,18 +3,24 @@ package eu.kanade.domain.track
 import eu.kanade.domain.track.anime.interactor.RefreshAllAnimeTracks
 import eu.kanade.domain.track.interactor.TrackSyncConflictResolver
 import eu.kanade.domain.track.manga.interactor.RefreshAllMangaTracks
+import eu.kanade.domain.track.service.MediaType
 import eu.kanade.tachiyomi.data.track.AnimeTracker
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.MalformedTrackerResponseException
 import eu.kanade.tachiyomi.data.track.MangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.network.HttpException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
@@ -30,21 +36,20 @@ import tachiyomi.domain.track.manga.model.MangaTrack as DomainMangaTrack
 
 class MalformedTrackerResponseRoutingTest {
 
-    @Test
-    fun `malformed anime response becomes a failure instead of unlinking`() = runTest {
+    @ParameterizedTest
+    @MethodSource("refreshErrors")
+    fun `anime refresh error becomes a failure and keeps the track`(error: Throwable) = runTest {
         val tracker = mockk<BaseTracker>(relaxed = true, moreInterfaces = arrayOf(AnimeTracker::class))
         val animeTracker = tracker as AnimeTracker
         val trackerManager = mockk<TrackerManager>()
         val getTracks = mockk<GetAnimeTracks>()
         val deleteTrack = mockk<DeleteAnimeTrack>(relaxed = true)
         val localTrack = animeTrack()
-        val malformedResponse = MalformedTrackerResponseException("Simkl", "total episode count")
 
-        every { tracker.id } returns localTrack.trackerId
         every { tracker.isLoggedIn } returns true
         every { trackerManager.get(localTrack.trackerId) } returns tracker
         coEvery { getTracks.awaitAll() } returns listOf(localTrack)
-        coEvery { animeTracker.refresh(any()) } throws malformedResponse
+        coEvery { animeTracker.refresh(any()) } throws error
 
         val result = RefreshAllAnimeTracks(
             getTracks = getTracks,
@@ -56,27 +61,28 @@ class MalformedTrackerResponseRoutingTest {
             conflictResolver = mockk<TrackSyncConflictResolver>(relaxed = true),
         ).await()
 
-        assertEquals(0, result.unlinkedCount)
-        assertEquals(1, result.failures.size)
-        assertEquals(malformedResponse.message, result.failures.single().message)
         coVerify(exactly = 0) { deleteTrack.await(any(), any()) }
+        val failure = result.failures.single()
+        assertSame(tracker, failure.tracker)
+        assertEquals(MediaType.ANIME, failure.mediaType)
+        assertEquals(localTrack.animeId, failure.itemId)
+        assertEquals(error.message, failure.message)
     }
 
-    @Test
-    fun `malformed manga response becomes a failure instead of unlinking`() = runTest {
+    @ParameterizedTest
+    @MethodSource("refreshErrors")
+    fun `manga refresh error becomes a failure and keeps the track`(error: Throwable) = runTest {
         val tracker = mockk<BaseTracker>(relaxed = true, moreInterfaces = arrayOf(MangaTracker::class))
         val mangaTracker = tracker as MangaTracker
         val trackerManager = mockk<TrackerManager>()
         val getTracks = mockk<GetMangaTracks>()
         val deleteTrack = mockk<DeleteMangaTrack>(relaxed = true)
         val localTrack = mangaTrack()
-        val malformedResponse = MalformedTrackerResponseException("Kavita", "chapter number")
 
-        every { tracker.id } returns localTrack.trackerId
         every { tracker.isLoggedIn } returns true
         every { trackerManager.get(localTrack.trackerId) } returns tracker
         coEvery { getTracks.awaitAll() } returns listOf(localTrack)
-        coEvery { mangaTracker.refresh(any()) } throws malformedResponse
+        coEvery { mangaTracker.refresh(any()) } throws error
 
         val result = RefreshAllMangaTracks(
             getTracks = getTracks,
@@ -88,11 +94,16 @@ class MalformedTrackerResponseRoutingTest {
             conflictResolver = mockk<TrackSyncConflictResolver>(relaxed = true),
         ).await()
 
-        assertEquals(0, result.unlinkedCount)
-        assertEquals(1, result.failures.size)
-        assertEquals(malformedResponse.message, result.failures.single().message)
         coVerify(exactly = 0) { deleteTrack.await(any(), any()) }
+        val failure = result.failures.single()
+        assertSame(tracker, failure.tracker)
+        assertEquals(MediaType.MANGA, failure.mediaType)
+        assertEquals(localTrack.mangaId, failure.itemId)
+        assertEquals(error.message, failure.message)
     }
+
+    @Serializable
+    private data class RemoteEntry(val id: Long)
 
     private fun animeTrack() = DomainAnimeTrack(
         id = 1L,
@@ -127,4 +138,14 @@ class MalformedTrackerResponseRoutingTest {
         finishDate = 0L,
         private = false,
     )
+
+    companion object {
+        @JvmStatic
+        fun refreshErrors(): List<Throwable> = listOf(
+            MalformedTrackerResponseException("Kavita", "chapter number"),
+            checkNotNull(runCatching { Json.decodeFromString<RemoteEntry>("{}") }.exceptionOrNull()),
+            HttpException(404),
+            Exception("Could not find manga"),
+        )
+    }
 }
