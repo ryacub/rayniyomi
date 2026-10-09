@@ -85,8 +85,13 @@ class CastManagerTest {
                 castManager.loadQueue(listOf(item(currentUrl)), 0L)
                 val pendingUrl = route()
                 castManager.appendToQueue(item(pendingUrl))
-                completed!!.onComplete(Status.RESULT_SUCCESS)
+                val acceptedLoad = completed
+                val rejectedUrl = route()
+                castManager.loadQueue(listOf(item(rejectedUrl)), 0L)
+                completed!!.onComplete(Status.RESULT_INTERNAL_ERROR)
+                acceptedLoad!!.onComplete(Status.RESULT_SUCCESS)
 
+                upstream.enqueue(MockResponse().setBody("episode"))
                 OkHttpClient().newCall(Request.Builder().url(oldUrl).build()).execute().use {
                     assertEquals(404, it.code)
                 }
