@@ -721,6 +721,7 @@ class PlayerActivity : BaseActivity() {
             "pause" -> {
                 if (value && player.paused == true) {
                     viewModel.pause()
+                    viewModel.saveCurrentEpisodeWatchingProgress()
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else if (!value && player.paused == false) {
                     viewModel.unpause()
