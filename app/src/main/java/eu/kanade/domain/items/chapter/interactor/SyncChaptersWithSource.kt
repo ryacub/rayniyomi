@@ -15,7 +15,6 @@ import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.interactor.ShouldUpdateDbChapter
-import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.NoChaptersException
 import tachiyomi.domain.items.chapter.model.toChapterUpdate
@@ -33,7 +32,6 @@ class SyncChaptersWithSource(
     private val chapterRepository: ChapterRepository,
     private val shouldUpdateDbChapter: ShouldUpdateDbChapter,
     private val updateManga: UpdateManga,
-    private val updateChapter: UpdateChapter,
     private val getChaptersByMangaId: GetChaptersByMangaId,
     private val getExcludedScanlators: GetExcludedScanlators,
     private val libraryPreferences: LibraryPreferences,
@@ -71,14 +69,12 @@ class SyncChaptersWithSource(
             }
 
         val dbChapters = getChaptersByMangaId.await(manga.id)
+        val dbChaptersByUrl = dbChapters.distinctBy { it.url }.associateBy { it.url }
+        val sourceUrls = sourceChapters.mapTo(HashSet()) { it.url }
 
         val newChapters = mutableListOf<Chapter>()
         val updatedChapters = mutableListOf<Chapter>()
-        val removedChapters = dbChapters.filterNot { dbChapter ->
-            sourceChapters.any { sourceChapter ->
-                dbChapter.url == sourceChapter.url
-            }
-        }
+        val removedChapters = dbChapters.filterNot { it.url in sourceUrls }
 
         // Used to not set upload date of older chapters
         // to a higher value than newer chapters
@@ -102,7 +98,7 @@ class SyncChaptersWithSource(
             )
             chapter = chapter.copy(chapterNumber = chapterNumber)
 
-            val dbChapter = dbChapters.find { it.url == chapter.url }
+            val dbChapter = dbChaptersByUrl[chapter.url]
 
             if (dbChapter == null) {
                 val toAddChapter = if (chapter.dateUpload == 0L) {
@@ -183,7 +179,7 @@ class SyncChaptersWithSource(
         // Date fetch is set in such a way that the upper ones will have bigger value than the lower ones
         // Sources MUST return the chapters from most to less recent, which is common.
         var itemCount = newChapters.size
-        var updatedToAdd = newChapters.map { toAddItem ->
+        val updatedToAdd = newChapters.map { toAddItem ->
             var chapter = toAddItem.copy(dateFetch = nowMillis + itemCount--)
 
             if (chapter.chapterNumber in readChapterNumbers && markDuplicateAsRead) {
@@ -208,19 +204,11 @@ class SyncChaptersWithSource(
             chapter
         }
 
-        if (removedChapters.isNotEmpty()) {
-            val toDeleteIds = removedChapters.map { it.id }
-            chapterRepository.removeChaptersWithIds(toDeleteIds)
-        }
-
-        if (updatedToAdd.isNotEmpty()) {
-            updatedToAdd = chapterRepository.addAllChapters(updatedToAdd)
-        }
-
-        if (updatedChapters.isNotEmpty()) {
-            val chapterUpdates = updatedChapters.map { it.toChapterUpdate() }
-            updateChapter.awaitAll(chapterUpdates)
-        }
+        val addedChapters = chapterRepository.syncChapters(
+            removedIds = removedChapters.map { it.id },
+            added = updatedToAdd,
+            updates = updatedChapters.map { it.toChapterUpdate() },
+        )
         updateManga.awaitUpdateFetchInterval(manga, now, fetchWindow)
 
         // Set this manga as updated since chapters were changed
@@ -229,7 +217,7 @@ class SyncChaptersWithSource(
 
         val excludedScanlators = getExcludedScanlators.await(manga.id).toHashSet()
 
-        return updatedToAdd.filterNot {
+        return addedChapters.filterNot {
             it.url in changedOrDuplicateReadUrls || it.scanlator in excludedScanlators
         }
     }

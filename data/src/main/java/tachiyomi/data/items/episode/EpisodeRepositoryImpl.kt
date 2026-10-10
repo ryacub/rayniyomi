@@ -13,34 +13,29 @@ class EpisodeRepositoryImpl(
 ) : EpisodeRepository {
 
     override suspend fun addAllEpisodes(episodes: List<Episode>): List<Episode> {
-        return try {
-            handler.await(inTransaction = true) {
-                episodes.map { episode ->
-                    episodesQueries.insert(
-                        episode.animeId,
-                        episode.url,
-                        episode.name,
-                        episode.scanlator,
-                        episode.seen,
-                        episode.bookmark,
-                        episode.lastSecondSeen,
-                        episode.totalSeconds,
-                        episode.episodeNumber,
-                        episode.sourceOrder,
-                        episode.dateFetch,
-                        episode.dateUpload,
-                        episode.version,
-                        episode.summary,
-                        episode.previewUrl,
-                        episode.fillermark,
-                    )
-                    val lastInsertId = episodesQueries.selectLastInsertedRowId().executeAsOne()
-                    episode.copy(id = lastInsertId)
-                }
+        return handler.await(inTransaction = true) {
+            episodes.map { episode ->
+                episodesQueries.insert(
+                    episode.animeId,
+                    episode.url,
+                    episode.name,
+                    episode.scanlator,
+                    episode.seen,
+                    episode.bookmark,
+                    episode.lastSecondSeen,
+                    episode.totalSeconds,
+                    episode.episodeNumber,
+                    episode.sourceOrder,
+                    episode.dateFetch,
+                    episode.dateUpload,
+                    episode.version,
+                    episode.summary,
+                    episode.previewUrl,
+                    episode.fillermark,
+                )
+                val lastInsertId = episodesQueries.selectLastInsertedRowId().executeAsOne()
+                episode.copy(id = lastInsertId)
             }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            emptyList()
         }
     }
 
@@ -79,11 +74,16 @@ class EpisodeRepositoryImpl(
         }
     }
 
-    override suspend fun removeEpisodesWithIds(episodeIds: List<Long>) {
-        try {
-            handler.await { episodesQueries.removeEpisodesWithIds(episodeIds) }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
+    override suspend fun syncEpisodes(
+        removedIds: List<Long>,
+        added: List<Episode>,
+        updates: List<EpisodeUpdate>,
+    ): List<Episode> {
+        return handler.await(inTransaction = true) {
+            if (removedIds.isNotEmpty()) episodesQueries.removeEpisodesWithIds(removedIds)
+            val inserted = if (added.isNotEmpty()) addAllEpisodes(added) else emptyList()
+            if (updates.isNotEmpty()) partialUpdate(*updates.toTypedArray())
+            inserted
         }
     }
 

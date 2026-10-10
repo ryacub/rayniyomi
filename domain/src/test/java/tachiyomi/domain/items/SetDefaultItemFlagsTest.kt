@@ -37,7 +37,9 @@ class SetDefaultItemFlagsTest {
 
         setDefaults.awaitAll()
 
-        coVerify(exactly = 1) { repository.updateAllManga(match { updates -> updates.map { it.id } == listOf(1L, 2L, 3L) }) }
+        coVerify(exactly = 1) {
+            repository.updateAllManga(match { updates -> updates.map { it.id } == listOf(1L, 2L, 3L) })
+        }
         coVerify(exactly = 0) { repository.updateManga(any()) }
     }
 
@@ -52,7 +54,9 @@ class SetDefaultItemFlagsTest {
 
         setDefaults.awaitAll()
 
-        coVerify(exactly = 1) { repository.updateAllAnime(match { updates -> updates.map { it.id } == listOf(1L, 2L, 3L) }) }
+        coVerify(exactly = 1) {
+            repository.updateAllAnime(match { updates -> updates.map { it.id } == listOf(1L, 2L, 3L) })
+        }
         coVerify(exactly = 0) { repository.updateAnime(any()) }
     }
 
@@ -67,7 +71,9 @@ class SetDefaultItemFlagsTest {
 
         setDefaults.awaitAll()
 
-        coVerify(exactly = 1) { repository.updateAllAnime(match { updates -> updates.map { it.id } == listOf(1L, 2L, 3L) }) }
+        coVerify(exactly = 1) {
+            repository.updateAllAnime(match { updates -> updates.map { it.id } == listOf(1L, 2L, 3L) })
+        }
         coVerify(exactly = 0) { repository.updateAnime(any()) }
     }
 

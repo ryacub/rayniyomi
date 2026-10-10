@@ -16,31 +16,26 @@ class ChapterRepositoryImpl(
 ) : ChapterRepository {
 
     override suspend fun addAllChapters(chapters: List<Chapter>): List<Chapter> {
-        return try {
-            handler.await(inTransaction = true) {
-                chapters.map { chapter ->
-                    chaptersQueries.insert(
-                        chapter.mangaId,
-                        chapter.url,
-                        chapter.name,
-                        chapter.scanlator,
-                        chapter.read,
-                        chapter.bookmark,
-                        chapter.lastPageRead,
-                        chapter.chapterNumber,
-                        chapter.sourceOrder,
-                        chapter.dateFetch,
-                        chapter.dateUpload,
-                        chapter.version,
-                        chapter.memo,
-                    )
-                    val lastInsertId = chaptersQueries.selectLastInsertedRowId().executeAsOne()
-                    chapter.copy(id = lastInsertId)
-                }
+        return handler.await(inTransaction = true) {
+            chapters.map { chapter ->
+                chaptersQueries.insert(
+                    chapter.mangaId,
+                    chapter.url,
+                    chapter.name,
+                    chapter.scanlator,
+                    chapter.read,
+                    chapter.bookmark,
+                    chapter.lastPageRead,
+                    chapter.chapterNumber,
+                    chapter.sourceOrder,
+                    chapter.dateFetch,
+                    chapter.dateUpload,
+                    chapter.version,
+                    chapter.memo,
+                )
+                val lastInsertId = chaptersQueries.selectLastInsertedRowId().executeAsOne()
+                chapter.copy(id = lastInsertId)
             }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            emptyList()
         }
     }
 
@@ -76,11 +71,16 @@ class ChapterRepositoryImpl(
         }
     }
 
-    override suspend fun removeChaptersWithIds(chapterIds: List<Long>) {
-        try {
-            handler.await { chaptersQueries.removeChaptersWithIds(chapterIds) }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
+    override suspend fun syncChapters(
+        removedIds: List<Long>,
+        added: List<Chapter>,
+        updates: List<ChapterUpdate>,
+    ): List<Chapter> {
+        return handler.await(inTransaction = true) {
+            if (removedIds.isNotEmpty()) chaptersQueries.removeChaptersWithIds(removedIds)
+            val inserted = if (added.isNotEmpty()) addAllChapters(added) else emptyList()
+            if (updates.isNotEmpty()) partialUpdate(*updates.toTypedArray())
+            inserted
         }
     }
 

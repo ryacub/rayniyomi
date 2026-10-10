@@ -13,7 +13,6 @@ import tachiyomi.data.items.episode.EpisodeRepositoryImpl
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.ShouldUpdateDbEpisode
-import tachiyomi.domain.items.episode.interactor.UpdateEpisode
 import tachiyomi.domain.library.service.LibraryPreferences
 
 class SyncEpisodesWithSourceAtomicTest {
@@ -37,7 +36,6 @@ class SyncEpisodesWithSourceAtomicTest {
                 episodeRepository = repository,
                 shouldUpdateDbEpisode = ShouldUpdateDbEpisode(),
                 updateAnime = mockk(relaxed = true),
-                updateEpisode = UpdateEpisode(repository),
                 getEpisodesByAnimeId = GetEpisodesByAnimeId(repository),
                 libraryPreferences = mockk<LibraryPreferences> {
                     every { markDuplicateSeenEpisodeAsSeen().get() } returns emptySet()
