@@ -122,8 +122,9 @@ class AnimeRepositoryImpl(
 
     override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
         handler.await(inTransaction = true) {
-            // 1. Sync watch progress for episodes that exist on both entries (same URL)
+            // 1. Merge progress, marks, and history of episodes that exist on both entries (same URL)
             episodesQueries.syncAllDuplicateEpisodeProgress(keepAnimeId = keepId, deleteAnimeId = deleteId)
+            animehistoryQueries.mergeDuplicateEpisodeHistory(keepAnimeId = keepId, deleteAnimeId = deleteId)
 
             // 2. Reparent episodes that are unique to the loser
             episodesQueries.reparentEpisodes(keepAnimeId = keepId, deleteAnimeId = deleteId)

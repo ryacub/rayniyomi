@@ -120,8 +120,9 @@ class MangaRepositoryImpl(
 
     override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
         handler.await(inTransaction = true) {
-            // 1. Sync read progress for chapters that exist on both entries (same URL)
+            // 1. Merge progress, bookmarks, and history of chapters that exist on both entries (same URL)
             chaptersQueries.syncAllDuplicateChapterProgress(keepMangaId = keepId, deleteMangaId = deleteId)
+            historyQueries.mergeDuplicateChapterHistory(keepMangaId = keepId, deleteMangaId = deleteId)
 
             // 2. Reparent chapters that are unique to the loser
             chaptersQueries.reparentChapters(keepMangaId = keepId, deleteMangaId = deleteId)

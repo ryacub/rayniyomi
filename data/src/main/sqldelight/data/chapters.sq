@@ -129,6 +129,10 @@ SET
     last_page_read = MAX(last_page_read, (
         SELECT loser.last_page_read FROM chapters loser
         WHERE loser.manga_id = :deleteMangaId AND loser.url = chapters.url
+    )),
+    bookmark = MAX(bookmark, (
+        SELECT loser.bookmark FROM chapters loser
+        WHERE loser.manga_id = :deleteMangaId AND loser.url = chapters.url
     ))
 WHERE manga_id = :keepMangaId
 AND url IN (SELECT url FROM chapters WHERE manga_id = :deleteMangaId);

@@ -69,6 +69,19 @@ SET
     time_read = time_read + :time_read
 WHERE chapter_id = :chapterId;
 
+mergeDuplicateChapterHistory:
+INSERT INTO history(chapter_id, last_read, time_read)
+SELECT keep._id, loser_history.last_read, loser_history.time_read
+FROM history loser_history
+JOIN chapters loser ON loser._id = loser_history.chapter_id
+JOIN chapters keep ON keep.url = loser.url AND keep.manga_id = :keepMangaId
+WHERE loser.manga_id = :deleteMangaId
+ON CONFLICT(chapter_id)
+DO UPDATE
+SET
+    time_read = history.time_read + excluded.time_read,
+    last_read = coalesce(max(history.last_read, excluded.last_read), history.last_read, excluded.last_read);
+
 getReadDuration:
 SELECT coalesce(sum(time_read), 0)
 FROM history;

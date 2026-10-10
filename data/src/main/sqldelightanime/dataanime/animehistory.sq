@@ -64,3 +64,15 @@ DO UPDATE
 SET
     last_seen = :seenAt
 WHERE episode_id = :episodeId;
+
+mergeDuplicateEpisodeHistory:
+INSERT INTO animehistory(episode_id, last_seen)
+SELECT keep._id, loser_history.last_seen
+FROM animehistory loser_history
+JOIN episodes loser ON loser._id = loser_history.episode_id
+JOIN episodes keep ON keep.url = loser.url AND keep.anime_id = :keepAnimeId
+WHERE loser.anime_id = :deleteAnimeId
+ON CONFLICT(episode_id)
+DO UPDATE
+SET
+    last_seen = coalesce(max(animehistory.last_seen, excluded.last_seen), animehistory.last_seen, excluded.last_seen);
