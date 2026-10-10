@@ -118,12 +118,10 @@ object SourceBindings {
     fun provideAnimeSourceRepository(
         sourceManager: AnimeSourceManager,
         handler: AnimeDatabaseHandler,
-        stubSourceRepository: AnimeStubSourceRepository,
     ): AnimeSourceRepository =
         AnimeSourceRepositoryImpl(
             sourceManager = sourceManager,
             handler = handler,
-            stubSourceRepository = stubSourceRepository,
         )
 
     @Provides
@@ -173,12 +171,10 @@ object SourceBindings {
     fun provideMangaSourceRepository(
         sourceManager: MangaSourceManager,
         handler: MangaDatabaseHandler,
-        stubSourceRepository: MangaStubSourceRepository,
     ): MangaSourceRepository =
         MangaSourceRepositoryImpl(
             sourceManager = sourceManager,
             handler = handler,
-            stubSourceRepository = stubSourceRepository,
         )
 
     @Provides

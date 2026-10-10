@@ -97,7 +97,7 @@ class SetAnimeEpisodeFlags(
     }
 
     suspend fun awaitSetAllFlags(
-        animeId: Long,
+        animeIds: List<Long>,
         unseenFilter: Long,
         downloadedFilter: Long,
         bookmarkedFilter: Long,
@@ -108,20 +108,17 @@ class SetAnimeEpisodeFlags(
         showPreviews: Long,
         showSummaries: Long,
     ): Boolean {
-        return animeRepository.updateAnime(
-            AnimeUpdate(
-                id = animeId,
-                episodeFlags = 0L.setFlag(unseenFilter, Anime.EPISODE_UNSEEN_MASK)
-                    .setFlag(downloadedFilter, Anime.EPISODE_DOWNLOADED_MASK)
-                    .setFlag(bookmarkedFilter, Anime.EPISODE_BOOKMARKED_MASK)
-                    .setFlag(fillermarkedFilter, Anime.EPISODE_FILLERMARKED_MASK)
-                    .setFlag(sortingMode, Anime.EPISODE_SORTING_MASK)
-                    .setFlag(sortingDirection, Anime.EPISODE_SORT_DIR_MASK)
-                    .setFlag(displayMode, Anime.EPISODE_DISPLAY_MASK)
-                    .setFlag(showPreviews, Anime.EPISODE_PREVIEWS_MASK)
-                    .setFlag(showSummaries, Anime.EPISODE_SUMMARIES_MASK),
-            ),
-        )
+        if (animeIds.isEmpty()) return true
+        val episodeFlags = 0L.setFlag(unseenFilter, Anime.EPISODE_UNSEEN_MASK)
+            .setFlag(downloadedFilter, Anime.EPISODE_DOWNLOADED_MASK)
+            .setFlag(bookmarkedFilter, Anime.EPISODE_BOOKMARKED_MASK)
+            .setFlag(fillermarkedFilter, Anime.EPISODE_FILLERMARKED_MASK)
+            .setFlag(sortingMode, Anime.EPISODE_SORTING_MASK)
+            .setFlag(sortingDirection, Anime.EPISODE_SORT_DIR_MASK)
+            .setFlag(displayMode, Anime.EPISODE_DISPLAY_MASK)
+            .setFlag(showPreviews, Anime.EPISODE_PREVIEWS_MASK)
+            .setFlag(showSummaries, Anime.EPISODE_SUMMARIES_MASK)
+        return animeRepository.updateAllAnime(animeIds.map { AnimeUpdate(id = it, episodeFlags = episodeFlags) })
     }
 
     private fun Long.setFlag(flag: Long, mask: Long): Long {

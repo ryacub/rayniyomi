@@ -15,9 +15,9 @@ import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.interactor.ShouldUpdateDbChapter
-import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
+import tachiyomi.domain.items.chapter.repository.ChapterRepository
 import tachiyomi.domain.library.service.LibraryPreferences
 
 class SyncChaptersWithSourceMemoTest {
@@ -40,16 +40,15 @@ class SyncChaptersWithSourceMemoTest {
             chapter_number = 1f
             memo = newMemo
         }
-        val updateChapter = mockk<UpdateChapter>(relaxed = true)
+        val chapterRepository = mockk<ChapterRepository>()
         val updates = slot<List<ChapterUpdate>>()
-        coEvery { updateChapter.awaitAll(capture(updates)) } returns Unit
+        coEvery { chapterRepository.syncChapters(any(), any(), capture(updates)) } returns emptyList()
         val sync = SyncChaptersWithSource(
             downloadManager = mockk(relaxed = true),
             downloadProvider = mockk(relaxed = true),
-            chapterRepository = mockk(relaxed = true),
+            chapterRepository = chapterRepository,
             shouldUpdateDbChapter = ShouldUpdateDbChapter(),
             updateManga = mockk(relaxed = true),
-            updateChapter = updateChapter,
             getChaptersByMangaId = mockk<GetChaptersByMangaId> { coEvery { await(1, any()) } returns listOf(stored) },
             getExcludedScanlators = mockk(relaxed = true),
             libraryPreferences = mockk<LibraryPreferences> {
@@ -66,7 +65,7 @@ class SyncChaptersWithSourceMemoTest {
             },
         )
 
-        coVerify(exactly = 1) { updateChapter.awaitAll(any()) }
+        coVerify(exactly = 1) { chapterRepository.syncChapters(emptyList(), emptyList(), any()) }
         assertEquals(newMemo, updates.captured.single().memo)
     }
 }

@@ -13,10 +13,18 @@ class SetAnimeDefaultEpisodeFlags(
 ) {
 
     suspend fun await(anime: Anime) {
+        setDefaults(listOf(anime.id))
+    }
+
+    suspend fun awaitAll() {
+        setDefaults(getFavorites.await().map { it.id })
+    }
+
+    private suspend fun setDefaults(animeIds: List<Long>) {
         withNonCancellableContext {
             with(libraryPreferences) {
                 setAnimeEpisodeFlags.awaitSetAllFlags(
-                    animeId = anime.id,
+                    animeIds = animeIds,
                     unseenFilter = filterEpisodeBySeen().get(),
                     downloadedFilter = filterEpisodeByDownloaded().get(),
                     bookmarkedFilter = filterEpisodeByBookmarked().get(),
@@ -28,12 +36,6 @@ class SetAnimeDefaultEpisodeFlags(
                     showSummaries = showEpisodeSummaries().get(),
                 )
             }
-        }
-    }
-
-    suspend fun awaitAll() {
-        withNonCancellableContext {
-            getFavorites.await().forEach { await(it) }
         }
     }
 }

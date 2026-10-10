@@ -207,7 +207,6 @@ object ItemBindings {
         episodeRepository: EpisodeRepository,
         shouldUpdateDbEpisode: ShouldUpdateDbEpisode,
         updateAnime: UpdateAnime,
-        updateEpisode: UpdateEpisode,
         getEpisodesByAnimeId: GetEpisodesByAnimeId,
         libraryPreferences: LibraryPreferences,
     ): SyncEpisodesWithSource =
@@ -217,7 +216,6 @@ object ItemBindings {
             episodeRepository = episodeRepository,
             shouldUpdateDbEpisode = shouldUpdateDbEpisode,
             updateAnime = updateAnime,
-            updateEpisode = updateEpisode,
             getEpisodesByAnimeId = getEpisodesByAnimeId,
             libraryPreferences = libraryPreferences,
         )
@@ -280,7 +278,6 @@ object ItemBindings {
         chapterRepository: ChapterRepository,
         shouldUpdateDbChapter: ShouldUpdateDbChapter,
         updateManga: UpdateManga,
-        updateChapter: UpdateChapter,
         getChaptersByMangaId: GetChaptersByMangaId,
         getExcludedScanlators: GetExcludedScanlators,
         libraryPreferences: LibraryPreferences,
@@ -291,7 +288,6 @@ object ItemBindings {
             chapterRepository = chapterRepository,
             shouldUpdateDbChapter = shouldUpdateDbChapter,
             updateManga = updateManga,
-            updateChapter = updateChapter,
             getChaptersByMangaId = getChaptersByMangaId,
             getExcludedScanlators = getExcludedScanlators,
             libraryPreferences = libraryPreferences,
