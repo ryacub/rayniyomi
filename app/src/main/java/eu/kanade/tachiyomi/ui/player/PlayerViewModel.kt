@@ -243,11 +243,25 @@ class PlayerViewModel internal constructor(
 
     val isSpeedControlAvailable = playbackSpeedController.isSpeedControlAvailable
 
+    private val progressRecorder = EpisodeProgressRecorder(
+        sink = object : EpisodeProgressSink {
+            override fun save(episode: Episode) = saveWatchingProgress(episode)
+
+            override fun complete(episode: Episode) {
+                viewModelScope.launchNonCancellable { updateEpisodeProgressOnComplete(episode) }
+            }
+
+            override fun downloadAhead() = downloadNextEpisodes()
+        },
+        completeFraction = { playerPreferences.progressPreference().get() },
+        shouldTrack = { !incognitoMode || hasTrackers },
+    )
+
     private val castQueueController = CastQueueController(
         object : CastQueueSink {
             override fun onProgress(episodeId: Long, positionMs: Long, durationMs: Long) {
                 currentPlaylist.value.firstOrNull { it.id == episodeId }
-                    ?.let { markProgress(it, positionMs, durationMs) }
+                    ?.let { progressRecorder.onCastProgress(it, positionMs, durationMs) }
             }
 
             override fun onCurrentEpisodeChanged(episodeId: Long) = adoptCastEpisode(episodeId)
@@ -1141,8 +1155,6 @@ class PlayerViewModel internal constructor(
 
     private var episodeToDownload: AnimeDownload? = null
 
-    private val tickPolicy = PlaybackTickPolicy()
-
     fun getCurrentEpisodeIndex(): Int {
         return episodeListManager.getCurrentEpisodeIndex()
     }
@@ -1384,38 +1396,7 @@ class PlayerViewModel internal constructor(
 
         episodePosition = seconds
 
-        val completed = recordProgress(currentEp, seconds, totalSeconds)
-        if (completed || tickPolicy.claimTickSave(currentEp.id, seconds)) {
-            saveWatchingProgress(currentEp)
-        }
-
-        val inDownloadRange = seconds.toDouble() / totalSeconds > 0.35
-        if (inDownloadRange && tickPolicy.claimDownloadAhead(currentEp.id)) {
-            downloadNextEpisodes()
-        }
-    }
-
-    private fun markProgress(episode: Episode, positionMs: Long, totalMs: Long) {
-        if (totalMs <= 0L) return
-        recordProgress(episode, positionMs, totalMs)
-        saveWatchingProgress(episode)
-    }
-
-    /** The single place episode progress is recorded, shared by local playback and Cast. */
-    private fun recordProgress(episode: Episode, positionMs: Long, totalMs: Long): Boolean {
-        episode.last_second_seen = positionMs
-        episode.total_seconds = totalMs
-
-        val progress = playerPreferences.progressPreference().get()
-        val shouldTrack = !incognitoMode || hasTrackers
-        if (positionMs < totalMs * progress || !shouldTrack) return false
-        if (!tickPolicy.claimCompletion(episode.id)) return false
-
-        episode.seen = true
-        viewModelScope.launchNonCancellable {
-            updateEpisodeProgressOnComplete(episode)
-        }
-        return true
+        progressRecorder.onLocalTick(currentEp, seconds, totalSeconds)
     }
 
     private suspend fun updateEpisodeProgressOnComplete(currentEp: Episode) {
