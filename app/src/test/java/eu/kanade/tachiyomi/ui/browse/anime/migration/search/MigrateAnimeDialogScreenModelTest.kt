@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
+import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -37,6 +38,7 @@ class MigrateAnimeDialogScreenModelTest {
     private val getTracks = mockk<GetAnimeTracks> {
         coEvery { await(any()) } returns emptyList()
     }
+    private val syncEpisodesWithSource = mockk<SyncEpisodesWithSource>(relaxed = true)
     private val trackerManager = mockk<TrackerManager> {
         every { trackers } returns emptyList()
     }
@@ -46,7 +48,7 @@ class MigrateAnimeDialogScreenModelTest {
         downloadManager = downloadManager,
         updateAnime = updateAnime,
         getEpisodesByAnimeId = mockk(relaxed = true),
-        syncEpisodesWithSource = mockk(relaxed = true),
+        syncEpisodesWithSource = syncEpisodesWithSource,
         updateEpisode = mockk(relaxed = true),
         getCategories = mockk(relaxed = true),
         setAnimeCategories = mockk(relaxed = true),
@@ -67,6 +69,20 @@ class MigrateAnimeDialogScreenModelTest {
         result shouldBe false
         model.state.value.isMigrating shouldBe false
         coVerify(exactly = 0) { updateAnime.await(any()) }
+        coVerify(exactly = 0) { updateAnime.awaitUpdateFavorite(oldAnime.id, false) }
+    }
+
+    @Test
+    fun `failed episode sync reports failure and keeps the old entry and its downloads`() = runTest {
+        coEvery { newSource.getEpisodeList(any()) } returns emptyList()
+        coEvery { syncEpisodesWithSource.await(any(), any(), any(), any(), any()) } throws IllegalStateException("db")
+        coEvery { updateAnime.await(any()) } returns true
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
+
+        val result = model.migrateAnime(oldAnime, newAnime, replace = true, flags = allFlags)
+
+        result shouldBe false
+        verify(exactly = 0) { downloadManager.deleteAnime(any(), any(), any()) }
         coVerify(exactly = 0) { updateAnime.awaitUpdateFavorite(oldAnime.id, false) }
     }
 
