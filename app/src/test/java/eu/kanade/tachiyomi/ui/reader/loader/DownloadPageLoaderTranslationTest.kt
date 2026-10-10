@@ -110,6 +110,53 @@ class DownloadPageLoaderTranslationTest {
         assertArrayEquals(originalBytes, page.stream!!.invoke().readBytes())
     }
 
+    @Test
+    fun `a chapter reads translation coverage and lists translated files once`() = runTest {
+        val chapterDir = mockk<UniFile> { every { isFile } returns false }
+        val root = mockk<UniFile>()
+        val translatedDir = mockk<UniFile>()
+        val coverageFile = mockk<UniFile>()
+        val files = List(2) { index ->
+            mockk<UniFile> {
+                every { isFile } returns true
+                every { name } returns "%03d.jpg".format(index + 1)
+                every { uri } returns mockk()
+            }
+        }
+        val coverage = """{"totalPages":2,"outcomes":{"0":"TRANSLATED","1":"TRANSLATED"}}"""
+        stubLoader(showTranslated = true, originalBytes = byteArrayOf(1))
+        every { downloadProvider.findChapterDir(any(), any(), any(), any()) } returns chapterDir
+        every { chapterDir.findFile("_translated") } returns root
+        every { root.findFile("es") } returns translatedDir
+        every { translatedDir.findFile(any<String>()) } returns null
+        every { translatedDir.findFile(".translation_coverage") } returns coverageFile
+        every { coverageFile.openInputStream() } answers { ByteArrayInputStream(coverage.toByteArray()) }
+        every { translatedDir.listFiles() } returns files.toTypedArray()
+        files.forEachIndexed { index, file ->
+            every { application.contentResolver.openInputStream(file.uri) } answers {
+                ByteArrayInputStream(byteArrayOf((index + 10).toByte()))
+            }
+        }
+        coEvery {
+            downloadManager.buildPageList<List<ReaderPage>>(source, manga, any(), any())
+        } coAnswers {
+            val consume = arg<suspend (List<DownloadedChapterPage>) -> List<ReaderPage>>(3)
+            consume(List(2) { index -> DownloadedChapterPage(index) { ByteArrayInputStream(byteArrayOf(1)) } })
+        }
+        val loader = DownloadPageLoader(
+            chapter, manga, source, downloadManager, downloadProvider, application,
+            readerPreferences, translationPreferences, TranslationStorageManager(downloadProvider),
+        )
+
+        val pages = loader.getPages()
+
+        pages.forEachIndexed { index, page ->
+            assertArrayEquals(byteArrayOf((index + 10).toByte()), page.stream!!.invoke().readBytes())
+        }
+        verify(exactly = 1) { translatedDir.listFiles() }
+        verify(exactly = 1) { coverageFile.openInputStream() }
+    }
+
     private fun stubLoader(showTranslated: Boolean, originalBytes: ByteArray) {
         every { readerPreferences.showTranslatedPages() } returns showTranslatedPages
         every { showTranslatedPages.get() } returns showTranslated
