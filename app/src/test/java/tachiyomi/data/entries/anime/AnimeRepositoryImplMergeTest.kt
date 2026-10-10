@@ -75,6 +75,33 @@ class AnimeRepositoryImplMergeTest {
             assertEquals(listOf(2_000L), db.longs("SELECT last_seen FROM animehistory WHERE episode_id = 10"))
         }
     }
+
+    @Test
+    fun `duplicate category rows on the deleted entry arrive as one row`() = runTest {
+        MergeAnimeDb().use { db ->
+            db.insertCategory(id = 1)
+            db.insertAnimeCategory(animeId = deleteId, categoryId = 1)
+            db.insertAnimeCategory(animeId = deleteId, categoryId = 1)
+
+            db.merge()
+
+            assertEquals(listOf(1L), db.longs("SELECT category_id FROM animes_categories WHERE anime_id = $keepId"))
+        }
+    }
+
+    @Test
+    fun `a missing watch date on the kept episode takes the deleted entry's date`() = runTest {
+        MergeAnimeDb().use { db ->
+            db.insertEpisode(id = 10, animeId = keepId, url = "e1")
+            db.insertEpisode(id = 20, animeId = deleteId, url = "e1")
+            db.insertHistory(episodeId = 10, lastSeen = null)
+            db.insertHistory(episodeId = 20, lastSeen = 2_000)
+
+            db.merge()
+
+            assertEquals(listOf(2_000L), db.longs("SELECT last_seen FROM animehistory WHERE episode_id = 10"))
+        }
+    }
 }
 
 private class MergeAnimeDb : AutoCloseable {
@@ -127,7 +154,7 @@ private class MergeAnimeDb : AutoCloseable {
         )
     }
 
-    fun insertHistory(episodeId: Long, lastSeen: Long) = exec(
+    fun insertHistory(episodeId: Long, lastSeen: Long?) = exec(
         "INSERT INTO animehistory(episode_id, last_seen) VALUES ($episodeId, $lastSeen)",
     )
 

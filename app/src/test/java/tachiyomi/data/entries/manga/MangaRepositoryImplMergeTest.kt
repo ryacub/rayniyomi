@@ -77,6 +77,33 @@ class MangaRepositoryImplMergeTest {
             assertEquals(listOf(2_000L), db.longs("SELECT last_read FROM history WHERE chapter_id = 10"))
         }
     }
+
+    @Test
+    fun `duplicate category rows on the deleted entry arrive as one row`() = runTest {
+        MergeMangaDb().use { db ->
+            db.insertCategory(id = 1)
+            db.insertMangaCategory(mangaId = deleteId, categoryId = 1)
+            db.insertMangaCategory(mangaId = deleteId, categoryId = 1)
+
+            db.merge()
+
+            assertEquals(listOf(1L), db.longs("SELECT category_id FROM mangas_categories WHERE manga_id = $keepId"))
+        }
+    }
+
+    @Test
+    fun `a missing read date on the kept chapter takes the deleted entry's date`() = runTest {
+        MergeMangaDb().use { db ->
+            db.insertChapter(id = 10, mangaId = keepId, url = "c1")
+            db.insertChapter(id = 20, mangaId = deleteId, url = "c1")
+            db.insertHistory(chapterId = 10, lastRead = null, timeRead = 100)
+            db.insertHistory(chapterId = 20, lastRead = 2_000, timeRead = 50)
+
+            db.merge()
+
+            assertEquals(listOf(2_000L), db.longs("SELECT last_read FROM history WHERE chapter_id = 10"))
+        }
+    }
 }
 
 private class MergeMangaDb : AutoCloseable {
@@ -126,7 +153,7 @@ private class MergeMangaDb : AutoCloseable {
             "VALUES ($id, $mangaId, '$url', 'Chapter', 0, ${if (bookmark) 1 else 0}, 0, 1, 0, 0, 0)",
     )
 
-    fun insertHistory(chapterId: Long, lastRead: Long, timeRead: Long) = exec(
+    fun insertHistory(chapterId: Long, lastRead: Long?, timeRead: Long) = exec(
         "INSERT INTO history(chapter_id, last_read, time_read) VALUES ($chapterId, $lastRead, $timeRead)",
     )
 
