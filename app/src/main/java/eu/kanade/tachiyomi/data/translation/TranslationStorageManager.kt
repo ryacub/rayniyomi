@@ -124,7 +124,11 @@ class TranslationStorageManager(
             create = false,
         ) ?: return null
         val translatedDir = root.findFile(targetLang) ?: return null
-        return listOf(COVERAGE_FILE, COVERAGE_BACKUP_FILE, COVERAGE_TEMP_FILE)
+        return readTranslationCoverage(translatedDir)
+    }
+
+    private fun readTranslationCoverage(translatedDir: UniFile): TranslationCoverage? =
+        listOf(COVERAGE_FILE, COVERAGE_BACKUP_FILE, COVERAGE_TEMP_FILE)
             .mapNotNull { translatedDir.findFile(it) }
             .asSequence()
             .mapNotNull { file ->
@@ -135,7 +139,6 @@ class TranslationStorageManager(
                 }.getOrNull()
             }
             .firstOrNull()
-    }
 
     /** Create the coverage manifest before a run so failed writes cannot look like legacy files. */
     fun initializeTranslationCoverage(
@@ -212,19 +215,38 @@ class TranslationStorageManager(
 
         val translatedDir = root.findFile(targetLang) ?: return null
 
-        val coverage = getTranslationCoverage(
-            chapterName,
-            chapterScanlator,
-            mangaTitle,
-            source,
-            targetLang,
-        )
+        val coverage = readTranslationCoverage(translatedDir)
         if (coverage != null && coverage.outcomes[pageIndex]?.isResolved() != true) return null
 
         // Match file by page index prefix (e.g., "001.jpg", "001.png")
         val prefix = "%03d.".format(pageIndex + 1)
         return translatedDir.listFiles()
             ?.firstOrNull { it.isFile && it.name?.startsWith(prefix) == true }
+    }
+
+    fun getTranslatedPageFiles(
+        chapterName: String,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        source: MangaSource,
+        targetLang: String,
+    ): Map<Int, UniFile> {
+        val root = getTranslationRoot(chapterName, chapterScanlator, mangaTitle, source, create = false)
+            ?: return emptyMap()
+        val translatedDir = root.findFile(targetLang) ?: return emptyMap()
+        val coverage = readTranslationCoverage(translatedDir)
+        val files = translatedDir.listFiles() ?: return emptyMap()
+        return buildMap {
+            for (file in files) {
+                if (!file.isFile) continue
+                val prefix = file.name?.substringBefore('.', "") ?: continue
+                val pageNumber = prefix.toIntOrNull() ?: continue
+                if (pageNumber <= 0 || prefix != "%03d".format(pageNumber)) continue
+                val pageIndex = pageNumber - 1
+                if (coverage != null && coverage.outcomes[pageIndex]?.isResolved() != true) continue
+                putIfAbsent(pageIndex, file)
+            }
+        }
     }
 
     /**

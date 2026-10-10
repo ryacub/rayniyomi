@@ -170,6 +170,8 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
             return
         }
 
+        if (currentIndex == -1) return
+
         val placeAtIndex = when (viewer) {
             is L2RPagerViewer,
             is VerticalPagerViewer,
@@ -183,7 +185,7 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
         }
 
         // Same here it will enter a endless cycle of insert pages
-        if (items[placeAtIndex] is InsertPage) {
+        if (items.getOrNull(placeAtIndex) is InsertPage) {
             return
         }
 
