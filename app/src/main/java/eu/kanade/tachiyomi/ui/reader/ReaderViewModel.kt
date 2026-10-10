@@ -740,10 +740,6 @@ class ReaderViewModel(
             )
             val currChapters = state.value.viewerChapters
             if (currChapters != null) {
-                // Save current page
-                val currChapter = currChapters.currChapter
-                currChapter.requestedPage = currChapter.chapter.last_page_read
-
                 mutableState.update {
                     it.copy(
                         manga = getManga.await(manga.id),
@@ -776,10 +772,6 @@ class ReaderViewModel(
             setMangaViewerFlags.awaitSetOrientation(manga.id, orientation.flagValue.toLong())
             val currChapters = state.value.viewerChapters
             if (currChapters != null) {
-                // Save current page
-                val currChapter = currChapters.currChapter
-                currChapter.requestedPage = currChapter.chapter.last_page_read
-
                 mutableState.update {
                     it.copy(
                         manga = getManga.await(manga.id),

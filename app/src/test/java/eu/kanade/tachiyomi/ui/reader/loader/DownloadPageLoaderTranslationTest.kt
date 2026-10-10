@@ -55,15 +55,14 @@ class DownloadPageLoaderTranslationTest {
         }
         stubLoader(showTranslated = true, originalBytes = originalBytes)
         every {
-            translationStorageManager.getTranslatedPageFile(
+            translationStorageManager.getTranslatedPageFiles(
                 chapter.chapter.name,
                 chapter.chapter.scanlator,
                 manga.title,
                 source,
                 "es",
-                0,
             )
-        } returns translatedFile
+        } returns mapOf(0 to translatedFile)
         every { application.contentResolver.openInputStream(translatedUri) } returns
             ByteArrayInputStream(translatedBytes)
 
@@ -81,7 +80,7 @@ class DownloadPageLoaderTranslationTest {
 
         assertArrayEquals(originalBytes, page.stream!!.invoke().readBytes())
         verify(exactly = 0) {
-            translationStorageManager.getTranslatedPageFile(any(), any(), any(), any(), any(), any())
+            translationStorageManager.getTranslatedPageFiles(any(), any(), any(), any(), any())
         }
     }
 
@@ -94,15 +93,14 @@ class DownloadPageLoaderTranslationTest {
         }
         stubLoader(showTranslated = true, originalBytes = originalBytes)
         every {
-            translationStorageManager.getTranslatedPageFile(
+            translationStorageManager.getTranslatedPageFiles(
                 chapter.chapter.name,
                 chapter.chapter.scanlator,
                 manga.title,
                 source,
                 "es",
-                0,
             )
-        } returns translatedFile
+        } returns mapOf(0 to translatedFile)
         every { application.contentResolver.openInputStream(translatedUri) } throws IOException("file vanished")
 
         val page = buildLoader().getPages().single()
