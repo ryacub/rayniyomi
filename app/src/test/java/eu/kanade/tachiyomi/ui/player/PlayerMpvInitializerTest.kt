@@ -33,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.custombuttons.model.CustomButton
@@ -997,6 +998,149 @@ class PlayerMpvInitializerTest {
             throw AssertionError(
                 "setupCustomButtons should handle null scriptsDirPath gracefully, but threw NPE: ${e.message}",
             )
+        }
+    }
+
+    @Test
+    fun `user file sync closes streams skips identical writes and copies same size edits`() = runTest {
+        val mpvDir = configureUserFileInitialization()
+        val files = listOf("scripts", "script-opts", "shaders").associateWith { UserCopyFile("user.txt") }
+        files.forEach { (directory, file) ->
+            every { mpvDir.createDirectory(directory) } returns file.destinationDirectory
+        }
+        every { storageManager.getScriptsDirectory() } returns files.getValue("scripts").sourceDirectory
+        every { storageManager.getScriptOptsDirectory() } returns files.getValue("script-opts").sourceDirectory
+        every { storageManager.getShadersDirectory() } returns files.getValue("shaders").sourceDirectory
+
+        initializer.initialize("", "", true)
+        files.values.forEach { file ->
+            assertEquals("first", file.destinationBytes.decodeToString())
+            assertEquals(file.inputOpens, file.inputCloses)
+            assertEquals(file.outputOpens, file.outputCloses)
+        }
+        initializer.initialize("", "", true)
+        files.values.forEach { assertEquals(1, it.outputOpens) }
+        files.values.forEach { it.sourceBytes = "other".toByteArray() }
+        initializer.initialize("", "", true)
+        files.values.forEach { file ->
+            assertEquals("other", file.destinationBytes.decodeToString())
+            assertEquals(2, file.outputOpens)
+            assertEquals(file.inputOpens, file.inputCloses)
+            assertEquals(file.outputOpens, file.outputCloses)
+        }
+
+        every { storageManager.getScriptOptsDirectory() } returns null
+        files.getValue("scripts").sourceFiles = emptyArray()
+        files.getValue("scripts").removed = false
+        initializer.initialize("", "", true)
+        assertTrue(files.getValue("scripts").removed)
+        assertEquals("other", files.getValue("script-opts").destinationBytes.decodeToString())
+        verify(exactly = 0) { files.getValue("script-opts").destinationDirectory.delete() }
+    }
+
+    @Test
+    fun `missing lua destination does not open an asset stream`() = runTest {
+        val mpvDir = configureUserFileInitialization()
+        val scripts = mockk<UniFile>(relaxed = true)
+        every { mpvDir.createDirectory("scripts") } returns scripts
+        every { scripts.createFile("aniyomi.lua") } returns null
+        val assets = context.assets
+        initializer.initialize("", "", true)
+        verify(exactly = 0) { assets.open("aniyomi.lua") }
+    }
+
+    private fun configureUserFileInitialization(): UniFile {
+        val filesDir = mockk<UniFile>(relaxed = true)
+        val mpvDir = mockk<UniFile>(relaxed = true)
+        every { context.filesDir } returns mockk(relaxed = true)
+        every { UniFile.fromFile(any()) } returns filesDir
+        every { filesDir.createDirectory("mpv") } returns mpvDir
+        every { mpvDir.filePath } returns "/data/files/mpv"
+        every { mpvDir.createFile(any()) } answers {
+            createMockUniFile("/data/files/mpv/${firstArg<String>()}")
+        }
+        every { mpvDir.createDirectory(any()) } answers {
+            createMockUniFile("/data/files/mpv/${firstArg<String>()}", isFile = false)
+        }
+        every { storageManager.getScriptsDirectory() } returns null
+        every { storageManager.getScriptOptsDirectory() } returns null
+        every { storageManager.getShadersDirectory() } returns null
+        every { storageManager.getFontsDirectory() } returns null
+        every { context.assets.open("aniyomi.lua") } answers { ByteArrayInputStream("bridge".toByteArray()) }
+        every { context.assets.open(any(), AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(byteArrayOf()) }
+        return mpvDir
+    }
+
+    private class UserCopyFile(name: String) {
+        var sourceBytes = "first".toByteArray()
+        var destinationBytes = byteArrayOf()
+        var inputOpens = 0
+        var inputCloses = 0
+        var outputOpens = 0
+        var outputCloses = 0
+        var removed = false
+        val source = mockk<UniFile>(relaxed = true)
+        val destination = mockk<UniFile>(relaxed = true)
+        val sourceDirectory = mockk<UniFile>(relaxed = true)
+        val destinationDirectory = mockk<UniFile>(relaxed = true)
+        var sourceFiles = arrayOf(source)
+
+        init {
+            every { source.name } returns name
+            every { destination.name } returns name
+            every { source.isFile } returns true
+            every { destination.isFile } returns true
+            every { source.length() } answers { sourceBytes.size.toLong() }
+            every { destination.length() } answers { destinationBytes.size.toLong() }
+            every { sourceDirectory.listFiles() } answers { sourceFiles }
+            every { destinationDirectory.listFiles() } answers {
+                if (destinationBytes.isEmpty() || removed) emptyArray() else arrayOf(destination)
+            }
+            every { destinationDirectory.createFile(name) } returns destination
+            every { destinationDirectory.createFile("aniyomi.lua") } returns mockk<UniFile>(relaxed = true).also {
+                every { it.openOutputStream() } answers { ByteArrayOutputStream() }
+            }
+            every { source.openInputStream() } answers {
+                inputOpens++
+                object : ByteArrayInputStream(sourceBytes) {
+                    override fun close() {
+                        inputCloses++
+                        super.close()
+                    }
+                }
+            }
+            every { destination.openInputStream() } answers {
+                inputOpens++
+                object : ByteArrayInputStream(destinationBytes) {
+                    override fun close() {
+                        inputCloses++
+                        super.close()
+                    }
+                }
+            }
+            every { destination.openOutputStream() } answers {
+                outputOpens++
+                object : ByteArrayOutputStream() {
+                    override fun close() {
+                        outputCloses++
+                        destinationBytes = toByteArray()
+                        super.close()
+                    }
+                    override fun flush() {
+                        destinationBytes = toByteArray()
+                        super.flush()
+                    }
+                    override fun write(b: ByteArray, off: Int, len: Int) {
+                        super.write(b, off, len)
+                        destinationBytes = toByteArray()
+                    }
+                }
+            }
+            every { destination.delete() } answers {
+                removed = true
+                true
+            }
         }
     }
 }

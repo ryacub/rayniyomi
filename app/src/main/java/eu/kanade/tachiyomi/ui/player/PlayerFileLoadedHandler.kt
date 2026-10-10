@@ -53,9 +53,6 @@ internal class PlayerFileLoadedHandler(
     private val _isLoadingTracks = MutableStateFlow(true)
     val isLoadingTracks: StateFlow<Boolean> = _isLoadingTracks.asStateFlow()
 
-    private val _chapters = MutableStateFlow<List<IndexedSegment>>(emptyList())
-    val chapters: StateFlow<List<IndexedSegment>> = _chapters.asStateFlow()
-
     /**
      * Called when MPV fires the FILE_LOADED event.
      * Orchestrates all setup operations for the newly loaded video file in clear stages.
@@ -78,8 +75,10 @@ internal class PlayerFileLoadedHandler(
     ) = withContext(Dispatchers.IO) {
         configurePlayback(currentVideo)
         setupMetadata(animeTitle, episodeName, episodeNumber, onVideoAspectUpdate)
-        setupMediaElements(currentVideo, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
+        val chapters =
+            setupMediaElements(currentVideo, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
         integrateAniSkip(
+            currentChapters = chapters,
             playerDuration = playerDuration,
             currentPos = currentPos,
             aniSkipEnabled = aniSkipEnabled,
@@ -117,14 +116,16 @@ internal class PlayerFileLoadedHandler(
         playerDuration: Int?,
         onChaptersUpdated: (List<IndexedSegment>) -> Unit,
         onSetChapter: (Float) -> Unit,
-    ) {
-        setupChapters(video, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
+    ): List<IndexedSegment> {
+        val chapters = setupChapters(video, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
         setupTracks(video)
+        return chapters
     }
 
     // Pipeline Stage 4: Integrate AniSkip
 
     private suspend fun integrateAniSkip(
+        currentChapters: List<IndexedSegment>,
         playerDuration: Int?,
         currentPos: Float,
         aniSkipEnabled: Boolean,
@@ -134,33 +135,25 @@ internal class PlayerFileLoadedHandler(
         onChaptersUpdated: (List<IndexedSegment>) -> Unit,
         onSetChapter: (Float) -> Unit,
     ) {
-        if (!shouldIntegrateAniSkip(aniSkipEnabled, introSkipEnabled, disableAniSkipOnChapters)) {
+        if (!shouldIntegrateAniSkipOnFileLoad(
+                aniSkipEnabled = aniSkipEnabled,
+                introSkipEnabled = introSkipEnabled,
+                disableAniSkipOnChapters = disableAniSkipOnChapters,
+                hasExistingChapters = currentChapters.isNotEmpty(),
+            )
+        ) {
             return
         }
 
         aniSkipFetcher(playerDuration)?.let { stamps ->
             val mergedChapters = ChapterUtils.mergeChapters(
-                currentChapters = chapters.value,
+                currentChapters = currentChapters,
                 stamps = stamps,
                 duration = playerDuration,
             )
-            _chapters.update { mergedChapters }
             onChaptersUpdated(mergedChapters)
             onSetChapter(currentPos)
         }
-    }
-
-    private fun shouldIntegrateAniSkip(
-        aniSkipEnabled: Boolean,
-        introSkipEnabled: Boolean,
-        disableAniSkipOnChapters: Boolean,
-    ): Boolean {
-        return shouldIntegrateAniSkipOnFileLoad(
-            aniSkipEnabled = aniSkipEnabled,
-            introSkipEnabled = introSkipEnabled,
-            disableAniSkipOnChapters = disableAniSkipOnChapters,
-            hasExistingChapters = chapters.value.isNotEmpty(),
-        )
     }
 
     // Private helper methods
@@ -241,7 +234,7 @@ internal class PlayerFileLoadedHandler(
         playerDuration: Int?,
         onChaptersUpdated: (List<IndexedSegment>) -> Unit,
         onSetChapter: (Float) -> Unit,
-    ) {
+    ): List<IndexedSegment> {
         val timestamps = video?.timestamps?.takeIf { it.isNotEmpty() }
             ?.map { timestamp ->
                 if (timestamp.name.isEmpty() && timestamp.type != ChapterType.Other) {
@@ -252,24 +245,20 @@ internal class PlayerFileLoadedHandler(
                     timestamp
                 }
             }
-            ?: return
+            ?: return currentChapters
 
         val mergedChapters = ChapterUtils.mergeChapters(
             currentChapters = currentChapters,
             stamps = timestamps,
             duration = playerDuration,
         )
-        _chapters.update { mergedChapters }
         onChaptersUpdated(mergedChapters)
         onSetChapter(0f) // Use initial position
+        return mergedChapters
     }
 
     fun updateIsLoadingTracks(value: Boolean) {
         _isLoadingTracks.update { value }
-    }
-
-    fun updateChapters(chapters: List<IndexedSegment>) {
-        _chapters.update { chapters }
     }
 }
 

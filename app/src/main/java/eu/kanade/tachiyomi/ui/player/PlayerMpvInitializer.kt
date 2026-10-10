@@ -95,42 +95,50 @@ internal class PlayerMpvInitializer(
     }
 
     private fun copyUserFiles(mpvDir: UniFile, enabled: Boolean) {
-        // First, delete all present scripts
-        val scriptsDir = { mpvDir.createDirectory(MPV_SCRIPTS_DIR) }
-        val scriptOptsDir = { mpvDir.createDirectory(MPV_SCRIPTS_OPTS_DIR) }
-        val shadersDir = { mpvDir.createDirectory(MPV_SHADERS_DIR) }
-
-        scriptsDir()?.delete()
-        scriptOptsDir()?.delete()
-        shadersDir()?.delete()
-
-        // Then, copy the user files from the Aniyomi directory
         if (enabled) {
-            storageManager.getScriptsDirectory()?.listFiles()?.forEach { file ->
-                val outFile = scriptsDir()?.createFile(file.name)
-                outFile?.let {
-                    file.openInputStream().copyTo(it.openOutputStream())
-                }
-            }
-            storageManager.getScriptOptsDirectory()?.listFiles()?.forEach { file ->
-                val outFile = scriptOptsDir()?.createFile(file.name)
-                outFile?.let {
-                    file.openInputStream().copyTo(it.openOutputStream())
-                }
-            }
-            storageManager.getShadersDirectory()?.listFiles()?.forEach { file ->
-                val outFile = shadersDir()?.createFile(file.name)
-                outFile?.let {
-                    file.openInputStream().copyTo(it.openOutputStream())
-                }
+            syncUserDirectory(mpvDir.createDirectory(MPV_SCRIPTS_DIR), storageManager.getScriptsDirectory())
+            syncUserDirectory(mpvDir.createDirectory(MPV_SCRIPTS_OPTS_DIR), storageManager.getScriptOptsDirectory())
+            syncUserDirectory(mpvDir.createDirectory(MPV_SHADERS_DIR), storageManager.getShadersDirectory())
+        } else {
+            listOf(MPV_SCRIPTS_DIR, MPV_SCRIPTS_OPTS_DIR, MPV_SHADERS_DIR).forEach { name ->
+                mpvDir.createDirectory(name)?.delete()
             }
         }
 
-        // Copy over the bridge file
-        val luaFile = scriptsDir()?.createFile("aniyomi.lua")
-        val luaBridge = context.assets.open("aniyomi.lua")
-        luaFile?.openOutputStream()?.bufferedWriter()?.use { scriptLua ->
-            luaBridge.bufferedReader().use { scriptLua.write(it.readText()) }
+        val luaFile = mpvDir.createDirectory(MPV_SCRIPTS_DIR)?.createFile("aniyomi.lua") ?: return
+        context.assets.open("aniyomi.lua").use { input ->
+            luaFile.openOutputStream().use { output -> input.copyTo(output) }
+        }
+    }
+
+    private fun syncUserDirectory(destination: UniFile?, source: UniFile?) {
+        destination ?: return
+        val sourceFiles = source?.listFiles() ?: return
+        val destinationFiles = destination.listFiles().orEmpty().associateBy { it.name }
+        val sourceNames = sourceFiles.map { it.name }.toSet()
+        destinationFiles.filterKeys { it !in sourceNames && it != "aniyomi.lua" }
+            .values.forEach { it.delete() }
+        sourceFiles.forEach { file ->
+            val name = file.name ?: return@forEach
+            val cachedFile = destinationFiles[name]
+            if (cachedFile != null && hasSameContents(file, cachedFile)) return@forEach
+            val outputFile = destination.createFile(name) ?: return@forEach
+            file.openInputStream().use { input ->
+                outputFile.openOutputStream().use { output -> input.copyTo(output) }
+            }
+        }
+    }
+
+    private fun hasSameContents(source: UniFile, destination: UniFile): Boolean {
+        if (source.length() != destination.length()) return false
+        source.openInputStream().buffered().use { input ->
+            destination.openInputStream().buffered().use { cached ->
+                while (true) {
+                    val next = input.read()
+                    if (next != cached.read()) return false
+                    if (next == -1) return true
+                }
+            }
         }
     }
 

@@ -20,6 +20,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Merging duplicate entries now keeps bookmarks and reading or watch history on shared chapters and episodes, and no longer shows the entry twice in a shared category. Duplicate detection now finds similar titles and every entry on the same tracker ID, and the library scan runs in one pass. Migration shows an error when it fails, and it removes the old entry and its downloads only after the new entry is in the library (#1364).
 - The player now sends tracker updates and deletes seen downloads once per episode. Before, it repeated them every second after the seen point. It also saves progress every 10 seconds and on pause instead of every second, and checks downloads for download-ahead off the main thread (#1356).
+- External players now save returned progress after the app pauses, update trackers on first completion, and find downloads to remove by episode ID (#1357).
+- AniSkip preserves embedded and extension chapters and respects the setting to disable it when chapters exist (#1357).
+- Player startup closes script, option, and shader streams and skips rewriting unchanged user files (#1357).
 - Cast queues now keep protected stream URLs available until their items leave the queue (#1350).
 - Local anime refreshes reuse saved episode thumbnails and remove temporary image files after extraction (#1354).
 - Global search retains every anime and manga source result when sources finish at the same time (#1353).
