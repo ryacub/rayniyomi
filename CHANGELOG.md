@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 
 ### Fixed
+- Reader mode and orientation changes now keep the current page in incognito. Stale split-page callbacks no longer insert a misplaced page or crash. Downloaded chapters resolve translated files once per load (#1358).
 - Merging duplicate entries now keeps bookmarks and reading or watch history on shared chapters and episodes, and no longer shows the entry twice in a shared category. Duplicate detection now finds similar titles and every entry on the same tracker ID, and the library scan runs in one pass. Migration shows an error when it fails, and it removes the old entry and its downloads only after the new entry is in the library (#1364).
 - The player now sends tracker updates and deletes seen downloads once per episode. Before, it repeated them every second after the seen point. It also saves progress every 10 seconds and on pause instead of every second, and checks downloads for download-ahead off the main thread (#1356).
 - External players now save returned progress after the app pauses, update trackers on first completion, and find downloads to remove by episode ID (#1357).
