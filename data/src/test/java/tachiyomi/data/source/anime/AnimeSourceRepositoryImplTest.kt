@@ -21,7 +21,7 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 class AnimeSourceRepositoryImplTest {
 
     @Test
-    fun `getAnimeSources upserts known runtime metadata`() = runBlocking {
+    fun `getAnimeSources maps runtime metadata without writing stub sources`() = runBlocking {
         val source = mockAnimeCatalogueSource(id = 1L, lang = "en", name = "Runtime Anime", supportsLatest = true)
         val sourceManager = TestAnimeSourceManager(listOf(source))
         val stubRepo = mockk<AnimeStubSourceRepository>(relaxed = true)
@@ -38,11 +38,11 @@ class AnimeSourceRepositoryImplTest {
         result.first().name shouldBe "Runtime Anime"
         result.first().lang shouldBe "en"
         result.first().supportsLatest shouldBe true
-        coVerify(exactly = 1) { stubRepo.upsertStubAnimeSource(1L, "en", "Runtime Anime") }
+        coVerify(exactly = 0) { stubRepo.upsertStubAnimeSource(any(), any(), any()) }
     }
 
     @Test
-    fun `getOnlineAnimeSources filters to http sources and still upserts catalogue metadata`() = runBlocking {
+    fun `getOnlineAnimeSources filters to http sources without writing stub sources`() = runBlocking {
         val catalogueSource =
             mockAnimeCatalogueSource(id = 10L, lang = "ja", name = "Catalogue Only", supportsLatest = false)
         val httpSource = mockAnimeHttpSource(id = 11L, lang = "en", name = "Http Anime")
@@ -59,8 +59,7 @@ class AnimeSourceRepositoryImplTest {
 
         result.shouldHaveSize(1)
         result.first().id shouldBe 11L
-        coVerify(exactly = 1) { stubRepo.upsertStubAnimeSource(10L, "ja", "Catalogue Only") }
-        coVerify(exactly = 1) { stubRepo.upsertStubAnimeSource(11L, "en", "Http Anime") }
+        coVerify(exactly = 0) { stubRepo.upsertStubAnimeSource(any(), any(), any()) }
     }
 
     private fun mockAnimeCatalogueSource(
