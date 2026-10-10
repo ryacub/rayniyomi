@@ -102,7 +102,7 @@ class SetAnimeSeasonFlags(
     }
 
     suspend fun awaitSetAllFlags(
-        animeId: Long,
+        animeIds: List<Long>,
         downloadFilter: Long,
         unseenFilter: Long,
         startedFilter: Long,
@@ -120,48 +120,45 @@ class SetAnimeSeasonFlags(
         continueOverlay: Boolean,
         displayMode: Long,
     ): Boolean {
-        return animeRepository.updateAnime(
-            AnimeUpdate(
-                id = animeId,
-                seasonFlags = 0L.setFlag(downloadFilter, Anime.SEASON_DOWNLOADED_MASK)
-                    .setFlag(unseenFilter, Anime.SEASON_UNSEEN_MASK)
-                    .setFlag(startedFilter, Anime.SEASON_STARTED_MASK)
-                    .setFlag(completedFilter, Anime.SEASON_COMPLETED_MASK)
-                    .setFlag(bookmarkedFilter, Anime.SEASON_BOOKMARKED_MASK)
-                    .setFlag(fillermarkedFilter, Anime.SEASON_FILLERMARKED_MASK)
-                    .setFlag(sortingMode, Anime.SEASON_SORT_MASK)
-                    .setFlag(sortingDirection, Anime.SEASON_SORT_DIR_MASK)
-                    .setFlag(
-                        SeasonDisplayMode.toLong(displayGridMode) shl Anime.SEASON_GRID_DISPLAY_MODE_BIT_OFFSET,
-                        Anime.SEASON_GRID_DISPLAY_MODE_MASK,
-                    )
-                    .setFlag(
-                        displayGridSize.toLong() shl Anime.SEASON_GRID_DISPLAY_SIZE_BIT_OFFSET,
-                        Anime.SEASON_GRID_DISPLAY_SIZE_MASK,
-                    )
-                    .setFlag(
-                        if (downloadedOverlay) Anime.SEASON_OVERLAY_DOWNLOADED_MASK else 0L,
-                        Anime.SEASON_OVERLAY_DOWNLOADED_MASK,
-                    )
-                    .setFlag(
-                        if (unseenOverlay) Anime.SEASON_OVERLAY_UNSEEN_MASK else 0L,
-                        Anime.SEASON_OVERLAY_UNSEEN_MASK,
-                    )
-                    .setFlag(
-                        if (localOverlay) Anime.SEASON_OVERLAY_LOCAL_MASK else 0L,
-                        Anime.SEASON_OVERLAY_LOCAL_MASK,
-                    )
-                    .setFlag(
-                        if (langOverlay) Anime.SEASON_OVERLAY_LANG_MASK else 0L,
-                        Anime.SEASON_OVERLAY_LANG_MASK,
-                    )
-                    .setFlag(
-                        if (continueOverlay) Anime.SEASON_OVERLAY_CONT_MASK else 0L,
-                        Anime.SEASON_OVERLAY_CONT_MASK,
-                    )
-                    .setFlag(displayMode, Anime.SEASON_DISPLAY_MODE_MASK),
-            ),
-        )
+        if (animeIds.isEmpty()) return true
+        val seasonFlags = 0L.setFlag(downloadFilter, Anime.SEASON_DOWNLOADED_MASK)
+            .setFlag(unseenFilter, Anime.SEASON_UNSEEN_MASK)
+            .setFlag(startedFilter, Anime.SEASON_STARTED_MASK)
+            .setFlag(completedFilter, Anime.SEASON_COMPLETED_MASK)
+            .setFlag(bookmarkedFilter, Anime.SEASON_BOOKMARKED_MASK)
+            .setFlag(fillermarkedFilter, Anime.SEASON_FILLERMARKED_MASK)
+            .setFlag(sortingMode, Anime.SEASON_SORT_MASK)
+            .setFlag(sortingDirection, Anime.SEASON_SORT_DIR_MASK)
+            .setFlag(
+                SeasonDisplayMode.toLong(displayGridMode) shl Anime.SEASON_GRID_DISPLAY_MODE_BIT_OFFSET,
+                Anime.SEASON_GRID_DISPLAY_MODE_MASK,
+            )
+            .setFlag(
+                displayGridSize.toLong() shl Anime.SEASON_GRID_DISPLAY_SIZE_BIT_OFFSET,
+                Anime.SEASON_GRID_DISPLAY_SIZE_MASK,
+            )
+            .setFlag(
+                if (downloadedOverlay) Anime.SEASON_OVERLAY_DOWNLOADED_MASK else 0L,
+                Anime.SEASON_OVERLAY_DOWNLOADED_MASK,
+            )
+            .setFlag(
+                if (unseenOverlay) Anime.SEASON_OVERLAY_UNSEEN_MASK else 0L,
+                Anime.SEASON_OVERLAY_UNSEEN_MASK,
+            )
+            .setFlag(
+                if (localOverlay) Anime.SEASON_OVERLAY_LOCAL_MASK else 0L,
+                Anime.SEASON_OVERLAY_LOCAL_MASK,
+            )
+            .setFlag(
+                if (langOverlay) Anime.SEASON_OVERLAY_LANG_MASK else 0L,
+                Anime.SEASON_OVERLAY_LANG_MASK,
+            )
+            .setFlag(
+                if (continueOverlay) Anime.SEASON_OVERLAY_CONT_MASK else 0L,
+                Anime.SEASON_OVERLAY_CONT_MASK,
+            )
+            .setFlag(displayMode, Anime.SEASON_DISPLAY_MODE_MASK)
+        return animeRepository.updateAllAnime(animeIds.map { AnimeUpdate(id = it, seasonFlags = seasonFlags) })
     }
 
     private suspend fun setFlag(anime: Anime, flag: Long, mask: Long): Boolean {

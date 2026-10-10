@@ -13,10 +13,18 @@ class SetAnimeDefaultSeasonFlags(
     private val getAnimeFavorites: GetAnimeFavorites,
 ) {
     suspend fun await(anime: Anime) {
+        setDefaults(listOf(anime.id))
+    }
+
+    suspend fun awaitAll() {
+        setDefaults(getAnimeFavorites.await().map { it.id })
+    }
+
+    private suspend fun setDefaults(animeIds: List<Long>) {
         withNonCancellableContext {
             with(libraryPreferences) {
                 setAnimeSeasonFlags.awaitSetAllFlags(
-                    animeId = anime.id,
+                    animeIds = animeIds,
                     downloadFilter = filterSeasonByDownload().get(),
                     unseenFilter = filterSeasonByUnseen().get(),
                     startedFilter = filterSeasonByStarted().get(),
@@ -35,12 +43,6 @@ class SetAnimeDefaultSeasonFlags(
                     displayMode = seasonDisplayMode().get(),
                 )
             }
-        }
-    }
-
-    suspend fun awaitAll() {
-        withNonCancellableContext {
-            getAnimeFavorites.await().forEach { await(it) }
         }
     }
 }
