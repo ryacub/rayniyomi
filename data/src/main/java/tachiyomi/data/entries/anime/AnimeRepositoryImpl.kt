@@ -101,25 +101,6 @@ class AnimeRepositoryImpl(
         }
     }
 
-    override suspend fun getDuplicateLibraryAnimeByNormalizedTitle(
-        normalizedTitle: String,
-        excludeId: Long,
-    ): List<Anime> {
-        return handler.awaitList {
-            animesQueries.getDuplicateLibraryAnimeByNormalizedTitle(normalizedTitle, excludeId, AnimeMapper::mapAnime)
-        }
-    }
-
-    override suspend fun getDuplicateLibraryAnimeByTracker(syncId: Long, remoteId: Long, excludeId: Long): List<Anime> {
-        val animeIds = handler.awaitList { anime_syncQueries.getAnimeIdByTrackerId(syncId, remoteId) }
-        return animeIds
-            .filter { it != excludeId }
-            .mapNotNull { animeId ->
-                handler.awaitOneOrNull { animesQueries.getAnimeById(animeId, AnimeMapper::mapAnime) }
-            }
-            .filter { it.favorite }
-    }
-
     override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
         handler.await(inTransaction = true) {
             // 1. Merge progress, marks, and history of episodes that exist on both entries (same URL)

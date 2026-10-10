@@ -131,13 +131,6 @@ WHERE favorite = 1
 AND LOWER(title) = :title
 AND _id != :id;
 
-getDuplicateLibraryAnimeByNormalizedTitle:
-SELECT *
-FROM animes
-WHERE favorite = 1
-AND normalized_title = :normalizedTitle
-AND _id != :id;
-
 getUpcomingAnime:
 SELECT *
 FROM animes

@@ -99,25 +99,6 @@ class MangaRepositoryImpl(
         }
     }
 
-    override suspend fun getDuplicateLibraryMangaByNormalizedTitle(
-        normalizedTitle: String,
-        excludeId: Long,
-    ): List<Manga> {
-        return handler.awaitList {
-            mangasQueries.getDuplicateLibraryMangaByNormalizedTitle(normalizedTitle, excludeId, MangaMapper::mapManga)
-        }
-    }
-
-    override suspend fun getDuplicateLibraryMangaByTracker(syncId: Long, remoteId: Long, excludeId: Long): List<Manga> {
-        val mangaIds = handler.awaitList { manga_syncQueries.getMangaIdByTrackerId(syncId, remoteId) }
-        return mangaIds
-            .filter { it != excludeId }
-            .mapNotNull { mangaId ->
-                handler.awaitOneOrNull { mangasQueries.getMangaById(mangaId, MangaMapper::mapManga) }
-            }
-            .filter { it.favorite }
-    }
-
     override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
         handler.await(inTransaction = true) {
             // 1. Merge progress, bookmarks, and history of chapters that exist on both entries (same URL)
