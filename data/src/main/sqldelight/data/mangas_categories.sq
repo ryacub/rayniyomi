@@ -27,7 +27,7 @@ WHERE manga_id = :mangaId;
 
 transferCategories:
 INSERT INTO mangas_categories(manga_id, category_id)
-SELECT :keepMangaId, category_id
+SELECT DISTINCT :keepMangaId, category_id
 FROM mangas_categories
 WHERE manga_id = :deleteMangaId
 AND category_id NOT IN (SELECT category_id FROM mangas_categories WHERE manga_id = :keepMangaId);
