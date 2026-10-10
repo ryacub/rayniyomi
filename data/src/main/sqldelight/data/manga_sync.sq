@@ -60,12 +60,6 @@ SET
     private = coalesce(:private, private)
 WHERE _id = :id;
 
-getMangaIdByTrackerId:
-SELECT manga_id
-FROM manga_sync
-WHERE sync_id = :syncId AND remote_id = :remoteId
-LIMIT 1;
-
 updateProgressIfGreater:
 UPDATE manga_sync
 SET last_chapter_read = :lastChapterRead

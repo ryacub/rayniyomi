@@ -1,7 +1,6 @@
 package tachiyomi.domain.entries.manga.interactor
 
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -18,14 +17,14 @@ import tachiyomi.domain.track.manga.model.MangaTrack
 @Execution(ExecutionMode.CONCURRENT)
 class GetDuplicateLibraryMangaTest {
 
-    private val mangaRepository: MangaRepository = mockk()
-    private val getMangaTracks: GetMangaTracks = mockk()
+    private val mangaRepository: MangaRepository = mockk(relaxed = true)
+    private val getMangaTracks: GetMangaTracks = mockk(relaxed = true)
     private val interactor = GetDuplicateLibraryManga(mangaRepository, getMangaTracks)
 
-    private fun createManga(id: Long = 1L, title: String = "Test Manga"): Manga =
-        Manga.create().copy(id = id, title = title)
+    private fun manga(id: Long, title: String, favorite: Boolean = true): Manga =
+        Manga.create().copy(id = id, title = title, favorite = favorite)
 
-    private fun createTrack(mangaId: Long, trackerId: Long = 1L, remoteId: Long = 100L): MangaTrack =
+    private fun track(mangaId: Long, trackerId: Long = 1L, remoteId: Long = 100L): MangaTrack =
         MangaTrack(
             id = mangaId * 10 + trackerId,
             mangaId = mangaId,
@@ -43,99 +42,85 @@ class GetDuplicateLibraryMangaTest {
             private = false,
         )
 
-    @Test
-    fun `awaitAll returns TRACKER confidence when tracker ID matches`() = runTest {
-        val manga = createManga(id = 1L, title = "One Piece")
-        val duplicate = createManga(id = 2L, title = "One Piece (MangaDex)")
-        val track = createTrack(mangaId = 1L, trackerId = 1L, remoteId = 42L)
-
-        coEvery { getMangaTracks.await(1L) } returns listOf(track)
-        coEvery { mangaRepository.getDuplicateLibraryMangaByTracker(1L, 42L, 1L) } returns listOf(duplicate)
-        coEvery { mangaRepository.getDuplicateLibraryManga(1L, "one piece") } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryMangaByNormalizedTitle(any(), 1L) } returns emptyList()
-
-        val result = interactor.awaitAll(manga)
-
-        result shouldHaveSize 1
-        result[0].confidence shouldBe DuplicateConfidence.TRACKER
-        result[0].loser.id shouldBe 2L
+    private fun library(favorites: List<Manga>, tracks: List<MangaTrack> = emptyList()) {
+        coEvery { mangaRepository.getMangaFavorites() } returns favorites
+        coEvery { getMangaTracks.awaitAll() } returns tracks
+        coEvery { getMangaTracks.await(any()) } answers { tracks.filter { it.mangaId == firstArg<Long>() } }
     }
 
     @Test
-    fun `awaitAll returns HIGH confidence when exact title matches`() = runTest {
-        val manga = createManga(id = 1L, title = "Naruto")
-        val duplicate = createManga(id = 2L, title = "Naruto")
+    fun `normalized title match is MEDIUM`() = runTest {
+        val subject = manga(1, "The Re:Zero", favorite = false)
+        library(listOf(manga(2, "Re Zero")))
 
-        coEvery { getMangaTracks.await(1L) } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryManga(1L, "naruto") } returns listOf(duplicate)
-        coEvery { mangaRepository.getDuplicateLibraryMangaByNormalizedTitle(any(), 1L) } returns emptyList()
+        val result = interactor.awaitAll(subject)
 
-        val result = interactor.awaitAll(manga)
-
-        result shouldHaveSize 1
-        result[0].confidence shouldBe DuplicateConfidence.HIGH
-        result[0].loser.id shouldBe 2L
+        result.map { it.loser.id to it.confidence } shouldBe listOf(2L to DuplicateConfidence.MEDIUM)
     }
 
     @Test
-    fun `awaitAll returns MEDIUM confidence when normalized title matches`() = runTest {
-        // TitleNormalizer replaces punctuation with space: "Re:Zero" -> "re zero"
-        val manga = createManga(id = 1L, title = "Re:Zero")
-        val duplicate = createManga(id = 2L, title = "Re Zero")
+    fun `exact title match is HIGH`() = runTest {
+        val subject = manga(1, "One Piece", favorite = false)
+        library(listOf(manga(2, "ONE PIECE")))
 
-        coEvery { getMangaTracks.await(1L) } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryManga(1L, "re:zero") } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryMangaByNormalizedTitle("re zero", 1L) } returns listOf(duplicate)
+        val result = interactor.awaitAll(subject)
 
-        val result = interactor.awaitAll(manga)
-
-        result shouldHaveSize 1
-        result[0].confidence shouldBe DuplicateConfidence.MEDIUM
-        result[0].loser.id shouldBe 2L
+        result.map { it.loser.id to it.confidence } shouldBe listOf(2L to DuplicateConfidence.HIGH)
     }
 
     @Test
-    fun `awaitAll returns empty list when no duplicates found`() = runTest {
-        val manga = createManga(id = 1L, title = "Unique Title")
+    fun `a title with no letters or digits matches nothing`() = runTest {
+        val subject = manga(1, "...", favorite = false)
+        library(listOf(manga(2, "???"), manga(3, "!!!")))
 
-        coEvery { getMangaTracks.await(1L) } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryManga(1L, "unique title") } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryMangaByNormalizedTitle("unique title", 1L) } returns emptyList()
-
-        val result = interactor.awaitAll(manga)
-
-        result.shouldBeEmpty()
+        interactor.awaitAll(subject).shouldBeEmpty()
     }
 
     @Test
-    fun `awaitAll deduplicates when same entry appears in multiple tiers`() = runTest {
-        val manga = createManga(id = 1L, title = "Bleach")
-        val duplicate = createManga(id = 2L, title = "Bleach")
-        val track = createTrack(mangaId = 1L, trackerId = 1L, remoteId = 99L)
+    fun `every library entry on the same tracker remote id is reported`() = runTest {
+        val subject = manga(1, "Subject", favorite = false)
+        library(
+            favorites = listOf(manga(2, "Other A"), manga(3, "Other B")),
+            tracks = listOf(track(mangaId = 1), track(mangaId = 2), track(mangaId = 3)),
+        )
 
-        coEvery { getMangaTracks.await(1L) } returns listOf(track)
-        coEvery { mangaRepository.getDuplicateLibraryMangaByTracker(1L, 99L, 1L) } returns listOf(duplicate)
-        coEvery { mangaRepository.getDuplicateLibraryManga(1L, "bleach") } returns listOf(duplicate)
-        coEvery { mangaRepository.getDuplicateLibraryMangaByNormalizedTitle("bleach", 1L) } returns listOf(duplicate)
+        val result = interactor.awaitAll(subject)
 
-        val result = interactor.awaitAll(manga)
-
-        // Should only appear once — the highest confidence (TRACKER) wins
-        result shouldHaveSize 1
-        result[0].confidence shouldBe DuplicateConfidence.TRACKER
+        result.map { it.loser.id to it.confidence } shouldBe listOf(
+            2L to DuplicateConfidence.TRACKER,
+            3L to DuplicateConfidence.TRACKER,
+        )
     }
 
     @Test
-    fun `awaitAll skips tracks with zero remoteId`() = runTest {
-        val manga = createManga(id = 1L, title = "Dragon Ball")
-        val trackWithZeroId = createTrack(mangaId = 1L, trackerId = 1L, remoteId = 0L)
+    fun `tracker match wins over title match for the same entry`() = runTest {
+        val subject = manga(1, "Bleach", favorite = false)
+        library(
+            favorites = listOf(manga(2, "Bleach")),
+            tracks = listOf(track(mangaId = 1, remoteId = 99), track(mangaId = 2, remoteId = 99)),
+        )
 
-        coEvery { getMangaTracks.await(1L) } returns listOf(trackWithZeroId)
-        coEvery { mangaRepository.getDuplicateLibraryManga(1L, "dragon ball") } returns emptyList()
-        coEvery { mangaRepository.getDuplicateLibraryMangaByNormalizedTitle("dragon ball", 1L) } returns emptyList()
+        val result = interactor.awaitAll(subject)
 
-        val result = interactor.awaitAll(manga)
+        result.map { it.loser.id to it.confidence } shouldBe listOf(2L to DuplicateConfidence.TRACKER)
+    }
 
-        result.shouldBeEmpty()
+    @Test
+    fun `tracks with no remote id do not match`() = runTest {
+        val subject = manga(1, "Subject", favorite = false)
+        library(
+            favorites = listOf(manga(2, "Other")),
+            tracks = listOf(track(mangaId = 1, remoteId = 0), track(mangaId = 2, remoteId = 0)),
+        )
+
+        interactor.awaitAll(subject).shouldBeEmpty()
+    }
+
+    @Test
+    fun `an entry in the library is not its own duplicate`() = runTest {
+        val subject = manga(1, "Dragon Ball")
+        library(listOf(subject), tracks = listOf(track(mangaId = 1)))
+
+        interactor.awaitAll(subject).shouldBeEmpty()
     }
 }

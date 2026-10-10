@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.zacsweers.metro.AppScope
@@ -35,11 +36,15 @@ import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.browse.manga.migration.MangaMigrationFlags
+import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
+import logcat.LogPriority
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.manga.interactor.SetMangaCategories
 import tachiyomi.domain.entries.manga.model.Manga
@@ -68,10 +73,25 @@ internal fun MigrateMangaDialog(
     onPopScreen: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val state by screenModel.state.collectAsStateWithLifecycle()
 
     val flags = remember { MangaMigrationFlags.getFlags(oldManga, screenModel.migrateFlags.get()) }
     val selectedFlags = remember { flags.map { it.isDefaultSelected }.toMutableStateList() }
+
+    fun migrate(replace: Boolean) {
+        scope.launchIO {
+            val migrated = screenModel.migrateManga(
+                oldManga,
+                newManga,
+                replace,
+                MangaMigrationFlags.getSelectedFlagsBitMap(selectedFlags, flags),
+            )
+            withUIContext {
+                if (migrated) onPopScreen() else context.toast(AYMR.strings.migration_failed)
+            }
+        }
+    }
 
     if (state.isMigrating) {
         LoadingScreen(
@@ -112,35 +132,10 @@ internal fun MigrateMangaDialog(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    TextButton(
-                        onClick = {
-                            scope.launchIO {
-                                screenModel.migrateManga(
-                                    oldManga,
-                                    newManga,
-                                    false,
-                                    MangaMigrationFlags.getSelectedFlagsBitMap(selectedFlags, flags),
-                                )
-                                withUIContext { onPopScreen() }
-                            }
-                        },
-                    ) {
+                    TextButton(onClick = { migrate(replace = false) }) {
                         Text(text = stringResource(MR.strings.copy))
                     }
-                    TextButton(
-                        onClick = {
-                            scope.launchIO {
-                                screenModel.migrateManga(
-                                    oldManga,
-                                    newManga,
-                                    true,
-                                    MangaMigrationFlags.getSelectedFlagsBitMap(selectedFlags, flags),
-                                )
-
-                                withUIContext { onPopScreen() }
-                            }
-                        },
-                    ) {
+                    TextButton(onClick = { migrate(replace = true) }) {
                         Text(text = stringResource(MR.strings.migrate))
                     }
                 }
@@ -181,14 +176,14 @@ internal class MigrateMangaDialogScreenModel(
         newManga: Manga,
         replace: Boolean,
         flags: Int,
-    ) {
+    ): Boolean {
         migrateFlags.set(flags)
-        val source = sourceManager.get(newManga.source) ?: return
+        val source = sourceManager.get(newManga.source) ?: return false
         val prevSource = sourceManager.get(oldManga.source)
 
         mutableState.update { it.copy(isMigrating = true) }
 
-        try {
+        val migrated = try {
             updateMangaFromRemote(newManga, fetchChapters = true).getOrThrow()
 
             migrateMangaInternal(
@@ -199,11 +194,14 @@ internal class MigrateMangaDialogScreenModel(
                 replace = replace,
                 flags = flags,
             )
-        } catch (_: Throwable) {
-            // Explicitly stop if an error occurred; the dialog normally gets popped at the end
-            // anyway
-            mutableState.update { it.copy(isMigrating = false) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            false
         }
+        if (!migrated) mutableState.update { it.copy(isMigrating = false) }
+        return migrated
     }
 
     private suspend fun migrateMangaInternal(
@@ -213,7 +211,7 @@ internal class MigrateMangaDialogScreenModel(
         newManga: Manga,
         replace: Boolean,
         flags: Int,
-    ) {
+    ): Boolean {
         val migrateChapters = MangaMigrationFlags.hasChapters(flags)
         val migrateCategories = MangaMigrationFlags.hasCategories(flags)
         val migrateCustomCover = MangaMigrationFlags.hasCustomCover(flags)
@@ -275,26 +273,14 @@ internal class MigrateMangaDialogScreenModel(
             .takeIf { it.isNotEmpty() }
             ?.let { insertTrack.awaitAll(it) }
 
-        // Delete downloaded
-        if (deleteDownloaded) {
-            if (oldSource != null) {
-                downloadManager.deleteManga(oldManga, oldSource)
+        // Update custom cover (recheck if custom cover exists)
+        if (migrateCustomCover && oldManga.hasCustomCover(coverCache)) {
+            coverCache.getCustomCoverFile(oldManga.id).inputStream().use {
+                coverCache.setCustomCoverToCache(newManga, it)
             }
         }
 
-        if (replace) {
-            updateManga.awaitUpdateFavorite(oldManga.id, favorite = false)
-        }
-
-        // Update custom cover (recheck if custom cover exists)
-        if (migrateCustomCover && oldManga.hasCustomCover()) {
-            coverCache.setCustomCoverToCache(
-                newManga,
-                coverCache.getCustomCoverFile(oldManga.id).inputStream(),
-            )
-        }
-
-        updateManga.await(
+        val addedToLibrary = updateManga.await(
             MangaUpdate(
                 id = newManga.id,
                 favorite = true,
@@ -303,6 +289,13 @@ internal class MigrateMangaDialogScreenModel(
                 dateAdded = if (replace) oldManga.dateAdded else Instant.now().toEpochMilli(),
             ),
         )
+        if (!addedToLibrary) return false
+        if (replace && !updateManga.awaitUpdateFavorite(oldManga.id, favorite = false)) return false
+
+        if (deleteDownloaded && oldSource != null) {
+            downloadManager.deleteManga(oldManga, oldSource)
+        }
+        return true
     }
 
     @Immutable

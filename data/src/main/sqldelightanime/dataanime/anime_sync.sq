@@ -61,12 +61,6 @@ SET
     private = coalesce(:private, private)
 WHERE _id = :id;
 
-getAnimeIdByTrackerId:
-SELECT anime_id
-FROM anime_sync
-WHERE sync_id = :syncId AND remote_id = :remoteId
-LIMIT 1;
-
 updateProgressIfGreater:
 UPDATE anime_sync
 SET last_episode_seen = :lastEpisodeSeen
