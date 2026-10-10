@@ -13,6 +13,7 @@ import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.domain.track.manga.interactor.InsertMangaTrack
+import tachiyomi.domain.track.manga.model.MangaTrack
 
 class TrackChapter(
     private val getTracks: GetMangaTracks,
@@ -28,10 +29,10 @@ class TrackChapter(
 
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
-                if (service == null || !service.isLoggedIn || chapterNumber <= track.lastChapterRead) {
-                    if (service == null || !service.isLoggedIn || chapterNumber <= track.lastChapterRead) {
-                        return@mapNotNull null
-                    }
+                if (service == null || !service.isLoggedIn) return@mapNotNull null
+                if (chapterNumber <= track.lastChapterRead) {
+                    removeReachedDelayedItem(track)
+                    return@mapNotNull null
                 }
 
                 async {
@@ -56,6 +57,13 @@ class TrackChapter(
                 .awaitAll()
                 .mapNotNull { it.exceptionOrNull() }
                 .forEach { logcat(LogPriority.INFO, it) }
+        }
+    }
+
+    private fun removeReachedDelayedItem(track: MangaTrack) {
+        val queued = delayedTrackingStore.getMangaItems().find { it.trackId == track.id } ?: return
+        if (queued.lastChapterRead.toString().toDouble() <= track.lastChapterRead) {
+            delayedTrackingStore.removeMangaItem(track.id)
         }
     }
 }
