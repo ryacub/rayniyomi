@@ -11,19 +11,16 @@ import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.domain.source.anime.repository.AnimeSourcePagingSourceType
 import tachiyomi.domain.source.anime.repository.AnimeSourceRepository
-import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.anime.model.AnimeSource as DomainSource
 
 class AnimeSourceRepositoryImpl(
     private val sourceManager: AnimeSourceManager,
     private val handler: AnimeDatabaseHandler,
-    private val stubSourceRepository: AnimeStubSourceRepository,
 ) : AnimeSourceRepository {
 
     override fun getAnimeSources(): Flow<List<DomainSource>> {
         return sourceManager.catalogueSources.map { sources ->
-            sources.forEach { stubSourceRepository.upsertStubAnimeSource(it.id, it.lang, it.name) }
             sources.map {
                 mapSourceToDomainSource(it).copy(
                     supportsLatest = it.supportsLatest,
@@ -34,7 +31,6 @@ class AnimeSourceRepositoryImpl(
 
     override fun getOnlineAnimeSources(): Flow<List<DomainSource>> {
         return sourceManager.catalogueSources.map { sources ->
-            sources.forEach { stubSourceRepository.upsertStubAnimeSource(it.id, it.lang, it.name) }
             sources
                 .filterIsInstance<AnimeHttpSource>()
                 .map(::mapSourceToDomainSource)
@@ -49,9 +45,6 @@ class AnimeSourceRepositoryImpl(
             .map {
                 it.map { (sourceId, count) ->
                     val source = sourceManager.getOrStub(sourceId)
-                    if (source.name.isNotBlank() || source.lang.isNotBlank()) {
-                        stubSourceRepository.upsertStubAnimeSource(source.id, source.lang, source.name)
-                    }
                     val domainSource = mapSourceToDomainSource(source).copy(
                         isStub = source is StubAnimeSource,
                     )

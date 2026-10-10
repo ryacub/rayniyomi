@@ -4,7 +4,6 @@ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
@@ -15,21 +14,18 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.domain.source.anime.model.StubAnimeSource
-import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
 class AnimeSourceRepositoryImplTest {
 
     @Test
-    fun `getAnimeSources maps runtime metadata without writing stub sources`() = runBlocking {
+    fun `getAnimeSources maps runtime metadata`() = runBlocking<Unit> {
         val source = mockAnimeCatalogueSource(id = 1L, lang = "en", name = "Runtime Anime", supportsLatest = true)
         val sourceManager = TestAnimeSourceManager(listOf(source))
-        val stubRepo = mockk<AnimeStubSourceRepository>(relaxed = true)
 
         val repository = AnimeSourceRepositoryImpl(
             sourceManager = sourceManager,
             handler = mockk<AnimeDatabaseHandler>(),
-            stubSourceRepository = stubRepo,
         )
 
         val result = repository.getAnimeSources().first()
@@ -38,28 +34,24 @@ class AnimeSourceRepositoryImplTest {
         result.first().name shouldBe "Runtime Anime"
         result.first().lang shouldBe "en"
         result.first().supportsLatest shouldBe true
-        coVerify(exactly = 0) { stubRepo.upsertStubAnimeSource(any(), any(), any()) }
     }
 
     @Test
-    fun `getOnlineAnimeSources filters to http sources without writing stub sources`() = runBlocking {
+    fun `getOnlineAnimeSources filters to http sources`() = runBlocking<Unit> {
         val catalogueSource =
             mockAnimeCatalogueSource(id = 10L, lang = "ja", name = "Catalogue Only", supportsLatest = false)
         val httpSource = mockAnimeHttpSource(id = 11L, lang = "en", name = "Http Anime")
         val sourceManager = TestAnimeSourceManager(listOf(catalogueSource, httpSource))
-        val stubRepo = mockk<AnimeStubSourceRepository>(relaxed = true)
 
         val repository = AnimeSourceRepositoryImpl(
             sourceManager = sourceManager,
             handler = mockk<AnimeDatabaseHandler>(),
-            stubSourceRepository = stubRepo,
         )
 
         val result = repository.getOnlineAnimeSources().first()
 
         result.shouldHaveSize(1)
         result.first().id shouldBe 11L
-        coVerify(exactly = 0) { stubRepo.upsertStubAnimeSource(any(), any(), any()) }
     }
 
     private fun mockAnimeCatalogueSource(

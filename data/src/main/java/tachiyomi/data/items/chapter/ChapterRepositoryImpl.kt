@@ -2,9 +2,7 @@ package tachiyomi.data.items.chapter
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
-import logcat.LogPriority
 import tachiyomi.core.common.util.lang.toLong
-import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.items.chapter.model.Chapter
