@@ -275,11 +275,7 @@ internal class MigrateAnimeDialogScreenModel(
         val migrateCustomBackground = AnimeMigrationFlags.hasCustomBackground(flags)
         val deleteDownloaded = AnimeMigrationFlags.hasDeleteDownloaded(flags)
 
-        try {
-            syncEpisodesWithSource.await(sourceEpisodes, newAnime, newSource)
-        } catch (_: Exception) {
-            // Worst case, chapters won't be synced
-        }
+        syncEpisodesWithSource.await(sourceEpisodes, newAnime, newSource)
 
         // Update chapters read, bookmark and dateFetch
         if (migrateEpisodes) {
