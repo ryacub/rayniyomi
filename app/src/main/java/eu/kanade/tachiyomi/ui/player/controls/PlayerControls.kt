@@ -416,7 +416,7 @@ fun PlayerControls(
                             readAheadValue = readAhead,
                             onValueChange = {
                                 isSeeking = true
-                                viewModel.updatePlayBackPos(it)
+                                viewModel.updateSeekbarPos(it)
                                 viewModel.seekTo(it.toInt(), preciseSeeking)
                             },
                             onValueChangeFinished = { isSeeking = false },

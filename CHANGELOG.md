@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- The player now sends tracker updates and deletes seen downloads once per episode. Before, it repeated them every second after the seen point. It also saves progress every 10 seconds and on pause instead of every second, and checks downloads for download-ahead off the main thread (#1356).
 - Cast queues now keep protected stream URLs available until their items leave the queue (#1350).
 - Local anime refreshes reuse saved episode thumbnails and remove temporary image files after extraction (#1354).
 - Global search retains every anime and manga source result when sources finish at the same time (#1353).

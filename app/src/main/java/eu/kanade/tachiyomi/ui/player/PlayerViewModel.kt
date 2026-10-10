@@ -545,6 +545,10 @@ class PlayerViewModel internal constructor(
         _pos.update { pos }
     }
 
+    fun updateSeekbarPos(pos: Float) {
+        _pos.update { pos }
+    }
+
     fun updateReadAhead(value: Long) {
         _readAhead.update { value.toFloat() }
     }
@@ -978,6 +982,7 @@ class PlayerViewModel internal constructor(
     ) {
         sheetShown.update { Sheets.None }
         panelShown.update { Panels.None }
+        saveCurrentEpisodeWatchingProgress()
         pause()
         isLoading.update { true }
         resetHosterState()
@@ -1135,6 +1140,8 @@ class PlayerViewModel internal constructor(
         }
 
     private var episodeToDownload: AnimeDownload? = null
+
+    private val tickPolicy = PlaybackTickPolicy()
 
     fun getCurrentEpisodeIndex(): Int {
         return episodeListManager.getCurrentEpisodeIndex()
@@ -1377,32 +1384,41 @@ class PlayerViewModel internal constructor(
 
         episodePosition = seconds
 
-        markProgress(currentEp, seconds, totalSeconds)
+        val completed = recordProgress(currentEp, seconds, totalSeconds)
+        if (completed || tickPolicy.claimTickSave(currentEp.id, seconds)) {
+            saveWatchingProgress(currentEp)
+        }
 
         val inDownloadRange = seconds.toDouble() / totalSeconds > 0.35
-        if (inDownloadRange) {
+        if (inDownloadRange && tickPolicy.claimDownloadAhead(currentEp.id)) {
             downloadNextEpisodes()
         }
     }
 
-    /** The single place episode progress is written, shared by local playback and Cast. */
     private fun markProgress(episode: Episode, positionMs: Long, totalMs: Long) {
         if (totalMs <= 0L) return
+        recordProgress(episode, positionMs, totalMs)
+        saveWatchingProgress(episode)
+    }
+
+    /** The single place episode progress is recorded, shared by local playback and Cast. */
+    private fun recordProgress(episode: Episode, positionMs: Long, totalMs: Long): Boolean {
         episode.last_second_seen = positionMs
         episode.total_seconds = totalMs
 
         val progress = playerPreferences.progressPreference().get()
         val shouldTrack = !incognitoMode || hasTrackers
-        if (positionMs >= totalMs * progress && shouldTrack) {
-            viewModelScope.launchNonCancellable {
-                updateEpisodeProgressOnComplete(episode)
-            }
+        if (positionMs < totalMs * progress || !shouldTrack) return false
+        if (!tickPolicy.claimCompletion(episode.id)) return false
+
+        episode.seen = true
+        viewModelScope.launchNonCancellable {
+            updateEpisodeProgressOnComplete(episode)
         }
-        saveWatchingProgress(episode)
+        return true
     }
 
     private suspend fun updateEpisodeProgressOnComplete(currentEp: Episode) {
-        currentEp.seen = true
         updateTrackEpisodeSeen(currentEp)
         deleteEpisodeIfNeeded(currentEp)
 
@@ -1434,11 +1450,11 @@ class PlayerViewModel internal constructor(
         val currentEpisode = currentEpisode.value ?: return
 
         val nextEpisode = currentPlaylist.value[getCurrentEpisodeIndex() + 1]
-        val episodesAreDownloaded =
-            EpisodeLoader.isDownload(currentEpisode.toDomainEpisode(), anime) &&
-                EpisodeLoader.isDownload(nextEpisode.toDomainEpisode(), anime)
 
         viewModelScope.launchIO {
+            val episodesAreDownloaded =
+                EpisodeLoader.isDownload(currentEpisode.toDomainEpisode(), anime) &&
+                    EpisodeLoader.isDownload(nextEpisode.toDomainEpisode(), anime)
             if (!episodesAreDownloaded) {
                 return@launchIO
             }
