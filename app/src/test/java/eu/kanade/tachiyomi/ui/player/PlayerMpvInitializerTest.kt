@@ -1067,7 +1067,8 @@ class PlayerMpvInitializerTest {
         every { storageManager.getShadersDirectory() } returns null
         every { storageManager.getFontsDirectory() } returns null
         every { context.assets.open("aniyomi.lua") } answers { ByteArrayInputStream("bridge".toByteArray()) }
-        every { context.assets.open(any(), AssetManager.ACCESS_STREAMING) } answers { ByteArrayInputStream(byteArrayOf()) }
+        every { context.assets.open(any(), AssetManager.ACCESS_STREAMING) } answers
+            { ByteArrayInputStream(byteArrayOf()) }
         return mpvDir
     }
 
@@ -1103,13 +1104,19 @@ class PlayerMpvInitializerTest {
             every { source.openInputStream() } answers {
                 inputOpens++
                 object : ByteArrayInputStream(sourceBytes) {
-                    override fun close() { inputCloses++; super.close() }
+                    override fun close() {
+                        inputCloses++
+                        super.close()
+                    }
                 }
             }
             every { destination.openInputStream() } answers {
                 inputOpens++
                 object : ByteArrayInputStream(destinationBytes) {
-                    override fun close() { inputCloses++; super.close() }
+                    override fun close() {
+                        inputCloses++
+                        super.close()
+                    }
                 }
             }
             every { destination.openOutputStream() } answers {
@@ -1120,14 +1127,20 @@ class PlayerMpvInitializerTest {
                         destinationBytes = toByteArray()
                         super.close()
                     }
-                    override fun flush() { destinationBytes = toByteArray(); super.flush() }
+                    override fun flush() {
+                        destinationBytes = toByteArray()
+                        super.flush()
+                    }
                     override fun write(b: ByteArray, off: Int, len: Int) {
                         super.write(b, off, len)
                         destinationBytes = toByteArray()
                     }
                 }
             }
-            every { destination.delete() } answers { removed = true; true }
+            every { destination.delete() } answers {
+                removed = true
+                true
+            }
         }
     }
 }

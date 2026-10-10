@@ -13,12 +13,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -29,7 +23,6 @@ import tachiyomi.domain.items.episode.model.Episode
 
 class ExternalIntentsResultTest {
     private lateinit var external: ExternalIntents
-    private lateinit var resultScope: CoroutineScope
     private val anime = Anime.create().copy(id = 1L)
     private val episode = Episode.create().copy(id = 2L, animeId = 1L, episodeNumber = 1.0, totalSeconds = 1000L)
 
@@ -53,7 +46,6 @@ class ExternalIntentsResultTest {
         coEvery { graph.getEpisodesByAnimeId.await(anime.id) } returns listOf(
             episode.copy(seen = true, lastSecondSeen = 900L),
         )
-        resultScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         external = ExternalIntents().apply {
             this.anime = this@ExternalIntentsResultTest.anime
             this.episode = this@ExternalIntentsResultTest.episode
@@ -64,7 +56,6 @@ class ExternalIntentsResultTest {
 
     @AfterEach
     fun tearDown() {
-        resultScope.cancel()
         AppGraphHolder.graphOrNull = null
         unmockkAll()
     }
@@ -74,7 +65,14 @@ class ExternalIntentsResultTest {
         register()
         external.unregisterActivity()
         external.onActivityResult(result(100))
-        coVerify(exactly = 1) { testAppGraph.updateEpisode.await(match { it.id == episode.id && it.lastSecondSeen == 100L }) }
+        coVerify(exactly = 1) {
+            testAppGraph.updateEpisode.await(
+                match {
+                    it.id == episode.id &&
+                        it.lastSecondSeen == 100L
+                },
+            )
+        }
         coVerify(exactly = 1) { testAppGraph.upsertAnimeHistory.await(match { it.episodeId == episode.id }) }
     }
 
@@ -82,7 +80,6 @@ class ExternalIntentsResultTest {
     fun `first external completion queries tracking`() = runTest {
         register()
         external.onActivityResult(result(900))
-        resultScope.coroutineContext[Job]!!.children.toList().joinAll()
         coVerify(exactly = 1) { testAppGraph.getAnimeTracks.await(anime.id) }
     }
 
@@ -90,7 +87,6 @@ class ExternalIntentsResultTest {
     fun `external completion deletes the updated episode by id`() = runTest {
         register()
         external.onActivityResult(result(900))
-        resultScope.coroutineContext[Job]!!.children.toList().joinAll()
         coVerify(exactly = 1) {
             testAppGraph.animeDownloadManager.enqueueEpisodesToDelete(
                 match { it.single().id == episode.id && it.single().seen },
@@ -103,7 +99,6 @@ class ExternalIntentsResultTest {
         external.registerActivity(
             mockk<MainActivity>(relaxed = true),
             mockk<ActivityResultLauncher<Intent>>(relaxed = true),
-            resultScope,
         )
     }
 

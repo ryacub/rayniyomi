@@ -30,10 +30,8 @@ import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import eu.kanade.tachiyomi.util.system.isOnline
 import eu.kanade.tachiyomi.util.system.toast
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
@@ -70,7 +68,6 @@ class ExternalIntents {
     // Activity lifecycle management
     private var activeActivity: MainActivity? = null
     private var externalPlayerLauncher: ActivityResultLauncher<Intent>? = null
-    private var activityScope: CoroutineScope? = null
 
     /**
      * Register MainActivity and its ActivityResultLauncher for external player results.
@@ -78,12 +75,10 @@ class ExternalIntents {
      *
      * @param activity The MainActivity instance to register
      * @param launcher The ActivityResultLauncher for external player
-     * @param scope The CoroutineScope tied to the activity's lifecycle for launching coroutines
      */
-    fun registerActivity(activity: MainActivity, launcher: ActivityResultLauncher<Intent>, scope: CoroutineScope) {
+    fun registerActivity(activity: MainActivity, launcher: ActivityResultLauncher<Intent>) {
         activeActivity = activity
         externalPlayerLauncher = launcher
-        activityScope = scope
     }
 
     /**
@@ -93,7 +88,6 @@ class ExternalIntents {
     fun unregisterActivity() {
         activeActivity = null
         externalPlayerLauncher = null
-        activityScope = null
     }
 
     /**
@@ -386,7 +380,7 @@ class ExternalIntents {
      *
      * @param intent the [Intent] that contains the episode's position and duration.
      */
-    fun onActivityResult(intent: Intent?) {
+    suspend fun onActivityResult(intent: Intent?) {
         val data = intent ?: return
         if (animeId == null || episodeId == null) return
 
@@ -420,23 +414,18 @@ class ExternalIntents {
             }
         }
 
-        // Update the episode's progress and history
-        // Use activity's lifecycle scope to ensure proper cancellation on destruction
-        // If scope is null (activity paused/destroyed), skip saving - user is no longer active
-        activityScope?.launch {
-            withIOContext {
-                if (cause == "playback_completion" || (currentPosition == duration && duration == 0L)) {
-                    saveEpisodeProgress(
-                        currentExtEpisode,
-                        anime,
-                        currentExtEpisode.totalSeconds,
-                        currentExtEpisode.totalSeconds,
-                    )
-                } else {
-                    saveEpisodeProgress(currentExtEpisode, anime, currentPosition, duration)
-                }
-                saveEpisodeHistory(currentExtEpisode)
+        withIOContext {
+            if (cause == "playback_completion" || (currentPosition == duration && duration == 0L)) {
+                saveEpisodeProgress(
+                    currentExtEpisode,
+                    anime,
+                    currentExtEpisode.totalSeconds,
+                    currentExtEpisode.totalSeconds,
+                )
+            } else {
+                saveEpisodeProgress(currentExtEpisode, anime, currentPosition, duration)
             }
+            saveEpisodeHistory(currentExtEpisode)
         }
     }
 
@@ -498,7 +487,7 @@ class ExternalIntents {
                     totalSeconds = totalSeconds,
                 ),
             )
-            if (trackPreferences.autoUpdateTrack().get() && currEp.seen) {
+            if (trackPreferences.autoUpdateTrack().get() && seen) {
                 updateTrackEpisodeSeen(currEp.episodeNumber.toDouble(), anime)
             }
             if (seen) {
@@ -526,7 +515,7 @@ class ExternalIntents {
         val episodes = getEpisodesByAnimeId.await(anime.id)
             .sortedWith { e1, e2 -> sortFunction(e1, e2) }
 
-        val currentEpisodePosition = episodes.indexOf(episode)
+        val currentEpisodePosition = episodes.indexOfFirst { it.id == episode.id }
         val removeAfterSeenSlots = downloadPreferences.removeAfterReadSlots().get()
         val episodeToDelete = episodes.getOrNull(currentEpisodePosition - removeAfterSeenSlots)
 

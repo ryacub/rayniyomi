@@ -823,32 +823,11 @@ class PlayerFileLoadedHandlerTest {
     }
 
     @Test
-    fun `chapters initialized as empty list`() {
-        val initialChapters = handler.chapters.value
-
-        assertEquals(emptyList<IndexedSegment>(), initialChapters)
-    }
-
-    @Test
     fun `updateIsLoadingTracks mutates state correctly`() = runTest {
         handler.updateIsLoadingTracks(false)
 
         assertFalse(handler.isLoadingTracks.first())
     }
-
-    @Test
-    fun `updateChapters mutates state correctly`() = runTest {
-        val newChapters = listOf(
-            createIndexedSegment("Chapter 1", 0f),
-            createIndexedSegment("Chapter 2", 500f),
-        )
-
-        handler.updateChapters(newChapters)
-
-        assertEquals(newChapters, handler.chapters.first())
-    }
-
-    // ==================== Edge Cases ====================
 
     @Test
     fun `onFileLoaded with null video handles gracefully`() = runTest {

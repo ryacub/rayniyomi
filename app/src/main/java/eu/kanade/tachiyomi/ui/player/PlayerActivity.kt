@@ -1207,6 +1207,7 @@ class PlayerActivity : BaseActivity() {
         viewModel.waitingSkipIntro = playerPreferences.waitingTimeIntroSkip().get()
 
         lifecycleScope.launchIO {
+            viewModel.loadChapters()
             fileLoadedHandler.onFileLoaded(
                 currentVideo = viewModel.currentVideo.value,
                 animeTitle = viewModel.currentAnime.value?.title,
