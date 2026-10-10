@@ -114,14 +114,14 @@ class DownloadPageLoaderTranslationTest {
         val root = mockk<UniFile>()
         val translatedDir = mockk<UniFile>()
         val coverageFile = mockk<UniFile>()
-        val files = List(2) { index ->
+        val files = List(3) { index ->
             mockk<UniFile> {
                 every { isFile } returns true
                 every { name } returns "%03d.jpg".format(index + 1)
                 every { uri } returns mockk()
             }
         }
-        val coverage = """{"totalPages":2,"outcomes":{"0":"TRANSLATED","1":"TRANSLATED"}}"""
+        val coverage = """{"totalPages":3,"outcomes":{"0":"TRANSLATED","1":"TRANSLATED","2":"STORAGE_FAILURE"}}"""
         stubLoader(showTranslated = true, originalBytes = byteArrayOf(1))
         every { downloadProvider.findChapterDir(any(), any(), any(), any()) } returns chapterDir
         every { chapterDir.findFile("_translated") } returns root
@@ -139,7 +139,7 @@ class DownloadPageLoaderTranslationTest {
             downloadManager.buildPageList<List<ReaderPage>>(source, manga, any(), any())
         } coAnswers {
             val consume = arg<suspend (List<DownloadedChapterPage>) -> List<ReaderPage>>(3)
-            consume(List(2) { index -> DownloadedChapterPage(index) { ByteArrayInputStream(byteArrayOf(1)) } })
+            consume(List(3) { index -> DownloadedChapterPage(index) { ByteArrayInputStream(byteArrayOf(1)) } })
         }
         val loader = DownloadPageLoader(
             chapter, manga, source, downloadManager, downloadProvider, application,
@@ -149,7 +149,8 @@ class DownloadPageLoaderTranslationTest {
         val pages = loader.getPages()
 
         pages.forEachIndexed { index, page ->
-            assertArrayEquals(byteArrayOf((index + 10).toByte()), page.stream!!.invoke().readBytes())
+            val expected = if (index == 2) byteArrayOf(1) else byteArrayOf((index + 10).toByte())
+            assertArrayEquals(expected, page.stream!!.invoke().readBytes())
         }
         verify(exactly = 1) { translatedDir.listFiles() }
         verify(exactly = 1) { coverageFile.openInputStream() }
