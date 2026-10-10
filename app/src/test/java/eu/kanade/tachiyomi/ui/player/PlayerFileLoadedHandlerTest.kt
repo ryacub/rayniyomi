@@ -910,4 +910,58 @@ class PlayerFileLoadedHandlerTest {
         // Should invoke aniSkipFetcher with null duration
         coVerify { aniSkipFetcher(null) }
     }
+
+    @Test
+    fun `embedded chapters disable AniSkip on file load`() = runTest {
+        val fetcher = mockk<suspend (Int?) -> List<TimeStamp>?>()
+        coEvery { fetcher(any()) } returns null
+        handler.onFileLoaded(
+            currentVideo = createMockVideo(),
+            animeTitle = null,
+            episodeName = null,
+            episodeNumber = null,
+            playerDuration = 600,
+            currentChapters = listOf(createIndexedSegment("Embedded", 100f)),
+            currentPos = 0f,
+            aniSkipEnabled = true,
+            introSkipEnabled = true,
+            disableAniSkipOnChapters = true,
+            onVideoAspectUpdate = {},
+            onChaptersUpdated = {},
+            onSetChapter = {},
+            aniSkipFetcher = fetcher,
+        )
+        coVerify(exactly = 0) { fetcher(any()) }
+    }
+
+    @Test
+    fun `AniSkip keeps embedded and extension chapters in the current file`() = runTest {
+        val extensionStamp = createMockTimeStamp(start = 200.0, end = 220.0, name = "Extension")
+        for (timestamps in listOf(emptyList(), listOf(extensionStamp))) {
+            var updated = emptyList<IndexedSegment>()
+            handler.onFileLoaded(
+                currentVideo = createMockVideo(timestamps = timestamps),
+                animeTitle = null,
+                episodeName = null,
+                episodeNumber = null,
+                playerDuration = 600,
+                currentChapters = listOf(createIndexedSegment("Embedded", 100f)),
+                currentPos = 0f,
+                aniSkipEnabled = true,
+                introSkipEnabled = true,
+                disableAniSkipOnChapters = false,
+                onVideoAspectUpdate = {},
+                onChaptersUpdated = { updated = it },
+                onSetChapter = {},
+                aniSkipFetcher = {
+                    listOf(createMockTimeStamp(start = 300.0, end = 330.0, name = "AniSkip"))
+                },
+            )
+            assertTrue(updated.any { it.name == "Embedded" && it.start == 100f })
+            assertTrue(updated.any { it.name == "AniSkip" && it.start == 300f })
+            if (timestamps.isNotEmpty()) {
+                assertTrue(updated.any { it.name == "Extension" && it.start == 200f })
+            }
+        }
+    }
 }
