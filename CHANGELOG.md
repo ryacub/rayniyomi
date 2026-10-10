@@ -15,9 +15,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- The anime library reads the episode table once per refresh instead of four times, and only for library entries. "Apply to all" for item display settings now saves all entries in one write. Browse no longer writes every source to the database each time the source list opens. Chapter and episode refresh compares lists in linear time (#1365).
 - The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 
 ### Fixed
+- A chapter or episode refresh now removes, adds, and updates items in one database transaction. Before, a failed insert or a killed app between the steps could delete chapters with their read state, bookmarks, and history (#1365).
+- Queued tracker updates that the tracker already reached are now removed, so the update job no longer retries them until it fails (#1365).
 - Merging duplicate entries now keeps bookmarks and reading or watch history on shared chapters and episodes, and no longer shows the entry twice in a shared category. Duplicate detection now finds similar titles and every entry on the same tracker ID, and the library scan runs in one pass. Migration shows an error when it fails, and it removes the old entry and its downloads only after the new entry is in the library (#1364).
 - The player now sends tracker updates and deletes seen downloads once per episode. Before, it repeated them every second after the seen point. It also saves progress every 10 seconds and on pause instead of every second, and checks downloads for download-ahead off the main thread (#1356).
 - External players now save returned progress after the app pauses, update trackers on first completion, and find downloads to remove by episode ID (#1357).
