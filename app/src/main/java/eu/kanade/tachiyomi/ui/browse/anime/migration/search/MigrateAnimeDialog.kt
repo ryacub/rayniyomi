@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,11 +49,15 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.ui.browse.anime.migration.AnimeMigrationFlags
+import eu.kanade.tachiyomi.util.system.toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
+import logcat.LogPriority
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.anime.interactor.SetAnimeCategories
@@ -83,10 +88,25 @@ internal fun MigrateAnimeDialog(
     onPopScreen: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val state by screenModel.state.collectAsStateWithLifecycle()
 
     val flags = remember { AnimeMigrationFlags.getFlags(oldAnime, screenModel.migrateFlags.get()) }
     val selectedFlags = remember { flags.map { it.isDefaultSelected }.toMutableStateList() }
+
+    fun migrate(replace: Boolean) {
+        scope.launchIO {
+            val migrated = screenModel.migrateAnime(
+                oldAnime,
+                newAnime,
+                replace,
+                AnimeMigrationFlags.getSelectedFlagsBitMap(selectedFlags, flags),
+            )
+            withUIContext {
+                if (migrated) onPopScreen() else context.toast(AYMR.strings.migration_failed)
+            }
+        }
+    }
     val canMigrate = remember { oldAnime.fetchType == newAnime.fetchType }
 
     if (state.isMigrating) {
@@ -165,35 +185,10 @@ internal fun MigrateAnimeDialog(
                     Spacer(modifier = Modifier.weight(1f))
 
                     if (canMigrate) {
-                        TextButton(
-                            onClick = {
-                                scope.launchIO {
-                                    screenModel.migrateAnime(
-                                        oldAnime,
-                                        newAnime,
-                                        false,
-                                        AnimeMigrationFlags.getSelectedFlagsBitMap(selectedFlags, flags),
-                                    )
-                                    withUIContext { onPopScreen() }
-                                }
-                            },
-                        ) {
+                        TextButton(onClick = { migrate(replace = false) }) {
                             Text(text = stringResource(MR.strings.copy))
                         }
-                        TextButton(
-                            onClick = {
-                                scope.launchIO {
-                                    screenModel.migrateAnime(
-                                        oldAnime,
-                                        newAnime,
-                                        true,
-                                        AnimeMigrationFlags.getSelectedFlagsBitMap(selectedFlags, flags),
-                                    )
-
-                                    withUIContext { onPopScreen() }
-                                }
-                            },
-                        ) {
+                        TextButton(onClick = { migrate(replace = true) }) {
                             Text(text = stringResource(MR.strings.migrate))
                         }
                     }
@@ -236,14 +231,14 @@ internal class MigrateAnimeDialogScreenModel(
         newAnime: Anime,
         replace: Boolean,
         flags: Int,
-    ) {
+    ): Boolean {
         migrateFlags.set(flags)
-        val source = sourceManager.get(newAnime.source) ?: return
+        val source = sourceManager.get(newAnime.source) ?: return false
         val prevSource = sourceManager.get(oldAnime.source)
 
         mutableState.update { it.copy(isMigrating = true) }
 
-        try {
+        val migrated = try {
             val episodes = AnimeSourceGateway.episodes(source, newAnime.toSAnime())
 
             migrateAnimeInternal(
@@ -255,11 +250,14 @@ internal class MigrateAnimeDialogScreenModel(
                 replace = replace,
                 flags = flags,
             )
-        } catch (_: Throwable) {
-            // Explicitly stop if an error occurred; the dialog normally gets popped at the end
-            // anyway
-            mutableState.update { it.copy(isMigrating = false) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            false
         }
+        if (!migrated) mutableState.update { it.copy(isMigrating = false) }
+        return migrated
     }
 
     private suspend fun migrateAnimeInternal(
@@ -270,7 +268,7 @@ internal class MigrateAnimeDialogScreenModel(
         sourceEpisodes: List<SEpisode>,
         replace: Boolean,
         flags: Int,
-    ) {
+    ): Boolean {
         val migrateEpisodes = AnimeMigrationFlags.hasEpisodes(flags)
         val migrateCategories = AnimeMigrationFlags.hasCategories(flags)
         val migrateCustomCover = AnimeMigrationFlags.hasCustomCover(flags)
@@ -339,34 +337,21 @@ internal class MigrateAnimeDialogScreenModel(
             .takeIf { it.isNotEmpty() }
             ?.let { insertTrack.awaitAll(it) }
 
-        // Delete downloaded
-        if (deleteDownloaded) {
-            if (oldSource != null) {
-                downloadManager.deleteAnime(oldAnime, oldSource)
+        // Update custom cover (recheck if custom cover exists)
+        if (migrateCustomCover && oldAnime.hasCustomCover(coverCache)) {
+            coverCache.getCustomCoverFile(oldAnime.id).inputStream().use {
+                coverCache.setCustomCoverToCache(newAnime, it)
             }
         }
 
-        if (replace) {
-            updateAnime.awaitUpdateFavorite(oldAnime.id, favorite = false)
-        }
-
-        // Update custom cover (recheck if custom cover exists)
-        if (migrateCustomCover && oldAnime.hasCustomCover()) {
-            coverCache.setCustomCoverToCache(
-                newAnime,
-                coverCache.getCustomCoverFile(oldAnime.id).inputStream(),
-            )
-        }
-
         // Update custom background (recheck if custom background exists)
-        if (migrateCustomBackground && oldAnime.hasCustomBackground()) {
-            backgroundCache.setCustomBackgroundToCache(
-                newAnime,
-                backgroundCache.getCustomBackgroundFile(oldAnime.id).inputStream(),
-            )
+        if (migrateCustomBackground && oldAnime.hasCustomBackground(backgroundCache)) {
+            backgroundCache.getCustomBackgroundFile(oldAnime.id).inputStream().use {
+                backgroundCache.setCustomBackgroundToCache(newAnime, it)
+            }
         }
 
-        updateAnime.await(
+        val addedToLibrary = updateAnime.await(
             AnimeUpdate(
                 id = newAnime.id,
                 favorite = true,
@@ -375,6 +360,13 @@ internal class MigrateAnimeDialogScreenModel(
                 dateAdded = if (replace) oldAnime.dateAdded else Instant.now().toEpochMilli(),
             ),
         )
+        if (!addedToLibrary) return false
+        if (replace && !updateAnime.awaitUpdateFavorite(oldAnime.id, favorite = false)) return false
+
+        if (deleteDownloaded && oldSource != null) {
+            downloadManager.deleteAnime(oldAnime, oldSource)
+        }
+        return true
     }
 
     @Immutable
