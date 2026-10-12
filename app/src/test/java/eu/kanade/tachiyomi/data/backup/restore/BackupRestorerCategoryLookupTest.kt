@@ -94,6 +94,36 @@ class BackupRestorerCategoryLookupTest {
         }
     }
 
+    @Test
+    fun `failed category lookup fails each manga entry and the restore continues`() = runTest {
+        InMemoryMangaDb().use { db ->
+            val mangaRestorer = MangaRestorer(
+                handler = db.handler,
+                getCategories = mockk { coEvery { await() } throws IllegalStateException("categories unreadable") },
+                getMangaByUrlAndSourceId = mockk { coEvery { await(any(), any()) } returns null },
+                getChaptersByMangaId = mockk { coEvery { await(any(), any()) } returns emptyList() },
+                updateManga = mockk(relaxed = true),
+                getTracks = mockk { coEvery { await(any()) } returns emptyList() },
+                insertTrack = mockk(relaxed = true),
+                fetchInterval = mockk(relaxed = true),
+            )
+            val backupAnime = BackupAnime(source = 1, url = "/a", title = "A")
+            val animeRestorer = mockk<AnimeRestorer>(relaxed = true) {
+                coEvery { sortByNew(any()) } returns listOf(backupAnime)
+            }
+            val backup = Backup(
+                backupManga = List(2) { BackupManga(source = 1, url = "/m/$it", title = "M$it") },
+                backupCategories = backupCategories,
+                backupAnime = listOf(backupAnime),
+            )
+
+            backupRestorer(mangaRestorer = mangaRestorer, animeRestorer = animeRestorer)
+                .restoreBackupData(backup, mockk(relaxed = true), libraryOnly)
+
+            coVerify(exactly = 1) { animeRestorer.restore(any(), any()) }
+        }
+    }
+
     private fun backupRestorer(
         mangaRestorer: MangaRestorer = mockk(relaxed = true),
         animeRestorer: AnimeRestorer = mockk(relaxed = true),
