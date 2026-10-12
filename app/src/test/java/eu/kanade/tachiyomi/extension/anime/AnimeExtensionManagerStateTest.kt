@@ -184,6 +184,27 @@ class AnimeExtensionManagerStateTest {
         extensions.single { it.pkgName == PKG_B }.isObsolete shouldBe false
     }
 
+    @Test
+    fun `an obsolete mark clears when a repo lists the extension again`() = runBlocking<Unit> {
+        coEvery { AnimeExtensionLoader.loadExtensions(any()) } returns
+            listOf(AnimeLoadResult.Success(installed(PKG_A)), AnimeLoadResult.Success(installed(PKG_B)))
+        serveIndex("a", PKG_A)
+        serveIndex("b")
+        val manager = initializedManager()
+        manager.findAvailableExtensions()
+        obsoleteFlag(manager, PKG_B) shouldBe true
+
+        serveIndex("b", PKG_B)
+        manager.findAvailableExtensions()
+        val extensions = withTimeoutOrNull(5.seconds) {
+            manager.installedExtensionsFlow.first { extensions ->
+                !extensions.single { it.pkgName == PKG_B }.isObsolete
+            }
+        } ?: manager.installedExtensionsFlow.value
+
+        extensions.single { it.pkgName == PKG_B }.isObsolete shouldBe false
+    }
+
     private fun installDuringRefresh(manager: AnimeExtensionManager) = runBlocking {
         receiver.captured.onReceive(context, intent(Intent.ACTION_PACKAGE_ADDED, PKG_NEW))
         withTimeout(5.seconds) {
