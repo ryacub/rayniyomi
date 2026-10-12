@@ -36,6 +36,7 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.i18n.MR
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -72,7 +73,7 @@ class MangaExtensionManager(
      */
     private val installer by lazy { MangaExtensionInstaller(context) }
 
-    private val iconMap = mutableMapOf<String, Drawable>()
+    private val iconMap = ConcurrentHashMap<String, Drawable>()
 
     private val installedExtensionsMapFlow = MutableStateFlow(emptyMap<String, MangaExtension.Installed>())
     val installedExtensionsFlow = installedExtensionsMapFlow.mapExtensions(scope)
@@ -124,10 +125,11 @@ class MangaExtensionManager(
             ?.pkgName
             ?: return null
 
-        val packageInfo = MangaExtensionLoader.getMangaExtensionPackageInfoFromPkgName(context, pkgName)
+        iconMap[pkgName]?.let { return it }
+        val appInfo = MangaExtensionLoader.getMangaExtensionPackageInfoFromPkgName(context, pkgName)
+            ?.applicationInfo
             ?: return null
-        val appInfo = packageInfo.applicationInfo ?: return null
-        return iconMap[pkgName] ?: iconMap.getOrPut(pkgName) {
+        return iconMap.getOrPut(pkgName) {
             appInfo.loadIcon(context.packageManager)
         }
     }
@@ -358,6 +360,7 @@ class MangaExtensionManager(
      * @param extension The extension to be registered.
      */
     private fun registerUpdatedExtension(extension: MangaExtension.Installed) {
+        iconMap.remove(extension.pkgName)
         installedExtensionsMapFlow.value += extension
     }
 
@@ -368,6 +371,7 @@ class MangaExtensionManager(
      * @param pkgName The package name of the uninstalled application.
      */
     private fun unregisterExtension(pkgName: String) {
+        iconMap.remove(pkgName)
         installedExtensionsMapFlow.value -= pkgName
         untrustedExtensionsMapFlow.value -= pkgName
     }
@@ -388,6 +392,7 @@ class MangaExtensionManager(
         }
 
         override fun onExtensionUntrusted(extension: MangaExtension.Untrusted) {
+            iconMap.remove(extension.pkgName)
             installedExtensionsMapFlow.value -= extension.pkgName
             untrustedExtensionsMapFlow.value += extension
             updatePendingUpdatesCount()

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -44,7 +45,8 @@ fun AnimeSourceIcon(
     source: AnimeSource,
     modifier: Modifier = Modifier,
 ) {
-    val icon = source.icon
+    val drawable = source.icon
+    val icon = remember(drawable) { drawable?.toBitmap()?.asImageBitmap() }
 
     when {
         source.isStub && icon == null -> {

@@ -152,7 +152,8 @@ internal object AnimeExtensionLoader {
             }
             ?.filter { isPackageAnExtension(it) }
             ?.map { AnimeExtensionInfo(packageInfo = it, isShared = false) }
-            ?: emptySequence()
+            ?.toList()
+            .orEmpty()
 
         val extPkgs = (sharedExtPkgs + privateExtPkgs)
             // Remove duplicates. Shared takes priority than private by default

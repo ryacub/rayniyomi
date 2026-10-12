@@ -36,6 +36,7 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.i18n.MR
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -75,7 +76,7 @@ class AnimeExtensionManager(
      */
     private val installer by lazy { AnimeExtensionInstaller(context) }
 
-    private val iconMap = mutableMapOf<String, Drawable>()
+    private val iconMap = ConcurrentHashMap<String, Drawable>()
 
     private val installedExtensionsMapFlow = MutableStateFlow(emptyMap<String, AnimeExtension.Installed>())
     val installedExtensionsFlow = installedExtensionsMapFlow.mapExtensions(scope)
@@ -127,10 +128,11 @@ class AnimeExtensionManager(
             ?.pkgName
             ?: return null
 
-        val packageInfo = AnimeExtensionLoader.getAnimeExtensionPackageInfoFromPkgName(context, pkgName)
+        iconMap[pkgName]?.let { return it }
+        val appInfo = AnimeExtensionLoader.getAnimeExtensionPackageInfoFromPkgName(context, pkgName)
+            ?.applicationInfo
             ?: return null
-        val appInfo = packageInfo.applicationInfo ?: return null
-        return iconMap[pkgName] ?: iconMap.getOrPut(pkgName) {
+        return iconMap.getOrPut(pkgName) {
             appInfo.loadIcon(context.packageManager)
         }
     }
@@ -363,6 +365,7 @@ class AnimeExtensionManager(
      * @param extension The anime extension to be registered.
      */
     private fun registerUpdatedExtension(extension: AnimeExtension.Installed) {
+        iconMap.remove(extension.pkgName)
         installedExtensionsMapFlow.value += extension
     }
 
@@ -373,6 +376,7 @@ class AnimeExtensionManager(
      * @param pkgName The package name of the uninstalled application.
      */
     private fun unregisterAnimeExtension(pkgName: String) {
+        iconMap.remove(pkgName)
         installedExtensionsMapFlow.value -= pkgName
         untrustedExtensionsMapFlow.value -= pkgName
     }
@@ -393,6 +397,7 @@ class AnimeExtensionManager(
         }
 
         override fun onExtensionUntrusted(extension: AnimeExtension.Untrusted) {
+            iconMap.remove(extension.pkgName)
             installedExtensionsMapFlow.value -= extension.pkgName
             untrustedExtensionsMapFlow.value += extension
             updatePendingUpdatesCount()
