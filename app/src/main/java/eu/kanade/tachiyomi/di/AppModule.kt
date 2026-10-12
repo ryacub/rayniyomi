@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.di
 
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
@@ -79,6 +80,7 @@ import nl.adaptivity.xmlutil.XmlDeclMode.Charset
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.OkHttpClient
+import tachiyomi.core.common.preference.AndroidPreferenceStore
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.storage.AndroidStorageFolderProvider
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
@@ -240,9 +242,15 @@ object AppModule {
     @Provides
     @SingleIn(AppScope::class)
     fun provideLibraryUpdateSummaryStore(
-        preferenceStore: PreferenceStore,
+        application: Application,
         json: Json,
-    ): LibraryUpdateSummaryStore = LibraryUpdateSummaryStore(preferenceStore, json)
+    ): LibraryUpdateSummaryStore = LibraryUpdateSummaryStore(
+        preferenceStore = AndroidPreferenceStore(
+            context = application,
+            sharedPreferences = application.getSharedPreferences("library_update_summary", Context.MODE_PRIVATE),
+        ),
+        json = json,
+    )
 
     @Provides
     @SingleIn(AppScope::class)

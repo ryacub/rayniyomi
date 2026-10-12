@@ -187,6 +187,10 @@ class LibraryUpdateSummaryStore internal constructor(
     )
 }
 
+internal fun PreferenceStore.deleteLibraryUpdateSummaries() {
+    listOf(ANIME_SUMMARY_KEY, MANGA_SUMMARY_KEY).forEach { getString(Preference.appStateKey(it)).delete() }
+}
+
 private fun PreferenceStore.summaryPreference(
     key: String,
     json: Json,

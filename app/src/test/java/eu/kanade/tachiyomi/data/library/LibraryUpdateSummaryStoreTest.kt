@@ -23,6 +23,21 @@ class LibraryUpdateSummaryStoreTest {
     }
 
     @Test
+    fun `deleting summaries removes every summary the store wrote`() {
+        val preferences = StringBackedPreferenceStore()
+        val store = LibraryUpdateSummaryStore(preferences, json)
+        LibraryUpdateMedia.entries.forEach { media ->
+            store.start(media, "run")
+            store.finish(media, "run", LibraryUpdateResult(), finishedAt = 1L)
+        }
+        assertEquals(2, preferences.getAll().size)
+
+        preferences.deleteLibraryUpdateSummaries()
+
+        assertTrue(preferences.getAll().isEmpty())
+    }
+
+    @Test
     fun `worker results persist across store reload`() {
         val preferences = StringBackedPreferenceStore()
         val store = LibraryUpdateSummaryStore(preferences, json)
@@ -193,7 +208,7 @@ private class StringBackedPreferenceStore : PreferenceStore {
         override fun stateIn(scope: CoroutineScope): StateFlow<T> = state
     }
 
-    override fun getString(key: String, defaultValue: String) = unused<String>()
+    override fun getString(key: String, defaultValue: String) = getObject(key, defaultValue, { it }, { it })
     override fun getLong(key: String, defaultValue: Long) = unused<Long>()
     override fun getInt(key: String, defaultValue: Int) = unused<Int>()
     override fun getFloat(key: String, defaultValue: Float) = unused<Float>()
