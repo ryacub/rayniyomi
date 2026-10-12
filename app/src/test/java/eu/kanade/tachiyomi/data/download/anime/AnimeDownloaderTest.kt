@@ -159,11 +159,17 @@ class AnimeDownloaderTest {
         Dispatchers.resetMain()
     }
 
-    private fun testDownload(video: Video? = null, episodeId: Long = 1L): AnimeDownload =
+    private val source = mockk<AnimeHttpSource>(relaxed = true)
+
+    private fun testDownload(
+        video: Video? = null,
+        episodeId: Long = 1L,
+        episodeName: String = "Ch$episodeId",
+    ): AnimeDownload =
         AnimeDownload(
-            source = mockk<AnimeHttpSource>(relaxed = true),
+            source = source,
             anime = Anime.create().copy(id = 1L, title = "Test"),
-            episode = Episode.create().copy(id = episodeId, name = "Ch$episodeId"),
+            episode = Episode.create().copy(id = episodeId, name = episodeName),
         ).apply { this.video = video }
 
     @Test
@@ -184,6 +190,19 @@ class AnimeDownloaderTest {
 
         verify(timeout = 2_000) { stateStore.deleteProgress(1L) }
         verify(timeout = 2_000) { partialEpisodeDir.delete() }
+    }
+
+    @Test
+    fun `removing an episode keeps partial files that a queued episode with the same directory uses`() {
+        downloader.addToStartOfQueue(
+            listOf(testDownload(episodeId = 1L), testDownload(episodeId = 2L, episodeName = "Ch1")),
+        )
+
+        downloader.removeFromQueueByEpisodeIds(listOf(1L))
+
+        verify(timeout = 2_000) { stateStore.deleteProgress(1L) }
+        Thread.sleep(200)
+        verify(exactly = 0) { partialEpisodeDir.delete() }
     }
 
     @Test
@@ -221,7 +240,7 @@ class AnimeDownloaderTest {
         downloader.pause()
         downloader.removeFromQueueByEpisodeIds(listOf(1L))
 
-        verify(timeout = 2_000) { stateStore.deleteProgress(1L) }
+        verify(timeout = 2_000) { partialEpisodeDir.delete() }
         assertEquals(listOf("save 1", "delete 1", "delete partial dir"), resumeFileEvents.toList())
     }
 
