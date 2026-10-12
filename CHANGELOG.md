@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Entry download progress updates individual rows without rebuilding the chapter or episode list. Browse rows release database subscriptions when they leave the screen, and data settings reads chapter cache size in the background (#1363).
 - Backup and restore read reading history with two database queries for each entry, instead of one or two queries for each history row. Restore reads the category list once, instead of once for each entry. The library update summary now has its own preferences file, so a long list of skipped titles no longer makes every settings change rewrite it. Auto-populated filler marks match titles against the catalog in one lookup, and wait 10 minutes after a failed catalog download before they try again (#1361).
 - The anime library reads the episode table once per refresh instead of four times, and only for library entries. "Apply to all" for item display settings now saves all entries in one write. Browse no longer writes every source to the database each time the source list opens. Chapter and episode refresh compares lists in linear time (#1365).
+- Local source browse lists each folder once and reads its modified time once. Before, the Latest sort read the time again for each comparison, and each local anime folder was listed three times. Pages of solid 7z, RAR, and compressed tar chapters now decode once into a cache that the reader deletes when it closes the chapter. Before, each page decoded every page in front of it again (#1366).
 - The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 - The library filters and sorts once for each download change, instead of three times, and the tracker filter no longer copies the track map for each entry. Library pages no longer add a display-mode or column listener on each redraw. The updates list converts fetch dates once when it loads, instead of on every download progress tick. The stats screen loads tracks and anime watch time in one query each, instead of one query for each library entry (#1362).
 
@@ -34,6 +35,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - AniSkip preserves embedded and extension chapters and respects the setting to disable it when chapters exist (#1357).
 - Player startup closes script, option, and shader streams and skips rewriting unchanged user files (#1357).
 - Cast queues now keep protected stream URLs available until their items leave the queue (#1350).
+- Local anime episodes with upper-case extensions, such as `Episode 01.MKV`, now show in the episode list. A malformed `episodes.json` or `details.json` no longer hides the episodes or stops the details refresh, and local metadata files now close after they are read (#1366).
 - Local anime refreshes reuse saved episode thumbnails and remove temporary image files after extraction (#1354).
 - Global search retains every anime and manga source result when sources finish at the same time (#1353).
 - Restore anime without backup IDs as separate entries and remap season links to the restored parent.
