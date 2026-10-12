@@ -138,13 +138,6 @@ class RangeRequestHandler(
             .header("Range", range.toRangeHeader())
             .build()
     }
-
-    companion object {
-        /**
-         * Maximum number of retry attempts for range validation failures.
-         */
-        const val MAX_RANGE_VALIDATION_RETRIES = 3
-    }
 }
 
 /**

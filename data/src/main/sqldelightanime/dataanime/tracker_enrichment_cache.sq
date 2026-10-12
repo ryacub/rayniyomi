@@ -26,3 +26,9 @@ CREATE TABLE tracker_enrichment_recommendation(
     updated_at INTEGER NOT NULL,
     PRIMARY KEY(entry_id, canonical_key)
 );
+
+CREATE INDEX tracker_enrichment_cache_entry_updated_idx
+ON tracker_enrichment_cache(entry_id, media_type, updated_at);
+
+CREATE INDEX tracker_enrichment_recommendation_entry_key_idx
+ON tracker_enrichment_recommendation(entry_id, canonical_key);
