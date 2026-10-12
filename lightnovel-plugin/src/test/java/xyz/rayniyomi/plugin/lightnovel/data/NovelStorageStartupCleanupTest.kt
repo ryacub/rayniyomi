@@ -31,6 +31,28 @@ class NovelStorageStartupCleanupTest {
     }
 
     @Test
+    fun firstLibraryQueryPreservesTempSuffixedBookForLaterRestore() {
+        val dir = createTempDirectory("ln-startup-late-restore").toFile()
+        try {
+            val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
+            val incomingBookFile = File(booksDir, "chapter.tmp.epub").apply { writeText("book contents") }
+            val context = mockk<Context> {
+                every { filesDir } returns dir
+            }
+            val library = NovelLibrary(listOf(NovelBook("book-1", "Book", incomingBookFile.name)))
+            val storage = NovelStorage(context)
+
+            storage.listBooks()
+            val restored = storage.restoreLibrary(library)
+
+            assertTrue(restored)
+            assertTrue(incomingBookFile.exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun constructorDefersStaleCleanupUntilFirstLibraryQuery() {
         val dir = createTempDirectory("ln-startup-deferred").toFile()
         try {
