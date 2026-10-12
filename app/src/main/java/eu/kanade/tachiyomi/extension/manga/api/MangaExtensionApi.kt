@@ -4,7 +4,6 @@ import android.content.Context
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
-import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
@@ -27,27 +26,17 @@ import mihon.data.extension.manga.model.NetworkMangaExtensionStore
 import mihon.domain.extensionrepo.manga.interactor.GetMangaExtensionRepo
 import mihon.domain.extensionrepo.manga.interactor.UpdateMangaExtensionRepo
 import mihon.domain.extensionrepo.model.ExtensionRepo
-import tachiyomi.core.common.preference.Preference
-import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration.Companion.days
 
 internal class MangaExtensionApi {
 
     private val networkService: NetworkHelper by lazy { appGraph.networkHelper }
-    private val preferenceStore: PreferenceStore by lazy { appGraph.preferenceStore }
     private val getExtensionRepo: GetMangaExtensionRepo by lazy { appGraph.getMangaExtensionRepo }
     private val updateExtensionRepo: UpdateMangaExtensionRepo by lazy { appGraph.updateMangaExtensionRepo }
-    private val extensionManager: MangaExtensionManager by lazy { appGraph.mangaExtensionManager }
     private val json: Json by lazy { appGraph.json }
     private val protoBuf: ProtoBuf by lazy { appGraph.protoBuf }
-
-    private val lastExtCheck: Preference<Long> by lazy {
-        preferenceStore.getLong("last_ext_check", 0)
-    }
 
     suspend fun findExtensions(): ExtensionCatalog<MangaExtension.Available> {
         return withIOContext {
@@ -155,25 +144,11 @@ internal class MangaExtensionApi {
         }
     }
 
-    suspend fun checkForUpdates(
-        context: Context,
-        fromAvailableExtensionList: Boolean = false,
-    ): List<MangaExtension.Installed>? = withIOContext {
-        // Limit checks to once a day at most
-        if (fromAvailableExtensionList &&
-            Instant.now().toEpochMilli() < lastExtCheck.get() + 1.days.inWholeMilliseconds
-        ) {
-            return@withIOContext null
-        }
-
+    suspend fun checkForUpdates(context: Context): List<MangaExtension.Installed> = withIOContext {
         // Update extension repo details
         updateExtensionRepo.awaitAll()
 
-        val extensions = if (fromAvailableExtensionList) {
-            extensionManager.availableExtensionsFlow.value
-        } else {
-            findExtensions().extensions.also { lastExtCheck.set(Instant.now().toEpochMilli()) }
-        }
+        val extensions = findExtensions().extensions
 
         val installedExtensions = MangaExtensionLoader.loadMangaExtensions(context)
             .filterIsInstance<MangaLoadResult.Success>()

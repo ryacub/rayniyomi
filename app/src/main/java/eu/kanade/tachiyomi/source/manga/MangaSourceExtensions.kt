@@ -1,13 +1,10 @@
 package eu.kanade.tachiyomi.source.manga
 
-import android.graphics.drawable.Drawable
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.source.local.entries.manga.isLocal
-
-fun MangaSource.icon(): Drawable? = appGraph.mangaExtensionManager.getAppIconForSource(this.id)
 
 fun MangaSource.getPreferenceKey(): String = "source_$id"
 

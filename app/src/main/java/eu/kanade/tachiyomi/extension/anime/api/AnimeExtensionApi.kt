@@ -4,7 +4,6 @@ import android.content.Context
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
-import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
@@ -21,25 +20,16 @@ import logcat.LogPriority
 import mihon.domain.extensionrepo.anime.interactor.GetAnimeExtensionRepo
 import mihon.domain.extensionrepo.anime.interactor.UpdateAnimeExtensionRepo
 import mihon.domain.extensionrepo.model.ExtensionRepo
-import tachiyomi.core.common.preference.Preference
-import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import java.time.Instant
-import kotlin.time.Duration.Companion.days
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class AnimeExtensionApi {
 
     private val networkService: NetworkHelper by lazy { appGraph.networkHelper }
-    private val preferenceStore: PreferenceStore by lazy { appGraph.preferenceStore }
     private val getExtensionRepo: GetAnimeExtensionRepo by lazy { appGraph.getAnimeExtensionRepo }
     private val updateExtensionRepo: UpdateAnimeExtensionRepo by lazy { appGraph.updateAnimeExtensionRepo }
-    private val animeExtensionManager: AnimeExtensionManager by lazy { appGraph.animeExtensionManager }
     private val json: Json by lazy { appGraph.json }
-
-    private val lastExtCheck: Preference<Long> by lazy {
-        preferenceStore.getLong("last_ext_check", 0)
-    }
 
     suspend fun findExtensions(): ExtensionCatalog<AnimeExtension.Available> {
         return withIOContext {
@@ -71,31 +61,19 @@ internal class AnimeExtensionApi {
                         signingKeyFingerprint = extRepo.signingKeyFingerprint,
                     )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
             null
         }
     }
 
-    suspend fun checkForUpdates(
-        context: Context,
-        fromAvailableExtensionList: Boolean = false,
-    ): List<AnimeExtension.Installed>? = withIOContext {
-        // Limit checks to once a day at most
-        if (fromAvailableExtensionList &&
-            Instant.now().toEpochMilli() < lastExtCheck.get() + 1.days.inWholeMilliseconds
-        ) {
-            return@withIOContext null
-        }
-
+    suspend fun checkForUpdates(context: Context): List<AnimeExtension.Installed> = withIOContext {
         // Update extension repo details
         updateExtensionRepo.awaitAll()
 
-        val extensions = if (fromAvailableExtensionList) {
-            animeExtensionManager.availableExtensionsFlow.value
-        } else {
-            findExtensions().extensions.also { lastExtCheck.set(Instant.now().toEpochMilli()) }
-        }
+        val extensions = findExtensions().extensions
 
         val installedExtensions = AnimeExtensionLoader.loadExtensions(context)
             .filterIsInstance<AnimeLoadResult.Success>()
