@@ -6,6 +6,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -30,14 +31,15 @@ class ArchiveEntryCache(private val reader: ArchiveReader) : Closeable {
 
     fun getInputStream(entryName: String): InputStream? {
         extracted[entryName]?.let { return it.inputStream() }
-        return lock.withLock {
-            try {
+        try {
+            return lock.withLock {
                 if (closed) throw IOException("Archive is closed")
                 val decodeToSkip = needsDecodeToSkip ?: readNeedsDecodeToSkip().also { needsDecodeToSkip = it }
                 if (decodeToSkip) extract(entryName)?.inputStream() else reader.getInputStream(entryName)
-            } finally {
-                if (closed) release()
             }
+        } finally {
+            // close() skips the release while a read holds the lock, so the last reader out does it.
+            if (closed) releaseIfIdle()
         }
     }
 
@@ -89,13 +91,17 @@ class ArchiveEntryCache(private val reader: ArchiveReader) : Closeable {
         released = true
         cursor?.close()
         cursor = null
-        directory?.deleteRecursively()
+        directory?.let { cleanup.execute { it.deleteRecursively() } }
         extracted.clear()
         reader.close()
     }
 
     override fun close() {
         closed = true
+        releaseIfIdle()
+    }
+
+    private fun releaseIfIdle() {
         if (lock.tryLock()) {
             try {
                 release()
@@ -106,6 +112,7 @@ class ArchiveEntryCache(private val reader: ArchiveReader) : Closeable {
     }
 
     private companion object {
+        private val cleanup = Executors.newSingleThreadExecutor()
         private var staleEntriesCleared = false
 
         @Synchronized

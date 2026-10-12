@@ -17,7 +17,7 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
 
     override suspend fun getPages(): List<ReaderPage> = reader.useEntries { entries ->
         entries
-            .filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
+            .filter { it.isFile && ImageUtil.isImage(it.name) { entryCache.getInputStream(it.name)!! } }
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
             .mapIndexed { i, entry ->
                 ReaderPage(i).apply {

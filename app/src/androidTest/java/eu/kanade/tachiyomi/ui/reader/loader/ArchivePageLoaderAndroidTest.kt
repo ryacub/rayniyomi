@@ -78,6 +78,10 @@ class ArchivePageLoaderAndroidTest {
 
         loader.recycle()
 
+        val deadline = SystemClock.elapsedRealtime() + CLEANUP_TIMEOUT_MS
+        while ((cacheEntries() - before).isNotEmpty() && SystemClock.elapsedRealtime() < deadline) {
+            Thread.sleep(50)
+        }
         assertEquals(emptySet<String>(), cacheEntries() - before)
     }
 
@@ -105,5 +109,6 @@ class ArchivePageLoaderAndroidTest {
         const val FIRST_FILL_BYTE = 32
         const val REPEATED_READS = 19
         const val MAX_REPEAT_RATIO = 5
+        const val CLEANUP_TIMEOUT_MS = 5_000L
     }
 }
