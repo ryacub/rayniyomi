@@ -57,7 +57,7 @@ class AnimeRestorer(
 
     suspend fun restore(
         backupAnime: BackupAnime,
-        backupCategories: List<BackupCategory>,
+        categoryIdsByBackupOrder: Map<Long, Long>,
     ): Long = handler.await(inTransaction = true) {
         val dbAnime = findExistingAnime(backupAnime)
         val anime = backupAnime.getAnimeImpl().copy(parentId = null)
@@ -74,7 +74,7 @@ class AnimeRestorer(
             anime = restoredAnime,
             episodes = backupAnime.episodes,
             categories = backupAnime.categories,
-            backupCategories = backupCategories,
+            categoryIdsByBackupOrder = categoryIdsByBackupOrder,
             history = backupAnime.history,
             tracks = backupAnime.tracking,
         )
@@ -304,11 +304,11 @@ class AnimeRestorer(
         anime: Anime,
         episodes: List<BackupEpisode>,
         categories: List<Long>,
-        backupCategories: List<BackupCategory>,
+        categoryIdsByBackupOrder: Map<Long, Long>,
         history: List<BackupAnimeHistory>,
         tracks: List<BackupAnimeTracking>,
     ): Anime {
-        restoreCategories(anime, categories, backupCategories)
+        restoreCategories(anime, categories.mapNotNull { categoryIdsByBackupOrder[it] })
         restoreEpisodes(anime, episodes)
         restoreTracking(anime, tracks)
         restoreHistory(anime, history)
@@ -316,37 +316,21 @@ class AnimeRestorer(
         return anime
     }
 
-    /**
-     * Restores the categories a anime is in.
-     *
-     * @param anime the anime whose categories have to be restored.
-     * @param categories the categories to restore.
-     */
-    private suspend fun restoreCategories(
-        anime: Anime,
-        categories: List<Long>,
-        backupCategories: List<BackupCategory>,
-    ) {
-        val dbCategories = getCategories.await()
-        val dbCategoriesByName = dbCategories.associateBy { it.name }
+    suspend fun categoryIdsByBackupOrder(backupCategories: List<BackupCategory>): Map<Long, Long> {
+        if (backupCategories.isEmpty()) return emptyMap()
 
-        val backupCategoriesByOrder = backupCategories.associateBy { it.order }
+        val dbCategoryIdsByName = getCategories.await().associate { it.name to it.id }
+        return backupCategories.associateBy { it.order }
+            .mapNotNull { (order, backupCategory) -> dbCategoryIdsByName[backupCategory.name]?.let { order to it } }
+            .toMap()
+    }
 
-        val animeCategoriesToUpdate = categories.mapNotNull { backupCategoryOrder ->
-            backupCategoriesByOrder[backupCategoryOrder]?.let { backupCategory ->
-                dbCategoriesByName[backupCategory.name]?.let { dbCategory ->
-                    Pair(anime.id, dbCategory.id)
-                }
-            }
-        }
+    private suspend fun restoreCategories(anime: Anime, categoryIds: List<Long>) {
+        if (categoryIds.isEmpty()) return
 
-        if (animeCategoriesToUpdate.isNotEmpty()) {
-            handler.await(true) {
-                animes_categoriesQueries.deleteAnimeCategoryByAnimeId(anime.id)
-                animeCategoriesToUpdate.forEach { (animeId, categoryId) ->
-                    animes_categoriesQueries.insert(animeId, categoryId)
-                }
-            }
+        handler.await(true) {
+            animes_categoriesQueries.deleteAnimeCategoryByAnimeId(anime.id)
+            categoryIds.forEach { animes_categoriesQueries.insert(anime.id, it) }
         }
     }
 

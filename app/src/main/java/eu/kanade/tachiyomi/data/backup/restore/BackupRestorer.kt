@@ -236,12 +236,13 @@ class BackupRestorer(
     ) = launch {
         val restoredIds = mutableMapOf<Long, Long>()
         val requestedParentIds = mutableMapOf<Long, Long>()
+        val categoryIdsByBackupOrder = animeRestorer.categoryIdsByBackupOrder(backupAnimeCategories)
         animeRestorer.sortByNew(backupAnimes)
             .forEach { backupAnime ->
                 ensureActive()
 
                 try {
-                    val restoredId = animeRestorer.restore(backupAnime, backupAnimeCategories)
+                    val restoredId = animeRestorer.restore(backupAnime, categoryIdsByBackupOrder)
                     backupAnime.id?.let { restoredIds[it] = restoredId }
                     backupAnime.parentId?.let { requestedParentIds[restoredId] = it }
                 } catch (e: Exception) {
@@ -268,12 +269,13 @@ class BackupRestorer(
         backupMangas: List<BackupManga>,
         backupMangaCategories: List<BackupCategory>,
     ) = launch {
+        val categoryIdsByBackupOrder = mangaRestorer.categoryIdsByBackupOrder(backupMangaCategories)
         mangaRestorer.sortByNew(backupMangas)
             .forEach {
                 ensureActive()
 
                 try {
-                    mangaRestorer.restore(it, backupMangaCategories)
+                    mangaRestorer.restore(it, categoryIdsByBackupOrder)
                 } catch (e: Exception) {
                     val sourceName = mangaSourceMapping[it.source] ?: it.source.toString()
                     recordError("${it.title} [$sourceName]: ${e.message}")
