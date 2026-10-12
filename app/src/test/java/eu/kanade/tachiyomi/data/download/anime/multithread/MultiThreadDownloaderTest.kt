@@ -84,6 +84,19 @@ class MultiThreadDownloaderTest {
     @Test
     fun `resume downloads again a chunk saved as complete whose file is gone`() = runTest {
         val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+
+        resumeFromCompleteChunks(chunkDir)
+    }
+
+    @Test
+    fun `resume downloads again a chunk saved as complete whose file is truncated`() = runTest {
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        File(chunkDir, "chunk_${EPISODE_ID}_0.tmp").writeBytes(video.copyOf(1024))
+
+        resumeFromCompleteChunks(chunkDir)
+    }
+
+    private suspend fun resumeFromCompleteChunks(chunkDir: File) {
         val output = File(tempDir, "episode.mp4")
         val videoUrl = server.url("/episode.mp4").toString()
         val savedProgress = DownloadProgress(

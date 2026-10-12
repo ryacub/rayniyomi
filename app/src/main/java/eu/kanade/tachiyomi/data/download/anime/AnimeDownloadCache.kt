@@ -454,6 +454,7 @@ class AnimeDownloadCache(
                     .awaitAll()
 
                 rootDownloadsDirMutex.withLock {
+                    ensureActive()
                     if (changesDuringScan === scanChanges) {
                         scanChanges.forEach { it(updatedRootDir) }
                         rootDownloadsDir = updatedRootDir

@@ -310,19 +310,14 @@ class MangaDownloader(
             val activeDownloadsFlow = queueState.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
-                        .withIndex()
-                        .filter { (_, download) ->
-                            download.status.value <= MangaDownload.State.DOWNLOADING.value &&
-                                download.displayStatus != DownloadDisplayStatus.PAUSED_LOW_STORAGE &&
-                                download.displayStatus != DownloadDisplayStatus.WAITING_FOR_NETWORK &&
-                                download.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
-                                download.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
+                        .filter {
+                            it.status.value <= MangaDownload.State.DOWNLOADING.value &&
+                                it.displayStatus != DownloadDisplayStatus.PAUSED_LOW_STORAGE &&
+                                it.displayStatus != DownloadDisplayStatus.WAITING_FOR_NETWORK &&
+                                it.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
+                                it.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedWith(
-                            compareByDescending<IndexedValue<MangaDownload>> { it.value.priority.value }
-                                .thenBy { it.index },
-                        ) // Sort by priority first, then queue position
-                        .map { it.value }
+                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
