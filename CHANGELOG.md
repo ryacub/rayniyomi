@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - An external player launch reads the one episode it plays, instead of every episode of the anime. The reader checks chapter downloads only when the downloaded filter is on. Library selection and the excluded categories of the library update use set lookups instead of list scans. The database drops duplicate and unused indexes, so a history write updates one index instead of two (#1371).
 
 ### Fixed
+- An extension that is installed, updated, or removed during the startup extension scan now shows the correct state in the extension list. Before, the scan could erase the change until the next restart (#1388).
 - The reSmush.it data saver now uses HTTPS and preserves the original page URL when the service fails or returns an invalid result (#1368).
 - Next-episode times from Simkl now skip episodes that already aired. Shows without a MyAnimeList ID no longer show a past airing time (#1368).
 - Download queue headers now collapse and expand immediately while the queue is idle (#1363).
