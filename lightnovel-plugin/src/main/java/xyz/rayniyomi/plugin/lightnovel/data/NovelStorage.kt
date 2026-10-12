@@ -19,30 +19,8 @@ import kotlin.concurrent.withLock
 
 internal object NovelStorageCoordinator {
     private val lock = ReentrantLock(true)
-    private val initializedBookDirectories = mutableSetOf<String>()
 
     fun <T> withLock(action: () -> T): T = lock.withLock(action)
-
-    fun cleanStaleImportsOnce(booksDir: File, referencedFileNames: () -> Set<String>?) = withLock {
-        val path = booksDir.absolutePath
-        if (!initializedBookDirectories.add(path)) return@withLock
-        val referenced = referencedFileNames() ?: return@withLock
-        booksDir.listFiles()
-            .orEmpty()
-            .filter { it.isImportTemporaryEpub() && it.name !in referenced }
-            .forEach(File::delete)
-    }
-}
-
-private fun File.isImportTemporaryEpub(): Boolean {
-    if (!isFile || !name.endsWith(".tmp.epub")) return false
-    val id = name.removeSuffix(".tmp.epub")
-    val parsedId = try {
-        UUID.fromString(id)
-    } catch (_: IllegalArgumentException) {
-        return false
-    }
-    return parsedId.toString() == id
 }
 
 /**
@@ -171,10 +149,7 @@ class NovelStorage(private val context: Context) {
 
     fun restoreLibrary(library: NovelLibrary): Boolean = NovelStorageCoordinator.withLock {
         runCatching {
-            ensureInitialized(
-                additionalReferencedFiles = library.books.mapTo(mutableSetOf()) { it.epubFileName },
-                cleanStaleImports = true,
-            )
+            ensureInitialized()
             val restoredIds = library.books.mapTo(mutableSetOf()) { it.id }
             val preservedBooks = readLibraryStrictly().books.filter { book ->
                 book.id !in restoredIds && getBookFile(book).isFile
@@ -191,22 +166,9 @@ class NovelStorage(private val context: Context) {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    private fun ensureInitialized(
-        additionalReferencedFiles: Set<String> = emptySet(),
-        cleanStaleImports: Boolean = false,
-    ) {
+    private fun ensureInitialized() {
         rootDir.mkdirs()
         booksDir.mkdirs()
-        if (!cleanStaleImports) return
-        NovelStorageCoordinator.cleanStaleImportsOnce(booksDir) {
-            try {
-                readLibraryStrictly().books.mapTo(mutableSetOf()) { it.epubFileName }
-                    .apply { addAll(additionalReferencedFiles) }
-            } catch (cause: Exception) {
-                Log.w(TAG, "Skipping stale import cleanup because the library index is unreadable", cause)
-                null
-            }
-        }
     }
 
     /**
