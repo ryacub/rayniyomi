@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.entries.anime.model.Anime
-import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.interactor.GetWatchTimeByAnimeId
 import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
@@ -59,11 +59,33 @@ class AnimeStatsScreenModelTest {
         coVerify(exactly = 0) { getTracks.await(any()) }
     }
 
-    private fun createModel(libraryAnime: List<LibraryAnime>, getTracks: GetAnimeTracks): AnimeStatsScreenModel {
+    @Test
+    fun `watch time sums library entries from one query`() = runBlocking {
+        val libraryAnime = listOf(libraryAnime(1L), libraryAnime(2L), libraryAnime(3L))
+        val getTracks = mockk<GetAnimeTracks>()
+        coEvery { getTracks.awaitAll() } returns emptyList()
+
+        val model = createModel(
+            libraryAnime,
+            getTracks,
+            watchTimeByAnimeId = mapOf(1L to 100L, 2L to 50L, 99L to 1_000L),
+        )
+        val state = withContext(Dispatchers.Default) {
+            withTimeout(5_000) { model.state.first { it is StatsScreenState.SuccessAnime } }
+        } as StatsScreenState.SuccessAnime
+
+        assertEquals(150L, state.overview.totalSeenDuration)
+    }
+
+    private fun createModel(
+        libraryAnime: List<LibraryAnime>,
+        getTracks: GetAnimeTracks,
+        watchTimeByAnimeId: Map<Long, Long> = emptyMap(),
+    ): AnimeStatsScreenModel {
         val getLibraryAnime = mockk<GetLibraryAnime>()
         coEvery { getLibraryAnime.await() } returns libraryAnime
-        val getEpisodesByAnimeId = mockk<GetEpisodesByAnimeId>()
-        coEvery { getEpisodesByAnimeId.await(any()) } returns emptyList()
+        val getWatchTimeByAnimeId = mockk<GetWatchTimeByAnimeId>()
+        coEvery { getWatchTimeByAnimeId.await() } returns watchTimeByAnimeId
         val downloadManager = mockk<AnimeDownloadManager>()
         every { downloadManager.getDownloadCount() } returns 0
         val tracker = mockk<BaseTracker>(moreInterfaces = arrayOf(AnimeTracker::class))
@@ -74,7 +96,7 @@ class AnimeStatsScreenModelTest {
         return AnimeStatsScreenModel(
             downloadManager = downloadManager,
             getAnimelibAnime = getLibraryAnime,
-            getEpisodesByAnimeId = getEpisodesByAnimeId,
+            getWatchTimeByAnimeId = getWatchTimeByAnimeId,
             getTracks = getTracks,
             preferences = LibraryPreferences(InMemoryPreferenceStore(emptySequence())),
             trackerManager = trackerManager,
