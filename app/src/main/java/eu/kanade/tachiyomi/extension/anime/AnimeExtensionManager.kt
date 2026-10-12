@@ -184,7 +184,7 @@ class AnimeExtensionManager(
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             withUIContext { context.toast(MR.strings.extension_api_error) }
-            ExtensionCatalog(extensions = emptyList(), allReposLoaded = false)
+            ExtensionCatalog(extensions = emptyList(), failedRepoUrls = emptySet())
         }
         val extensions = catalog.extensions
 
@@ -204,7 +204,7 @@ class AnimeExtensionManager(
             }
 
         availableExtensionsMapFlow.value = selectedAvailableExtensions
-        updatedInstalledAnimeExtensionsStatuses(selectedAvailableExtensions, catalog.allReposLoaded)
+        updatedInstalledAnimeExtensionsStatuses(selectedAvailableExtensions, catalog)
         setupAvailableAnimeExtensionsSourcesDataMap(selectedAvailableExtensions.values.toList())
     }
 
@@ -245,7 +245,7 @@ class AnimeExtensionManager(
      */
     private fun updatedInstalledAnimeExtensionsStatuses(
         availableExtensions: Map<String, AnimeExtension.Available>,
-        allReposLoaded: Boolean,
+        catalog: ExtensionCatalog<AnimeExtension.Available>,
     ) {
         if (availableExtensions.isEmpty()) {
             preferences.animeExtensionUpdatesCount().set(0)
@@ -260,7 +260,7 @@ class AnimeExtensionManager(
                         hasUpdate = extension.updateExists(availableExt),
                         repoUrl = availableExt.repoUrl,
                     )
-                    allReposLoaded -> extension.copy(isObsolete = true)
+                    catalog.hasCompleteListing(extension.repoUrl) -> extension.copy(isObsolete = true)
                     else -> extension
                 }
             }

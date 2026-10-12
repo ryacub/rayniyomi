@@ -179,7 +179,7 @@ class MangaExtensionManager(
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             withUIContext { context.toast(MR.strings.extension_api_error) }
-            ExtensionCatalog(extensions = emptyList(), allReposLoaded = false)
+            ExtensionCatalog(extensions = emptyList(), failedRepoUrls = emptySet())
         }
         val extensions = catalog.extensions
 
@@ -199,7 +199,7 @@ class MangaExtensionManager(
             }
 
         availableExtensionsMapFlow.value = selectedAvailableExtensions
-        updatedInstalledExtensionsStatuses(selectedAvailableExtensions, catalog.allReposLoaded)
+        updatedInstalledExtensionsStatuses(selectedAvailableExtensions, catalog)
         setupAvailableExtensionsSourcesDataMap(selectedAvailableExtensions.values.toList())
     }
 
@@ -240,7 +240,7 @@ class MangaExtensionManager(
      */
     private fun updatedInstalledExtensionsStatuses(
         availableExtensions: Map<String, MangaExtension.Available>,
-        allReposLoaded: Boolean,
+        catalog: ExtensionCatalog<MangaExtension.Available>,
     ) {
         if (availableExtensions.isEmpty()) {
             preferences.mangaExtensionUpdatesCount().set(0)
@@ -255,7 +255,7 @@ class MangaExtensionManager(
                         hasUpdate = extension.updateExists(availableExt),
                         repoUrl = availableExt.repoUrl,
                     )
-                    allReposLoaded -> extension.copy(isObsolete = true)
+                    catalog.hasCompleteListing(extension.repoUrl) -> extension.copy(isObsolete = true)
                     else -> extension
                 }
             }

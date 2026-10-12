@@ -51,12 +51,15 @@ internal class MangaExtensionApi {
 
     suspend fun findExtensions(): ExtensionCatalog<MangaExtension.Available> {
         return withIOContext {
-            val repoExtensions = getExtensionRepo.getAll()
+            val repos = getExtensionRepo.getAll()
+            val repoExtensions = repos
                 .map { async { getExtensions(it) } }
                 .awaitAll()
             ExtensionCatalog(
                 extensions = repoExtensions.filterNotNull().flatten(),
-                allReposLoaded = null !in repoExtensions,
+                failedRepoUrls = repos.zip(repoExtensions)
+                    .filter { (_, extensions) -> extensions == null }
+                    .mapTo(mutableSetOf()) { (repo, _) -> repo.baseUrl },
             )
         }
     }
