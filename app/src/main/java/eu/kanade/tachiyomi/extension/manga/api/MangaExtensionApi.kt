@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.manga.api
 
 import android.content.Context
 import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
@@ -48,16 +49,22 @@ internal class MangaExtensionApi {
         preferenceStore.getLong("last_ext_check", 0)
     }
 
-    suspend fun findExtensions(): List<MangaExtension.Available> {
+    suspend fun findExtensions(): ExtensionCatalog<MangaExtension.Available> {
         return withIOContext {
-            getExtensionRepo.getAll()
+            val repos = getExtensionRepo.getAll()
+            val repoExtensions = repos
                 .map { async { getExtensions(it) } }
                 .awaitAll()
-                .flatten()
+            ExtensionCatalog(
+                extensions = repoExtensions.filterNotNull().flatten(),
+                failedRepoUrls = repos.zip(repoExtensions)
+                    .filter { (_, extensions) -> extensions == null }
+                    .mapTo(mutableSetOf()) { (repo, _) -> repo.baseUrl },
+            )
         }
     }
 
-    private suspend fun getExtensions(extRepo: ExtensionRepo): List<MangaExtension.Available> {
+    private suspend fun getExtensions(extRepo: ExtensionRepo): List<MangaExtension.Available>? {
         val repoBaseUrl = extRepo.baseUrl
         return try {
             val repoJson = fetchRepoJson(repoBaseUrl)
@@ -78,7 +85,7 @@ internal class MangaExtensionApi {
             throw e
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
-            emptyList()
+            null
         }
     }
 
@@ -165,7 +172,7 @@ internal class MangaExtensionApi {
         val extensions = if (fromAvailableExtensionList) {
             extensionManager.availableExtensionsFlow.value
         } else {
-            findExtensions().also { lastExtCheck.set(Instant.now().toEpochMilli()) }
+            findExtensions().extensions.also { lastExtCheck.set(Instant.now().toEpochMilli()) }
         }
 
         val installedExtensions = MangaExtensionLoader.loadMangaExtensions(context)

@@ -10,8 +10,10 @@ import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 class AnimeExtensionLoaderTest {
@@ -70,6 +72,30 @@ class AnimeExtensionLoaderTest {
         val result = loadExtension(metadata)
 
         result shouldBe AnimeLoadResult.Error("Failed to load extension Example Anime: malformed metadata")
+    }
+
+    @Test
+    fun `each private extension apk is parsed once per scan`(@TempDir filesDir: File) = runTest {
+        val extensionDir = File(filesDir, "exts").apply { mkdirs() }
+        listOf("com.example.anime.a", "com.example.anime.b", "com.example.anime.c").forEach {
+            File(extensionDir, "$it.ext").writeText("")
+        }
+        val context = mockk<Context>(relaxed = true)
+        val packageManager = mockk<PackageManager>(relaxed = true)
+        every { context.filesDir } returns filesDir
+        every { context.packageManager } returns packageManager
+        every { packageManager.getInstalledPackages(any<Int>()) } returns emptyList()
+        every { packageManager.getPackageArchiveInfo(any(), any<Int>()) } answers {
+            PackageInfo().apply {
+                packageName = File(firstArg<String>()).nameWithoutExtension
+                applicationInfo = ApplicationInfo()
+                reqFeatures = arrayOf(FeatureInfo().apply { name = "tachiyomi.animeextension" })
+            }
+        }
+
+        AnimeExtensionLoader.loadExtensions(context)
+
+        verify(exactly = 3) { packageManager.getPackageArchiveInfo(any(), any<Int>()) }
     }
 
     private suspend fun loadExtension(

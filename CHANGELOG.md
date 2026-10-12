@@ -19,6 +19,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 
 ### Fixed
+- Extensions installed while the extension list refreshes no longer disappear from the installed list. A repo that fails to load no longer marks its extensions as obsolete, and an obsolete mark clears when a repo lists the extension again. Startup parses each private extension APK once, and source icons load from a cache instead of on every redraw (#1359).
 - A chapter or episode refresh now removes, adds, and updates items in one database transaction. Before, a failed insert or a killed app between the steps could delete chapters with their read state, bookmarks, and history (#1365).
 - Queued tracker updates that the tracker already reached are now removed, so the update job no longer retries them until it fails (#1365).
 - Reader mode and orientation changes now keep the current page in incognito. Stale split-page callbacks no longer insert a misplaced page or crash. Downloaded chapters resolve translated files once per load (#1358).

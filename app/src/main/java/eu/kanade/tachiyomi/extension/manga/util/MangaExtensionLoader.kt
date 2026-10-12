@@ -185,7 +185,8 @@ internal object MangaExtensionLoader {
             }
             ?.filter { isPackageAnExtension(it) }
             ?.map { MangaExtensionInfo(packageInfo = it, isShared = false) }
-            ?: emptySequence()
+            ?.toList()
+            .orEmpty()
 
         val extPkgs = (sharedExtPkgs + privateExtPkgs)
             // Remove duplicates. Shared takes priority than private by default
