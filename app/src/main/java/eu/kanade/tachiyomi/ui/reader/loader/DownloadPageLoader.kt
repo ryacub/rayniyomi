@@ -43,10 +43,21 @@ internal class DownloadPageLoader(
             manga.title,
             source,
         )
-        return if (chapterPath?.isFile == true) {
-            getPagesFromArchive(chapterPath)
+        val translatedFiles = if (readerPreferences.showTranslatedPages().get()) {
+            translationStorageManager.getTranslatedPageFiles(
+                dbChapter.name,
+                dbChapter.scanlator,
+                manga.title,
+                source,
+                translationPreferences.targetLanguage().get(),
+            )
         } else {
-            getPagesFromDirectory()
+            emptyMap()
+        }
+        return if (chapterPath?.isFile == true) {
+            getPagesFromArchive(chapterPath, translatedFiles)
+        } else {
+            getPagesFromDirectory(translatedFiles)
         }
     }
 
@@ -55,51 +66,25 @@ internal class DownloadPageLoader(
         archivePageLoader?.recycle()
     }
 
-    private suspend fun getPagesFromArchive(file: UniFile): List<ReaderPage> {
+    private suspend fun getPagesFromArchive(file: UniFile, translatedFiles: Map<Int, UniFile>): List<ReaderPage> {
         val loader = archivePageLoader ?: ArchivePageLoader(file.archiveReader(context)).also { archivePageLoader = it }
         val pages = loader.getPages()
-        val dbChapter = chapter.chapter
-        val targetLang = translationPreferences.targetLanguage().get()
         return substituteTranslatedPages(
             pages,
-            readerPreferences.showTranslatedPages().get(),
-            { index ->
-                translationStorageManager.getTranslatedPageFile(
-                    dbChapter.name,
-                    dbChapter.scanlator,
-                    manga.title,
-                    source,
-                    targetLang,
-                    index,
-                )
-            },
+            translatedFiles.isNotEmpty(),
+            translatedFiles::get,
             { translatedFile -> context.contentResolver.openInputStream(translatedFile.uri) },
         )
     }
 
-    private suspend fun getPagesFromDirectory(): List<ReaderPage> {
+    private suspend fun getPagesFromDirectory(translatedFiles: Map<Int, UniFile>): List<ReaderPage> {
         return downloadManager.buildPageList(
             source,
             manga,
             chapter.chapter.toDomainChapter(),
         ) { pages ->
-            val showTranslated = readerPreferences.showTranslatedPages().get()
-            val targetLang = translationPreferences.targetLanguage().get()
-            val dbChapter = chapter.chapter
-
             pages.map { page ->
-                val translatedFile = if (showTranslated) {
-                    translationStorageManager.getTranslatedPageFile(
-                        dbChapter.name,
-                        dbChapter.scanlator,
-                        manga.title,
-                        source,
-                        targetLang,
-                        page.index,
-                    )
-                } else {
-                    null
-                }
+                val translatedFile = translatedFiles[page.index]
 
                 ReaderPage(page.index) {
                     translatedFile?.let {

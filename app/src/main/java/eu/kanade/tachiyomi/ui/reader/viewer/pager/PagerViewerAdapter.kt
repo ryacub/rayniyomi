@@ -26,7 +26,7 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
     /**
      * Holds preprocessed items so they don't get removed when changing chapter
      */
-    private var preprocessed: MutableMap<Int, InsertPage> = mutableMapOf()
+    private var preprocessed: MutableMap<ReaderPage, InsertPage> = mutableMapOf()
 
     var nextTransition: ChapterTransition.Next? = null
         private set
@@ -76,12 +76,14 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
             val lastPage = pages.last()
 
             // Insert preprocessed pages into current page list
-            preprocessed.keys.sortedDescending()
-                .forEach { key ->
-                    if (lastPage.index == key) {
-                        insertPageLastPage = preprocessed[key]
+            preprocessed.values
+                .filter { it.chapter === chapters.currChapter && it.parent in currPages }
+                .sortedByDescending { it.index }
+                .forEach { split ->
+                    if (lastPage === split.parent) {
+                        insertPageLastPage = split
                     }
-                    preprocessed[key]?.let { pages.add(key + 1, it) }
+                    pages.add(pages.indexOf(split.parent) + 1, split)
                 }
 
             newItems.addAll(pages)
@@ -163,10 +165,11 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
         if (currentPage !is ReaderPage) return
 
         val currentIndex = items.indexOf(currentPage)
+        if (currentIndex == -1) return
 
-        // Put aside preprocessed pages for next chapter so they don't get removed when changing chapter
+        // Keep visible adjacent-page splits for a later chapter transition.
         if (currentPage.chapter.chapter.id != currentChapter?.chapter?.id) {
-            preprocessed[newPage.index] = newPage
+            preprocessed[currentPage] = newPage
             return
         }
 
@@ -183,7 +186,7 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
         }
 
         // Same here it will enter a endless cycle of insert pages
-        if (items[placeAtIndex] is InsertPage) {
+        if (items.getOrNull(placeAtIndex) is InsertPage) {
             return
         }
 
