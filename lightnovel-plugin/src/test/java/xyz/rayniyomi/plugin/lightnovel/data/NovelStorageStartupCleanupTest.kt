@@ -15,7 +15,9 @@ class NovelStorageStartupCleanupTest {
         val dir = createTempDirectory("ln-startup-restore").toFile()
         try {
             val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
-            val incomingBookFile = File(booksDir, "chapter.tmp.epub").apply { writeText("book contents") }
+            val incomingBookFile = File(booksDir, "550e8400-e29b-41d4-a716-446655440001.tmp.epub").apply {
+                writeText("book contents")
+            }
             val context = mockk<Context> {
                 every { filesDir } returns dir
             }
@@ -91,7 +93,9 @@ class NovelStorageStartupCleanupTest {
 
             assertFalse(stale.exists())
 
-            val activeImport = File(booksDir, "active.tmp.epub").apply { writeText("active import") }
+            val activeImport = File(booksDir, "550e8400-e29b-41d4-a716-446655440002.tmp.epub").apply {
+                writeText("active import")
+            }
             NovelStorage(context).listBooks()
 
             assertTrue(activeImport.exists())
@@ -106,9 +110,11 @@ class NovelStorageStartupCleanupTest {
         try {
             val rootDir = File(dir, "light_novel_plugin")
             val booksDir = File(rootDir, "books").apply { mkdirs() }
-            val referenced = File(booksDir, "chapter.tmp.epub").apply { writeText("referenced book") }
+            val referenced = File(booksDir, "550e8400-e29b-41d4-a716-446655440003.tmp.epub").apply {
+                writeText("referenced book")
+            }
             File(rootDir, "library.json").writeText(
-                """{"schema_version":2,"library":{"books":[{"id":"book-1","title":"Book","epub_file_name":"chapter.tmp.epub"}]}}""",
+                """{"schema_version":2,"library":{"books":[{"id":"book-1","title":"Book","epub_file_name":"550e8400-e29b-41d4-a716-446655440003.tmp.epub"}]}}""",
             )
             val context = mockk<Context> {
                 every { filesDir } returns dir
