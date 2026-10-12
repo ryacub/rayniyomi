@@ -310,17 +310,19 @@ class MangaDownloader(
             val activeDownloadsFlow = queueState.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
-                        .filter {
-                            it.status.value <= MangaDownload.State.DOWNLOADING.value &&
-                                it.displayStatus != DownloadDisplayStatus.PAUSED_LOW_STORAGE &&
-                                it.displayStatus != DownloadDisplayStatus.WAITING_FOR_NETWORK &&
-                                it.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
-                                it.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
+                        .withIndex()
+                        .filter { (_, download) ->
+                            download.status.value <= MangaDownload.State.DOWNLOADING.value &&
+                                download.displayStatus != DownloadDisplayStatus.PAUSED_LOW_STORAGE &&
+                                download.displayStatus != DownloadDisplayStatus.WAITING_FOR_NETWORK &&
+                                download.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
+                                download.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
                         } // Ignore completed downloads, leave them in the queue
                         .sortedWith(
-                            compareByDescending<MangaDownload> { it.priority.value }
-                                .thenBy { queue.indexOf(it) },
+                            compareByDescending<IndexedValue<MangaDownload>> { it.value.priority.value }
+                                .thenBy { it.index },
                         ) // Sort by priority first, then queue position
+                        .map { it.value }
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }

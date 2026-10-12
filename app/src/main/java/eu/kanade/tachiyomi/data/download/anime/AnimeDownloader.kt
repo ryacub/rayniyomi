@@ -298,13 +298,15 @@ class AnimeDownloader(
             val activeDownloadsFlow = queueState.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
-                        .filter {
-                            it.status.value <= AnimeDownload.State.DOWNLOADING.value
+                        .withIndex()
+                        .filter { (_, download) ->
+                            download.status.value <= AnimeDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
                         .sortedWith(
-                            compareByDescending<AnimeDownload> { it.priority.value }
-                                .thenBy { queue.indexOf(it) },
+                            compareByDescending<IndexedValue<AnimeDownload>> { it.value.priority.value }
+                                .thenBy { it.index },
                         ) // Sort by priority first, then queue position
+                        .map { it.value }
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
