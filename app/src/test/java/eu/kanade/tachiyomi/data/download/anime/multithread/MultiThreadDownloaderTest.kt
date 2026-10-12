@@ -10,6 +10,10 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -24,6 +28,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MultiThreadDownloaderTest {
 
@@ -96,6 +102,32 @@ class MultiThreadDownloaderTest {
         resumeFromCompleteChunks(chunkDir)
     }
 
+    @Test
+    fun `a cancelled download stops writing chunk files before it completes`() = runBlocking<Unit> {
+        server.dispatcher = RangeDispatcher(video, throttled = true)
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val firstProgress = CountDownLatch(1)
+        val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 2 })
+
+        val download = launch(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(File(tempDir, "episode.mp4")),
+                onProgress = { firstProgress.countDown() },
+            )
+        }
+        firstProgress.await(10, TimeUnit.SECONDS) shouldBe true
+        download.cancelAndJoin()
+        val bytesAtCompletion = chunkDir.listFiles().orEmpty().sumOf { it.length() }
+
+        delay(500)
+
+        chunkDir.listFiles().orEmpty().sumOf { it.length() } shouldBe bytesAtCompletion
+    }
+
     private suspend fun resumeFromCompleteChunks(chunkDir: File) {
         val output = File(tempDir, "episode.mp4")
         val videoUrl = server.url("/episode.mp4").toString()
@@ -146,7 +178,7 @@ class MultiThreadDownloaderTest {
         every { delete() } answers { file.delete() }
     }
 
-    private class RangeDispatcher(private val body: ByteArray) : Dispatcher() {
+    private class RangeDispatcher(private val body: ByteArray, private val throttled: Boolean = false) : Dispatcher() {
         override fun dispatch(request: RecordedRequest): MockResponse {
             if (request.method == "HEAD") {
                 return MockResponse()
@@ -163,6 +195,7 @@ class MultiThreadDownloaderTest {
                 .setResponseCode(206)
                 .setHeader("Content-Range", "bytes $start-$end/${body.size}")
                 .setBody(Buffer().write(body, start, end - start + 1))
+                .apply { if (throttled) throttleBody(1024 * 1024, 20, TimeUnit.MILLISECONDS) }
         }
     }
 
