@@ -19,8 +19,21 @@ import kotlin.concurrent.withLock
 
 internal object NovelStorageCoordinator {
     private val lock = ReentrantLock(true)
+    private val activeImports = mutableSetOf<String>()
 
     fun <T> withLock(action: () -> T): T = lock.withLock(action)
+
+    fun registerImport(file: File) = withLock {
+        activeImports.add(file.absolutePath)
+    }
+
+    fun unregisterImport(file: File) = withLock {
+        activeImports.remove(file.absolutePath)
+    }
+
+    fun isImportActive(file: File): Boolean = withLock {
+        file.absolutePath in activeImports
+    }
 }
 
 /**
@@ -44,6 +57,7 @@ class NovelStorage(private val context: Context) {
 
     private val rootDir = File(context.filesDir, ROOT_DIR_NAME)
     private val booksDir = File(rootDir, BOOKS_DIR_NAME)
+    private val importsDir = File(rootDir, IMPORTS_DIR_NAME)
     private val libraryFile = File(rootDir, LIBRARY_FILE_NAME)
 
     // -------------------------------------------------------------------------
@@ -77,12 +91,13 @@ class NovelStorage(private val context: Context) {
         ensureInitialized()
         val id = UUID.randomUUID().toString()
         val targetFile = File(booksDir, "$id.epub")
-        val tempFile = File(booksDir, "$id.tmp.epub")
+        val tempFile = File(importsDir, "$id.tmp.epub")
         validateImportSize(uri)
         val expectedLength = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
             descriptor.length.takeIf { it > 0L }
         }
 
+        NovelStorageCoordinator.registerImport(tempFile)
         try {
             context.contentResolver.openInputStream(uri).use { input ->
                 if (input == null) throw SourceUnavailableException("Unable to open EPUB source")
@@ -127,6 +142,8 @@ class NovelStorage(private val context: Context) {
                 targetFile.delete()
             }
             throw mapImportException(cause)
+        } finally {
+            NovelStorageCoordinator.unregisterImport(tempFile)
         }
     }
 
@@ -167,8 +184,24 @@ class NovelStorage(private val context: Context) {
     // -------------------------------------------------------------------------
 
     private fun ensureInitialized() {
-        rootDir.mkdirs()
-        booksDir.mkdirs()
+        NovelStorageCoordinator.withLock {
+            rootDir.mkdirs()
+            booksDir.mkdirs()
+            importsDir.mkdirs()
+            importsDir.listFiles().orEmpty()
+                .filter { it.isFile && isImportTempFile(it) && !NovelStorageCoordinator.isImportActive(it) }
+                .forEach { file ->
+                    if (!file.delete()) {
+                        Log.w(TAG, "ensureInitialized: unable to delete abandoned import ${file.name}")
+                    }
+                }
+        }
+    }
+
+    private fun isImportTempFile(file: File): Boolean {
+        val id = file.name.removeSuffix(TEMP_EPUB_SUFFIX)
+        return file.name.endsWith(TEMP_EPUB_SUFFIX) &&
+            runCatching { UUID.fromString(id).toString() == id }.getOrDefault(false)
     }
 
     /**
@@ -272,7 +305,9 @@ class NovelStorage(private val context: Context) {
     private companion object {
         const val ROOT_DIR_NAME = "light_novel_plugin"
         const val BOOKS_DIR_NAME = "books"
+        const val IMPORTS_DIR_NAME = "imports"
         const val LIBRARY_FILE_NAME = "library.json"
+        const val TEMP_EPUB_SUFFIX = ".tmp.epub"
         const val MAX_IMPORT_SIZE_BYTES = 100L * 1024L * 1024L
         const val TAG = "NovelStorage"
     }

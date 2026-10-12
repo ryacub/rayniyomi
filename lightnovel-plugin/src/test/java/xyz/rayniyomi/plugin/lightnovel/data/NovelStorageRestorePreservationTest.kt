@@ -25,7 +25,7 @@ class NovelStorageRestorePreservationTest {
 
             NovelStorage(context).listBooks()
 
-            assertTrue(!abandoned.exists(), "an abandoned import temp must be removed on first access")
+            assertFalse(abandoned.exists(), "an abandoned import temp must be removed on first access")
         } finally {
             dir.deleteRecursively()
         }
