@@ -156,6 +156,58 @@ class NovelStorageConcurrencyTest {
         }
     }
 
+    @Test
+    fun `library access preserves an active import temp`() {
+        val epub = testEpub()
+        val dir = createTempDirectory("ln-active-import").toFile()
+        tempDir = dir
+        val readStarted = CountDownLatch(1)
+        val resumeRead = CountDownLatch(1)
+        val resolver = mockk<ContentResolver>()
+        every { resolver.openAssetFileDescriptor(any(), "r") } returns null
+        every { resolver.openInputStream(any()) } answers {
+            object : ByteArrayInputStream(epub.readBytes()) {
+                private var blocked = false
+
+                override fun read(
+                    buffer: ByteArray,
+                    offset: Int,
+                    length: Int,
+                ): Int {
+                    if (!blocked) {
+                        blocked = true
+                        readStarted.countDown()
+                        check(resumeRead.await(5, TimeUnit.SECONDS)) { "test did not resume the import stream" }
+                    }
+                    return super.read(buffer, offset, length)
+                }
+            }
+        }
+        val context = mockk<Context> {
+            every { filesDir } returns dir
+            every { contentResolver } returns resolver
+        }
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val import = executor.submit<NovelBook> { NovelStorage(context).importEpub(mockk()) }
+            assertTrue(readStarted.await(2, TimeUnit.SECONDS))
+            val staged = File(dir, "light_novel_plugin/imports").listFiles().orEmpty()
+                .firstOrNull { it.name.endsWith(".tmp.epub") }
+            assertTrue(staged != null, "active imports must use the private staging directory")
+
+            NovelStorage(context).listBooks()
+
+            assertTrue(requireNotNull(staged).exists(), "library access must preserve an active import temp")
+            resumeRead.countDown()
+            val importedBook = import.get(5, TimeUnit.SECONDS)
+            assertTrue(File(dir, "light_novel_plugin/books/${importedBook.epubFileName}").isFile)
+        } finally {
+            resumeRead.countDown()
+            executor.shutdownNow()
+            epub.delete()
+        }
+    }
+
     private fun assertValidLibrary(storage: NovelStorage) {
         assertTrue(storage.listBooks().all { it.id.isNotBlank() && it.title.isNotBlank() })
     }

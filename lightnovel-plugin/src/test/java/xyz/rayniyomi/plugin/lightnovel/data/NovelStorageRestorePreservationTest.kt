@@ -11,6 +11,27 @@ import kotlin.io.path.createTempDirectory
 
 class NovelStorageRestorePreservationTest {
     @Test
+    fun firstLibraryAccessDeletesAbandonedImportTemp() {
+        val dir = createTempDirectory("ln-import-cleanup").toFile()
+        try {
+            val abandoned = File(dir, "light_novel_plugin/imports/550e8400-e29b-41d4-a716-446655440000.tmp.epub")
+                .apply {
+                    parentFile?.mkdirs()
+                    writeText("partial import")
+                }
+            val context = mockk<Context> {
+                every { filesDir } returns dir
+            }
+
+            NovelStorage(context).listBooks()
+
+            assertTrue(!abandoned.exists(), "an abandoned import temp must be removed on first access")
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun firstRestorePreservesIncomingTempNamedBook() {
         val dir = createTempDirectory("ln-startup-restore").toFile()
         try {
