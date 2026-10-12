@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.io.path.createTempDirectory
 
-class NovelStorageStartupCleanupTest {
+class NovelStorageRestorePreservationTest {
     @Test
     fun firstRestorePreservesIncomingTempNamedBook() {
         val dir = createTempDirectory("ln-startup-restore").toFile()
