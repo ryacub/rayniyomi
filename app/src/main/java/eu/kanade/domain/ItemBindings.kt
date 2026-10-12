@@ -63,6 +63,7 @@ import tachiyomi.domain.items.chapter.repository.ChapterRepository
 import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.interactor.GetEpisodeByUrlAndAnimeId
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.interactor.GetWatchTimeByAnimeId
 import tachiyomi.domain.items.episode.interactor.SetAnimeDefaultEpisodeFlags
 import tachiyomi.domain.items.episode.interactor.ShouldUpdateDbEpisode
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
@@ -161,6 +162,10 @@ object ItemBindings {
     @Provides
     fun provideGetEpisodesByAnimeId(episodeRepository: EpisodeRepository): GetEpisodesByAnimeId =
         GetEpisodesByAnimeId(episodeRepository = episodeRepository)
+
+    @Provides
+    fun provideGetWatchTimeByAnimeId(episodeRepository: EpisodeRepository): GetWatchTimeByAnimeId =
+        GetWatchTimeByAnimeId(episodeRepository = episodeRepository)
 
     @Provides
     fun provideGetEpisodeByUrlAndAnimeId(episodeRepository: EpisodeRepository): GetEpisodeByUrlAndAnimeId =

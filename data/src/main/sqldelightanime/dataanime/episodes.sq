@@ -62,6 +62,11 @@ SELECT *
 FROM episodes
 WHERE anime_id = :animeId;
 
+getWatchTimeByAnimeId:
+SELECT anime_id, SUM(CASE WHEN seen THEN total_seconds ELSE last_second_seen END) AS watch_time
+FROM episodes
+GROUP BY anime_id;
+
 getBookmarkedEpisodesByAnimeId:
 SELECT *
 FROM episodes
