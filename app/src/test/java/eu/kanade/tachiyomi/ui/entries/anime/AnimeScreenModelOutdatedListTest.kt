@@ -5,14 +5,49 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.FetchWindow
+import eu.kanade.tachiyomi.di.testAppGraph
 import io.kotest.matchers.shouldBe
+import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_HAS_UNVIEWED
 
 class AnimeScreenModelOutdatedListTest {
+    @BeforeEach
+    fun setUp() {
+        every { testAppGraph.basePreferences.downloadedOnly().get() } returns false
+    }
+
+    @Test
+    fun `display lists are derived before the UI reads them and recomputed on copy`() {
+        val row = EpisodeList.Item(Episode.create().copy(id = 10L, animeId = 1L), AnimeDownload.State.NOT_DOWNLOADED, 0)
+        var reads = 0
+        val rows = object : AbstractList<EpisodeList.Item>() {
+            override val size = 1
+            override fun get(index: Int): EpisodeList.Item {
+                require(index == 0)
+                reads++
+                return row
+            }
+        }
+        val state = AnimeScreenModel.State.Success(
+            anime = staleAnime(),
+            source = mockk(),
+            isFromSource = false,
+            episodes = rows,
+            seasons = emptyList(),
+        )
+        val readsBeforeDisplay = reads
+        state.processedEpisodes.map { it.id } shouldBe listOf(10L)
+        state.episodeListItems.filterIsInstance<EpisodeList.Item>().map { it.id } shouldBe listOf(10L)
+        reads shouldBe readsBeforeDisplay
+        val copied = state.copy(episodes = emptyList())
+        copied.processedEpisodes shouldBe emptyList()
+        copied.episodeListItems shouldBe emptyList()
+    }
 
     @Test
     fun `a caught-up library anime past its fetch window shows the outdated hint`() {
