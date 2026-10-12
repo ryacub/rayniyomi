@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -85,6 +88,8 @@ class MangaExtensionManager(
 
     private val untrustedExtensionsMapFlow = MutableStateFlow(emptyMap<String, MangaExtension.Untrusted>())
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
+
+    private val loadMutex = Mutex()
 
     private val installReceiver = MangaExtensionInstallReceiver(InstallationListener())
 
@@ -152,15 +157,17 @@ class MangaExtensionManager(
      */
     private suspend fun initExtensions() {
         try {
-            val extensions = MangaExtensionLoader.loadMangaExtensions(context)
+            val extensions = loadMutex.withLock {
+                MangaExtensionLoader.loadMangaExtensions(context).also { loaded ->
+                    installedExtensionsMapFlow.value = loaded
+                        .filterIsInstance<MangaLoadResult.Success>()
+                        .associate { it.extension.pkgName to it.extension }
 
-            installedExtensionsMapFlow.value = extensions
-                .filterIsInstance<MangaLoadResult.Success>()
-                .associate { it.extension.pkgName to it.extension }
-
-            untrustedExtensionsMapFlow.value = extensions
-                .filterIsInstance<MangaLoadResult.Untrusted>()
-                .associate { it.extension.pkgName to it.extension }
+                    untrustedExtensionsMapFlow.value = loaded
+                        .filterIsInstance<MangaLoadResult.Untrusted>()
+                        .associate { it.extension.pkgName to it.extension }
+                }
+            }
 
             extensions
                 .filterIsInstance<MangaLoadResult.Error>()
@@ -374,17 +381,17 @@ class MangaExtensionManager(
      */
     private inner class InstallationListener : MangaExtensionInstallReceiver.Listener {
 
-        override fun onExtensionInstalled(extension: MangaExtension.Installed) {
+        override fun onExtensionInstalled(extension: MangaExtension.Installed) = applyInLoadOrder {
             registerNewExtension(extension.withUpdateCheck())
             updatePendingUpdatesCount()
         }
 
-        override fun onExtensionUpdated(extension: MangaExtension.Installed) {
+        override fun onExtensionUpdated(extension: MangaExtension.Installed) = applyInLoadOrder {
             registerUpdatedExtension(extension.withUpdateCheck())
             updatePendingUpdatesCount()
         }
 
-        override fun onExtensionUntrusted(extension: MangaExtension.Untrusted) {
+        override fun onExtensionUntrusted(extension: MangaExtension.Untrusted) = applyInLoadOrder {
             iconMap.remove(extension.pkgName)
             installedExtensionsMapFlow.update { it - extension.pkgName }
             untrustedExtensionsMapFlow.update { it + extension }
@@ -395,10 +402,16 @@ class MangaExtensionManager(
             scope.launch { reportLoadError(message) }
         }
 
-        override fun onPackageUninstalled(pkgName: String) {
+        override fun onPackageUninstalled(pkgName: String) = applyInLoadOrder {
             MangaExtensionLoader.uninstallPrivateExtension(context, pkgName)
             unregisterExtension(pkgName)
             updatePendingUpdatesCount()
+        }
+    }
+
+    private fun applyInLoadOrder(block: () -> Unit) {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            loadMutex.withLock { block() }
         }
     }
 

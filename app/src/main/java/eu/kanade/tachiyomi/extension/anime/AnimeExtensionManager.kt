@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -88,6 +91,8 @@ class AnimeExtensionManager(
 
     private val untrustedExtensionsMapFlow = MutableStateFlow(emptyMap<String, AnimeExtension.Untrusted>())
     val untrustedExtensionsFlow = untrustedExtensionsMapFlow.mapExtensions(scope)
+
+    private val loadMutex = Mutex()
 
     private val installReceiver = AnimeExtensionInstallReceiver(AnimeInstallationListener())
 
@@ -157,15 +162,17 @@ class AnimeExtensionManager(
      */
     private suspend fun initAnimeExtensions() {
         try {
-            val animeextensions = AnimeExtensionLoader.loadExtensions(context)
+            val animeextensions = loadMutex.withLock {
+                AnimeExtensionLoader.loadExtensions(context).also { loaded ->
+                    installedExtensionsMapFlow.value = loaded
+                        .filterIsInstance<AnimeLoadResult.Success>()
+                        .associate { it.extension.pkgName to it.extension }
 
-            installedExtensionsMapFlow.value = animeextensions
-                .filterIsInstance<AnimeLoadResult.Success>()
-                .associate { it.extension.pkgName to it.extension }
-
-            untrustedExtensionsMapFlow.value = animeextensions
-                .filterIsInstance<AnimeLoadResult.Untrusted>()
-                .associate { it.extension.pkgName to it.extension }
+                    untrustedExtensionsMapFlow.value = loaded
+                        .filterIsInstance<AnimeLoadResult.Untrusted>()
+                        .associate { it.extension.pkgName to it.extension }
+                }
+            }
 
             animeextensions
                 .filterIsInstance<AnimeLoadResult.Error>()
@@ -379,17 +386,17 @@ class AnimeExtensionManager(
      */
     private inner class AnimeInstallationListener : AnimeExtensionInstallReceiver.Listener {
 
-        override fun onExtensionInstalled(extension: AnimeExtension.Installed) {
+        override fun onExtensionInstalled(extension: AnimeExtension.Installed) = applyInLoadOrder {
             registerNewExtension(extension.withUpdateCheck())
             updatePendingUpdatesCount()
         }
 
-        override fun onExtensionUpdated(extension: AnimeExtension.Installed) {
+        override fun onExtensionUpdated(extension: AnimeExtension.Installed) = applyInLoadOrder {
             registerUpdatedExtension(extension.withUpdateCheck())
             updatePendingUpdatesCount()
         }
 
-        override fun onExtensionUntrusted(extension: AnimeExtension.Untrusted) {
+        override fun onExtensionUntrusted(extension: AnimeExtension.Untrusted) = applyInLoadOrder {
             iconMap.remove(extension.pkgName)
             installedExtensionsMapFlow.update { it - extension.pkgName }
             untrustedExtensionsMapFlow.update { it + extension }
@@ -400,10 +407,16 @@ class AnimeExtensionManager(
             scope.launch { reportLoadError(message) }
         }
 
-        override fun onPackageUninstalled(pkgName: String) {
+        override fun onPackageUninstalled(pkgName: String) = applyInLoadOrder {
             AnimeExtensionLoader.uninstallPrivateExtension(context, pkgName)
             unregisterAnimeExtension(pkgName)
             updatePendingUpdatesCount()
+        }
+    }
+
+    private fun applyInLoadOrder(block: () -> Unit) {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            loadMutex.withLock { block() }
         }
     }
 
