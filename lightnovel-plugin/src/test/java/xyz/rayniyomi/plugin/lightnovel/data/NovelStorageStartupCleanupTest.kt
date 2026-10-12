@@ -76,12 +76,12 @@ class NovelStorageStartupCleanupTest {
     }
 
     @Test
-    fun firstRestoreRemovesStaleTempFilesOnlyOnce() {
-        val dir = createTempDirectory("ln-startup-cleanup").toFile()
+    fun firstRestoreKeepsTempFileForLaterRestore() {
+        val dir = createTempDirectory("ln-late-restore").toFile()
         try {
             val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
-            val stale = File(booksDir, "550e8400-e29b-41d4-a716-446655440000.tmp.epub").apply {
-                writeText("interrupted import")
+            val laterBookFile = File(booksDir, "550e8400-e29b-41d4-a716-446655440000.tmp.epub").apply {
+                writeText("book for a later restore")
             }
             val context = mockk<Context> {
                 every { filesDir } returns dir
@@ -90,14 +90,11 @@ class NovelStorageStartupCleanupTest {
             val storage = NovelStorage(context)
             storage.restoreLibrary(NovelLibrary())
 
-            assertFalse(stale.exists())
+            assertTrue(laterBookFile.exists())
+            val laterLibrary = NovelLibrary(listOf(NovelBook("later-book", "Later book", laterBookFile.name)))
+            assertTrue(storage.restoreLibrary(laterLibrary))
 
-            val activeImport = File(booksDir, "550e8400-e29b-41d4-a716-446655440002.tmp.epub").apply {
-                writeText("active import")
-            }
-            NovelStorage(context).restoreLibrary(NovelLibrary())
-
-            assertTrue(activeImport.exists())
+            assertTrue(laterBookFile.exists())
         } finally {
             dir.deleteRecursively()
         }
