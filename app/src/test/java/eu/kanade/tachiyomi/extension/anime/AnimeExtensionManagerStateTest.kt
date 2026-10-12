@@ -29,6 +29,7 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -53,6 +54,7 @@ class AnimeExtensionManagerStateTest {
     private val receiver = slot<BroadcastReceiver>()
     private val server = MockWebServer()
     private val repoResponses = mutableMapOf<String, MockResponse>()
+    private val managers = mutableListOf<AnimeExtensionManager>()
 
     @BeforeEach
     fun setUp() {
@@ -77,6 +79,7 @@ class AnimeExtensionManagerStateTest {
 
     @AfterEach
     fun tearDown() {
+        managers.forEach { it.scope.cancel() }
         every { testAppGraph.networkHelper } returns mockk(relaxed = true)
         every { testAppGraph.json } returns mockk(relaxed = true)
         every { testAppGraph.getAnimeExtensionRepo } returns mockk(relaxed = true)
@@ -179,6 +182,7 @@ class AnimeExtensionManagerStateTest {
             preferences = preferences,
             trustExtension = mockk(relaxed = true),
         )
+        managers += manager
         withTimeout(5.seconds) { manager.isInitialized.first { it } }
         return manager
     }
