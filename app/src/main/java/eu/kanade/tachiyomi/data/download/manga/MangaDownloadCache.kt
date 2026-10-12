@@ -422,7 +422,10 @@ class MangaDownloadCache(
             val sourceMap = sources.associate { provider.getSourceDirName(it).lowercase() to it.id }
 
             val scanChanges = mutableListOf<(RootDirectory) -> Unit>()
-            rootDownloadsDirMutex.withLock { changesDuringScan = scanChanges }
+            rootDownloadsDirMutex.withLock {
+                ensureActive()
+                changesDuringScan = scanChanges
+            }
             try {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
