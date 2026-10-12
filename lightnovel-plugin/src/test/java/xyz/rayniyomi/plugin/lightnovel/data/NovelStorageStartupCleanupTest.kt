@@ -57,7 +57,9 @@ class NovelStorageStartupCleanupTest {
         val dir = createTempDirectory("ln-startup-deferred").toFile()
         try {
             val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
-            val stale = File(booksDir, "stale.tmp.epub").apply { writeText("interrupted import") }
+            val stale = File(booksDir, "550e8400-e29b-41d4-a716-446655440000.tmp.epub").apply {
+                writeText("interrupted import")
+            }
             val context = mockk<Context> {
                 every { filesDir } returns dir
             }
@@ -77,7 +79,9 @@ class NovelStorageStartupCleanupTest {
         val dir = createTempDirectory("ln-startup-cleanup").toFile()
         try {
             val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
-            val stale = File(booksDir, "stale.tmp.epub").apply { writeText("interrupted import") }
+            val stale = File(booksDir, "550e8400-e29b-41d4-a716-446655440000.tmp.epub").apply {
+                writeText("interrupted import")
+            }
             val context = mockk<Context> {
                 every { filesDir } returns dir
             }

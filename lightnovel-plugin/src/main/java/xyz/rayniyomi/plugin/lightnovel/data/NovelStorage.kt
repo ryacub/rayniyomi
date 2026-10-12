@@ -29,9 +29,20 @@ internal object NovelStorageCoordinator {
         val referenced = referencedFileNames() ?: return@withLock
         booksDir.listFiles()
             .orEmpty()
-            .filter { it.isFile && it.name.endsWith(".tmp.epub") && it.name !in referenced }
+            .filter { it.isImportTemporaryEpub() && it.name !in referenced }
             .forEach(File::delete)
     }
+}
+
+private fun File.isImportTemporaryEpub(): Boolean {
+    if (!isFile || !name.endsWith(".tmp.epub")) return false
+    val id = name.removeSuffix(".tmp.epub")
+    val parsedId = try {
+        UUID.fromString(id)
+    } catch (_: IllegalArgumentException) {
+        return false
+    }
+    return parsedId.toString() == id
 }
 
 /**
