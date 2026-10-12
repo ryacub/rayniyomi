@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -122,6 +124,7 @@ class MangaDownloadCache(
 
     private val rootDownloadsDirMutex = Mutex()
     private var rootDownloadsDir = RootDirectory(storageManager.getDownloadsDirectory())
+    private var changesDuringScan: MutableList<(RootDirectory) -> Unit>? = null
 
     /**
      * Whether the initial disk cache load has completed. Used to prevent
@@ -273,14 +276,14 @@ class MangaDownloadCache(
      * @param manga the manga of the chapter.
      */
     suspend fun addChapter(chapterDirName: String, mangaUniFile: UniFile, manga: Manga) {
-        rootDownloadsDirMutex.withLock {
+        mutate { root ->
             // Retrieve the cached source directory or cache a new one
-            var sourceDir = rootDownloadsDir.sourceDirs[manga.source]
+            var sourceDir = root.sourceDirs[manga.source]
             if (sourceDir == null) {
-                val source = sourceManager.get(manga.source) ?: return
-                val sourceUniFile = provider.findSourceDir(source) ?: return
+                val source = sourceManager.get(manga.source) ?: return@mutate
+                val sourceUniFile = provider.findSourceDir(source) ?: return@mutate
                 sourceDir = SourceDirectory(sourceUniFile)
-                rootDownloadsDir.sourceDirs += manga.source to sourceDir
+                root.sourceDirs += manga.source to sourceDir
             }
 
             // Retrieve the cached manga directory or cache a new one
@@ -305,9 +308,9 @@ class MangaDownloadCache(
      * @param manga the manga of the chapter.
      */
     suspend fun removeChapter(chapter: Chapter, manga: Manga) {
-        rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[manga.source] ?: return
-            val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)] ?: return
+        mutate { root ->
+            val sourceDir = root.sourceDirs[manga.source] ?: return@mutate
+            val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)] ?: return@mutate
             provider.getValidChapterDirNames(chapter.name, chapter.scanlator).forEach {
                 if (it in mangaDir.chapterDirs) {
                     mangaDir.chapterDirs -= it
@@ -325,9 +328,9 @@ class MangaDownloadCache(
      * @param manga the manga of the chapter.
      */
     suspend fun removeChapters(chapters: List<Chapter>, manga: Manga) {
-        rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[manga.source] ?: return
-            val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)] ?: return
+        mutate { root ->
+            val sourceDir = root.sourceDirs[manga.source] ?: return@mutate
+            val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)] ?: return@mutate
             chapters.forEach { chapter ->
                 provider.getValidChapterDirNames(chapter.name, chapter.scanlator).forEach {
                     if (it in mangaDir.chapterDirs) {
@@ -346,8 +349,8 @@ class MangaDownloadCache(
      * @param manga the manga to remove.
      */
     suspend fun removeManga(manga: Manga) {
-        rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[manga.source] ?: return
+        mutate { root ->
+            val sourceDir = root.sourceDirs[manga.source] ?: return@mutate
             val mangaDirName = provider.getMangaDirName(manga.title)
             if (sourceDir.mangaDirs.containsKey(mangaDirName)) {
                 sourceDir.mangaDirs -= mangaDirName
@@ -358,11 +361,18 @@ class MangaDownloadCache(
     }
 
     suspend fun removeSource(source: MangaSource) {
-        rootDownloadsDirMutex.withLock {
-            rootDownloadsDir.sourceDirs -= source.id
+        mutate { root ->
+            root.sourceDirs -= source.id
         }
 
         notifyChanges()
+    }
+
+    private suspend fun mutate(change: (RootDirectory) -> Unit) {
+        rootDownloadsDirMutex.withLock {
+            change(rootDownloadsDir)
+            changesDuringScan?.add(change)
+        }
     }
 
     fun invalidateCache() {
@@ -411,7 +421,9 @@ class MangaDownloadCache(
 
             val sourceMap = sources.associate { provider.getSourceDirName(it).lowercase() to it.id }
 
-            rootDownloadsDirMutex.withLock {
+            val scanChanges = mutableListOf<(RootDirectory) -> Unit>()
+            rootDownloadsDirMutex.withLock { changesDuringScan = scanChanges }
+            try {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
                 val candidateDirs = updatedRootDir.dir?.listFiles().orEmpty()
@@ -452,7 +464,18 @@ class MangaDownloadCache(
                 }
                     .awaitAll()
 
-                rootDownloadsDir = updatedRootDir
+                rootDownloadsDirMutex.withLock {
+                    if (changesDuringScan === scanChanges) {
+                        scanChanges.forEach { it(updatedRootDir) }
+                        rootDownloadsDir = updatedRootDir
+                    }
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    rootDownloadsDirMutex.withLock {
+                        if (changesDuringScan === scanChanges) changesDuringScan = null
+                    }
+                }
             }
 
             _isInitializing.emit(false)
