@@ -89,6 +89,12 @@ class EpisodeRepositoryImpl(
         return handler.awaitList { episodesQueries.getEpisodesByAnimeId(animeId, ::mapEpisode) }
     }
 
+    override suspend fun getWatchTimeByAnimeId(): Map<Long, Long> {
+        return handler.awaitList {
+            episodesQueries.getWatchTimeByAnimeId { animeId, watchTime -> animeId to (watchTime ?: 0L) }
+        }.toMap()
+    }
+
     override suspend fun getBookmarkedEpisodesByAnimeId(animeId: Long): List<Episode> {
         return handler.awaitList {
             episodesQueries.getBookmarkedEpisodesByAnimeId(

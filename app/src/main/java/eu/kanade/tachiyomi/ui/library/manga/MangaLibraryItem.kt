@@ -13,6 +13,8 @@ class MangaLibraryItem(
     var sourceLanguage: String = "",
     private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
 ) {
+    internal val sortTitle by lazy { libraryManga.manga.title.lowercase() }
+
     val sourceName by lazy { sourceManager.getOrStub(libraryManga.manga.source).getNameForMangaInfo() }
 
     /**

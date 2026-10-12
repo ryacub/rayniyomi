@@ -118,10 +118,14 @@ class AnimeLibraryScreenModel(
         viewModelScope,
     )
 
+    private val displayMode = libraryPreferences.displayMode().asState(viewModelScope)
+    private val portraitColumns = libraryPreferences.animePortraitColumns().asState(viewModelScope)
+    private val landscapeColumns = libraryPreferences.animeLandscapeColumns().asState(viewModelScope)
+
     init {
         viewModelScope.launch(ioDispatcher) {
             combine(
-                state.map { it.searchQuery }.debounce(SEARCH_DEBOUNCE_MILLIS),
+                state.map { it.searchQuery }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MILLIS),
                 getAnimelibItemPreferencesFlow().flatMapLatest { prefs ->
                     val downloadedOnly = prefs.globalFilterDownloaded
                     val dbFilter = LibraryFilter(
@@ -135,8 +139,7 @@ class AnimeLibraryScreenModel(
                 },
                 getTracksPerAnime.subscribe(),
                 getTrackingFilterFlow(),
-                downloadCache.changes,
-            ) { searchQuery, library, tracks, trackingFilter, _ ->
+            ) { searchQuery, library, tracks, trackingFilter ->
                 val searchMatcher = librarySearchMatcher(searchQuery)
                 library
                     .applyRemainingFilters(tracks, trackingFilter)
@@ -225,12 +228,11 @@ class AnimeLibraryScreenModel(
             }
         }
 
+        val trackerIdsByEntry = trackMap.mapValues { entry -> entry.value.map { it.trackerId } }
         val filterFnTracking: (AnimeLibraryItem) -> Boolean = tracking@{ item ->
             if (isNotLoggedInAnyTrack || trackFiltersIsIgnored) return@tracking true
 
-            val animeTracks = trackMap
-                .mapValues { entry -> entry.value.map { it.trackerId } }[item.libraryAnime.id]
-                .orEmpty()
+            val animeTracks = trackerIdsByEntry[item.libraryAnime.id].orEmpty()
 
             val isExcluded = excludedTracks.isNotEmpty() && animeTracks.fastAny { it in excludedTracks }
             val isIncluded = includedTracks.isEmpty() || animeTracks.fastAny { it in includedTracks }
@@ -251,7 +253,7 @@ class AnimeLibraryScreenModel(
         loggedInTrackerIds: Set<Long>,
     ): AnimeLibraryMap {
         val sortAlphabetically: (AnimeLibraryItem, AnimeLibraryItem) -> Int = { i1, i2 ->
-            i1.libraryAnime.anime.title.lowercase().compareToWithCollator(i2.libraryAnime.anime.title.lowercase())
+            i1.sortTitle.compareToWithCollator(i2.sortTitle)
         }
 
         val defaultTrackerScoreSortValue = -1.0
@@ -572,21 +574,10 @@ class AnimeLibraryScreenModel(
         }
     }
 
-    fun getDisplayMode(): PreferenceMutableState<LibraryDisplayMode> {
-        return libraryPreferences.displayMode().asState(viewModelScope)
-    }
+    fun getDisplayMode(): PreferenceMutableState<LibraryDisplayMode> = displayMode
 
-    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> {
-        return (
-            if (isLandscape) {
-                libraryPreferences.animeLandscapeColumns()
-            } else {
-                libraryPreferences.animePortraitColumns()
-            }
-            ).asState(
-            viewModelScope,
-        )
-    }
+    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> =
+        if (isLandscape) landscapeColumns else portraitColumns
 
     suspend fun getRandomAnimelibItemForCurrentCategory(): AnimeLibraryItem? {
         if (state.value.categories.isEmpty()) return null

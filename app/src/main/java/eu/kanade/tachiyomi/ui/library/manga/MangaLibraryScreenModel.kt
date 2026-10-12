@@ -115,10 +115,14 @@ class MangaLibraryScreenModel(
         viewModelScope,
     )
 
+    private val displayMode = libraryPreferences.displayMode().asState(viewModelScope)
+    private val portraitColumns = libraryPreferences.mangaPortraitColumns().asState(viewModelScope)
+    private val landscapeColumns = libraryPreferences.mangaLandscapeColumns().asState(viewModelScope)
+
     init {
         viewModelScope.launch(ioDispatcher) {
             combine(
-                state.map { it.searchQuery }.debounce(SEARCH_DEBOUNCE_MILLIS),
+                state.map { it.searchQuery }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MILLIS),
                 getLibraryItemPreferencesFlow().flatMapLatest { prefs ->
                     val downloadedOnly = prefs.globalFilterDownloaded
                     val dbFilter = LibraryFilter(
@@ -132,8 +136,7 @@ class MangaLibraryScreenModel(
                 },
                 getTracksPerManga.subscribe(),
                 getTrackingFilterFlow(),
-                downloadCache.changes,
-            ) { searchQuery, library, tracks, trackingFilter, _ ->
+            ) { searchQuery, library, tracks, trackingFilter ->
                 val searchMatcher = librarySearchMatcher(searchQuery)
                 library
                     .applyRemainingFilters(tracks, trackingFilter)
@@ -222,12 +225,11 @@ class MangaLibraryScreenModel(
             }
         }
 
+        val trackerIdsByEntry = trackMap.mapValues { entry -> entry.value.map { it.trackerId } }
         val filterFnTracking: (MangaLibraryItem) -> Boolean = tracking@{ item ->
             if (isNotLoggedInAnyTrack || trackFiltersIsIgnored) return@tracking true
 
-            val mangaTracks = trackMap
-                .mapValues { entry -> entry.value.map { it.trackerId } }[item.libraryManga.id]
-                .orEmpty()
+            val mangaTracks = trackerIdsByEntry[item.libraryManga.id].orEmpty()
 
             val isExcluded = excludedTracks.isNotEmpty() && mangaTracks.fastAny { it in excludedTracks }
             val isIncluded = includedTracks.isEmpty() || mangaTracks.fastAny { it in includedTracks }
@@ -248,7 +250,7 @@ class MangaLibraryScreenModel(
         loggedInTrackerIds: Set<Long>,
     ): MangaLibraryMap {
         val sortAlphabetically: (MangaLibraryItem, MangaLibraryItem) -> Int = { i1, i2 ->
-            i1.libraryManga.manga.title.lowercase().compareToWithCollator(i2.libraryManga.manga.title.lowercase())
+            i1.sortTitle.compareToWithCollator(i2.sortTitle)
         }
 
         val defaultTrackerScoreSortValue = -1.0
@@ -557,21 +559,10 @@ class MangaLibraryScreenModel(
         }
     }
 
-    fun getDisplayMode(): PreferenceMutableState<LibraryDisplayMode> {
-        return libraryPreferences.displayMode().asState(viewModelScope)
-    }
+    fun getDisplayMode(): PreferenceMutableState<LibraryDisplayMode> = displayMode
 
-    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> {
-        return (
-            if (isLandscape) {
-                libraryPreferences.mangaLandscapeColumns()
-            } else {
-                libraryPreferences.mangaPortraitColumns()
-            }
-            ).asState(
-            viewModelScope,
-        )
-    }
+    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> =
+        if (isLandscape) landscapeColumns else portraitColumns
 
     suspend fun getRandomLibraryItemForCurrentCategory(): MangaLibraryItem? {
         if (state.value.categories.isEmpty()) return null

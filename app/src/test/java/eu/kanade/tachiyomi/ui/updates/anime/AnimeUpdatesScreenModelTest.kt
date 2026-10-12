@@ -10,8 +10,12 @@ import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.test.assertClearingStoreCancelsScope
 import eu.kanade.tachiyomi.test.awaitAssert
 import eu.kanade.tachiyomi.ui.updates.InMemoryPreferenceStore
+import eu.kanade.tachiyomi.util.lang.toLocalDate
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -112,6 +116,32 @@ class AnimeUpdatesScreenModelTest {
     }
 
     @Test
+    fun `rebuilding the ui model does not convert fetch dates again`() {
+        val items = persistentListOf(
+            AnimeUpdatesItem(
+                update = update(10, dateFetch = 1_700_000_000_000L),
+                downloadStateProvider = { AnimeDownload.State.NOT_DOWNLOADED },
+                downloadProgressProvider = { 0 },
+            ),
+            AnimeUpdatesItem(
+                update = update(20, dateFetch = 1_700_259_200_000L),
+                downloadStateProvider = { AnimeDownload.State.NOT_DOWNLOADED },
+                downloadProgressProvider = { 0 },
+            ),
+        )
+        val state = AnimeUpdatesScreenModel.State(isLoading = false, items = items)
+
+        mockkStatic(DATE_EXTENSIONS)
+        try {
+            state.getUiModel()
+
+            verify(exactly = 0) { any<Long>().toLocalDate() }
+        } finally {
+            unmockkStatic(DATE_EXTENSIONS)
+        }
+    }
+
+    @Test
     fun `date headers still emit when the list spans dates`() {
         val items = persistentListOf(
             AnimeUpdatesItem(
@@ -128,7 +158,10 @@ class AnimeUpdatesScreenModelTest {
 
         val uiModel = AnimeUpdatesScreenModel.State(isLoading = false, items = items).getUiModel()
 
-        assertTrue(uiModel.filterIsInstance<AnimeUpdatesUiModel.Header>().isNotEmpty())
+        assertEquals(
+            listOf(1_700_000_000_000L.toLocalDate(), 1_700_259_200_000L.toLocalDate()),
+            uiModel.filterIsInstance<AnimeUpdatesUiModel.Header>().map { it.date },
+        )
     }
 
     @Test
@@ -235,5 +268,9 @@ class AnimeUpdatesScreenModelTest {
         val env = TestEnvironment()
         env.stubInteractor(flowOf(emptyList()))
         assertClearingStoreCancelsScope { env.model() }
+    }
+
+    private companion object {
+        const val DATE_EXTENSIONS = "eu.kanade.tachiyomi.util.lang.DateExtensionsKt"
     }
 }

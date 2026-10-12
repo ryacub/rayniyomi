@@ -22,7 +22,7 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
-import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.interactor.GetWatchTimeByAnimeId
 import tachiyomi.domain.library.anime.LibraryAnime
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.ENTRY_HAS_UNVIEWED
@@ -38,7 +38,7 @@ import tachiyomi.source.local.entries.anime.isLocal
 class AnimeStatsScreenModel(
     private val downloadManager: AnimeDownloadManager,
     private val getAnimelibAnime: GetLibraryAnime,
-    private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
+    private val getWatchTimeByAnimeId: GetWatchTimeByAnimeId,
     private val getTracks: GetAnimeTracks,
     private val preferences: LibraryPreferences,
     private val trackerManager: TrackerManager,
@@ -106,9 +106,9 @@ class AnimeStatsScreenModel(
         val excludedMangaIds = if (excludedCategories.isNotEmpty()) {
             libraryAnime.fastMapNotNull { anime ->
                 anime.id.takeIf { anime.category in excludedCategories }
-            }
+            }.toHashSet()
         } else {
-            emptyList()
+            emptySet()
         }
 
         val updateRestrictions = preferences.autoUpdateItemRestrictions().get()
@@ -124,27 +124,15 @@ class AnimeStatsScreenModel(
 
     private suspend fun getAnimeTrackMap(libraryAnime: List<LibraryAnime>): Map<Long, List<AnimeTrack>> {
         val loggedInTrackerIds = loggedInTrackers.map { it.id }.toHashSet()
-        return libraryAnime.associate { anime ->
-            val tracks = getTracks.await(anime.id)
-                .fastFilter { it.trackerId in loggedInTrackerIds }
-
-            anime.id to tracks
-        }
+        val tracksByAnimeId = getTracks.awaitAll()
+            .filter { it.trackerId in loggedInTrackerIds }
+            .groupBy { it.animeId }
+        return libraryAnime.associate { anime -> anime.id to tracksByAnimeId[anime.id].orEmpty() }
     }
 
     private suspend fun getWatchTime(libraryAnimeList: List<LibraryAnime>): Long {
-        var watchTime = 0L
-        libraryAnimeList.forEach { libraryAnime ->
-            getEpisodesByAnimeId.await(libraryAnime.anime.id).forEach { episode ->
-                watchTime += if (episode.seen) {
-                    episode.totalSeconds
-                } else {
-                    episode.lastSecondSeen
-                }
-            }
-        }
-
-        return watchTime
+        val watchTimeByAnimeId = getWatchTimeByAnimeId.await()
+        return libraryAnimeList.sumOf { watchTimeByAnimeId[it.anime.id] ?: 0L }
     }
 
     private fun getScoredAnimeTrackMap(animeTrackMap: Map<Long, List<AnimeTrack>>): Map<Long, List<AnimeTrack>> {
