@@ -5,6 +5,8 @@ import android.content.Context
 import android.os.Build
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import data.Chapters
 import data.History
@@ -128,46 +130,30 @@ object AppModule {
     @SingleIn(AppScope::class)
     @MangaDatabaseDriver
     fun provideMangaDatabaseDriver(application: Application): AndroidSqliteDriver =
-        AndroidSqliteDriver(
-            schema = Database.Schema,
-            context = application,
-            name = "tachiyomi.db",
-            factory = if (BuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // The debug driver supports the Android Studio database inspector.
-                FrameworkSQLiteOpenHelperFactory()
-            } else {
-                RequerySQLiteOpenHelperFactory()
-            },
-            callback = object : AndroidSqliteDriver.Callback(Database.Schema) {
-                override fun onOpen(db: SupportSQLiteDatabase) {
-                    super.onOpen(db)
-                    setPragma(db, "foreign_keys = ON")
-                    setPragma(db, "journal_mode = WAL")
-                    setPragma(db, "synchronous = NORMAL")
-                }
-                private fun setPragma(db: SupportSQLiteDatabase, pragma: String) {
-                    val cursor = db.query("PRAGMA $pragma")
-                    cursor.moveToFirst()
-                    cursor.close()
-                }
-            },
-        )
+        createDatabaseDriver(application, Database.Schema, "tachiyomi.db")
 
     @Provides
     @SingleIn(AppScope::class)
     @AnimeDatabaseDriver
     fun provideAnimeDatabaseDriver(application: Application): AndroidSqliteDriver =
+        createDatabaseDriver(application, AnimeDatabase.Schema, "tachiyomi.animedb")
+
+    private fun createDatabaseDriver(
+        application: Application,
+        schema: SqlSchema<QueryResult.Value<Unit>>,
+        name: String,
+    ): AndroidSqliteDriver =
         AndroidSqliteDriver(
-            schema = AnimeDatabase.Schema,
+            schema = schema,
             context = application,
-            name = "tachiyomi.animedb",
+            name = name,
             factory = if (BuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 // The debug driver supports the Android Studio database inspector.
                 FrameworkSQLiteOpenHelperFactory()
             } else {
                 RequerySQLiteOpenHelperFactory()
             },
-            callback = object : AndroidSqliteDriver.Callback(AnimeDatabase.Schema) {
+            callback = object : AndroidSqliteDriver.Callback(schema) {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
                     setPragma(db, "foreign_keys = ON")

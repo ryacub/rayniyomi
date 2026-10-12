@@ -4,8 +4,6 @@ import android.content.Context
 import android.os.Build
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.di.appGraph
-import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
-import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
@@ -63,66 +61,70 @@ class CrashLogUtil(private val context: Context) {
      * The error handler skips extension info when the app graph is absent.
      */
     private fun getExtensionsInfo(): String? = runCatching {
+        val mangaManager = appGraph.mangaExtensionManager
+        val animeManager = appGraph.animeExtensionManager
         val sections = listOfNotNull(
-            getMangaExtensionsInfo(appGraph.mangaExtensionManager),
-            getAnimeExtensionsInfo(appGraph.animeExtensionManager),
+            problematicExtensionsInfo(
+                installed = mangaManager.installedExtensionsFlow.value.map {
+                    InstalledExtensionVersion(it.name, it.pkgName, it.versionName, it.versionCode, it.isObsolete)
+                },
+                available = mangaManager.availableExtensionsFlow.value.associate {
+                    it.pkgName to AvailableExtensionVersion(it.versionName, it.versionCode)
+                },
+            ),
+            problematicExtensionsInfo(
+                installed = animeManager.installedExtensionsFlow.value.map {
+                    InstalledExtensionVersion(it.name, it.pkgName, it.versionName, it.versionCode, it.isObsolete)
+                },
+                available = animeManager.availableExtensionsFlow.value.associate {
+                    it.pkgName to AvailableExtensionVersion(it.versionName, it.versionCode)
+                },
+            ),
         )
         sections.joinToString("\n\n").ifEmpty { null }
     }.getOrNull()
 
-    private fun getMangaExtensionsInfo(manager: MangaExtensionManager): String? {
-        val availableExtensions = manager.availableExtensionsFlow.value.associateBy { it.pkgName }
-
-        val extensionInfoList = manager.installedExtensionsFlow.value
-            .sortedBy { it.name }
-            .mapNotNull {
-                val availableExtension = availableExtensions[it.pkgName]
-                val hasUpdate = (availableExtension?.versionCode ?: 0) > it.versionCode
-
-                if (!hasUpdate && !it.isObsolete) return@mapNotNull null
-
-                """
-                    - ${it.name}
-                      Installed: ${it.versionName} / Available: ${availableExtension?.versionName ?: "?"}
-                      Obsolete: ${it.isObsolete}
-                """.trimIndent()
-            }
-
-        return if (extensionInfoList.isNotEmpty()) {
-            (listOf("Problematic extensions:") + extensionInfoList)
-                .joinToString("\n")
-        } else {
-            null
-        }
-    }
-
-    private fun getAnimeExtensionsInfo(manager: AnimeExtensionManager): String? {
-        val availableExtensions = manager.availableExtensionsFlow.value.associateBy { it.pkgName }
-
-        val extensionInfoList = manager.installedExtensionsFlow.value
-            .sortedBy { it.name }
-            .mapNotNull {
-                val availableExtension = availableExtensions[it.pkgName]
-                val hasUpdate = (availableExtension?.versionCode ?: 0) > it.versionCode
-
-                if (!hasUpdate && !it.isObsolete) return@mapNotNull null
-
-                """
-                    - ${it.name}
-                      Installed: ${it.versionName} / Available: ${availableExtension?.versionName ?: "?"}
-                      Obsolete: ${it.isObsolete}
-                """.trimIndent()
-            }
-
-        return if (extensionInfoList.isNotEmpty()) {
-            (listOf("Problematic extensions:") + extensionInfoList)
-                .joinToString("\n")
-        } else {
-            null
-        }
-    }
-
     companion object {
         internal const val CRASH_LOG_FILENAME = "rayniyomi_crash_logs.txt"
+    }
+}
+
+internal data class InstalledExtensionVersion(
+    val name: String,
+    val pkgName: String,
+    val versionName: String,
+    val versionCode: Long,
+    val isObsolete: Boolean,
+)
+
+internal data class AvailableExtensionVersion(
+    val versionName: String,
+    val versionCode: Long,
+)
+
+internal fun problematicExtensionsInfo(
+    installed: List<InstalledExtensionVersion>,
+    available: Map<String, AvailableExtensionVersion>,
+): String? {
+    val extensionInfoList = installed
+        .sortedBy { it.name }
+        .mapNotNull {
+            val availableExtension = available[it.pkgName]
+            val hasUpdate = (availableExtension?.versionCode ?: 0) > it.versionCode
+
+            if (!hasUpdate && !it.isObsolete) return@mapNotNull null
+
+            """
+                - ${it.name}
+                  Installed: ${it.versionName} / Available: ${availableExtension?.versionName ?: "?"}
+                  Obsolete: ${it.isObsolete}
+            """.trimIndent()
+        }
+
+    return if (extensionInfoList.isNotEmpty()) {
+        (listOf("Problematic extensions:") + extensionInfoList)
+            .joinToString("\n")
+    } else {
+        null
     }
 }
