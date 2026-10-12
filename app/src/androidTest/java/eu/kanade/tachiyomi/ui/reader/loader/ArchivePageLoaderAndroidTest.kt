@@ -6,6 +6,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import kotlinx.coroutines.runBlocking
+import me.zhanghai.android.libarchive.Archive
+import me.zhanghai.android.libarchive.ArchiveEntry
 import mihon.core.archive.ArchiveReader
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -14,6 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.nio.ByteBuffer
 
 @RunWith(AndroidJUnit4::class)
 class ArchivePageLoaderAndroidTest {
@@ -24,9 +27,7 @@ class ArchivePageLoaderAndroidTest {
     @Before
     fun setUp() {
         archive = File.createTempFile("solid-pages", ".7z", instrumentation.targetContext.cacheDir)
-        instrumentation.context.assets.open(FIXTURE).use { input ->
-            archive.outputStream().use { input.copyTo(it) }
-        }
+        writeSolidArchive(archive)
     }
 
     @After
@@ -90,6 +91,35 @@ class ArchivePageLoaderAndroidTest {
             ArchivePageLoader(ArchiveReader(it))
         }
 
+    // libarchive's 7z writer compresses every entry into one block, so the archive is solid.
+    private fun writeSolidArchive(file: File) {
+        val archive = Archive.writeNew()
+        try {
+            Archive.writeSetFormat7zip(archive)
+            Archive.writeSetFormatOption(archive, null, "compression-level".toByteArray(), "1".toByteArray())
+            Archive.writeOpenFileName(archive, file.path.toByteArray())
+            repeat(PAGE_COUNT) { index ->
+                val entry = ArchiveEntry.new1()
+                try {
+                    ArchiveEntry.setPathnameUtf8(entry, "page%03d.jpg".format(index))
+                    ArchiveEntry.setFiletype(entry, ArchiveEntry.AE_IFREG)
+                    ArchiveEntry.setPerm(entry, "644".toInt(8))
+                    ArchiveEntry.setSize(entry, PAGE_SIZE.toLong())
+                    Archive.writeHeader(archive, entry)
+                } finally {
+                    ArchiveEntry.free(entry)
+                }
+                val page = ByteBuffer.allocateDirect(PAGE_SIZE)
+                repeat(PAGE_SIZE) { page.put((FIRST_FILL_BYTE + index).toByte()) }
+                page.flip()
+                Archive.writeData(archive, page)
+            }
+            Archive.writeClose(archive)
+        } finally {
+            Archive.writeFree(archive)
+        }
+    }
+
     private fun ReaderPage.read(): ByteArray = stream!!().use { it.readBytes() }
 
     private inline fun measure(block: () -> Unit): Long {
@@ -102,10 +132,8 @@ class ArchivePageLoaderAndroidTest {
         File(System.getProperty("java.io.tmpdir"), "archive-cache").list().orEmpty().toSet()
 
     private companion object {
-        // 100 pages of 512 KiB in one LZMA2 block. Page i is filled with byte 32 + i.
-        const val FIXTURE = "solid-pages.7z"
-        const val PAGE_COUNT = 100
-        const val PAGE_SIZE = 512 * 1024
+        const val PAGE_COUNT = 40
+        const val PAGE_SIZE = 256 * 1024
         const val FIRST_FILL_BYTE = 32
         const val REPEATED_READS = 19
         const val MAX_REPEAT_RATIO = 5
