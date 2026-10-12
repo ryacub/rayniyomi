@@ -37,7 +37,9 @@ class NovelStorageStartupCleanupTest {
         val dir = createTempDirectory("ln-startup-late-restore").toFile()
         try {
             val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
-            val incomingBookFile = File(booksDir, "chapter.tmp.epub").apply { writeText("book contents") }
+            val incomingBookFile = File(booksDir, "550e8400-e29b-41d4-a716-446655440004.tmp.epub").apply {
+                writeText("book contents")
+            }
             val context = mockk<Context> {
                 every { filesDir } returns dir
             }
@@ -55,29 +57,26 @@ class NovelStorageStartupCleanupTest {
     }
 
     @Test
-    fun constructorDefersStaleCleanupUntilFirstLibraryQuery() {
+    fun constructorDefersStorageInitializationUntilFirstLibraryQuery() {
         val dir = createTempDirectory("ln-startup-deferred").toFile()
         try {
-            val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
-            val stale = File(booksDir, "550e8400-e29b-41d4-a716-446655440000.tmp.epub").apply {
-                writeText("interrupted import")
-            }
+            val rootDir = File(dir, "light_novel_plugin")
             val context = mockk<Context> {
                 every { filesDir } returns dir
             }
 
             val storage = NovelStorage(context)
 
-            assertTrue(stale.exists())
+            assertFalse(rootDir.exists())
             storage.listBooks()
-            assertFalse(stale.exists())
+            assertTrue(rootDir.exists())
         } finally {
             dir.deleteRecursively()
         }
     }
 
     @Test
-    fun firstLibraryQueryRemovesStaleTempFilesOnlyOnFirstInitialization() {
+    fun firstRestoreRemovesStaleTempFilesOnlyOnce() {
         val dir = createTempDirectory("ln-startup-cleanup").toFile()
         try {
             val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
@@ -89,14 +88,14 @@ class NovelStorageStartupCleanupTest {
             }
 
             val storage = NovelStorage(context)
-            storage.listBooks()
+            storage.restoreLibrary(NovelLibrary())
 
             assertFalse(stale.exists())
 
             val activeImport = File(booksDir, "550e8400-e29b-41d4-a716-446655440002.tmp.epub").apply {
                 writeText("active import")
             }
-            NovelStorage(context).listBooks()
+            NovelStorage(context).restoreLibrary(NovelLibrary())
 
             assertTrue(activeImport.exists())
         } finally {
@@ -105,7 +104,7 @@ class NovelStorageStartupCleanupTest {
     }
 
     @Test
-    fun firstLibraryQueryPreservesTempNamedBookReferencedByLibrary() {
+    fun firstRestorePreservesTempNamedBookReferencedByLibrary() {
         val dir = createTempDirectory("ln-startup-referenced").toFile()
         try {
             val rootDir = File(dir, "light_novel_plugin")
@@ -120,7 +119,7 @@ class NovelStorageStartupCleanupTest {
                 every { filesDir } returns dir
             }
 
-            NovelStorage(context).listBooks()
+            NovelStorage(context).restoreLibrary(NovelLibrary())
 
             assertTrue(referenced.exists())
         } finally {
