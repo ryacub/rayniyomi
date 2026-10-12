@@ -8,5 +8,7 @@ expect class LocalMangaCoverManager {
 
     fun find(mangaUrl: String): UniFile?
 
+    fun find(mangaDirFiles: List<UniFile>): UniFile?
+
     fun update(manga: SManga, inputStream: InputStream): UniFile?
 }

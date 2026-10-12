@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.loader
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
+import mihon.core.archive.ArchiveEntryCache
 import mihon.core.archive.ArchiveReader
 import tachiyomi.core.common.util.system.ImageUtil
 
@@ -12,13 +13,15 @@ import tachiyomi.core.common.util.system.ImageUtil
 internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader() {
     override var isLocal: Boolean = true
 
+    private val entryCache = ArchiveEntryCache(reader)
+
     override suspend fun getPages(): List<ReaderPage> = reader.useEntries { entries ->
         entries
-            .filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
+            .filter { it.isFile && ImageUtil.isImage(it.name) { entryCache.getInputStream(it.name)!! } }
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
             .mapIndexed { i, entry ->
                 ReaderPage(i).apply {
-                    stream = { reader.getInputStream(entry.name)!! }
+                    stream = { entryCache.getInputStream(entry.name)!! }
                     status = Page.State.READY
                 }
             }
@@ -31,6 +34,6 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
 
     override fun recycle() {
         super.recycle()
-        reader.close()
+        entryCache.close()
     }
 }

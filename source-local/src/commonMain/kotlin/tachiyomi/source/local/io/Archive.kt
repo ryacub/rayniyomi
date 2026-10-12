@@ -7,8 +7,8 @@ object ArchiveAnime {
 
     private val SUPPORTED_ARCHIVE_TYPES = listOf("avi", "flv", "mkv", "mov", "mp4", "webm", "wmv")
 
-    fun isSupported(file: UniFile): Boolean = with(file) {
-        return file.extension in SUPPORTED_ARCHIVE_TYPES
+    fun isSupported(file: UniFile): Boolean {
+        return file.extension?.lowercase() in SUPPORTED_ARCHIVE_TYPES
     }
 }
 

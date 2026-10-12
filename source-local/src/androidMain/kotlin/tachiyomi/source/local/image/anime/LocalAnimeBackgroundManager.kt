@@ -17,10 +17,12 @@ actual class LocalAnimeBackgroundManager(
     private val fileSystem: LocalAnimeSourceFileSystem,
 ) {
 
-    actual fun find(animeUrl: String): UniFile? {
-        return fileSystem.getFilesInAnimeDirectory(animeUrl)
+    actual fun find(animeUrl: String): UniFile? = find(fileSystem.getFilesInAnimeDirectory(animeUrl))
+
+    actual fun find(animeDirFiles: List<UniFile>): UniFile? {
+        return animeDirFiles
             // Get all file whose names start with 'background'
-            .filter { it.isFile && it.nameWithoutExtension.equals("background", ignoreCase = true) }
+            .filter { it.nameWithoutExtension.equals("background", ignoreCase = true) && it.isFile }
             // Get the first actual image
             .firstOrNull { ImageUtil.isImage(it.name) { it.openInputStream() } }
     }

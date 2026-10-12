@@ -126,8 +126,8 @@ app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	hoster.v
 app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	hoster.videoList != null -> hoster.videoList!!
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	inputStream = page.stream!!,
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	inputStream = page.stream!!,
-app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	.filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
-app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	stream = { reader.getInputStream(entry.name)!! }
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	.filter { it.isFile && ImageUtil.isImage(it.name) { entryCache.getInputStream(it.name)!! } }
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/ArchivePageLoader.kt	stream = { entryCache.getInputStream(entry.name)!! }
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/loader/HttpPageLoader.kt	val imageUrl = page.imageUrl!!
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/GestureDetectorWithLongTap.kt	private val longTapFn = Runnable { listener.onLongTapConfirmed(lastDownEvent!!) }
 app/src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/ReaderPageImageView.kt	view.animateCenter(target)!!

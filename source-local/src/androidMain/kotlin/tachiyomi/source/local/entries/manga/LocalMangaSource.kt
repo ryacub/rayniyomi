@@ -89,6 +89,9 @@ actual class LocalMangaSource(
             0L
         }
 
+        val modifiedTimes = mutableMapOf<UniFile, Long>()
+        fun UniFile.cachedLastModified() = modifiedTimes.getOrPut(this) { lastModified() }
+
         var mangaDirs = fileSystem.getFilesInBaseDirectory()
             // Filter out files that are hidden and is not a folder
             .filter { it.isDirectory && !it.name.orEmpty().startsWith('.') }
@@ -99,7 +102,7 @@ actual class LocalMangaSource(
                 } else if (lastModifiedLimit == 0L) {
                     it.name.orEmpty().contains(query, ignoreCase = true)
                 } else {
-                    it.lastModified() >= lastModifiedLimit
+                    it.cachedLastModified() >= lastModifiedLimit
                 }
             }
 
@@ -114,9 +117,9 @@ actual class LocalMangaSource(
                 }
                 is MangaOrderBy.Latest -> {
                     mangaDirs = if (filter.state!!.ascending) {
-                        mangaDirs.sortedBy(UniFile::lastModified)
+                        mangaDirs.sortedBy { it.cachedLastModified() }
                     } else {
-                        mangaDirs.sortedByDescending(UniFile::lastModified)
+                        mangaDirs.sortedByDescending { it.cachedLastModified() }
                     }
                 }
                 else -> {
@@ -133,7 +136,7 @@ actual class LocalMangaSource(
                         url = mangaDir.name.orEmpty()
 
                         // Try to find the cover
-                        coverManager.find(mangaDir.name.orEmpty())?.let {
+                        coverManager.find(mangaDir.listFiles().orEmpty().toList())?.let {
                             thumbnail_url = it.uri.toString()
                         }
                     }
@@ -183,7 +186,7 @@ actual class LocalMangaSource(
                 // Old custom JSON format
                 // TODO: remove support for this entirely after a while
                 legacyJsonDetailsFile != null -> {
-                    json.decodeFromStream<MangaDetails>(legacyJsonDetailsFile.openInputStream()).run {
+                    legacyJsonDetailsFile.openInputStream().use { json.decodeFromStream<MangaDetails>(it) }.run {
                         title?.let { manga.title = it }
                         author?.let { manga.author = it }
                         artist?.let { manga.artist = it }
@@ -260,7 +263,7 @@ actual class LocalMangaSource(
                 it.extension == "json" && it.nameWithoutExtension == "chapters"
             }?.let { file ->
                 runCatching {
-                    json.decodeFromStream<List<ChapterDetails>>(file.openInputStream())
+                    file.openInputStream().use { json.decodeFromStream<List<ChapterDetails>>(it) }
                 }.getOrNull()
             }
 
