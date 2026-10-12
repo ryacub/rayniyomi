@@ -101,6 +101,27 @@ class AnimeFillerListSourceTest {
     }
 
     @Test
+    fun `retry window starts when the catalog fetch fails`() = runTest {
+        var now = 1_000L
+        var catalogRequests = 0
+        val source = AnimeFillerListSource(
+            cache = AnimeFillerDiskCache(cacheDirectory),
+            nowProvider = { now },
+            fetchHtml = { url ->
+                if (url.endsWith("/shows")) catalogRequests++
+                now += 9 * 60 * 1000L
+                throw IOException("timeout")
+            },
+        )
+
+        assertNull(source.getFillerEpisodes("Naruto"))
+        now += 60 * 1000L + 1
+        assertNull(source.getFillerEpisodes("Bleach"))
+
+        assertEquals(1, catalogRequests)
+    }
+
+    @Test
     fun `failed catalog fetch is not repeated until the retry window passes`() = runTest {
         var now = 1_000L
         var catalogRequests = 0
