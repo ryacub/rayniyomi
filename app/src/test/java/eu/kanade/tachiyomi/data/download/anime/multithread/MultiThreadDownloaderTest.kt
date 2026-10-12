@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.data.download.anime.multithread
 
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.data.download.anime.resume.ChunkProgress
+import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import io.kotest.matchers.shouldBe
@@ -77,6 +79,47 @@ class MultiThreadDownloaderTest {
         finalProgress.chunks.size shouldBe 2
         finalProgress.chunks.all { it.downloadedBytes == it.totalBytes } shouldBe true
         finalProgress.downloadedBytes shouldBe video.size.toLong()
+    }
+
+    @Test
+    fun `resume downloads again a chunk saved as complete whose file is gone`() = runTest {
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val output = File(tempDir, "episode.mp4")
+        val videoUrl = server.url("/episode.mp4").toString()
+        val savedProgress = DownloadProgress(
+            episodeId = EPISODE_ID,
+            videoUrl = videoUrl,
+            totalBytes = video.size.toLong(),
+            downloadedBytes = video.size.toLong(),
+            chunks = ChunkSizeCalculator.calculateChunks(video.size.toLong(), 2).mapIndexed { index, range ->
+                ChunkProgress(
+                    index = index,
+                    startByte = range.startByte,
+                    endByte = range.endByte,
+                    downloadedBytes = range.endByte - range.startByte + 1,
+                    status = ChunkProgress.ChunkStatus.COMPLETED,
+                    tempFileName = "chunk_${EPISODE_ID}_$index.tmp",
+                )
+            },
+            status = DownloadProgress.Status.ERROR,
+        )
+        val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns savedProgress
+        }
+        val downloader = MultiThreadDownloader(OkHttpClient(), resumingStore, maxThreadsProvider = { 2 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
     }
 
     private fun uniFileAt(file: File): UniFile = mockk {
