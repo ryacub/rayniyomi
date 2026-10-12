@@ -33,14 +33,17 @@ class ArchiveEntryCache(private val reader: ArchiveReader) : Closeable {
         return lock.withLock {
             try {
                 if (closed) throw IOException("Archive is closed")
-                val decodeToSkip = needsDecodeToSkip
-                    ?: reader.openStream().use { it.getNextEntry(); it.needsDecodeToSkip() }
-                        .also { needsDecodeToSkip = it }
+                val decodeToSkip = needsDecodeToSkip ?: readNeedsDecodeToSkip().also { needsDecodeToSkip = it }
                 if (decodeToSkip) extract(entryName)?.inputStream() else reader.getInputStream(entryName)
             } finally {
                 if (closed) release()
             }
         }
+    }
+
+    private fun readNeedsDecodeToSkip() = reader.openStream().use {
+        it.getNextEntry()
+        it.needsDecodeToSkip()
     }
 
     private fun extract(entryName: String): File? {
