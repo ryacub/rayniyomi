@@ -71,6 +71,7 @@ class NovelStorageMutationTest {
                         }
                         val storage = NovelStorage(context)
                         val libraryFile = File(dir, "light_novel_plugin/library.json")
+                        libraryFile.parentFile?.mkdirs()
                         libraryFile.writeBytes(originalBytes)
 
                         val result = runCatching { mutation(storage, mockk<Uri>()) }

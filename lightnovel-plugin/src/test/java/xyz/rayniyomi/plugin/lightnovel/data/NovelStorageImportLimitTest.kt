@@ -49,7 +49,10 @@ class NovelStorageImportLimitTest {
         }
         val storage = NovelStorage(context)
         val originalLibrary = """{"schema_version":2,"library":{"books":[]}}""".encodeToByteArray()
-        val libraryFile = File(dir, "light_novel_plugin/library.json").apply { writeBytes(originalLibrary) }
+        val libraryFile = File(dir, "light_novel_plugin/library.json").apply {
+            parentFile?.mkdirs()
+            writeBytes(originalLibrary)
+        }
 
         val error = assertThrows(ImportTooLargeException::class.java) {
             storage.importEpub(mockk<Uri>())
