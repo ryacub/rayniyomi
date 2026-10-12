@@ -1,10 +1,68 @@
 package eu.kanade.tachiyomi.data.download.anime.resume
 
+import android.content.Context
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
 
 class DownloadStateStoreTest {
+
+    @OptIn(ExperimentalSerializationApi::class)
+    @Serializable
+    private data class TimestampedProgress(
+        @ProtoNumber(1) val episodeId: Long,
+        @ProtoNumber(2) val videoUrl: String,
+        @ProtoNumber(3) val totalBytes: Long,
+        @ProtoNumber(4) val downloadedBytes: Long,
+        @ProtoNumber(5) val chunks: List<ChunkProgress>,
+        @ProtoNumber(6) val status: DownloadProgress.Status,
+        @ProtoNumber(7) val createdAt: Long,
+        @ProtoNumber(8) val updatedAt: Long,
+    )
+
+    @OptIn(ExperimentalSerializationApi::class)
+    @Test
+    fun `loadProgress reads a file saved with creation and update timestamps`(@TempDir cacheDir: File) {
+        val chunk = ChunkProgress(
+            index = 0,
+            startByte = 0,
+            endByte = 99,
+            downloadedBytes = 40,
+            status = ChunkProgress.ChunkStatus.DOWNLOADING,
+            tempFileName = "chunk_0.tmp",
+        )
+        val saved = TimestampedProgress(
+            episodeId = 7L,
+            videoUrl = "http://example.com/video.mp4",
+            totalBytes = 100L,
+            downloadedBytes = 40L,
+            chunks = listOf(chunk),
+            status = DownloadProgress.Status.PAUSED,
+            createdAt = 1_000L,
+            updatedAt = 2_000L,
+        )
+        val context = mockk<Context> { every { this@mockk.cacheDir } returns cacheDir }
+        val store = DownloadStateStore(context)
+        File(cacheDir, "download_progress/7.dp").writeBytes(ProtoBuf.encodeToByteArray(saved))
+
+        val loaded = store.loadProgress(7L)
+
+        loaded?.episodeId shouldBe 7L
+        loaded?.videoUrl shouldBe "http://example.com/video.mp4"
+        loaded?.totalBytes shouldBe 100L
+        loaded?.downloadedBytes shouldBe 40L
+        loaded?.chunks shouldBe listOf(chunk)
+        loaded?.status shouldBe DownloadProgress.Status.PAUSED
+    }
 
     @Test
     fun `progressPercent should calculate correctly`() {
