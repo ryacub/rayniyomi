@@ -134,6 +134,17 @@ class MangaDownloadCacheSizeTest {
     }
 
     @Test
+    fun `a cleared size is walked again`() {
+        awaitChapterCount(cache, 2)
+        cache.getDownloadSize(manga)
+
+        chapterFiles += cbz(ADDED, 50)
+        cache.clearDownloadSize(MANGA_TITLE, SOURCE_ID)
+
+        cache.getDownloadSize(manga) shouldBe 350
+    }
+
+    @Test
     fun `a stored size is read from the index after a restart without a walk`() {
         restoreIndexFoldersAs(mangaDir)
         awaitChapterCount(cache, 2)
@@ -153,12 +164,26 @@ class MangaDownloadCacheSizeTest {
     fun `an index written before sizes were stored still loads`() {
         val oldIndex = OldRoot(
             sourceDirs = mapOf(
-                SOURCE_ID to OldSource(mangaDirs = mapOf(MANGA_TITLE to OldManga(chapterDirs = setOf(EXISTING)))),
+                SOURCE_ID to OldSource(
+                    mangaDirs = mapOf(MANGA_TITLE to OldManga(dir = FOLDER_URI, chapterDirs = setOf(EXISTING, OTHER))),
+                ),
             ),
         )
         File(cacheDir, "dl_index_cache_v3").writeBytes(ProtoBuf.encodeToByteArray(oldIndex))
+        restoreIndexFoldersAs(mangaDir)
 
-        awaitChapterCount(cache, 1)
+        awaitChapterCount(cache, 2)
+
+        cache.getDownloadSize(manga) shouldBe 300
+        lengthReads.get() shouldBe 2
+    }
+
+    @Test
+    fun `a partial download folder is not counted`() {
+        chapterFiles += partialDownload("${ADDED}_tmp", 1_000)
+        awaitChapterCount(cache, 2)
+
+        cache.getDownloadSize(manga) shouldBe 300
     }
 
     private fun newCache(downloadsDir: UniFile = rootDir) = MangaDownloadCache(
@@ -214,6 +239,12 @@ class MangaDownloadCacheSizeTest {
         }
     }
 
+    private fun partialDownload(dirName: String, size: Long) = mockk<UniFile>(relaxed = true) {
+        every { isDirectory } returns true
+        every { name } returns dirName
+        every { listFiles() } returns arrayOf(cbz("partial", size))
+    }
+
     private fun chapter(chapterName: String) = Chapter.create().copy(name = chapterName, scanlator = null)
 
     @Serializable
@@ -232,6 +263,7 @@ class MangaDownloadCacheSizeTest {
         const val EXISTING = "Existing"
         const val OTHER = "Other"
         const val ADDED = "Added"
+        const val FOLDER_URI = "content://folder"
         const val INDEX_WRITE_WAIT_MS = 2_000L
     }
 }

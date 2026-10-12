@@ -153,12 +153,26 @@ class AnimeDownloadCacheSizeTest {
     fun `an index written before sizes were stored still loads`() {
         val oldIndex = OldRoot(
             sourceDirs = mapOf(
-                SOURCE_ID to OldSource(animeDirs = mapOf(ANIME_TITLE to OldAnime(episodeDirs = setOf(EXISTING)))),
+                SOURCE_ID to OldSource(
+                    animeDirs = mapOf(ANIME_TITLE to OldAnime(dir = FOLDER_URI, episodeDirs = setOf(EXISTING, OTHER))),
+                ),
             ),
         )
         File(cacheDir, "dl_anime_index_cache_v3").writeBytes(ProtoBuf.encodeToByteArray(oldIndex))
+        restoreIndexFoldersAs(animeDir)
 
-        awaitEpisodeCount(cache, 1)
+        awaitEpisodeCount(cache, 2)
+
+        cache.getDownloadSize(anime) shouldBe 300
+        lengthReads.get() shouldBe 2
+    }
+
+    @Test
+    fun `a partial download folder is not counted`() {
+        episodeFiles += partialDownload("${ADDED}_tmp", 1_000)
+        awaitEpisodeCount(cache, 2)
+
+        cache.getDownloadSize(anime) shouldBe 300
     }
 
     private fun newCache(downloadsDir: UniFile = rootDir) = AnimeDownloadCache(
@@ -214,6 +228,12 @@ class AnimeDownloadCacheSizeTest {
         }
     }
 
+    private fun partialDownload(dirName: String, size: Long) = mockk<UniFile>(relaxed = true) {
+        every { isDirectory } returns true
+        every { name } returns dirName
+        every { listFiles() } returns arrayOf(mp4("partial", size))
+    }
+
     private fun episode(episodeName: String) = Episode.create().copy(name = episodeName, scanlator = null)
 
     @Serializable
@@ -232,6 +252,7 @@ class AnimeDownloadCacheSizeTest {
         const val EXISTING = "Existing"
         const val OTHER = "Other"
         const val ADDED = "Added"
+        const val FOLDER_URI = "content://folder"
         const val INDEX_WRITE_WAIT_MS = 2_000L
     }
 }
