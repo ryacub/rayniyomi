@@ -1,9 +1,11 @@
 package xyz.rayniyomi.plugin.lightnovel
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -32,8 +34,6 @@ class ReaderActivity : AppCompatActivity() {
         binding = ActivityReaderBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        storage = NovelStorage(this)
-
         val bookId = intent.getStringExtra(EXTRA_BOOK_ID)
             ?: run {
                 Toast.makeText(this, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
@@ -41,63 +41,68 @@ class ReaderActivity : AppCompatActivity() {
                 return
             }
 
-        book = storage.getBook(bookId)
-            ?: run {
-                Toast.makeText(this, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
-
-        val bookFile = storage.getBookFile(book)
-        content = runCatching { EpubTextExtractor.parse(bookFile) }
-            .getOrElse {
-                Toast.makeText(this, getString(R.string.reader_parse_failed), Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
         lifecycleScope.launch {
+            val loadedBook = try {
+                loadReaderBook(this@ReaderActivity, bookId)
+            } catch (cause: CancellationException) {
+                throw cause
+            } catch (cause: Exception) {
+                Toast.makeText(this@ReaderActivity, getString(R.string.reader_parse_failed), Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            } ?: run {
+                Toast.makeText(this@ReaderActivity, getString(R.string.reader_open_failed), Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
+            storage = loadedBook.storage
+            book = loadedBook.book
+            content = loadedBook.content
+
             val seedColor = withContext(Dispatchers.IO) {
-                EpubTextExtractor.extractCoverSeedColor(bookFile)
-            } ?: return@launch
-            val isDarkMode =
-                (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-                    android.content.res.Configuration.UI_MODE_NIGHT_YES
-            val tokens = CoverAccentTheme.tokensFor(seedColor, isDarkMode)
-            CoverAccentTheme.applyButton(binding.previousButton, tokens)
-            CoverAccentTheme.applyButton(binding.nextButton, tokens)
-            CoverAccentTheme.applySurface(binding.bookTitle, tokens)
-            binding.chapterIndicator.setTextColor(tokens.accent)
-        }
-
-        if (content.chapters.isEmpty()) {
-            Toast.makeText(this, getString(R.string.reader_no_chapters), Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
-
-        currentChapterIndex = book.lastReadChapter.coerceIn(0, content.chapters.lastIndex)
-
-        binding.previousButton.setOnClickListener {
-            if (currentChapterIndex > 0) {
-                persistProgress()
-                currentChapterIndex -= 1
-                renderChapter(restoreSavedOffset = false)
+                EpubTextExtractor.extractCoverSeedColor(storage.getBookFile(book))
             }
-        }
-
-        binding.nextButton.setOnClickListener {
-            if (currentChapterIndex < content.chapters.lastIndex) {
-                persistProgress()
-                currentChapterIndex += 1
-                renderChapter(restoreSavedOffset = false)
+            if (seedColor != null) {
+                val isDarkMode =
+                    (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                        android.content.res.Configuration.UI_MODE_NIGHT_YES
+                val tokens = CoverAccentTheme.tokensFor(seedColor, isDarkMode)
+                CoverAccentTheme.applyButton(binding.previousButton, tokens)
+                CoverAccentTheme.applyButton(binding.nextButton, tokens)
+                CoverAccentTheme.applySurface(binding.bookTitle, tokens)
+                binding.chapterIndicator.setTextColor(tokens.accent)
             }
-        }
 
-        binding.chapterScroll.setOnScrollChangeListener { _, _, _, _, _ ->
-            schedulePersist()
-        }
+            if (content.chapters.isEmpty()) {
+                Toast.makeText(this@ReaderActivity, getString(R.string.reader_no_chapters), Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
 
-        renderChapter(restoreSavedOffset = true)
+            currentChapterIndex = book.lastReadChapter.coerceIn(0, content.chapters.lastIndex)
+
+            binding.previousButton.setOnClickListener {
+                if (currentChapterIndex > 0) {
+                    persistProgress()
+                    currentChapterIndex -= 1
+                    renderChapter(restoreSavedOffset = false)
+                }
+            }
+
+            binding.nextButton.setOnClickListener {
+                if (currentChapterIndex < content.chapters.lastIndex) {
+                    persistProgress()
+                    currentChapterIndex += 1
+                    renderChapter(restoreSavedOffset = false)
+                }
+            }
+
+            binding.chapterScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+                schedulePersist()
+            }
+
+            renderChapter(restoreSavedOffset = true)
+        }
     }
 
     override fun onPause() {
@@ -176,11 +181,15 @@ class ReaderActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             withContext(NonCancellable + Dispatchers.IO) {
-                storage.updateProgress(
-                    bookId = updatedBook.id,
-                    chapterIndex = updatedBook.lastReadChapter,
-                    charOffset = updatedBook.lastReadOffset,
-                )
+                try {
+                    storage.updateProgress(
+                        bookId = updatedBook.id,
+                        chapterIndex = updatedBook.lastReadChapter,
+                        charOffset = updatedBook.lastReadOffset,
+                    )
+                } catch (cause: Exception) {
+                    Log.e("ReaderActivity", "Unable to save reading progress", cause)
+                }
             }
         }
     }
