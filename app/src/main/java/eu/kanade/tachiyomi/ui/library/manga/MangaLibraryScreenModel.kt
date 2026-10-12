@@ -116,6 +116,8 @@ class MangaLibraryScreenModel(
     )
 
     private val displayMode = libraryPreferences.displayMode().asState(viewModelScope)
+    private val portraitColumns = libraryPreferences.mangaPortraitColumns().asState(viewModelScope)
+    private val landscapeColumns = libraryPreferences.mangaLandscapeColumns().asState(viewModelScope)
 
     init {
         viewModelScope.launch(ioDispatcher) {
@@ -559,17 +561,8 @@ class MangaLibraryScreenModel(
 
     fun getDisplayMode(): PreferenceMutableState<LibraryDisplayMode> = displayMode
 
-    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> {
-        return (
-            if (isLandscape) {
-                libraryPreferences.mangaLandscapeColumns()
-            } else {
-                libraryPreferences.mangaPortraitColumns()
-            }
-            ).asState(
-            viewModelScope,
-        )
-    }
+    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> =
+        if (isLandscape) landscapeColumns else portraitColumns
 
     suspend fun getRandomLibraryItemForCurrentCategory(): MangaLibraryItem? {
         if (state.value.categories.isEmpty()) return null

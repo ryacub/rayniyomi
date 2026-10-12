@@ -119,6 +119,8 @@ class AnimeLibraryScreenModel(
     )
 
     private val displayMode = libraryPreferences.displayMode().asState(viewModelScope)
+    private val portraitColumns = libraryPreferences.animePortraitColumns().asState(viewModelScope)
+    private val landscapeColumns = libraryPreferences.animeLandscapeColumns().asState(viewModelScope)
 
     init {
         viewModelScope.launch(ioDispatcher) {
@@ -574,17 +576,8 @@ class AnimeLibraryScreenModel(
 
     fun getDisplayMode(): PreferenceMutableState<LibraryDisplayMode> = displayMode
 
-    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> {
-        return (
-            if (isLandscape) {
-                libraryPreferences.animeLandscapeColumns()
-            } else {
-                libraryPreferences.animePortraitColumns()
-            }
-            ).asState(
-            viewModelScope,
-        )
-    }
+    fun getColumnsPreferenceForCurrentOrientation(isLandscape: Boolean): PreferenceMutableState<Int> =
+        if (isLandscape) landscapeColumns else portraitColumns
 
     suspend fun getRandomAnimelibItemForCurrentCategory(): AnimeLibraryItem? {
         if (state.value.categories.isEmpty()) return null
