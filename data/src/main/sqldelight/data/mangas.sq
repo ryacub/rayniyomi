@@ -90,18 +90,9 @@ WHERE favorite = 0 AND _id IN (
     WHERE read = 1 OR last_page_read != 0
 );
 
-getAllManga:
-SELECT *
-FROM mangas;
-
 getAllMangaSourceAndUrl:
 SELECT source, url
 FROM mangas;
-
-getMangasWithFavoriteTimestamp:
-SELECT *
-FROM mangas
-WHERE favorite_modified_at IS NOT NULL;
 
 getSourceIdWithFavoriteCount:
 SELECT
@@ -160,11 +151,6 @@ ORDER BY next_update ASC;
 resetViewerFlags:
 UPDATE mangas
 SET viewer = 0;
-
-resetIsSyncing:
-UPDATE mangas
-SET is_syncing = 0
-WHERE is_syncing = 1;
 
 getSourceIdsWithNonLibraryManga:
 SELECT source, COUNT(*) AS manga_count
