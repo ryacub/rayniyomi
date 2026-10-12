@@ -6,6 +6,8 @@ plugins {
 android {
     namespace = "tachiyomi.presentation.widget"
 
+    testOptions.unitTests.isReturnDefaultValues = true
+
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -26,4 +28,8 @@ dependencies {
 
     implementation(platform(libs.coil.bom))
     implementation(libs.coil.core)
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.bundles.test)
+    testImplementation(kotlinx.coroutines.test)
 }
