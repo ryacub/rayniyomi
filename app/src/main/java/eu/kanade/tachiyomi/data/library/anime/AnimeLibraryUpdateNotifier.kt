@@ -125,23 +125,6 @@ class AnimeLibraryUpdateNotifier(
         }
     }
 
-    fun showQueueSizeWarningNotification() {
-        context.notify(
-            Notifications.ID_LIBRARY_SIZE_WARNING,
-            Notifications.CHANNEL_LIBRARY_PROGRESS,
-        ) {
-            setContentTitle(context.stringResource(MR.strings.label_warning))
-            setStyle(
-                NotificationCompat.BigTextStyle().bigText(
-                    context.stringResource(MR.strings.notification_size_warning),
-                ),
-            )
-            setSmallIcon(R.drawable.ic_warning_white_24dp)
-            setTimeoutAfter(AnimeDownloader.WARNING_NOTIF_TIMEOUT_MS)
-            setContentIntent(NotificationHandler.openUrl(context, HELP_WARNING_URL))
-        }
-    }
-
     /**
      * Warn when excessively checking any single source.
      */

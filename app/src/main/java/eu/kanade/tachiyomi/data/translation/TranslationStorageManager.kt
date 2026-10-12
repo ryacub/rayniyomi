@@ -328,26 +328,6 @@ class TranslationStorageManager(
         return translatedDir.delete()
     }
 
-    /**
-     * Delete all translations for a chapter (all languages).
-     */
-    fun deleteAllTranslations(
-        chapterName: String,
-        chapterScanlator: String?,
-        mangaTitle: String,
-        source: MangaSource,
-    ): Boolean {
-        val root = getTranslationRoot(
-            chapterName,
-            chapterScanlator,
-            mangaTitle,
-            source,
-            create = false,
-        ) ?: return false
-
-        return root.delete()
-    }
-
     @Serializable
     data class TranslationMetadata(
         val provider: String,

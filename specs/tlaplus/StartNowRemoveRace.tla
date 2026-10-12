@@ -12,7 +12,7 @@ Init ==
     /\ removeState = "waiting"
 
 \* Model the overlapping call pattern this ticket fixes:
-\* startDownloadNow enters the mutex first, removeFromQueueSafely is queued behind it.
+\* startDownloadNow enters the mutex first, removeFromQueueSafelyByItemIds is queued behind it.
 StartWithinLock ==
     /\ lock = "start"
     /\ startState = "lookup"

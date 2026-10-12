@@ -208,18 +208,6 @@ class TranslationStorageManagerTest {
     }
 
     @Test
-    fun `cbz chapter deletes all languages by removing the sidecar folder`() {
-        cbzChapter()
-        manager.writeTranslatedPage(chapterName, null, mangaTitle, source, "en", "001.jpg", byteArrayOf(1))
-        manager.writeTranslatedPage(chapterName, null, mangaTitle, source, "fr", "001.jpg", byteArrayOf(1))
-        val sidecar = mangaDir.mock.findFile("Chapter 1.cbz_translated")!!
-
-        assertTrue(manager.deleteAllTranslations(chapterName, null, mangaTitle, source))
-
-        verify(exactly = 1) { sidecar.delete() }
-    }
-
-    @Test
     fun `loose chapter keeps the existing layout and never consults the manga dir`() {
         looseChapter()
 

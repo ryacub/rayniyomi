@@ -117,11 +117,10 @@ class MangaDownloadManager(
      */
     private val queueMutex = Mutex()
 
-    private val queueMutations: DownloadQueueMutations<MangaDownload, Chapter> by lazy {
+    private val queueMutations: DownloadQueueMutations<MangaDownload> by lazy {
         DownloadQueueMutations(
             queueState = downloader.queueState,
             itemId = { it.chapter.id },
-            ownerItemId = { chapter: Chapter -> chapter.id },
             createFromId = { id -> MangaDownload.fromChapterId(id) },
             moveToFront = downloader::moveToFront,
             updateQueue = downloader::updateQueue,

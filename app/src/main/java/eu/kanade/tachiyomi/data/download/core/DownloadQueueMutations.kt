@@ -14,12 +14,10 @@ import tachiyomi.core.common.util.system.logcat
  * Thread-safe: all mutations are serialized through an internal actor.
  *
  * @param D Download type (e.g., AnimeDownload, MangaDownload) - the item being downloaded
- * @param I Entity type that owns downloads (e.g., Episode, Chapter) - used for removal operations
  */
-class DownloadQueueMutations<D : Any, I : Any>(
+class DownloadQueueMutations<D : Any>(
     private val queueState: StateFlow<List<D>>,
     private val itemId: (D) -> Long,
-    private val ownerItemId: (I) -> Long,
     private val createFromId: suspend (Long) -> D?,
     private val moveToFront: (D) -> Unit,
     private val updateQueue: (List<D>) -> Unit,
@@ -69,17 +67,6 @@ class DownloadQueueMutations<D : Any, I : Any>(
         queueActor.submit(DownloadQueueCommand.AddToStart(downloadIds)) {
             runReducerCommand(DownloadQueueCommand.AddToStart(downloadIds), startIfNeeded)
         }
-    }
-
-    /**
-     * Removes items from the queue safely with proper downloader state management.
-     *
-     * Thread-safe: all commands are serialized by [DownloadQueueActor].
-     *
-     * @param items The entities (episodes/chapters) to remove from the queue
-     */
-    suspend fun removeFromQueueSafely(items: List<I>) {
-        removeFromQueueSafelyByItemIds(items.map(ownerItemId))
     }
 
     suspend fun removeFromQueueSafelyByItemIds(itemIds: List<Long>) {
