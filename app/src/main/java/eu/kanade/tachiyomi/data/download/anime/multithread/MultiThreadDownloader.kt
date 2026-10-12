@@ -205,7 +205,7 @@ class MultiThreadDownloader(
             }
             chunkResults.firstFailure()?.let { error ->
                 logcat(LogPriority.ERROR) { "Chunk download failed: ${error.message}" }
-                saveProgress(chunkState.applyTo(progress).copy(status = DownloadProgress.Status.ERROR))
+                stateStore.saveProgress(chunkState.applyTo(progress).copy(status = DownloadProgress.Status.ERROR))
                 return DownloadResult.Error(error)
             }
 
@@ -249,7 +249,7 @@ class MultiThreadDownloader(
             }
         } catch (e: CancellationException) {
             // Save progress for resume
-            saveProgress(
+            stateStore.saveProgress(
                 progress.copy(
                     downloadedBytes = chunkState.totalBytes(),
                     status = DownloadProgress.Status.PAUSED,
@@ -258,7 +258,7 @@ class MultiThreadDownloader(
             DownloadResult.Cancelled
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Download failed: ${e.message}" }
-            saveProgress(progress.copy(status = DownloadProgress.Status.ERROR))
+            stateStore.saveProgress(progress.copy(status = DownloadProgress.Status.ERROR))
             DownloadResult.Error(DownloadError.UnknownError(e))
         } finally {
             scope.cancel()
@@ -300,13 +300,6 @@ class MultiThreadDownloader(
         return errors.firstOrNull { it is DownloadError.DiskFull }
             ?: errors.firstOrNull { it is DownloadError.InvalidRange }
             ?: errors.firstOrNull()
-    }
-
-    /**
-     * Saves progress to state store.
-     */
-    private fun saveProgress(progress: DownloadProgress) {
-        stateStore.saveProgress(progress.withUpdatedTimestamp())
     }
 
     companion object {

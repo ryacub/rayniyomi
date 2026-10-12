@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.data.download.anime.resume
 
 import android.content.Context
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -161,19 +160,6 @@ class DownloadStateStoreTest {
     }
 
     @Test
-    fun `withUpdatedTimestamp should update timestamp`() {
-        val oldTime = System.currentTimeMillis() - 10000
-        val progress = createTestProgress(
-            episodeId = 1L,
-            updatedAt = oldTime,
-        )
-
-        val updated = progress.withUpdatedTimestamp()
-
-        updated.updatedAt shouldNotBe oldTime
-    }
-
-    @Test
     fun `ChunkRange should calculate size correctly`() {
         val range = ChunkRange(startByte = 0, endByte = 99)
         range.size shouldBe 100
@@ -242,7 +228,6 @@ class DownloadStateStoreTest {
         totalBytes: Long = 1000L,
         downloadedBytes: Long = 0L,
         status: DownloadProgress.Status = DownloadProgress.Status.IN_PROGRESS,
-        updatedAt: Long = System.currentTimeMillis(),
         chunks: List<ChunkProgress> = emptyList(),
     ): DownloadProgress {
         return DownloadProgress(
@@ -251,7 +236,6 @@ class DownloadStateStoreTest {
             totalBytes = totalBytes,
             downloadedBytes = downloadedBytes,
             status = status,
-            updatedAt = updatedAt,
             chunks = chunks,
         )
     }
