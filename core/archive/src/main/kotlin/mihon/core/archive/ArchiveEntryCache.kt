@@ -10,10 +10,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-/**
- * A solid archive (7z, RAR, compressed tar) decodes every earlier entry to reach one entry. This cache decodes
- * each entry once, in archive order, to disk. Other archives read from [reader]. [close] also closes [reader].
- */
+/** A solid archive decodes every earlier entry to reach one, so this cache decodes each entry once, to disk. */
 class ArchiveEntryCache(private val reader: ArchiveReader) : Closeable {
 
     private val lock = ReentrantLock()
