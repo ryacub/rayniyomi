@@ -129,6 +129,20 @@ class MangaLibraryScreenModelPerItemWorkTest {
         assertSame(model.getDisplayMode(), model.getDisplayMode())
     }
 
+    @Test
+    fun `column states are created once per orientation`() = runTest(vt.scheduler) {
+        val model = createModel()
+
+        assertSame(
+            model.getColumnsPreferenceForCurrentOrientation(isLandscape = true),
+            model.getColumnsPreferenceForCurrentOrientation(isLandscape = true),
+        )
+        assertSame(
+            model.getColumnsPreferenceForCurrentOrientation(isLandscape = false),
+            model.getColumnsPreferenceForCurrentOrientation(isLandscape = false),
+        )
+    }
+
     private class CountingMap<K, V>(private val delegate: Map<K, V>) : Map<K, V> by delegate {
         val entriesReads = AtomicInteger()
         override val entries: Set<Map.Entry<K, V>>
