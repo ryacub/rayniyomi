@@ -38,7 +38,7 @@ class MangaDownloadCacheRenewTest {
     private val source = mockk<HttpSource> { every { id } returns SOURCE_ID }
     private val manga = Manga.create().copy(id = 1L, source = SOURCE_ID, title = MANGA_TITLE)
 
-    private val mangaDir = mockk<UniFile> {
+    private val mangaDir = mockk<UniFile>(relaxed = true) {
         every { isDirectory } returns true
         every { name } returns MANGA_TITLE
         every { listFiles() } answers {
@@ -48,7 +48,7 @@ class MangaDownloadCacheRenewTest {
         }
     }
 
-    private val sourceDir = mockk<UniFile> {
+    private val sourceDir = mockk<UniFile>(relaxed = true) {
         every { isDirectory } returns true
         every { name } returns SOURCE_DIR_NAME
         every { listFiles() } returns arrayOf(mangaDir)
@@ -144,7 +144,7 @@ class MangaDownloadCacheRenewTest {
 
     private fun chapter(chapterName: String) = Chapter.create().copy(name = chapterName, scanlator = null)
 
-    private fun chapterDir(dirName: String) = mockk<UniFile> {
+    private fun chapterDir(dirName: String) = mockk<UniFile>(relaxed = true) {
         every { isDirectory } returns true
         every { name } returns dirName
     }
