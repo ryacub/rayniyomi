@@ -7,6 +7,8 @@ import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
+import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.strategy.DownloadStrategySelector
 import eu.kanade.tachiyomi.data.download.core.LowStorageException
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
@@ -33,11 +35,15 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -55,6 +61,9 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class AnimeDownloaderTest {
 
@@ -62,6 +71,25 @@ class AnimeDownloaderTest {
     private lateinit var testContext: Context
     private val testDispatcher = StandardTestDispatcher()
     private val strategySelector = mockk<DownloadStrategySelector>()
+    private val resumeFileEvents = Collections.synchronizedList(mutableListOf<String>())
+    private val stateStore = mockk<DownloadStateStore> {
+        every { saveProgress(any()) } answers { resumeFileEvents += "save ${firstArg<DownloadProgress>().episodeId}" }
+        every { deleteProgress(any()) } answers { resumeFileEvents += "delete ${firstArg<Long>()}" }
+    }
+    private val partialEpisodeDir = mockk<UniFile> {
+        every { delete() } answers {
+            resumeFileEvents += "delete partial dir"
+            true
+        }
+    }
+    private val provider = mockk<AnimeDownloadProvider>(relaxed = true) {
+        every { getEpisodeDirName(any(), any()) } answers { firstArg() }
+        every { findAnimeDir(any(), any()) } returns mockk {
+            every { findFile(any()) } answers {
+                partialEpisodeDir.takeIf { firstArg<String>() == "Ch1${AnimeDownloader.TMP_DIR_SUFFIX}" }
+            }
+        }
+    }
 
     @BeforeEach
     fun setUp() {
@@ -108,10 +136,10 @@ class AnimeDownloaderTest {
 
         downloader = AnimeDownloader(
             context = context,
-            provider = mockk(relaxed = true),
+            provider = provider,
             cache = mockk(relaxed = true),
             sourceManager = mockk(relaxed = true),
-            stateStore = mockk(relaxed = true),
+            stateStore = stateStore,
             strategySelector = strategySelector,
             multiThreadDownloader = mockk(relaxed = true),
         )
@@ -131,12 +159,71 @@ class AnimeDownloaderTest {
         Dispatchers.resetMain()
     }
 
-    private fun testDownload(video: Video? = null): AnimeDownload =
+    private fun testDownload(video: Video? = null, episodeId: Long = 1L): AnimeDownload =
         AnimeDownload(
             source = mockk<AnimeHttpSource>(relaxed = true),
             anime = Anime.create().copy(id = 1L, title = "Test"),
-            episode = Episode.create().copy(id = 1L, name = "Ch1"),
+            episode = Episode.create().copy(id = episodeId, name = "Ch$episodeId"),
         ).apply { this.video = video }
+
+    @Test
+    fun `removing an episode from the queue deletes its resume progress and partial files`() {
+        downloader.addToStartOfQueue(listOf(testDownload()))
+
+        downloader.removeFromQueueByEpisodeIds(listOf(1L))
+
+        verify(timeout = 2_000) { stateStore.deleteProgress(1L) }
+        verify(timeout = 2_000) { partialEpisodeDir.delete() }
+    }
+
+    @Test
+    fun `clearing the queue deletes resume progress and partial files`() {
+        downloader.addToStartOfQueue(listOf(testDownload()))
+
+        downloader.clearQueue()
+
+        verify(timeout = 2_000) { stateStore.deleteProgress(1L) }
+        verify(timeout = 2_000) { partialEpisodeDir.delete() }
+    }
+
+    @Test
+    fun `reordering the queue keeps resume progress and partial files`() {
+        val first = testDownload(episodeId = 1L)
+        val second = testDownload(episodeId = 2L)
+        downloader.addToStartOfQueue(listOf(first, second))
+
+        downloader.updateQueue(listOf(second, first))
+        Thread.sleep(200)
+
+        verify(exactly = 0) { stateStore.deleteProgress(any()) }
+        verify(exactly = 0) { partialEpisodeDir.delete() }
+    }
+
+    @Test
+    fun `removing a running episode deletes resume progress after the cancelled download saves it`() {
+        val download = testDownload()
+        val hostersStarted = CountDownLatch(1)
+        mockHosters {
+            hostersStarted.countDown()
+            try {
+                awaitCancellation()
+            } finally {
+                withContext(NonCancellable) {
+                    delay(100)
+                    stateStore.saveProgress(DownloadProgress(episodeId = download.episode.id, videoUrl = ""))
+                }
+            }
+        }
+        downloader.addToStartOfQueue(listOf(download))
+        downloader.start()
+        assertTrue(hostersStarted.await(5, TimeUnit.SECONDS))
+
+        downloader.pause()
+        downloader.removeFromQueueByEpisodeIds(listOf(1L))
+
+        verify(timeout = 2_000) { stateStore.deleteProgress(1L) }
+        assertEquals(listOf("save 1", "delete 1", "delete partial dir"), resumeFileEvents.toList())
+    }
 
     private fun mockHosters(block: suspend () -> Nothing) {
         mockkObject(EpisodeLoader.Companion)
