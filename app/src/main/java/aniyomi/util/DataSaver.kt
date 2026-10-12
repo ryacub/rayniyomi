@@ -9,8 +9,17 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.MangaSource
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Headers.Companion.headersOf
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.preference.Preference
+import java.io.IOException
 import java.net.URLEncoder
 
 interface DataSaver {
@@ -119,9 +128,26 @@ private class ReSmushItDataSaver(preferences: SourcePreferences) : DataSaver {
     }
 
     private fun getUrl(imageUrl: String): String {
-        // Network Request sent to resmush
-        return client.newCall(GET("http://api.resmush.it/ws.php?img=$imageUrl&qlty=$quality")).execute()
-            .body.string().substringAfter("\"dest\":\"").substringBefore("\",")
+        val url = "https://api.resmush.it/ws.php".toHttpUrl().newBuilder()
+            .addQueryParameter("img", imageUrl)
+            .addQueryParameter("qlty", quality.toString())
+            .build()
+        return try {
+            client.newCall(
+                GET(url, headersOf("Referer", "https://github.com/ryacub/rayniyomi")),
+            ).execute().use { response ->
+                if (!response.isSuccessful) return imageUrl
+                val body = Json.parseToJsonElement(response.body.string()).jsonObject
+                if (body["error"]?.jsonPrimitive?.intOrNull?.let { it != 0 } == true) return imageUrl
+                body["dest"]?.jsonPrimitive?.takeIf { it.isString }?.contentOrNull
+                    ?.takeIf { it.toHttpUrlOrNull() != null }
+                    ?: imageUrl
+            }
+        } catch (e: IOException) {
+            imageUrl
+        } catch (e: IllegalArgumentException) {
+            imageUrl
+        }
     }
 }
 

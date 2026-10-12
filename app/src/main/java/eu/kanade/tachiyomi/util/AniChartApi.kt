@@ -3,21 +3,30 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
 import eu.kanade.tachiyomi.data.track.simkl.Simkl
+import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.jsonMime
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.entries.anime.model.Anime
+import java.io.IOException
+import java.time.Instant
 import java.time.OffsetDateTime
-import java.util.Calendar
 
-class AniChartApi {
-    private val client = OkHttpClient()
+class AniChartApi(private val client: OkHttpClient = appGraph.networkHelper.client) {
+    private val json = Json { ignoreUnknownKeys = true }
 
     internal suspend fun loadAiringTime(
         anime: Anime,
@@ -106,55 +115,32 @@ class AniChartApi {
         }
     }
 
-    private suspend fun getSimklAiringEpisodeData(id: Long): Pair<Int, Long> {
-        var episodeNumber = 1
-        var airingAt = 0L
-        return withIOContext {
-            val calendarTypes = listOf("anime", "tv", "movie_release")
-            calendarTypes.forEach {
-                val response = try {
-                    client.newCall(GET("https://data.simkl.in/calendar/$it.json")).execute()
-                } catch (e: Exception) {
-                    return@withIOContext Pair(1, 0L)
-                }
+    private suspend fun getSimklAiringEpisodeData(id: Long): Pair<Int, Long> = withIOContext {
+        val entries = readSimklCalendar().filter { it.ids.simklId == id }
+        val malId = entries.firstNotNullOfOrNull { it.ids.mal?.contentOrNull?.toLongOrNull()?.takeIf { it != 0L } }
+        if (malId != null) return@withIOContext getAnilistAiringEpisodeData(getAlIdFromMal(malId))
 
-                val body = response.body.string()
-
-                val data = removeAiredSimkl(body)
-
-                val malId = data.substringAfter("\"simkl_id\":$id,", "").substringAfter(
-                    "\"mal\":\"",
-                ).substringBefore("\"").toLongOrNull() ?: 0L
-                if (malId != 0L) {
-                    return@withIOContext getAnilistAiringEpisodeData(
-                        getAlIdFromMal(malId),
-                    )
-                }
-
-                val epNum = data.substringAfter("\"simkl_id\":$id,", "").substringBefore("\"}}").substringAfterLast(
-                    "\"episode\":",
-                )
-                episodeNumber = epNum.substringBefore(",").toIntOrNull() ?: episodeNumber
-
-                val date = data.substringBefore("\"simkl_id\":$id,", "").substringAfterLast(
-                    "\"date\":\"",
-                ).substringBefore("\"")
-                airingAt = if (date.isNotBlank()) toUnixTimestamp(date) else airingAt
-
-                if (airingAt != 0L) return@withIOContext Pair(episodeNumber, airingAt)
-            }
-            return@withIOContext Pair(episodeNumber, airingAt)
+        val now = Instant.now().epochSecond
+        entries.mapNotNull { entry ->
+            val airingAt = runCatching { toUnixTimestamp(entry.date) }.getOrNull() ?: return@mapNotNull null
+            Pair(entry.episode?.episode ?: 1, airingAt)
         }
+            .filter { (_, airingAt) -> airingAt > now }
+            .minByOrNull { (_, airingAt) -> airingAt }
+            ?: Pair(1, 0L)
     }
 
-    private fun removeAiredSimkl(body: String): String {
-        val currentTimeInMillis = Calendar.getInstance().timeInMillis
-        val index = body.split("\"date\":\"").drop(1).indexOfFirst {
-            val date = it.substringBefore("\"")
-            val time = if (date.isNotBlank()) toUnixTimestamp(date) else 0L
-            time.times(1000) > currentTimeInMillis
+    private suspend fun readSimklCalendar(): List<SimklCalendarEntry> {
+        return try {
+            client.newCall(GET("https://data.simkl.in/calendar/anime.json")).await().use { response ->
+                if (!response.isSuccessful) return emptyList()
+                json.decodeFromString<List<SimklCalendarEntry>>(response.body.string())
+            }
+        } catch (e: IOException) {
+            emptyList()
+        } catch (e: SerializationException) {
+            emptyList()
         }
-        return if (index >= 0) body.substring(index) else ""
     }
 
     private fun toUnixTimestamp(dateFormat: String): Long {
@@ -163,3 +149,19 @@ class AniChartApi {
         return instant.epochSecond
     }
 }
+
+@Serializable
+private data class SimklCalendarEntry(
+    val date: String,
+    val ids: SimklCalendarIds,
+    val episode: SimklCalendarEpisode? = null,
+)
+
+@Serializable
+private data class SimklCalendarIds(
+    @SerialName("simkl_id") val simklId: Long,
+    val mal: JsonPrimitive? = null,
+)
+
+@Serializable
+private data class SimklCalendarEpisode(val episode: Int)

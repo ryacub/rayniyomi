@@ -1,13 +1,10 @@
 package tachiyomi.presentation.widget.entries.manga
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.os.Build
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.ImageProvider
@@ -20,32 +17,14 @@ import androidx.glance.background
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.unit.ColorProvider
-import coil3.annotation.ExperimentalCoilApi
-import coil3.asDrawable
-import coil3.executeBlocking
-import coil3.imageLoader
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
-import coil3.request.transformations
-import coil3.size.Precision
-import coil3.size.Scale
-import coil3.transform.RoundedCornersTransformation
-import eu.kanade.tachiyomi.util.system.dpToPx
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.map
 import tachiyomi.core.common.di.metroGraph
-import tachiyomi.core.common.util.lang.withIOContext
-import tachiyomi.domain.entries.manga.model.MangaCover
-import tachiyomi.domain.updates.manga.model.MangaUpdatesWithRelations
-import tachiyomi.presentation.widget.R
-import tachiyomi.presentation.widget.components.manga.CoverHeight
-import tachiyomi.presentation.widget.components.manga.CoverWidth
 import tachiyomi.presentation.widget.components.manga.LockedMangaWidget
 import tachiyomi.presentation.widget.components.manga.UpdatesMangaWidget
 import tachiyomi.presentation.widget.di.WidgetGraph
 import tachiyomi.presentation.widget.util.appWidgetBackgroundRadius
 import tachiyomi.presentation.widget.util.calculateRowAndColumnCount
+import tachiyomi.presentation.widget.util.decodeVisibleCovers
+import tachiyomi.presentation.widget.util.decodeWidgetCover
 import java.time.Instant
 import java.time.ZonedDateTime
 
@@ -88,9 +67,12 @@ abstract class BaseMangaUpdatesGridGlanceWidget : GlanceAppWidget() {
             val flow = remember {
                 graph.getMangaUpdates
                     .subscribe(false, DateLimit.toEpochMilli())
-                    .map { rawData ->
-                        rawData.prepareData(graph.application, rowCount, columnCount)
-                    }
+                    .decodeVisibleCovers(
+                        limit = rowCount * columnCount,
+                        entryId = { it.mangaId },
+                        cover = { it.coverData.copy(isMangaFavorite = true) },
+                        decode = { graph.application.decodeWidgetCover(it) },
+                    )
             }
             val data by flow.collectAsState(initial = null)
             UpdatesMangaWidget(
@@ -100,53 +82,6 @@ abstract class BaseMangaUpdatesGridGlanceWidget : GlanceAppWidget() {
                 bottomPadding = bottomPadding,
                 modifier = containerModifier,
             )
-        }
-    }
-
-    @OptIn(ExperimentalCoilApi::class)
-    private suspend fun List<MangaUpdatesWithRelations>.prepareData(
-        context: Context,
-        rowCount: Int,
-        columnCount: Int,
-    ): ImmutableList<Pair<Long, Bitmap?>> {
-        // Resize to cover size
-        val widthPx = CoverWidth.value.toInt().dpToPx
-        val heightPx = CoverHeight.value.toInt().dpToPx
-        val roundPx = context.resources.getDimension(R.dimen.appwidget_inner_radius)
-        return withIOContext {
-            this@prepareData
-                .distinctBy { it.mangaId }
-                .take(rowCount * columnCount)
-                .map { updatesView ->
-                    val request = ImageRequest.Builder(context)
-                        .data(
-                            MangaCover(
-                                mangaId = updatesView.mangaId,
-                                sourceId = updatesView.sourceId,
-                                isMangaFavorite = true,
-                                url = updatesView.coverData.url,
-                                lastModified = updatesView.coverData.lastModified,
-                            ),
-                        )
-                        .memoryCachePolicy(CachePolicy.DISABLED)
-                        .precision(Precision.EXACT)
-                        .size(widthPx, heightPx)
-                        .scale(Scale.FILL)
-                        .let {
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                                it.transformations(RoundedCornersTransformation(roundPx))
-                            } else {
-                                it // Handled by system
-                            }
-                        }
-                        .build()
-                    val bitmap = context.imageLoader.executeBlocking(request)
-                        .image
-                        ?.asDrawable(context.resources)
-                        ?.toBitmap()
-                    Pair(updatesView.mangaId, bitmap)
-                }
-                .toImmutableList()
         }
     }
 
