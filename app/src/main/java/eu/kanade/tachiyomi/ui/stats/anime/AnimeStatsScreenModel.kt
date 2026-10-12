@@ -106,9 +106,9 @@ class AnimeStatsScreenModel(
         val excludedMangaIds = if (excludedCategories.isNotEmpty()) {
             libraryAnime.fastMapNotNull { anime ->
                 anime.id.takeIf { anime.category in excludedCategories }
-            }
+            }.toHashSet()
         } else {
-            emptyList()
+            emptySet()
         }
 
         val updateRestrictions = preferences.autoUpdateItemRestrictions().get()
@@ -124,12 +124,10 @@ class AnimeStatsScreenModel(
 
     private suspend fun getAnimeTrackMap(libraryAnime: List<LibraryAnime>): Map<Long, List<AnimeTrack>> {
         val loggedInTrackerIds = loggedInTrackers.map { it.id }.toHashSet()
-        return libraryAnime.associate { anime ->
-            val tracks = getTracks.await(anime.id)
-                .fastFilter { it.trackerId in loggedInTrackerIds }
-
-            anime.id to tracks
-        }
+        val tracksByAnimeId = getTracks.awaitAll()
+            .filter { it.trackerId in loggedInTrackerIds }
+            .groupBy { it.animeId }
+        return libraryAnime.associate { anime -> anime.id to tracksByAnimeId[anime.id].orEmpty() }
     }
 
     private suspend fun getWatchTime(libraryAnimeList: List<LibraryAnime>): Long {

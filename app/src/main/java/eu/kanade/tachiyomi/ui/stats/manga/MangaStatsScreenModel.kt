@@ -106,9 +106,9 @@ class MangaStatsScreenModel(
         val excludedMangaIds = if (excludedCategories.isNotEmpty()) {
             libraryManga.fastMapNotNull { manga ->
                 manga.id.takeIf { manga.category in excludedCategories }
-            }
+            }.toHashSet()
         } else {
-            emptyList()
+            emptySet()
         }
 
         val updateRestrictions = preferences.autoUpdateItemRestrictions().get()
@@ -124,12 +124,10 @@ class MangaStatsScreenModel(
 
     private suspend fun getMangaTrackMap(libraryManga: List<LibraryManga>): Map<Long, List<MangaTrack>> {
         val loggedInTrackerIds = loggedInTrackers.map { it.id }.toHashSet()
-        return libraryManga.associate { manga ->
-            val tracks = getTracks.await(manga.id)
-                .fastFilter { it.trackerId in loggedInTrackerIds }
-
-            manga.id to tracks
-        }
+        val tracksByMangaId = getTracks.awaitAll()
+            .filter { it.trackerId in loggedInTrackerIds }
+            .groupBy { it.mangaId }
+        return libraryManga.associate { manga -> manga.id to tracksByMangaId[manga.id].orEmpty() }
     }
 
     private fun getScoredMangaTrackMap(mangaTrackMap: Map<Long, List<MangaTrack>>): Map<Long, List<MangaTrack>> {
