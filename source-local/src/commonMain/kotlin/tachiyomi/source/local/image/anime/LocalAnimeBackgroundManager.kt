@@ -8,5 +8,7 @@ expect class LocalAnimeBackgroundManager {
 
     fun find(animeUrl: String): UniFile?
 
+    fun find(animeDirFiles: List<UniFile>): UniFile?
+
     fun update(anime: SAnime, inputStream: InputStream): UniFile?
 }

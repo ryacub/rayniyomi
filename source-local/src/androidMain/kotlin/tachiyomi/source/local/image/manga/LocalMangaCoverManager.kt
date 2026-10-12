@@ -17,10 +17,12 @@ actual class LocalMangaCoverManager(
     private val fileSystem: LocalMangaSourceFileSystem,
 ) {
 
-    actual fun find(mangaUrl: String): UniFile? {
-        return fileSystem.getFilesInMangaDirectory(mangaUrl)
+    actual fun find(mangaUrl: String): UniFile? = find(fileSystem.getFilesInMangaDirectory(mangaUrl))
+
+    actual fun find(mangaDirFiles: List<UniFile>): UniFile? {
+        return mangaDirFiles
             // Get all file whose names start with "cover"
-            .filter { it.isFile && it.nameWithoutExtension.equals("cover", ignoreCase = true) }
+            .filter { it.nameWithoutExtension.equals("cover", ignoreCase = true) && it.isFile }
             // Get the first actual image
             .firstOrNull { ImageUtil.isImage(it.name) { it.openInputStream() } }
     }

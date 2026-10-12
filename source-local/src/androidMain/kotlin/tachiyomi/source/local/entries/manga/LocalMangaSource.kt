@@ -89,6 +89,9 @@ actual class LocalMangaSource(
             0L
         }
 
+        val modifiedTimes = mutableMapOf<UniFile, Long>()
+        fun UniFile.cachedLastModified() = modifiedTimes.getOrPut(this) { lastModified() }
+
         var mangaDirs = fileSystem.getFilesInBaseDirectory()
             // Filter out files that are hidden and is not a folder
             .filter { it.isDirectory && !it.name.orEmpty().startsWith('.') }
@@ -99,7 +102,7 @@ actual class LocalMangaSource(
                 } else if (lastModifiedLimit == 0L) {
                     it.name.orEmpty().contains(query, ignoreCase = true)
                 } else {
-                    it.lastModified() >= lastModifiedLimit
+                    it.cachedLastModified() >= lastModifiedLimit
                 }
             }
 
@@ -114,9 +117,9 @@ actual class LocalMangaSource(
                 }
                 is MangaOrderBy.Latest -> {
                     mangaDirs = if (filter.state!!.ascending) {
-                        mangaDirs.sortedBy(UniFile::lastModified)
+                        mangaDirs.sortedBy { it.cachedLastModified() }
                     } else {
-                        mangaDirs.sortedByDescending(UniFile::lastModified)
+                        mangaDirs.sortedByDescending { it.cachedLastModified() }
                     }
                 }
                 else -> {
@@ -133,7 +136,7 @@ actual class LocalMangaSource(
                         url = mangaDir.name.orEmpty()
 
                         // Try to find the cover
-                        coverManager.find(mangaDir.name.orEmpty())?.let {
+                        coverManager.find(mangaDir.listFiles().orEmpty().toList())?.let {
                             thumbnail_url = it.uri.toString()
                         }
                     }

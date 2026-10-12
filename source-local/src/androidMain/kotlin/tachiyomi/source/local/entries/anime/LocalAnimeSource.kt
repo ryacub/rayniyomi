@@ -89,6 +89,9 @@ actual class LocalAnimeSource(
             0L
         }
 
+        val modifiedTimes = mutableMapOf<UniFile, Long>()
+        fun UniFile.cachedLastModified() = modifiedTimes.getOrPut(this) { lastModified() }
+
         var animeDirs = fileSystem.getFilesInBaseDirectory()
             // Filter out files that are hidden and is not a folder
             .filter { it.isDirectory && !it.name.orEmpty().startsWith('.') }
@@ -99,7 +102,7 @@ actual class LocalAnimeSource(
                 } else if (lastModifiedLimit == 0L) {
                     it.name.orEmpty().contains(query, ignoreCase = true)
                 } else {
-                    it.lastModified() >= lastModifiedLimit
+                    it.cachedLastModified() >= lastModifiedLimit
                 }
             }
 
@@ -116,9 +119,9 @@ actual class LocalAnimeSource(
                 }
                 is AnimeOrderBy.Latest -> {
                     animeDirs = if (filter.state!!.ascending) {
-                        animeDirs.sortedBy(UniFile::lastModified)
+                        animeDirs.sortedBy { it.cachedLastModified() }
                     } else {
-                        animeDirs.sortedByDescending(UniFile::lastModified)
+                        animeDirs.sortedByDescending { it.cachedLastModified() }
                     }
                 }
                 else -> {
@@ -131,7 +134,7 @@ actual class LocalAnimeSource(
         val animes = animeDirs
             .map { animeDir ->
                 async {
-                    getSAnime(animeDir.name)
+                    getSAnime(animeDir.name.orEmpty(), animeDir)
                 }
             }
             .awaitAll()
@@ -139,19 +142,20 @@ actual class LocalAnimeSource(
         AnimesPage(animes.toList(), false)
     }
 
-    private fun getSAnime(animeDir: String?): SAnime {
+    private fun getSAnime(url: String, directory: UniFile): SAnime {
+        val files = directory.listFiles().orEmpty().toList()
         return SAnime.create().apply {
-            title = animeDir.orEmpty().substringAfterLast(File.separator)
-            url = animeDir.orEmpty()
-            fetch_type = fetchTypeManager.find(animeDir.orEmpty())
+            title = url.substringAfterLast(File.separator)
+            this.url = url
+            fetch_type = fetchTypeManager.find(files)
 
             // Try to find the cover
-            coverManager.find(animeDir.orEmpty())?.let {
+            coverManager.find(files)?.let {
                 thumbnail_url = it.uri.toString()
             }
 
             // Try to find the background
-            backgroundManager.find(animeDir.orEmpty())?.let {
+            backgroundManager.find(files)?.let {
                 background_url = it.uri.toString()
             }
         }
@@ -225,7 +229,7 @@ actual class LocalAnimeSource(
                             append(season)
                         }
                     }
-                    getSAnime(url)
+                    getSAnime(url.orEmpty(), animeDir)
                 }
             }
             .awaitAll()
