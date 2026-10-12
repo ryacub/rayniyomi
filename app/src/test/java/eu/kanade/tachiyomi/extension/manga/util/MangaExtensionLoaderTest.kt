@@ -10,8 +10,10 @@ import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 class MangaExtensionLoaderTest {
@@ -150,6 +152,30 @@ class MangaExtensionLoaderTest {
     @Test
     fun `resolve nsfw true when both warning and flag present`() {
         MangaExtensionLoader.resolveIsNsfw(contentWarning = 1, nsfwFlag = 1) shouldBe true
+    }
+
+    @Test
+    fun `each private extension apk is parsed once per scan`(@TempDir filesDir: File) = runTest {
+        val extensionDir = File(filesDir, "exts").apply { mkdirs() }
+        listOf("com.example.a", "com.example.b", "com.example.c").forEach {
+            File(extensionDir, "$it.ext").writeText("")
+        }
+        val context = mockk<Context>(relaxed = true)
+        val packageManager = mockk<PackageManager>(relaxed = true)
+        every { context.filesDir } returns filesDir
+        every { context.packageManager } returns packageManager
+        every { packageManager.getInstalledPackages(any<Int>()) } returns emptyList()
+        every { packageManager.getPackageArchiveInfo(any(), any<Int>()) } answers {
+            PackageInfo().apply {
+                packageName = File(firstArg<String>()).nameWithoutExtension
+                applicationInfo = ApplicationInfo()
+                reqFeatures = arrayOf(FeatureInfo().apply { name = "tachiyomi.extension" })
+            }
+        }
+
+        MangaExtensionLoader.loadMangaExtensions(context)
+
+        verify(exactly = 3) { packageManager.getPackageArchiveInfo(any(), any<Int>()) }
     }
 
     private suspend fun loadExtension(
