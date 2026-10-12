@@ -1,0 +1,4 @@
+CREATE INDEX IF NOT EXISTS excluded_scanlators_manga_id_scanlator_index ON excluded_scanlators(manga_id, scanlator);
+DROP INDEX IF EXISTS excluded_scanlators_manga_id_index;
+DROP INDEX IF EXISTS history_history_chapter_id_index;
+DROP INDEX IF EXISTS mangas_normalized_title_idx;

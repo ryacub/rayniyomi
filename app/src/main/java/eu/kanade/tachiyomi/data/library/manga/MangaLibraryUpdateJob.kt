@@ -230,9 +230,9 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
             val categoriesToExclude = libraryPreferences.mangaUpdateCategoriesExclude().get().map { it.toLong() }
             val excludedMangaIds = if (categoriesToExclude.isNotEmpty()) {
-                libraryManga.filter { it.category in categoriesToExclude }.map { it.manga.id }
+                libraryManga.filter { it.category in categoriesToExclude }.mapTo(HashSet()) { it.manga.id }
             } else {
-                emptyList()
+                emptySet()
             }
 
             includedManga

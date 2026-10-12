@@ -167,18 +167,20 @@ internal class ReaderChapterListManager(
     }
 
     private fun shouldSkipByDownloadFilter(chapter: Chapter, manga: Manga): Boolean {
-        val isDownloaded = downloadManager.isChapterDownloaded(
+        return when (manga.downloadedFilterRaw) {
+            Manga.CHAPTER_SHOW_DOWNLOADED -> !isChapterDownloaded(chapter, manga)
+            Manga.CHAPTER_SHOW_NOT_DOWNLOADED -> isChapterDownloaded(chapter, manga)
+            else -> false
+        }
+    }
+
+    private fun isChapterDownloaded(chapter: Chapter, manga: Manga): Boolean {
+        return downloadManager.isChapterDownloaded(
             chapter.name,
             chapter.scanlator,
             manga.title,
             manga.source,
         )
-
-        return when (manga.downloadedFilterRaw) {
-            Manga.CHAPTER_SHOW_DOWNLOADED -> !isDownloaded
-            Manga.CHAPTER_SHOW_NOT_DOWNLOADED -> isDownloaded
-            else -> false
-        }
     }
 
     private fun shouldSkipByBookmarkFilter(chapter: Chapter, manga: Manga): Boolean {

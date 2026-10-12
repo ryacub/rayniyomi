@@ -8,8 +8,6 @@ CREATE TABLE animehistory(
     ON DELETE CASCADE
 );
 
-CREATE INDEX animehistory_history_episode_id_index ON animehistory(episode_id);
-
 getHistoryByAnimeId:
 SELECT
 H._id,

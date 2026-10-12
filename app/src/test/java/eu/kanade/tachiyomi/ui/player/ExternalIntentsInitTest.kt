@@ -39,18 +39,18 @@ class ExternalIntentsInitTest {
     @Test
     fun `initAnime loads the episode by id without reading the episode list`() = runTest {
         coEvery { testAppGraph.getEpisode.await(episode.id) } returns episode
+        val getEpisodesByAnimeId = testAppGraph.getEpisodesByAnimeId
         val external = ExternalIntents()
 
         assertTrue(external.initAnime(anime.id, episode.id))
 
         assertEquals(episode, external.episode)
-        coVerify(exactly = 0) { testAppGraph.getEpisodesByAnimeId.await(any()) }
+        coVerify(exactly = 0) { getEpisodesByAnimeId.await(any()) }
     }
 
     @Test
     fun `initAnime rejects an episode of another anime`() = runTest {
         coEvery { testAppGraph.getEpisode.await(episode.id) } returns episode.copy(animeId = 99L)
-        coEvery { testAppGraph.getEpisodesByAnimeId.await(anime.id) } returns emptyList()
         val external = ExternalIntents()
 
         assertFalse(external.initAnime(anime.id, episode.id))

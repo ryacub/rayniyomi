@@ -617,7 +617,7 @@ class MangaLibraryScreenModel(
                 val lastMangaIndex = items.indexOf(lastSelected)
                 val curMangaIndex = items.indexOf(manga)
 
-                val selectedIds = list.fastMap { it.id }
+                val selectedIds = list.mapTo(HashSet()) { it.id }
                 val selectionRange = when {
                     lastMangaIndex < curMangaIndex -> IntRange(lastMangaIndex, curMangaIndex)
                     curMangaIndex < lastMangaIndex -> IntRange(curMangaIndex, lastMangaIndex)
@@ -637,7 +637,7 @@ class MangaLibraryScreenModel(
         mutableState.update { state ->
             val newSelection = state.selection.mutate { list ->
                 val categoryId = state.categories.getOrNull(index)?.id ?: -1
-                val selectedIds = list.fastMap { it.id }
+                val selectedIds = list.mapTo(HashSet()) { it.id }
                 state.getLibraryItemsByCategoryId(categoryId)
                     ?.fastMapNotNull { item ->
                         item.libraryManga.takeUnless { it.id in selectedIds }
@@ -653,9 +653,9 @@ class MangaLibraryScreenModel(
             val newSelection = state.selection.mutate { list ->
                 val categoryId = state.categories[index].id
                 val items = state.getLibraryItemsByCategoryId(categoryId)?.fastMap { it.libraryManga }.orEmpty()
-                val selectedIds = list.fastMap { it.id }
+                val selectedIds = list.mapTo(HashSet()) { it.id }
                 val (toRemove, toAdd) = items.fastPartition { it.id in selectedIds }
-                val toRemoveIds = toRemove.fastMap { it.id }
+                val toRemoveIds = toRemove.mapTo(HashSet()) { it.id }
                 list.removeAll { it.id in toRemoveIds }
                 list.addAll(toAdd)
             }
