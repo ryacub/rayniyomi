@@ -24,6 +24,7 @@ data class DownloadProgress(
     @ProtoNumber(4) val downloadedBytes: Long = 0,
     @ProtoNumber(5) val chunks: List<ChunkProgress> = emptyList(),
     @ProtoNumber(6) val status: Status = Status.IN_PROGRESS,
+    // Do not reuse 7 or 8: saved files still hold Long timestamps there.
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     enum class Status {
