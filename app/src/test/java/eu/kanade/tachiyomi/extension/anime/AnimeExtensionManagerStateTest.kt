@@ -159,6 +159,31 @@ class AnimeExtensionManagerStateTest {
         obsoleteFlag(manager, PKG_B) shouldBe true
     }
 
+    @Test
+    fun `a failed repo does not hide removals from a repo that loaded`() = runBlocking<Unit> {
+        coEvery { AnimeExtensionLoader.loadExtensions(any()) } returns listOf(PKG_A, PKG_B, PKG_C).map {
+            AnimeLoadResult.Success(installed(it))
+        }
+        serveIndex("a", PKG_A, PKG_C)
+        serveIndex("b", PKG_B)
+        val manager = initializedManager()
+        manager.findAvailableExtensions()
+        withTimeout(5.seconds) {
+            manager.installedExtensionsFlow.first { extensions -> extensions.all { it.repoUrl != null } }
+        }
+
+        serveIndex("a", PKG_A)
+        repoResponses.remove("/b/index.min.json")
+        repoResponses["/b/index.min.json"] = MockResponse().setResponseCode(500)
+        manager.findAvailableExtensions()
+        val extensions = withTimeoutOrNull(5.seconds) {
+            manager.installedExtensionsFlow.first { extensions -> extensions.single { it.pkgName == PKG_C }.isObsolete }
+        } ?: manager.installedExtensionsFlow.value
+
+        extensions.single { it.pkgName == PKG_C }.isObsolete shouldBe true
+        extensions.single { it.pkgName == PKG_B }.isObsolete shouldBe false
+    }
+
     private fun installDuringRefresh(manager: AnimeExtensionManager) = runBlocking {
         receiver.captured.onReceive(context, intent(Intent.ACTION_PACKAGE_ADDED, PKG_NEW))
         withTimeout(5.seconds) {
@@ -233,6 +258,7 @@ class AnimeExtensionManagerStateTest {
     private companion object {
         const val PKG_A = "com.example.anime.a"
         const val PKG_B = "com.example.anime.b"
+        const val PKG_C = "com.example.anime.c"
         const val PKG_NEW = "com.example.anime.new"
     }
 }
