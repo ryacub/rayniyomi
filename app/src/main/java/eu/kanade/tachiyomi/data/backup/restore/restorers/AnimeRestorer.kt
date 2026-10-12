@@ -352,26 +352,21 @@ class AnimeRestorer(
 
     @VisibleForTesting
     internal suspend fun restoreHistory(anime: Anime, backupHistory: List<BackupAnimeHistory>) {
+        if (backupHistory.isEmpty()) return
+
+        val episodesByUrl = handler.awaitList { episodesQueries.getEpisodesByAnimeId(anime.id) }
+            .sortedBy { it._id }
+            .groupBy { it.url }
+        val historyByEpisodeId = handler.awaitList { animehistoryQueries.getHistoryByAnimeId(anime.id) }
+            .associateBy { it.episode_id }
+
         val toUpdate = backupHistory.mapNotNull { history ->
-            val dbHistory = handler.awaitOneOrNull {
-                animehistoryQueries.getHistoryByEpisodeUrlAndAnimeId(history.url, anime.id)
-            }
+            val episodes = episodesByUrl[history.url] ?: return@mapNotNull null
+            val dbHistory = episodes.firstNotNullOfOrNull { historyByEpisodeId[it._id] }
             val item = history.getHistoryImpl()
 
-            if (dbHistory == null) {
-                val episode = handler.awaitOneOrNull {
-                    episodesQueries.getEpisodeByUrlAndAnimeId(history.url, anime.id)
-                }
-                return@mapNotNull if (episode == null) {
-                    // Episode doesn't exist; skip
-                    null
-                } else {
-                    // New history entry
-                    item.copy(episodeId = episode._id)
-                }
-            }
+            if (dbHistory == null) return@mapNotNull item.copy(episodeId = episodes.first()._id)
 
-            // Update history entry
             item.copy(
                 id = dbHistory._id,
                 episodeId = dbHistory.episode_id,

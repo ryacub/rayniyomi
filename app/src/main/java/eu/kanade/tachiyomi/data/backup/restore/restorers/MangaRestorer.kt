@@ -333,26 +333,21 @@ class MangaRestorer(
 
     @VisibleForTesting
     internal suspend fun restoreHistory(manga: Manga, backupHistory: List<BackupHistory>) {
+        if (backupHistory.isEmpty()) return
+
+        val chaptersByUrl = handler.awaitList {
+            chaptersQueries.getChaptersByMangaId(mangaId = manga.id, applyScanlatorFilter = 0)
+        }.sortedBy { it._id }.groupBy { it.url }
+        val historyByChapterId = handler.awaitList { historyQueries.getHistoryByMangaId(manga.id) }
+            .associateBy { it.chapter_id }
+
         val toUpdate = backupHistory.mapNotNull { history ->
-            val dbHistory = handler.awaitOneOrNull {
-                historyQueries.getHistoryByChapterUrlAndMangaId(history.url, manga.id)
-            }
+            val chapters = chaptersByUrl[history.url] ?: return@mapNotNull null
+            val dbHistory = chapters.firstNotNullOfOrNull { historyByChapterId[it._id] }
             val item = history.getHistoryImpl()
 
-            if (dbHistory == null) {
-                val chapter = handler.awaitOneOrNull {
-                    chaptersQueries.getChapterByUrlAndMangaId(history.url, manga.id)
-                }
-                return@mapNotNull if (chapter == null) {
-                    // Chapter doesn't exist; skip
-                    null
-                } else {
-                    // New history entry
-                    item.copy(chapterId = chapter._id)
-                }
-            }
+            if (dbHistory == null) return@mapNotNull item.copy(chapterId = chapters.first()._id)
 
-            // Update history entry
             item.copy(
                 id = dbHistory._id,
                 chapterId = dbHistory.chapter_id,
