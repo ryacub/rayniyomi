@@ -287,4 +287,15 @@ class MangaDownloadQueueScreenModelTest {
         store.clear()
         queue.subscriptionCount.value shouldBe 0
     }
+
+    @Test
+    fun `queue item exposes the chapter id, the manga id, and the chapter url`() {
+        val download = createDownload(createSource(1L), mangaId = 7L, chapterId = 9L)
+        val item = MangaDownloadUiItem(download, progress = 0f)
+
+        item.downloadId shouldBe 9L
+        item.entryId shouldBe 7L
+        item.key shouldBe download.chapter.url
+        item.name shouldBe "Chapter 9"
+    }
 }

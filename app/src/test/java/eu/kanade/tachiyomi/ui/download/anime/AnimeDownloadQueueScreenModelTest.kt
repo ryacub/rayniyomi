@@ -287,4 +287,15 @@ class AnimeDownloadQueueScreenModelTest {
         store.clear()
         queue.subscriptionCount.value shouldBe 0
     }
+
+    @Test
+    fun `queue item exposes the episode id, the anime id, and the episode url`() {
+        val download = createDownload(createSource(1L), animeId = 7L, episodeId = 9L)
+        val item = AnimeDownloadUiItem(download, progress = 0f)
+
+        item.downloadId shouldBe 9L
+        item.entryId shouldBe 7L
+        item.key shouldBe download.episode.url
+        item.name shouldBe "Episode 9"
+    }
 }
