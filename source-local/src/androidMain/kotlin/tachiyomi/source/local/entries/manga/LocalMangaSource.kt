@@ -183,7 +183,7 @@ actual class LocalMangaSource(
                 // Old custom JSON format
                 // TODO: remove support for this entirely after a while
                 legacyJsonDetailsFile != null -> {
-                    json.decodeFromStream<MangaDetails>(legacyJsonDetailsFile.openInputStream()).run {
+                    legacyJsonDetailsFile.openInputStream().use { json.decodeFromStream<MangaDetails>(it) }.run {
                         title?.let { manga.title = it }
                         author?.let { manga.author = it }
                         artist?.let { manga.artist = it }
@@ -260,7 +260,7 @@ actual class LocalMangaSource(
                 it.extension == "json" && it.nameWithoutExtension == "chapters"
             }?.let { file ->
                 runCatching {
-                    json.decodeFromStream<List<ChapterDetails>>(file.openInputStream())
+                    file.openInputStream().use { json.decodeFromStream<List<ChapterDetails>>(it) }
                 }.getOrNull()
             }
 

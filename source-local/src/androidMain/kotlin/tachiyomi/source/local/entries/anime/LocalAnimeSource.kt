@@ -189,13 +189,19 @@ actual class LocalAnimeSource(
         animeDirFiles
             .firstOrNull { it.extension == "json" && it.nameWithoutExtension == "details" }
             ?.let { file ->
-                json.decodeFromStream<AnimeDetails>(file.openInputStream()).run {
-                    title?.let { anime.title = it }
-                    author?.let { anime.author = it }
-                    artist?.let { anime.artist = it }
-                    description?.let { anime.description = it }
-                    genre?.let { anime.genre = it.joinToString() }
-                    status?.let { anime.status = it }
+                try {
+                    file.openInputStream().use { json.decodeFromStream<AnimeDetails>(it) }.run {
+                        title?.let { anime.title = it }
+                        author?.let { anime.author = it }
+                        artist?.let { anime.artist = it }
+                        description?.let { anime.description = it }
+                        genre?.let { anime.genre = it.joinToString() }
+                        status?.let { anime.status = it }
+                    }
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) {
+                        "Error setting anime details from local metadata for ${anime.title}"
+                    }
                 }
             }
 
@@ -232,7 +238,9 @@ actual class LocalAnimeSource(
             .firstOrNull {
                 it.extension == "json" && it.nameWithoutExtension == "episodes"
             }?.let { file ->
-                json.decodeFromStream<List<EpisodeDetails>>(file.openInputStream())
+                runCatching {
+                    file.openInputStream().use { json.decodeFromStream<List<EpisodeDetails>>(it) }
+                }.getOrNull()
             }
 
         val episodes = fileSystem.getFilesInAnimeDirectory(anime.url)
