@@ -171,7 +171,10 @@ class NovelStorage(private val context: Context) {
 
     fun restoreLibrary(library: NovelLibrary): Boolean = NovelStorageCoordinator.withLock {
         runCatching {
-            ensureInitialized(library.books.mapTo(mutableSetOf()) { it.epubFileName })
+            ensureInitialized(
+                additionalReferencedFiles = library.books.mapTo(mutableSetOf()) { it.epubFileName },
+                cleanStaleImports = true,
+            )
             val restoredIds = library.books.mapTo(mutableSetOf()) { it.id }
             val preservedBooks = readLibraryStrictly().books.filter { book ->
                 book.id !in restoredIds && getBookFile(book).isFile
@@ -188,9 +191,13 @@ class NovelStorage(private val context: Context) {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    private fun ensureInitialized(additionalReferencedFiles: Set<String> = emptySet()) {
+    private fun ensureInitialized(
+        additionalReferencedFiles: Set<String> = emptySet(),
+        cleanStaleImports: Boolean = false,
+    ) {
         rootDir.mkdirs()
         booksDir.mkdirs()
+        if (!cleanStaleImports) return
         NovelStorageCoordinator.cleanStaleImportsOnce(booksDir) {
             try {
                 readLibraryStrictly().books.mapTo(mutableSetOf()) { it.epubFileName }
