@@ -41,6 +41,7 @@ import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.history.anime.interactor.UpsertAnimeHistory
 import tachiyomi.domain.history.anime.model.AnimeHistoryUpdate
+import tachiyomi.domain.items.episode.interactor.GetEpisode
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
 import tachiyomi.domain.items.episode.model.Episode
@@ -134,7 +135,7 @@ class ExternalIntents {
     suspend fun initAnime(animeId: Long, episodeId: Long): Boolean {
         anime = getAnime.await(animeId) ?: return false
         source = sourceManager.get(anime.source) ?: return false
-        episode = getEpisodesByAnimeId.await(anime.id).find { it.id == episodeId } ?: return false
+        episode = getEpisode.await(episodeId)?.takeIf { it.animeId == anime.id } ?: return false
 
         this.animeId = animeId
         this.episodeId = episodeId
@@ -434,6 +435,7 @@ class ExternalIntents {
     private val updateEpisode: UpdateEpisode = appGraph.updateEpisode
     private val getAnime: GetAnime = appGraph.getAnime
     private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
+    private val getEpisode: GetEpisode = appGraph.getEpisode
     private val getEpisodesByAnimeId: GetEpisodesByAnimeId = appGraph.getEpisodesByAnimeId
     private val getTracks: GetAnimeTracks = appGraph.getAnimeTracks
     private val insertTrack: InsertAnimeTrack = appGraph.insertAnimeTrack

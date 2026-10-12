@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS animehistory_history_episode_id_index;
+DROP INDEX IF EXISTS animes_normalized_title_idx;

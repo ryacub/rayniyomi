@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -206,6 +207,17 @@ class ReaderChapterListManagerTest {
         initializeChapterList(chapters, selectedChapterId = 1L, manga = mangaWithFilters)
 
         assertEquals(setOf(1L, 2L), manager.chapterList.mapNotNull { it.chapter.id }.toSet())
+    }
+
+    @Test
+    fun `initChapterList does not check downloads when the downloaded filter is off`() = runTest {
+        setSkipFiltered(true)
+
+        initializeDefaultChapterList()
+
+        verify(exactly = 0) {
+            downloadManager.isChapterDownloaded(any(), any(), any(), any())
+        }
     }
 
     private suspend fun initializeDefaultChapterList() {

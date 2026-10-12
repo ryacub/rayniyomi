@@ -21,6 +21,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Local source browse lists each folder once and reads its modified time once. Before, the Latest sort read the time again for each comparison, and each local anime folder was listed three times. Pages of solid 7z, RAR, and compressed tar chapters now decode once into a cache that the reader deletes when it closes the chapter. Before, each page decoded every page in front of it again (#1366).
 - The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 - The library filters and sorts once for each download change, instead of three times, and the tracker filter no longer copies the track map for each entry. Library pages no longer add a display-mode or column listener on each redraw. The updates list converts fetch dates once when it loads, instead of on every download progress tick. The stats screen loads tracks and anime watch time in one query each, instead of one query for each library entry (#1362).
+- An external player launch reads the one episode it plays, instead of every episode of the anime. The reader checks chapter downloads only when the downloaded filter is on. Library selection and the excluded categories of the library update use set lookups instead of list scans. The database drops duplicate and unused indexes, so a history write updates one index instead of two (#1371).
 
 ### Fixed
 - Download queue headers now collapse and expand immediately while the queue is idle (#1363).

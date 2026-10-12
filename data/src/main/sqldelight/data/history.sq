@@ -9,8 +9,6 @@ CREATE TABLE history(
     ON DELETE CASCADE
 );
 
-CREATE INDEX history_history_chapter_id_index ON history(chapter_id);
-
 getHistoryByMangaId:
 SELECT
 H._id,
