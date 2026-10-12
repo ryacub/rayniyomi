@@ -14,8 +14,6 @@ import kotlinx.serialization.protobuf.ProtoNumber
  * @property downloadedBytes The total number of bytes downloaded so far
  * @property chunks The list of chunk progress items for multi-threaded downloads
  * @property status The current status of the download
- * @property createdAt Timestamp when the download was first started
- * @property updatedAt Timestamp of the last update
  */
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
@@ -26,8 +24,7 @@ data class DownloadProgress(
     @ProtoNumber(4) val downloadedBytes: Long = 0,
     @ProtoNumber(5) val chunks: List<ChunkProgress> = emptyList(),
     @ProtoNumber(6) val status: Status = Status.IN_PROGRESS,
-    @ProtoNumber(7) val createdAt: Long = System.currentTimeMillis(),
-    @ProtoNumber(8) val updatedAt: Long = System.currentTimeMillis(),
+    // Do not reuse 7 or 8: saved files still hold Long timestamps there.
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     enum class Status {
@@ -60,12 +57,6 @@ data class DownloadProgress(
      */
     val isComplete: Boolean
         get() = chunks.all { it.isComplete }
-
-    /**
-     * Returns a copy with updated timestamp.
-     */
-    fun withUpdatedTimestamp(): DownloadProgress =
-        copy(updatedAt = System.currentTimeMillis())
 }
 
 /**

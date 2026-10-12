@@ -19,7 +19,6 @@ import kotlin.coroutines.resumeWithException
  * This class provides functionality to:
  * - Check if a server supports range requests via HEAD request
  * - Create range requests for specific byte ranges
- * - Validate range response headers
  */
 class RangeRequestHandler(
     private val client: OkHttpClient,
@@ -138,86 +137,6 @@ class RangeRequestHandler(
             }
             .header("Range", range.toRangeHeader())
             .build()
-    }
-
-    /**
-     * Validates that a response contains the expected range.
-     *
-     * @param response The HTTP response to validate
-     * @param expectedRange The expected byte range
-     * @return true if the response contains valid range information
-     */
-    fun validateRangeResponse(
-        response: Response,
-        expectedRange: ChunkRange,
-    ): Boolean {
-        // Check if it's a 206 Partial Content response
-        if (response.code != 206) {
-            return false
-        }
-
-        // Validate Content-Range header if present
-        val contentRange = response.header("Content-Range")
-        if (contentRange != null) {
-            return validateContentRangeHeader(contentRange, expectedRange)
-        }
-
-        // If no Content-Range but 206 response, assume it's valid
-        return true
-    }
-
-    /**
-     * Validates the Content-Range header format: "bytes start-end/total"
-     */
-    private fun validateContentRangeHeader(
-        contentRange: String,
-        expectedRange: ChunkRange,
-    ): Boolean {
-        // Expected format: "bytes start-end/total" or "bytes start-end/*"
-        if (!contentRange.startsWith("bytes ")) {
-            return false
-        }
-
-        val rangePart = contentRange.substringAfter("bytes ")
-        val (rangeSpec, totalSpec) = rangePart.split("/", limit = 2).let {
-            if (it.size == 2) it[0] to it[1] else return false
-        }
-
-        val (startStr, endStr) = rangeSpec.split("-", limit = 2).let {
-            if (it.size == 2) it[0] to it[1] else return false
-        }
-
-        val actualStart = startStr.toLongOrNull() ?: return false
-        val actualEnd = endStr.toLongOrNull() ?: return false
-
-        // Allow some flexibility in range boundaries
-        return actualStart == expectedRange.startByte &&
-            actualEnd <= expectedRange.endByte &&
-            actualEnd >= expectedRange.startByte
-    }
-
-    /**
-     * Gets the actual content length from a range response.
-     *
-     * @param response The HTTP response
-     * @return The content length, or -1 if unknown
-     */
-    fun getContentLength(response: Response): Long {
-        // Try Content-Length first
-        response.header("Content-Length")?.toLongOrNull()?.let { return it }
-
-        // Fall back to parsing Content-Range
-        val contentRange = response.header("Content-Range") ?: return -1
-        val totalSpec = contentRange.substringAfter("/", "*")
-
-        return if (totalSpec == "*") -1 else totalSpec.toLongOrNull() ?: -1
-    }
-
-    companion object {
-        /**
-         * Maximum number of retry attempts for range validation failures.
-         */
-        const val MAX_RANGE_VALIDATION_RETRIES = 3
     }
 }
 

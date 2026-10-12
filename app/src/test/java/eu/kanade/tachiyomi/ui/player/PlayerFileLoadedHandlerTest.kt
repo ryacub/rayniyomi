@@ -29,24 +29,17 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.slot
 import io.mockk.unmockkAll
-import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import tachiyomi.core.common.i18n.stringResource
 
 class PlayerFileLoadedHandlerTest {
     // No need to mock MPVLib - we inject MPVLibProxy as a dependency in tests
@@ -820,13 +813,6 @@ class PlayerFileLoadedHandlerTest {
         val initialState = handler.isLoadingTracks.value
 
         assertTrue(initialState)
-    }
-
-    @Test
-    fun `updateIsLoadingTracks mutates state correctly`() = runTest {
-        handler.updateIsLoadingTracks(false)
-
-        assertFalse(handler.isLoadingTracks.first())
     }
 
     @Test

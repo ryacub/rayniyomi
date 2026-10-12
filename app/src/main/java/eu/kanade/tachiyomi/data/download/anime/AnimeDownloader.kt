@@ -794,40 +794,6 @@ class AnimeDownloader(
     }
 
     /**
-     * Checks if the download was successful.
-     *
-     * @param download the download to check.
-     * @param animeDir the anime directory of the download.
-     * @param tmpDir the directory where the download is currently stored.
-     * @param dirname the real (non temporary) directory name of the download.
-     */
-    private suspend fun ensureSuccessfulAnimeDownload(
-        download: AnimeDownload,
-        animeDir: UniFile,
-        tmpDir: UniFile,
-        dirname: String,
-    ) {
-        // Ensure that the episode folder has the full video
-        val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { file ->
-            file.name.orEmpty().endsWith(".tmp", ignoreCase = true)
-        }
-
-        download.status = if (downloadedVideo.size == 1) {
-            // Only rename the directory if it's downloaded
-            val filename = DiskUtil.buildValidFilename("${download.anime.title} - ${download.episode.name}")
-            tmpDir.findFile("${filename}_tmp.mkv")?.delete()
-            tmpDir.renameTo(dirname)
-
-            cache.addEpisode(dirname, animeDir, download.anime)
-
-            DiskUtil.createNoMediaFile(tmpDir, context)
-            AnimeDownload.State.DOWNLOADED
-        } else {
-            throw Exception("Unable to finalize download")
-        }
-    }
-
-    /**
      * Returns true if all the queued downloads are in DOWNLOADED or ERROR state.
      */
     private fun areAllAnimeDownloadsFinished(): Boolean {
@@ -837,11 +803,6 @@ class AnimeDownloader(
     private fun addAllToQueue(downloads: List<AnimeDownload>) = queueOps.addAll(downloads)
 
     private fun removeFromQueue(download: AnimeDownload) = queueOps.remove(download)
-
-    fun removeFromQueue(episodes: List<Episode>) {
-        val episodeIds = episodes.map { it.id }
-        queueOps.removeIf { it.episode.id in episodeIds }
-    }
 
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
         val ids = episodeIds.toSet()
@@ -876,10 +837,6 @@ class AnimeDownloader(
                     ?.delete()
             }
         }
-    }
-
-    fun removeFromQueue(anime: Anime) {
-        queueOps.removeIf { it.anime.id == anime.id }
     }
 
     private fun internalClearQueue() = queueOps.internalClear()

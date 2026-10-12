@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - Process death
  * - Network interruptions
  *
- * Progress files are stored in the app's cache directory and are cleaned up
- * when downloads complete or become stale (>7 days old).
+ * Progress files are stored in the app's cache directory. A file is deleted
+ * when its download completes, leaves the queue, or gets a new video URL.
  */
 class DownloadStateStore(
     context: Context,
@@ -135,69 +135,6 @@ class DownloadStateStore(
     }
 
     /**
-     * Lists all saved progress entries.
-     *
-     * @return List of all saved download progress
-     */
-    fun listAllProgress(): List<DownloadProgress> {
-        return progressDir.listFiles { file ->
-            file.extension == PROGRESS_FILE_EXTENSION
-        }?.mapNotNull { file ->
-            try {
-                val episodeId = file.nameWithoutExtension.toLongOrNull() ?: return@mapNotNull null
-                loadProgress(episodeId)
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR) { "Failed to load progress from ${file.name}: ${e.message}" }
-                null
-            }
-        } ?: emptyList()
-    }
-
-    /**
-     * Cleans up stale progress entries that haven't been updated in the specified time.
-     *
-     * @param maxAgeMs Maximum age in milliseconds (default: 7 days)
-     * @return Number of entries cleaned up
-     */
-    fun cleanupStaleEntries(maxAgeMs: Long = DEFAULT_MAX_AGE_MS): Int {
-        val now = System.currentTimeMillis()
-        var cleanedCount = 0
-
-        val entries = listAllProgress()
-        for (progress in entries) {
-            if (now - progress.updatedAt > maxAgeMs) {
-                deleteProgress(progress.episodeId)
-                cleanedCount++
-            }
-        }
-
-        if (cleanedCount > 0) {
-            logcat(LogPriority.INFO) { "Cleaned up $cleanedCount stale download progress entries" }
-        }
-
-        return cleanedCount
-    }
-
-    /**
-     * Clears all completed downloads from storage.
-     *
-     * @return Number of entries cleared
-     */
-    fun clearCompletedDownloads(): Int {
-        var clearedCount = 0
-
-        val entries = listAllProgress()
-        for (progress in entries) {
-            if (progress.status == DownloadProgress.Status.COMPLETED) {
-                deleteProgress(progress.episodeId)
-                clearedCount++
-            }
-        }
-
-        return clearedCount
-    }
-
-    /**
      * Gets the file path for a progress entry.
      */
     private fun getProgressFile(episodeId: Long): File {
@@ -207,10 +144,5 @@ class DownloadStateStore(
     companion object {
         private const val PROGRESS_DIR_NAME = "download_progress"
         private const val PROGRESS_FILE_EXTENSION = "dp"
-
-        /**
-         * Default maximum age for progress entries: 7 days
-         */
-        private const val DEFAULT_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
     }
 }

@@ -148,14 +148,6 @@ class DownloadStrategySelector(
     }
 
     /**
-     * Quick format check without network request.
-     * Use this when you only need to know the format type.
-     */
-    fun detectFormatOnly(videoUrl: String): VideoFormat {
-        return VideoSignatureValidator.detectVideoFormat(videoUrl)
-    }
-
-    /**
      * Checks if a format supports multi-threaded downloading.
      */
     fun supportsMultiThread(format: VideoFormat): Boolean {

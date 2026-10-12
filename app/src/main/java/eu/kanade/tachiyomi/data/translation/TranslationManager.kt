@@ -145,14 +145,6 @@ class TranslationManager(
     }
 
     /**
-     * Cancel an in-progress translation.
-     */
-    fun cancelTranslation(chapterId: Long) {
-        activeJobs.remove(chapterId)?.cancel()
-        updateState(chapterId, TranslationState.Idle)
-    }
-
-    /**
      * Check if a chapter is translated (from storage).
      */
     fun isChapterTranslated(

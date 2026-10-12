@@ -103,11 +103,10 @@ class AnimeDownloadManager(
         scope.cancel()
     }
 
-    private val queueMutations: DownloadQueueMutations<AnimeDownload, Episode> by lazy {
+    private val queueMutations: DownloadQueueMutations<AnimeDownload> by lazy {
         DownloadQueueMutations(
             queueState = downloader.queueState,
             itemId = { it.episode.id },
-            ownerItemId = { episode: Episode -> episode.id },
             createFromId = { id -> AnimeDownload.fromEpisodeId(id) },
             moveToFront = downloader::moveToFront,
             updateQueue = downloader::updateQueue,

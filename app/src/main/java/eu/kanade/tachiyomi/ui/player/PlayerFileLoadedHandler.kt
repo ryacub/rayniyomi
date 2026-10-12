@@ -256,10 +256,6 @@ internal class PlayerFileLoadedHandler(
         onSetChapter(0f) // Use initial position
         return mergedChapters
     }
-
-    fun updateIsLoadingTracks(value: Boolean) {
-        _isLoadingTracks.update { value }
-    }
 }
 
 internal fun shouldIntegrateAniSkipOnFileLoad(

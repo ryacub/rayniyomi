@@ -32,11 +32,10 @@ class DownloadQueueMutationsTest {
         startDownloader: () -> Unit = { },
         stopDownloader: () -> Unit = { },
         startDownloads: () -> Unit = { },
-    ): DownloadQueueMutations<FakeDownload, FakeEntity> {
+    ): DownloadQueueMutations<FakeDownload> {
         return DownloadQueueMutations(
             queueState = queueState,
             itemId = { it.id },
-            ownerItemId = { it.id },
             createFromId = createFromId,
             moveToFront = moveToFront,
             updateQueue = updateQueue,
@@ -132,7 +131,7 @@ class DownloadQueueMutationsTest {
     }
 
     @Test
-    fun `removeFromQueueSafely stops when queue empties`() = runTest {
+    fun `removeFromQueueSafelyByItemIds stops when queue empties`() = runTest {
         val queueState = MutableStateFlow(listOf(FakeDownload(1, FakeEntity(1))))
         var paused = false
         var stopped = false
@@ -153,7 +152,7 @@ class DownloadQueueMutationsTest {
     }
 
     @Test
-    fun `removeFromQueueSafely starts when queue remains`() = runTest {
+    fun `removeFromQueueSafelyByItemIds starts when queue remains`() = runTest {
         val queueState = MutableStateFlow(
             listOf(
                 FakeDownload(1, FakeEntity(1)),

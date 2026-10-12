@@ -91,11 +91,6 @@ removeEpisodesWithIds:
 DELETE FROM episodes
 WHERE _id IN :episodeIds;
 
-resetIsSyncing:
-UPDATE episodes
-SET is_syncing = 0
-WHERE is_syncing = 1;
-
 insert:
 INSERT INTO episodes(anime_id, url, name, scanlator, seen, bookmark, last_second_seen, total_seconds, episode_number, source_order, date_fetch, date_upload, last_modified_at, version, is_syncing, summary, preview_url, fillermark)
 VALUES (:animeId, :url, :name, :scanlator, :seen, :bookmark, :lastSecondSeen, :totalSeconds, :episodeNumber, :sourceOrder, :dateFetch, :dateUpload, 0, :version, 0, :summary, :previewUrl, :fillermark);

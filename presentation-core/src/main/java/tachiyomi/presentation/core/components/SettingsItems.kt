@@ -101,25 +101,6 @@ fun HeadingItem(
 }
 
 @Composable
-fun IconItem(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-) {
-    BaseSettingsItem(
-        label = label,
-        widget = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        onClick = onClick,
-    )
-}
-
-@Composable
 fun SortItem(
     label: String,
     sortDescending: Boolean?,

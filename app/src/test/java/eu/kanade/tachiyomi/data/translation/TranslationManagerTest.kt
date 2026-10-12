@@ -443,29 +443,6 @@ class TranslationManagerTest {
     }
 
     @Test
-    fun `cancelling during a retry backoff resets the state to Idle`() = runTest {
-        createEagerManager()
-        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-        every { translationEngineFactory.create() } returns engine
-        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
-        coEvery { engine.detectAndTranslate(imageBytes, "en") } throws HttpException(503)
-
-        manager.translateChapter(manga, chapter, source)
-
-        // The eager dispatcher ran the first attempt and its onRetry before suspending in the backoff.
-        val stateBeforeCancel = stateOf(chapter.id)
-        assertTrue(
-            stateBeforeCancel == TranslationState.Translating(0, 1, TranslationPhase.Retrying(1)),
-            "Expected the retrying state before cancel but got $stateBeforeCancel",
-        )
-
-        manager.cancelTranslation(chapter.id)
-        advanceUntilIdle()
-
-        assertEquals(TranslationState.Idle, stateOf(chapter.id))
-    }
-
-    @Test
     fun `a retry on a later page never lowers the progress count`() = runTest {
         createEagerManager()
         val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
@@ -498,38 +475,6 @@ class TranslationManagerTest {
             "Expected a retrying emission for page 2 but got $emissions",
         )
         assertEquals(TranslationState.Translated, stateOf(chapter.id))
-    }
-    // -----------------------------------------------------------------------
-    // Cancellation
-    // -----------------------------------------------------------------------
-
-    @Test
-    fun `cancelTranslation sets state back to IDLE`() = runTest {
-        createEagerManager()
-        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
-
-        every { translationEngineFactory.create() } returns engine
-        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
-        // Simulate a slow engine call so we can cancel mid-flight
-        coEvery { engine.detectAndTranslate(imageBytes, "en") } coAnswers {
-            kotlinx.coroutines.delay(10_000)
-            TranslationResult(emptyList())
-        }
-
-        manager.translateChapter(manga, chapter, source)
-
-        // Cancel before the engine finishes
-        manager.cancelTranslation(chapter.id)
-
-        assertEquals(TranslationState.Idle, stateOf(chapter.id))
-    }
-
-    @Test
-    fun `cancelTranslation on non-existent chapter does not throw`() {
-        createManager()
-        // Should be a no-op
-        manager.cancelTranslation(999L)
-        assertEquals(TranslationState.Idle, stateOf(999L))
     }
 
     // -----------------------------------------------------------------------
@@ -700,9 +645,6 @@ class TranslationManagerTest {
         // buildPageList is called inside the coroutine, so with the second call being a no-op,
         // it should only have been called once
         coVerify(exactly = 1) { downloadManager.buildPageList<Any>(source, manga, chapter, any()) }
-
-        // Clean up
-        manager.cancelTranslation(chapter.id)
     }
 
     // -----------------------------------------------------------------------
@@ -733,8 +675,7 @@ class TranslationManagerTest {
         manager.translateChapter(manga, chapter, source)
         assertTrue(manager.translationStates.value.containsKey(chapter.id))
 
-        // Cancel to reset to IDLE
-        manager.cancelTranslation(chapter.id)
+        manager.deleteTranslation(chapter, manga.title, source)
 
         // Entry should be removed from the map (IDLE means absent)
         assertFalse(manager.translationStates.value.containsKey(chapter.id))
@@ -899,13 +840,13 @@ class TranslationManagerTest {
     }
 
     @Test
-    fun `cancelTranslation removes the chapter title`() {
+    fun `deleteTranslation removes the chapter title`() {
         createManager()
         every { translationEngineFactory.create() } returns null
         manager.translateChapter(manga, chapter, source)
         assertTrue(manager.chapterTitles.value.containsKey(chapter.id))
 
-        manager.cancelTranslation(chapter.id)
+        manager.deleteTranslation(chapter, manga.title, source)
 
         assertFalse(manager.chapterTitles.value.containsKey(chapter.id))
     }

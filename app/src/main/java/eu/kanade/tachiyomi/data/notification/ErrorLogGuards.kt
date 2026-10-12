@@ -32,10 +32,3 @@ internal fun resolveRestoreErrorLogFileForAction(
     val errorLogFile = (errorLogWriteOutcome as? ErrorLogWriteOutcome.Created)?.file ?: return null
     return errorLogFile.takeIf(::hasShareableErrorLogFile)
 }
-
-internal fun shouldAttachRestoreErrorLogAction(
-    errorCount: Int,
-    errorLogWriteOutcome: ErrorLogWriteOutcome,
-): Boolean {
-    return resolveRestoreErrorLogFileForAction(errorCount, errorLogWriteOutcome) != null
-}

@@ -9,7 +9,6 @@ import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.resume.RangeRequestHandler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -20,7 +19,6 @@ import logcat.logcat
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import java.io.File
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 
@@ -42,17 +40,6 @@ class MultiThreadDownloader(
 ) {
     private val rangeRequestHandler = RangeRequestHandler(client)
     private val chunkMerger = ChunkMerger()
-
-    /**
-     * Scope for this download operation. Cancelled when download completes or fails.
-     */
-    private var downloadScope: CoroutineScope? = null
-
-    /**
-     * Active download jobs for cancellation.
-     * Using CopyOnWriteArrayList for thread-safe access from multiple coroutines.
-     */
-    private val activeJobs = CopyOnWriteArrayList<Job>()
 
     /**
      * Downloads a video file using multiple threads.
@@ -182,7 +169,6 @@ class MultiThreadDownloader(
         // Create supervisor scope that is a child of the caller's scope
         // This ensures proper cancellation propagation while allowing independent job management
         val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
-        downloadScope = scope
 
         // Get temp directory as File
         val tempDirFile = File(
@@ -212,8 +198,6 @@ class MultiThreadDownloader(
                     }
                 }
 
-            activeJobs.addAll(chunkJobs)
-
             val chunkResults = chunkJobs.awaitAll()
 
             if (chunkResults.any { it === ChunkDownloader.ChunkDownloadResult.Cancelled }) {
@@ -221,7 +205,7 @@ class MultiThreadDownloader(
             }
             chunkResults.firstFailure()?.let { error ->
                 logcat(LogPriority.ERROR) { "Chunk download failed: ${error.message}" }
-                saveProgress(chunkState.applyTo(progress).copy(status = DownloadProgress.Status.ERROR))
+                stateStore.saveProgress(chunkState.applyTo(progress).copy(status = DownloadProgress.Status.ERROR))
                 return DownloadResult.Error(error)
             }
 
@@ -265,7 +249,7 @@ class MultiThreadDownloader(
             }
         } catch (e: CancellationException) {
             // Save progress for resume
-            saveProgress(
+            stateStore.saveProgress(
                 progress.copy(
                     downloadedBytes = chunkState.totalBytes(),
                     status = DownloadProgress.Status.PAUSED,
@@ -274,12 +258,10 @@ class MultiThreadDownloader(
             DownloadResult.Cancelled
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Download failed: ${e.message}" }
-            saveProgress(progress.copy(status = DownloadProgress.Status.ERROR))
+            stateStore.saveProgress(progress.copy(status = DownloadProgress.Status.ERROR))
             DownloadResult.Error(DownloadError.UnknownError(e))
         } finally {
             scope.cancel()
-            downloadScope = null
-            activeJobs.clear()
         }
     }
 
@@ -318,21 +300,6 @@ class MultiThreadDownloader(
         return errors.firstOrNull { it is DownloadError.DiskFull }
             ?: errors.firstOrNull { it is DownloadError.InvalidRange }
             ?: errors.firstOrNull()
-    }
-
-    /**
-     * Saves progress to state store.
-     */
-    private fun saveProgress(progress: DownloadProgress) {
-        stateStore.saveProgress(progress.withUpdatedTimestamp())
-    }
-
-    /**
-     * Cancels the current download operation.
-     */
-    fun cancel() {
-        downloadScope?.cancel("Download cancelled by user")
-        activeJobs.forEach { it.cancel() }
     }
 
     companion object {

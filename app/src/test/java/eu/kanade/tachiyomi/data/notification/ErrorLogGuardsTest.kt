@@ -111,17 +111,4 @@ class ErrorLogGuardsTest {
         assertNotNull(resolved)
         assertEquals(existingFile, resolved)
     }
-
-    @Test
-    fun `shouldAttachRestoreErrorLogAction returns true only for action-eligible outcome`() {
-        val existingFile = tempDir.resolve("errors.txt").toFile().apply { writeText("error") }
-        val created = ErrorLogWriteOutcome.Created(existingFile)
-        val noErrors = ErrorLogWriteOutcome.NoErrors
-        val failed = ErrorLogWriteOutcome.Failed(IOException("write failed"))
-
-        assertTrue(shouldAttachRestoreErrorLogAction(1, created))
-        assertFalse(shouldAttachRestoreErrorLogAction(0, created))
-        assertFalse(shouldAttachRestoreErrorLogAction(1, noErrors))
-        assertFalse(shouldAttachRestoreErrorLogAction(1, failed))
-    }
 }

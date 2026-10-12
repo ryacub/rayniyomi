@@ -1,5 +1,7 @@
 import kotlin.Boolean;
 
+-- Retained without queries so the schema definition keeps matching migration 35
+-- on installs that already created these tables. Nothing reads or writes them.
 CREATE TABLE tracker_enrichment_cache(
     entry_id INTEGER NOT NULL PRIMARY KEY,
     media_type TEXT NOT NULL,
@@ -9,29 +11,6 @@ CREATE TABLE tracker_enrichment_cache(
     source_count INTEGER NOT NULL,
     error_summary TEXT
 );
-
-getByEntryId:
-SELECT *
-FROM tracker_enrichment_cache
-WHERE entry_id = :entryId;
-
-upsert:
-INSERT INTO tracker_enrichment_cache(entry_id, media_type, payload_json, updated_at, expires_at, source_count, error_summary)
-VALUES (:entryId, :mediaType, :payloadJson, :updatedAt, :expiresAt, :sourceCount, :errorSummary)
-ON CONFLICT(entry_id)
-DO UPDATE
-SET
-    media_type = :mediaType,
-    payload_json = :payloadJson,
-    updated_at = :updatedAt,
-    expires_at = :expiresAt,
-    source_count = :sourceCount,
-    error_summary = :errorSummary
-WHERE entry_id = :entryId;
-
-deleteByEntryId:
-DELETE FROM tracker_enrichment_cache
-WHERE entry_id = :entryId;
 
 CREATE TABLE tracker_enrichment_recommendation(
     entry_id INTEGER NOT NULL,
@@ -48,65 +27,8 @@ CREATE TABLE tracker_enrichment_recommendation(
     PRIMARY KEY(entry_id, canonical_key)
 );
 
-getRecommendationsByEntryId:
-SELECT *
-FROM tracker_enrichment_recommendation
-WHERE entry_id = :entryId
-ORDER BY rank_score DESC, updated_at DESC;
+CREATE INDEX tracker_enrichment_cache_entry_updated_idx
+ON tracker_enrichment_cache(entry_id, media_type, updated_at);
 
-getAllRecommendations:
-SELECT *
-FROM tracker_enrichment_recommendation
-ORDER BY rank_score DESC, updated_at DESC
-LIMIT :limit;
-
-getAllCaches:
-SELECT *
-FROM tracker_enrichment_cache
-ORDER BY updated_at DESC;
-
-upsertRecommendation:
-INSERT INTO tracker_enrichment_recommendation(
-    entry_id,
-    media_type,
-    canonical_key,
-    title,
-    target_url,
-    tracker_source,
-    rank_score,
-    in_library,
-    confidence,
-    source_count,
-    updated_at
-)
-VALUES (
-    :entryId,
-    :mediaType,
-    :canonicalKey,
-    :title,
-    :targetUrl,
-    :trackerSource,
-    :rankScore,
-    :inLibrary,
-    :confidence,
-    :sourceCount,
-    :updatedAt
-)
-ON CONFLICT(entry_id, canonical_key)
-DO UPDATE
-SET
-    media_type = :mediaType,
-    title = :title,
-    target_url = :targetUrl,
-    tracker_source = :trackerSource,
-    rank_score = :rankScore,
-    in_library = :inLibrary,
-    confidence = :confidence,
-    source_count = :sourceCount,
-    updated_at = :updatedAt
-WHERE entry_id = :entryId
-  AND canonical_key = :canonicalKey;
-
-deleteRecommendationsByEntryId:
-DELETE FROM tracker_enrichment_recommendation
-WHERE entry_id = :entryId;
+CREATE INDEX tracker_enrichment_recommendation_entry_key_idx
+ON tracker_enrichment_recommendation(entry_id, canonical_key);

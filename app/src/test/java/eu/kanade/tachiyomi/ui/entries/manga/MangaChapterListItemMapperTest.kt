@@ -110,10 +110,9 @@ class MangaChapterListItemMapperTest {
             }
         }
         val queueState = MutableStateFlow<List<MangaDownload>>(queue)
-        val mutations = DownloadQueueMutations<MangaDownload, Chapter>(
+        val mutations = DownloadQueueMutations<MangaDownload>(
             queueState = queueState,
             itemId = { it.chapter.id },
-            ownerItemId = { it.id },
             createFromId = { null },
             moveToFront = {},
             updateQueue = {},
