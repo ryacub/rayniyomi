@@ -13,6 +13,8 @@ data class AnimeLibraryItem(
     var sourceLanguage: String = "",
     private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
 ) {
+    internal val sortTitle by lazy { libraryAnime.anime.title.lowercase() }
+
     val sourceName by lazy { sourceManager.getOrStub(libraryAnime.anime.source).getNameForAnimeInfo() }
 
     /**
