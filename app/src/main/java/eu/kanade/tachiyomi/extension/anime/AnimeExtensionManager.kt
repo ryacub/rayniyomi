@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable
 import eu.kanade.domain.extension.anime.interactor.TrustAnimeExtension
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.anime.api.AnimeExtensionApi
@@ -178,13 +179,14 @@ class AnimeExtensionManager(
      * Finds the available anime extensions in the [api] and updates [availableExtensionsMapFlow].
      */
     suspend fun findAvailableExtensions() {
-        val extensions: List<AnimeExtension.Available> = try {
+        val catalog = try {
             api.findExtensions()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             withUIContext { context.toast(MR.strings.extension_api_error) }
-            emptyList()
+            ExtensionCatalog(extensions = emptyList(), allReposLoaded = false)
         }
+        val extensions = catalog.extensions
 
         enableAdditionalSubLanguages(extensions)
 
@@ -202,7 +204,7 @@ class AnimeExtensionManager(
             }
 
         availableExtensionsMapFlow.value = selectedAvailableExtensions
-        updatedInstalledAnimeExtensionsStatuses(selectedAvailableExtensions)
+        updatedInstalledAnimeExtensionsStatuses(selectedAvailableExtensions, catalog.allReposLoaded)
         setupAvailableAnimeExtensionsSourcesDataMap(selectedAvailableExtensions.values.toList())
     }
 
@@ -241,7 +243,10 @@ class AnimeExtensionManager(
      *
      * @param availableExtensions The list of animeextensions given by the [api].
      */
-    private fun updatedInstalledAnimeExtensionsStatuses(availableExtensions: Map<String, AnimeExtension.Available>) {
+    private fun updatedInstalledAnimeExtensionsStatuses(
+        availableExtensions: Map<String, AnimeExtension.Available>,
+        allReposLoaded: Boolean,
+    ) {
         if (availableExtensions.isEmpty()) {
             preferences.animeExtensionUpdatesCount().set(0)
             return
@@ -250,13 +255,13 @@ class AnimeExtensionManager(
         installedExtensionsMapFlow.update { installedExtensions ->
             installedExtensions.mapValues { (pkgName, extension) ->
                 val availableExt = availableExtensions[pkgName]
-                if (availableExt == null) {
-                    extension.copy(isObsolete = true)
-                } else {
-                    extension.copy(
+                when {
+                    availableExt != null -> extension.copy(
                         hasUpdate = extension.updateExists(availableExt),
                         repoUrl = availableExt.repoUrl,
                     )
+                    allReposLoaded -> extension.copy(isObsolete = true)
+                    else -> extension
                 }
             }
         }

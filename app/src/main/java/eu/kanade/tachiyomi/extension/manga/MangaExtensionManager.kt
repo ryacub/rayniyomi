@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable
 import eu.kanade.domain.extension.manga.interactor.TrustMangaExtension
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.manga.api.MangaExtensionApi
@@ -173,13 +174,14 @@ class MangaExtensionManager(
      * Finds the available extensions in the [api] and updates [availableExtensionsMapFlow].
      */
     suspend fun findAvailableExtensions() {
-        val extensions: List<MangaExtension.Available> = try {
+        val catalog = try {
             api.findExtensions()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             withUIContext { context.toast(MR.strings.extension_api_error) }
-            emptyList()
+            ExtensionCatalog(extensions = emptyList(), allReposLoaded = false)
         }
+        val extensions = catalog.extensions
 
         enableAdditionalSubLanguages(extensions)
 
@@ -197,7 +199,7 @@ class MangaExtensionManager(
             }
 
         availableExtensionsMapFlow.value = selectedAvailableExtensions
-        updatedInstalledExtensionsStatuses(selectedAvailableExtensions)
+        updatedInstalledExtensionsStatuses(selectedAvailableExtensions, catalog.allReposLoaded)
         setupAvailableExtensionsSourcesDataMap(selectedAvailableExtensions.values.toList())
     }
 
@@ -236,7 +238,10 @@ class MangaExtensionManager(
      *
      * @param availableExtensions The list of extensions given by the [api].
      */
-    private fun updatedInstalledExtensionsStatuses(availableExtensions: Map<String, MangaExtension.Available>) {
+    private fun updatedInstalledExtensionsStatuses(
+        availableExtensions: Map<String, MangaExtension.Available>,
+        allReposLoaded: Boolean,
+    ) {
         if (availableExtensions.isEmpty()) {
             preferences.mangaExtensionUpdatesCount().set(0)
             return
@@ -245,13 +250,13 @@ class MangaExtensionManager(
         installedExtensionsMapFlow.update { installedExtensions ->
             installedExtensions.mapValues { (pkgName, extension) ->
                 val availableExt = availableExtensions[pkgName]
-                if (availableExt == null) {
-                    extension.copy(isObsolete = true)
-                } else {
-                    extension.copy(
+                when {
+                    availableExt != null -> extension.copy(
                         hasUpdate = extension.updateExists(availableExt),
                         repoUrl = availableExt.repoUrl,
                     )
+                    allReposLoaded -> extension.copy(isObsolete = true)
+                    else -> extension
                 }
             }
         }

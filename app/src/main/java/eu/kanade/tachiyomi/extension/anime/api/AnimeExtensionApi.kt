@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.anime.api
 
 import android.content.Context
 import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
@@ -40,16 +41,19 @@ internal class AnimeExtensionApi {
         preferenceStore.getLong("last_ext_check", 0)
     }
 
-    suspend fun findExtensions(): List<AnimeExtension.Available> {
+    suspend fun findExtensions(): ExtensionCatalog<AnimeExtension.Available> {
         return withIOContext {
-            getExtensionRepo.getAll()
+            val repoExtensions = getExtensionRepo.getAll()
                 .map { async { getExtensions(it) } }
                 .awaitAll()
-                .flatten()
+            ExtensionCatalog(
+                extensions = repoExtensions.filterNotNull().flatten(),
+                allReposLoaded = null !in repoExtensions,
+            )
         }
     }
 
-    private suspend fun getExtensions(extRepo: ExtensionRepo): List<AnimeExtension.Available> {
+    private suspend fun getExtensions(extRepo: ExtensionRepo): List<AnimeExtension.Available>? {
         val repoBaseUrl = extRepo.baseUrl
         return try {
             val response = networkService.client
@@ -66,7 +70,7 @@ internal class AnimeExtensionApi {
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
-            emptyList()
+            null
         }
     }
 
@@ -87,7 +91,7 @@ internal class AnimeExtensionApi {
         val extensions = if (fromAvailableExtensionList) {
             animeExtensionManager.availableExtensionsFlow.value
         } else {
-            findExtensions().also { lastExtCheck.set(Instant.now().toEpochMilli()) }
+            findExtensions().extensions.also { lastExtCheck.set(Instant.now().toEpochMilli()) }
         }
 
         val installedExtensions = AnimeExtensionLoader.loadExtensions(context)
