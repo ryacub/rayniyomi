@@ -247,6 +247,36 @@ class AnimeDownloadQueueScreenModelTest {
     }
 
     @Test
+    fun `headers respond to collapse actions while the queue is idle`() = runTest(testDispatcher.scheduler) {
+        val source1 = createSource(1L)
+        val source2 = createSource(2L)
+        val manager = createManager(
+            listOf(createDownload(source1, 1L, 1L), createDownload(source2, 2L, 2L)),
+        )
+        val store = ViewModelStore()
+        val model = store.create { AnimeDownloadQueueScreenModel(manager) }
+        try {
+            model.toggleExpanded(source1)
+            advanceUntilIdle()
+            model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
+
+            model.toggleExpanded(source1)
+            advanceUntilIdle()
+            model.state.value.map { it.isExpanded } shouldContainExactly listOf(true, true)
+
+            model.collapseAll()
+            advanceUntilIdle()
+            model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, false)
+
+            model.expandHeader(source2)
+            advanceUntilIdle()
+            model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
     fun `clearing the store cancels the queue collection`() = runTest {
         val queue = MutableStateFlow(emptyList<AnimeDownload>())
         val manager = createManager().also { every { it.queueState } returns queue }
