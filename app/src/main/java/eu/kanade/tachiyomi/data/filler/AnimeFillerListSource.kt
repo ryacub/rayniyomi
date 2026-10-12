@@ -65,7 +65,7 @@ class AnimeFillerListSource internal constructor(
     private suspend fun getCatalog(): Map<String, List<AnimeFillerCatalogEntry>> = catalogMutex.withLock {
         catalog?.let { return it }
         catalogFailedAt?.let {
-            check(nowProvider() - it >= CATALOG_RETRY_MS) { "Anime filler catalog failed recently" }
+            check(nowProvider() - it !in 0 until CATALOG_RETRY_MS) { "Anime filler catalog failed recently" }
         }
         try {
             val entries = AnimeFillerListParser.parseCatalog(fetchHtml(CATALOG_URL))
