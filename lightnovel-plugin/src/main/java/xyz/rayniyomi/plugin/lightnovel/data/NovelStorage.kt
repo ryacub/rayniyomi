@@ -160,7 +160,7 @@ class NovelStorage(private val context: Context) {
 
     fun restoreLibrary(library: NovelLibrary): Boolean = NovelStorageCoordinator.withLock {
         runCatching {
-            ensureInitialized()
+            ensureInitialized(library.books.mapTo(mutableSetOf()) { it.epubFileName })
             val restoredIds = library.books.mapTo(mutableSetOf()) { it.id }
             val preservedBooks = readLibraryStrictly().books.filter { book ->
                 book.id !in restoredIds && getBookFile(book).isFile
@@ -177,12 +177,13 @@ class NovelStorage(private val context: Context) {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    private fun ensureInitialized() {
+    private fun ensureInitialized(additionalReferencedFiles: Set<String> = emptySet()) {
         rootDir.mkdirs()
         booksDir.mkdirs()
         NovelStorageCoordinator.cleanStaleImportsOnce(booksDir) {
             try {
                 readLibraryStrictly().books.mapTo(mutableSetOf()) { it.epubFileName }
+                    .apply { addAll(additionalReferencedFiles) }
             } catch (cause: Exception) {
                 Log.w(TAG, "Skipping stale import cleanup because the library index is unreadable", cause)
                 null
