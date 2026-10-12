@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.download.manga
+package eu.kanade.tachiyomi.ui.download
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -38,7 +38,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.DropdownMenu
-import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -48,10 +47,10 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 
 @Composable
-fun DownloadQueueScreen(
+fun <I : DownloadQueueEntry> DownloadQueueScreen(
     contentPadding: PaddingValues,
-    screenModel: MangaDownloadQueueScreenModel,
-    downloadList: List<MangaDownloadUiHeaderItem>,
+    screenModel: DownloadQueueActions<I>,
+    downloadList: List<DownloadQueueGroup<I>>,
     nestedScrollConnection: NestedScrollConnection,
 ) {
     Scaffold {
@@ -76,7 +75,7 @@ fun DownloadQueueScreen(
                     from.index,
                     to.index,
                 )
-                screenModel.reorder(reorderedDownloads.mapNotNull { it.chapter.id })
+                screenModel.reorder(reorderedDownloads.mapNotNull { it.downloadId })
             }
         }
 
@@ -88,18 +87,18 @@ fun DownloadQueueScreen(
             ) {
                 items(
                     items = downloadList,
-                    key = { header -> header.source.id },
+                    key = { header -> header.sourceId },
                 ) { header ->
                     ReorderableItem(
                         reorderState,
-                        header.source.id,
+                        header.sourceId,
                     ) { isDragging ->
-                        MangaDownloadQueueHeader(
+                        DownloadQueueHeader(
                             header = header,
                             isDragging = isDragging,
                             onDragStart = { screenModel.collapseAll() },
-                            onDragEnd = { screenModel.expandHeader(header.source) },
-                            onToggleExpanded = { screenModel.toggleExpanded(header.source) },
+                            onDragEnd = { screenModel.expandHeader(header.sourceId) },
+                            onToggleExpanded = { screenModel.toggleExpanded(header.sourceId) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -107,8 +106,8 @@ fun DownloadQueueScreen(
                     AnimatedVisibility(visible = header.isExpanded) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             header.downloads.forEach { item ->
-                                key(item.download.chapter.url) {
-                                    MangaDownloadQueueItem(
+                                key(item.key) {
+                                    DownloadQueueItem(
                                         item = item,
                                         screenModel = screenModel,
                                         modifier = Modifier.fillMaxWidth(),
@@ -124,8 +123,8 @@ fun DownloadQueueScreen(
 }
 
 @Composable
-private fun ReorderableCollectionItemScope.MangaDownloadQueueHeader(
-    header: MangaDownloadUiHeaderItem,
+private fun ReorderableCollectionItemScope.DownloadQueueHeader(
+    header: DownloadQueueGroup<*>,
     isDragging: Boolean,
     onDragStart: () -> Unit,
     onDragEnd: () -> Unit,
@@ -150,7 +149,7 @@ private fun ReorderableCollectionItemScope.MangaDownloadQueueHeader(
         )
 
         Text(
-            text = "${header.source.name} (${header.downloads.size})",
+            text = "${header.sourceName} (${header.downloads.size})",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier
                 .weight(1f)
@@ -178,9 +177,9 @@ private fun ReorderableCollectionItemScope.MangaDownloadQueueHeader(
 }
 
 @Composable
-private fun MangaDownloadQueueItem(
-    item: MangaDownloadUiItem,
-    screenModel: MangaDownloadQueueScreenModel,
+private fun <I : DownloadQueueEntry> DownloadQueueItem(
+    item: I,
+    screenModel: DownloadQueueActions<I>,
     modifier: Modifier = Modifier,
 ) {
     val progress by remember { derivedStateOf { item.progress } }
@@ -195,7 +194,7 @@ private fun MangaDownloadQueueItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = item.download.chapter.name,
+                text = item.name,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
                 overflow = TextOverflow.Ellipsis,
@@ -236,7 +235,7 @@ private fun MangaDownloadQueueItem(
                     DropdownMenuItem(
                         text = { Text(stringResource(MR.strings.action_move_to_top_all_for_series)) },
                         onClick = {
-                            screenModel.moveToTopSeries(item.download.manga.id)
+                            screenModel.moveToTopSeries(item.entryId)
                             menuExpanded = false
                         },
                     )
@@ -244,7 +243,7 @@ private fun MangaDownloadQueueItem(
                     DropdownMenuItem(
                         text = { Text(stringResource(MR.strings.action_move_to_bottom_all_for_series)) },
                         onClick = {
-                            screenModel.moveToBottomSeries(item.download.manga.id)
+                            screenModel.moveToBottomSeries(item.entryId)
                             menuExpanded = false
                         },
                     )
@@ -260,7 +259,7 @@ private fun MangaDownloadQueueItem(
                     DropdownMenuItem(
                         text = { Text(stringResource(MR.strings.action_delete)) },
                         onClick = {
-                            screenModel.cancelSeries(item.download.manga.id)
+                            screenModel.cancelSeries(item.entryId)
                             menuExpanded = false
                         },
                     )
@@ -285,14 +284,14 @@ private fun MangaDownloadQueueItem(
 
 @Preview
 @Composable
-private fun MangaDownloadQueueScreenPreview() {
+private fun DownloadQueueScreenPreview() {
     EmptyScreen(
         stringRes = MR.strings.information_no_downloads,
     )
 }
 
 private fun findHeaderIndex(
-    items: List<MangaDownloadUiHeaderItem>,
+    items: List<DownloadQueueGroup<*>>,
     flatIndex: Int,
 ): Int {
     var currentIndex = 0
@@ -307,19 +306,19 @@ private fun findHeaderIndex(
     return -1
 }
 
-private fun computeReorderedDownloads(
-    items: List<MangaDownloadUiHeaderItem>,
+private fun <I : DownloadQueueEntry> computeReorderedDownloads(
+    items: List<DownloadQueueGroup<I>>,
     fromIndex: Int,
     toIndex: Int,
-): List<MangaDownload> {
-    val flatList = mutableListOf<Pair<MangaDownloadUiItem?, Boolean>>()
+): List<I> {
+    val flatList = mutableListOf<Pair<I?, Boolean>>()
     items.forEach { header ->
         flatList.add(Pair(null, true))
         flatList.addAll(header.downloads.map { Pair(it, false) })
     }
 
     if (fromIndex < 0 || fromIndex >= flatList.size || toIndex < 0 || toIndex >= flatList.size) {
-        return items.flatMap { it.downloads.map { item -> item.download } }
+        return items.flatMap { it.downloads }
     }
 
     val reordered = flatList.toMutableList()
@@ -328,5 +327,4 @@ private fun computeReorderedDownloads(
 
     return reordered
         .mapNotNull { (uiItem, _) -> uiItem }
-        .map { it.download }
 }

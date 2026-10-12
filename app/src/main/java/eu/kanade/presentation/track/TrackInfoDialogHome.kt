@@ -1,4 +1,4 @@
-package eu.kanade.presentation.track.anime
+package eu.kanade.presentation.track
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
@@ -17,27 +17,27 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
-import eu.kanade.presentation.track.TrackInfoItem
-import eu.kanade.presentation.track.TrackInfoItemEmpty
-import eu.kanade.tachiyomi.data.track.AnimeTracker
-import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackInfoItem
+import eu.kanade.tachiyomi.ui.entries.track.EntryTrackInfoItem
+import eu.kanade.tachiyomi.ui.entries.track.displayScore
+import eu.kanade.tachiyomi.ui.entries.track.scoreList
+import eu.kanade.tachiyomi.ui.entries.track.statusName
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun AnimeTrackInfoDialogHome(
-    trackItems: List<AnimeTrackInfoItem>,
+fun TrackInfoDialogHome(
+    trackItems: List<EntryTrackInfoItem>,
     dateFormat: DateTimeFormatter,
-    onStatusClick: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onEpisodeClick: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onScoreClick: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onStartDateEdit: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onEndDateEdit: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onNewSearch: (AnimeTrackInfoItem) -> Unit,
-    onOpenInBrowser: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onRemoved: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onCopyLink: (AnimeTrackInfoItem.Tracked) -> Unit,
-    onTogglePrivate: (AnimeTrackInfoItem.Tracked) -> Unit,
+    onStatusClick: (EntryTrackInfoItem.Tracked) -> Unit,
+    onProgressClick: (EntryTrackInfoItem.Tracked) -> Unit,
+    onScoreClick: (EntryTrackInfoItem.Tracked) -> Unit,
+    onStartDateEdit: (EntryTrackInfoItem.Tracked) -> Unit,
+    onEndDateEdit: (EntryTrackInfoItem.Tracked) -> Unit,
+    onNewSearch: (EntryTrackInfoItem) -> Unit,
+    onOpenInBrowser: (EntryTrackInfoItem.Tracked) -> Unit,
+    onRemoved: (EntryTrackInfoItem.Tracked) -> Unit,
+    onCopyLink: (EntryTrackInfoItem.Tracked) -> Unit,
+    onTogglePrivate: (EntryTrackInfoItem.Tracked) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -50,27 +50,25 @@ fun AnimeTrackInfoDialogHome(
     ) {
         trackItems.forEach { item ->
             when (item) {
-                is AnimeTrackInfoItem.Tracked -> {
+                is EntryTrackInfoItem.Tracked -> {
                     val track = item.track
-                    val supportsScoring = item.tracker.animeService.getScoreList().isNotEmpty()
+                    val supportsScoring = item.tracker.scoreList(track).isNotEmpty()
                     val supportsReadingDates = item.tracker.supportsReadingDates
                     val supportsPrivate = item.tracker.supportsPrivateTracking
                     TrackInfoItem(
                         title = track.title,
                         tracker = item.tracker,
-                        status = (item.tracker as? AnimeTracker)?.getStatusForAnime(track.status),
+                        status = item.tracker.statusName(track, track.status),
                         onStatusClick = { onStatusClick(item) },
-                        progress = "${track.lastEpisodeSeen.toInt()}".let {
-                            val totalEpisodes = track.totalEpisodes
-                            if (totalEpisodes > 0) {
-                                // Add known total episode count
-                                "$it / $totalEpisodes"
+                        progress = "${track.progress.toInt()}".let {
+                            if (track.total > 0) {
+                                "$it / ${track.total}"
                             } else {
                                 it
                             }
                         },
-                        onProgressClick = { onEpisodeClick(item) },
-                        score = item.tracker.animeService.displayScore(track)
+                        onProgressClick = { onProgressClick(item) },
+                        score = item.tracker.displayScore(track)
                             .takeIf { supportsScoring && track.score != 0.0 },
                         onScoreClick = { onScoreClick(item) }
                             .takeIf { supportsScoring },
@@ -95,7 +93,7 @@ fun AnimeTrackInfoDialogHome(
                             .takeIf { supportsPrivate },
                     )
                 }
-                is AnimeTrackInfoItem.Untracked -> {
+                is EntryTrackInfoItem.Untracked -> {
                     TrackInfoItemEmpty(
                         tracker = item.tracker,
                         onNewSearch = { onNewSearch(item) },
@@ -109,7 +107,7 @@ fun AnimeTrackInfoDialogHome(
 @PreviewLightDark
 @Composable
 private fun TrackInfoDialogHomePreviews(
-    @PreviewParameter(AnimeTrackInfoDialogHomePreviewProvider::class)
+    @PreviewParameter(TrackInfoDialogHomePreviewProvider::class)
     content: @Composable () -> Unit,
 ) {
     TachiyomiPreviewTheme { content() }

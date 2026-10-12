@@ -11,6 +11,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.TabContent
+import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import tachiyomi.i18n.aniyomi.AYMR
 
 @Composable

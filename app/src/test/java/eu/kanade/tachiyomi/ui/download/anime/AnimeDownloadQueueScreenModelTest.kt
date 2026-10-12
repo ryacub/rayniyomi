@@ -256,11 +256,11 @@ class AnimeDownloadQueueScreenModelTest {
         val store = ViewModelStore()
         val model = store.create { AnimeDownloadQueueScreenModel(manager) }
         try {
-            model.toggleExpanded(source1)
+            model.toggleExpanded(source1.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
 
-            model.toggleExpanded(source1)
+            model.toggleExpanded(source1.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(true, true)
 
@@ -268,7 +268,7 @@ class AnimeDownloadQueueScreenModelTest {
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, false)
 
-            model.expandHeader(source2)
+            model.expandHeader(source2.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
         } finally {
@@ -286,5 +286,16 @@ class AnimeDownloadQueueScreenModelTest {
         queue.subscriptionCount.value shouldBe 1
         store.clear()
         queue.subscriptionCount.value shouldBe 0
+    }
+
+    @Test
+    fun `queue item exposes the episode id, the anime id, and the episode url`() {
+        val download = createDownload(createSource(1L), animeId = 7L, episodeId = 9L)
+        val item = AnimeDownloadUiItem(download, progress = 0f)
+
+        item.downloadId shouldBe 9L
+        item.entryId shouldBe 7L
+        item.key shouldBe download.episode.url
+        item.name shouldBe "Episode 9"
     }
 }

@@ -11,6 +11,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.components.TabContent
+import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import tachiyomi.i18n.aniyomi.AYMR
 
 @Composable
@@ -28,7 +29,7 @@ fun Screen.animeDownloadTab(
         titleRes = AYMR.strings.label_anime,
         searchEnabled = false,
         content = { contentPadding, _ ->
-            AnimeDownloadQueueScreen(
+            DownloadQueueScreen(
                 contentPadding = contentPadding,
                 screenModel = screenModel,
                 downloadList = downloadList,

@@ -50,7 +50,8 @@ import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaSearchSc
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.ui.browse.manga.source.globalsearch.GlobalMangaSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
-import eu.kanade.tachiyomi.ui.entries.manga.track.MangaTrackInfoDialogHomeScreen
+import eu.kanade.tachiyomi.ui.entries.track.EntryType
+import eu.kanade.tachiyomi.ui.entries.track.TrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
@@ -257,12 +258,13 @@ class MangaScreen(
             )
             MangaScreenModel.Dialog.TrackSheet -> {
                 NavigatorAdaptiveSheet(
-                    screen = MangaTrackInfoDialogHomeScreen(
-                        mangaId = successState.manga.id,
-                        mangaTitle = successState.manga.title,
+                    screen = TrackInfoDialogHomeScreen(
+                        entryId = successState.manga.id,
+                        entryTitle = successState.manga.title,
                         sourceId = successState.source.id,
+                        type = EntryType.MANGA,
                     ),
-                    enableSwipeDismiss = { it.lastItem is MangaTrackInfoDialogHomeScreen },
+                    enableSwipeDismiss = { it.lastItem is TrackInfoDialogHomeScreen },
                     onDismissRequest = onDismissRequest,
                 )
             }

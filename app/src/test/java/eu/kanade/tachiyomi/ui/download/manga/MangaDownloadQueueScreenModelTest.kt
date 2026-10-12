@@ -256,11 +256,11 @@ class MangaDownloadQueueScreenModelTest {
         val store = ViewModelStore()
         val model = store.create { MangaDownloadQueueScreenModel(manager) }
         try {
-            model.toggleExpanded(source1)
+            model.toggleExpanded(source1.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
 
-            model.toggleExpanded(source1)
+            model.toggleExpanded(source1.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(true, true)
 
@@ -268,7 +268,7 @@ class MangaDownloadQueueScreenModelTest {
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, false)
 
-            model.expandHeader(source2)
+            model.expandHeader(source2.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
         } finally {
@@ -286,5 +286,16 @@ class MangaDownloadQueueScreenModelTest {
         queue.subscriptionCount.value shouldBe 1
         store.clear()
         queue.subscriptionCount.value shouldBe 0
+    }
+
+    @Test
+    fun `queue item exposes the chapter id, the manga id, and the chapter url`() {
+        val download = createDownload(createSource(1L), mangaId = 7L, chapterId = 9L)
+        val item = MangaDownloadUiItem(download, progress = 0f)
+
+        item.downloadId shouldBe 9L
+        item.entryId shouldBe 7L
+        item.key shouldBe download.chapter.url
+        item.name shouldBe "Chapter 9"
     }
 }

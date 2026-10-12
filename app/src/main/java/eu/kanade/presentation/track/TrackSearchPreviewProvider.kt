@@ -1,14 +1,13 @@
-package eu.kanade.presentation.track.manga
+package eu.kanade.presentation.track
 
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
-import eu.kanade.presentation.track.previewMangaTrackSearches
 
-internal class MangaTrackerSearchPreviewProvider : PreviewParameterProvider<@Composable () -> Unit> {
+internal class TrackSearchPreviewProvider : PreviewParameterProvider<@Composable () -> Unit> {
     private val fullPageWithSecondSelected = @Composable {
-        val items = previewMangaTrackSearches().take(30).toList()
-        MangaTrackerSearch(
+        val items = previewEntryTrackSearches().take(30).toList()
+        TrackSearch(
             state = TextFieldState(initialText = "search text"),
             onDispatchQuery = {},
             queryResult = Result.success(items),
@@ -20,10 +19,10 @@ internal class MangaTrackerSearchPreviewProvider : PreviewParameterProvider<@Com
         )
     }
     private val fullPageWithoutSelected = @Composable {
-        MangaTrackerSearch(
+        TrackSearch(
             state = TextFieldState(),
             onDispatchQuery = {},
-            queryResult = Result.success(previewMangaTrackSearches().take(30).toList()),
+            queryResult = Result.success(previewEntryTrackSearches().take(30).toList()),
             selected = null,
             onSelectedChange = {},
             onConfirmSelection = {},
@@ -32,7 +31,7 @@ internal class MangaTrackerSearchPreviewProvider : PreviewParameterProvider<@Com
         )
     }
     private val loading = @Composable {
-        MangaTrackerSearch(
+        TrackSearch(
             state = TextFieldState(),
             onDispatchQuery = {},
             queryResult = null,
@@ -44,8 +43,8 @@ internal class MangaTrackerSearchPreviewProvider : PreviewParameterProvider<@Com
         )
     }
     private val fullPageWithPrivateTracking = @Composable {
-        val items = previewMangaTrackSearches().take(30).toList()
-        MangaTrackerSearch(
+        val items = previewEntryTrackSearches().take(30).toList()
+        TrackSearch(
             state = TextFieldState(initialText = "search text"),
             onDispatchQuery = {},
             queryResult = Result.success(items),
