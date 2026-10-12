@@ -58,9 +58,8 @@ class AnimeBackupCreator(
         if (options.history) {
             val historyByAnimeId = getHistory.await(anime.id)
             if (historyByAnimeId.isNotEmpty()) {
-                val episodeUrls = handler.awaitList {
-                    episodesQueries.getEpisodesByAnimeId(animeId = anime.id)
-                }.associate { it._id to it.url }
+                val episodeUrls = handler.awaitList { episodesQueries.getEpisodeUrlsByAnimeId(anime.id) }
+                    .associate { it._id to it.url }
                 val history = historyByAnimeId.mapNotNull { history ->
                     val url = episodeUrls[history.episodeId] ?: return@mapNotNull null
                     BackupAnimeHistory(url, history.seenAt?.time ?: 0L)

@@ -335,9 +335,8 @@ class MangaRestorer(
     internal suspend fun restoreHistory(manga: Manga, backupHistory: List<BackupHistory>) {
         if (backupHistory.isEmpty()) return
 
-        val chaptersByUrl = handler.awaitList {
-            chaptersQueries.getChaptersByMangaId(mangaId = manga.id, applyScanlatorFilter = 0)
-        }.sortedBy { it._id }.groupBy { it.url }
+        val chaptersByUrl = handler.awaitList { chaptersQueries.getChapterUrlsByMangaId(manga.id) }
+            .groupBy { it.url }
         val historyByChapterId = handler.awaitList { historyQueries.getHistoryByMangaId(manga.id) }
             .associateBy { it.chapter_id }
 

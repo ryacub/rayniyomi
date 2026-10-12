@@ -354,8 +354,7 @@ class AnimeRestorer(
     internal suspend fun restoreHistory(anime: Anime, backupHistory: List<BackupAnimeHistory>) {
         if (backupHistory.isEmpty()) return
 
-        val episodesByUrl = handler.awaitList { episodesQueries.getEpisodesByAnimeId(anime.id) }
-            .sortedBy { it._id }
+        val episodesByUrl = handler.awaitList { episodesQueries.getEpisodeUrlsByAnimeId(anime.id) }
             .groupBy { it.url }
         val historyByEpisodeId = handler.awaitList { animehistoryQueries.getHistoryByAnimeId(anime.id) }
             .associateBy { it.episode_id }

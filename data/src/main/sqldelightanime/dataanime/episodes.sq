@@ -69,6 +69,12 @@ WHERE bookmark
 AND anime_id = :animeId;
 
 
+getEpisodeUrlsByAnimeId:
+SELECT _id, url
+FROM episodes
+WHERE anime_id = :animeId
+ORDER BY _id;
+
 getEpisodeByUrlAndAnimeId:
 SELECT *
 FROM episodes
