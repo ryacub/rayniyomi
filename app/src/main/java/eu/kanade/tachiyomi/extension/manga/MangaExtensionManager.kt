@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
@@ -241,32 +242,18 @@ class MangaExtensionManager(
             return
         }
 
-        val installedExtensionsMap = installedExtensionsMapFlow.value.toMutableMap()
-        var changed = false
-
-        for ((pkgName, extension) in installedExtensionsMap) {
-            val availableExt = availableExtensions[pkgName]
-
-            if (availableExt == null && !extension.isObsolete) {
-                installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
-                changed = true
-            } else if (availableExt != null) {
-                val hasUpdate = extension.updateExists(availableExt)
-                if (extension.hasUpdate != hasUpdate) {
-                    installedExtensionsMap[pkgName] = extension.copy(
-                        hasUpdate = hasUpdate,
-                        repoUrl = availableExt.repoUrl,
-                    )
+        installedExtensionsMapFlow.update { installedExtensions ->
+            installedExtensions.mapValues { (pkgName, extension) ->
+                val availableExt = availableExtensions[pkgName]
+                if (availableExt == null) {
+                    extension.copy(isObsolete = true)
                 } else {
-                    installedExtensionsMap[pkgName] = extension.copy(
+                    extension.copy(
+                        hasUpdate = extension.updateExists(availableExt),
                         repoUrl = availableExt.repoUrl,
                     )
                 }
-                changed = true
             }
-        }
-        if (changed) {
-            installedExtensionsMapFlow.value = installedExtensionsMap
         }
         updatePendingUpdatesCount()
     }
@@ -335,7 +322,7 @@ class MangaExtensionManager(
 
         trustExtension.trust(extension.pkgName, extension.versionCode, extension.signatureHash)
 
-        untrustedExtensionsMapFlow.value -= extension.pkgName
+        untrustedExtensionsMapFlow.update { it - extension.pkgName }
 
         when (val result = MangaExtensionLoader.loadMangaExtensionFromPkgName(context, extension.pkgName)) {
             is MangaLoadResult.Success -> registerNewExtension(result.extension)
@@ -350,7 +337,7 @@ class MangaExtensionManager(
      * @param extension The extension to be registered.
      */
     private fun registerNewExtension(extension: MangaExtension.Installed) {
-        installedExtensionsMapFlow.value += extension
+        installedExtensionsMapFlow.update { it + extension }
     }
 
     /**
@@ -361,7 +348,7 @@ class MangaExtensionManager(
      */
     private fun registerUpdatedExtension(extension: MangaExtension.Installed) {
         iconMap.remove(extension.pkgName)
-        installedExtensionsMapFlow.value += extension
+        installedExtensionsMapFlow.update { it + extension }
     }
 
     /**
@@ -372,8 +359,8 @@ class MangaExtensionManager(
      */
     private fun unregisterExtension(pkgName: String) {
         iconMap.remove(pkgName)
-        installedExtensionsMapFlow.value -= pkgName
-        untrustedExtensionsMapFlow.value -= pkgName
+        installedExtensionsMapFlow.update { it - pkgName }
+        untrustedExtensionsMapFlow.update { it - pkgName }
     }
 
     /**
@@ -393,8 +380,8 @@ class MangaExtensionManager(
 
         override fun onExtensionUntrusted(extension: MangaExtension.Untrusted) {
             iconMap.remove(extension.pkgName)
-            installedExtensionsMapFlow.value -= extension.pkgName
-            untrustedExtensionsMapFlow.value += extension
+            installedExtensionsMapFlow.update { it - extension.pkgName }
+            untrustedExtensionsMapFlow.update { it + extension }
             updatePendingUpdatesCount()
         }
 

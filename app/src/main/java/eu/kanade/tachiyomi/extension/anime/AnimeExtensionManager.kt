@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
@@ -246,32 +247,18 @@ class AnimeExtensionManager(
             return
         }
 
-        val installedExtensionsMap = installedExtensionsMapFlow.value.toMutableMap()
-        var changed = false
-
-        for ((pkgName, extension) in installedExtensionsMap) {
-            val availableExt = availableExtensions[pkgName]
-
-            if (availableExt == null && !extension.isObsolete) {
-                installedExtensionsMap[pkgName] = extension.copy(isObsolete = true)
-                changed = true
-            } else if (availableExt != null) {
-                val hasUpdate = extension.updateExists(availableExt)
-                if (extension.hasUpdate != hasUpdate) {
-                    installedExtensionsMap[pkgName] = extension.copy(
-                        hasUpdate = hasUpdate,
-                        repoUrl = availableExt.repoUrl,
-                    )
+        installedExtensionsMapFlow.update { installedExtensions ->
+            installedExtensions.mapValues { (pkgName, extension) ->
+                val availableExt = availableExtensions[pkgName]
+                if (availableExt == null) {
+                    extension.copy(isObsolete = true)
                 } else {
-                    installedExtensionsMap[pkgName] = extension.copy(
+                    extension.copy(
+                        hasUpdate = extension.updateExists(availableExt),
                         repoUrl = availableExt.repoUrl,
                     )
                 }
-                changed = true
             }
-        }
-        if (changed) {
-            installedExtensionsMapFlow.value = installedExtensionsMap
         }
         updatePendingUpdatesCount()
     }
@@ -340,7 +327,7 @@ class AnimeExtensionManager(
 
         trustExtension.trust(extension.pkgName, extension.versionCode, extension.signatureHash)
 
-        untrustedExtensionsMapFlow.value -= extension.pkgName
+        untrustedExtensionsMapFlow.update { it - extension.pkgName }
 
         when (val result = AnimeExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)) {
             is AnimeLoadResult.Success -> registerNewExtension(result.extension)
@@ -355,7 +342,7 @@ class AnimeExtensionManager(
      * @param extension The anime extension to be registered.
      */
     private fun registerNewExtension(extension: AnimeExtension.Installed) {
-        installedExtensionsMapFlow.value += extension
+        installedExtensionsMapFlow.update { it + extension }
     }
 
     /**
@@ -366,7 +353,7 @@ class AnimeExtensionManager(
      */
     private fun registerUpdatedExtension(extension: AnimeExtension.Installed) {
         iconMap.remove(extension.pkgName)
-        installedExtensionsMapFlow.value += extension
+        installedExtensionsMapFlow.update { it + extension }
     }
 
     /**
@@ -377,8 +364,8 @@ class AnimeExtensionManager(
      */
     private fun unregisterAnimeExtension(pkgName: String) {
         iconMap.remove(pkgName)
-        installedExtensionsMapFlow.value -= pkgName
-        untrustedExtensionsMapFlow.value -= pkgName
+        installedExtensionsMapFlow.update { it - pkgName }
+        untrustedExtensionsMapFlow.update { it - pkgName }
     }
 
     /**
@@ -398,8 +385,8 @@ class AnimeExtensionManager(
 
         override fun onExtensionUntrusted(extension: AnimeExtension.Untrusted) {
             iconMap.remove(extension.pkgName)
-            installedExtensionsMapFlow.value -= extension.pkgName
-            untrustedExtensionsMapFlow.value += extension
+            installedExtensionsMapFlow.update { it - extension.pkgName }
+            untrustedExtensionsMapFlow.update { it + extension }
             updatePendingUpdatesCount()
         }
 
