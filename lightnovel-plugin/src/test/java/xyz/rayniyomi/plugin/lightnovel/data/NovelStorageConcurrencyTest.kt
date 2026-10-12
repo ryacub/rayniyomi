@@ -157,7 +157,6 @@ class NovelStorageConcurrencyTest {
     }
 
     private fun assertValidLibrary(storage: NovelStorage) {
-        assertTrue(storage.checkIntegrity() is NovelStorageState.Ok)
         assertTrue(storage.listBooks().all { it.id.isNotBlank() && it.title.isNotBlank() })
     }
 

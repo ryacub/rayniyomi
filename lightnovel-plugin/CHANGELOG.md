@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- **Library integrity and reader loading** — preserve unreadable indexes, limit streamed imports to 100 MiB, remove stale import files at startup, and load EPUB content on the IO dispatcher
 - **Backup and storage coordination** — share the host/plugin backup contract and preserve valid local EPUB entries during coordinated restores
 
 ## [0.2.0] - 2026-03-12

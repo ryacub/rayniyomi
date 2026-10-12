@@ -19,8 +19,19 @@ import kotlin.concurrent.withLock
 
 internal object NovelStorageCoordinator {
     private val lock = ReentrantLock(true)
+    private val initializedBookDirectories = mutableSetOf<String>()
 
     fun <T> withLock(action: () -> T): T = lock.withLock(action)
+
+    fun cleanStaleImportsOnce(booksDir: File, referencedFileNames: () -> Set<String>?) = withLock {
+        val path = booksDir.absolutePath
+        if (!initializedBookDirectories.add(path)) return@withLock
+        val referenced = referencedFileNames() ?: return@withLock
+        booksDir.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.endsWith(".tmp.epub") && it.name !in referenced }
+            .forEach(File::delete)
+    }
 }
 
 /**
@@ -31,10 +42,8 @@ internal object NovelStorageCoordinator {
  * On every read the envelope is automatically migrated to [NovelSchemaMigrations.LATEST_SCHEMA_VERSION]
  * via [NovelSchemaMigrations.migrateToLatest] before the caller sees the data.
  *
- * ### Corruption resilience
- * If the on-disk JSON cannot be parsed, [checkIntegrity] returns [NovelStorageState.Corrupted]
- * instead of throwing. The host UI can then offer recovery by calling [clearAndRecover], which
- * deletes the library file and resets to a clean empty state without crashing.
+ * Queries return an empty library when the on-disk JSON cannot be parsed. Mutations read strictly
+ * and fail without replacing an unreadable or newer library index.
  */
 class NovelStorage(private val context: Context) {
 
@@ -47,62 +56,15 @@ class NovelStorage(private val context: Context) {
     private val rootDir = File(context.filesDir, ROOT_DIR_NAME).also { it.mkdirs() }
     private val booksDir = File(rootDir, BOOKS_DIR_NAME).also { it.mkdirs() }
     private val libraryFile = File(rootDir, LIBRARY_FILE_NAME)
-
-    // -------------------------------------------------------------------------
-    // Integrity checking
-    // -------------------------------------------------------------------------
-
-    /**
-     * Checks whether the on-disk library can be read without errors.
-     *
-     * This function never throws; all parse failures are captured and returned as
-     * [NovelStorageState.Corrupted].
-     *
-     * @return [NovelStorageState.Ok] if the file is absent or valid JSON,
-     *   [NovelStorageState.Corrupted] otherwise.
-     */
-    fun checkIntegrity(): NovelStorageState = NovelStorageCoordinator.withLock {
-        if (!libraryFile.exists()) return@withLock NovelStorageState.Ok
-        val text = libraryFile.readText()
-        if (text.isBlank()) {
-            return@withLock NovelStorageState.Corrupted(reason = "Library file is empty")
-        }
-        runCatching {
-            val envelope = json.decodeFromString<NovelLibraryEnvelope>(text)
-            if (envelope.schemaVersion > NovelSchemaMigrations.LATEST_SCHEMA_VERSION) {
-                val maxVersion = NovelSchemaMigrations.LATEST_SCHEMA_VERSION
-                return@withLock NovelStorageState.Corrupted(
-                    reason = "Schema version ${envelope.schemaVersion} exceeds max supported $maxVersion",
-                )
+    init {
+        NovelStorageCoordinator.cleanStaleImportsOnce(booksDir) {
+            try {
+                readLibraryStrictly().books.mapTo(mutableSetOf()) { it.epubFileName }
+            } catch (cause: Exception) {
+                Log.w(TAG, "Skipping stale import cleanup because the library index is unreadable", cause)
+                null
             }
-            NovelStorageState.Ok
-        }.getOrElse { cause ->
-            NovelStorageState.Corrupted(reason = cause.message ?: cause.javaClass.simpleName)
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // Recovery
-    // -------------------------------------------------------------------------
-
-    /**
-     * Deletes the corrupted library file and resets storage to a clean empty state.
-     *
-     * After this call [checkIntegrity] will return [NovelStorageState.Ok] and
-     * [listBooks] will return an empty list. EPUB files inside [booksDir] are
-     * **not** deleted — only the library index is cleared.
-     *
-     * This function is idempotent: calling it on already-clean storage is safe.
-     *
-     * @return `true` if the file was deleted successfully or did not exist; `false` if deletion failed.
-     */
-    fun clearAndRecover(): Boolean = NovelStorageCoordinator.withLock {
-        if (!libraryFile.exists()) return@withLock true
-        val deleted = libraryFile.delete()
-        if (!deleted) {
-            Log.e(TAG, "clearAndRecover: failed to delete library file at ${libraryFile.absolutePath}")
-        }
-        deleted
     }
 
     // -------------------------------------------------------------------------
@@ -170,7 +132,7 @@ class NovelStorage(private val context: Context) {
                     throw IOException("Unable to finalize imported EPUB file")
                 }
 
-                val current = readLibrary().books.toMutableList()
+                val current = readLibraryStrictly().books.toMutableList()
                 current.add(newBook)
                 writeLibrary(NovelLibrary(current))
                 newBook
@@ -188,7 +150,7 @@ class NovelStorage(private val context: Context) {
 
     fun updateProgress(bookId: String, chapterIndex: Int, charOffset: Int) =
         NovelStorageCoordinator.withLock {
-            val updated = readLibrary().books.map { book ->
+            val updated = readLibraryStrictly().books.map { book ->
                 if (book.id == bookId) {
                     book.copy(
                         lastReadChapter = chapterIndex.coerceAtLeast(0),
@@ -205,7 +167,7 @@ class NovelStorage(private val context: Context) {
     fun restoreLibrary(library: NovelLibrary): Boolean = NovelStorageCoordinator.withLock {
         runCatching {
             val restoredIds = library.books.mapTo(mutableSetOf()) { it.id }
-            val preservedBooks = readLibrary().books.filter { book ->
+            val preservedBooks = readLibraryStrictly().books.filter { book ->
                 book.id !in restoredIds && getBookFile(book).isFile
             }
             writeLibrary(NovelLibrary(library.books + preservedBooks))
@@ -223,19 +185,10 @@ class NovelStorage(private val context: Context) {
     /**
      * Reads and migrates the library envelope from disk.
      *
-     * On any [SerializationException] or [IllegalStateException] the corrupted data is logged
-     * and an empty library is returned as a safe fallback. Callers that need to distinguish
-     * between "no file" and "corrupt file" should call [checkIntegrity] first.
+     * On parse or migration errors the corrupted data is logged and an empty library is returned.
      */
     private fun readLibrary(): NovelLibrary {
-        if (!libraryFile.exists()) {
-            return NovelLibrary()
-        }
-        return runCatching {
-            val text = libraryFile.readText()
-            val envelope = json.decodeFromString<NovelLibraryEnvelope>(text)
-            NovelSchemaMigrations.migrateToLatest(envelope).library
-        }.getOrElse { cause ->
+        return runCatching { readLibraryStrictly() }.getOrElse { cause ->
             when (cause) {
                 is SerializationException, is IllegalStateException -> {
                     Log.e(TAG, "readLibrary: corrupt data detected — ${cause.message}", cause)
@@ -244,6 +197,16 @@ class NovelStorage(private val context: Context) {
                 else -> throw cause
             }
         }
+    }
+
+    /** Mutations must not treat an unreadable or unsupported index as an empty library. */
+    private fun readLibraryStrictly(): NovelLibrary {
+        if (!libraryFile.exists()) {
+            return NovelLibrary()
+        }
+        val text = libraryFile.readText()
+        val envelope = json.decodeFromString<NovelLibraryEnvelope>(text)
+        return NovelSchemaMigrations.migrateToLatest(envelope).library
     }
 
     private fun writeLibrary(library: NovelLibrary) {
@@ -283,10 +246,14 @@ class NovelStorage(private val context: Context) {
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         var totalBytesRead = 0L
         while (true) {
-            val read = input.read(buffer)
+            val remainingWithOverflowByte = MAX_IMPORT_SIZE_BYTES - totalBytesRead + 1L
+            val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remainingWithOverflowByte).toInt())
             if (read < 0) {
                 onProgress(totalBytesRead, expectedLength)
                 return
+            }
+            if (totalBytesRead + read > MAX_IMPORT_SIZE_BYTES) {
+                throw ImportTooLargeException(totalBytesRead + read, MAX_IMPORT_SIZE_BYTES)
             }
             output.write(buffer, 0, read)
             totalBytesRead += read
