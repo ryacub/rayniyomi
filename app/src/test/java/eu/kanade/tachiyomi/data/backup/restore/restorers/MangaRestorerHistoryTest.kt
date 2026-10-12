@@ -93,4 +93,36 @@ class MangaRestorerHistoryTest {
             assertEquals(1, db.historyRows().size)
         }
     }
+
+    @Test
+    fun `restore reads the database a fixed number of times for any history size`() = runTest {
+        assertEquals(restoreQueryCount(historyRows = 1), restoreQueryCount(historyRows = 5))
+    }
+
+    @Test
+    fun `restore without backup history reads nothing`() = runTest {
+        InMemoryMangaDb().use { db ->
+            db.insertManga(id = 1, url = "manga-a", title = "A")
+            db.driver.resetQueryCount()
+
+            restorer(db).restoreHistory(manga(1), emptyList())
+
+            assertEquals(0, db.driver.queryCount)
+        }
+    }
+
+    private suspend fun restoreQueryCount(historyRows: Int): Int = InMemoryMangaDb().use { db ->
+        db.insertManga(id = 1, url = "manga-a", title = "A")
+        repeat(historyRows) { db.insertChapter(id = 10L + it, mangaId = 1, url = "item-$it") }
+        db.insertHistory(id = 100, chapterId = 10, lastRead = 1_000)
+        db.driver.resetQueryCount()
+
+        restorer(db).restoreHistory(
+            manga(1),
+            List(historyRows) { BackupHistory(url = "item-$it", lastRead = 9_000) },
+        )
+
+        assertEquals(historyRows, db.historyRows().size)
+        db.driver.queryCount
+    }
 }

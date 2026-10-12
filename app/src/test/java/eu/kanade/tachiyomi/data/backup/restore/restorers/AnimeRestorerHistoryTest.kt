@@ -93,4 +93,36 @@ class AnimeRestorerHistoryTest {
             assertEquals(1, db.historyRows().size)
         }
     }
+
+    @Test
+    fun `restore reads the database a fixed number of times for any history size`() = runTest {
+        assertEquals(restoreQueryCount(historyRows = 1), restoreQueryCount(historyRows = 5))
+    }
+
+    @Test
+    fun `restore without backup history reads nothing`() = runTest {
+        InMemoryAnimeDb().use { db ->
+            db.insertAnime(id = 1, url = "anime-a", title = "A")
+            db.driver.resetQueryCount()
+
+            restorer(db).restoreHistory(anime(1), emptyList())
+
+            assertEquals(0, db.driver.queryCount)
+        }
+    }
+
+    private suspend fun restoreQueryCount(historyRows: Int): Int = InMemoryAnimeDb().use { db ->
+        db.insertAnime(id = 1, url = "anime-a", title = "A")
+        repeat(historyRows) { db.insertEpisode(id = 10L + it, animeId = 1, url = "item-$it") }
+        db.insertHistory(id = 100, episodeId = 10, lastSeen = 1_000)
+        db.driver.resetQueryCount()
+
+        restorer(db).restoreHistory(
+            anime(1),
+            List(historyRows) { BackupAnimeHistory(url = "item-$it", lastRead = 9_000) },
+        )
+
+        assertEquals(historyRows, db.historyRows().size)
+        db.driver.queryCount
+    }
 }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import java.nio.file.Files
 
 class AnimeFillerListSourceTest {
@@ -97,5 +98,27 @@ class AnimeFillerListSourceTest {
         assertEquals(0, detailRequestCount)
         assertNull(source.getFillerEpisodes("Naruto"))
         assertEquals(0, detailRequestCount)
+    }
+
+    @Test
+    fun `failed catalog fetch is not repeated until the retry window passes`() = runTest {
+        var now = 1_000L
+        var catalogRequests = 0
+        val source = AnimeFillerListSource(
+            cache = AnimeFillerDiskCache(cacheDirectory),
+            nowProvider = { now },
+            fetchHtml = { url ->
+                if (url.endsWith("/shows")) catalogRequests++
+                throw IOException("offline")
+            },
+        )
+
+        assertNull(source.getFillerEpisodes("Naruto"))
+        assertNull(source.getFillerEpisodes("Bleach"))
+        assertEquals(1, catalogRequests)
+
+        now += 10 * 60 * 1000L + 1
+        assertNull(source.getFillerEpisodes("One Piece"))
+        assertEquals(2, catalogRequests)
     }
 }
