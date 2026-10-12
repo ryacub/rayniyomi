@@ -158,7 +158,10 @@ class AnimeUpdatesScreenModelTest {
 
         val uiModel = AnimeUpdatesScreenModel.State(isLoading = false, items = items).getUiModel()
 
-        assertTrue(uiModel.filterIsInstance<AnimeUpdatesUiModel.Header>().isNotEmpty())
+        assertEquals(
+            listOf(1_700_000_000_000L.toLocalDate(), 1_700_259_200_000L.toLocalDate()),
+            uiModel.filterIsInstance<AnimeUpdatesUiModel.Header>().map { it.date },
+        )
     }
 
     @Test
