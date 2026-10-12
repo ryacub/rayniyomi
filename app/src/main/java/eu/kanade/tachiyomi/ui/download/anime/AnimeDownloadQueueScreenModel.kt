@@ -10,6 +10,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.ui.download.DownloadQueueActions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeDownloadQueueScreenModel(
     private val downloadManager: AnimeDownloadManager,
-) : ViewModel() {
+) : ViewModel(), DownloadQueueActions<AnimeHttpSource, AnimeDownloadUiItem> {
 
     private val _state = MutableStateFlow(emptyList<AnimeDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
@@ -55,7 +56,7 @@ class AnimeDownloadQueueScreenModel(
         }
     }
 
-    fun toggleExpanded(source: AnimeHttpSource) {
+    override fun toggleExpanded(source: AnimeHttpSource) {
         collapsedSources.update { current ->
             if (current.contains(source.id)) {
                 current - source.id
@@ -65,16 +66,16 @@ class AnimeDownloadQueueScreenModel(
         }
     }
 
-    fun collapseAll() {
+    override fun collapseAll() {
         val currentSources = _state.value
         collapsedSources.update { currentSources.map { it.source.id }.toSet() }
     }
 
-    fun expandHeader(source: AnimeHttpSource) {
+    override fun expandHeader(source: AnimeHttpSource) {
         collapsedSources.update { it - source.id }
     }
 
-    fun moveToTop(item: AnimeDownloadUiItem) {
+    override fun moveToTop(item: AnimeDownloadUiItem) {
         val currentState = _state.value
         val reorderedEpisodeIds = mutableListOf<Long>()
         currentState.forEach { header ->
@@ -89,7 +90,7 @@ class AnimeDownloadQueueScreenModel(
         reorder(reorderedEpisodeIds)
     }
 
-    fun moveToBottom(item: AnimeDownloadUiItem) {
+    override fun moveToBottom(item: AnimeDownloadUiItem) {
         val currentState = _state.value
         val reorderedEpisodeIds = mutableListOf<Long>()
         currentState.forEach { header ->
@@ -104,25 +105,25 @@ class AnimeDownloadQueueScreenModel(
         reorder(reorderedEpisodeIds)
     }
 
-    fun moveToTopSeries(animeId: Long) {
+    override fun moveToTopSeries(entryId: Long) {
         val all = _state.value.flatMap { it.downloads }
-        val (series, others) = all.partition { it.download.anime.id == animeId }
+        val (series, others) = all.partition { it.download.anime.id == entryId }
         reorder((series + others).mapNotNull { it.download.episode.id })
     }
 
-    fun moveToBottomSeries(animeId: Long) {
+    override fun moveToBottomSeries(entryId: Long) {
         val all = _state.value.flatMap { it.downloads }
-        val (series, others) = all.partition { it.download.anime.id == animeId }
+        val (series, others) = all.partition { it.download.anime.id == entryId }
         reorder((others + series).mapNotNull { it.download.episode.id })
     }
 
-    fun cancelDownload(item: AnimeDownloadUiItem) {
+    override fun cancelDownload(item: AnimeDownloadUiItem) {
         cancel(listOf(item.download))
     }
 
-    fun cancelSeries(animeId: Long) {
+    override fun cancelSeries(entryId: Long) {
         val series = _state.value.flatMap { it.downloads }
-            .filter { it.download.anime.id == animeId }
+            .filter { it.download.anime.id == entryId }
             .map { it.download }
         if (series.isNotEmpty()) {
             cancel(series)
@@ -147,9 +148,9 @@ class AnimeDownloadQueueScreenModel(
         downloadManager.clearQueue()
     }
 
-    fun reorder(downloadEpisodeIds: List<Long>) {
+    override fun reorder(downloadIds: List<Long>) {
         viewModelScope.launch {
-            downloadManager.reorderQueueByEpisodeIds(downloadEpisodeIds)
+            downloadManager.reorderQueueByEpisodeIds(downloadIds)
         }
     }
 

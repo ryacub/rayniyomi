@@ -10,6 +10,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.ui.download.DownloadQueueActions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class MangaDownloadQueueScreenModel(
     private val downloadManager: MangaDownloadManager,
-) : ViewModel() {
+) : ViewModel(), DownloadQueueActions<HttpSource, MangaDownloadUiItem> {
 
     private val _state = MutableStateFlow(emptyList<MangaDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
@@ -55,7 +56,7 @@ class MangaDownloadQueueScreenModel(
         }
     }
 
-    fun toggleExpanded(source: HttpSource) {
+    override fun toggleExpanded(source: HttpSource) {
         collapsedSources.update { current ->
             if (current.contains(source.id)) {
                 current - source.id
@@ -65,16 +66,16 @@ class MangaDownloadQueueScreenModel(
         }
     }
 
-    fun collapseAll() {
+    override fun collapseAll() {
         val currentSources = _state.value
         collapsedSources.update { currentSources.map { it.source.id }.toSet() }
     }
 
-    fun expandHeader(source: HttpSource) {
+    override fun expandHeader(source: HttpSource) {
         collapsedSources.update { it - source.id }
     }
 
-    fun moveToTop(item: MangaDownloadUiItem) {
+    override fun moveToTop(item: MangaDownloadUiItem) {
         val currentState = _state.value
         val reorderedChapterIds = mutableListOf<Long>()
         currentState.forEach { header ->
@@ -89,7 +90,7 @@ class MangaDownloadQueueScreenModel(
         reorder(reorderedChapterIds)
     }
 
-    fun moveToBottom(item: MangaDownloadUiItem) {
+    override fun moveToBottom(item: MangaDownloadUiItem) {
         val currentState = _state.value
         val reorderedChapterIds = mutableListOf<Long>()
         currentState.forEach { header ->
@@ -104,25 +105,25 @@ class MangaDownloadQueueScreenModel(
         reorder(reorderedChapterIds)
     }
 
-    fun moveToTopSeries(mangaId: Long) {
+    override fun moveToTopSeries(entryId: Long) {
         val all = _state.value.flatMap { it.downloads }
-        val (series, others) = all.partition { it.download.manga.id == mangaId }
+        val (series, others) = all.partition { it.download.manga.id == entryId }
         reorder((series + others).mapNotNull { it.download.chapter.id })
     }
 
-    fun moveToBottomSeries(mangaId: Long) {
+    override fun moveToBottomSeries(entryId: Long) {
         val all = _state.value.flatMap { it.downloads }
-        val (series, others) = all.partition { it.download.manga.id == mangaId }
+        val (series, others) = all.partition { it.download.manga.id == entryId }
         reorder((others + series).mapNotNull { it.download.chapter.id })
     }
 
-    fun cancelDownload(item: MangaDownloadUiItem) {
+    override fun cancelDownload(item: MangaDownloadUiItem) {
         cancel(listOf(item.download))
     }
 
-    fun cancelSeries(mangaId: Long) {
+    override fun cancelSeries(entryId: Long) {
         val series = _state.value.flatMap { it.downloads }
-            .filter { it.download.manga.id == mangaId }
+            .filter { it.download.manga.id == entryId }
             .map { it.download }
         if (series.isNotEmpty()) {
             cancel(series)
@@ -147,9 +148,9 @@ class MangaDownloadQueueScreenModel(
         downloadManager.clearQueue()
     }
 
-    fun reorder(downloadChapterIds: List<Long>) {
+    override fun reorder(downloadIds: List<Long>) {
         viewModelScope.launch {
-            downloadManager.reorderQueueByChapterIds(downloadChapterIds)
+            downloadManager.reorderQueueByChapterIds(downloadIds)
         }
     }
 
