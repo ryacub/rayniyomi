@@ -235,7 +235,7 @@ class AnimeDownloadCache(
 
         val walkGeneration = animeDir.currentSizeGeneration
         val size = animeDir.dir?.size() ?: 0
-        if (animeDir.storeSize(size, walkGeneration)) updateDiskCache()
+        if (animeDir.storeSizeIfUnchanged(size, walkGeneration)) updateDiskCache()
         return size
     }
 
@@ -558,9 +558,8 @@ private class AnimeDirectory(
         sizeGeneration++
     }
 
-    /** Returns false when an episode changed after the walk began, so the walked size is already stale. */
     @Synchronized
-    fun storeSize(walkedSize: Long, walkGeneration: Int): Boolean {
+    fun storeSizeIfUnchanged(walkedSize: Long, walkGeneration: Int): Boolean {
         if (walkGeneration != sizeGeneration) return false
         size = walkedSize
         return true

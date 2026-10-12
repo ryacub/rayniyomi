@@ -258,7 +258,7 @@ class MangaDownloadCache(
 
         val walkGeneration = mangaDir.currentSizeGeneration
         val size = mangaDir.dir?.size() ?: 0
-        if (mangaDir.storeSize(size, walkGeneration)) updateDiskCache()
+        if (mangaDir.storeSizeIfUnchanged(size, walkGeneration)) updateDiskCache()
         return size
     }
 
@@ -568,9 +568,8 @@ private class MangaDirectory(
         sizeGeneration++
     }
 
-    /** Returns false when a chapter changed after the walk began, so the walked size is already stale. */
     @Synchronized
-    fun storeSize(walkedSize: Long, walkGeneration: Int): Boolean {
+    fun storeSizeIfUnchanged(walkedSize: Long, walkGeneration: Int): Boolean {
         if (walkGeneration != sizeGeneration) return false
         size = walkedSize
         return true
