@@ -47,6 +47,7 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
+import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadProgress
 import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
 import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
 import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
@@ -563,18 +564,6 @@ class AnimeScreenModel(
                     }
                 }
         }
-
-        viewModelScope.launchIO {
-            downloadManager.progressFlow()
-                .filter { it.anime.id == successState?.anime?.id }
-                .catch { error -> logcat(LogPriority.ERROR, error) }
-                .flowWithLifecycle(lifecycle)
-                .collect {
-                    withUIContext {
-                        updateDownloadState(it)
-                    }
-                }
-        }
     }
 
     private fun updateDownloadState(download: AnimeDownload) {
@@ -583,7 +572,13 @@ class AnimeScreenModel(
                 items = successState.episodes,
                 entryId = download.episode.id,
                 idSelector = { it.id },
-                updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
+                updateItem = {
+                    it.copy(
+                        downloadState = download.status,
+                        downloadProgress = download.progress,
+                        downloadProgressSource = EntryDownloadProgress(download.progressFlow) { download.progress },
+                    )
+                },
             )
             if (newEpisodes === successState.episodes) return@updateSuccessState successState
             successState.copy(episodes = newEpisodes)
@@ -619,6 +614,9 @@ class AnimeScreenModel(
                 episode = episode,
                 downloadState = downloadState,
                 downloadProgress = activeDownload?.progress ?: 0,
+                downloadProgressSource = activeDownload?.let {
+                    EntryDownloadProgress(it.progressFlow) { it.progress }
+                },
                 selected = episode.id in selectedEpisodeIds,
             )
         }
@@ -1517,25 +1515,19 @@ class AnimeScreenModel(
                 nextUpdate = anime.nextUpdate,
             )
 
-            val processedSeasons by lazy {
-                seasons.applySeasonFilters(anime).toList()
-            }
+            val processedSeasons = seasons.applySeasonFilters(anime).toList()
 
-            val processedEpisodes by lazy {
-                episodes.applyFilters(anime).toList()
-            }
+            val processedEpisodes = episodes.applyFilters(anime).toList()
 
-            val episodeListItems by lazy {
-                EntryListGapSeparator.withMissingCount(
-                    items = processedEpisodes,
-                    sortDescending = anime.sortDescending(),
-                    itemId = { it.id },
-                    itemNumber = { it.episode.episodeNumber },
-                    calculateGap = { higher, lower -> calculateEpisodeGap(higher.episode, lower.episode) },
-                    mapItem = { it },
-                    mapMissing = { id, count -> EpisodeList.MissingCount(id = id, count = count) },
-                )
-            }
+            val episodeListItems = EntryListGapSeparator.withMissingCount(
+                items = processedEpisodes,
+                sortDescending = anime.sortDescending(),
+                itemId = { it.id },
+                itemNumber = { it.episode.episodeNumber },
+                calculateGap = { higher, lower -> calculateEpisodeGap(higher.episode, lower.episode) },
+                mapItem = { it },
+                mapMissing = { id, count -> EpisodeList.MissingCount(id = id, count = count) },
+            )
 
             val trackingAvailable: Boolean
                 get() = trackItems.isNotEmpty()
@@ -1563,13 +1555,14 @@ class AnimeScreenModel(
                 val downloadedFilter = anime.downloadedFilter
                 val bookmarkedFilter = anime.bookmarkedFilter
                 val fillermarkedFilter = anime.fillermarkedFilter
+                val comparator = getEpisodeSort(anime)
                 return asSequence()
                     .filter { (episode) -> applyFilter(unseenFilter) { !episode.seen } }
                     .filter { (episode) -> applyFilter(bookmarkedFilter) { episode.bookmark } }
                     .filter { (episode) -> applyFilter(fillermarkedFilter) { episode.fillermark } }
                     .filter { applyFilter(downloadedFilter) { it.isDownloaded || isLocalAnime } }
                     .sortedWith { (episode1), (episode2) ->
-                        getEpisodeSort(anime).invoke(
+                        comparator.invoke(
                             episode1,
                             episode2,
                         )
@@ -1631,6 +1624,7 @@ sealed class EpisodeList {
         val downloadState: AnimeDownload.State,
         val downloadProgress: Int,
         override val selected: Boolean = false,
+        val downloadProgressSource: EntryDownloadProgress? = null,
     ) : EpisodeList(), SelectableEntryItem {
         override val id: Long
             get() = episode.id

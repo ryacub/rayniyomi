@@ -22,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -169,11 +170,26 @@ class MangaScreenModelOutdatedListTest {
             progressEvents.emit(download)
             advanceUntilIdle()
             assertSame(before, model.state.value, "Progress must update the row without copying entry state")
+            val progressSource = requireNotNull(before.chapters.single().downloadProgressSource)
+            progressSource.value shouldBe 42
+            progressSource.flow.first() shouldBe 42
 
             download.status = MangaDownload.State.DOWNLOADED
             statusEvents.emit(download)
             advanceUntilIdle()
             model.successState().processedChapters.map { it.id } shouldBe listOf(chapter.id)
+
+            val replacement = MangaDownload(download.source, manga, chapter).apply {
+                status = MangaDownload.State.DOWNLOADING
+                pages = listOf(Page(0).apply { progress = 7 })
+            }
+            statusEvents.emit(replacement)
+            advanceUntilIdle()
+            val rebound = requireNotNull(model.successState().chapters.single().downloadProgressSource)
+            (rebound == progressSource) shouldBe false
+            rebound.value shouldBe 7
+            rebound.flow.first() shouldBe 7
+            model.successState().processedChapters shouldBe emptyList()
         } finally {
             store.clear()
         }

@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1065,6 +1066,9 @@ private fun LazyGridScope.sharedEpisodeItems(
                 )
             }
             is EpisodeList.Item -> {
+                val progressSource = episodeItem.downloadProgressSource
+                val progress by progressSource?.flow?.collectAsStateWithLifecycle(initialValue = progressSource.value)
+                    ?: rememberUpdatedState(episodeItem.downloadProgress)
                 AnimeEpisodeListItem(
                     title = if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
                         stringResource(
@@ -1094,7 +1098,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                     isAnyEpisodeSelected = isAnyEpisodeSelected,
                     downloadIndicatorEnabled = !isAnyEpisodeSelected && !anime.isLocal(),
                     downloadStateProvider = { episodeItem.downloadState },
-                    downloadProgressProvider = { episodeItem.downloadProgress },
+                    downloadProgressProvider = { progress },
                     episodeSwipeStartAction = episodeSwipeStartAction,
                     episodeSwipeEndAction = episodeSwipeEndAction,
                     onLongClick = {

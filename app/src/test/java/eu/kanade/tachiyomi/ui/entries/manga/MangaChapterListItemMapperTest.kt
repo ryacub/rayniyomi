@@ -27,6 +27,7 @@ class MangaChapterListItemMapperTest {
         val queuedDownload = mockk<MangaDownload> {
             every { status } returns MangaDownload.State.DOWNLOADING
             every { progress } returns 42
+            every { progressFlow } returns MutableStateFlow(42)
         }
         every { queuedDownload.chapter } returns chapter
         every { downloadManager.queueState } returns MutableStateFlow(listOf(queuedDownload))

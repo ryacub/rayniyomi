@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -131,7 +131,10 @@ class BrowseAnimeSourceSubscriptionTest {
     }
 
     private fun createModel(persisted: Anime, changes: Flow<Anime?>): BrowseAnimeSourceScreenModel {
-        val remote = SAnime.create().apply { url = persisted.url; title = "Source title" }
+        val remote = SAnime.create().apply {
+            url = persisted.url
+            title = "Source title"
+        }
         return BrowseAnimeSourceScreenModel(
             sourceId = persisted.source,
             listingQuery = "query",
