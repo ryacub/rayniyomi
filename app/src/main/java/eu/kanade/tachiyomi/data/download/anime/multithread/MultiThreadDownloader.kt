@@ -100,7 +100,18 @@ class MultiThreadDownloader(
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        return performDownload(progress, headers, tmpDir, outputFile, onProgress, resume = true)
+        val chunkDir = tmpDir.filePath?.let(::File)
+        val verifiedProgress = progress.copy(
+            chunks = progress.chunks.map { chunk ->
+                val savedBytes = chunkDir?.let { File(it, chunk.tempFileName).length() }
+                if (chunk.isComplete && savedBytes != chunk.totalBytes) {
+                    chunk.copy(downloadedBytes = 0, status = ChunkProgress.ChunkStatus.PENDING)
+                } else {
+                    chunk
+                }
+            },
+        )
+        return performDownload(verifiedProgress, headers, tmpDir, outputFile, onProgress, resume = true)
     }
 
     /**
