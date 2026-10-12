@@ -59,6 +59,7 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.updates.manga.interactor.GetMangaUpdates
 import tachiyomi.domain.updates.manga.model.MangaUpdatesWithRelations
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZonedDateTime
 
 @Inject
@@ -433,8 +434,8 @@ class MangaUpdatesScreenModel(
             return items
                 .map { MangaUpdatesUiModel.Item(it) }
                 .insertSeparators { before, after ->
-                    val beforeDate = before?.item?.update?.dateFetch?.toLocalDate()
-                    val afterDate = after?.item?.update?.dateFetch?.toLocalDate()
+                    val beforeDate = before?.item?.fetchDate
+                    val afterDate = after?.item?.fetchDate
                     when {
                         beforeDate != afterDate && afterDate != null -> MangaUpdatesUiModel.Header(afterDate)
                         // Return null to avoid adding a separator between two items.
@@ -461,4 +462,5 @@ data class MangaUpdatesItem(
     val downloadStateProvider: () -> MangaDownload.State,
     val downloadProgressProvider: () -> Int,
     val selected: Boolean = false,
+    val fetchDate: LocalDate = update.dateFetch.toLocalDate(),
 )

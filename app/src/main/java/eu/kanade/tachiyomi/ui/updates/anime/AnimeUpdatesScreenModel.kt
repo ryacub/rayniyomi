@@ -60,6 +60,7 @@ import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.updates.anime.interactor.GetAnimeUpdates
 import tachiyomi.domain.updates.anime.model.AnimeUpdatesWithRelations
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZonedDateTime
 
 @Inject
@@ -462,8 +463,8 @@ class AnimeUpdatesScreenModel(
             return items
                 .map { AnimeUpdatesUiModel.Item(it) }
                 .insertSeparators { before, after ->
-                    val beforeDate = before?.item?.update?.dateFetch?.toLocalDate()
-                    val afterDate = after?.item?.update?.dateFetch?.toLocalDate()
+                    val beforeDate = before?.item?.fetchDate
+                    val afterDate = after?.item?.fetchDate
                     when {
                         beforeDate != afterDate && afterDate != null -> AnimeUpdatesUiModel.Header(afterDate)
                         // Return null to avoid adding a separator between two items.
@@ -496,4 +497,5 @@ data class AnimeUpdatesItem(
     val downloadStateProvider: () -> AnimeDownload.State,
     val downloadProgressProvider: () -> Int,
     val selected: Boolean = false,
+    val fetchDate: LocalDate = update.dateFetch.toLocalDate(),
 )
