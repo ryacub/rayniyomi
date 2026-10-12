@@ -28,7 +28,8 @@ class AnimeFillerListSource internal constructor(
 ) : AnimeFillerSource {
 
     private val catalogMutex = Mutex()
-    private var catalog: List<AnimeFillerCatalogEntry>? = null
+    private var catalog: Map<String, List<AnimeFillerCatalogEntry>>? = null
+    private var catalogFailedAt: Long? = null
 
     override suspend fun getFillerEpisodes(title: String): Set<Double>? {
         val normalizedTitle = AnimeFillerListParser.normalizeTitle(title)
@@ -40,9 +41,7 @@ class AnimeFillerListSource internal constructor(
                 return result.fillerEpisodes.takeIf { result.matched }
             }
 
-            val candidates = getCatalog().filter {
-                AnimeFillerListParser.normalizeTitle(it.title) == normalizedTitle
-            }
+            val candidates = getCatalog()[normalizedTitle].orEmpty()
             if (candidates.size != 1) {
                 cache.put(normalizedTitle, AnimeFillerCachedResult(false, emptySet()), now)
                 return null
@@ -63,11 +62,24 @@ class AnimeFillerListSource internal constructor(
         }
     }
 
-    private suspend fun getCatalog(): List<AnimeFillerCatalogEntry> {
-        return catalogMutex.withLock {
-            catalog ?: AnimeFillerListParser.parseCatalog(fetchHtml(CATALOG_URL))
-                ?.also { catalog = it }
+    private suspend fun getCatalog(): Map<String, List<AnimeFillerCatalogEntry>> = catalogMutex.withLock {
+        catalog?.let { return it }
+        catalogFailedAt?.let {
+            check(nowProvider() - it !in 0 until CATALOG_RETRY_MS) { "Anime filler catalog failed recently" }
+        }
+        try {
+            val entries = AnimeFillerListParser.parseCatalog(fetchHtml(CATALOG_URL))
                 ?: error("Anime filler catalog is malformed")
+            entries.groupBy { AnimeFillerListParser.normalizeTitle(it.title) }
+                .also {
+                    catalog = it
+                    catalogFailedAt = null
+                }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            catalogFailedAt = nowProvider()
+            throw e
         }
     }
 
@@ -75,5 +87,6 @@ class AnimeFillerListSource internal constructor(
         private const val BASE_URL = "https://www.animefillerlist.com"
         private const val CATALOG_URL = "$BASE_URL/shows"
         private const val CACHE_DIRECTORY = "anime_filler"
+        private const val CATALOG_RETRY_MS = 10 * 60 * 1000L
     }
 }

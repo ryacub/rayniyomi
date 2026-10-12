@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- Backup and restore read reading history with two database queries for each entry, instead of one or two queries for each history row. Restore reads the category list once, instead of once for each entry. The library update summary now has its own preferences file, so a long list of skipped titles no longer makes every settings change rewrite it. Auto-populated filler marks match titles against the catalog in one lookup, and wait 10 minutes after a failed catalog download before they try again (#1361).
 - The anime library reads the episode table once per refresh instead of four times, and only for library entries. "Apply to all" for item display settings now saves all entries in one write. Browse no longer writes every source to the database each time the source list opens. Chapter and episode refresh compares lists in linear time (#1365).
 - The storage screen builds and sorts its list once, instead of once for each library entry (#1355).
 

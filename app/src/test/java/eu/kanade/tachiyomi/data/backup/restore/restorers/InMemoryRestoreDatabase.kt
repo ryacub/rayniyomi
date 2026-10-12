@@ -1,7 +1,9 @@
 package eu.kanade.tachiyomi.data.backup.restore.restorers
 
 import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlPreparedStatement
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import data.Chapters
 import data.History
@@ -19,6 +21,26 @@ import tachiyomi.data.handlers.anime.AndroidAnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.AndroidMangaDatabaseHandler
 import tachiyomi.mi.data.AnimeDatabase
 
+internal class QueryCountingDriver(private val delegate: SqlDriver) : SqlDriver by delegate {
+    var queryCount = 0
+        private set
+
+    override fun <R> executeQuery(
+        identifier: Int?,
+        sql: String,
+        mapper: (SqlCursor) -> QueryResult<R>,
+        parameters: Int,
+        binders: (SqlPreparedStatement.() -> Unit)?,
+    ): QueryResult<R> {
+        queryCount++
+        return delegate.executeQuery(identifier, sql, mapper, parameters, binders)
+    }
+
+    fun resetQueryCount() {
+        queryCount = 0
+    }
+}
+
 /**
  * An in-memory SQLDelight database for restore tests.
  *
@@ -26,8 +48,9 @@ import tachiyomi.mi.data.AnimeDatabase
  * query path on the JVM without an Android device.
  */
 internal class InMemoryMangaDb : AutoCloseable {
-    val driver: SqlDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        .also { Database.Schema.create(it) }
+    val driver = QueryCountingDriver(
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { Database.Schema.create(it) },
+    )
 
     private val database = Database(
         driver = driver,
@@ -81,12 +104,35 @@ internal class InMemoryMangaDb : AutoCloseable {
         return rows
     }
 
+    fun insertCategory(id: Long, name: String, order: Long) = driver.execute(
+        null,
+        "INSERT INTO categories(_id, name, sort, flags) VALUES ($id, '$name', $order, 0)",
+        0,
+    )
+
+    fun categoryLinks(): List<Pair<Long, Long>> {
+        val rows = mutableListOf<Pair<Long, Long>>()
+        driver.executeQuery(
+            identifier = null,
+            sql = "SELECT manga_id, category_id FROM mangas_categories ORDER BY manga_id",
+            parameters = 0,
+            mapper = { cursor ->
+                while (cursor.next().value) {
+                    rows += cursor.getLong(0)!! to cursor.getLong(1)!!
+                }
+                QueryResult.Unit
+            },
+        )
+        return rows
+    }
+
     override fun close() = driver.close()
 }
 
 internal class InMemoryAnimeDb : AutoCloseable {
-    val driver: SqlDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        .also { AnimeDatabase.Schema.create(it) }
+    val driver = QueryCountingDriver(
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { AnimeDatabase.Schema.create(it) },
+    )
 
     private val database = AnimeDatabase(
         driver = driver,
@@ -132,6 +178,28 @@ internal class InMemoryAnimeDb : AutoCloseable {
             mapper = { cursor ->
                 while (cursor.next().value) {
                     rows += Triple(cursor.getLong(0)!!, cursor.getLong(1)!!, cursor.getLong(2)!!)
+                }
+                QueryResult.Unit
+            },
+        )
+        return rows
+    }
+
+    fun insertCategory(id: Long, name: String, order: Long) = driver.execute(
+        null,
+        "INSERT INTO categories(_id, name, sort, flags) VALUES ($id, '$name', $order, 0)",
+        0,
+    )
+
+    fun categoryLinks(): List<Pair<Long, Long>> {
+        val rows = mutableListOf<Pair<Long, Long>>()
+        driver.executeQuery(
+            identifier = null,
+            sql = "SELECT anime_id, category_id FROM animes_categories ORDER BY anime_id",
+            parameters = 0,
+            mapper = { cursor ->
+                while (cursor.next().value) {
+                    rows += cursor.getLong(0)!! to cursor.getLong(1)!!
                 }
                 QueryResult.Unit
             },

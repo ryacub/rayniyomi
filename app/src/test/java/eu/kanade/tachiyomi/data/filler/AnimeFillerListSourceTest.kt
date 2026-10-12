@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import java.nio.file.Files
 
 class AnimeFillerListSourceTest {
@@ -97,5 +98,68 @@ class AnimeFillerListSourceTest {
         assertEquals(0, detailRequestCount)
         assertNull(source.getFillerEpisodes("Naruto"))
         assertEquals(0, detailRequestCount)
+    }
+
+    @Test
+    fun `clock moved back after a catalog failure ends the retry window`() = runTest {
+        var now = 10 * 60 * 60 * 1000L
+        var catalogRequests = 0
+        val source = AnimeFillerListSource(
+            cache = AnimeFillerDiskCache(cacheDirectory),
+            nowProvider = { now },
+            fetchHtml = { url ->
+                if (url.endsWith("/shows")) catalogRequests++
+                throw IOException("offline")
+            },
+        )
+
+        assertNull(source.getFillerEpisodes("Naruto"))
+        now -= 60 * 60 * 1000L
+        assertNull(source.getFillerEpisodes("Bleach"))
+
+        assertEquals(2, catalogRequests)
+    }
+
+    @Test
+    fun `retry window starts when the catalog fetch fails`() = runTest {
+        var now = 1_000L
+        var catalogRequests = 0
+        val source = AnimeFillerListSource(
+            cache = AnimeFillerDiskCache(cacheDirectory),
+            nowProvider = { now },
+            fetchHtml = { url ->
+                if (url.endsWith("/shows")) catalogRequests++
+                now += 9 * 60 * 1000L
+                throw IOException("timeout")
+            },
+        )
+
+        assertNull(source.getFillerEpisodes("Naruto"))
+        now += 60 * 1000L + 1
+        assertNull(source.getFillerEpisodes("Bleach"))
+
+        assertEquals(1, catalogRequests)
+    }
+
+    @Test
+    fun `failed catalog fetch is not repeated until the retry window passes`() = runTest {
+        var now = 1_000L
+        var catalogRequests = 0
+        val source = AnimeFillerListSource(
+            cache = AnimeFillerDiskCache(cacheDirectory),
+            nowProvider = { now },
+            fetchHtml = { url ->
+                if (url.endsWith("/shows")) catalogRequests++
+                throw IOException("offline")
+            },
+        )
+
+        assertNull(source.getFillerEpisodes("Naruto"))
+        assertNull(source.getFillerEpisodes("Bleach"))
+        assertEquals(1, catalogRequests)
+
+        now += 10 * 60 * 1000L + 1
+        assertNull(source.getFillerEpisodes("One Piece"))
+        assertEquals(2, catalogRequests)
     }
 }

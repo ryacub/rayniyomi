@@ -70,7 +70,7 @@ class MangaMemoBackupTest {
         }
 
         InMemoryMangaDb().use { target ->
-            restorer(target).restore(ProtoBuf.decodeFromByteArray(BackupManga.serializer(), bytes), emptyList())
+            restorer(target).restore(ProtoBuf.decodeFromByteArray(BackupManga.serializer(), bytes), emptyMap())
 
             assertEquals(mangaMemo to chapterMemo, storedMemos(target))
         }
@@ -81,7 +81,7 @@ class MangaMemoBackupTest {
         val backup = ProtoBuf.decodeFromByteArray(BackupManga.serializer(), legacyBackupBytes())
 
         InMemoryMangaDb().use { db ->
-            restorer(db).restore(backup, emptyList())
+            restorer(db).restore(backup, emptyMap())
 
             assertEquals(empty to empty, storedMemos(db))
         }
@@ -93,7 +93,7 @@ class MangaMemoBackupTest {
 
         InMemoryMangaDb().use { db ->
             seed(db)
-            restorer(db).restore(backup, emptyList())
+            restorer(db).restore(backup, emptyMap())
 
             assertEquals(mangaMemo to chapterMemo, storedMemos(db))
         }

@@ -50,4 +50,5 @@ val migrations: List<Migration>
         PrefLangMigration(),
         SourceHealthPreferencesCleanupMigration(),
         PageTransitionStyleMigration(),
+        LibraryUpdateSummaryPreferencesCleanupMigration(),
     )

@@ -78,6 +78,12 @@ FROM chapters
 WHERE bookmark
 AND manga_id = :mangaId;
 
+getChapterUrlsByMangaId:
+SELECT _id, url
+FROM chapters
+WHERE manga_id = :mangaId
+ORDER BY _id;
+
 getChapterByUrlAndMangaId:
 SELECT *
 FROM chapters
