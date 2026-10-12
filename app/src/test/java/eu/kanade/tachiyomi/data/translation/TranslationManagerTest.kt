@@ -651,6 +651,9 @@ class TranslationManagerTest {
         targetLanguageFlow.value = "it"
         advanceUntilIdle()
 
+        verify(exactly = 0) {
+            translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any())
+        }
         verify { downloadManager.clearDownloadSize(manga.title, source) }
     }
 
