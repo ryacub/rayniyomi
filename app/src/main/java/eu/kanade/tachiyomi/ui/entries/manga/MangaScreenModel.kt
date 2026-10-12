@@ -50,6 +50,7 @@ import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
+import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadProgress
 import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadStateUpdater
 import eu.kanade.tachiyomi.ui.entries.common.EntryListGapSeparator
 import eu.kanade.tachiyomi.ui.entries.common.EntrySelectionController
@@ -593,18 +594,6 @@ class MangaScreenModel(
                     }
                 }
         }
-
-        viewModelScope.launch(ioDispatcher) {
-            downloadManager.progressFlow()
-                .filter { it.manga.id == successState?.manga?.id }
-                .catch { error -> logcat(LogPriority.ERROR, error) }
-                .flowWithLifecycle(lifecycle)
-                .collect {
-                    withUIContext {
-                        updateDownloadState(it)
-                    }
-                }
-        }
     }
 
     private fun updateDownloadState(download: MangaDownload) {
@@ -613,7 +602,13 @@ class MangaScreenModel(
                 items = successState.chapters,
                 entryId = download.chapter.id,
                 idSelector = { it.id },
-                updateItem = { it.copy(downloadState = download.status, downloadProgress = download.progress) },
+                updateItem = {
+                    it.copy(
+                        downloadState = download.status,
+                        downloadProgress = download.progress,
+                        downloadProgressSource = EntryDownloadProgress(download.progressFlow) { download.progress },
+                    )
+                },
             )
             if (newChapters === successState.chapters) return@updateSuccessState successState
             successState.copy(chapters = newChapters)
@@ -1140,9 +1135,7 @@ class MangaScreenModel(
             val translationSummary: TranslationSummary? = null,
             val updateContext: EntryUpdateContext? = null,
         ) : State {
-            val processedChapters by lazy {
-                chapters.applyFilters(manga).toList()
-            }
+            val processedChapters = chapters.applyFilters(manga).toList()
 
             val isAnySelected by lazy {
                 chapters.fastAny { it.selected }
@@ -1162,17 +1155,15 @@ class MangaScreenModel(
                 nextUpdate = manga.nextUpdate,
             )
 
-            val chapterListItems by lazy {
-                EntryListGapSeparator.withMissingCount(
-                    items = processedChapters,
-                    sortDescending = manga.sortDescending(),
-                    itemId = { it.id },
-                    itemNumber = { it.chapter.chapterNumber },
-                    calculateGap = { higher, lower -> calculateChapterGap(higher.chapter, lower.chapter) },
-                    mapItem = { it },
-                    mapMissing = { id, count -> ChapterList.MissingCount(id = id, count = count) },
-                )
-            }
+            val chapterListItems = EntryListGapSeparator.withMissingCount(
+                items = processedChapters,
+                sortDescending = manga.sortDescending(),
+                itemId = { it.id },
+                itemNumber = { it.chapter.chapterNumber },
+                calculateGap = { higher, lower -> calculateChapterGap(higher.chapter, lower.chapter) },
+                mapItem = { it },
+                mapMissing = { id, count -> ChapterList.MissingCount(id = id, count = count) },
+            )
 
             val scanlatorFilterActive: Boolean
                 get() = excludedScanlators.intersect(availableScanlators).isNotEmpty()
@@ -1192,12 +1183,13 @@ class MangaScreenModel(
                 val unreadFilter = manga.unreadFilter
                 val downloadedFilter = manga.downloadedFilter
                 val bookmarkedFilter = manga.bookmarkedFilter
+                val comparator = getChapterSort(manga)
                 return asSequence()
                     .filter { (chapter) -> applyFilter(unreadFilter) { !chapter.read } }
                     .filter { (chapter) -> applyFilter(bookmarkedFilter) { chapter.bookmark } }
                     .filter { applyFilter(downloadedFilter) { it.isDownloaded || isLocalManga } }
                     .sortedWith { (chapter1), (chapter2) ->
-                        getChapterSort(manga).invoke(
+                        comparator.invoke(
                             chapter1,
                             chapter2,
                         )
@@ -1222,6 +1214,7 @@ sealed class ChapterList {
         val downloadProgress: Int,
         override val selected: Boolean = false,
         val translationState: TranslationState = TranslationState.Idle,
+        val downloadProgressSource: EntryDownloadProgress? = null,
     ) : ChapterList(), SelectableEntryItem {
         override val id: Long
             get() = chapter.id

@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -149,7 +150,9 @@ class BrowseAnimeSourceScreenModel(
                     networkToLocalAnime.await(it.toDomainAnime(sourceId))
                         .let { localAnime -> getAnime.subscribe(localAnime.url, localAnime.source) }
                         .filterNotNull()
-                        .stateIn(ioCoroutineScope)
+                        .let { changes ->
+                            changes.stateIn(ioCoroutineScope, SharingStarted.WhileSubscribed(), changes.first())
+                        }
                 }
                     .filter { !hideInLibraryItems || !it.value.favorite }
             }

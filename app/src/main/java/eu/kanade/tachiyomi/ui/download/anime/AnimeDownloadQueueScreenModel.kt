@@ -13,8 +13,8 @@ import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,8 +34,7 @@ class AnimeDownloadQueueScreenModel(
     init {
         viewModelScope.launch {
             downloadManager.queueState
-                .map { downloads ->
-                    val collapsedIds = collapsedSources.value
+                .combine(collapsedSources) { downloads, collapsedIds ->
                     downloads
                         .groupBy { it.source }
                         .map { (source, sourceDownloads) ->

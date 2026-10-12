@@ -1,26 +1,33 @@
 package eu.kanade.tachiyomi.ui.entries.manga
 
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.testing.TestLifecycleOwner
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.di.testAppGraph
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.create
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
@@ -49,12 +56,42 @@ class MangaScreenModelOutdatedListTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
+        every { testAppGraph.basePreferences.downloadedOnly().get() } returns false
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true)
     }
 
     @AfterEach
     fun tearDown() {
         vt.tearDownMain()
+    }
+
+    @Test
+    fun `display lists are derived before the UI reads them and recomputed on copy`() {
+        val row = ChapterList.Item(Chapter.create().copy(id = 10L, mangaId = 1L), MangaDownload.State.NOT_DOWNLOADED, 0)
+        var reads = 0
+        val rows = object : AbstractList<ChapterList.Item>() {
+            override val size = 1
+            override fun get(index: Int): ChapterList.Item {
+                require(index == 0)
+                reads++
+                return row
+            }
+        }
+        val state = MangaScreenModel.State.Success(
+            manga = staleManga(),
+            source = mockk(),
+            isFromSource = false,
+            chapters = rows,
+            availableScanlators = emptySet(),
+            excludedScanlators = emptySet(),
+        )
+        val readsBeforeDisplay = reads
+        state.processedChapters.map { it.id } shouldBe listOf(10L)
+        state.chapterListItems.filterIsInstance<ChapterList.Item>().map { it.id } shouldBe listOf(10L)
+        reads shouldBe readsBeforeDisplay
+        val copied = state.copy(chapters = emptyList())
+        copied.processedChapters shouldBe emptyList()
+        copied.chapterListItems shouldBe emptyList()
     }
 
     @Test
@@ -105,6 +142,59 @@ class MangaScreenModelOutdatedListTest {
         model.successState().isListOutdated shouldBe true
     }
 
+    @Test
+    fun `progress ticks preserve entry state while status changes update downloaded filters`() = runTest(vt.scheduler) {
+        val manga = staleManga().copy(chapterFlags = Manga.CHAPTER_SHOW_DOWNLOADED)
+        val chapter = Chapter.create().copy(id = 10L, mangaId = manga.id, read = true)
+        val page = Page(0).apply { progress = 41 }
+        val download = MangaDownload(mockk(), manga, chapter).apply {
+            status = MangaDownload.State.DOWNLOADING
+            pages = listOf(page)
+        }
+        val statusEvents = MutableSharedFlow<MangaDownload>()
+        val progressEvents = MutableSharedFlow<MangaDownload>()
+        val manager = mockk<MangaDownloadManager>(relaxed = true) {
+            every { queueState } returns MutableStateFlow(listOf(download))
+            every { getQueuedDownloadOrNull(chapter.id) } returns download
+            every { statusFlow() } returns statusEvents
+            every { progressFlow() } returns progressEvents
+        }
+        val store = ViewModelStore()
+        try {
+            val model = store.create { createModel(manga, manager) }
+            advanceUntilIdle()
+            val before = model.successState()
+            before.processedChapters shouldBe emptyList()
+
+            page.progress = 42
+            progressEvents.emit(download)
+            advanceUntilIdle()
+            assertSame(before, model.state.value, "Progress must update the row without copying entry state")
+            val progressSource = requireNotNull(before.chapters.single().downloadProgressSource)
+            progressSource.value shouldBe 42
+            progressSource.flow.first() shouldBe 42
+
+            download.status = MangaDownload.State.DOWNLOADED
+            statusEvents.emit(download)
+            advanceUntilIdle()
+            model.successState().processedChapters.map { it.id } shouldBe listOf(chapter.id)
+
+            val replacement = MangaDownload(download.source, manga, chapter).apply {
+                status = MangaDownload.State.DOWNLOADING
+                pages = listOf(Page(0).apply { progress = 7 })
+            }
+            statusEvents.emit(replacement)
+            advanceUntilIdle()
+            val rebound = requireNotNull(model.successState().chapters.single().downloadProgressSource)
+            (rebound == progressSource) shouldBe false
+            rebound.value shouldBe 7
+            rebound.flow.first() shouldBe 7
+            model.successState().processedChapters shouldBe emptyList()
+        } finally {
+            store.clear()
+        }
+    }
+
     private class MutableClock(private var now: Instant) : Clock() {
         override fun getZone(): ZoneId = ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock = this
@@ -128,7 +218,7 @@ class MangaScreenModelOutdatedListTest {
         )
     }
 
-    private fun createModel(manga: Manga): MangaScreenModel {
+    private fun createModel(manga: Manga, manager: MangaDownloadManager? = null): MangaScreenModel {
         val readChapter = Chapter.create().copy(id = 10L, mangaId = manga.id, read = true)
         val getMangaAndChapters = mockk<GetMangaWithChapters> {
             coEvery { subscribe(any(), any()) } returns emptyFlow()
@@ -162,7 +252,7 @@ class MangaScreenModelOutdatedListTest {
             trackPreferences = TrackPreferences(InMemoryPreferenceStore()),
             readerPreferences = ReaderPreferences(InMemoryPreferenceStore()),
             trackerManager = mockk<TrackerManager> { every { loggedInTrackersFlow() } returns emptyFlow() },
-            downloadManager = mockk<MangaDownloadManager>(relaxed = true) {
+            downloadManager = manager ?: mockk<MangaDownloadManager>(relaxed = true) {
                 every { queueState } returns MutableStateFlow(emptyList())
                 every { statusFlow() } returns emptyFlow()
                 every { progressFlow() } returns emptyFlow()
