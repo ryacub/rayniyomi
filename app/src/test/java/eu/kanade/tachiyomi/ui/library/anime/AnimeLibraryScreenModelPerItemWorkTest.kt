@@ -96,6 +96,7 @@ class AnimeLibraryScreenModelPerItemWorkTest {
         advanceUntilIdle()
 
         assertEquals(ITEM_COUNT.toInt(), downloadCountCalls.get())
+        assertEquals(ITEM_COUNT.toInt(), model.state.value.library[category].orEmpty().size)
     }
 
     @Test
