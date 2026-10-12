@@ -850,18 +850,29 @@ class AnimeDownloader(
         deletePartialDownloads(abandoned)
     }
 
+    private data class PartialDirKey(val sourceId: Long, val animeTitle: String, val dirName: String)
+
+    private fun partialDirKey(download: AnimeDownload) = PartialDirKey(
+        sourceId = download.source.id,
+        animeTitle = download.anime.title,
+        dirName = provider.getEpisodeDirName(download.episode.name, download.episode.scanlator) + TMP_DIR_SUFFIX,
+    )
+
     private fun deletePartialDownloads(downloads: List<AnimeDownload>) {
         if (downloads.isEmpty()) return
         val stoppingJob = cancelledDownloaderJob
         scope.launch {
             // A cancelled multi-thread download saves its progress while it stops.
             stoppingJob?.join()
-            val queuedIds = queueState.value.mapTo(HashSet()) { it.episode.id }
-            downloads.filterNot { it.episode.id in queuedIds }.forEach { download ->
+            downloads.forEach { download ->
+                val queue = queueState.value
+                if (queue.any { it.episode.id == download.episode.id }) return@forEach
                 stateStore.deleteProgress(download.episode.id)
-                val episodeDirName = provider.getEpisodeDirName(download.episode.name, download.episode.scanlator)
+
+                val partialDir = partialDirKey(download)
+                if (queue.any { partialDirKey(it) == partialDir }) return@forEach
                 provider.findAnimeDir(download.anime.title, download.source)
-                    ?.findFile(episodeDirName + TMP_DIR_SUFFIX)
+                    ?.findFile(partialDir.dirName)
                     ?.delete()
             }
         }
