@@ -14,6 +14,7 @@ import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import tachiyomi.domain.track.anime.interactor.InsertAnimeTrack
+import tachiyomi.domain.track.anime.model.AnimeTrack
 
 class TrackEpisode(
     private val getTracks: GetAnimeTracks,
@@ -29,7 +30,9 @@ class TrackEpisode(
 
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
-                if (service == null || !service.isLoggedIn || episodeNumber <= track.lastEpisodeSeen) {
+                if (service == null || !service.isLoggedIn) return@mapNotNull null
+                if (episodeNumber <= track.lastEpisodeSeen) {
+                    removeReachedDelayedItem(track)
                     return@mapNotNull null
                 }
 
@@ -54,6 +57,13 @@ class TrackEpisode(
                 .awaitAll()
                 .mapNotNull { it.exceptionOrNull() }
                 .forEach { logcat(LogPriority.INFO, it) }
+        }
+    }
+
+    private fun removeReachedDelayedItem(track: AnimeTrack) {
+        val queued = delayedTrackingStore.getAnimeItems().find { it.trackId == track.id } ?: return
+        if (queued.lastEpisodeSeen.toString().toDouble() <= track.lastEpisodeSeen) {
+            delayedTrackingStore.removeAnimeItem(track.id)
         }
     }
 }

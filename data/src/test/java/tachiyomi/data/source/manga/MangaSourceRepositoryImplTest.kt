@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
@@ -16,21 +15,18 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.source.manga.model.StubMangaSource
-import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 class MangaSourceRepositoryImplTest {
 
     @Test
-    fun `getMangaSources upserts known runtime metadata`() = runBlocking {
+    fun `getMangaSources maps runtime metadata`() = runBlocking<Unit> {
         val source = mockCatalogueSource(id = 1L, lang = "en", name = "Runtime Manga", supportsLatest = true)
         val sourceManager = TestMangaSourceManager(listOf(source))
-        val stubRepo = mockk<MangaStubSourceRepository>(relaxed = true)
 
         val repository = MangaSourceRepositoryImpl(
             sourceManager = sourceManager,
             handler = mockk<MangaDatabaseHandler>(),
-            stubSourceRepository = stubRepo,
         )
 
         val result = repository.getMangaSources().first()
@@ -39,29 +35,24 @@ class MangaSourceRepositoryImplTest {
         result.first().name shouldBe "Runtime Manga"
         result.first().lang shouldBe "en"
         result.first().supportsLatest shouldBe true
-        coVerify(exactly = 1) { stubRepo.upsertStubMangaSource(1L, "en", "Runtime Manga") }
     }
 
     @Test
-    fun `getOnlineMangaSources filters to http sources and still upserts catalogue metadata`() = runBlocking {
+    fun `getOnlineMangaSources filters to http sources`() = runBlocking<Unit> {
         val catalogueSource =
             mockCatalogueSource(id = 10L, lang = "ja", name = "Catalogue Only", supportsLatest = false)
         val httpSource = mockHttpSource(id = 11L, lang = "en", name = "Http Source")
         val sourceManager = TestMangaSourceManager(listOf(catalogueSource, httpSource))
-        val stubRepo = mockk<MangaStubSourceRepository>(relaxed = true)
 
         val repository = MangaSourceRepositoryImpl(
             sourceManager = sourceManager,
             handler = mockk<MangaDatabaseHandler>(),
-            stubSourceRepository = stubRepo,
         )
 
         val result = repository.getOnlineMangaSources().first()
 
         result.shouldHaveSize(1)
         result.first().id shouldBe 11L
-        coVerify(exactly = 1) { stubRepo.upsertStubMangaSource(10L, "ja", "Catalogue Only") }
-        coVerify(exactly = 1) { stubRepo.upsertStubMangaSource(11L, "en", "Http Source") }
     }
 
     private fun mockCatalogueSource(

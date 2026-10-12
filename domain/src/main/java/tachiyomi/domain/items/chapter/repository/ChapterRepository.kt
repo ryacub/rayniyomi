@@ -12,7 +12,7 @@ interface ChapterRepository {
 
     suspend fun updateAllChapters(chapterUpdates: List<ChapterUpdate>)
 
-    suspend fun removeChaptersWithIds(chapterIds: List<Long>)
+    suspend fun syncChapters(removedIds: List<Long>, added: List<Chapter>, updates: List<ChapterUpdate>): List<Chapter>
 
     suspend fun getChapterByMangaId(mangaId: Long, applyScanlatorFilter: Boolean = false): List<Chapter>
 

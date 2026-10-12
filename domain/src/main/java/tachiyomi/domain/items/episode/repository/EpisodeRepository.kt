@@ -12,7 +12,7 @@ interface EpisodeRepository {
 
     suspend fun updateAllEpisodes(episodeUpdates: List<EpisodeUpdate>)
 
-    suspend fun removeEpisodesWithIds(episodeIds: List<Long>)
+    suspend fun syncEpisodes(removedIds: List<Long>, added: List<Episode>, updates: List<EpisodeUpdate>): List<Episode>
 
     suspend fun getEpisodeByAnimeId(animeId: Long): List<Episode>
 

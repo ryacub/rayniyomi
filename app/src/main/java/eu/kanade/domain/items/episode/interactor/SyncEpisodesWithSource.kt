@@ -14,7 +14,6 @@ import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.ShouldUpdateDbEpisode
-import tachiyomi.domain.items.episode.interactor.UpdateEpisode
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.items.episode.model.NoEpisodesException
 import tachiyomi.domain.items.episode.model.toEpisodeUpdate
@@ -32,7 +31,6 @@ class SyncEpisodesWithSource(
     private val episodeRepository: EpisodeRepository,
     private val shouldUpdateDbEpisode: ShouldUpdateDbEpisode,
     private val updateAnime: UpdateAnime,
-    private val updateEpisode: UpdateEpisode,
     private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
     private val libraryPreferences: LibraryPreferences,
 ) {
@@ -70,13 +68,12 @@ class SyncEpisodesWithSource(
 
         val dbEpisodes = getEpisodesByAnimeId.await(anime.id)
 
+        val dbEpisodesByUrl = dbEpisodes.distinctBy { it.url }.associateBy { it.url }
+        val sourceUrls = sourceEpisodes.mapTo(HashSet()) { it.url }
+
         val newEpisodes = mutableListOf<Episode>()
         val updatedEpisodes = mutableListOf<Episode>()
-        val removedEpisodes = dbEpisodes.filterNot { dbEpisode ->
-            sourceEpisodes.any { sourceEpisode ->
-                dbEpisode.url == sourceEpisode.url
-            }
-        }
+        val removedEpisodes = dbEpisodes.filterNot { it.url in sourceUrls }
 
         // Used to not set upload date of older episodes
         // to a higher value than newer episodes
@@ -100,7 +97,7 @@ class SyncEpisodesWithSource(
             )
             episode = episode.copy(episodeNumber = episodeNumber)
 
-            val dbEpisode = dbEpisodes.find { it.url == episode.url }
+            val dbEpisode = dbEpisodesByUrl[episode.url]
 
             if (dbEpisode == null) {
                 val toAddEpisode = if (episode.dateUpload == 0L) {
@@ -193,7 +190,7 @@ class SyncEpisodesWithSource(
         // Date fetch is set in such a way that the upper ones will have bigger value than the lower ones
         // Sources MUST return the episodes from most to less recent, which is common.
         var itemCount = newEpisodes.size
-        var updatedToAdd = newEpisodes.map { toAddItem ->
+        val updatedToAdd = newEpisodes.map { toAddItem ->
             var episode = toAddItem.copy(dateFetch = nowMillis + itemCount--)
 
             if (episode.episodeNumber in readEpisodeNumbers && markDuplicateAsRead) {
@@ -218,25 +215,18 @@ class SyncEpisodesWithSource(
             episode
         }
 
-        if (removedEpisodes.isNotEmpty()) {
-            val toDeleteIds = removedEpisodes.map { it.id }
-            episodeRepository.removeEpisodesWithIds(toDeleteIds)
-        }
+        val addedEpisodes = episodeRepository.syncEpisodes(
+            removedIds = removedEpisodes.map { it.id },
+            added = updatedToAdd,
+            updates = updatedEpisodes.map { it.toEpisodeUpdate() },
+        )
 
-        if (updatedToAdd.isNotEmpty()) {
-            updatedToAdd = episodeRepository.addAllEpisodes(updatedToAdd)
-        }
-
-        if (updatedEpisodes.isNotEmpty()) {
-            val episodeUpdates = updatedEpisodes.map { it.toEpisodeUpdate() }
-            updateEpisode.awaitAll(episodeUpdates)
-        }
         updateAnime.awaitUpdateFetchInterval(anime, now, fetchWindow)
 
         // Set this anime as updated since episodes were changed
         // Note that last_update actually represents last time the episode list changed at all
         updateAnime.awaitUpdateLastUpdate(anime.id)
 
-        return updatedToAdd.filterNot { it.url in changedOrDuplicateReadUrls }
+        return addedEpisodes.filterNot { it.url in changedOrDuplicateReadUrls }
     }
 }
