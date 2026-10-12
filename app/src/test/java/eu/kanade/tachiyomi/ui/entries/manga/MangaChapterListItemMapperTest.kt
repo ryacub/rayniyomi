@@ -1,12 +1,16 @@
 package eu.kanade.tachiyomi.ui.entries.manga
 
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -84,6 +88,56 @@ class MangaChapterListItemMapperTest {
         assertEquals(listOf(TranslationState.Idle, translatedState), items.map { it.translationState })
         verify(exactly = 0) { downloadManager.getQueuedDownloadOrNull(any()) }
         verify(exactly = 0) { downloadManager.isChapterDownloaded(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `mapping inspects the queue once instead of once per chapter`() = runTest {
+        val downloads = (1L..4L).map { id ->
+            MangaDownload(source = mockk(), manga = manga(), chapter = chapter(id)).apply {
+                status = MangaDownload.State.DOWNLOADING
+            }
+        } + MangaDownload(source = mockk(), manga = manga(), chapter = chapter(1L)).apply {
+            status = MangaDownload.State.ERROR
+        }
+        var queueReads = 0
+        val queue = object : AbstractList<MangaDownload>() {
+            override val size: Int get() = downloads.size
+            override fun get(index: Int): MangaDownload {
+                queueReads++
+                return downloads[index]
+            }
+        }
+        val queueState = MutableStateFlow<List<MangaDownload>>(queue)
+        val mutations = DownloadQueueMutations<MangaDownload, Chapter>(
+            queueState = queueState,
+            itemId = { it.chapter.id },
+            ownerItemId = { it.id },
+            createFromId = { null },
+            moveToFront = {},
+            updateQueue = {},
+            addToStart = {},
+            removeFromQueueByIds = {},
+            isRunning = { false },
+            pauseDownloader = {},
+            startDownloader = {},
+            stopDownloader = {},
+            startDownloads = {},
+            mutationScope = backgroundScope,
+        )
+        every { downloadManager.queueState } returns queueState
+        every { downloadManager.getQueuedDownloadOrNull(any()) } answers {
+            mutations.getQueuedDownloadOrNull(firstArg())
+        }
+        every { downloadManager.isChapterDownloaded(any(), any(), any(), any()) } returns false
+        val chapters = listOf(chapter(1L)) + (101L..108L).map(::chapter)
+
+        val items = mapper.map(chapters, manga(), setOf(102L), mapOf(103L to TranslationState.Translated))
+
+        assertEquals(chapters.map { it.id }, items.map { it.id })
+        assertEquals(MangaDownload.State.DOWNLOADING, items[0].downloadState)
+        assertEquals(true, items.single { it.id == 102L }.selected)
+        assertEquals(TranslationState.Translated, items.single { it.id == 103L }.translationState)
+        assertTrue(queueReads <= downloads.size, "Expected at most ${downloads.size} queue reads, got $queueReads")
     }
 
     private fun manga(source: Long = 1L) = Manga.create().copy(id = 1L, source = source, title = "Manga")
