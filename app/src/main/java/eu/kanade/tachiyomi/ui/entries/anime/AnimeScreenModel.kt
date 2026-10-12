@@ -592,12 +592,13 @@ class AnimeScreenModel(
 
     private fun List<Episode>.toEpisodeListItems(anime: Anime): List<EpisodeList.Item> {
         val isLocal = anime.isLocal()
+        val queuedDownloadsById = if (isLocal || isEmpty()) {
+            emptyMap()
+        } else {
+            downloadManager.queueState.value.asReversed().associateBy { it.episode.id }
+        }
         return map { episode ->
-            val activeDownload = if (isLocal) {
-                null
-            } else {
-                downloadManager.getQueuedDownloadOrNull(episode.id)
-            }
+            val activeDownload = queuedDownloadsById[episode.id]
             val downloaded = if (isLocal) {
                 true
             } else {

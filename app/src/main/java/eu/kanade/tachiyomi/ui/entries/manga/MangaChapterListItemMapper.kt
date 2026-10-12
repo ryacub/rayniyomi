@@ -18,12 +18,13 @@ internal class MangaChapterListItemMapper(
         translationStates: Map<Long, TranslationState>,
     ): List<ChapterList.Item> {
         val isLocal = manga.isLocal()
+        val queuedDownloadsById = if (isLocal || chapters.isEmpty()) {
+            emptyMap()
+        } else {
+            downloadManager.queueState.value.asReversed().associateBy { it.chapter.id }
+        }
         return chapters.map { chapter ->
-            val activeDownload = if (isLocal) {
-                null
-            } else {
-                downloadManager.getQueuedDownloadOrNull(chapter.id)
-            }
+            val activeDownload = queuedDownloadsById[chapter.id]
             val downloaded = if (isLocal) {
                 true
             } else {

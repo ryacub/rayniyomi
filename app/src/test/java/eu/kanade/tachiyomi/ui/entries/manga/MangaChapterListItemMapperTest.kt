@@ -28,7 +28,8 @@ class MangaChapterListItemMapperTest {
             every { status } returns MangaDownload.State.DOWNLOADING
             every { progress } returns 42
         }
-        every { downloadManager.getQueuedDownloadOrNull(chapter.id) } returns queuedDownload
+        every { queuedDownload.chapter } returns chapter
+        every { downloadManager.queueState } returns MutableStateFlow(listOf(queuedDownload))
         every { downloadManager.isChapterDownloaded(any(), any(), any(), any()) } returns true
 
         val item = mapper.map(
@@ -45,7 +46,7 @@ class MangaChapterListItemMapperTest {
     @Test
     fun `maps downloaded and missing files while preserving input order`() {
         val chapters = listOf(chapter(2L), chapter(1L))
-        every { downloadManager.getQueuedDownloadOrNull(any()) } returns null
+        every { downloadManager.queueState } returns MutableStateFlow(emptyList())
         every { downloadManager.isChapterDownloaded(any(), any(), any(), any()) } answers {
             firstArg<String>() == "Chapter 2"
         }

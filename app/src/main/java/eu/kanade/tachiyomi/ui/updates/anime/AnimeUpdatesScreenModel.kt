@@ -162,9 +162,14 @@ class AnimeUpdatesScreenModel(
     }
 
     private fun List<AnimeUpdatesWithRelations>.toUpdateItems(): PersistentList<AnimeUpdatesItem> {
+        val queuedDownloadsById = if (isEmpty()) {
+            emptyMap()
+        } else {
+            downloadManager.queueState.value.asReversed().associateBy { it.episode.id }
+        }
         return this
             .map { update ->
-                val activeDownload = downloadManager.getQueuedDownloadOrNull(update.episodeId)
+                val activeDownload = queuedDownloadsById[update.episodeId]
                 val downloaded = downloadManager.isEpisodeDownloaded(
                     update.episodeName,
                     update.scanlator,
