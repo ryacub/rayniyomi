@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.entries.anime.track
+package eu.kanade.tachiyomi.ui.entries.track
 
 import android.app.Application
 import android.content.Context
@@ -44,23 +44,17 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
-import eu.kanade.domain.track.anime.interactor.RefreshAnimeTracks
-import eu.kanade.domain.track.anime.model.toDbTrack
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.track.TrackDateSelector
+import eu.kanade.presentation.track.TrackInfoDialogHome
 import eu.kanade.presentation.track.TrackItemSelector
 import eu.kanade.presentation.track.TrackScoreSelector
 import eu.kanade.presentation.track.TrackStatusSelector
-import eu.kanade.presentation.track.anime.AnimeTrackInfoDialogHome
-import eu.kanade.presentation.track.anime.AnimeTrackerSearch
+import eu.kanade.presentation.track.TrackerSearch
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.data.track.AnimeTracker
-import eu.kanade.tachiyomi.data.track.DeletableAnimeTracker
-import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.Tracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.data.track.model.AnimeTrackSearch
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.convertEpochMillisZone
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -79,11 +73,6 @@ import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.domain.entries.anime.interactor.GetAnime
-import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import tachiyomi.domain.track.anime.interactor.DeleteAnimeTrack
-import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
-import tachiyomi.domain.track.anime.model.AnimeTrack
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.AlertDialogContent
@@ -93,18 +82,18 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
-import tachiyomi.domain.track.anime.model.AnimeTrack as DbAnimeTrack
 
-data class AnimeTrackInfoDialogHomeScreen(
-    private val animeId: Long,
-    private val animeTitle: String,
+data class TrackInfoDialogHomeScreen(
+    private val entryId: Long,
+    private val entryTitle: String,
     private val sourceId: Long,
+    private val type: EntryType,
 ) : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = assistedMetroViewModel<Model, Model.Factory> { create(animeId, sourceId) }
+        val screenModel = assistedMetroViewModel<Model, Model.Factory> { create(entryId, sourceId, type) }
 
         val dateFormat = remember {
             UiPreferences.dateFormat(
@@ -113,7 +102,7 @@ data class AnimeTrackInfoDialogHomeScreen(
         }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
-        AnimeTrackInfoDialogHome(
+        TrackInfoDialogHome(
             trackItems = state.trackItems,
             dateFormat = dateFormat,
             onStatusClick = {
@@ -124,9 +113,9 @@ data class AnimeTrackInfoDialogHomeScreen(
                     ),
                 )
             },
-            onEpisodeClick = {
+            onProgressClick = {
                 navigator.push(
-                    TrackEpisodeSelectorScreen(
+                    TrackProgressSelectorScreen(
                         track = it.track,
                         serviceId = it.tracker.id,
                     ),
@@ -159,14 +148,15 @@ data class AnimeTrackInfoDialogHomeScreen(
                 )
             },
             onNewSearch = {
-                if (it.tracker is EnhancedAnimeTracker) {
+                if (screenModel.isEnhanced(it.tracker)) {
                     screenModel.registerEnhancedTracking(it)
                 } else {
-                    val track = (it as? AnimeTrackInfoItem.Tracked)?.track
+                    val track = (it as? EntryTrackInfoItem.Tracked)?.track
                     navigator.push(
                         TrackServiceSearchScreen(
-                            animeId = animeId,
-                            initialQuery = track?.title ?: animeTitle,
+                            entryId = entryId,
+                            type = type,
+                            initialQuery = track?.title ?: entryTitle,
                             currentUrl = track?.remoteUrl,
                             serviceId = it.tracker.id,
                         ),
@@ -176,8 +166,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             onOpenInBrowser = { openTrackerInBrowser(context, it) },
             onRemoved = {
                 navigator.push(
-                    TrackerAnimeRemoveScreen(
-                        animeId = animeId,
+                    TrackerRemoveScreen(
                         track = it.track,
                         serviceId = it.tracker.id,
                     ),
@@ -191,14 +180,14 @@ data class AnimeTrackInfoDialogHomeScreen(
     /**
      * Opens registered tracker url in browser
      */
-    private fun openTrackerInBrowser(context: Context, trackItem: AnimeTrackInfoItem.Tracked) {
+    private fun openTrackerInBrowser(context: Context, trackItem: EntryTrackInfoItem.Tracked) {
         val url = trackItem.track.remoteUrl
         if (url.isNotBlank()) {
             context.openInBrowser(url)
         }
     }
 
-    private fun Context.copyTrackerLink(trackItem: AnimeTrackInfoItem.Tracked) {
+    private fun Context.copyTrackerLink(trackItem: EntryTrackInfoItem.Tracked) {
         val url = trackItem.track.remoteUrl
         if (url.isNotBlank()) {
             copyToClipboard(url, url)
@@ -207,23 +196,24 @@ data class AnimeTrackInfoDialogHomeScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val animeId: Long,
+        @Assisted private val entryId: Long,
         @Assisted private val sourceId: Long,
-        private val getTracks: GetAnimeTracks,
-        private val getAnime: GetAnime,
-        private val refreshTracks: RefreshAnimeTracks,
+        @Assisted type: EntryType,
+        trackings: EntryTrackings,
         private val application: Application,
         private val trackerManager: TrackerManager,
-        private val animeSourceManager: AnimeSourceManager,
     ) : StateViewModel<Model.State>(State()) {
+
+        private val tracking = trackings.of(type)
 
         @AssistedFactory
         @ManualViewModelAssistedFactoryKey
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted animeId: Long,
+                @Assisted entryId: Long,
                 @Assisted sourceId: Long,
+                @Assisted type: EntryType,
             ): Model
         }
 
@@ -233,7 +223,7 @@ data class AnimeTrackInfoDialogHomeScreen(
             }
 
             viewModelScope.launch {
-                getTracks.subscribe(animeId)
+                tracking.subscribeTracks(entryId)
                     .catch { logcat(LogPriority.ERROR, it) }
                     .distinctUntilChanged()
                     .map { it.mapToTrackItem() }
@@ -247,13 +237,12 @@ data class AnimeTrackInfoDialogHomeScreen(
             }
         }
 
-        fun registerEnhancedTracking(item: AnimeTrackInfoItem) {
-            val tracker = item.tracker as EnhancedAnimeTracker
+        fun isEnhanced(tracker: Tracker) = tracking.isEnhanced(tracker)
+
+        fun registerEnhancedTracking(item: EntryTrackInfoItem) {
             viewModelScope.launchNonCancellable {
-                val anime = getAnime.await(animeId) ?: return@launchNonCancellable
                 try {
-                    val matchResult = tracker.match(anime) ?: throw Exception()
-                    item.tracker.animeService.register(matchResult, animeId)
+                    tracking.registerEnhanced(item.tracker, entryId)
                 } catch (e: Exception) {
                     withUIContext { application.toast(MR.strings.error_no_match) }
                 }
@@ -263,11 +252,11 @@ data class AnimeTrackInfoDialogHomeScreen(
         private suspend fun refreshTrackers() {
             val context = application
 
-            refreshTracks.await(animeId)
+            tracking.refreshTracks(entryId)
                 .forEach { (track, e) ->
                     val tracker = track ?: return@forEach
                     logcat(LogPriority.ERROR, e) {
-                        "Failed to refresh track data mangaId=$animeId for service ${tracker.id}"
+                        "Failed to refresh track data entryId=$entryId for service ${tracker.name}"
                     }
                     withUIContext {
                         context.toast(
@@ -281,37 +270,32 @@ data class AnimeTrackInfoDialogHomeScreen(
                 }
         }
 
-        fun togglePrivate(item: AnimeTrackInfoItem.Tracked) {
+        fun togglePrivate(item: EntryTrackInfoItem.Tracked) {
             viewModelScope.launchNonCancellable {
-                (item.tracker as? AnimeTracker)?.setRemotePrivate(item.track.toDbTrack(), !item.track.private)
+                item.tracker.setRemotePrivate(item.track, !item.track.private)
             }
         }
 
-        private fun List<AnimeTrack>.mapToTrackItem(): List<AnimeTrackInfoItem> {
-            val loggedInTrackers = trackerManager.loggedInTrackers().filter {
-                it is AnimeTracker
-            }
-            val source = animeSourceManager.getOrStub(sourceId)
+        private fun List<EntryTrack>.mapToTrackItem(): List<EntryTrackInfoItem> {
+            val loggedInTrackers = trackerManager.loggedInTrackers().filter(tracking::supports)
             return loggedInTrackers
-                // Map to TrackItem
                 .map { service ->
                     find { it.trackerId == service.id }
-                        ?.let { AnimeTrackInfoItem.Tracked(it, service) }
-                        ?: AnimeTrackInfoItem.Untracked(service)
+                        ?.let { EntryTrackInfoItem.Tracked(it, service) }
+                        ?: EntryTrackInfoItem.Untracked(service)
                 }
-                // Show only if the service supports this anime's source
-                .filter { (it.tracker as? EnhancedAnimeTracker)?.accept(source) ?: true }
+                .filter { tracking.accepts(it.tracker, sourceId) }
         }
 
         @Immutable
         data class State(
-            val trackItems: List<AnimeTrackInfoItem> = emptyList(),
+            val trackItems: List<EntryTrackInfoItem> = emptyList(),
         )
     }
 }
 
 internal data class TrackStatusSelectorScreen(
-    private val track: DbAnimeTrack,
+    private val track: EntryTrack,
     private val serviceId: Long,
 ) : Screen() {
 
@@ -341,7 +325,7 @@ internal data class TrackStatusSelectorScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val track: DbAnimeTrack,
+        @Assisted private val track: EntryTrack,
         @Assisted private val tracker: Tracker,
     ) : StateViewModel<Model.State>(State(track.status)) {
 
@@ -350,15 +334,13 @@ internal data class TrackStatusSelectorScreen(
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted track: DbAnimeTrack,
+                @Assisted track: EntryTrack,
                 @Assisted tracker: Tracker,
             ): Model
         }
 
         fun getSelections(): Map<Long, StringResource?> {
-            return tracker.animeService.getStatusListAnime().associateWith {
-                (tracker as? AnimeTracker)?.getStatusForAnime(it)
-            }
+            return tracker.statusList(track).associateWith { tracker.statusName(track, it) }
         }
 
         fun setSelection(selection: Long) {
@@ -367,7 +349,7 @@ internal data class TrackStatusSelectorScreen(
 
         fun setStatus() {
             viewModelScope.launchNonCancellable {
-                tracker.animeService.setRemoteAnimeStatus(track.toDbTrack(), state.value.selection)
+                tracker.setRemoteStatus(track, state.value.selection)
             }
         }
 
@@ -378,8 +360,8 @@ internal data class TrackStatusSelectorScreen(
     }
 }
 
-internal data class TrackEpisodeSelectorScreen(
-    private val track: DbAnimeTrack,
+internal data class TrackProgressSelectorScreen(
+    private val track: EntryTrack,
     private val serviceId: Long,
 ) : Screen() {
 
@@ -401,33 +383,33 @@ internal data class TrackEpisodeSelectorScreen(
             onSelectionChange = screenModel::setSelection,
             range = remember { screenModel.getRange() },
             onConfirm = {
-                screenModel.setEpisode()
+                screenModel.setProgress()
                 navigator.pop()
             },
             onDismissRequest = navigator::pop,
-            isManga = false,
+            isManga = track is EntryTrack.Manga,
         )
     }
 
     @AssistedInject
     internal class Model(
-        @Assisted private val track: DbAnimeTrack,
+        @Assisted private val track: EntryTrack,
         @Assisted private val tracker: Tracker,
-    ) : StateViewModel<Model.State>(State(track.lastEpisodeSeen.toInt())) {
+    ) : StateViewModel<Model.State>(State(track.progress.toInt())) {
 
         @AssistedFactory
         @ManualViewModelAssistedFactoryKey
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted track: DbAnimeTrack,
+                @Assisted track: EntryTrack,
                 @Assisted tracker: Tracker,
             ): Model
         }
 
         fun getRange(): Iterable<Int> {
-            val endRange = if (track.totalEpisodes > 0) {
-                track.totalEpisodes
+            val endRange = if (track.total > 0) {
+                track.total
             } else {
                 10000
             }
@@ -438,12 +420,9 @@ internal data class TrackEpisodeSelectorScreen(
             mutableState.update { it.copy(selection = selection) }
         }
 
-        fun setEpisode() {
+        fun setProgress() {
             viewModelScope.launchNonCancellable {
-                tracker.animeService.setRemoteLastEpisodeSeen(
-                    track.toDbTrack(),
-                    state.value.selection,
-                )
+                tracker.setRemoteProgress(track, state.value.selection)
             }
         }
 
@@ -455,7 +434,7 @@ internal data class TrackEpisodeSelectorScreen(
 }
 
 internal data class TrackScoreSelectorScreen(
-    private val track: DbAnimeTrack,
+    private val track: EntryTrack,
     private val serviceId: Long,
 ) : Screen() {
 
@@ -486,22 +465,22 @@ internal data class TrackScoreSelectorScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val track: DbAnimeTrack,
+        @Assisted private val track: EntryTrack,
         @Assisted private val tracker: Tracker,
-    ) : StateViewModel<Model.State>(State(tracker.animeService.displayScore(track))) {
+    ) : StateViewModel<Model.State>(State(tracker.displayScore(track))) {
 
         @AssistedFactory
         @ManualViewModelAssistedFactoryKey
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted track: DbAnimeTrack,
+                @Assisted track: EntryTrack,
                 @Assisted tracker: Tracker,
             ): Model
         }
 
         fun getSelections(): ImmutableList<String> {
-            return tracker.animeService.getScoreList()
+            return tracker.scoreList(track)
         }
 
         fun setSelection(selection: String) {
@@ -510,7 +489,7 @@ internal data class TrackScoreSelectorScreen(
 
         fun setScore() {
             viewModelScope.launchNonCancellable {
-                tracker.animeService.setRemoteScore(track.toDbTrack(), state.value.selection)
+                tracker.setRemoteScore(track, state.value.selection)
             }
         }
 
@@ -522,7 +501,7 @@ internal data class TrackScoreSelectorScreen(
 }
 
 internal data class TrackDateSelectorScreen(
-    private val track: DbAnimeTrack,
+    private val track: EntryTrack,
     private val serviceId: Long,
     private val start: Boolean,
 ) : Screen() {
@@ -621,7 +600,7 @@ internal data class TrackDateSelectorScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val track: DbAnimeTrack,
+        @Assisted private val track: EntryTrack,
         @Assisted private val tracker: Tracker,
         @Assisted private val start: Boolean,
     ) : ViewModel() {
@@ -631,7 +610,7 @@ internal data class TrackDateSelectorScreen(
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted track: DbAnimeTrack,
+                @Assisted track: EntryTrack,
                 @Assisted tracker: Tracker,
                 @Assisted start: Boolean,
             ): Model
@@ -654,9 +633,9 @@ internal data class TrackDateSelectorScreen(
                 millis.convertEpochMillisZone(ZoneOffset.UTC, ZoneOffset.systemDefault())
             viewModelScope.launchNonCancellable {
                 if (start) {
-                    tracker.animeService.setRemoteStartDate(track.toDbTrack(), localMillis)
+                    tracker.setRemoteStartDate(track, localMillis)
                 } else {
-                    tracker.animeService.setRemoteFinishDate(track.toDbTrack(), localMillis)
+                    tracker.setRemoteFinishDate(track, localMillis)
                 }
             }
         }
@@ -668,7 +647,7 @@ internal data class TrackDateSelectorScreen(
 }
 
 internal data class TrackDateRemoverScreen(
-    private val track: DbAnimeTrack,
+    private val track: EntryTrack,
     private val serviceId: Long,
     private val start: Boolean,
 ) : Screen() {
@@ -723,7 +702,7 @@ internal data class TrackDateRemoverScreen(
                     FilledTonalButton(
                         onClick = {
                             screenModel.removeDate()
-                            navigator.popUntil { it is AnimeTrackInfoDialogHomeScreen }
+                            navigator.popUntil { it is TrackInfoDialogHomeScreen }
                         },
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -739,7 +718,7 @@ internal data class TrackDateRemoverScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val track: DbAnimeTrack,
+        @Assisted private val track: EntryTrack,
         @Assisted private val tracker: Tracker,
         @Assisted private val start: Boolean,
     ) : ViewModel() {
@@ -749,7 +728,7 @@ internal data class TrackDateRemoverScreen(
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted track: DbAnimeTrack,
+                @Assisted track: EntryTrack,
                 @Assisted tracker: Tracker,
                 @Assisted start: Boolean,
             ): Model
@@ -760,9 +739,9 @@ internal data class TrackDateRemoverScreen(
         fun removeDate() {
             viewModelScope.launchNonCancellable {
                 if (start) {
-                    tracker.animeService.setRemoteStartDate(track.toDbTrack(), 0)
+                    tracker.setRemoteStartDate(track, 0)
                 } else {
-                    tracker.animeService.setRemoteFinishDate(track.toDbTrack(), 0)
+                    tracker.setRemoteFinishDate(track, 0)
                 }
             }
         }
@@ -770,7 +749,8 @@ internal data class TrackDateRemoverScreen(
 }
 
 data class TrackServiceSearchScreen(
-    private val animeId: Long,
+    private val entryId: Long,
+    private val type: EntryType,
     private val initialQuery: String,
     private val currentUrl: String?,
     private val serviceId: Long,
@@ -781,7 +761,8 @@ data class TrackServiceSearchScreen(
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = assistedMetroViewModel<Model, Model.Factory> {
             create(
-                animeId = animeId,
+                entryId = entryId,
+                type = type,
                 currentUrl = currentUrl,
                 initialQuery = initialQuery,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
@@ -793,7 +774,7 @@ data class TrackServiceSearchScreen(
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         val textFieldState = rememberTextFieldState(initialQuery)
-        AnimeTrackerSearch(
+        TrackerSearch(
             state = textFieldState,
             onDispatchQuery = { screenModel.trackingSearch(textFieldState.text.toString()) },
             queryResult = state.queryResult,
@@ -812,18 +793,23 @@ data class TrackServiceSearchScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val animeId: Long,
+        @Assisted private val entryId: Long,
+        @Assisted type: EntryType,
         @Assisted private val currentUrl: String?,
         @Assisted private val initialQuery: String,
         @Assisted private val tracker: Tracker,
+        trackings: EntryTrackings,
     ) : StateViewModel<Model.State>(State()) {
+
+        private val tracking = trackings.of(type)
 
         @AssistedFactory
         @ManualViewModelAssistedFactoryKey
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted animeId: Long,
+                @Assisted entryId: Long,
+                @Assisted type: EntryType,
                 @Assisted currentUrl: String?,
                 @Assisted initialQuery: String,
                 @Assisted tracker: Tracker,
@@ -846,7 +832,7 @@ data class TrackServiceSearchScreen(
 
                 val result = withIOContext {
                     try {
-                        val results = tracker.animeService.searchAnime(query)
+                        val results = tracking.search(tracker, query)
                         Result.success(results)
                     } catch (e: Throwable) {
                         Result.failure(e)
@@ -855,31 +841,30 @@ data class TrackServiceSearchScreen(
                 mutableState.update { oldState ->
                     oldState.copy(
                         queryResult = result,
-                        selected = result.getOrNull()?.find { it.tracking_url == currentUrl },
+                        selected = result.getOrNull()?.find { it.trackingUrl == currentUrl },
                     )
                 }
             }
         }
 
-        fun registerTracking(item: AnimeTrackSearch) {
-            viewModelScope.launchNonCancellable { tracker.animeService.register(item, animeId) }
+        fun registerTracking(item: EntryTrackSearch) {
+            viewModelScope.launchNonCancellable { tracker.register(item, entryId) }
         }
 
-        fun updateSelection(selected: AnimeTrackSearch) {
+        fun updateSelection(selected: EntryTrackSearch) {
             mutableState.update { it.copy(selected = selected) }
         }
 
         @Immutable
         data class State(
-            val queryResult: Result<List<AnimeTrackSearch>>? = null,
-            val selected: AnimeTrackSearch? = null,
+            val queryResult: Result<List<EntryTrackSearch>>? = null,
+            val selected: EntryTrackSearch? = null,
         )
     }
 }
 
-internal data class TrackerAnimeRemoveScreen(
-    private val animeId: Long,
-    private val track: AnimeTrack,
+internal data class TrackerRemoveScreen(
+    private val track: EntryTrack,
     private val serviceId: Long,
 ) : Screen() {
 
@@ -888,7 +873,6 @@ internal data class TrackerAnimeRemoveScreen(
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = assistedMetroViewModel<Model, Model.Factory> {
             create(
-                animeId = animeId,
                 track = track,
                 tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
                     "Missing tracker for id: $serviceId"
@@ -941,7 +925,7 @@ internal data class TrackerAnimeRemoveScreen(
                     FilledTonalButton(
                         onClick = {
                             screenModel.unregisterTracking(serviceId)
-                            if (removeRemoteTrack) screenModel.deleteAnimeFromService()
+                            if (removeRemoteTrack) screenModel.deleteFromService()
                             navigator.pop()
                         },
                         colors = ButtonDefaults.filledTonalButtonColors(
@@ -958,10 +942,9 @@ internal data class TrackerAnimeRemoveScreen(
 
     @AssistedInject
     internal class Model(
-        @Assisted private val animeId: Long,
-        @Assisted private val track: AnimeTrack,
+        @Assisted private val track: EntryTrack,
         @Assisted private val tracker: Tracker,
-        private val deleteTrack: DeleteAnimeTrack,
+        private val trackings: EntryTrackings,
     ) : ViewModel() {
 
         @AssistedFactory
@@ -969,28 +952,27 @@ internal data class TrackerAnimeRemoveScreen(
         @ContributesIntoMap(AppScope::class)
         fun interface Factory : ManualViewModelAssistedFactory {
             fun create(
-                @Assisted animeId: Long,
-                @Assisted track: AnimeTrack,
+                @Assisted track: EntryTrack,
                 @Assisted tracker: Tracker,
             ): Model
         }
 
         fun getName() = tracker.name
 
-        fun isDeletable() = tracker is DeletableAnimeTracker
+        fun isDeletable() = tracker.isDeletable(track)
 
-        fun deleteAnimeFromService() {
+        fun deleteFromService() {
             viewModelScope.launchNonCancellable {
                 try {
-                    (tracker as DeletableAnimeTracker).delete(track)
+                    tracker.deleteRemote(track)
                 } catch (e: Exception) {
-                    logcat(LogPriority.ERROR, e) { "Failed to delete anime entry from service" }
+                    logcat(LogPriority.ERROR, e) { "Failed to delete entry from service" }
                 }
             }
         }
 
         fun unregisterTracking(serviceId: Long) {
-            viewModelScope.launchNonCancellable { deleteTrack.await(animeId, serviceId) }
+            viewModelScope.launchNonCancellable { trackings.of(track).unregister(track.entryId, serviceId) }
         }
     }
 }

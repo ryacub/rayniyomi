@@ -1,4 +1,4 @@
-package eu.kanade.presentation.track.manga
+package eu.kanade.presentation.track
 
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Surface
@@ -6,16 +6,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
-import eu.kanade.presentation.track.TrackSearch
-import eu.kanade.tachiyomi.data.track.model.MangaTrackSearch
+import eu.kanade.tachiyomi.ui.entries.track.EntryTrackSearch
 
 @Composable
-fun MangaTrackerSearch(
+fun TrackerSearch(
     state: TextFieldState,
     onDispatchQuery: () -> Unit,
-    queryResult: Result<List<MangaTrackSearch>>?,
-    selected: MangaTrackSearch?,
-    onSelectedChange: (MangaTrackSearch) -> Unit,
+    queryResult: Result<List<EntryTrackSearch>>?,
+    selected: EntryTrackSearch?,
+    onSelectedChange: (EntryTrackSearch) -> Unit,
     onConfirmSelection: (private: Boolean) -> Unit,
     onDismissRequest: () -> Unit,
     supportsPrivateTracking: Boolean,
@@ -29,23 +28,23 @@ fun MangaTrackerSearch(
         onConfirmSelection = onConfirmSelection,
         onDismissRequest = onDismissRequest,
         supportsPrivateTracking = supportsPrivateTracking,
-        title = MangaTrackSearch::title,
-        coverUrl = MangaTrackSearch::cover_url,
-        trackingUrl = MangaTrackSearch::tracking_url,
-        authors = MangaTrackSearch::authors,
-        artists = MangaTrackSearch::artists,
-        publishingType = MangaTrackSearch::publishing_type,
-        publishingStatus = MangaTrackSearch::publishing_status,
-        startDate = MangaTrackSearch::start_date,
-        summary = MangaTrackSearch::summary,
-        score = MangaTrackSearch::score,
+        title = EntryTrackSearch::title,
+        coverUrl = EntryTrackSearch::coverUrl,
+        trackingUrl = EntryTrackSearch::trackingUrl,
+        authors = EntryTrackSearch::authors,
+        artists = EntryTrackSearch::artists,
+        publishingType = EntryTrackSearch::publishingType,
+        publishingStatus = EntryTrackSearch::publishingStatus,
+        startDate = EntryTrackSearch::startDate,
+        summary = EntryTrackSearch::summary,
+        score = EntryTrackSearch::score,
     )
 }
 
 @PreviewLightDark
 @Composable
 private fun TrackerSearchPreviews(
-    @PreviewParameter(MangaTrackerSearchPreviewProvider::class)
+    @PreviewParameter(TrackerSearchPreviewProvider::class)
     content: @Composable () -> Unit,
 ) {
     TachiyomiPreviewTheme {

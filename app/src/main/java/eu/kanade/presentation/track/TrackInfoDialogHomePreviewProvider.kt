@@ -1,27 +1,26 @@
-package eu.kanade.presentation.track.manga
+package eu.kanade.presentation.track
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
-import eu.kanade.presentation.track.previewMangaTrackItemWithTrack
-import eu.kanade.presentation.track.previewMangaTrackItemWithoutTrack
-import eu.kanade.presentation.track.previewTrackDateFormat
 
-internal class MangaTrackInfoDialogHomePreviewProvider :
+internal class TrackInfoDialogHomePreviewProvider :
     PreviewParameterProvider<@Composable () -> Unit> {
 
-    private val trackItemWithoutTrack = previewMangaTrackItemWithoutTrack()
+    private val trackItemWithoutTrack = previewTrackItemWithoutTrack()
     private val trackItemWithTrack = previewMangaTrackItemWithTrack()
+    private val animeTrackItemWithTrack = previewAnimeTrackItemWithTrack()
     private val trackItemWithPrivateTrack = previewMangaTrackItemWithTrack(privateTracking = true)
 
     private val trackersWithAndWithoutTrack = @Composable {
-        MangaTrackInfoDialogHome(
+        TrackInfoDialogHome(
             trackItems = listOf(
                 trackItemWithoutTrack,
                 trackItemWithTrack,
+                animeTrackItemWithTrack,
             ),
             dateFormat = previewTrackDateFormat(),
             onStatusClick = {},
-            onChapterClick = {},
+            onProgressClick = {},
             onScoreClick = {},
             onStartDateEdit = {},
             onEndDateEdit = {},
@@ -34,11 +33,11 @@ internal class MangaTrackInfoDialogHomePreviewProvider :
     }
 
     private val noTrackers = @Composable {
-        MangaTrackInfoDialogHome(
+        TrackInfoDialogHome(
             trackItems = listOf(),
             dateFormat = previewTrackDateFormat(),
             onStatusClick = {},
-            onChapterClick = {},
+            onProgressClick = {},
             onScoreClick = {},
             onStartDateEdit = {},
             onEndDateEdit = {},
@@ -51,11 +50,11 @@ internal class MangaTrackInfoDialogHomePreviewProvider :
     }
 
     private val trackerWithPrivateTracking = @Composable {
-        MangaTrackInfoDialogHome(
+        TrackInfoDialogHome(
             trackItems = listOf(trackItemWithPrivateTrack),
             dateFormat = previewTrackDateFormat(),
             onStatusClick = {},
-            onChapterClick = {},
+            onProgressClick = {},
             onScoreClick = {},
             onStartDateEdit = {},
             onEndDateEdit = {},
