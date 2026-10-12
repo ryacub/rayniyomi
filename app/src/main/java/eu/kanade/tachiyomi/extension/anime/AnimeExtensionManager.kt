@@ -258,6 +258,7 @@ class AnimeExtensionManager(
                 when {
                     availableExt != null -> extension.copy(
                         hasUpdate = extension.updateExists(availableExt),
+                        isObsolete = false,
                         repoUrl = availableExt.repoUrl,
                     )
                     catalog.hasCompleteListing(extension.repoUrl) -> extension.copy(isObsolete = true)
