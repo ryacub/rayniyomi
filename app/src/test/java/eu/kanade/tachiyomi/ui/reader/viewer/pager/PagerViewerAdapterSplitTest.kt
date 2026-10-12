@@ -116,6 +116,26 @@ class PagerViewerAdapterSplitTest {
         verify(exactly = 1) { viewer.moveToPage(splits.last()) }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `visible previous chapter splits survive a return to that chapter`(rightToLeft: Boolean) {
+        val viewer = createViewer(rightToLeft)
+        val adapter = PagerViewerAdapter(viewer)
+        val previous = createChapter(1L, 2)
+        val current = createChapter(2L, 2)
+        adapter.setChapters(ViewerChapters(current, previous, null), false)
+        val parent = previous.pages!!.last()
+        val split = InsertPage(parent)
+        adapter.onPageSplit(parent, split)
+
+        adapter.setChapters(ViewerChapters(previous, null, current), false)
+
+        val expected = previous.pages!! + split
+        val actual = adapter.items.filterIsInstance<ReaderPage>().filter { it.chapter === previous }
+        assertEquals(if (rightToLeft) expected.reversed() else expected, actual)
+        verify(exactly = 1) { viewer.moveToPage(split) }
+    }
+
     private fun createAdapter(rightToLeft: Boolean) = PagerViewerAdapter(createViewer(rightToLeft))
 
     private fun createViewer(rightToLeft: Boolean): PagerViewer {
