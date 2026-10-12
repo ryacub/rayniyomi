@@ -804,11 +804,6 @@ class AnimeDownloader(
 
     private fun removeFromQueue(download: AnimeDownload) = queueOps.remove(download)
 
-    fun removeFromQueue(episodes: List<Episode>) {
-        val episodeIds = episodes.map { it.id }
-        queueOps.removeIf { it.episode.id in episodeIds }
-    }
-
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
         val ids = episodeIds.toSet()
         val abandoned = queueState.value.filter { it.episode.id in ids }
@@ -842,10 +837,6 @@ class AnimeDownloader(
                     ?.delete()
             }
         }
-    }
-
-    fun removeFromQueue(anime: Anime) {
-        queueOps.removeIf { it.anime.id == anime.id }
     }
 
     private fun internalClearQueue() = queueOps.internalClear()
