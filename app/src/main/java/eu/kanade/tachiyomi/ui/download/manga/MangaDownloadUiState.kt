@@ -8,10 +8,10 @@ import eu.kanade.tachiyomi.ui.download.DownloadQueueGroup
 
 @Stable
 data class MangaDownloadUiHeaderItem(
-    override val source: HttpSource,
+    val source: HttpSource,
     override val downloads: List<MangaDownloadUiItem>,
     override val isExpanded: Boolean = true,
-) : DownloadQueueGroup<HttpSource, MangaDownloadUiItem> {
+) : DownloadQueueGroup<MangaDownloadUiItem> {
     override val sourceId get() = source.id
     override val sourceName get() = source.name
 }

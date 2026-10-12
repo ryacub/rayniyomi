@@ -4,10 +4,10 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 
-internal class TrackerSearchPreviewProvider : PreviewParameterProvider<@Composable () -> Unit> {
+internal class TrackSearchPreviewProvider : PreviewParameterProvider<@Composable () -> Unit> {
     private val fullPageWithSecondSelected = @Composable {
         val items = previewEntryTrackSearches().take(30).toList()
-        TrackerSearch(
+        TrackSearch(
             state = TextFieldState(initialText = "search text"),
             onDispatchQuery = {},
             queryResult = Result.success(items),
@@ -19,7 +19,7 @@ internal class TrackerSearchPreviewProvider : PreviewParameterProvider<@Composab
         )
     }
     private val fullPageWithoutSelected = @Composable {
-        TrackerSearch(
+        TrackSearch(
             state = TextFieldState(),
             onDispatchQuery = {},
             queryResult = Result.success(previewEntryTrackSearches().take(30).toList()),
@@ -31,7 +31,7 @@ internal class TrackerSearchPreviewProvider : PreviewParameterProvider<@Composab
         )
     }
     private val loading = @Composable {
-        TrackerSearch(
+        TrackSearch(
             state = TextFieldState(),
             onDispatchQuery = {},
             queryResult = null,
@@ -44,7 +44,7 @@ internal class TrackerSearchPreviewProvider : PreviewParameterProvider<@Composab
     }
     private val fullPageWithPrivateTracking = @Composable {
         val items = previewEntryTrackSearches().take(30).toList()
-        TrackerSearch(
+        TrackSearch(
             state = TextFieldState(initialText = "search text"),
             onDispatchQuery = {},
             queryResult = Result.success(items),

@@ -256,11 +256,11 @@ class MangaDownloadQueueScreenModelTest {
         val store = ViewModelStore()
         val model = store.create { MangaDownloadQueueScreenModel(manager) }
         try {
-            model.toggleExpanded(source1)
+            model.toggleExpanded(source1.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
 
-            model.toggleExpanded(source1)
+            model.toggleExpanded(source1.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(true, true)
 
@@ -268,7 +268,7 @@ class MangaDownloadQueueScreenModelTest {
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, false)
 
-            model.expandHeader(source2)
+            model.expandHeader(source2.id)
             advanceUntilIdle()
             model.state.value.map { it.isExpanded } shouldContainExactly listOf(false, true)
         } finally {

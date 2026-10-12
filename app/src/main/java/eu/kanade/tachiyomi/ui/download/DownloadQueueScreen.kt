@@ -46,40 +46,11 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 
-interface DownloadQueueEntry {
-    val downloadId: Long?
-    val entryId: Long
-    val key: String
-    val name: String
-    val progress: Float
-}
-
-interface DownloadQueueGroup<S, I : DownloadQueueEntry> {
-    val source: S
-    val sourceId: Long
-    val sourceName: String
-    val downloads: List<I>
-    val isExpanded: Boolean
-}
-
-interface DownloadQueueActions<S, I : DownloadQueueEntry> {
-    fun reorder(downloadIds: List<Long>)
-    fun collapseAll()
-    fun expandHeader(source: S)
-    fun toggleExpanded(source: S)
-    fun moveToTop(item: I)
-    fun moveToBottom(item: I)
-    fun moveToTopSeries(entryId: Long)
-    fun moveToBottomSeries(entryId: Long)
-    fun cancelDownload(item: I)
-    fun cancelSeries(entryId: Long)
-}
-
 @Composable
-fun <S, I : DownloadQueueEntry> DownloadQueueScreen(
+fun <I : DownloadQueueEntry> DownloadQueueScreen(
     contentPadding: PaddingValues,
-    screenModel: DownloadQueueActions<S, I>,
-    downloadList: List<DownloadQueueGroup<S, I>>,
+    screenModel: DownloadQueueActions<I>,
+    downloadList: List<DownloadQueueGroup<I>>,
     nestedScrollConnection: NestedScrollConnection,
 ) {
     Scaffold {
@@ -126,8 +97,8 @@ fun <S, I : DownloadQueueEntry> DownloadQueueScreen(
                             header = header,
                             isDragging = isDragging,
                             onDragStart = { screenModel.collapseAll() },
-                            onDragEnd = { screenModel.expandHeader(header.source) },
-                            onToggleExpanded = { screenModel.toggleExpanded(header.source) },
+                            onDragEnd = { screenModel.expandHeader(header.sourceId) },
+                            onToggleExpanded = { screenModel.toggleExpanded(header.sourceId) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -153,7 +124,7 @@ fun <S, I : DownloadQueueEntry> DownloadQueueScreen(
 
 @Composable
 private fun ReorderableCollectionItemScope.DownloadQueueHeader(
-    header: DownloadQueueGroup<*, *>,
+    header: DownloadQueueGroup<*>,
     isDragging: Boolean,
     onDragStart: () -> Unit,
     onDragEnd: () -> Unit,
@@ -208,7 +179,7 @@ private fun ReorderableCollectionItemScope.DownloadQueueHeader(
 @Composable
 private fun <I : DownloadQueueEntry> DownloadQueueItem(
     item: I,
-    screenModel: DownloadQueueActions<*, I>,
+    screenModel: DownloadQueueActions<I>,
     modifier: Modifier = Modifier,
 ) {
     val progress by remember { derivedStateOf { item.progress } }
@@ -320,7 +291,7 @@ private fun DownloadQueueScreenPreview() {
 }
 
 private fun findHeaderIndex(
-    items: List<DownloadQueueGroup<*, *>>,
+    items: List<DownloadQueueGroup<*>>,
     flatIndex: Int,
 ): Int {
     var currentIndex = 0
@@ -336,7 +307,7 @@ private fun findHeaderIndex(
 }
 
 private fun <I : DownloadQueueEntry> computeReorderedDownloads(
-    items: List<DownloadQueueGroup<*, I>>,
+    items: List<DownloadQueueGroup<I>>,
     fromIndex: Int,
     toIndex: Int,
 ): List<I> {

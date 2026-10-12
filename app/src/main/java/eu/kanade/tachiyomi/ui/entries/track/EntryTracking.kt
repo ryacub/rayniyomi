@@ -21,6 +21,8 @@ import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 
 enum class EntryType { MANGA, ANIME }
 
+enum class EnhancedRegistration { REGISTERED, NO_MATCH, ENTRY_MISSING }
+
 @Inject
 class EntryTrackings(
     private val manga: MangaEntryTracking,
@@ -30,11 +32,6 @@ class EntryTrackings(
         EntryType.MANGA -> manga
         EntryType.ANIME -> anime
     }
-
-    fun of(track: EntryTrack): EntryTracking = when (track) {
-        is EntryTrack.Manga -> manga
-        is EntryTrack.Anime -> anime
-    }
 }
 
 interface EntryTracking {
@@ -43,9 +40,7 @@ interface EntryTracking {
     fun supports(tracker: Tracker): Boolean
     fun accepts(tracker: Tracker, sourceId: Long): Boolean
     fun isEnhanced(tracker: Tracker): Boolean
-
-    /** Throws when the tracker finds no match. */
-    suspend fun registerEnhanced(tracker: Tracker, entryId: Long)
+    suspend fun registerEnhanced(tracker: Tracker, entryId: Long): EnhancedRegistration
     suspend fun search(tracker: Tracker, query: String): List<EntryTrackSearch>
     suspend fun unregister(entryId: Long, trackerId: Long)
 }
@@ -71,10 +66,16 @@ class MangaEntryTracking(
 
     override fun isEnhanced(tracker: Tracker) = tracker is EnhancedMangaTracker
 
-    override suspend fun registerEnhanced(tracker: Tracker, entryId: Long) {
-        val manga = getManga.await(entryId) ?: return
-        val matchResult = (tracker as EnhancedMangaTracker).match(manga) ?: throw Exception()
-        tracker.mangaService.register(matchResult, entryId)
+    override suspend fun registerEnhanced(tracker: Tracker, entryId: Long): EnhancedRegistration {
+        val enhancedTracker = tracker as EnhancedMangaTracker
+        val manga = getManga.await(entryId) ?: return EnhancedRegistration.ENTRY_MISSING
+        return try {
+            val matchResult = enhancedTracker.match(manga) ?: return EnhancedRegistration.NO_MATCH
+            tracker.mangaService.register(matchResult, entryId)
+            EnhancedRegistration.REGISTERED
+        } catch (e: Exception) {
+            EnhancedRegistration.NO_MATCH
+        }
     }
 
     override suspend fun search(tracker: Tracker, query: String) =
@@ -104,10 +105,16 @@ class AnimeEntryTracking(
 
     override fun isEnhanced(tracker: Tracker) = tracker is EnhancedAnimeTracker
 
-    override suspend fun registerEnhanced(tracker: Tracker, entryId: Long) {
-        val anime = getAnime.await(entryId) ?: return
-        val matchResult = (tracker as EnhancedAnimeTracker).match(anime) ?: throw Exception()
-        tracker.animeService.register(matchResult, entryId)
+    override suspend fun registerEnhanced(tracker: Tracker, entryId: Long): EnhancedRegistration {
+        val enhancedTracker = tracker as EnhancedAnimeTracker
+        val anime = getAnime.await(entryId) ?: return EnhancedRegistration.ENTRY_MISSING
+        return try {
+            val matchResult = enhancedTracker.match(anime) ?: return EnhancedRegistration.NO_MATCH
+            tracker.animeService.register(matchResult, entryId)
+            EnhancedRegistration.REGISTERED
+        } catch (e: Exception) {
+            EnhancedRegistration.NO_MATCH
+        }
     }
 
     override suspend fun search(tracker: Tracker, query: String) =

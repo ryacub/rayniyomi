@@ -41,6 +41,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -65,9 +66,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.toLowerCase
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.entries.components.ItemCover
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
+import eu.kanade.tachiyomi.ui.entries.track.EntryTrackSearch
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
@@ -81,25 +86,15 @@ import tachiyomi.presentation.core.util.runOnEnterKeyPressed
 import tachiyomi.presentation.core.util.secondaryItemAlpha
 
 @Composable
-internal fun <T> TrackSearch(
+fun TrackSearch(
     state: TextFieldState,
     onDispatchQuery: () -> Unit,
-    queryResult: Result<List<T>>?,
-    selected: T?,
-    onSelectedChange: (T) -> Unit,
+    queryResult: Result<List<EntryTrackSearch>>?,
+    selected: EntryTrackSearch?,
+    onSelectedChange: (EntryTrackSearch) -> Unit,
     onConfirmSelection: (private: Boolean) -> Unit,
     onDismissRequest: () -> Unit,
     supportsPrivateTracking: Boolean,
-    title: (T) -> String,
-    coverUrl: (T) -> String,
-    trackingUrl: (T) -> String,
-    authors: (T) -> List<String>,
-    artists: (T) -> List<String>,
-    publishingType: (T) -> String,
-    publishingStatus: (T) -> String,
-    startDate: (T) -> String,
-    summary: (T) -> String,
-    score: (T) -> Double,
 ) {
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
@@ -224,16 +219,6 @@ internal fun <T> TrackSearch(
                                 trackSearch = it,
                                 selected = it == selected,
                                 onClick = { onSelectedChange(it) },
-                                title = title,
-                                coverUrl = coverUrl,
-                                trackingUrl = trackingUrl,
-                                authors = authors,
-                                artists = artists,
-                                publishingType = publishingType,
-                                publishingStatus = publishingStatus,
-                                startDate = startDate,
-                                summary = summary,
-                                score = score,
                             )
                         }
                     }
@@ -250,28 +235,18 @@ internal fun <T> TrackSearch(
 }
 
 @Composable
-private fun <T> TrackSearchResultItem(
-    trackSearch: T,
+private fun TrackSearchResultItem(
+    trackSearch: EntryTrackSearch,
     selected: Boolean,
     onClick: () -> Unit,
-    title: (T) -> String,
-    coverUrl: (T) -> String,
-    trackingUrl: (T) -> String,
-    authors: (T) -> List<String>,
-    artists: (T) -> List<String>,
-    publishingType: (T) -> String,
-    publishingStatus: (T) -> String,
-    startDate: (T) -> String,
-    summary: (T) -> String,
-    score: (T) -> Double,
 ) {
     val context = LocalContext.current
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
     val focusManager = LocalFocusManager.current
-    val type = publishingType(trackSearch).toLowerCase(Locale.current).capitalize(Locale.current)
-    val status = publishingStatus(trackSearch).toLowerCase(Locale.current).capitalize(Locale.current)
-    val description = summary(trackSearch).trim()
-    val trackTitle = title(trackSearch)
+    val type = trackSearch.publishingType.toLowerCase(Locale.current).capitalize(Locale.current)
+    val status = trackSearch.publishingStatus.toLowerCase(Locale.current).capitalize(Locale.current)
+    val description = trackSearch.summary.trim()
+    val trackTitle = trackSearch.title
     val shape = RoundedCornerShape(16.dp)
     val borderColor = if (selected) MaterialTheme.colorScheme.outline else Color.Transparent
     var dropDownMenuExpanded by remember { mutableStateOf(false) }
@@ -306,7 +281,7 @@ private fun <T> TrackSearchResultItem(
         Column {
             Row {
                 ItemCover.Book(
-                    data = coverUrl(trackSearch),
+                    data = trackSearch.coverUrl,
                     modifier = Modifier.height(96.dp),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -325,13 +300,13 @@ private fun <T> TrackSearchResultItem(
                             clipboardManager.setText(AnnotatedString(trackTitle))
                         },
                         onOpenInBrowser = {
-                            val url = trackingUrl(trackSearch)
+                            val url = trackSearch.trackingUrl
                             if (url.isNotBlank()) {
                                 context.openInBrowser(url)
                             }
                         },
                     )
-                    val creators = (authors(trackSearch) + artists(trackSearch)).distinct()
+                    val creators = (trackSearch.authors + trackSearch.artists).distinct()
                     if (creators.isNotEmpty()) {
                         Text(
                             text = creators.joinToString(),
@@ -347,10 +322,10 @@ private fun <T> TrackSearchResultItem(
                             text = type,
                         )
                     }
-                    if (startDate(trackSearch).isNotBlank()) {
+                    if (trackSearch.startDate.isNotBlank()) {
                         TrackSearchResultItemDetails(
                             title = stringResource(MR.strings.label_started),
-                            text = startDate(trackSearch),
+                            text = trackSearch.startDate,
                         )
                     }
                     if (status.isNotBlank()) {
@@ -359,10 +334,10 @@ private fun <T> TrackSearchResultItem(
                             text = status,
                         )
                     }
-                    if (score(trackSearch) != -1.0) {
+                    if (trackSearch.score != -1.0) {
                         TrackSearchResultItemDetails(
                             title = stringResource(MR.strings.score),
-                            text = score(trackSearch).toString(),
+                            text = trackSearch.score.toString(),
                         )
                     }
                 }
@@ -429,5 +404,18 @@ private fun TrackSearchResultItemDetails(
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun TrackSearchPreviews(
+    @PreviewParameter(TrackSearchPreviewProvider::class)
+    content: @Composable () -> Unit,
+) {
+    TachiyomiPreviewTheme {
+        Surface {
+            content()
+        }
     }
 }

@@ -14,6 +14,7 @@ import tachiyomi.domain.track.anime.model.AnimeTrack as DomainAnimeTrack
 import tachiyomi.domain.track.manga.model.MangaTrack as DomainMangaTrack
 
 sealed interface EntryTrack : Serializable {
+    val type: EntryType
     val entryId: Long
     val trackerId: Long
     val title: String
@@ -27,6 +28,7 @@ sealed interface EntryTrack : Serializable {
     val private: Boolean
 
     data class Manga(val track: DomainMangaTrack) : EntryTrack {
+        override val type get() = EntryType.MANGA
         override val entryId get() = track.mangaId
         override val trackerId get() = track.trackerId
         override val title get() = track.title
@@ -41,6 +43,7 @@ sealed interface EntryTrack : Serializable {
     }
 
     data class Anime(val track: DomainAnimeTrack) : EntryTrack {
+        override val type get() = EntryType.ANIME
         override val entryId get() = track.animeId
         override val trackerId get() = track.trackerId
         override val title get() = track.title

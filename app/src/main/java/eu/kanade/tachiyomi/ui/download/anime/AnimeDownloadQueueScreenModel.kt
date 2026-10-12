@@ -7,7 +7,6 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
-import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.ui.download.DownloadQueueActions
@@ -25,7 +24,7 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class AnimeDownloadQueueScreenModel(
     private val downloadManager: AnimeDownloadManager,
-) : ViewModel(), DownloadQueueActions<AnimeHttpSource, AnimeDownloadUiItem> {
+) : ViewModel(), DownloadQueueActions<AnimeDownloadUiItem> {
 
     private val _state = MutableStateFlow(emptyList<AnimeDownloadUiHeaderItem>())
     val state = _state.asStateFlow()
@@ -56,12 +55,12 @@ class AnimeDownloadQueueScreenModel(
         }
     }
 
-    override fun toggleExpanded(source: AnimeHttpSource) {
+    override fun toggleExpanded(sourceId: Long) {
         collapsedSources.update { current ->
-            if (current.contains(source.id)) {
-                current - source.id
+            if (current.contains(sourceId)) {
+                current - sourceId
             } else {
-                current + source.id
+                current + sourceId
             }
         }
     }
@@ -71,8 +70,8 @@ class AnimeDownloadQueueScreenModel(
         collapsedSources.update { currentSources.map { it.source.id }.toSet() }
     }
 
-    override fun expandHeader(source: AnimeHttpSource) {
-        collapsedSources.update { it - source.id }
+    override fun expandHeader(sourceId: Long) {
+        collapsedSources.update { it - sourceId }
     }
 
     override fun moveToTop(item: AnimeDownloadUiItem) {
