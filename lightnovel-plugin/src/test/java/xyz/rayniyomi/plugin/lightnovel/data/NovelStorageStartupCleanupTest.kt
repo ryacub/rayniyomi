@@ -11,6 +11,26 @@ import kotlin.io.path.createTempDirectory
 
 class NovelStorageStartupCleanupTest {
     @Test
+    fun constructorDefersStaleCleanupUntilFirstLibraryQuery() {
+        val dir = createTempDirectory("ln-startup-deferred").toFile()
+        try {
+            val booksDir = File(dir, "light_novel_plugin/books").apply { mkdirs() }
+            val stale = File(booksDir, "stale.tmp.epub").apply { writeText("interrupted import") }
+            val context = mockk<Context> {
+                every { filesDir } returns dir
+            }
+
+            val storage = NovelStorage(context)
+
+            assertTrue(stale.exists())
+            storage.listBooks()
+            assertFalse(stale.exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun constructorRemovesStaleTempFilesOnlyOnFirstInitialization() {
         val dir = createTempDirectory("ln-startup-cleanup").toFile()
         try {
