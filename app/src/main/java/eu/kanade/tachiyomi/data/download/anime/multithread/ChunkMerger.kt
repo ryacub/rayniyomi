@@ -171,73 +171,6 @@ class ChunkMerger {
     }
 
     /**
-     * Verifies that all chunks exist and are valid without merging.
-     *
-     * @param progress The download progress
-     * @param tempDir The directory containing chunk files
-     * @return true if all chunks are ready for merging
-     */
-    fun verifyChunks(
-        progress: DownloadProgress,
-        tempDir: File,
-    ): Boolean {
-        val sortedChunks = progress.chunks.sortedBy { it.index }
-
-        for (chunk in sortedChunks) {
-            if (!chunk.isComplete) {
-                logcat(LogPriority.WARN) { "Chunk ${chunk.index} is not complete" }
-                return false
-            }
-
-            val chunkFile = File(tempDir, chunk.tempFileName)
-            if (!chunkFile.exists()) {
-                logcat(LogPriority.WARN) { "Chunk file missing: ${chunk.tempFileName}" }
-                return false
-            }
-
-            // Verify chunk file size
-            val expectedSize = if (chunk.endByte < 0) {
-                // Open-ended - can't verify exact size
-                -1L
-            } else {
-                chunk.endByte - chunk.startByte + 1
-            }
-            if (expectedSize >= 0 && chunkFile.length() != expectedSize) {
-                logcat(LogPriority.WARN) {
-                    "Chunk ${chunk.index} size mismatch: expected $expectedSize, got ${chunkFile.length()}"
-                }
-                return false
-            }
-        }
-
-        return true
-    }
-
-    /**
-     * Calculates the total size of all chunk files.
-     *
-     * @param progress The download progress
-     * @param tempDir The directory containing chunk files
-     * @return Total size in bytes, or -1 if any chunk is missing
-     */
-    fun calculateTotalChunkSize(
-        progress: DownloadProgress,
-        tempDir: File,
-    ): Long {
-        var totalSize = 0L
-
-        for (chunk in progress.chunks) {
-            val chunkFile = File(tempDir, chunk.tempFileName)
-            if (!chunkFile.exists()) {
-                return -1
-            }
-            totalSize += chunkFile.length()
-        }
-
-        return totalSize
-    }
-
-    /**
      * Cleans up temporary chunk files.
      */
     private fun cleanupTempFiles(chunks: List<ChunkProgress>, tempDir: File) {
@@ -251,12 +184,5 @@ class ChunkMerger {
                 logcat(LogPriority.WARN) { "Failed to delete chunk file: ${chunk.tempFileName}: ${e.message}" }
             }
         }
-    }
-
-    companion object {
-        /**
-         * Minimum free space required for merge operation (50 MB).
-         */
-        const val MIN_FREE_SPACE_BYTES = 50L * 1024 * 1024
     }
 }
