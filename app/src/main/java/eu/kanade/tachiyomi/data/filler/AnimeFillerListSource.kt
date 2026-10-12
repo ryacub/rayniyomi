@@ -41,7 +41,7 @@ class AnimeFillerListSource internal constructor(
                 return result.fillerEpisodes.takeIf { result.matched }
             }
 
-            val candidates = getCatalog(now)[normalizedTitle].orEmpty()
+            val candidates = getCatalog()[normalizedTitle].orEmpty()
             if (candidates.size != 1) {
                 cache.put(normalizedTitle, AnimeFillerCachedResult(false, emptySet()), now)
                 return null
@@ -62,9 +62,11 @@ class AnimeFillerListSource internal constructor(
         }
     }
 
-    private suspend fun getCatalog(now: Long): Map<String, List<AnimeFillerCatalogEntry>> = catalogMutex.withLock {
+    private suspend fun getCatalog(): Map<String, List<AnimeFillerCatalogEntry>> = catalogMutex.withLock {
         catalog?.let { return it }
-        catalogFailedAt?.let { check(now - it >= CATALOG_RETRY_MS) { "Anime filler catalog failed recently" } }
+        catalogFailedAt?.let {
+            check(nowProvider() - it >= CATALOG_RETRY_MS) { "Anime filler catalog failed recently" }
+        }
         try {
             val entries = AnimeFillerListParser.parseCatalog(fetchHtml(CATALOG_URL))
                 ?: error("Anime filler catalog is malformed")
@@ -76,7 +78,7 @@ class AnimeFillerListSource internal constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            catalogFailedAt = now
+            catalogFailedAt = nowProvider()
             throw e
         }
     }
