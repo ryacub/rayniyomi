@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.data.download.anime.multithread
 
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.data.download.anime.resume.ChunkProgress
+import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import io.kotest.matchers.shouldBe
@@ -8,6 +10,10 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -22,6 +28,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MultiThreadDownloaderTest {
 
@@ -79,6 +87,86 @@ class MultiThreadDownloaderTest {
         finalProgress.downloadedBytes shouldBe video.size.toLong()
     }
 
+    @Test
+    fun `resume downloads again a chunk saved as complete whose file is gone`() = runTest {
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+
+        resumeFromCompleteChunks(chunkDir)
+    }
+
+    @Test
+    fun `resume downloads again a chunk saved as complete whose file is truncated`() = runTest {
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        File(chunkDir, "chunk_${EPISODE_ID}_0.tmp").writeBytes(video.copyOf(1024))
+
+        resumeFromCompleteChunks(chunkDir)
+    }
+
+    @Test
+    fun `a cancelled download stops writing chunk files before it completes`() = runBlocking<Unit> {
+        server.dispatcher = RangeDispatcher(video, throttled = true)
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val firstProgress = CountDownLatch(1)
+        val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 2 })
+
+        val download = launch(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(File(tempDir, "episode.mp4")),
+                onProgress = { firstProgress.countDown() },
+            )
+        }
+        firstProgress.await(10, TimeUnit.SECONDS) shouldBe true
+        download.cancelAndJoin()
+        val bytesAtCompletion = chunkDir.listFiles().orEmpty().sumOf { it.length() }
+
+        delay(500)
+
+        chunkDir.listFiles().orEmpty().sumOf { it.length() } shouldBe bytesAtCompletion
+    }
+
+    private suspend fun resumeFromCompleteChunks(chunkDir: File) {
+        val output = File(tempDir, "episode.mp4")
+        val videoUrl = server.url("/episode.mp4").toString()
+        val savedProgress = DownloadProgress(
+            episodeId = EPISODE_ID,
+            videoUrl = videoUrl,
+            totalBytes = video.size.toLong(),
+            downloadedBytes = video.size.toLong(),
+            chunks = ChunkSizeCalculator.calculateChunks(video.size.toLong(), 2).mapIndexed { index, range ->
+                ChunkProgress(
+                    index = index,
+                    startByte = range.startByte,
+                    endByte = range.endByte,
+                    downloadedBytes = range.endByte - range.startByte + 1,
+                    status = ChunkProgress.ChunkStatus.COMPLETED,
+                    tempFileName = "chunk_${EPISODE_ID}_$index.tmp",
+                )
+            },
+            status = DownloadProgress.Status.ERROR,
+        )
+        val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns savedProgress
+        }
+        val downloader = MultiThreadDownloader(OkHttpClient(), resumingStore, maxThreadsProvider = { 2 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+    }
+
     private fun uniFileAt(file: File): UniFile = mockk {
         every { filePath } returns file.absolutePath
     }
@@ -90,7 +178,7 @@ class MultiThreadDownloaderTest {
         every { delete() } answers { file.delete() }
     }
 
-    private class RangeDispatcher(private val body: ByteArray) : Dispatcher() {
+    private class RangeDispatcher(private val body: ByteArray, private val throttled: Boolean = false) : Dispatcher() {
         override fun dispatch(request: RecordedRequest): MockResponse {
             if (request.method == "HEAD") {
                 return MockResponse()
@@ -107,6 +195,7 @@ class MultiThreadDownloaderTest {
                 .setResponseCode(206)
                 .setHeader("Content-Range", "bytes $start-$end/${body.size}")
                 .setBody(Buffer().write(body, start, end - start + 1))
+                .apply { if (throttled) throttleBody(1024 * 1024, 20, TimeUnit.MILLISECONDS) }
         }
     }
 

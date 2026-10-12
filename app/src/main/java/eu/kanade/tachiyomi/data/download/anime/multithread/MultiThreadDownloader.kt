@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.job
 import logcat.LogPriority
 import logcat.logcat
 import okhttp3.Headers
@@ -100,7 +101,18 @@ class MultiThreadDownloader(
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        return performDownload(progress, headers, tmpDir, outputFile, onProgress, resume = true)
+        val chunkDir = tmpDir.filePath?.let(::File)
+        val verifiedProgress = progress.copy(
+            chunks = progress.chunks.map { chunk ->
+                val savedBytes = chunkDir?.let { File(it, chunk.tempFileName).length() }
+                if (chunk.isComplete && savedBytes != chunk.totalBytes) {
+                    chunk.copy(downloadedBytes = 0, status = ChunkProgress.ChunkStatus.PENDING)
+                } else {
+                    chunk
+                }
+            },
+        )
+        return performDownload(verifiedProgress, headers, tmpDir, outputFile, onProgress, resume = true)
     }
 
     /**
@@ -169,7 +181,7 @@ class MultiThreadDownloader(
     ): DownloadResult {
         // Create supervisor scope that is a child of the caller's scope
         // This ensures proper cancellation propagation while allowing independent job management
-        val scope = CoroutineScope(coroutineContext + SupervisorJob())
+        val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
         downloadScope = scope
 
         // Get temp directory as File

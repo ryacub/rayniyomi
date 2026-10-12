@@ -157,6 +157,7 @@ class AnimeDownloader(
      * Job object for download queue management
      */
     private var downloaderJob: Job? = null
+    private var cancelledDownloaderJob: Job? = null
 
     /**
      * Preference for user's choice of external downloader
@@ -284,8 +285,10 @@ class AnimeDownloader(
     fun clearQueue() {
         cancelDownloaderJob()
 
+        val abandoned = queueState.value
         internalClearQueue()
         notifier.dismissProgress()
+        deletePartialDownloads(abandoned)
     }
 
     /**
@@ -301,10 +304,7 @@ class AnimeDownloader(
                         .filter {
                             it.status.value <= AnimeDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedWith(
-                            compareByDescending<AnimeDownload> { it.priority.value }
-                                .thenBy { queue.indexOf(it) },
-                        ) // Sort by priority first, then queue position
+                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
@@ -402,6 +402,7 @@ class AnimeDownloader(
      */
     private fun cancelDownloaderJob() {
         downloaderJob?.cancel()
+        downloaderJob?.let { cancelledDownloaderJob = it }
         downloaderJob = null
     }
 
@@ -844,7 +845,37 @@ class AnimeDownloader(
 
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
         val ids = episodeIds.toSet()
+        val abandoned = queueState.value.filter { it.episode.id in ids }
         queueOps.removeIf { it.episode.id in ids }
+        deletePartialDownloads(abandoned)
+    }
+
+    private data class PartialDirKey(val sourceId: Long, val animeTitle: String, val dirName: String)
+
+    private fun partialDirKey(download: AnimeDownload) = PartialDirKey(
+        sourceId = download.source.id,
+        animeTitle = download.anime.title,
+        dirName = provider.getEpisodeDirName(download.episode.name, download.episode.scanlator) + TMP_DIR_SUFFIX,
+    )
+
+    private fun deletePartialDownloads(downloads: List<AnimeDownload>) {
+        if (downloads.isEmpty()) return
+        val stoppingJob = cancelledDownloaderJob
+        scope.launch {
+            // A cancelled multi-thread download saves its progress while it stops.
+            stoppingJob?.join()
+            downloads.forEach { download ->
+                val queue = queueState.value
+                if (queue.any { it.episode.id == download.episode.id }) return@forEach
+                stateStore.deleteProgress(download.episode.id)
+
+                val partialDir = partialDirKey(download)
+                if (queue.any { partialDirKey(it) == partialDir }) return@forEach
+                provider.findAnimeDir(download.anime.title, download.source)
+                    ?.findFile(partialDir.dirName)
+                    ?.delete()
+            }
+        }
     }
 
     fun removeFromQueue(anime: Anime) {

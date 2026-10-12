@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -103,6 +105,7 @@ class AnimeDownloadCache(
 
     private val rootDownloadsDirMutex = Mutex()
     private var rootDownloadsDir = RootDirectory(storageManager.getDownloadsDirectory())
+    private var changesDuringScan: MutableList<(RootDirectory) -> Unit>? = null
 
     /**
      * Whether the initial disk cache load has completed. Used to prevent
@@ -250,14 +253,14 @@ class AnimeDownloadCache(
      * @param anime the anime of the episode.
      */
     suspend fun addEpisode(episodeDirName: String, animeUniFile: UniFile, anime: Anime) {
-        rootDownloadsDirMutex.withLock {
+        mutate { root ->
             // Retrieve the cached source directory or cache a new one
-            var sourceDir = rootDownloadsDir.sourceDirs[anime.source]
+            var sourceDir = root.sourceDirs[anime.source]
             if (sourceDir == null) {
-                val source = sourceManager.get(anime.source) ?: return
-                val sourceUniFile = provider.findSourceDir(source) ?: return
+                val source = sourceManager.get(anime.source) ?: return@mutate
+                val sourceUniFile = provider.findSourceDir(source) ?: return@mutate
                 sourceDir = SourceDirectory(sourceUniFile)
-                rootDownloadsDir.sourceDirs += anime.source to sourceDir
+                root.sourceDirs += anime.source to sourceDir
             }
 
             // Retrieve the cached anime directory or cache a new one
@@ -282,9 +285,9 @@ class AnimeDownloadCache(
      * @param anime the anime of the episode.
      */
     suspend fun removeEpisode(episode: Episode, anime: Anime) {
-        rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[anime.source] ?: return
-            val animeDir = sourceDir.animeDirs[provider.getAnimeDirName(anime.title)] ?: return
+        mutate { root ->
+            val sourceDir = root.sourceDirs[anime.source] ?: return@mutate
+            val animeDir = sourceDir.animeDirs[provider.getAnimeDirName(anime.title)] ?: return@mutate
             provider.getValidEpisodeDirNames(episode.name, episode.scanlator).forEach {
                 if (it in animeDir.episodeDirs) {
                     animeDir.episodeDirs -= it
@@ -302,9 +305,9 @@ class AnimeDownloadCache(
      * @param anime the anime of the episode.
      */
     suspend fun removeEpisodes(episodes: List<Episode>, anime: Anime) {
-        rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[anime.source] ?: return
-            val animeDir = sourceDir.animeDirs[provider.getAnimeDirName(anime.title)] ?: return
+        mutate { root ->
+            val sourceDir = root.sourceDirs[anime.source] ?: return@mutate
+            val animeDir = sourceDir.animeDirs[provider.getAnimeDirName(anime.title)] ?: return@mutate
             episodes.forEach { episode ->
                 provider.getValidEpisodeDirNames(episode.name, episode.scanlator).forEach {
                     if (it in animeDir.episodeDirs) {
@@ -323,8 +326,8 @@ class AnimeDownloadCache(
      * @param anime the anime to remove.
      */
     suspend fun removeAnime(anime: Anime) {
-        rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[anime.source] ?: return
+        mutate { root ->
+            val sourceDir = root.sourceDirs[anime.source] ?: return@mutate
             val animeDirName = provider.getAnimeDirName(anime.title)
             if (sourceDir.animeDirs.containsKey(animeDirName)) {
                 sourceDir.animeDirs -= animeDirName
@@ -335,11 +338,18 @@ class AnimeDownloadCache(
     }
 
     suspend fun removeSource(source: AnimeSource) {
-        rootDownloadsDirMutex.withLock {
-            rootDownloadsDir.sourceDirs -= source.id
+        mutate { root ->
+            root.sourceDirs -= source.id
         }
 
         notifyChanges()
+    }
+
+    private suspend fun mutate(change: (RootDirectory) -> Unit) {
+        rootDownloadsDirMutex.withLock {
+            change(rootDownloadsDir)
+            changesDuringScan?.add(change)
+        }
     }
 
     fun invalidateCache() {
@@ -390,7 +400,12 @@ class AnimeDownloadCache(
                 provider.getSourceDirName(it).lowercase() to it.id
             }
 
+            val scanChanges = mutableListOf<(RootDirectory) -> Unit>()
             rootDownloadsDirMutex.withLock {
+                ensureActive()
+                changesDuringScan = scanChanges
+            }
+            try {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
                 val candidateDirs = namedChildDirectories(updatedRootDir.dir)
@@ -441,7 +456,19 @@ class AnimeDownloadCache(
                 }
                     .awaitAll()
 
-                rootDownloadsDir = updatedRootDir
+                rootDownloadsDirMutex.withLock {
+                    ensureActive()
+                    if (changesDuringScan === scanChanges) {
+                        scanChanges.forEach { it(updatedRootDir) }
+                        rootDownloadsDir = updatedRootDir
+                    }
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    rootDownloadsDirMutex.withLock {
+                        if (changesDuringScan === scanChanges) changesDuringScan = null
+                    }
+                }
             }
 
             _isInitializing.emit(false)

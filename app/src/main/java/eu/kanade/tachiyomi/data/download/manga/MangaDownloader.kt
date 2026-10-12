@@ -317,10 +317,7 @@ class MangaDownloader(
                                 it.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
                                 it.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedWith(
-                            compareByDescending<MangaDownload> { it.priority.value }
-                                .thenBy { queue.indexOf(it) },
-                        ) // Sort by priority first, then queue position
+                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
