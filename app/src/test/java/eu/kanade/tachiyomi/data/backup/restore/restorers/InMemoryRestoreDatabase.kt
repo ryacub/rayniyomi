@@ -104,6 +104,28 @@ internal class InMemoryMangaDb : AutoCloseable {
         return rows
     }
 
+    fun insertCategory(id: Long, name: String, order: Long) = driver.execute(
+        null,
+        "INSERT INTO categories(_id, name, sort, flags) VALUES ($id, '$name', $order, 0)",
+        0,
+    )
+
+    fun categoryLinks(): List<Pair<Long, Long>> {
+        val rows = mutableListOf<Pair<Long, Long>>()
+        driver.executeQuery(
+            identifier = null,
+            sql = "SELECT manga_id, category_id FROM mangas_categories ORDER BY manga_id",
+            parameters = 0,
+            mapper = { cursor ->
+                while (cursor.next().value) {
+                    rows += cursor.getLong(0)!! to cursor.getLong(1)!!
+                }
+                QueryResult.Unit
+            },
+        )
+        return rows
+    }
+
     override fun close() = driver.close()
 }
 
@@ -156,6 +178,28 @@ internal class InMemoryAnimeDb : AutoCloseable {
             mapper = { cursor ->
                 while (cursor.next().value) {
                     rows += Triple(cursor.getLong(0)!!, cursor.getLong(1)!!, cursor.getLong(2)!!)
+                }
+                QueryResult.Unit
+            },
+        )
+        return rows
+    }
+
+    fun insertCategory(id: Long, name: String, order: Long) = driver.execute(
+        null,
+        "INSERT INTO categories(_id, name, sort, flags) VALUES ($id, '$name', $order, 0)",
+        0,
+    )
+
+    fun categoryLinks(): List<Pair<Long, Long>> {
+        val rows = mutableListOf<Pair<Long, Long>>()
+        driver.executeQuery(
+            identifier = null,
+            sql = "SELECT anime_id, category_id FROM animes_categories ORDER BY anime_id",
+            parameters = 0,
+            mapper = { cursor ->
+                while (cursor.next().value) {
+                    rows += cursor.getLong(0)!! to cursor.getLong(1)!!
                 }
                 QueryResult.Unit
             },
