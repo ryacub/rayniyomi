@@ -157,6 +157,7 @@ class AnimeDownloader(
      * Job object for download queue management
      */
     private var downloaderJob: Job? = null
+    private var cancelledDownloaderJob: Job? = null
 
     /**
      * Preference for user's choice of external downloader
@@ -284,8 +285,10 @@ class AnimeDownloader(
     fun clearQueue() {
         cancelDownloaderJob()
 
+        val abandoned = queueState.value
         internalClearQueue()
         notifier.dismissProgress()
+        deletePartialDownloads(abandoned)
     }
 
     /**
@@ -399,6 +402,7 @@ class AnimeDownloader(
      */
     private fun cancelDownloaderJob() {
         downloaderJob?.cancel()
+        downloaderJob?.let { cancelledDownloaderJob = it }
         downloaderJob = null
     }
 
@@ -841,7 +845,26 @@ class AnimeDownloader(
 
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
         val ids = episodeIds.toSet()
+        val abandoned = queueState.value.filter { it.episode.id in ids }
         queueOps.removeIf { it.episode.id in ids }
+        deletePartialDownloads(abandoned)
+    }
+
+    private fun deletePartialDownloads(downloads: List<AnimeDownload>) {
+        if (downloads.isEmpty()) return
+        val stoppingJob = cancelledDownloaderJob
+        scope.launch {
+            // A cancelled multi-thread download saves its progress while it stops.
+            stoppingJob?.join()
+            val queuedIds = queueState.value.mapTo(HashSet()) { it.episode.id }
+            downloads.filterNot { it.episode.id in queuedIds }.forEach { download ->
+                stateStore.deleteProgress(download.episode.id)
+                val episodeDirName = provider.getEpisodeDirName(download.episode.name, download.episode.scanlator)
+                provider.findAnimeDir(download.anime.title, download.source)
+                    ?.findFile(episodeDirName + TMP_DIR_SUFFIX)
+                    ?.delete()
+            }
+        }
     }
 
     fun removeFromQueue(anime: Anime) {
