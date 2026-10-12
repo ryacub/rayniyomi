@@ -29,6 +29,7 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -105,6 +106,29 @@ class MangaExtensionManagerStateTest {
         manager.getAppIconForSource(sourceId(PKG_A))
 
         verify(exactly = 2) { MangaExtensionLoader.getMangaExtensionPackageInfoFromPkgName(any(), PKG_A) }
+    }
+
+    @Test
+    fun `an install that lands during the startup scan stays installed`() = runBlocking<Unit> {
+        val created = CompletableDeferred<MangaExtensionManager>()
+        coEvery { MangaExtensionLoader.loadMangaExtensions(any()) } coAnswers {
+            receiver.captured.onReceive(context, intent(Intent.ACTION_PACKAGE_ADDED, PKG_NEW))
+            withTimeoutOrNull(1.seconds) {
+                created.await().installedExtensionsFlow.first { extensions -> extensions.any { it.pkgName == PKG_NEW } }
+            }
+            listOf(MangaLoadResult.Success(installed(PKG_A)))
+        }
+        coEvery { MangaExtensionLoader.loadMangaExtensionFromPkgName(any(), PKG_NEW) } returns
+            MangaLoadResult.Success(installed(PKG_NEW))
+        val manager = newManager()
+        created.complete(manager)
+        withTimeout(5.seconds) { manager.isInitialized.first { it } }
+
+        val installed = withTimeoutOrNull(5.seconds) {
+            manager.installedExtensionsFlow.first { extensions -> extensions.size == 2 }
+        } ?: manager.installedExtensionsFlow.value
+
+        installed.map { it.pkgName }.toSet() shouldBe setOf(PKG_A, PKG_NEW)
     }
 
     @Test
@@ -220,6 +244,12 @@ class MangaExtensionManagerStateTest {
     }
 
     private suspend fun initializedManager(): MangaExtensionManager {
+        val manager = newManager()
+        withTimeout(5.seconds) { manager.isInitialized.first { it } }
+        return manager
+    }
+
+    private fun newManager(): MangaExtensionManager {
         val preferences = mockk<SourcePreferences>(relaxed = true) {
             every { enabledLanguages().isSet() } returns true
         }
@@ -229,7 +259,6 @@ class MangaExtensionManagerStateTest {
             trustExtension = mockk(relaxed = true),
         )
         managers += manager
-        withTimeout(5.seconds) { manager.isInitialized.first { it } }
         return manager
     }
 
