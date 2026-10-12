@@ -363,6 +363,10 @@ class MangaDownloadManager(
         }
     }
 
+    fun clearDownloadSize(mangaTitle: String, source: MangaSource) {
+        cache.clearDownloadSize(mangaTitle, source.id)
+    }
+
     fun cancelQueuedDownloads(downloads: List<MangaDownload>) {
         scope.launch {
             removeFromDownloadQueue(downloads.map { it.chapter })

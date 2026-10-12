@@ -16,7 +16,10 @@ internal class StoredDirSize(
         bytes?.let { return it }
 
         val walkGeneration = synchronized(this) { generation }
-        val walked = dir?.size() ?: 0
+        val walked = dir?.listFiles()
+            ?.filterNot { it.name?.endsWith(PARTIAL_DOWNLOAD_SUFFIX) == true }
+            ?.sumOf { it.size().coerceAtLeast(0) }
+            ?: 0
         if (storeIfUnchangedSince(walkGeneration, walked)) onStored()
         return walked
     }
@@ -32,5 +35,9 @@ internal class StoredDirSize(
         if (walkGeneration != generation) return false
         bytes = walked
         return true
+    }
+
+    private companion object {
+        const val PARTIAL_DOWNLOAD_SUFFIX = "_tmp"
     }
 }

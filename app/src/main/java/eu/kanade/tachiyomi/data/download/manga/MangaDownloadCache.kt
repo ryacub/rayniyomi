@@ -256,6 +256,14 @@ class MangaDownloadCache(
         return mangaDir.size.getOrWalk(mangaDir.dir, ::updateDiskCache)
     }
 
+    fun clearDownloadSize(mangaTitle: String, sourceId: Long) {
+        val mangaDir = rootDownloadsDir.sourceDirs[sourceId]
+            ?.mangaDirs?.get(provider.getMangaDirName(mangaTitle))
+            ?: return
+        mangaDir.size.clear()
+        notifyChanges()
+    }
+
     /**
      * Adds a chapter that has just been download to this cache.
      *
