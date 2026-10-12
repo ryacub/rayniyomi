@@ -108,7 +108,9 @@ class AnimeLibraryScreenModelPerItemWorkTest {
                 .associate { it.id to listOf(track(it.id)) },
         )
         val model = createModel(
-            prefs = listOf(pref("pref_filter_animelib_tracked_${TRACKER_ID}_v2", TriState.ENABLED_IS, TriState.DISABLED)),
+            prefs = listOf(
+                pref("pref_filter_animelib_tracked_${TRACKER_ID}_v2", TriState.ENABLED_IS, TriState.DISABLED),
+            ),
             tracks = tracks,
             trackers = listOf(tracker),
         )
