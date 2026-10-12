@@ -32,6 +32,8 @@ class ArchiveReader(pfd: ParcelFileDescriptor) : Closeable {
         return null
     }
 
+    internal fun openStream() = ArchiveInputStream(address, size)
+
     override fun close() {
         Os.munmap(address, size)
     }

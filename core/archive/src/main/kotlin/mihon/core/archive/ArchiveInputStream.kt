@@ -55,9 +55,18 @@ internal class ArchiveInputStream(buffer: Long, size: Long) : InputStream() {
         Archive.readFree(archive)
     }
 
+    fun needsDecodeToSkip(): Boolean {
+        val format = Archive.format(archive) and Archive.FORMAT_BASE_MASK
+        return format in SOLID_FORMATS || Archive.filterCode(archive, 0) != Archive.FILTER_NONE
+    }
+
     fun getNextEntry() = Archive.readNextHeader(archive).takeUnless { it == 0L }?.let { entry ->
         val name = ArchiveEntry.pathnameUtf8(entry) ?: ArchiveEntry.pathname(entry)?.decodeToString() ?: return null
         val isFile = ArchiveEntry.filetype(entry) == ArchiveEntry.AE_IFREG
         ArchiveEntry(name, isFile)
+    }
+
+    private companion object {
+        val SOLID_FORMATS = setOf(Archive.FORMAT_7ZIP, Archive.FORMAT_RAR, Archive.FORMAT_RAR_V5)
     }
 }
