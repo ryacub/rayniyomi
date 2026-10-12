@@ -99,28 +99,4 @@ object CrashlyticLogger {
             logcat(LogPriority.WARN) { "Failed to set custom key to Crashlytics: $key=$value" }
         }
     }
-
-    /**
-     * Log reader error for crash investigation
-     */
-    fun logReaderError(errorType: String, details: String) {
-        log("Reader Error - Type: $errorType, Details: $details")
-        setCustomKey("last_reader_error", errorType)
-    }
-
-    /**
-     * Log player error for crash investigation
-     */
-    fun logPlayerError(errorType: String, details: String) {
-        log("Player Error - Type: $errorType, Details: $details")
-        setCustomKey("last_player_error", errorType)
-    }
-
-    /**
-     * Log download error for crash investigation
-     */
-    fun logDownloadError(errorType: String, itemId: Long) {
-        log("Download Error - Type: $errorType, ItemId: $itemId")
-        setCustomKey("last_download_error", errorType)
-    }
 }
