@@ -823,13 +823,6 @@ class PlayerFileLoadedHandlerTest {
     }
 
     @Test
-    fun `updateIsLoadingTracks mutates state correctly`() = runTest {
-        handler.updateIsLoadingTracks(false)
-
-        assertFalse(handler.isLoadingTracks.first())
-    }
-
-    @Test
     fun `onFileLoaded with null video handles gracefully`() = runTest {
         val chapters = emptyList<IndexedSegment>()
         val onVideoAspectUpdate = mockk<() -> Unit>(relaxed = true)

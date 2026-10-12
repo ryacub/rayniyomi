@@ -30,9 +30,6 @@ class PlayerMediaOrchestrator(
     private val playerPreferences: PlayerPreferences,
     private val trackSelect: TrackSelect,
 ) {
-    private val _isLoadingTracks = MutableStateFlow(true)
-    val isLoadingTracks: StateFlow<Boolean> = _isLoadingTracks.asStateFlow()
-
     private val _audioTracks = MutableStateFlow<List<VideoTrack>>(emptyList())
     val audioTracks: StateFlow<List<VideoTrack>> = _audioTracks.asStateFlow()
 
@@ -53,8 +50,6 @@ class PlayerMediaOrchestrator(
 
     private val _skipIntroText = MutableStateFlow<String?>(null)
     val skipIntroText: StateFlow<String?> = _skipIntroText.asStateFlow()
-
-    var onTracksLoaded: (() -> Unit)? = null
 
     private var trackLoadingJob: Job? = null
 
@@ -91,12 +86,7 @@ class PlayerMediaOrchestrator(
 
             _subtitleTracks.update { subtitleTracks }
             _audioTracks.update { audioTracks }
-            onTracksLoaded?.invoke()
         }
-    }
-
-    fun setLoadingTracks(loading: Boolean) {
-        _isLoadingTracks.update { loading }
     }
 
     fun selectAudio(id: Int) {

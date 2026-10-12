@@ -317,11 +317,6 @@ class PlayerViewModel internal constructor(
         playerPreferences = playerPreferences,
         trackSelect = trackSelect,
     ).apply {
-        onTracksLoaded = {
-            if (!isLoadingTracks.value) {
-                onFinishLoadingTracks()
-            }
-        }
         onSeekRequested = { seekValue, text ->
             seekToWithText(seekValue, text ?: "")
         }
@@ -334,7 +329,6 @@ class PlayerViewModel internal constructor(
     val selectedSubtitles = mediaOrchestrator.selectedSubtitles
     val audioTracks = mediaOrchestrator.audioTracks
     val selectedAudio = mediaOrchestrator.selectedAudio
-    val isLoadingTracks = mediaOrchestrator.isLoadingTracks
     val chapters = mediaOrchestrator.chapters
     val currentChapter = mediaOrchestrator.currentChapter
     val skipIntroText = mediaOrchestrator.skipIntroText
@@ -498,7 +492,6 @@ class PlayerViewModel internal constructor(
             activity.player.aid = it.id
         }
 
-        mediaOrchestrator.setLoadingTracks(true)
         updateIsLoadingEpisode(false)
         setPausedState()
     }
@@ -509,10 +502,6 @@ class PlayerViewModel internal constructor(
 
     fun updateChapters(chapters: List<IndexedSegment>) {
         mediaOrchestrator.updateChapters(chapters)
-    }
-
-    fun setLoadingTracks(loading: Boolean) {
-        mediaOrchestrator.setLoadingTracks(loading)
     }
 
     fun updateChapter(index: Long) {
