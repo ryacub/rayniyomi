@@ -37,6 +37,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -220,17 +221,6 @@ class AnimeDownloadCache(
     }
 
     /**
-     * Returns the total size of downloaded episodes.
-     */
-    fun getTotalDownloadSize(): Long {
-        renewCache()
-
-        return rootDownloadsDir.sourceDirs.values.sumOf { sourceDir ->
-            sourceDir.dir?.size() ?: 0L
-        }
-    }
-
-    /**
      * Returns the total size of downloaded chapters for an anime.
      *
      * @param anime the anime to check.
@@ -238,11 +228,15 @@ class AnimeDownloadCache(
     fun getDownloadSize(anime: Anime): Long {
         renewCache()
 
-        return rootDownloadsDir.sourceDirs[anime.source]?.animeDirs?.get(
-            provider.getAnimeDirName(
-                anime.title,
-            ),
-        )?.dir?.size() ?: 0
+        val animeDir = rootDownloadsDir.sourceDirs[anime.source]
+            ?.animeDirs?.get(provider.getAnimeDirName(anime.title))
+            ?: return 0
+        animeDir.size?.let { return it }
+
+        val walkGeneration = animeDir.currentSizeGeneration
+        val size = animeDir.dir?.size() ?: 0
+        if (animeDir.storeSize(size, walkGeneration)) updateDiskCache()
+        return size
     }
 
     /**
@@ -273,6 +267,7 @@ class AnimeDownloadCache(
 
             // Save the chapter directory
             animeDir.episodeDirs += episodeDirName
+            animeDir.clearSize()
         }
 
         notifyChanges()
@@ -293,6 +288,7 @@ class AnimeDownloadCache(
                     animeDir.episodeDirs -= it
                 }
             }
+            animeDir.clearSize()
         }
 
         notifyChanges()
@@ -315,6 +311,7 @@ class AnimeDownloadCache(
                     }
                 }
             }
+            animeDir.clearSize()
         }
 
         notifyChanges()
@@ -547,7 +544,28 @@ private class AnimeDirectory(
     @Serializable(with = UniFileAsStringSerializer::class)
     val dir: UniFile?,
     var episodeDirs: MutableSet<String> = mutableSetOf(),
-)
+    @Volatile var size: Long? = null,
+) {
+    @Transient
+    private var sizeGeneration = 0
+
+    val currentSizeGeneration: Int
+        @Synchronized get() = sizeGeneration
+
+    @Synchronized
+    fun clearSize() {
+        size = null
+        sizeGeneration++
+    }
+
+    /** Returns false when an episode changed after the walk began, so the walked size is already stale. */
+    @Synchronized
+    fun storeSize(walkedSize: Long, walkGeneration: Int): Boolean {
+        if (walkGeneration != sizeGeneration) return false
+        size = walkedSize
+        return true
+    }
+}
 
 private object UniFileAsStringSerializer : KSerializer<UniFile?> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("UniFile", PrimitiveKind.STRING)

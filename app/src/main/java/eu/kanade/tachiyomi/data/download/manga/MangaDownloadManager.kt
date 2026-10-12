@@ -350,13 +350,6 @@ class MangaDownloadManager(
     }
 
     /**
-     * Returns the size of downloaded chapters.
-     */
-    fun getDownloadSize(): Long {
-        return cache.getTotalDownloadSize()
-    }
-
-    /**
      * Returns the size of downloaded/local episodes for an manga.
      *
      * @param manga the manga to check.

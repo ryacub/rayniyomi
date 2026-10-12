@@ -303,13 +303,6 @@ class AnimeDownloadManager(
     }
 
     /**
-     * Returns the size of downloaded episodes.
-     */
-    fun getDownloadSize(): Long {
-        return cache.getTotalDownloadSize()
-    }
-
-    /**
      * Returns the size of downloaded/local episodes for an anime.
      *
      * @param anime the anime to check.

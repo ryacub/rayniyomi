@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -243,17 +244,6 @@ class MangaDownloadCache(
     }
 
     /**
-     * Returns the total size of downloaded chapters.
-     */
-    fun getTotalDownloadSize(): Long {
-        renewCache()
-
-        return rootDownloadsDir.sourceDirs.values.sumOf { sourceDir ->
-            sourceDir.dir?.size() ?: 0L
-        }
-    }
-
-    /**
      * Returns the total size of downloaded chapters for a manga.
      *
      * @param manga the manga to check.
@@ -261,11 +251,15 @@ class MangaDownloadCache(
     fun getDownloadSize(manga: Manga): Long {
         renewCache()
 
-        return rootDownloadsDir.sourceDirs[manga.source]?.mangaDirs?.get(
-            provider.getMangaDirName(
-                manga.title,
-            ),
-        )?.dir?.size() ?: 0
+        val mangaDir = rootDownloadsDir.sourceDirs[manga.source]
+            ?.mangaDirs?.get(provider.getMangaDirName(manga.title))
+            ?: return 0
+        mangaDir.size?.let { return it }
+
+        val walkGeneration = mangaDir.currentSizeGeneration
+        val size = mangaDir.dir?.size() ?: 0
+        if (mangaDir.storeSize(size, walkGeneration)) updateDiskCache()
+        return size
     }
 
     /**
@@ -296,6 +290,7 @@ class MangaDownloadCache(
 
             // Save the chapter directory
             mangaDir.chapterDirs += chapterDirName
+            mangaDir.clearSize()
         }
 
         notifyChanges()
@@ -316,6 +311,7 @@ class MangaDownloadCache(
                     mangaDir.chapterDirs -= it
                 }
             }
+            mangaDir.clearSize()
         }
 
         notifyChanges()
@@ -338,6 +334,7 @@ class MangaDownloadCache(
                     }
                 }
             }
+            mangaDir.clearSize()
         }
 
         notifyChanges()
@@ -557,7 +554,28 @@ private class MangaDirectory(
     @Serializable(with = UniFileAsStringSerializer::class)
     val dir: UniFile?,
     var chapterDirs: MutableSet<String> = mutableSetOf(),
-)
+    @Volatile var size: Long? = null,
+) {
+    @Transient
+    private var sizeGeneration = 0
+
+    val currentSizeGeneration: Int
+        @Synchronized get() = sizeGeneration
+
+    @Synchronized
+    fun clearSize() {
+        size = null
+        sizeGeneration++
+    }
+
+    /** Returns false when a chapter changed after the walk began, so the walked size is already stale. */
+    @Synchronized
+    fun storeSize(walkedSize: Long, walkGeneration: Int): Boolean {
+        if (walkGeneration != sizeGeneration) return false
+        size = walkedSize
+        return true
+    }
+}
 
 private object UniFileAsStringSerializer : KSerializer<UniFile?> {
     override val descriptor: SerialDescriptor =
