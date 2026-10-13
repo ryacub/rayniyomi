@@ -12,7 +12,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import logcat.LogPriority
 import logcat.logcat
 import okhttp3.Call
@@ -26,6 +25,8 @@ import okio.source
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
+import java.time.Duration
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -43,6 +44,8 @@ class ChunkDownloader(
     private val client: OkHttpClient,
     private val rangeRequestHandler: RangeRequestHandler = RangeRequestHandler(client),
 ) {
+    // A chunk can take minutes on a slow connection. The read timeout still ends a stalled chunk.
+    private val chunkClient = client.newBuilder().callTimeout(Duration.ZERO).build()
 
     /**
      * Result of a chunk download attempt.
@@ -97,11 +100,7 @@ class ChunkDownloader(
             }
 
             val result = try {
-                withTimeoutOrNull(CHUNK_TIMEOUT_MS) {
-                    attemptDownload(videoUrl, chunk, headers, tempFile, isFirstChunk, onProgress)
-                } ?: ChunkDownloadResult.Error(
-                    DownloadError.Timeout("Chunk download timed out after ${CHUNK_TIMEOUT_MS}ms"),
-                )
+                attemptDownload(videoUrl, chunk, headers, tempFile, isFirstChunk, onProgress)
             } catch (e: CancellationException) {
                 throw e // Don't swallow cancellation
             } catch (e: Exception) {
@@ -167,7 +166,7 @@ class ChunkDownloader(
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult = coroutineScope {
-        val call = client.newCall(rangeRequestHandler.createRangeRequest(videoUrl, chunk, headers))
+        val call = chunkClient.newCall(rangeRequestHandler.createRangeRequest(videoUrl, chunk, headers))
         // A blocking socket read ignores coroutine cancellation, so close the call instead.
         val callCanceller = launch(start = CoroutineStart.UNDISPATCHED) {
             try {
@@ -191,49 +190,60 @@ class ChunkDownloader(
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
         return withContext(Dispatchers.IO) {
-            val result: ChunkDownloadResult = call.execute().use { response ->
-                when {
-                    response.code == HttpURLConnection.HTTP_PARTIAL -> {
-                        handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
-                    }
-                    response.code == HttpURLConnection.HTTP_OK -> {
-                        // Server ignored range request, got full file instead of chunk
-                        // This is fatal for multi-threaded downloads - each chunk would get full file
-                        logcat(LogPriority.ERROR) {
-                            "Server ignored range request, received full file instead of chunk"
-                        }
-                        ChunkDownloadResult.Error(
-                            DownloadError.InvalidRange(
-                                "Server does not support range requests; multi-threaded download not possible",
-                            ),
-                        )
-                    }
-                    response.code == HTTP_RANGE_NOT_SATISFIABLE -> {
-                        // 416 Range Not Satisfiable
-                        ChunkDownloadResult.Error(
-                            DownloadError.InvalidRange("Range $chunk is not satisfiable"),
-                        )
-                    }
-                    response.code >= 500 -> {
-                        // Server error, retryable
-                        ChunkDownloadResult.Error(
-                            DownloadError.ServerError("Server error: ${response.code}"),
-                        )
-                    }
-                    response.code >= 400 -> {
-                        // Client error, not retryable
-                        ChunkDownloadResult.Error(
-                            DownloadError.ClientError("Client error: ${response.code}"),
-                        )
-                    }
-                    else -> {
-                        ChunkDownloadResult.Error(
-                            DownloadError.NetworkError(IOException("Unexpected response code: ${response.code}")),
-                        )
-                    }
-                }
+            try {
+                call.execute().use { response -> responseResult(response, chunk, tempFile, isFirstChunk, onProgress) }
+            } catch (e: IOException) {
+                ChunkDownloadResult.Error(e.toDownloadError())
             }
-            result
+        }
+    }
+
+    private fun responseResult(
+        response: Response,
+        chunk: ChunkRange,
+        tempFile: File,
+        isFirstChunk: Boolean,
+        onProgress: (Long) -> Unit,
+    ): ChunkDownloadResult {
+        return when {
+            response.code == HttpURLConnection.HTTP_PARTIAL -> {
+                handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
+            }
+            response.code == HttpURLConnection.HTTP_OK -> {
+                // Server ignored range request, got full file instead of chunk
+                // This is fatal for multi-threaded downloads - each chunk would get full file
+                logcat(LogPriority.ERROR) {
+                    "Server ignored range request, received full file instead of chunk"
+                }
+                ChunkDownloadResult.Error(
+                    DownloadError.InvalidRange(
+                        "Server does not support range requests; multi-threaded download not possible",
+                    ),
+                )
+            }
+            response.code == HTTP_RANGE_NOT_SATISFIABLE -> {
+                // 416 Range Not Satisfiable
+                ChunkDownloadResult.Error(
+                    DownloadError.InvalidRange("Range $chunk is not satisfiable"),
+                )
+            }
+            response.code >= 500 -> {
+                // Server error, retryable
+                ChunkDownloadResult.Error(
+                    DownloadError.ServerError("Server error: ${response.code}"),
+                )
+            }
+            response.code >= 400 -> {
+                // Client error, not retryable
+                ChunkDownloadResult.Error(
+                    DownloadError.ClientError("Client error: ${response.code}"),
+                )
+            }
+            else -> {
+                ChunkDownloadResult.Error(
+                    DownloadError.NetworkError(IOException("Unexpected response code: ${response.code}")),
+                )
+            }
         }
     }
 
@@ -250,47 +260,43 @@ class ChunkDownloader(
             DownloadError.NetworkError(IOException("Empty response body")),
         )
 
-        return try {
-            var totalBytes = 0L
+        var totalBytes = 0L
 
-            // Create parent directories if needed
-            tempFile.parentFile?.mkdirs()
+        // Create parent directories if needed
+        tempFile.parentFile?.mkdirs()
 
-            // Append if file exists, create new otherwise
-            val sink: BufferedSink = tempFile.outputStream().sink().buffer()
+        // Append if file exists, create new otherwise
+        val sink: BufferedSink = tempFile.outputStream().sink().buffer()
 
-            sink.use {
-                val source = body.source()
+        sink.use {
+            val source = body.source()
 
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                var bytesRead: Int
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var bytesRead: Int
 
-                while (source.read(buffer).also { bytesRead = it } != -1) {
-                    it.write(buffer, 0, bytesRead)
-                    it.flush() // Ensure data is written
+            while (source.read(buffer).also { bytesRead = it } != -1) {
+                it.write(buffer, 0, bytesRead)
+                it.flush() // Ensure data is written
 
-                    totalBytes += bytesRead
-                    onProgress(bytesRead.toLong())
-                }
-            }
-
-            // Validate downloaded content (only check signature for first chunk)
-            if (isFirstChunk && !VideoSignatureValidator.validateVideoSignature(tempFile, isFirstChunk)) {
-                return ChunkDownloadResult.Error(
-                    DownloadError.InvalidContent("Downloaded content is not valid video"),
-                )
-            }
-
-            ChunkDownloadResult.Success(totalBytes)
-        } catch (e: IOException) {
-            when {
-                e.message?.contains("ENOSPC") == true ||
-                    e.message?.contains("No space left") == true -> {
-                    ChunkDownloadResult.Error(DownloadError.DiskFull())
-                }
-                else -> ChunkDownloadResult.Error(DownloadError.NetworkError(e))
+                totalBytes += bytesRead
+                onProgress(bytesRead.toLong())
             }
         }
+
+        // Validate downloaded content (only check signature for first chunk)
+        if (isFirstChunk && !VideoSignatureValidator.validateVideoSignature(tempFile, isFirstChunk)) {
+            return ChunkDownloadResult.Error(
+                DownloadError.InvalidContent("Downloaded content is not valid video"),
+            )
+        }
+
+        return ChunkDownloadResult.Success(totalBytes)
+    }
+
+    private fun IOException.toDownloadError(): DownloadError = when {
+        this is SocketTimeoutException -> DownloadError.Timeout(message ?: "Chunk read timed out")
+        message?.contains("ENOSPC") == true || message?.contains("No space left") == true -> DownloadError.DiskFull()
+        else -> DownloadError.NetworkError(this)
     }
 
     /**
@@ -312,11 +318,6 @@ class ChunkDownloader(
          * Maximum retry delay in milliseconds.
          */
         const val MAX_RETRY_DELAY_MS = 10000L // 10 seconds
-
-        /**
-         * Timeout for chunk downloads in milliseconds.
-         */
-        const val CHUNK_TIMEOUT_MS = 60000L // 60 seconds
 
         /**
          * Global semaphore to limit concurrent chunk downloads.
