@@ -6,9 +6,9 @@ import android.util.Log
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.data.download.core.StoredDirSize
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
-import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -220,17 +220,6 @@ class AnimeDownloadCache(
     }
 
     /**
-     * Returns the total size of downloaded episodes.
-     */
-    fun getTotalDownloadSize(): Long {
-        renewCache()
-
-        return rootDownloadsDir.sourceDirs.values.sumOf { sourceDir ->
-            sourceDir.dir?.size() ?: 0L
-        }
-    }
-
-    /**
      * Returns the total size of downloaded chapters for an anime.
      *
      * @param anime the anime to check.
@@ -238,11 +227,10 @@ class AnimeDownloadCache(
     fun getDownloadSize(anime: Anime): Long {
         renewCache()
 
-        return rootDownloadsDir.sourceDirs[anime.source]?.animeDirs?.get(
-            provider.getAnimeDirName(
-                anime.title,
-            ),
-        )?.dir?.size() ?: 0
+        val animeDir = rootDownloadsDir.sourceDirs[anime.source]
+            ?.animeDirs?.get(provider.getAnimeDirName(anime.title))
+            ?: return 0
+        return animeDir.size.getOrWalk(animeDir.dir, ::updateDiskCache)
     }
 
     /**
@@ -273,6 +261,7 @@ class AnimeDownloadCache(
 
             // Save the chapter directory
             animeDir.episodeDirs += episodeDirName
+            animeDir.size.clear()
         }
 
         notifyChanges()
@@ -293,6 +282,7 @@ class AnimeDownloadCache(
                     animeDir.episodeDirs -= it
                 }
             }
+            animeDir.size.clear()
         }
 
         notifyChanges()
@@ -315,6 +305,7 @@ class AnimeDownloadCache(
                     }
                 }
             }
+            animeDir.size.clear()
         }
 
         notifyChanges()
@@ -547,6 +538,7 @@ private class AnimeDirectory(
     @Serializable(with = UniFileAsStringSerializer::class)
     val dir: UniFile?,
     var episodeDirs: MutableSet<String> = mutableSetOf(),
+    val size: StoredDirSize = StoredDirSize(),
 )
 
 private object UniFileAsStringSerializer : KSerializer<UniFile?> {

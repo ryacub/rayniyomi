@@ -9,7 +9,9 @@ import eu.kanade.tachiyomi.source.MangaSource
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -104,6 +106,7 @@ class TranslationManagerTest {
         every {
             translationStorageManager.writePageOutcome(any(), any(), any(), any(), any(), any(), any())
         } returns true
+        every { downloadManager.clearDownloadSize(any(), any()) } just runs
     }
 
     private fun createManager(scope: CoroutineScope? = null): TranslationManager {
@@ -605,6 +608,53 @@ class TranslationManagerTest {
         manager.deleteTranslation(chapter, manga.title, source)
 
         assertEquals(TranslationState.Idle, stateOf(chapter.id))
+    }
+
+    @Test
+    fun `deleteTranslation drops the stored download size of the manga`() {
+        createManager()
+
+        manager.deleteTranslation(chapter, manga.title, source)
+
+        verify { downloadManager.clearDownloadSize(manga.title, source) }
+    }
+
+    @Test
+    fun `a finished translation drops the stored download size of the manga`() = runTest {
+        createEagerManager()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } returns TranslationResult(emptyList())
+        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
+            mockk()
+
+        manager.translateChapter(manga, chapter, source)
+        advanceUntilIdle()
+
+        verify { downloadManager.clearDownloadSize(manga.title, source) }
+    }
+
+    @Test
+    fun `a cancelled translation drops the stored download size of the manga`() = runTest {
+        createEagerManager()
+        advanceUntilIdle()
+        val imageBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x00, 0x00)
+        every { translationEngineFactory.create() } returns engine
+        mockBuildPageList(listOf(DownloadedChapterPage(0) { ByteArrayInputStream(imageBytes) }))
+        coEvery { engine.detectAndTranslate(imageBytes, "en") } coAnswers {
+            delay(10_000)
+            TranslationResult(emptyList())
+        }
+
+        manager.translateChapter(manga, chapter, source)
+        targetLanguageFlow.value = "it"
+        advanceUntilIdle()
+
+        verify(exactly = 0) {
+            translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any())
+        }
+        verify { downloadManager.clearDownloadSize(manga.title, source) }
     }
 
     // -----------------------------------------------------------------------

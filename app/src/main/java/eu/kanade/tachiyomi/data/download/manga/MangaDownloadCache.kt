@@ -6,11 +6,11 @@ import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.data.download.core.StoredDirSize
 import eu.kanade.tachiyomi.data.translation.TranslationStorageLayout
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.util.size
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -243,17 +243,6 @@ class MangaDownloadCache(
     }
 
     /**
-     * Returns the total size of downloaded chapters.
-     */
-    fun getTotalDownloadSize(): Long {
-        renewCache()
-
-        return rootDownloadsDir.sourceDirs.values.sumOf { sourceDir ->
-            sourceDir.dir?.size() ?: 0L
-        }
-    }
-
-    /**
      * Returns the total size of downloaded chapters for a manga.
      *
      * @param manga the manga to check.
@@ -261,11 +250,18 @@ class MangaDownloadCache(
     fun getDownloadSize(manga: Manga): Long {
         renewCache()
 
-        return rootDownloadsDir.sourceDirs[manga.source]?.mangaDirs?.get(
-            provider.getMangaDirName(
-                manga.title,
-            ),
-        )?.dir?.size() ?: 0
+        val mangaDir = rootDownloadsDir.sourceDirs[manga.source]
+            ?.mangaDirs?.get(provider.getMangaDirName(manga.title))
+            ?: return 0
+        return mangaDir.size.getOrWalk(mangaDir.dir, ::updateDiskCache)
+    }
+
+    fun clearDownloadSize(mangaTitle: String, sourceId: Long) {
+        val mangaDir = rootDownloadsDir.sourceDirs[sourceId]
+            ?.mangaDirs?.get(provider.getMangaDirName(mangaTitle))
+            ?: return
+        mangaDir.size.clear()
+        notifyChanges()
     }
 
     /**
@@ -296,6 +292,7 @@ class MangaDownloadCache(
 
             // Save the chapter directory
             mangaDir.chapterDirs += chapterDirName
+            mangaDir.size.clear()
         }
 
         notifyChanges()
@@ -316,6 +313,7 @@ class MangaDownloadCache(
                     mangaDir.chapterDirs -= it
                 }
             }
+            mangaDir.size.clear()
         }
 
         notifyChanges()
@@ -338,6 +336,7 @@ class MangaDownloadCache(
                     }
                 }
             }
+            mangaDir.size.clear()
         }
 
         notifyChanges()
@@ -557,6 +556,7 @@ private class MangaDirectory(
     @Serializable(with = UniFileAsStringSerializer::class)
     val dir: UniFile?,
     var chapterDirs: MutableSet<String> = mutableSetOf(),
+    val size: StoredDirSize = StoredDirSize(),
 )
 
 private object UniFileAsStringSerializer : KSerializer<UniFile?> {

@@ -137,6 +137,7 @@ class TranslationManager(
                 updateState(chapterId, TranslationState.Error(e.message ?: "Unknown error"))
             } finally {
                 activeJobs.remove(chapterId)
+                downloadManager.clearDownloadSize(manga.title, source)
             }
         }
 
@@ -178,6 +179,7 @@ class TranslationManager(
             source = source,
             targetLang = targetLang,
         )
+        downloadManager.clearDownloadSize(mangaTitle, source)
         updateState(chapter.id, TranslationState.Idle)
     }
 
