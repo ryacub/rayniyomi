@@ -5,11 +5,15 @@ import eu.kanade.tachiyomi.data.download.anime.resume.ChunkProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
+import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.longs.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -32,6 +36,7 @@ import java.io.File
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MultiThreadDownloaderTest {
 
@@ -206,6 +211,76 @@ class MultiThreadDownloaderTest {
         result.error.shouldBeInstanceOf<DownloadError.Timeout>()
     }
 
+    @Test
+    fun `a chunk retry requests only the bytes that are not on disk`() = runBlocking<Unit> {
+        val ranges = RangeDispatcher(video, disconnectFirstBody = true)
+        server.dispatcher = ranges
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val output = File(tempDir, "episode.mp4")
+        val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 1 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+        ranges.requestedRanges.size shouldBe 2
+        ranges.requestedRanges[1].rangeStart() shouldBeGreaterThan 0L
+    }
+
+    @Test
+    fun `a resumed download requests only the bytes that are not on disk`() = runBlocking<Unit> {
+        server.dispatcher = RangeDispatcher(video, bytesPer20Millis = 64 * 1024)
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val output = File(tempDir, "episode.mp4")
+        val videoUrl = server.url("/episode.mp4").toString()
+        val saved = slot<DownloadProgress>()
+        val pausingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { loadProgressIfMatching(any(), any()) } returns null
+            every { saveProgress(capture(saved)) } just Runs
+        }
+        val someBytesWritten = CountDownLatch(1)
+        val download = launch(Dispatchers.IO) {
+            MultiThreadDownloader(OkHttpClient(), pausingStore, maxThreadsProvider = { 2 }).download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+                onProgress = { if (it.downloadedBytes > 2L * 1024 * 1024) someBytesWritten.countDown() },
+            )
+        }
+        someBytesWritten.await(10, TimeUnit.SECONDS) shouldBe true
+        download.cancelAndJoin()
+        val chunkStarts = saved.captured.chunks.map { it.startByte }
+
+        val ranges = RangeDispatcher(video)
+        server.dispatcher = ranges
+        val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns saved.captured
+        }
+        val result = withContext(Dispatchers.IO) {
+            MultiThreadDownloader(OkHttpClient(), resumingStore, maxThreadsProvider = { 2 }).download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+        ranges.requestedRanges.map { it.rangeStart() }.filter { it in chunkStarts } shouldBe emptyList()
+    }
+
     private suspend fun resumeFromCompleteChunks(chunkDir: File) {
         val output = File(tempDir, "episode.mp4")
         val videoUrl = server.url("/episode.mp4").toString()
@@ -245,6 +320,8 @@ class MultiThreadDownloaderTest {
         output.readBytes().contentEquals(video) shouldBe true
     }
 
+    private fun String.rangeStart(): Long = removePrefix("bytes=").substringBefore('-').toLong()
+
     private fun uniFileAt(file: File): UniFile = mockk {
         every { filePath } returns file.absolutePath
     }
@@ -259,7 +336,11 @@ class MultiThreadDownloaderTest {
     private class RangeDispatcher(
         private val body: ByteArray,
         private val bytesPer20Millis: Long? = null,
+        disconnectFirstBody: Boolean = false,
     ) : Dispatcher() {
+        val requestedRanges: MutableList<String> = Collections.synchronizedList(mutableListOf())
+        private val disconnectNext = AtomicBoolean(disconnectFirstBody)
+
         override fun dispatch(request: RecordedRequest): MockResponse {
             if (request.method == "HEAD") {
                 return MockResponse()
@@ -268,6 +349,7 @@ class MultiThreadDownloaderTest {
             }
             // A GET without a range gets the 200 that the downloader rejects as InvalidRange.
             val range = request.getHeader("Range") ?: return MockResponse().setBody(Buffer().write(body))
+            requestedRanges += range
             val (start, end) = range
                 .removePrefix("bytes=")
                 .split("-")
@@ -277,6 +359,11 @@ class MultiThreadDownloaderTest {
                 .setHeader("Content-Range", "bytes $start-$end/${body.size}")
                 .setBody(Buffer().write(body, start, end - start + 1))
                 .apply { bytesPer20Millis?.let { throttleBody(it, 20, TimeUnit.MILLISECONDS) } }
+                .apply {
+                    if (disconnectNext.compareAndSet(true, false)) {
+                        setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)
+                    }
+                }
         }
     }
 
