@@ -6,7 +6,10 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -21,6 +24,7 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.io.path.createTempDirectory
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -36,8 +40,12 @@ class PluginManagerViewModelTest {
         repo to """{"name":"Example","manifestVersion":1,"pluginLists":["$listUrl"]}""",
         listUrl to pluginList(version = 1),
     )
+    private val textDispatchers = mutableListOf<ContinuationInterceptor?>()
     private val fetcher = object : PluginManager.Fetcher {
-        override suspend fun text(url: String): String = texts[url] ?: throw IOException("HTTP 404 for $url")
+        override suspend fun text(url: String): String {
+            textDispatchers += currentCoroutineContext()[ContinuationInterceptor]
+            return texts[url] ?: throw IOException("HTTP 404 for $url")
+        }
         override suspend fun bytes(url: String): ByteArray = archive
     }
     private val manager = PluginManager(store, File(dir, "plugins"), fetcher)
@@ -94,6 +102,20 @@ class PluginManagerViewModelTest {
         model.state.value.repositories.map { it.url } shouldContainExactly listOf(repo)
         model.state.value.rows.items.map { it.internalName } shouldContainExactly listOf("A")
         model.state.value.rows.hiddenCount shouldBe 1
+    }
+
+    @Test
+    fun `adding a repository fetches and persists on the injected IO dispatcher`() = runTest(dispatcher) {
+        store.update { it.giveConsent() }
+        textDispatchers.clear()
+        val ioDispatcher = StandardTestDispatcher(dispatcher.scheduler)
+        val model = PluginManagerViewModel(manager, store, ioDispatcher)
+
+        model.addRepository(repo)
+        advanceUntilIdle()
+
+        textDispatchers.first() shouldBe ioDispatcher
+        model.state.value.repositories.map { it.url } shouldContainExactly listOf(repo)
     }
 
     @Test

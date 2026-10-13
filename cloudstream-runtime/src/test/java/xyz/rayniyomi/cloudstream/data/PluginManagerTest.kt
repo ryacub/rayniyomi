@@ -4,6 +4,8 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -63,6 +65,8 @@ class PluginManagerTest {
                 """[{"url":"https://example.com/A.cs3","version":1,"name":"A","internalName":"A","tvTypes":["Anime"]}]""",
         )
         val requested = mutableListOf<String>()
+        var bytesStarted: CompletableDeferred<Unit>? = null
+        var delayedBytes: CompletableDeferred<ByteArray>? = null
 
         override suspend fun text(url: String): String {
             requested += url
@@ -71,7 +75,8 @@ class PluginManagerTest {
 
         override suspend fun bytes(url: String): ByteArray {
             requested += url
-            return archive
+            bytesStarted?.complete(Unit)
+            return delayedBytes?.await() ?: archive
         }
     }
 
@@ -183,5 +188,24 @@ class PluginManagerTest {
 
         manager.pluginFile("A").exists() shouldBe false
         store.state.value.repositories.shouldBeEmpty()
+    }
+
+    @Test
+    fun `a download finishing after repository removal is not installed`() = runTest {
+        store.update { it.giveConsent().addRepository(repo, "Example") }
+        val bytesStarted = CompletableDeferred<Unit>()
+        val delayedBytes = CompletableDeferred<ByteArray>()
+        fetcher.bytesStarted = bytesStarted
+        fetcher.delayedBytes = delayedBytes
+
+        val pendingInstall = async { manager.install(entry("A"), repo) }
+        bytesStarted.await()
+
+        manager.removeRepository(repo)
+        delayedBytes.complete(archive)
+
+        pendingInstall.await().isFailure shouldBe true
+        manager.pluginFile("A").exists() shouldBe false
+        store.state.value.installed.shouldBeEmpty()
     }
 }
