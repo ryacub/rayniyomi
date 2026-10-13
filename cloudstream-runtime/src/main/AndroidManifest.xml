@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="tachiyomi.animeextension" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".ManagerApplication"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_cloudstream_runtime"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <meta-data
+            android:name="tachiyomi.animeextension.class"
+            android:value="xyz.rayniyomi.cloudstream.Entry" />
+        <meta-data
+            android:name="tachiyomi.animeextension.nsfw"
+            android:value="0" />
+
+        <activity
+            android:name=".ui.ManagerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name=".provider.PluginProvider"
+            android:authorities="${applicationId}.plugins"
+            android:exported="true" />
+    </application>
+
+</manifest>

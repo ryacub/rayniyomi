@@ -1,0 +1,19 @@
+# The host loads classes with these name prefixes for the CloudStream runtime.
+# The runtime jar must not contain them. All other classes come from the jar.
+android.
+androidx.annotation.
+androidx.preference.
+dalvik.
+eu.kanade.tachiyomi.
+java.
+javax.
+kotlin.
+kotlinx.coroutines.
+okhttp3.
+okio.
+org.json.
+org.w3c.
+org.xml.
+rx.
+tachiyomi.
+uy.kohesive.injekt.
