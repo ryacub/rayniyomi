@@ -50,6 +50,7 @@ configurations
 dependencies {
     implementation(project(":cloudstream-runtime-contract"))
     implementation(libs.cloudstream.library)
+    implementation(libs.cloudstream.nicehttp)
     implementation(kotlinx.serialization.json)
 
     compileOnly(project(":source-api"))

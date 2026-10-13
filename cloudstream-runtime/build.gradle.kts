@@ -27,6 +27,10 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -134,7 +138,10 @@ val verifyNoHostClasses = tasks.register<VerifyNoHostClassesTask>("verifyNoHostC
 
 androidComponents {
     onVariants { variant ->
-        variant.sources.java?.addGeneratedSourceDirectory(generateSharedPrefixes, GenerateSharedPrefixesTask::outputDirectory)
+        variant.sources.java?.addGeneratedSourceDirectory(
+            generateSharedPrefixes,
+            GenerateSharedPrefixesTask::outputDirectory,
+        )
         variant.sources.assets?.addGeneratedSourceDirectory(copyHostRuntime, CopyHostRuntimeTask::outputDirectory)
     }
 }

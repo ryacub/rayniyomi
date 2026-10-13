@@ -13,7 +13,14 @@ class PluginStateTest {
     private val repo = "https://raw.githubusercontent.com/Abodabodd/re-3arabi/builds/repo.json"
     private val other = "https://example.com/repo.json"
 
-    private fun entry(name: String, version: Int = 1, hash: String? = "aa$name", tvTypes: List<String> = listOf("Anime")) =
+    private fun entry(
+        name: String,
+        version: Int = 1,
+        hash: String? = "aa$name",
+        tvTypes: List<String> = listOf(
+            "Anime",
+        ),
+    ) =
         PluginEntry(
             url = "https://example.com/$name.cs3",
             status = 1,

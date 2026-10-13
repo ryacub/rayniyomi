@@ -21,7 +21,11 @@ class LoadMappingTest {
     private val api = TestApi()
 
     private fun episode(data: String, number: Int?, name: String? = null, date: Long? = null) =
-        api.newEpisode("https://site.test/$data", { episode = number; this.name = name; this.date = date })
+        api.newEpisode("https://site.test/$data", {
+            episode = number
+            this.name = name
+            this.date = date
+        })
 
     @Test
     fun `details map title, plot, tags, status, and poster`() = runTest {

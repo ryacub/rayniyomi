@@ -17,7 +17,8 @@ class PluginCallGuardTest {
 
     @Test
     fun `a missing plugin method becomes an exception that names the source`() = runTest {
-        val error = shouldThrow<PluginCallException> { guardPluginCall<Unit>("AnimeWitcher") { throw NotImplementedError() } }
+        val error =
+            shouldThrow<PluginCallException> { guardPluginCall<Unit>("AnimeWitcher") { throw NotImplementedError() } }
 
         error.message shouldContain "AnimeWitcher"
         (error.cause is NotImplementedError) shouldBe true
@@ -38,6 +39,5 @@ class PluginCallGuardTest {
     @Test
     fun `cancellation is not wrapped`() = runTest {
         shouldThrow<CancellationException> { guardPluginCall<Unit>("A") { throw CancellationException("stop") } }
-            .let { (it is PluginCallException) shouldBe false }
     }
 }
