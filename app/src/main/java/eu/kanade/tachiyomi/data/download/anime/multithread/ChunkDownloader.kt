@@ -18,12 +18,10 @@ import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import okio.BufferedSink
-import okio.buffer
-import okio.sink
 import okio.source
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.time.Duration
@@ -166,7 +164,11 @@ class ChunkDownloader(
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult = coroutineScope {
-        val call = chunkClient.newCall(rangeRequestHandler.createRangeRequest(videoUrl, chunk, headers))
+        val keptBytes = keptBytes(chunk, tempFile)
+        if (keptBytes == chunk.size) return@coroutineScope validatedResult(tempFile, isFirstChunk, 0L)
+
+        val missingRange = ChunkRange(chunk.startByte + keptBytes, chunk.endByte)
+        val call = chunkClient.newCall(rangeRequestHandler.createRangeRequest(videoUrl, missingRange, headers))
         // A blocking socket read ignores coroutine cancellation, so close the call instead.
         val callCanceller = launch(start = CoroutineStart.UNDISPATCHED) {
             try {
@@ -176,7 +178,7 @@ class ChunkDownloader(
             }
         }
         try {
-            downloadResponse(call, chunk, tempFile, isFirstChunk, onProgress)
+            downloadResponse(call, chunk, tempFile, keptBytes, isFirstChunk, onProgress)
         } finally {
             callCanceller.cancel()
         }
@@ -186,12 +188,15 @@ class ChunkDownloader(
         call: Call,
         chunk: ChunkRange,
         tempFile: File,
+        keptBytes: Long,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
         return withContext(Dispatchers.IO) {
             try {
-                call.execute().use { response -> responseResult(response, chunk, tempFile, isFirstChunk, onProgress) }
+                call.execute().use { response ->
+                    responseResult(response, chunk, tempFile, keptBytes, isFirstChunk, onProgress)
+                }
             } catch (e: IOException) {
                 ChunkDownloadResult.Error(e.toDownloadError())
             }
@@ -202,12 +207,13 @@ class ChunkDownloader(
         response: Response,
         chunk: ChunkRange,
         tempFile: File,
+        keptBytes: Long,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
         return when {
             response.code == HttpURLConnection.HTTP_PARTIAL -> {
-                handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
+                handleSuccessResponse(response, tempFile, keptBytes, isFirstChunk, onProgress)
             }
             response.code == HttpURLConnection.HTTP_OK -> {
                 // Server ignored range request, got full file instead of chunk
@@ -248,11 +254,12 @@ class ChunkDownloader(
     }
 
     /**
-     * Handles a successful response and writes to file.
+     * Writes the response body into the chunk file after the bytes that it already holds.
      */
     private fun handleSuccessResponse(
         response: Response,
         tempFile: File,
+        keptBytes: Long,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
@@ -261,36 +268,33 @@ class ChunkDownloader(
         )
 
         var totalBytes = 0L
-
-        // Create parent directories if needed
         tempFile.parentFile?.mkdirs()
 
-        // Append if file exists, create new otherwise
-        val sink: BufferedSink = tempFile.outputStream().sink().buffer()
-
-        sink.use {
+        // A positional write keeps each byte at its own offset, even if a cancelled writer still finishes a write.
+        RandomAccessFile(tempFile, "rw").use { file ->
+            if (keptBytes == 0L) file.setLength(0)
+            file.seek(keptBytes)
             val source = body.source()
-
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             var bytesRead: Int
 
             while (source.read(buffer).also { bytesRead = it } != -1) {
-                it.write(buffer, 0, bytesRead)
-                it.flush() // Ensure data is written
-
+                file.write(buffer, 0, bytesRead)
                 totalBytes += bytesRead
                 onProgress(bytesRead.toLong())
             }
         }
 
-        // Validate downloaded content (only check signature for first chunk)
+        return validatedResult(tempFile, isFirstChunk, totalBytes)
+    }
+
+    private fun validatedResult(tempFile: File, isFirstChunk: Boolean, bytesDownloaded: Long): ChunkDownloadResult {
         if (isFirstChunk && !VideoSignatureValidator.validateVideoSignature(tempFile, isFirstChunk)) {
             return ChunkDownloadResult.Error(
                 DownloadError.InvalidContent("Downloaded content is not valid video"),
             )
         }
-
-        return ChunkDownloadResult.Success(totalBytes)
+        return ChunkDownloadResult.Success(bytesDownloaded)
     }
 
     private fun IOException.toDownloadError(): DownloadError = when {
@@ -309,6 +313,11 @@ class ChunkDownloader(
     }
 
     companion object {
+        // The file holds the start of the chunk, written in order, so the next attempt continues from its end.
+        // An open-ended chunk has no fixed size to check the file against, so it starts again.
+        fun keptBytes(chunk: ChunkRange, tempFile: File): Long =
+            if (chunk.endByte < 0) 0L else tempFile.length().coerceAtMost(chunk.size)
+
         /**
          * Maximum number of retry attempts.
          */

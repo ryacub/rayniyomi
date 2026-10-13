@@ -281,6 +281,27 @@ class MultiThreadDownloaderTest {
         ranges.requestedRanges.map { it.rangeStart() }.filter { it in chunkStarts } shouldBe emptyList()
     }
 
+    @Test
+    fun `a new download writes over a chunk file left by another download`() = runTest {
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        File(chunkDir, "chunk_${EPISODE_ID}_0.tmp").writeBytes(ByteArray(1024 * 1024) { 7 })
+        val output = File(tempDir, "episode.mp4")
+        val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 2 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+    }
+
     private suspend fun resumeFromCompleteChunks(chunkDir: File) {
         val output = File(tempDir, "episode.mp4")
         val videoUrl = server.url("/episode.mp4").toString()

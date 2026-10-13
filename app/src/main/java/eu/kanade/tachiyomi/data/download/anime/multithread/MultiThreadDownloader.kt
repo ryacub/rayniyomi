@@ -177,7 +177,11 @@ class MultiThreadDownloader(
             ),
         )
 
-        val chunkState = ChunkStateTracker(progress.chunks)
+        // A file left by another download of this episode can hold other bytes.
+        if (!resume) progress.chunks.forEach { File(tempDirFile, it.tempFileName).delete() }
+        val chunkState = ChunkStateTracker(progress.chunks) { chunk ->
+            ChunkDownloader.keptBytes(ChunkRange(chunk.startByte, chunk.endByte), File(tempDirFile, chunk.tempFileName))
+        }
 
         return try {
             // Each job returns its result. A failed child of a supervisor scope does not fail its siblings.
@@ -315,10 +319,10 @@ class MultiThreadDownloader(
     }
 }
 
-// An incomplete chunk starts at zero because its temp file is written again from the start.
-private class ChunkStateTracker(chunks: List<ChunkProgress>) {
+// An incomplete chunk starts from the bytes in its temp file, because the download continues from there.
+private class ChunkStateTracker(chunks: List<ChunkProgress>, keptBytes: (ChunkProgress) -> Long) {
     private val bytesByIndex = chunks.associate { chunk ->
-        chunk.index to AtomicLong(if (chunk.isComplete) chunk.downloadedBytes else 0L)
+        chunk.index to AtomicLong(if (chunk.isComplete) chunk.downloadedBytes else keptBytes(chunk))
     }
 
     fun addBytes(index: Int, bytes: Long) {
