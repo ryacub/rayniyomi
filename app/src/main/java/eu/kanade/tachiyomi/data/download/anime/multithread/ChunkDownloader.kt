@@ -3,14 +3,19 @@ package eu.kanade.tachiyomi.data.download.anime.multithread
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkRange
 import eu.kanade.tachiyomi.data.download.anime.resume.RangeRequestHandler
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import logcat.LogPriority
 import logcat.logcat
+import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -161,11 +166,32 @@ class ChunkDownloader(
         tempFile: File,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
+    ): ChunkDownloadResult = coroutineScope {
+        val call = client.newCall(rangeRequestHandler.createRangeRequest(videoUrl, chunk, headers))
+        // A blocking socket read ignores coroutine cancellation, so close the call instead.
+        val callCanceller = launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                awaitCancellation()
+            } finally {
+                call.cancel()
+            }
+        }
+        try {
+            downloadResponse(call, chunk, tempFile, isFirstChunk, onProgress)
+        } finally {
+            callCanceller.cancel()
+        }
+    }
+
+    private suspend fun downloadResponse(
+        call: Call,
+        chunk: ChunkRange,
+        tempFile: File,
+        isFirstChunk: Boolean,
+        onProgress: (Long) -> Unit,
     ): ChunkDownloadResult {
         return withContext(Dispatchers.IO) {
-            val request = rangeRequestHandler.createRangeRequest(videoUrl, chunk, headers)
-
-            val result: ChunkDownloadResult = client.newCall(request).execute().use { response ->
+            val result: ChunkDownloadResult = call.execute().use { response ->
                 when {
                     response.code == HttpURLConnection.HTTP_PARTIAL -> {
                         handleSuccessResponse(response, tempFile, isFirstChunk, onProgress)
