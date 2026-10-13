@@ -59,7 +59,8 @@ class PluginManagerTest {
     private inner class FakeFetcher : PluginManager.Fetcher {
         val texts = mutableMapOf(
             repo to """{"name":"Example","manifestVersion":1,"pluginLists":["$listUrl"]}""",
-            listUrl to """[{"url":"https://example.com/A.cs3","version":1,"name":"A","internalName":"A","tvTypes":["Anime"]}]""",
+            listUrl to
+                """[{"url":"https://example.com/A.cs3","version":1,"name":"A","internalName":"A","tvTypes":["Anime"]}]""",
         )
         val requested = mutableListOf<String>()
 
@@ -111,7 +112,9 @@ class PluginManagerTest {
 
     @Test
     fun `available plugins come from every plugin list and a failed repository reports its error`() = runTest {
-        store.update { it.giveConsent().addRepository(repo, "Example").addRepository("https://down.test/repo.json", "Down") }
+        store.update {
+            it.giveConsent().addRepository(repo, "Example").addRepository("https://down.test/repo.json", "Down")
+        }
 
         val available = manager.availablePlugins()
 

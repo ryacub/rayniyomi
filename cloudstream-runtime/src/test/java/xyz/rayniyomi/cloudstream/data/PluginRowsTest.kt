@@ -21,7 +21,12 @@ class PluginRowsTest {
     fun `rows list anime plugins by name and count the hidden ones`() {
         val rows = buildPluginRows(
             PluginState(consentGiven = true, repositories = listOf(repo)),
-            listOf(AvailablePlugins(repo, listOf(entry("beta"), entry("Movie", tvTypes = listOf("Movie")), entry("Alpha")))),
+            listOf(
+                AvailablePlugins(
+                    repo,
+                    listOf(entry("beta"), entry("Movie", tvTypes = listOf("Movie")), entry("Alpha")),
+                ),
+            ),
         )
 
         rows.items.map { it.name } shouldContainExactly listOf("Alpha", "beta")
