@@ -191,7 +191,7 @@ class PluginManagerTest {
     }
 
     @Test
-    fun `a download finishing after repository removal is not installed`() = runTest {
+    fun `a download finishing after its repository is removed and re-added is not installed`() = runTest {
         store.update { it.giveConsent().addRepository(repo, "Example") }
         val bytesStarted = CompletableDeferred<Unit>()
         val delayedBytes = CompletableDeferred<ByteArray>()
@@ -202,6 +202,7 @@ class PluginManagerTest {
         bytesStarted.await()
 
         manager.removeRepository(repo)
+        manager.addRepository(repo).isSuccess shouldBe true
         delayedBytes.complete(archive)
 
         pendingInstall.await().isFailure shouldBe true
