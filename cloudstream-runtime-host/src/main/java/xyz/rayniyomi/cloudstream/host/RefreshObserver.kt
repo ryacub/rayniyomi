@@ -8,7 +8,6 @@ import android.os.Handler
 import android.os.Looper
 import xyz.rayniyomi.cloudstream.contract.PluginContract
 
-/** Reloads the runtime extension in the host when the manager changes the plugin list. */
 internal object RefreshObserver {
 
     private const val OBSERVER_SLOT = "xyz.rayniyomi.cloudstream.refreshObserver"

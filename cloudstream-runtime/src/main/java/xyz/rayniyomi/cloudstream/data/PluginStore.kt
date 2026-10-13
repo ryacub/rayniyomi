@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
-/** The manager's source of truth. [onChange] tells the host to reload its CloudStream sources. */
 class PluginStore(private val file: File, private val onChange: () -> Unit) {
 
     private val mutableState =

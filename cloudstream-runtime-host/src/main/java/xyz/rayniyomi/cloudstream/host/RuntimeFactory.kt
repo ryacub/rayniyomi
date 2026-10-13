@@ -9,7 +9,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
 
-/** Runs in the host process. The runtime APK's Entry creates it from assets/host-runtime.jar. */
 class RuntimeFactory(private val runtimePackage: String) : AnimeSourceFactory {
 
     override fun createSources(): List<AnimeSource> = try {

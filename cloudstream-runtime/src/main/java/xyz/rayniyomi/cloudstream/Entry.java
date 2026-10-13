@@ -15,11 +15,7 @@ import eu.kanade.tachiyomi.animesource.AnimeSource;
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory;
 import uy.kohesive.injekt.InjektKt;
 
-/**
- * The host loads this class child-first from the runtime APK, which also bundles Kotlin for the
- * manager app. It is Java so that it pulls no Kotlin class into the host. It loads the real runtime
- * from assets/host-runtime.jar through a loader whose shared classes come from the host.
- */
+/** Keep this entry in Java to avoid loading the manager Kotlin classes into the host. */
 public final class Entry implements AnimeSourceFactory {
 
     private static final String TAG = "CloudStreamRuntime";

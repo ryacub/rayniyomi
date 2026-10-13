@@ -147,7 +147,17 @@ jobs:
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
 
       - name: Build app
-        run: ./gradlew assembleStableRelease --build-cache
+        run: ./gradlew assembleStableRelease :cloudstream-runtime:assembleRelease :cloudstream-runtime:verifyNoHostClasses :cloudstream-runtime-host:verifyHostRuntimeClasses --build-cache
+
+      - name: Verify CloudStream APK class boundaries
+        run: |
+          set -euo pipefail
+          APK=$(find cloudstream-runtime/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)
+          if [ -z "$APK" ]; then
+            echo "ERROR: CloudStream runtime APK not found" >&2
+            exit 1
+          fi
+          python3 scripts/check_cloudstream_runtime_apk.py "$APK" --shared-prefixes cloudstream-runtime/shared-prefixes.txt
 
       - name: Verify 16 KB native alignment
         run: ./scripts/verify_16kb_apk.sh app/build/outputs/apk/stable/release/app-stable-arm64-v8a-release-unsigned.apk
@@ -191,7 +201,7 @@ jobs:
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
 
       - name: Run unit tests
-        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest --build-cache
+        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest :cloudstream-runtime-contract:test :cloudstream-runtime-host:testDebugUnitTest :cloudstream-runtime:testDebugUnitTest --build-cache
 
   baseline-profile:
     name: Verify baseline profile task and artifact

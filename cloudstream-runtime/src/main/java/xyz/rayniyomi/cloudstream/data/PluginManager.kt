@@ -10,6 +10,10 @@ class PluginManager(
     private val pluginDirectory: File,
     private val fetcher: Fetcher,
 ) {
+    private val repositoryInstallLock = Any()
+    private val installGenerations = mutableMapOf<String, Long>()
+    private val repositoryGenerations = mutableMapOf<String, Long>()
+
     interface Fetcher {
         suspend fun text(url: String): String
         suspend fun bytes(url: String): ByteArray
@@ -41,6 +45,9 @@ class PluginManager(
     suspend fun install(entry: PluginEntry, repositoryUrl: String): Result<Unit> = catching {
         require(isSafeFileName(entry.internalName)) { "${entry.internalName} is not a valid plugin name" }
         require(isHttpsUrl(entry.url)) { "${entry.name} does not download over HTTPS" }
+        val (installGeneration, repositoryGeneration) = synchronized(repositoryInstallLock) {
+            (installGenerations[entry.internalName] ?: 0L) to (repositoryGenerations[repositoryUrl] ?: 0L)
+        }
         val bytes = fetcher.bytes(entry.url)
         val sha256 = when (val check = checkPluginArchive(bytes, entry.sha256)) {
             is PluginArchiveCheck.Valid -> check.sha256
@@ -48,9 +55,20 @@ class PluginManager(
             PluginArchiveCheck.HashMismatch -> error("${entry.name} does not match its published file hash")
             PluginArchiveCheck.NotAPlugin -> error("${entry.name} is not a CloudStream plugin file")
         }
-        pluginDirectory.mkdirs()
-        writeAtomically(pluginFile(entry.internalName), bytes)
-        store.update { it.install(entry, repositoryUrl, sha256) }
+        synchronized(repositoryInstallLock) {
+            check((installGenerations[entry.internalName] ?: 0L) == installGeneration) {
+                "${entry.name} was removed before it could be installed"
+            }
+            check((repositoryGenerations[repositoryUrl] ?: 0L) == repositoryGeneration) {
+                "${entry.name}'s repository changed before it could be installed"
+            }
+            check(store.state.value.repositories.any { it.url == repositoryUrl }) {
+                "The repository was removed before ${entry.name} could be installed"
+            }
+            pluginDirectory.mkdirs()
+            writeAtomically(pluginFile(entry.internalName), bytes)
+            store.update { it.install(entry, repositoryUrl, sha256) }
+        }
     }
 
     fun setEnabled(internalName: String, enabled: Boolean) {
@@ -58,13 +76,20 @@ class PluginManager(
     }
 
     fun remove(internalName: String) {
-        pluginFile(internalName).delete()
-        store.update { it.remove(internalName) }
+        synchronized(repositoryInstallLock) {
+            installGenerations[internalName] = (installGenerations[internalName] ?: 0L) + 1
+            pluginFile(internalName).delete()
+            store.update { it.remove(internalName) }
+        }
     }
 
     fun removeRepository(url: String) {
-        store.state.value.installed.filter { it.repositoryUrl == url }.forEach { pluginFile(it.internalName).delete() }
-        store.update { it.removeRepository(url) }
+        synchronized(repositoryInstallLock) {
+            repositoryGenerations[url] = (repositoryGenerations[url] ?: 0L) + 1
+            store.state.value.installed.filter { it.repositoryUrl == url }
+                .forEach { pluginFile(it.internalName).delete() }
+            store.update { it.removeRepository(url) }
+        }
     }
 
     fun pluginFile(internalName: String): File = File(pluginDirectory, "$internalName.cs3")

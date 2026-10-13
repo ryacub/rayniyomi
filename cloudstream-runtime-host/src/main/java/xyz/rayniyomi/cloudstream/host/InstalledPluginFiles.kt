@@ -22,7 +22,6 @@ internal fun pluginsUri(runtimePackage: String): Uri =
         .appendPath(PluginContract.PATH_PLUGINS)
         .build()
 
-/** Reads the enabled plugins from the runtime's provider and keeps read-only copies in the host. */
 internal class InstalledPluginFiles(private val application: Application, private val runtimePackage: String) {
 
     private val directory = File(application.noBackupFilesDir, "cloudstream/plugins")

@@ -51,7 +51,7 @@ class PluginManagerViewModel(
 
     fun addRepository(url: String) {
         viewModelScope.launch {
-            withLoading { manager.addRepository(url.trim()) }
+            withLoading { withContext(ioDispatcher) { manager.addRepository(url.trim()) } }
                 .onSuccess { reload() }
                 .onFailure(::show)
         }
@@ -89,7 +89,10 @@ class PluginManagerViewModel(
     }
 
     private suspend fun installAll(names: List<String>) {
-        val items = state.value.rows.items.filter { it.internalName in names && it.available != null }
+        val busy = activity.value.busy
+        val items = state.value.rows.items
+            .filter { it.internalName in names && it.available != null && it.internalName !in busy }
+            .distinctBy(PluginItem::internalName)
         activity.update { it.copy(busy = it.busy + items.map(PluginItem::internalName)) }
         items.forEach { item ->
             withContext(ioDispatcher) { manager.install(checkNotNull(item.available), item.repositoryUrl) }

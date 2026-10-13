@@ -20,7 +20,6 @@ import okhttp3.Request
 import okhttp3.Response
 import xyz.rayniyomi.cloudstream.contract.PluginContract
 
-/** Exposes one CloudStream MainAPI provider as a Rayniyomi anime source. */
 internal class CloudStreamAnimeSource(
     private val api: MainAPI,
     private val plugin: PluginRow,

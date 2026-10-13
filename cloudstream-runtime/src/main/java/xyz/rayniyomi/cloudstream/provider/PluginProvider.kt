@@ -11,7 +11,6 @@ import xyz.rayniyomi.cloudstream.contract.PluginContract
 import xyz.rayniyomi.cloudstream.data.InstalledPlugin
 import java.io.FileNotFoundException
 
-/** Gives the Rayniyomi host the enabled plugins and their files. Other apps get a SecurityException. */
 class PluginProvider : ContentProvider() {
 
     private val application: ManagerApplication

@@ -9,11 +9,7 @@ import java.util.List;
 
 import dalvik.system.DexClassLoader;
 
-/**
- * Loads the CloudStream runtime jar inside the host process.
- * Classes that cross the source API, or that the host must own, come only from the host.
- * All other classes come from the jar first, so the host's versions of those libraries do not apply.
- */
+/** Shared API classes must use the host definitions, while plugin libraries must retain their own versions. */
 final class AllowlistDexClassLoader extends DexClassLoader {
 
     AllowlistDexClassLoader(String dexPath, ClassLoader parent) {

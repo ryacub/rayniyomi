@@ -8,7 +8,6 @@ import com.lagradost.cloudstream3.plugins.Plugin
 import dalvik.system.PathClassLoader
 import java.io.File
 
-/** Loads a .cs3 file the way CloudStream's PluginManager does. */
 internal class PluginLoader(private val application: Application, private val parent: ClassLoader) {
 
     fun load(file: File): List<MainAPI> {
