@@ -73,7 +73,6 @@ class MultiThreadDownloaderTest {
         val progressUpdates = Collections.synchronizedList(mutableListOf<DownloadProgress>())
         val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 2 })
 
-        // Virtual time would fire the chunk timeouts at once.
         val result = withContext(Dispatchers.IO) {
             downloader.download(
                 episodeId = EPISODE_ID,
