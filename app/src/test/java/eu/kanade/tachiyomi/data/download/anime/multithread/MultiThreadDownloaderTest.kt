@@ -22,6 +22,7 @@ import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import okhttp3.mockwebserver.SocketPolicy
 import okio.Buffer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -151,6 +152,58 @@ class MultiThreadDownloaderTest {
         download.cancelAndJoin()
 
         chunkDir.listFiles().orEmpty().sumOf { it.length() } shouldBeLessThan 8L * 1024 * 1024
+    }
+
+    @Test
+    fun `a chunk slower than the client call timeout still completes`() = runBlocking<Unit> {
+        // About 2.5 seconds for each chunk, longer than the call timeout.
+        server.dispatcher = RangeDispatcher(video, bytesPer20Millis = 200 * 1024)
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val output = File(tempDir, "episode.mp4")
+        val client = OkHttpClient.Builder().callTimeout(1, TimeUnit.SECONDS).build()
+        val downloader = MultiThreadDownloader(client, stateStore, maxThreadsProvider = { 2 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+    }
+
+    @Test
+    fun `a chunk with no response fails as a timeout`() = runBlocking<Unit> {
+        val ranges = RangeDispatcher(video)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse =
+                if (request.method == "HEAD") {
+                    ranges.dispatch(request)
+                } else {
+                    MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE)
+                }
+        }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val client = OkHttpClient.Builder().readTimeout(300, TimeUnit.MILLISECONDS).build()
+        val downloader = MultiThreadDownloader(client, stateStore, maxThreadsProvider = { 2 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(File(tempDir, "episode.mp4")),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Error>()
+        result.error.shouldBeInstanceOf<DownloadError.Timeout>()
     }
 
     private suspend fun resumeFromCompleteChunks(chunkDir: File) {
