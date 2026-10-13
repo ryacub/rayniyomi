@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- Add an optional CloudStream runtime APK for anime plugins from CloudStream repositories (#1405).
 
 ### Improved
 - Entry download progress updates individual rows without rebuilding the chapter or episode list. Browse rows release database subscriptions when they leave the screen, and data settings reads chapter cache size in the background (#1363).
@@ -57,6 +58,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- Build and test the CloudStream runtime modules in pull requests. Owner tags create draft runtime releases (#1405).
 
 ### Other
 

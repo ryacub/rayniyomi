@@ -61,3 +61,7 @@ include(":source-local")
 
 include(":lightnovel-contract")
 include(":lightnovel-plugin")
+
+include(":cloudstream-runtime")
+include(":cloudstream-runtime-contract")
+include(":cloudstream-runtime-host")

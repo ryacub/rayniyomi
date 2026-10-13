@@ -50,6 +50,10 @@ preferencektx = "androidx.preference:preference-ktx:1.2.1"
 androidx-webkit = "androidx.webkit:webkit:1.16.0"
 
 injekt = "uy.kohesive.injekt:injekt-core:1.16.1"
+
+cloudstream-library = "com.github.recloudstream.cloudstream:library-android:94e955836b"
+cloudstream-nicehttp = "com.github.Blatzar:NiceHttp:0.4.18"
+
 metrox-viewmodel = { module = "dev.zacsweers.metro:metrox-viewmodel", version.ref = "metro" }
 metrox-viewmodel-compose = { module = "dev.zacsweers.metro:metrox-viewmodel-compose", version.ref = "metro" }
 

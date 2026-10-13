@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -342,7 +343,10 @@ class AnimeExtensionManager(
 
         untrustedExtensionsMapFlow.update { it - extension.pkgName }
 
-        when (val result = AnimeExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)) {
+        val result = withContext(ioDispatcher) {
+            AnimeExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)
+        }
+        when (result) {
             is AnimeLoadResult.Success -> registerNewExtension(result.extension)
             is AnimeLoadResult.Error -> reportLoadError(result.message)
             is AnimeLoadResult.Untrusted -> Unit

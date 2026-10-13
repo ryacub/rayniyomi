@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rayniyomi: CloudStream</string>
+    <string name="manager_title">CloudStream plugins</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_update_all">Update all (%1$d)</string>
+    <string name="consent_title">Before you add plugins</string>
+    <string name="consent_body">CloudStream plugins are code that you download from third-party repositories. Rayniyomi runs this code with its own permissions. It can read your library, your settings, and your logins. Rayniyomi does not isolate or check what a plugin does.\n\nAdd only repositories that you trust.</string>
+    <string name="consent_accept">I understand</string>
+    <string name="section_repositories">Repositories</string>
+    <string name="section_plugins">Plugins</string>
+    <string name="repository_url_hint">Repository URL (https://…)</string>
+    <string name="action_add">Add</string>
+    <string name="action_add_preset">Add %1$s</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_install">Install</string>
+    <string name="action_update">Update</string>
+    <string name="remove_repository_title">Remove repository?</string>
+    <string name="remove_repository_body">This also removes the plugins that you installed from %1$s.</string>
+    <string name="repository_error">Could not load: %1$s</string>
+    <string name="no_repositories">Add a repository to see its plugins.</string>
+    <string name="no_plugins">This repository has no anime plugins.</string>
+    <string name="hidden_plugins">%1$d plugins that are not for anime are hidden.</string>
+    <string name="plugin_version">Version %1$d</string>
+    <string name="plugin_installed">Installed version %1$d · %2$s</string>
+    <string name="plugin_not_listed">No longer listed by its repository</string>
+</resources>

@@ -76,4 +76,6 @@ Copyright © 2015 Javier Tomás
 Copyright © 2024 Mihon Open Source Project
 Copyright © 2024 Aniyomi Open Source Project
 
-Licensed under the Apache License, Version 2.0 — see [LICENSE](./LICENSE) file.
+The base application is licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE).
+
+The optional CloudStream runtime modules (`cloudstream-runtime`, `cloudstream-runtime-host`, and `cloudstream-runtime-contract`) are licensed under GPL-3.0. The runtime is built and distributed as a separate APK. See the [runtime LICENSE](./cloudstream-runtime/LICENSE), [host LICENSE](./cloudstream-runtime-host/LICENSE), and [contract LICENSE](./cloudstream-runtime-contract/LICENSE).
