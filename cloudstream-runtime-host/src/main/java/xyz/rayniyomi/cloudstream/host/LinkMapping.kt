@@ -33,7 +33,17 @@ fun buildHosters(links: List<ExtractorLink>, subtitles: List<SubtitleFile>): Lis
     return links.groupBy { it.source }.mapNotNull { (source, group) ->
         group.mapNotNull { it.toVideo(tracks) }
             .takeIf { it.isNotEmpty() }
-            ?.let { Hoster(hosterName = source, videoList = it) }
+            ?.let { Hoster(hosterName = source, videoList = it.withDistinctTitles()) }
+    }
+}
+
+private fun List<Video>.withDistinctTitles(): List<Video> {
+    val repeated = groupingBy { it.videoTitle }.eachCount().filterValues { it > 1 }.keys
+    val seen = mutableMapOf<String, Int>()
+    return map { video ->
+        if (video.videoTitle !in repeated) return@map video
+        val number = seen.merge(video.videoTitle, 1, Int::plus)
+        video.copy(videoTitle = "${video.videoTitle} #$number")
     }
 }
 
