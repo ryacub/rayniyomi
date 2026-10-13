@@ -159,7 +159,6 @@ dependencies {
     implementation(compose.activity)
     implementation(compose.foundation)
     implementation(compose.material3.core)
-    implementation(compose.material.icons)
     implementation(compose.ui.tooling.preview)
     debugImplementation(compose.ui.tooling)
     implementation(androidx.corektx)
