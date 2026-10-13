@@ -208,4 +208,23 @@ class PluginManagerTest {
         manager.pluginFile("A").exists() shouldBe false
         store.state.value.installed.shouldBeEmpty()
     }
+
+    @Test
+    fun `a download finishing after plugin removal is not installed`() = runTest {
+        store.update { it.giveConsent().addRepository(repo, "Example") }
+        val bytesStarted = CompletableDeferred<Unit>()
+        val delayedBytes = CompletableDeferred<ByteArray>()
+        fetcher.bytesStarted = bytesStarted
+        fetcher.delayedBytes = delayedBytes
+
+        val pendingInstall = async { manager.install(entry("A"), repo) }
+        bytesStarted.await()
+
+        manager.remove("A")
+        delayedBytes.complete(archive)
+
+        pendingInstall.await().isFailure shouldBe true
+        manager.pluginFile("A").exists() shouldBe false
+        store.state.value.installed.shouldBeEmpty()
+    }
 }

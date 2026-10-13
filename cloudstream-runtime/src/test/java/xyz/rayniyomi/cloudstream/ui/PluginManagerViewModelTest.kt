@@ -4,6 +4,7 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
@@ -41,12 +42,17 @@ class PluginManagerViewModelTest {
         listUrl to pluginList(version = 1),
     )
     private val textDispatchers = mutableListOf<ContinuationInterceptor?>()
+    private var byteCalls = 0
+    private var delayedBytes: CompletableDeferred<ByteArray>? = null
     private val fetcher = object : PluginManager.Fetcher {
         override suspend fun text(url: String): String {
             textDispatchers += currentCoroutineContext()[ContinuationInterceptor]
             return texts[url] ?: throw IOException("HTTP 404 for $url")
         }
-        override suspend fun bytes(url: String): ByteArray = archive
+        override suspend fun bytes(url: String): ByteArray {
+            byteCalls++
+            return delayedBytes?.await() ?: archive
+        }
     }
     private val manager = PluginManager(store, File(dir, "plugins"), fetcher)
 
@@ -172,6 +178,29 @@ class PluginManagerViewModelTest {
 
         model.state.value.rows.items.single().installed?.version shouldBe 2
         model.state.value.rows.updateCount shouldBe 0
+    }
+
+    @Test
+    fun `update all does not start a second install for an already busy plugin`() = runTest(dispatcher) {
+        val model = viewModel().apply {
+            giveConsent()
+            addRepository(repo)
+            install("A")
+        }
+        texts[listUrl] = pluginList(version = 2)
+        model.refresh()
+        model.state.value.rows.updateCount shouldBe 1
+        byteCalls = 0
+        val download = CompletableDeferred<ByteArray>()
+        delayedBytes = download
+
+        model.updateAll()
+        model.updateAll()
+        val concurrentDownloads = byteCalls
+        download.complete(archive)
+        advanceUntilIdle()
+
+        concurrentDownloads shouldBe 1
     }
 
     @Test
