@@ -26,6 +26,9 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - An external player launch reads the one episode it plays, instead of every episode of the anime. The reader checks chapter downloads only when the downloaded filter is on. Library selection and the excluded categories of the library update use set lookups instead of list scans. The database drops duplicate and unused indexes, so a history write updates one index instead of two (#1371).
 
 ### Fixed
+- A paused, cancelled, or removed anime download with multi-thread downloads on now stops its network reads at once. Before, each active chunk downloaded to the end of its range after the cancel, which can be hundreds of MB for each episode (#1391).
+- Multi-thread anime chunks on a slow connection now finish. Before, a chunk failed after 60 seconds, or after 2 minutes by the network call limit, even while data still arrived. A chunk with no data for 30 seconds still fails, and it now reports a timeout instead of a network error (#1391).
+- A retried multi-thread anime chunk, or a download paused and resumed in the same app session, now continues each chunk from the data already saved. Before, each unfinished chunk downloaded again from its start, which could discard up to 100 MB for each chunk. After an app restart, a download continues only if the source gives the same video link (#1391).
 - An extension that is installed, updated, or removed during the startup extension scan now shows the correct state in the extension list. Before, the scan could erase the change until the next restart (#1388).
 - The reSmush.it data saver now uses HTTPS and preserves the original page URL when the service fails or returns an invalid result (#1368).
 - Next-episode times from Simkl now skip episodes that already aired. Shows without a MyAnimeList ID no longer show a past airing time (#1368).
