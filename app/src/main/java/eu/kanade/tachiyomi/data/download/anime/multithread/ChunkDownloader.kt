@@ -315,7 +315,7 @@ class ChunkDownloader(
     companion object {
         // The file holds the start of the chunk, written in order, so the next attempt continues from its end.
         // An open-ended chunk has no fixed size to check the file against, so it starts again.
-        fun keptBytes(chunk: ChunkRange, tempFile: File): Long =
+        internal fun keptBytes(chunk: ChunkRange, tempFile: File): Long =
             if (chunk.endByte < 0) 0L else tempFile.length().coerceAtMost(chunk.size)
 
         /**
