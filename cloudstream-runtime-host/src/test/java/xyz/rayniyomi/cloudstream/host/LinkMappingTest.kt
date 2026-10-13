@@ -80,6 +80,24 @@ class LinkMappingTest {
     }
 
     @Test
+    fun `videos that share a title in one hoster are numbered`() = runTest {
+        val unknown = Qualities.Unknown.value
+        val hosters = buildHosters(
+            listOf(
+                link("A", url = "https://cdn.test/1.mp4", quality = unknown),
+                link("A", url = "https://cdn.test/2.mp4", quality = unknown),
+                link("A", url = "https://cdn.test/3.mp4", quality = 720),
+                link("B", quality = unknown),
+            ),
+            emptyList(),
+        )
+
+        hosters.first().videoList.orEmpty().map { it.videoTitle } shouldContainExactly
+            listOf("A #1", "A #2", "A - 720p")
+        hosters.last().videoList.orEmpty().map { it.videoTitle } shouldContainExactly listOf("B")
+    }
+
+    @Test
     fun `a source with only dropped links gives no hoster`() = runTest {
         buildHosters(listOf(link("T", type = ExtractorLinkType.TORRENT)), emptyList()) shouldBe emptyList()
     }
