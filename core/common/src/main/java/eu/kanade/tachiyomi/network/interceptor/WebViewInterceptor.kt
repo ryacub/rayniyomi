@@ -56,13 +56,18 @@ abstract class WebViewInterceptor(
             return response
         }
 
-        if (!WebViewUtil.supportsWebView(context)) {
-            notifyWebViewRequired()
-            return response
-        }
-        initWebView
+        if (!prepareWebView()) return response
 
         return intercept(chain, request, response)
+    }
+
+    protected fun prepareWebView(): Boolean {
+        if (!WebViewUtil.supportsWebView(context)) {
+            notifyWebViewRequired()
+            return false
+        }
+        initWebView
+        return true
     }
 
     private fun notifyWebViewRequired() {
