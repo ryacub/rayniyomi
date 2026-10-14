@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.function.ThrowingSupplier
 import java.time.Duration
 
 class CloudflareInterceptorTest {
@@ -83,7 +84,10 @@ class CloudflareInterceptorTest {
             }
         }
 
-        val result = assertTimeoutPreemptively(Duration.ofSeconds(5)) { interceptor.intercept(outerChain) }
+        val result = assertTimeoutPreemptively(
+            Duration.ofSeconds(5),
+            ThrowingSupplier { interceptor.intercept(outerChain) },
+        )
 
         assertSame(outerPassed, result)
     }
