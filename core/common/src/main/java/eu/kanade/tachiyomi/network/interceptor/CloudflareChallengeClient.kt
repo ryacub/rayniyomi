@@ -1,10 +1,14 @@
 package eu.kanade.tachiyomi.network.interceptor
 
+import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.ScriptHandler
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import java.util.concurrent.CountDownLatch
@@ -12,15 +16,10 @@ import java.util.concurrent.CountDownLatch
 internal class CloudflareChallengeClient(
     val challengeUrl: String,
     private val isCleared: () -> Boolean,
-    private val listenerScriptToEvaluate: String?,
 ) : WebViewClient() {
 
     // OkHttp doesn't support asynchronous interceptors, so the request thread waits on this
     val latch = CountDownLatch(1)
-
-    @Volatile
-    var cloudflareBypassed = false
-        private set
 
     @Volatile
     var isRenderProcessGone = false
@@ -32,6 +31,53 @@ internal class CloudflareChallengeClient(
     // A JavascriptInterface call arrives on a background thread
     @Volatile
     private var challengeFailed = false
+
+    private var listenerScriptHandler: ScriptHandler? = null
+
+    val isSolved: Boolean
+        get() = !challengeFailed && isCleared()
+
+    fun attach(view: WebView, origin: String) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.JS_INJECTION_IN_FRAME_AND_WORLD)) {
+            // An isolated world keeps the bridge out of the page's reach
+            val world = WebViewCompat.getExecutionWorld(view, BRIDGE)
+            WebViewCompat.addWebMessageListener(view, BRIDGE, setOf(origin), world) { _, message, _, isMainFrame, _ ->
+                if (isMainFrame) message.data?.let(::onChallengeEvent)
+            }
+            listenerScriptHandler = WebViewCompat.addJavaScriptOnEvent(
+                view,
+                LISTENER_SCRIPT,
+                WebViewCompat.INJECTION_EVENT_DOCUMENT_START,
+                setOf(origin),
+                world,
+            )
+        } else {
+            view.addJavascriptInterface(
+                object {
+                    @Suppress("unused")
+                    @JavascriptInterface
+                    fun postMessage(event: String) = onChallengeEvent(event)
+                },
+                BRIDGE,
+            )
+        }
+        view.webViewClient = this
+    }
+
+    fun detach(view: WebView) {
+        // Only destroy can be called on a WebView whose renderer is gone
+        if (!isRenderProcessGone) {
+            val scriptHandler = listenerScriptHandler
+            if (scriptHandler != null) {
+                WebViewCompat.removeWebMessageListener(view, WebViewCompat.getExecutionWorld(view, BRIDGE), BRIDGE)
+                scriptHandler.remove()
+            } else {
+                view.removeJavascriptInterface(BRIDGE)
+            }
+            view.stopLoading()
+        }
+        view.destroy()
+    }
 
     fun onChallengeEvent(event: String) {
         when (event) {
@@ -45,17 +91,14 @@ internal class CloudflareChallengeClient(
     }
 
     override fun onPageFinished(view: WebView, url: String) {
-        if (!challengeFailed && isCleared()) {
-            cloudflareBypassed = true
-            latch.countDown()
-        }
+        if (isSolved) latch.countDown()
 
         if (url != challengeUrl) return
         if (!challengeFound) {
             // The first request didn't return the challenge
             latch.countDown()
-        } else {
-            listenerScriptToEvaluate?.let { view.evaluateJavascript(it, null) }
+        } else if (listenerScriptHandler == null) {
+            view.evaluateJavascript(LISTENER_SCRIPT, null)
         }
     }
 
@@ -83,3 +126,13 @@ internal class CloudflareChallengeClient(
         return true
     }
 }
+
+private const val BRIDGE = "mihon"
+
+private val LISTENER_SCRIPT = """
+    addEventListener("message", ({data}) => {
+        if (data?.source === "cloudflare-challenge") {
+            $BRIDGE?.postMessage(data.event);
+        }
+    })
+""".trimIndent()
