@@ -37,18 +37,26 @@ class CloudflareInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val host = hostChallenges.computeIfAbsent(request.url.host) { HostChallenge() }
-        val solvesBeforeRequest = host.solveCount()
+        val attemptsBeforeRequest = host.attemptCount()
 
         val response = chain.proceed(request)
         if (!shouldIntercept(response)) return response
 
-        val solved = host.solveUnlessSolvedSince(solvesBeforeRequest) {
+        val attempted = host.solveUnlessAttemptedSince(attemptsBeforeRequest) {
             prepareWebView().also { if (it) solve(request, response) }
         }
-        if (!solved) return response
+        if (!attempted) return response
 
         response.close()
-        return chain.proceed(request)
+        val retried = chain.proceed(request)
+        if (!shouldIntercept(retried)) return retried
+
+        retried.close()
+        throw bypassFailure(CloudflareBypassException())
+    }
+
+    private fun bypassFailure(cause: CloudflareBypassException): IOException {
+        return IOException(context.stringResource(MR.strings.information_cloudflare_bypass_failure), cause)
     }
 
     override fun intercept(chain: Interceptor.Chain, request: Request, response: Response): Response {
@@ -70,7 +78,7 @@ class CloudflareInterceptor(
         // Because OkHttp's enqueue only handles IOExceptions, wrap the exception so that
         // we don't crash the entire app
         catch (e: CloudflareBypassException) {
-            throw IOException(context.stringResource(MR.strings.information_cloudflare_bypass_failure), e)
+            throw bypassFailure(e)
         } catch (e: Exception) {
             throw IOException(e)
         }
@@ -117,13 +125,18 @@ internal class HostChallenge {
     private val lock = ReentrantLock()
 
     @Volatile
-    private var successfulSolves = 0
+    private var attempts = 0
 
-    fun solveCount(): Int = successfulSolves
+    fun attemptCount(): Int = attempts
 
-    fun solveUnlessSolvedSince(solvesBefore: Int, solve: () -> Boolean): Boolean = lock.withLock {
-        if (successfulSolves != solvesBefore) return true
-        solve().also { if (it) successfulSolves++ }
+    fun solveUnlessAttemptedSince(attemptsBefore: Int, solve: () -> Boolean): Boolean = lock.withLock {
+        if (attempts != attemptsBefore) return true
+        try {
+            solve().also { if (it) attempts++ }
+        } catch (e: Exception) {
+            attempts++
+            throw e
+        }
     }
 }
 
@@ -135,7 +148,9 @@ internal fun challengeUrl(request: Request): String {
 
 // An origin rule without a port only matches the scheme's default one, and an IPv6 host needs its brackets
 internal fun HttpUrl.origin(): String {
-    return newBuilder().encodedPath("/").query(null).fragment(null).build().toString().removeSuffix("/")
+    return newBuilder().username("").password("").encodedPath("/").query(null).fragment(null).build()
+        .toString()
+        .removeSuffix("/")
 }
 
 private val SERVER_CHECK = arrayOf("cloudflare-nginx", "cloudflare")
