@@ -17,12 +17,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- The app updater offers only app releases. Before, a newer CloudStream runtime or plugin release showed as an app update, and the download picked its `SHA256SUMS.txt` file and always failed (#1409).
 
 ### Changed
 
 ### Removed
 
 ### CI
+- After a CloudStream runtime or plugin release is published, a workflow sets the newest app release as the latest release again, so older installed builds see the app update (#1409).
 - Remove the unused macrobenchmark module, the `benchmark` build type, and the baseline-profile dry-run jobs. The committed `baseline-prof.txt` still ships in the APK. Also remove four unused verify scripts, the autoloop installer, and the TLA+ specs (#1407).
 
 ### Other

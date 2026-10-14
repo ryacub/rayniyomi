@@ -1,0 +1,37 @@
+name: Keep App Release Latest
+
+# Older installed builds read /releases/latest, so a non-app release must not stay latest.
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  restore-latest:
+    name: Set the newest app release as latest
+    if: ${{ !startsWith(github.event.release.tag_name, 'v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set the newest app release as latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PUBLISHED_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          APP_RELEASE=$(gh api "repos/$REPOSITORY/releases?per_page=100" --jq \
+            '[.[] | select(.draft == false and .prerelease == false and (.tag_name | startswith("v")))][0] // empty | "\(.id) \(.tag_name)"')
+          if [ -z "$APP_RELEASE" ]; then
+            echo "No app release exists. Nothing to restore after $PUBLISHED_TAG."
+            exit 0
+          fi
+          read -r APP_RELEASE_ID APP_RELEASE_TAG <<< "$APP_RELEASE"
+          gh api -X PATCH "repos/$REPOSITORY/releases/$APP_RELEASE_ID" -f make_latest=true --jq '.tag_name' >/dev/null
+          echo "Set $APP_RELEASE_TAG as latest after $PUBLISHED_TAG was published."
