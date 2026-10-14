@@ -37,22 +37,17 @@ class CloudflareInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val host = hostChallenges.computeIfAbsent(request.url.host) { HostChallenge() }
-        val solvesBeforeRequest = host.successfulSolves
+        val solvesBeforeRequest = host.solveCount()
 
         val response = chain.proceed(request)
         if (!shouldIntercept(response)) return response
 
-        // Held across chain.proceed, the lock deadlocks with a same-host request made on another thread
-        host.lock.withLock {
-            if (host.successfulSolves != solvesBeforeRequest) {
-                response.close()
-            } else {
-                if (!prepareWebView()) return response
-                solve(request, response)
-                host.successfulSolves++
-            }
+        val solved = host.solveUnlessSolvedSince(solvesBeforeRequest) {
+            prepareWebView().also { if (it) solve(request, response) }
         }
+        if (!solved) return response
 
+        response.close()
         return chain.proceed(request)
     }
 
@@ -116,11 +111,20 @@ class CloudflareInterceptor(
     }
 }
 
-private class HostChallenge {
-    val lock = ReentrantLock()
+internal class HostChallenge {
+
+    // Held across chain.proceed, the lock deadlocks with a same-host request made on another thread
+    private val lock = ReentrantLock()
 
     @Volatile
-    var successfulSolves = 0
+    private var successfulSolves = 0
+
+    fun solveCount(): Int = successfulSolves
+
+    fun solveUnlessSolvedSince(solvesBefore: Int, solve: () -> Boolean): Boolean = lock.withLock {
+        if (successfulSolves != solvesBefore) return true
+        solve().also { if (it) successfulSolves++ }
+    }
 }
 
 // A WebView loads only GET, and the clearance covers the whole site, so other methods solve on the site's root

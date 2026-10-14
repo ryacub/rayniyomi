@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.network.interceptor
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -66,6 +67,6 @@ class HostChallengeTest {
         val result = host.solveUnlessSolvedSince(solvesBefore) { false }
 
         assertFalse(result)
-        assertTrue(host.solveCount() == solvesBefore)
+        assertEquals(solvesBefore, host.solveCount())
     }
 }
