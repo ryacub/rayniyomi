@@ -644,6 +644,7 @@ Leu/kanade/tachiyomi/network/interceptor/CloudflareChallengeClient;->onPageFinis
 Leu/kanade/tachiyomi/network/interceptor/CloudflareChallengeClient;->onReceivedHttpError(Landroid/webkit/WebView;Landroid/webkit/WebResourceRequest;Landroid/webkit/WebResourceResponse;)V [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareChallengeClient;->onRenderProcessGone(Landroid/webkit/WebView;Landroid/webkit/RenderProcessGoneDetail;)Z [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;-><init>(Landroid/content/Context;Leu/kanade/tachiyomi/network/AndroidCookieJar;Lkotlin/jvm/functions/Function0;)V [PUBLIC]
+Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->bypassFailure(Leu/kanade/tachiyomi/network/interceptor/CloudflareBypassException;)Ljava/io/IOException; [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->clearance(Lokhttp3/HttpUrl;)Ljava/lang/String; [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->intercept(Lokhttp3/Interceptor$Chain;)Lokhttp3/Response; [PUBLIC FINAL]
 Leu/kanade/tachiyomi/network/interceptor/CloudflareInterceptor;->intercept(Lokhttp3/Interceptor$Chain;Lokhttp3/Request;Lokhttp3/Response;)Lokhttp3/Response; [PUBLIC FINAL]
