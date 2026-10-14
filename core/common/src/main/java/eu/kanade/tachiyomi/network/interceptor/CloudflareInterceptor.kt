@@ -37,20 +37,19 @@ class CloudflareInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val host = hostChallenges.computeIfAbsent(request.url.host) { HostChallenge() }
-        val solvesBefore = host.solves
+        val solvesBeforeRequest = host.successfulSolves
 
         val response = chain.proceed(request)
         if (!shouldIntercept(response)) return response
 
-        // The lock covers only the solve. Held across a network call, it deadlocks with a request to the same host
-        // that an interceptor makes on another thread.
+        // Held across chain.proceed, the lock deadlocks with a same-host request made on another thread
         host.lock.withLock {
-            if (host.solves != solvesBefore) {
+            if (host.successfulSolves != solvesBeforeRequest) {
                 response.close()
             } else {
                 if (!prepareWebView()) return response
                 solve(request, response)
-                host.solves++
+                host.successfulSolves++
             }
         }
 
@@ -120,13 +119,11 @@ class CloudflareInterceptor(
 private class HostChallenge {
     val lock = ReentrantLock()
 
-    // Counts successful solves, so a request that waited on the lock can tell that another request solved
     @Volatile
-    var solves = 0
+    var successfulSolves = 0
 }
 
-// A WebView can only load a page with GET, and loading the url of another method usually reaches an endpoint that
-// answers GET without a challenge to solve. The clearance covers the whole site, so it's earned on the site's root.
+// A WebView loads only GET, and the clearance covers the whole site, so other methods solve on the site's root
 internal fun challengeUrl(request: Request): String {
     if (request.method == "GET") return request.url.toString()
     return request.url.newBuilder().encodedPath("/").query(null).fragment(null).build().toString()
