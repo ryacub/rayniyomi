@@ -6,6 +6,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import io.mockk.every
 import io.mockk.mockk
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -108,6 +109,13 @@ class CloudflareChallengeClientTest {
             .build()
 
         assertEquals("https://example.org/", challengeUrl(request))
+    }
+
+    @Test
+    fun `an origin keeps IPv6 brackets and drops only the default port`() {
+        assertEquals("http://[::1]:8080", "http://[::1]:8080/a?b=c".toHttpUrl().origin())
+        assertEquals("https://example.org", "https://example.org:443/a".toHttpUrl().origin())
+        assertEquals("https://example.org:8443", "https://example.org:8443/a".toHttpUrl().origin())
     }
 
     private fun mainFrameRequest() = mockk<WebResourceRequest> {

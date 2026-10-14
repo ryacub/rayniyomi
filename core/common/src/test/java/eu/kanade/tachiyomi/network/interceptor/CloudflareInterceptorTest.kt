@@ -91,7 +91,7 @@ class CloudflareInterceptorTest {
             every { request() } returns outerRequest
             every { proceed(outerRequest) } answers {
                 solver = thread { interceptor.intercept(chain(request("/page"), challenge())) }
-                solveStarted.await(500, TimeUnit.MILLISECONDS)
+                assertTrue(solveStarted.await(5, TimeUnit.SECONDS))
                 val inner = nestedCalls.submit<Response> { interceptor.intercept(innerChain) }
                 assertSame(innerPassed, inner.get(2, TimeUnit.SECONDS))
                 outerPassed
