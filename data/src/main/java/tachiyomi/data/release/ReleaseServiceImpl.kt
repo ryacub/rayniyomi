@@ -15,17 +15,19 @@ import java.time.Instant
 class ReleaseServiceImpl(
     private val networkService: NetworkHelper,
     private val json: Json,
+    private val primaryAbi: String = Build.SUPPORTED_ABIS[0],
 ) : ReleaseService {
 
     private val releaseClassifier = ReleaseClassifier()
 
     override suspend fun latest(arguments: GetApplicationRelease.Arguments): Release? {
-        val release = with(json) {
+        val releases = with(json) {
             networkService.client
-                .newCall(GET("https://api.github.com/repos/${arguments.repository}/releases/latest"))
+                .newCall(GET("https://api.github.com/repos/${arguments.repository}/releases?per_page=10"))
                 .awaitSuccess()
-                .parseAs<GithubRelease>()
+                .parseAs<List<GithubRelease>>()
         }
+        val release = releases.firstOrNull(::isAppRelease) ?: return null
         val downloadLink = getDownloadLink(release = release) ?: return null
 
         val quality = releaseClassifier.classify(
@@ -45,12 +47,16 @@ class ReleaseServiceImpl(
         )
     }
 
-    private fun getDownloadLink(release: GithubRelease): String? {
-        val map = release.assets.associate { asset ->
-            BUILD_TYPES.find { "-$it" in asset.name } to asset.downloadLink
-        }
+    private fun isAppRelease(release: GithubRelease): Boolean {
+        return !release.prerelease && release.version.startsWith("v")
+    }
 
-        return map[Build.SUPPORTED_ABIS[0]] ?: map[null]
+    private fun getDownloadLink(release: GithubRelease): String? {
+        val apkLinksByAbi = release.assets
+            .filter { asset -> asset.name.endsWith(".apk") }
+            .associate { asset -> BUILD_TYPES.find { "-$it" in asset.name } to asset.downloadLink }
+
+        return apkLinksByAbi[primaryAbi] ?: apkLinksByAbi[null]
     }
 
     companion object {
