@@ -23,7 +23,7 @@ class ReleaseServiceImpl(
     override suspend fun latest(arguments: GetApplicationRelease.Arguments): Release? {
         val releases = with(json) {
             networkService.client
-                .newCall(GET("https://api.github.com/repos/${arguments.repository}/releases"))
+                .newCall(GET("https://api.github.com/repos/${arguments.repository}/releases?per_page=10"))
                 .awaitSuccess()
                 .parseAs<List<GithubRelease>>()
         }
