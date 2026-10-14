@@ -17,6 +17,7 @@
     <string name="pref_library_summary">Categories, global update, chapter/episode swipe</string>
     <string name="pref_behavior">Chapter behavior</string>
     <string name="action_add_repo_message">Add additional repos to %s. This should be a URL that ends with \"index.min.json\".</string>
+    <string name="extension_repo_url_message">A repository URL must end with \"index.min.json\", \"index.pb\", or \"repo.json\".</string>
     <string name="download_ahead_info">Only works if the current chapter/episode + the next one are already downloaded.</string>
     <string name="non_library_settings">All read/watched entries</string>
     <string name="action_sort_last_manga_update">Last manga update</string>

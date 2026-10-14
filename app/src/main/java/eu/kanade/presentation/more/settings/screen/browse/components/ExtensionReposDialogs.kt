@@ -58,7 +58,7 @@ fun ExtensionRepoCreateDialog(
         },
         text = {
             Column {
-                Text(text = stringResource(AYMR.strings.action_add_repo_message))
+                Text(text = stringResource(AYMR.strings.extension_repo_url_message))
 
                 OutlinedTextField(
                     modifier = Modifier
