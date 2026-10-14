@@ -52,11 +52,11 @@ class ReleaseServiceImpl(
     }
 
     private fun getDownloadLink(release: GithubRelease): String? {
-        val map = release.assets
+        val apkLinksByAbi = release.assets
             .filter { asset -> asset.name.endsWith(".apk") }
             .associate { asset -> BUILD_TYPES.find { "-$it" in asset.name } to asset.downloadLink }
 
-        return map[primaryAbi] ?: map[null]
+        return apkLinksByAbi[primaryAbi] ?: apkLinksByAbi[null]
     }
 
     companion object {
