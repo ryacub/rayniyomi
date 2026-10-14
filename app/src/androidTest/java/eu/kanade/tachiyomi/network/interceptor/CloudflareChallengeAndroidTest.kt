@@ -22,6 +22,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -68,10 +69,33 @@ class CloudflareChallengeAndroidTest {
         assertTrue("solve returned before the challenge delay: ${elapsedMs}ms", elapsedMs >= CHALLENGE_DELAY_MS)
     }
 
+    @Test
+    fun concurrentChallengedRequestsShareOneSolve() {
+        val calls = Executors.newFixedThreadPool(2)
+        val responses = try {
+            listOf("/first", "/second")
+                .map { path -> calls.submit<Pair<Int, String>> { fetch(path) } }
+                .map { it.get(60, TimeUnit.SECONDS) }
+        } finally {
+            calls.shutdownNow()
+        }
+        Log.i(TAG, "responses=$responses requests=${server.requests}")
+
+        assertEquals(listOf(200 to SOLVED_BODY, 200 to SOLVED_BODY), responses)
+        assertEquals(1, server.requests.count { it.webView && !it.solved && "favicon" !in it.line })
+    }
+
+    private fun fetch(path: String): Pair<Int, String> {
+        return network.client.newCall(Request.Builder().url(server.url(path)).build()).execute()
+            .use { it.code to it.body.string() }
+    }
+
+    private data class ServedRequest(val line: String, val webView: Boolean, val solved: Boolean)
+
     private class ChallengeServer : Closeable {
 
         private val socket = ServerSocket(0, 16, InetAddress.getByName("127.0.0.1"))
-        val requests = CopyOnWriteArrayList<String>()
+        val requests = CopyOnWriteArrayList<ServedRequest>()
 
         init {
             thread(isDaemon = true) {
@@ -88,11 +112,13 @@ class CloudflareChallengeAndroidTest {
             client.use {
                 val reader = BufferedReader(InputStreamReader(it.getInputStream()))
                 val requestLine = reader.readLine() ?: return
-                val cookie = generateSequence { reader.readLine()?.takeIf(String::isNotEmpty) }
-                    .firstOrNull { line -> line.startsWith("cookie:", ignoreCase = true) }
-                    .orEmpty()
-                val solved = "cf_clearance=" in cookie
-                requests += "$requestLine solved=$solved"
+                val headers = generateSequence { reader.readLine()?.takeIf(String::isNotEmpty) }
+                    .map { line -> line.substringBefore(':').lowercase() to line.substringAfter(':').trim() }
+                    .toList()
+                val solved = headers.any { (name, value) -> name == "cookie" && "cf_clearance=" in value }
+                // Chromium sends this header on navigations, OkHttp does not
+                val webView = headers.any { (name, _) -> name == "upgrade-insecure-requests" }
+                requests += ServedRequest(requestLine, webView, solved)
 
                 val response = if (solved) {
                     "HTTP/1.1 200 OK\r\n" to SOLVED_BODY
