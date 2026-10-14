@@ -3,12 +3,13 @@ package eu.kanade.tachiyomi.network.interceptor
 import android.content.Context
 import androidx.core.content.ContextCompat
 import eu.kanade.tachiyomi.network.AndroidCookieJar
+import eu.kanade.tachiyomi.util.system.WebViewUtil
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import io.mockk.unmockkAll
 import io.mockk.verify
-import okhttp3.Cookie
 import okhttp3.Interceptor
 import okhttp3.Protocol
 import okhttp3.Request
@@ -16,12 +17,13 @@ import okhttp3.Response
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.function.ThrowingSupplier
-import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 class CloudflareInterceptorTest {
 
@@ -32,11 +34,12 @@ class CloudflareInterceptorTest {
     fun setUp() {
         mockkStatic(ContextCompat::class)
         every { ContextCompat.getMainExecutor(any()) } returns mockk(relaxed = true)
+        mockkObject(WebViewUtil)
     }
 
     @AfterEach
     fun tearDown() {
-        unmockkStatic(ContextCompat::class)
+        unmockkAll()
     }
 
     @Test
@@ -54,42 +57,54 @@ class CloudflareInterceptorTest {
     }
 
     @Test
-    fun `a request whose challenge was cleared while it waited does not start a solve`() {
-        val interceptor = interceptor()
+    fun `a challenge without WebView support returns the challenge response`() {
+        every { WebViewUtil.supportsWebView(any()) } returns false
         val request = request()
-        val passed = response(200)
-        val chain = chain(request, challenge(), passed)
-        every { cookieManager.get(request.url) } returnsMany listOf(emptyList(), listOf(clearance(request)))
+        val challenge = challenge()
+        val chain = chain(request, challenge)
 
-        val result = interceptor.intercept(chain)
+        val result = interceptor().intercept(chain)
 
-        assertSame(passed, result)
+        assertSame(challenge, result)
+        verify(exactly = 1) { chain.proceed(request) }
         verify(exactly = 0) { cookieManager.remove(any(), any(), any()) }
     }
 
     @Test
-    fun `a nested request to the same host can solve while the outer request waits`() {
+    fun `a same-host request on another thread is not blocked by a running solve`() {
         val interceptor = interceptor()
-        val outerRequest = request("/outer")
+        val solveStarted = CountDownLatch(1)
+        val finishSolve = CountDownLatch(1)
+        every { WebViewUtil.supportsWebView(any()) } answers {
+            solveStarted.countDown()
+            finishSolve.await()
+            false
+        }
         val innerRequest = request("/token")
         val innerPassed = response(200)
-        val innerChain = chain(innerRequest, challenge(), innerPassed)
-        every { cookieManager.get(innerRequest.url) } returnsMany listOf(emptyList(), listOf(clearance(innerRequest)))
+        val innerChain = chain(innerRequest, innerPassed)
+        val outerRequest = request("/outer")
         val outerPassed = response(200)
+        val nestedCalls = Executors.newSingleThreadExecutor()
+        var solver: Thread? = null
         val outerChain = mockk<Interceptor.Chain> {
             every { request() } returns outerRequest
             every { proceed(outerRequest) } answers {
-                assertSame(innerPassed, interceptor.intercept(innerChain))
+                solver = thread { interceptor.intercept(chain(request("/page"), challenge())) }
+                solveStarted.await(500, TimeUnit.MILLISECONDS)
+                val inner = nestedCalls.submit<Response> { interceptor.intercept(innerChain) }
+                assertSame(innerPassed, inner.get(2, TimeUnit.SECONDS))
                 outerPassed
             }
         }
 
-        val result = assertTimeoutPreemptively(
-            Duration.ofSeconds(5),
-            ThrowingSupplier { interceptor.intercept(outerChain) },
-        )
-
-        assertSame(outerPassed, result)
+        try {
+            assertSame(outerPassed, interceptor.intercept(outerChain))
+        } finally {
+            finishSolve.countDown()
+            solver?.join(5_000)
+            nestedCalls.shutdownNow()
+        }
     }
 
     private fun interceptor() = CloudflareInterceptor(context, cookieManager) { "test-agent" }
@@ -102,12 +117,6 @@ class CloudflareInterceptorTest {
     }
 
     private fun challenge() = response(403, "Server" to "cloudflare", "cf-mitigated" to "challenge")
-
-    private fun clearance(request: Request) = Cookie.Builder()
-        .domain(request.url.host)
-        .name("cf_clearance")
-        .value("solved")
-        .build()
 
     private fun response(code: Int, vararg headers: Pair<String, String>): Response {
         val builder = Response.Builder()

@@ -18,11 +18,7 @@ class CloudflareChallengeClientTest {
     private val view = mockk<WebView>(relaxed = true)
     private var cleared = false
 
-    private val client = CloudflareChallengeClient(
-        challengeUrl = CHALLENGE_URL,
-        isCleared = { cleared },
-        listenerScriptToEvaluate = null,
-    )
+    private val client = CloudflareChallengeClient(challengeUrl = CHALLENGE_URL, isCleared = { cleared })
 
     @Test
     fun `a challenge page keeps the solve waiting after its first load`() {
@@ -37,7 +33,25 @@ class CloudflareChallengeClientTest {
         client.onReceivedHttpError(view, mainFrameRequest(), httpError())
 
         assertEquals(0L, client.latch.count)
-        assertFalse(client.cloudflareBypassed)
+        assertFalse(client.isSolved)
+    }
+
+    @Test
+    fun `a sub-frame HTTP error does not end the solve`() {
+        client.onReceivedHttpError(view, mainFrameRequest(), httpError("cf-mitigated" to "challenge"))
+        client.onReceivedHttpError(view, subFrameRequest(), httpError())
+
+        assertEquals(1L, client.latch.count)
+    }
+
+    @Test
+    fun `an HTTP error page after the clearance is still a solve`() {
+        client.onReceivedHttpError(view, mainFrameRequest(), httpError("cf-mitigated" to "challenge"))
+        cleared = true
+        client.onReceivedHttpError(view, mainFrameRequest(), httpError())
+
+        assertEquals(0L, client.latch.count)
+        assertTrue(client.isSolved)
     }
 
     @Test
@@ -47,7 +61,7 @@ class CloudflareChallengeClientTest {
         client.onPageFinished(view, CHALLENGE_URL)
 
         assertEquals(0L, client.latch.count)
-        assertTrue(client.cloudflareBypassed)
+        assertTrue(client.isSolved)
     }
 
     @Test
@@ -58,7 +72,7 @@ class CloudflareChallengeClientTest {
         client.onPageFinished(view, CHALLENGE_URL)
 
         assertEquals(0L, client.latch.count)
-        assertFalse(client.cloudflareBypassed)
+        assertFalse(client.isSolved)
     }
 
     @Test
@@ -67,7 +81,7 @@ class CloudflareChallengeClientTest {
         client.onChallengeEvent("interactiveBegin")
 
         assertEquals(0L, client.latch.count)
-        assertFalse(client.cloudflareBypassed)
+        assertFalse(client.isSolved)
     }
 
     @Test
@@ -98,6 +112,10 @@ class CloudflareChallengeClientTest {
 
     private fun mainFrameRequest() = mockk<WebResourceRequest> {
         every { isForMainFrame } returns true
+    }
+
+    private fun subFrameRequest() = mockk<WebResourceRequest> {
+        every { isForMainFrame } returns false
     }
 
     private fun httpError(vararg headers: Pair<String, String>) = mockk<WebResourceResponse> {
