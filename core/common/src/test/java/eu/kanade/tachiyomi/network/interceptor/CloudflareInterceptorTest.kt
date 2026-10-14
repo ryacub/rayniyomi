@@ -16,11 +16,15 @@ import okhttp3.Request
 import okhttp3.Response
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -104,6 +108,39 @@ class CloudflareInterceptorTest {
             finishSolve.countDown()
             solver?.join(5_000)
             nestedCalls.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `a request that waited on a failed solve fails without its own solve`() {
+        val interceptor = interceptor()
+        val solveStarted = CountDownLatch(1)
+        val finishSolve = CountDownLatch(1)
+        every { WebViewUtil.supportsWebView(any()) } answers {
+            solveStarted.countDown()
+            finishSolve.await()
+            error("challenge failed")
+        }
+        val solver = thread { runCatching { interceptor.intercept(chain(request("/first"), challenge())) } }
+        assertTrue(solveStarted.await(5, TimeUnit.SECONDS))
+        val waiterRequest = request("/second")
+        val waiterChain = chain(waiterRequest, challenge(), challenge())
+        val waiterCalls = Executors.newSingleThreadExecutor()
+
+        try {
+            val waiter = waiterCalls.submit<Response> { interceptor.intercept(waiterChain) }
+            Thread.sleep(300)
+            finishSolve.countDown()
+            val failure = assertThrows(ExecutionException::class.java) { waiter.get(5, TimeUnit.SECONDS) }.cause
+
+            assertInstanceOf(IOException::class.java, failure)
+            assertInstanceOf(CloudflareBypassException::class.java, failure?.cause)
+            verify(exactly = 1) { WebViewUtil.supportsWebView(any()) }
+            verify(exactly = 2) { waiterChain.proceed(waiterRequest) }
+        } finally {
+            finishSolve.countDown()
+            solver.join(5_000)
+            waiterCalls.shutdownNow()
         }
     }
 

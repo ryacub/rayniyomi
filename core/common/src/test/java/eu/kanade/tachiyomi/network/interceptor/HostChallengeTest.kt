@@ -15,11 +15,11 @@ class HostChallengeTest {
 
     @Test
     fun `a request that waited while another solved does not solve again`() {
-        val solvesBefore = host.solveCount()
+        val attemptsBefore = host.attemptCount()
         val firstSolving = CountDownLatch(1)
         val finishFirst = CountDownLatch(1)
         val first = thread {
-            host.solveUnlessSolvedSince(solvesBefore) {
+            host.solveUnlessAttemptedSince(attemptsBefore) {
                 firstSolving.countDown()
                 finishFirst.await()
                 true
@@ -30,7 +30,7 @@ class HostChallengeTest {
         var secondSolved = false
         var secondResult = false
         val second = thread {
-            secondResult = host.solveUnlessSolvedSince(solvesBefore) {
+            secondResult = host.solveUnlessAttemptedSince(attemptsBefore) {
                 secondSolved = true
                 true
             }
@@ -45,14 +45,30 @@ class HostChallengeTest {
     }
 
     @Test
-    fun `a failed solve lets the next request solve`() {
-        val solvesBefore = host.solveCount()
+    fun `a request that waited on a failed solve does not solve again`() {
+        val attemptsBefore = host.attemptCount()
         assertThrows(IllegalStateException::class.java) {
-            host.solveUnlessSolvedSince(solvesBefore) { error("challenge failed") }
+            host.solveUnlessAttemptedSince(attemptsBefore) { error("challenge failed") }
         }
 
         var solved = false
-        host.solveUnlessSolvedSince(solvesBefore) {
+        val result = host.solveUnlessAttemptedSince(attemptsBefore) {
+            solved = true
+            true
+        }
+
+        assertFalse(solved)
+        assertTrue(result)
+    }
+
+    @Test
+    fun `a request that starts after a failed solve solves again`() {
+        assertThrows(IllegalStateException::class.java) {
+            host.solveUnlessAttemptedSince(host.attemptCount()) { error("challenge failed") }
+        }
+
+        var solved = false
+        host.solveUnlessAttemptedSince(host.attemptCount()) {
             solved = true
             true
         }
@@ -62,11 +78,11 @@ class HostChallengeTest {
 
     @Test
     fun `a solve that could not run is not counted`() {
-        val solvesBefore = host.solveCount()
+        val attemptsBefore = host.attemptCount()
 
-        val result = host.solveUnlessSolvedSince(solvesBefore) { false }
+        val result = host.solveUnlessAttemptedSince(attemptsBefore) { false }
 
         assertFalse(result)
-        assertEquals(solvesBefore, host.solveCount())
+        assertEquals(attemptsBefore, host.attemptCount())
     }
 }

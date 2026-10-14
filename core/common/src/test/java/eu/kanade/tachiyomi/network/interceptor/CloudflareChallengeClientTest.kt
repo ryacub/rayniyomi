@@ -112,10 +112,11 @@ class CloudflareChallengeClientTest {
     }
 
     @Test
-    fun `an origin keeps IPv6 brackets and drops only the default port`() {
+    fun `an origin keeps IPv6 brackets and drops the default port and credentials`() {
         assertEquals("http://[::1]:8080", "http://[::1]:8080/a?b=c".toHttpUrl().origin())
         assertEquals("https://example.org", "https://example.org:443/a".toHttpUrl().origin())
         assertEquals("https://example.org:8443", "https://example.org:8443/a".toHttpUrl().origin())
+        assertEquals("https://example.org", "https://user:secret@example.org/a".toHttpUrl().origin())
     }
 
     private fun mainFrameRequest() = mockk<WebResourceRequest> {
