@@ -23,6 +23,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- Remove the unused macrobenchmark module, the `benchmark` build type, and the baseline-profile dry-run jobs. The committed `baseline-prof.txt` still ships in the APK. Also remove four unused verify scripts, the autoloop installer, and the TLA+ specs (#1407).
 
 ### Other
 

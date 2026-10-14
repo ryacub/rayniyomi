@@ -16,7 +16,6 @@ These checks are expected on normal pull requests:
 | `Build app` | `.github/workflows/build_pull_request.yml` | Builds the stable APK and verifies 16 KB native alignment. |
 | `Check code format` | `.github/workflows/build_pull_request.yml` | Keeps formatting drift out of review. |
 | `Run unit tests` | `.github/workflows/build_pull_request.yml` | Catches JVM test regressions without emulator cost. |
-| `Verify baseline profile task and artifact` | `.github/workflows/build_pull_request.yml` | Confirms baseline profile wiring and committed artifact presence. |
 | `Branding guardrail` | `.github/workflows/build_pull_request.yml` | Prevents user-facing fork-brand regressions. |
 | `Plugin Compatibility` | `.github/workflows/plugin_compatibility.yml` | Targeted PR gate for light novel plugin host and manifest changes. |
 

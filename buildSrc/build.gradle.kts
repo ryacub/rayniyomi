@@ -4,7 +4,6 @@ plugins {
 
 dependencies {
     implementation(androidx.gradle)
-    implementation(androidx.benchmark.gradle)
     implementation(kotlinx.gradle)
     implementation(kotlinx.compose.compiler.gradle)
     implementation(libs.spotless.gradle)

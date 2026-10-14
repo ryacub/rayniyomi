@@ -1,4 +1,3 @@
-import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import mihon.buildlogic.Config
 import mihon.buildlogic.getBuildTime
 import mihon.buildlogic.getCommitCount
@@ -10,7 +9,6 @@ plugins {
     id("mihon.android.application")
     id("mihon.android.application.compose")
     alias(libs.plugins.metro)
-    alias(androidx.plugins.baselineprofile)
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
     // Google Services: conditional - only release (google-services.json has release package only)
@@ -25,14 +23,11 @@ val lightNovelExpectedPluginApiVersion = 1
 // Apply Google Services plugin before AGP variant configuration and only for builds whose
 // applicationId is registered in google-services.json.
 // google-services.json contains only the release package (xyz.rayniyomi); applying it for
-// debug/benchmark would fail because xyz.rayniyomi.dev and xyz.rayniyomi.benchmark are not
-// registered.
+// debug would fail because xyz.rayniyomi.dev is not registered.
 // The Crashlytics plugin is applied unconditionally in the plugins block above so the build ID
 // is reliably embedded in every release APK regardless of Gradle invocation order or cache.
 if (
-    gradle.startParameter.taskNames.none {
-        it.contains("Debug", ignoreCase = true) || it.contains("Benchmark", ignoreCase = true)
-    }
+    gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }
 ) {
     apply(plugin = "com.google.gms.google-services")
 }
@@ -89,23 +84,6 @@ android {
 
             buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         }
-        create("benchmark") {
-            initWith(release)
-
-            isDebuggable = false
-            isProfileable = true
-            versionNameSuffix = "-benchmark"
-            applicationIdSuffix = ".benchmark"
-
-            signingConfig = debug.signingConfig
-
-            matchingFallbacks.addAll(commonMatchingFallbacks)
-
-            configure<CrashlyticsExtension> {
-                mappingFileUploadEnabled = false
-                nativeSymbolUploadEnabled = false
-            }
-        }
     }
 
     flavorDimensions += "track"
@@ -115,7 +93,6 @@ android {
 
     sourceSets {
         getByName("preview") { res.directories.add("src/debug/res") }
-        getByName("benchmark") { res.directories.add("src/debug/res") }
     }
 
     testOptions {
@@ -397,15 +374,6 @@ dependencies {
 }
 
 androidComponents {
-    beforeVariants { variantBuilder ->
-        // Keep benchmark builds only for the stable track so macrobenchmark installs
-        // the signed/profileable app target instead of falling back to unsigned release.
-        if (variantBuilder.buildType == "benchmark") {
-            variantBuilder.enable = variantBuilder.productFlavors.containsAll(
-                listOf("track" to "stable"),
-            )
-        }
-    }
     onVariants(selector().withFlavor("default" to "standard")) {
         // Only excluding in standard flavor because this breaks
         // Layout Inspector's Compose tree
