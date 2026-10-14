@@ -58,12 +58,11 @@ class ReleaseServiceImplTest {
     }
 
     @Test
-    fun `latest skips drafts and prereleases`() {
-        val draft = release("v0.18.1.450", "rayniyomi-v0.18.1.450.apk", draft = true)
+    fun `latest skips prereleases`() {
         val prerelease = release("v0.18.1.449", "rayniyomi-v0.18.1.449.apk", prerelease = true)
         val app = release("v0.18.1.448", "rayniyomi-v0.18.1.448.apk")
 
-        val result = latest(latestRelease = draft, releases = listOf(draft, prerelease, app))
+        val result = latest(latestRelease = app, releases = listOf(prerelease, app))
 
         result.shouldNotBeNull().version shouldBe "v0.18.1.448"
     }
@@ -129,7 +128,6 @@ class ReleaseServiceImplTest {
     private fun release(
         tag: String,
         vararg assetNames: String,
-        draft: Boolean = false,
         prerelease: Boolean = false,
     ): String {
         val assets = assetNames.joinToString { name ->
@@ -140,7 +138,6 @@ class ReleaseServiceImplTest {
               "tag_name": "$tag",
               "body": "notes",
               "html_url": "https://github.com/ryacub/rayniyomi/releases/tag/$tag",
-              "draft": $draft,
               "prerelease": $prerelease,
               "published_at": "2026-10-14T01:30:08Z",
               "assets": [$assets]

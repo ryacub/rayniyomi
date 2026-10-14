@@ -48,7 +48,7 @@ class ReleaseServiceImpl(
     }
 
     private fun isAppRelease(release: GithubRelease): Boolean {
-        return !release.draft && !release.prerelease && release.version.startsWith("v")
+        return !release.prerelease && release.version.startsWith("v")
     }
 
     private fun getDownloadLink(release: GithubRelease): String? {
