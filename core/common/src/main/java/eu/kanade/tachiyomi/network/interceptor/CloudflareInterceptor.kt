@@ -133,9 +133,9 @@ internal fun challengeUrl(request: Request): String {
     return request.url.newBuilder().encodedPath("/").query(null).fragment(null).build().toString()
 }
 
-// An origin rule without a port only matches the scheme's default one
-private fun HttpUrl.origin(): String {
-    return if (port == HttpUrl.defaultPort(scheme)) "$scheme://$host" else "$scheme://$host:$port"
+// An origin rule without a port only matches the scheme's default one, and an IPv6 host needs its brackets
+internal fun HttpUrl.origin(): String {
+    return newBuilder().encodedPath("/").query(null).fragment(null).build().toString().removeSuffix("/")
 }
 
 private val SERVER_CHECK = arrayOf("cloudflare-nginx", "cloudflare")
