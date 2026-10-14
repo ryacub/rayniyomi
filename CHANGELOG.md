@@ -13,6 +13,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.448] - 2026-10-14
+
+### Added
 - Add an optional CloudStream runtime APK for anime plugins from CloudStream repositories (#1405).
 
 ### Improved
