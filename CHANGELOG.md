@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- Anime extension repositories accept `repo.json` and `index.pb` links, as manga repositories already do (#1410).
 
 ### Improved
 
