@@ -529,6 +529,9 @@ class PlayerActivity : BaseActivity() {
                 cacheDir = applicationContext.cacheDir.path,
                 logLvl = logLevel,
             )
+            // mpv-lib sets idle=once inside initialize(), which lets mpv quit after a load error,
+            // before the next server can be loaded. keep-open already covers the end of a file.
+            MPVLib.setPropertyString("idle", "yes")
             mpvReady = true
             setup.fontsDir?.let { mpvInitializer.applyFontsDirectory(it) }
             MPVLib.addLogObserver(playerObserver)
