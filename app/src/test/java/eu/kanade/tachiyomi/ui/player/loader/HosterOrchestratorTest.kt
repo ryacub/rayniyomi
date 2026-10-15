@@ -396,7 +396,6 @@ class HosterOrchestratorTest {
         localOrchestrator.onVideoLoadFailed(second, source = null)
 
         assertEquals(true, errorLatch.await(5, TimeUnit.SECONDS))
-        // A repeated error for a video that already failed does nothing.
         localOrchestrator.onVideoLoadFailed(second, source = null)
         Thread.sleep(200)
         assertEquals(1, errorCount.get())
@@ -431,7 +430,6 @@ class HosterOrchestratorTest {
 
     @Test
     fun `a failure while a hoster is still loading waits for it`() {
-        // Preferred, so it plays before the slow hoster finishes loading.
         val fast = Video(videoUrl = "https://example.invalid/fast", videoTitle = "fast", preferred = true)
         val slow = Video(videoUrl = "https://example.invalid/slow", videoTitle = "slow")
         val fastHoster = Hoster(hosterName = "fast", videoList = listOf(fast))

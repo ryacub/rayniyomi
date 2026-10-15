@@ -122,7 +122,6 @@ internal class CloudStreamAnimeSource(
         const val LOAD_LINKS_TIMEOUT_MS = 60_000L
         const val TAG = "CloudStreamAnimeSource"
 
-        // The key CloudStreamRuntime sets the default User-Agent under.
         const val USER_AGENT_KEY = "user-agent"
     }
 }

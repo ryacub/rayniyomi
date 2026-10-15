@@ -53,7 +53,6 @@ private fun List<Video>.withDistinctTitles(): List<Video> {
     }
 }
 
-/** [defaultUserAgent] is sent when the link sets none, as CloudStream's player does. */
 fun ExtractorLink.toVideo(subtitles: List<Track>, defaultUserAgent: String? = null): Video? {
     if (this is ExtractorLinkPlayList || type in UNPLAYABLE_TYPES) return null
     return Video(

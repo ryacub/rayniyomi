@@ -1107,7 +1107,6 @@ class PlayerActivity : BaseActivity() {
         )
     }
 
-    /** Called when mpv could not open [video], the latest video passed to [setVideo]. */
     internal fun onVideoLoadFailed(video: Video) {
         if (player.isExiting) return
         viewModel.onVideoLoadFailed(video)

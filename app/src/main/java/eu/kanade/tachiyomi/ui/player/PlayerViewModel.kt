@@ -1327,7 +1327,6 @@ class PlayerViewModel internal constructor(
         )
     }
 
-    /** mpv could not open [video]: play the next server instead. */
     fun onVideoLoadFailed(video: Video) {
         hosterOrchestrator.onVideoLoadFailed(video, currentSource.value)
     }

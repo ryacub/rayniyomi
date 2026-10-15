@@ -165,11 +165,7 @@ class HosterOrchestrator(
         }
     }
 
-    /**
-     * Called when the player could not open [failedVideo]. Marks it failed and loads the next
-     * server. Reports no available videos only after every server failed and no hoster is
-     * still loading. An error for a video that is no longer current is ignored.
-     */
+    /** Marks [failedVideo] failed and loads the next server. Ignores a video that is no longer current. */
     fun onVideoLoadFailed(failedVideo: Video, source: AnimeSource?) {
         scope.launch(hosterLoadDispatcher) {
             recoveryMutex.withLock { recoverFrom(failedVideo, source) }
@@ -190,7 +186,6 @@ class HosterOrchestrator(
         while (true) {
             if (loadBestAvailableVideo(source)) return
 
-            // Wait for a hoster that is still loading, then try again.
             val activeJob = loadJob?.takeIf { it.isActive } ?: break
             val checkedState = _hosterState.value
             merge(
@@ -201,7 +196,6 @@ class HosterOrchestrator(
                 },
             ).first()
 
-            // The episode changed, or another video started while we waited.
             if (getHosterVideoLinksJob !== activeJob || activeJob.isCancelled) return
             if (_currentVideo.value != null) return
         }

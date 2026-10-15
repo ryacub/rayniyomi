@@ -13,10 +13,7 @@ suspend fun <T> guardPluginCall(sourceName: String, block: suspend () -> T): T =
     throw PluginCallException("$sourceName: ${e.message ?: e.javaClass.simpleName}", e)
 }
 
-/**
- * Runs a plugin's link loading. An ordinary error after [hasLinks] became true is returned instead
- * of thrown, so the links emitted before it are kept. Cancellation always propagates.
- */
+/** Returns, instead of throwing, an error that comes after links were emitted, so they are kept. */
 suspend fun guardLinkLoading(
     sourceName: String,
     hasLinks: () -> Boolean,

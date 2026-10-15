@@ -31,7 +31,7 @@ class PlayerObserver(val activity: PlayerActivity) :
     }
 
     override fun event(eventId: Int) {
-        // Track on mpv's event thread so the tracker sees events in the order mpv sent them.
+        // On mpv's thread, to keep event order.
         when (eventId) {
             MPVLib.mpvEventId.MPV_EVENT_START_FILE -> activity.mpvLoadTracker.onFileStarted()
             MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED -> activity.mpvLoadTracker.onFileLoaded()
