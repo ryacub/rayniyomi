@@ -126,6 +126,7 @@ class PlayerActivity : BaseActivity() {
         },
     )
     private val playerObserver by lazy { PlayerObserver(this) }
+    internal val mpvLoadTracker = MpvLoadTracker<Video>()
     private lateinit var playerView: AniyomiMPVView
     private lateinit var rootView: View
     val player: AniyomiMPVView
@@ -1094,6 +1095,7 @@ class PlayerActivity : BaseActivity() {
             "$option=\"$value\""
         }
 
+        mpvLoadTracker.onLoadIssued(video)
         MPVLib.command(
             arrayOf(
                 "loadfile",
@@ -1103,6 +1105,12 @@ class PlayerActivity : BaseActivity() {
                 videoOptions,
             ),
         )
+    }
+
+    /** Called when mpv could not open [video], the latest video passed to [setVideo]. */
+    internal fun onVideoLoadFailed(video: Video) {
+        if (player.isExiting) return
+        viewModel.onVideoLoadFailed(video)
     }
 
     /**

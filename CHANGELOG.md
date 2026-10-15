@@ -18,6 +18,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- When the player cannot open a server, it marks that server failed and plays the next one. It waits for servers that are still loading and shows the "no hosters" error only after every server failed. An error from a server you already switched away from is ignored (#1417).
+- CloudStream links that set no User-Agent now send the app's default one, as CloudStream does. Links a CloudStream plugin found before an error are kept instead of dropped (#1417).
 - The app updater offers only app releases. Before, a newer CloudStream runtime or plugin release showed as an app update, and the download picked its `SHA256SUMS.txt` file and always failed (#1409).
 - The automatic Cloudflare check now waits for the challenge to finish. Before, it stopped at the first page load and failed. It also stops at once on a challenge that needs a tap, solves challenges of non-GET requests on the site root, and lets concurrent requests to one site share one check. A WebView crash during the check no longer closes the app (#1411).
 

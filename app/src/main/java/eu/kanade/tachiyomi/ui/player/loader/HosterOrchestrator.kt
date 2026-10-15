@@ -15,8 +15,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -56,6 +62,8 @@ class HosterOrchestrator(
     var onPauseRequested: (() -> Unit)? = null
 
     private var getHosterVideoLinksJob: Job? = null
+
+    private val recoveryMutex = Mutex()
 
     fun updateIsLoadingHosters(value: Boolean) {
         _isLoadingHosters.update { value }
@@ -157,7 +165,53 @@ class HosterOrchestrator(
         }
     }
 
-    private suspend fun loadBestAvailableVideo(source: AnimeSource): Boolean {
+    /**
+     * Called when the player could not open [failedVideo]. Marks it failed and loads the next
+     * server. Reports no available videos only after every server failed and no hoster is
+     * still loading. An error for a video that is no longer current is ignored.
+     */
+    fun onVideoLoadFailed(failedVideo: Video, source: AnimeSource?) {
+        scope.launch(hosterLoadDispatcher) {
+            recoveryMutex.withLock { recoverFrom(failedVideo, source) }
+        }
+    }
+
+    private suspend fun recoverFrom(failedVideo: Video, source: AnimeSource?) {
+        if (_currentVideo.value !== failedVideo) return
+        val (hosterIndex, videoIndex) = _selectedHosterVideoIndex.value
+        val failedHoster = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
+        if (videoIndex !in failedHoster.videoState.indices) return
+
+        _hosterState.updateAt(hosterIndex, failedHoster.getChangedAt(videoIndex, failedVideo, Video.State.ERROR))
+        _currentVideo.update { null }
+        _selectedHosterVideoIndex.update { Pair(-1, -1) }
+
+        val loadJob = getHosterVideoLinksJob
+        while (true) {
+            if (loadBestAvailableVideo(source)) return
+
+            // Wait for a hoster that is still loading, then try again.
+            val activeJob = loadJob?.takeIf { it.isActive } ?: break
+            val checkedState = _hosterState.value
+            merge(
+                _hosterState.filter { it !== checkedState },
+                flow {
+                    activeJob.join()
+                    emit(checkedState)
+                },
+            ).first()
+
+            // The episode changed, or another video started while we waited.
+            if (getHosterVideoLinksJob !== activeJob || activeJob.isCancelled) return
+            if (_currentVideo.value != null) return
+        }
+
+        if (loadJob?.isCancelled == true) return
+        onLoadingStateChanged?.invoke(false)
+        onNoVideosAvailable()
+    }
+
+    private suspend fun loadBestAvailableVideo(source: AnimeSource?): Boolean {
         while (true) {
             val (hosterIndex, videoIndex) = HosterLoader.selectBestVideo(hosterState.value)
             if (hosterIndex == -1) return false

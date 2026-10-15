@@ -48,6 +48,29 @@ class LinkMappingTest {
     }
 
     @Test
+    fun `a link without a user agent gets the default one`() = runTest {
+        val video = link().toVideo(emptyList(), defaultUserAgent = "Default UA")!!
+
+        video.headers?.values("User-Agent") shouldContainExactly listOf("Default UA")
+    }
+
+    @Test
+    fun `a link's own user agent is kept`() = runTest {
+        val link = link(headers = mapOf("user-agent" to "Own UA"))
+
+        val video = link.toVideo(emptyList(), defaultUserAgent = "Default UA")!!
+
+        video.headers?.values("User-Agent") shouldContainExactly listOf("Own UA")
+    }
+
+    @Test
+    fun `hosters pass the default user agent to their videos`() = runTest {
+        val hosters = buildHosters(listOf(link("A")), emptyList(), defaultUserAgent = "Default UA")
+
+        hosters.single().videoList.orEmpty().single().headers?.get("User-Agent") shouldBe "Default UA"
+    }
+
+    @Test
     fun `unknown and auto quality have no resolution`() = runTest {
         val unknown = link(quality = Qualities.Unknown.value).toVideo(emptyList())!!
         val auto = link(quality = 0).toVideo(emptyList())!!
