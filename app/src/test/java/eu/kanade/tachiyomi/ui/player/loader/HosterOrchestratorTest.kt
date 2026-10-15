@@ -12,14 +12,17 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -492,6 +495,142 @@ class HosterOrchestratorTest {
         assertEquals(Pair(0, 2), orchestrator.selectedHosterVideoIndex.value)
     }
 
+    @Test
+    fun `an error for the current video is ignored once the selection moved to another`() {
+        val first = Video(videoUrl = "https://example.invalid/first", videoTitle = "first")
+        val second = Video(videoUrl = "https://example.invalid/second", videoTitle = "second")
+        val readyVideos = LinkedBlockingQueue<Video>()
+        orchestrator.onVideoReady = { readyVideos += it }
+        orchestrator.setHosterStateForTest(
+            listOf(HosterState.Ready("hoster", listOf(first, second), List(2) { Video.State.READY })),
+        )
+        orchestrator.onVideoClicked(0, 0, currentSource = null, onSuccess = {}, onFailure = {})
+        assertEquals(first, readyVideos.poll(5, TimeUnit.SECONDS))
+        // A manual selection of the second video is still resolving.
+        orchestrator.setSelectedHosterVideoIndexForTest(Pair(0, 1))
+
+        orchestrator.onVideoLoadFailed(first, source = null)
+
+        assertNull(readyVideos.poll(200, TimeUnit.MILLISECONDS))
+        assertEquals(first, orchestrator.currentVideo.value)
+        assertEquals(Pair(0, 1), orchestrator.selectedHosterVideoIndex.value)
+        assertEquals(
+            List(2) { Video.State.READY },
+            (orchestrator.hosterState.value[0] as HosterState.Ready).videoState,
+        )
+    }
+
+    @Test
+    fun `a fallback still resolving does not replace a new episode`() {
+        val fixture = ResolvingFallbackFixture()
+
+        orchestrator.reset()
+        fixture.releaseResolve.complete(Unit)
+
+        assertNull(fixture.readyVideos.poll(300, TimeUnit.MILLISECONDS))
+        assertNull(orchestrator.currentVideo.value)
+    }
+
+    @Test
+    fun `a fallback still resolving does not replace a manual selection`() {
+        val fixture = ResolvingFallbackFixture()
+
+        orchestrator.onVideoClicked(0, 2, fixture.source, onSuccess = {}, onFailure = {})
+        assertEquals(fixture.manual, fixture.readyVideos.poll(5, TimeUnit.SECONDS))
+        fixture.releaseResolve.complete(Unit)
+
+        assertNull(fixture.readyVideos.poll(300, TimeUnit.MILLISECONDS))
+        assertEquals(fixture.manual, orchestrator.currentVideo.value)
+        assertEquals(Pair(0, 2), orchestrator.selectedHosterVideoIndex.value)
+        assertEquals(
+            listOf(Video.State.ERROR, Video.State.QUEUE, Video.State.READY),
+            (orchestrator.hosterState.value[0] as HosterState.Ready).videoState,
+        )
+    }
+
+    @Test
+    fun `a failure waits for a lazy hoster the user started loading`() {
+        val first = Video(videoUrl = "https://example.invalid/first", videoTitle = "first")
+        val lazy = Video(videoUrl = "https://example.invalid/lazy", videoTitle = "lazy")
+        val readyVideos = LinkedBlockingQueue<Video>()
+        val errorCount = AtomicInteger()
+        val localOrchestrator = HosterOrchestrator(testScope, onNoVideosAvailable = { errorCount.incrementAndGet() })
+        localOrchestrator.onVideoReady = { readyVideos += it }
+        localOrchestrator.setHosterStateForTest(
+            listOf(
+                HosterState.Ready("first", listOf(first), listOf(Video.State.READY)),
+                HosterState.Loading("lazy"),
+            ),
+        )
+        localOrchestrator.onVideoClicked(0, 0, currentSource = null, onSuccess = {}, onFailure = {})
+        assertEquals(first, readyVideos.poll(5, TimeUnit.SECONDS))
+
+        localOrchestrator.onVideoLoadFailed(first, source = null)
+        assertNull(readyVideos.poll(200, TimeUnit.MILLISECONDS))
+        localOrchestrator.setHosterStateAtForTest(1, HosterState.Ready("lazy", listOf(lazy), listOf(Video.State.READY)))
+
+        assertEquals(lazy, readyVideos.poll(5, TimeUnit.SECONDS))
+        assertEquals(Pair(1, 0), localOrchestrator.selectedHosterVideoIndex.value)
+        assertEquals(0, errorCount.get())
+    }
+
+    @Test
+    fun `a lazy hoster that loads no videos ends in the terminal error`() {
+        val first = Video(videoUrl = "https://example.invalid/first", videoTitle = "first")
+        val readyVideos = LinkedBlockingQueue<Video>()
+        val errorLatch = CountDownLatch(1)
+        val localOrchestrator = HosterOrchestrator(testScope, onNoVideosAvailable = { errorLatch.countDown() })
+        localOrchestrator.onVideoReady = { readyVideos += it }
+        localOrchestrator.setHosterStateForTest(
+            listOf(
+                HosterState.Ready("first", listOf(first), listOf(Video.State.READY)),
+                HosterState.Loading("lazy"),
+            ),
+        )
+        localOrchestrator.onVideoClicked(0, 0, currentSource = null, onSuccess = {}, onFailure = {})
+        assertEquals(first, readyVideos.poll(5, TimeUnit.SECONDS))
+
+        localOrchestrator.onVideoLoadFailed(first, source = null)
+        assertEquals(false, errorLatch.await(200, TimeUnit.MILLISECONDS))
+        localOrchestrator.setHosterStateAtForTest(1, HosterState.Error("lazy"))
+
+        assertEquals(true, errorLatch.await(5, TimeUnit.SECONDS))
+        assertNull(readyVideos.poll(200, TimeUnit.MILLISECONDS))
+    }
+
+    /** The first video plays and fails; the fallback to the second is held in resolveVideo. */
+    private inner class ResolvingFallbackFixture {
+        val failed = Video(videoUrl = "https://example.invalid/failed", videoTitle = "failed")
+        val fallback = Video(videoUrl = "https://example.invalid/fallback", videoTitle = "fallback")
+        val manual = Video(videoUrl = "https://example.invalid/manual", videoTitle = "manual")
+        val releaseResolve = CompletableDeferred<Unit>()
+        val source = mockk<AnimeHttpSource>()
+        val readyVideos = LinkedBlockingQueue<Video>()
+
+        init {
+            val resolving = CountDownLatch(1)
+            coEvery { source.resolveVideo(fallback) } coAnswers {
+                resolving.countDown()
+                withContext(NonCancellable) { releaseResolve.await() }
+                fallback
+            }
+            orchestrator.onVideoReady = { readyVideos += it }
+            orchestrator.setHosterStateForTest(
+                listOf(
+                    HosterState.Ready(
+                        "hoster",
+                        listOf(failed, fallback, manual),
+                        listOf(Video.State.READY, Video.State.QUEUE, Video.State.READY),
+                    ),
+                ),
+            )
+            orchestrator.onVideoClicked(0, 0, source, onSuccess = {}, onFailure = {})
+            assertEquals(failed, readyVideos.poll(5, TimeUnit.SECONDS))
+            orchestrator.onVideoLoadFailed(failed, source)
+            assertEquals(true, resolving.await(5, TimeUnit.SECONDS))
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun HosterOrchestrator.setHosterListForTest(value: List<Hoster>) {
         val field = HosterOrchestrator::class.java.getDeclaredField("_hosterList")
@@ -511,6 +650,22 @@ class HosterOrchestratorTest {
         val field = HosterOrchestrator::class.java.getDeclaredField("_hosterExpandedList")
         field.isAccessible = true
         (field.get(this) as MutableStateFlow<List<Boolean>>).value = value
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun HosterOrchestrator.setHosterStateAtForTest(index: Int, value: HosterState) {
+        val field = HosterOrchestrator::class.java.getDeclaredField("_hosterState")
+        field.isAccessible = true
+        (field.get(this) as MutableStateFlow<List<HosterState>>).update { states ->
+            states.toMutableList().also { it[index] = value }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun HosterOrchestrator.setSelectedHosterVideoIndexForTest(value: Pair<Int, Int>) {
+        val field = HosterOrchestrator::class.java.getDeclaredField("_selectedHosterVideoIndex")
+        field.isAccessible = true
+        (field.get(this) as MutableStateFlow<Pair<Int, Int>>).value = value
     }
 
     @Suppress("UNCHECKED_CAST")

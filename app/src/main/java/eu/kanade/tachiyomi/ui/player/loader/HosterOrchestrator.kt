@@ -15,15 +15,13 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Orchestrates hoster loading and video selection for the player.
@@ -66,11 +64,18 @@ class HosterOrchestrator(
 
     private val recoveryMutex = Mutex()
 
+    @Volatile
+    private var recoveryJob: Job? = null
+
+    // Bumped by every new selection, so a recovery started before it cannot replace it.
+    private val selectionGeneration = AtomicLong()
+
     fun updateIsLoadingHosters(value: Boolean) {
         _isLoadingHosters.update { value }
     }
 
     fun reset() {
+        invalidateRecovery()
         _hosterState.update { emptyList() }
         _hosterList.update { emptyList() }
         _hosterExpandedList.update { emptyList() }
@@ -78,10 +83,17 @@ class HosterOrchestrator(
     }
 
     fun cancelHosterVideoLinksJob() {
+        invalidateRecovery()
         getHosterVideoLinksJob?.cancel()
     }
 
+    private fun invalidateRecovery() {
+        synchronized(this) { selectionGeneration.incrementAndGet() }
+        recoveryJob?.cancel()
+    }
+
     fun loadHosters(source: AnimeSource, hosterList: List<Hoster>, hosterIndex: Int, videoIndex: Int) {
+        invalidateRecovery()
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
         _hosterList.update { hosterList }
@@ -168,59 +180,62 @@ class HosterOrchestrator(
 
     /** Marks [failedVideo] failed and loads the next server. Ignores a video that is no longer current. */
     fun onVideoLoadFailed(failedVideo: Video, source: AnimeSource?) {
-        scope.launch(hosterLoadDispatcher) {
+        val job = scope.launch(hosterLoadDispatcher) {
             recoveryMutex.withLock { recoverFrom(failedVideo, source) }
         }
+        recoveryJob = job
     }
 
     private suspend fun recoverFrom(failedVideo: Video, source: AnimeSource?) {
-        if (_currentVideo.value !== failedVideo) return
-        val (hosterIndex, videoIndex) = _selectedHosterVideoIndex.value
-        val failedHoster = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
-        // The selection moves before the video loads, so check that it still points at the failed one.
-        if (failedHoster.videoList.getOrNull(videoIndex) !== failedVideo) return
+        val generation = synchronized(this) {
+            if (_currentVideo.value !== failedVideo) return
+            val (hosterIndex, videoIndex) = _selectedHosterVideoIndex.value
+            val failedHoster = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
+            // The selection moves before the video loads, so check that it still points at the failed one.
+            if (failedHoster.videoList.getOrNull(videoIndex) !== failedVideo) return
 
-        _hosterState.updateAt(hosterIndex, failedHoster.getChangedAt(videoIndex, failedVideo, Video.State.ERROR))
-        _currentVideo.update { null }
-        _selectedHosterVideoIndex.update { Pair(-1, -1) }
-
-        val loadJob = getHosterVideoLinksJob
-        while (true) {
-            val checkedState = _hosterState.value
-            if (loadBestAvailableVideo(source)) return
-
-            val activeJob = loadJob?.takeIf { it.isActive } ?: break
-            merge(
-                _hosterState.filter { it !== checkedState },
-                flow {
-                    activeJob.join()
-                    emit(checkedState)
-                },
-            ).first()
-
-            if (getHosterVideoLinksJob !== activeJob || activeJob.isCancelled) return
-            if (_currentVideo.value != null) return
+            _hosterState.updateAt(hosterIndex, failedHoster.getChangedAt(videoIndex, failedVideo, Video.State.ERROR))
+            _currentVideo.update { null }
+            _selectedHosterVideoIndex.update { Pair(-1, -1) }
+            selectionGeneration.get()
         }
 
-        if (getHosterVideoLinksJob !== loadJob || loadJob?.isCancelled == true) return
+        while (true) {
+            val checkedState = _hosterState.value
+            if (loadBestAvailableVideo(source, generation)) return
+            if (checkedState.none { it is HosterState.Loading }) break
+            // Includes lazy hosters the user started loading.
+            _hosterState.first { it !== checkedState }
+        }
+
+        if (selectionGeneration.get() != generation) return
         onLoadingStateChanged?.invoke(false)
-        // A lazy hoster the user has not loaded, or one still loading, may still work.
-        if (_hosterState.value.none { it is HosterState.Idle || it is HosterState.Loading }) {
+        // A lazy hoster the user has not loaded may still work.
+        if (_hosterState.value.none { it is HosterState.Idle }) {
             onNoVideosAvailable()
         }
     }
 
-    private suspend fun loadBestAvailableVideo(source: AnimeSource?): Boolean {
+    /** Returns true when a video loaded, or when a newer selection than [generation] took over. */
+    private suspend fun loadBestAvailableVideo(source: AnimeSource?, generation: Long? = null): Boolean {
         while (true) {
+            if (generation != null && selectionGeneration.get() != generation) return true
             val (hosterIndex, videoIndex) = HosterLoader.selectBestVideo(hosterState.value)
             if (hosterIndex == -1) return false
 
             val video = readyVideoAt(hosterIndex, videoIndex) ?: return false
-            if (loadVideo(source, video, hosterIndex, videoIndex)) return true
+            if (loadVideo(source, video, hosterIndex, videoIndex, generation)) return true
         }
     }
 
-    private suspend fun loadVideo(source: AnimeSource?, video: Video, hosterIndex: Int, videoIndex: Int): Boolean {
+    /** With a [generation], the load is dropped if a newer selection started while it resolved. */
+    private suspend fun loadVideo(
+        source: AnimeSource?,
+        video: Video,
+        hosterIndex: Int,
+        videoIndex: Int,
+        generation: Long? = null,
+    ): Boolean {
         var currentHosterIndex = hosterIndex
         var currentVideoIndex = videoIndex
         var currentVideo = video
@@ -245,10 +260,15 @@ class HosterOrchestrator(
 
             onPauseRequested?.invoke()
 
-            val resolvedVideo = if (videoState != Video.State.READY) {
-                HosterLoader.getResolvedVideo(source, currentVideo)
-            } else {
-                currentVideo
+            val resolvedVideo = try {
+                if (videoState != Video.State.READY) {
+                    HosterLoader.getResolvedVideo(source, currentVideo)
+                } else {
+                    currentVideo
+                }
+            } catch (e: CancellationException) {
+                revertLoadingState(currentHosterIndex, currentVideoIndex, currentVideo, videoState)
+                throw e
             }
 
             if (resolvedVideo == null || resolvedVideo.videoUrl.isEmpty()) {
@@ -284,16 +304,30 @@ class HosterOrchestrator(
                 }
             }
 
-            _hosterState.updateAt(
-                currentHosterIndex,
-                selectedHosterState.getChangedAt(currentVideoIndex, resolvedVideo, Video.State.READY),
-            )
+            synchronized(this) {
+                if (generation != null && selectionGeneration.get() != generation) {
+                    revertLoadingState(currentHosterIndex, currentVideoIndex, currentVideo, videoState)
+                    return false
+                }
+                _hosterState.updateAt(
+                    currentHosterIndex,
+                    selectedHosterState.getChangedAt(currentVideoIndex, resolvedVideo, Video.State.READY),
+                )
 
-            _currentVideo.update { resolvedVideo }
+                _currentVideo.update { resolvedVideo }
 
-            onVideoReady?.invoke(resolvedVideo)
+                onVideoReady?.invoke(resolvedVideo)
+            }
             return true
         }
+    }
+
+    private fun revertLoadingState(hosterIndex: Int, videoIndex: Int, video: Video, previousState: Video.State) {
+        val hoster = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
+        // After an episode change the slot can hold another video.
+        if (hoster.videoList.getOrNull(videoIndex) !== video) return
+        if (hoster.videoState.getOrNull(videoIndex) != Video.State.LOAD_VIDEO) return
+        _hosterState.updateAt(hosterIndex, hoster.getChangedAt(videoIndex, video, previousState))
     }
 
     fun onVideoClicked(
@@ -316,6 +350,7 @@ class HosterOrchestrator(
             return
         }
 
+        invalidateRecovery()
         scope.launch(hosterLoadDispatcher) {
             val success = loadVideo(currentSource, video, hosterIndex, videoIndex)
             if (success) {
