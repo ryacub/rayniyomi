@@ -61,6 +61,7 @@ class HosterOrchestrator(
     var onLoadingStateChanged: ((Boolean) -> Unit)? = null
     var onPauseRequested: (() -> Unit)? = null
 
+    @Volatile
     private var getHosterVideoLinksJob: Job? = null
 
     private val recoveryMutex = Mutex()
@@ -176,7 +177,8 @@ class HosterOrchestrator(
         if (_currentVideo.value !== failedVideo) return
         val (hosterIndex, videoIndex) = _selectedHosterVideoIndex.value
         val failedHoster = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
-        if (videoIndex !in failedHoster.videoState.indices) return
+        // The selection moves before the video loads, so check that it still points at the failed one.
+        if (failedHoster.videoList.getOrNull(videoIndex) !== failedVideo) return
 
         _hosterState.updateAt(hosterIndex, failedHoster.getChangedAt(videoIndex, failedVideo, Video.State.ERROR))
         _currentVideo.update { null }
@@ -184,10 +186,10 @@ class HosterOrchestrator(
 
         val loadJob = getHosterVideoLinksJob
         while (true) {
+            val checkedState = _hosterState.value
             if (loadBestAvailableVideo(source)) return
 
             val activeJob = loadJob?.takeIf { it.isActive } ?: break
-            val checkedState = _hosterState.value
             merge(
                 _hosterState.filter { it !== checkedState },
                 flow {
@@ -200,9 +202,12 @@ class HosterOrchestrator(
             if (_currentVideo.value != null) return
         }
 
-        if (loadJob?.isCancelled == true) return
+        if (getHosterVideoLinksJob !== loadJob || loadJob?.isCancelled == true) return
         onLoadingStateChanged?.invoke(false)
-        onNoVideosAvailable()
+        // A lazy hoster the user has not loaded, or one still loading, may still work.
+        if (_hosterState.value.none { it is HosterState.Idle || it is HosterState.Loading }) {
+            onNoVideosAvailable()
+        }
     }
 
     private suspend fun loadBestAvailableVideo(source: AnimeSource?): Boolean {
