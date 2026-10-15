@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +21,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -525,7 +523,7 @@ class HosterOrchestratorTest {
         val fixture = ResolvingFallbackFixture()
 
         orchestrator.reset()
-        fixture.releaseResolve.complete(Unit)
+        fixture.releaseResolve.countDown()
 
         assertNull(fixture.readyVideos.poll(300, TimeUnit.MILLISECONDS))
         assertNull(orchestrator.currentVideo.value)
@@ -537,7 +535,7 @@ class HosterOrchestratorTest {
 
         orchestrator.onVideoClicked(0, 2, fixture.source, onSuccess = {}, onFailure = {})
         assertEquals(fixture.manual, fixture.readyVideos.poll(5, TimeUnit.SECONDS))
-        fixture.releaseResolve.complete(Unit)
+        fixture.releaseResolve.countDown()
 
         assertNull(fixture.readyVideos.poll(300, TimeUnit.MILLISECONDS))
         assertEquals(fixture.manual, orchestrator.currentVideo.value)
@@ -598,12 +596,33 @@ class HosterOrchestratorTest {
         assertNull(readyVideos.poll(200, TimeUnit.MILLISECONDS))
     }
 
+    @Test
+    fun `a stale fallback whose resolver returns null leaves the new episode's hosters alone`() {
+        val fixture = ResolvingFallbackFixture(resolveToNull = true)
+        val newEpisodeState = listOf(
+            HosterState.Ready(
+                "new",
+                listOf(Video(videoUrl = "https://example.invalid/new", videoTitle = "new")),
+                listOf(Video.State.QUEUE),
+            ),
+        )
+
+        orchestrator.reset()
+        orchestrator.setHosterStateForTest(newEpisodeState)
+        fixture.releaseResolve.countDown()
+
+        assertNull(fixture.readyVideos.poll(300, TimeUnit.MILLISECONDS))
+        assertEquals(newEpisodeState, orchestrator.hosterState.value)
+    }
+
     /** The first video plays and fails; the fallback to the second is held in resolveVideo. */
-    private inner class ResolvingFallbackFixture {
+    private inner class ResolvingFallbackFixture(resolveToNull: Boolean = false) {
         val failed = Video(videoUrl = "https://example.invalid/failed", videoTitle = "failed")
         val fallback = Video(videoUrl = "https://example.invalid/fallback", videoTitle = "fallback")
         val manual = Video(videoUrl = "https://example.invalid/manual", videoTitle = "manual")
-        val releaseResolve = CompletableDeferred<Unit>()
+
+        // A blocking wait ignores cancellation, like a resolver that never checks for it.
+        val releaseResolve = CountDownLatch(1)
         val source = mockk<AnimeHttpSource>()
         val readyVideos = LinkedBlockingQueue<Video>()
 
@@ -611,8 +630,8 @@ class HosterOrchestratorTest {
             val resolving = CountDownLatch(1)
             coEvery { source.resolveVideo(fallback) } coAnswers {
                 resolving.countDown()
-                withContext(NonCancellable) { releaseResolve.await() }
-                fallback
+                releaseResolve.await()
+                fallback.takeUnless { resolveToNull }
             }
             orchestrator.onVideoReady = { readyVideos += it }
             orchestrator.setHosterStateForTest(

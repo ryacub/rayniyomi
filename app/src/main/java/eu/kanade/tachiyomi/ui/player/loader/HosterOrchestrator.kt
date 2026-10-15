@@ -208,7 +208,7 @@ class HosterOrchestrator(
             _hosterState.first { it !== checkedState }
         }
 
-        if (selectionGeneration.get() != generation) return
+        if (isStale(generation)) return
         onLoadingStateChanged?.invoke(false)
         // A lazy hoster the user has not loaded may still work.
         if (_hosterState.value.none { it is HosterState.Idle }) {
@@ -219,7 +219,7 @@ class HosterOrchestrator(
     /** Returns true when a video loaded, or when a newer selection than [generation] took over. */
     private suspend fun loadBestAvailableVideo(source: AnimeSource?, generation: Long? = null): Boolean {
         while (true) {
-            if (generation != null && selectionGeneration.get() != generation) return true
+            if (isStale(generation)) return true
             val (hosterIndex, videoIndex) = HosterLoader.selectBestVideo(hosterState.value)
             if (hosterIndex == -1) return false
 
@@ -272,6 +272,11 @@ class HosterOrchestrator(
             }
 
             if (resolvedVideo == null || resolvedVideo.videoUrl.isEmpty()) {
+                // A resolver that ignored cancellation must not touch a newer selection's state.
+                if (isStale(generation)) {
+                    revertLoadingState(currentHosterIndex, currentVideoIndex, currentVideo, videoState)
+                    return false
+                }
                 if (this.currentVideo.value == null) {
                     _hosterState.updateAt(
                         currentHosterIndex,
@@ -305,7 +310,7 @@ class HosterOrchestrator(
             }
 
             synchronized(this) {
-                if (generation != null && selectionGeneration.get() != generation) {
+                if (isStale(generation)) {
                     revertLoadingState(currentHosterIndex, currentVideoIndex, currentVideo, videoState)
                     return false
                 }
@@ -321,6 +326,9 @@ class HosterOrchestrator(
             return true
         }
     }
+
+    private fun isStale(generation: Long?): Boolean =
+        generation != null && selectionGeneration.get() != generation
 
     private fun revertLoadingState(hosterIndex: Int, videoIndex: Int, video: Video, previousState: Video.State) {
         val hoster = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
