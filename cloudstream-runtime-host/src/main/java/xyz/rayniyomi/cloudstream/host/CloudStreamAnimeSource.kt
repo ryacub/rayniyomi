@@ -1,11 +1,13 @@
 package xyz.rayniyomi.cloudstream.host
 
 import android.content.Intent
+import android.util.Log
 import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.app
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -57,12 +59,12 @@ internal class CloudStreamAnimeSource(
 
     override suspend fun getHosterList(episode: SEpisode): List<Hoster> {
         val collector = LinkCollector()
-        guardPluginCall(name) {
+        guardLinkLoading(name, collector::hasLinks) {
             withTimeoutOrNull(LOAD_LINKS_TIMEOUT_MS) {
                 api.loadLinks(episode.url, false, collector::addSubtitle, collector::addLink)
             }
-        }
-        return buildHosters(collector.links(), collector.subtitles())
+        }?.let { Log.w(TAG, "Keeping the links emitted before the error", it) }
+        return buildHosters(collector.links(), collector.subtitles(), app.defaultHeaders[USER_AGENT_KEY])
     }
 
     override suspend fun getVideoList(hoster: Hoster): List<Video> = hoster.videoList.orEmpty()
@@ -118,5 +120,8 @@ internal class CloudStreamAnimeSource(
 
     private companion object {
         const val LOAD_LINKS_TIMEOUT_MS = 60_000L
+        const val TAG = "CloudStreamAnimeSource"
+
+        const val USER_AGENT_KEY = "user-agent"
     }
 }

@@ -12,3 +12,15 @@ suspend fun <T> guardPluginCall(sourceName: String, block: suspend () -> T): T =
 } catch (e: Throwable) {
     throw PluginCallException("$sourceName: ${e.message ?: e.javaClass.simpleName}", e)
 }
+
+/** Returns, instead of throwing, an error that comes after links were emitted, so they are kept. */
+suspend fun guardLinkLoading(
+    sourceName: String,
+    hasLinks: () -> Boolean,
+    block: suspend () -> Unit,
+): PluginCallException? = try {
+    guardPluginCall(sourceName, block)
+    null
+} catch (e: PluginCallException) {
+    if (hasLinks()) e else throw e
+}

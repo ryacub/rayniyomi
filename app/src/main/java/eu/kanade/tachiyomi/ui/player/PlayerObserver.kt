@@ -31,6 +31,11 @@ class PlayerObserver(val activity: PlayerActivity) :
     }
 
     override fun event(eventId: Int) {
+        // On mpv's thread, to keep event order.
+        when (eventId) {
+            MPVLib.mpvEventId.MPV_EVENT_START_FILE -> activity.mpvLoadTracker.onFileStarted()
+            MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED -> activity.mpvLoadTracker.onFileLoaded()
+        }
         activity.runOnUiThread { activity.event(eventId) }
     }
 
@@ -41,8 +46,10 @@ class PlayerObserver(val activity: PlayerActivity) :
             httpError = null
         }
         logcat(LogPriority.ERROR) { errorMessage }
+        val failedVideo = activity.mpvLoadTracker.onLoadError()
         activity.runOnUiThread {
             activity.toast(errorMessage, Toast.LENGTH_LONG)
+            failedVideo?.let(activity::onVideoLoadFailed)
         }
     }
 

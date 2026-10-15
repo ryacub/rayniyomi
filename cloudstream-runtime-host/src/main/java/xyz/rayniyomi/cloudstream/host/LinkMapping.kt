@@ -25,13 +25,19 @@ class LinkCollector {
 
     fun links(): List<ExtractorLink> = links.toList()
 
+    fun hasLinks(): Boolean = links.isNotEmpty()
+
     fun subtitles(): List<SubtitleFile> = subtitles.toList()
 }
 
-fun buildHosters(links: List<ExtractorLink>, subtitles: List<SubtitleFile>): List<Hoster> {
+fun buildHosters(
+    links: List<ExtractorLink>,
+    subtitles: List<SubtitleFile>,
+    defaultUserAgent: String? = null,
+): List<Hoster> {
     val tracks = subtitles.map { Track(it.url, it.lang) }
     return links.groupBy { it.source }.mapNotNull { (source, group) ->
-        group.mapNotNull { it.toVideo(tracks) }
+        group.mapNotNull { it.toVideo(tracks, defaultUserAgent) }
             .takeIf { it.isNotEmpty() }
             ?.let { Hoster(hosterName = source, videoList = it.withDistinctTitles()) }
     }
@@ -47,16 +53,25 @@ private fun List<Video>.withDistinctTitles(): List<Video> {
     }
 }
 
-fun ExtractorLink.toVideo(subtitles: List<Track>): Video? {
+fun ExtractorLink.toVideo(subtitles: List<Track>, defaultUserAgent: String? = null): Video? {
     if (this is ExtractorLinkPlayList || type in UNPLAYABLE_TYPES) return null
     return Video(
         videoUrl = url,
         videoTitle = listOf(name, Qualities.getStringByInt(quality)).filter { it.isNotBlank() }.joinToString(" - "),
         resolution = quality.takeIf { it > 0 && it != Qualities.Unknown.value },
-        headers = getAllHeaders().toHeaders(),
+        headers = getAllHeaders().withDefaultUserAgent(defaultUserAgent).toHeaders(),
         subtitleTracks = subtitles,
         audioTracks = audioTracks.mapIndexed { index, audio -> Track(audio.url, "Audio ${index + 1}") },
     )
 }
+
+private fun Map<String, String>.withDefaultUserAgent(userAgent: String?): Map<String, String> =
+    if (userAgent.isNullOrBlank() || keys.any { it.equals(USER_AGENT, ignoreCase = true) }) {
+        this
+    } else {
+        this + (USER_AGENT to userAgent)
+    }
+
+private const val USER_AGENT = "User-Agent"
 
 private val UNPLAYABLE_TYPES = setOf(ExtractorLinkType.TORRENT, ExtractorLinkType.MAGNET)
