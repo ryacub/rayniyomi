@@ -14,7 +14,7 @@ internal class PluginClassLoader(path: String, parent: ClassLoader) : PathClassL
         findLoadedClass(name)
     }
 
-    fun owns(name: String): Boolean = runCatching { findLoadedClass(name) != null }.getOrDefault(true)
+    fun owns(name: String): Boolean = runCatching { findLoadedClass(name)?.classLoader === this }.getOrDefault(true)
 }
 
 internal class PluginLinkException(val classes: List<String>, cause: Throwable) :

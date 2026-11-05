@@ -29,10 +29,7 @@ class RuntimeFactory(private val runtimePackage: String) : AnimeSourceFactory {
         val quarantine = PluginQuarantine(File(application.noBackupFilesDir, "cloudstream/quarantine"))
         val crashIndex = PluginCrashIndex()
         installCrashGuard(crashIndex, quarantine)
-        val loader = PluginLoader(application, checkNotNull(javaClass.classLoader), crashIndex) { key, error ->
-            Log.w(TAG, "CloudStream plugin ${key.internalName} failed in an activity callback and is disabled", error)
-            quarantine.mark(key, error.toString())
-        }
+        val loader = PluginLoader(application, checkNotNull(javaClass.classLoader), crashIndex)
         val hostVersion = listOf(application.packageName, runtimePackage)
             .joinToString("-") { versionCode(application, it).toString() }
         val copies = mutableSetOf<File>()

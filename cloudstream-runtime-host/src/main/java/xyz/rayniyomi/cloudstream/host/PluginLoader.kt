@@ -12,7 +12,6 @@ internal class PluginLoader(
     private val application: Application,
     private val parent: ClassLoader,
     private val crashIndex: PluginCrashIndex,
-    private val onCallbackFailure: (PluginKey, Throwable) -> Unit,
 ) {
 
     fun load(file: File, key: PluginKey): List<MainAPI> {
@@ -26,7 +25,7 @@ internal class PluginLoader(
         val callbacks = PluginCallbacks(
             register = application::registerActivityLifecycleCallbacks,
             unregister = application::unregisterActivityLifecycleCallbacks,
-            onFailure = { onCallbackFailure(key, it) },
+            onFailure = { Log.w(TAG, "CloudStream plugin ${key.internalName} failed in an activity callback", it) },
         )
         try {
             val plugin = loader.loadClass(manifest.pluginClassName).getDeclaredConstructor().newInstance() as BasePlugin
