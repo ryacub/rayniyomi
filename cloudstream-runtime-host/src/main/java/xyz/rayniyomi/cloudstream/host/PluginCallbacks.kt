@@ -4,7 +4,10 @@ import android.app.Activity
 import android.app.Application.ActivityLifecycleCallbacks
 import android.os.Bundle
 
-/** Runs a plugin's activity callbacks on host threads, and detaches all of them when one throws. */
+/**
+ * Runs a plugin's activity callbacks on host threads. When one throws, all of them stop for good: the
+ * Application may still dispatch the current event to guards it copied before the detach.
+ */
 internal class PluginCallbacks(
     private val register: (ActivityLifecycleCallbacks) -> Unit,
     private val unregister: (ActivityLifecycleCallbacks) -> Unit,
@@ -12,27 +15,40 @@ internal class PluginCallbacks(
 ) {
     private val guards = LinkedHashMap<ActivityLifecycleCallbacks, ActivityLifecycleCallbacks>()
 
+    @Volatile
+    private var detached = false
+
     fun add(callback: ActivityLifecycleCallbacks) {
-        val guard = Guard(callback)
-        synchronized(guards) { guards[callback] = guard }
-        register(guard)
+        synchronized(guards) {
+            if (detached || callback in guards) return
+            val guard = Guard(callback)
+            guards[callback] = guard
+            register(guard)
+        }
     }
 
     fun remove(callback: ActivityLifecycleCallbacks) {
-        synchronized(guards) { guards.remove(callback) }?.let(unregister)
+        synchronized(guards) { guards.remove(callback)?.let(unregister) }
     }
 
     fun detachAll() {
-        val all = synchronized(guards) { guards.values.toList().also { guards.clear() } }
-        all.forEach(unregister)
+        detach()
+    }
+
+    private fun detach(): Boolean = synchronized(guards) {
+        val first = !detached
+        detached = true
+        guards.values.forEach(unregister)
+        guards.clear()
+        first
     }
 
     private inline fun guarded(block: () -> Unit) {
+        if (detached) return
         try {
             block()
         } catch (e: Throwable) {
-            detachAll()
-            onFailure(e)
+            if (detach()) runCatching { onFailure(e) }
         }
     }
 
