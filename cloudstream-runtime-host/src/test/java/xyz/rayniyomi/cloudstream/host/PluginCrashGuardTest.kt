@@ -25,7 +25,11 @@ class PluginCrashGuardTest {
     }
 
     private fun index() = PluginCrashIndex().apply {
-        add(LoadedPlugin(moosa, "/data/no_backup/cloudstream/plugins/MOOSAHub-4a5df8bac1ada4e5.cs3", "com.moosa.hub") { true })
+        add(
+            LoadedPlugin(moosa, "/data/no_backup/cloudstream/plugins/MOOSAHub-4a5df8bac1ada4e5.cs3", "com.moosa.hub") {
+                true
+            },
+        )
     }
 
     private fun throwableAt(vararg classes: String, message: String? = null) = NoClassDefFoundError(message).apply {
@@ -34,7 +38,12 @@ class PluginCrashGuardTest {
 
     @Test
     fun `a frame in a plugin package that the plugin loader owns names that plugin`() {
-        val error = throwableAt("dalvik.system.DexFile", "com.moosa.hub.MOOSAHubPlugin", "xyz.rayniyomi.cloudstream.host.PluginLoader")
+        val error =
+            throwableAt(
+                "dalvik.system.DexFile",
+                "com.moosa.hub.MOOSAHubPlugin",
+                "xyz.rayniyomi.cloudstream.host.PluginLoader",
+            )
 
         index().find(error) shouldBe moosa
     }
@@ -66,7 +75,12 @@ class PluginCrashGuardTest {
     @Test
     fun `a shared package names the one plugin whose loader owns the class`() {
         val index = PluginCrashIndex().apply {
-            add(LoadedPlugin(streamPlay, "/p/StreamPlay.cs3", "com.phisher98") { it == "com.phisher98.StreamPlayProvider" })
+            add(
+                LoadedPlugin(streamPlay, "/p/StreamPlay.cs3", "com.phisher98") {
+                    it ==
+                        "com.phisher98.StreamPlayProvider"
+                },
+            )
             add(LoadedPlugin(animePahe, "/p/AnimePahe.cs3", "com.phisher98") { it == "com.phisher98.AnimePahe" })
         }
 
@@ -98,7 +112,9 @@ class PluginCrashGuardTest {
         val quarantine = PluginQuarantine(directory)
         val error = throwableAt("com.moosa.hub.MOOSASeeAll")
 
-        PluginCrashGuard(index(), quarantine) { _, e -> forwarded += e }.uncaughtException(Thread.currentThread(), error)
+        PluginCrashGuard(index(), quarantine) { _, e ->
+            forwarded += e
+        }.uncaughtException(Thread.currentThread(), error)
 
         quarantine.reason(moosa) shouldBe error.toString()
         forwarded.single() shouldBeSameInstanceAs error
@@ -117,17 +133,17 @@ class PluginCrashGuardTest {
     }
 
     @Test
-    fun `a second install replaces the guard and keeps the original handler as next`() {
+    fun `a second install replaces the guard, so the previous load's index no longer quarantines`() {
         val forwarded = mutableListOf<Throwable>()
         Thread.setDefaultUncaughtExceptionHandler { _, e -> forwarded += e }
         val quarantine = PluginQuarantine(directory)
 
-        installCrashGuard(PluginCrashIndex(), quarantine)
         installCrashGuard(index(), quarantine)
+        installCrashGuard(PluginCrashIndex(), quarantine)
         val error = throwableAt("com.moosa.hub.MOOSASeeAll")
         Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), error)
 
         forwarded shouldContainExactly listOf(error)
-        quarantine.reason(moosa) shouldBe error.toString()
+        quarantine.reason(moosa) shouldBe null
     }
 }
