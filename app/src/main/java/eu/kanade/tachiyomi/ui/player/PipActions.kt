@@ -22,12 +22,20 @@ import android.app.RemoteAction
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
+import android.util.Rational
 import androidx.annotation.DrawableRes
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.tachiyomi.R
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+
+internal fun pipAspectRatio(videoHeight: Int?, videoAspect: Double?): Rational? {
+    if (videoHeight == null || videoAspect == null) return null
+    val width = (videoHeight * videoAspect).toInt()
+    if (videoHeight.toDouble() / width !in 0.42..2.38) return null
+    return Rational(width, videoHeight)
+}
 
 fun createPipActions(
     context: Context,
