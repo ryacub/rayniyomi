@@ -70,8 +70,7 @@ internal class PluginCallbacks(
 
         override fun onActivityPreDestroyed(activity: Activity) = guarded { delegate.onActivityPreDestroyed(activity) }
         override fun onActivityDestroyed(activity: Activity) = guarded { delegate.onActivityDestroyed(activity) }
-        override fun onActivityPostDestroyed(
-            activity: Activity,
-        ) = guarded { delegate.onActivityPostDestroyed(activity) }
+        override fun onActivityPostDestroyed(activity: Activity) =
+            guarded { delegate.onActivityPostDestroyed(activity) }
     }
 }

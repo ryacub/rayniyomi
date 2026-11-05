@@ -33,10 +33,8 @@ class RuntimeFactory(private val runtimePackage: String) : AnimeSourceFactory {
             Log.w(TAG, "CloudStream plugin ${key.internalName} failed in an activity callback and is disabled", error)
             quarantine.mark(key, error.toString())
         }
-        val hostVersion = "${versionCode(
-            application,
-            application.packageName,
-        )}-${versionCode(application, runtimePackage)}"
+        val hostVersion = listOf(application.packageName, runtimePackage)
+            .joinToString("-") { versionCode(application, it).toString() }
         val copies = mutableSetOf<File>()
         val result = loadIsolated(files.fetch(), name = { it.internalName }) { row ->
             val key = PluginKey(row.internalName, row.fileSha256, hostVersion)
