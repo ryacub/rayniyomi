@@ -70,6 +70,53 @@ class PluginCallbacksTest {
         failures.size shouldBe 0
     }
 
+    @Test
+    fun `a failure handler that throws does not escape to the activity dispatch`() {
+        val throwingHandler = PluginCallbacks(
+            register = { registered += it },
+            unregister = { registered -= it },
+            onFailure = { error("quarantine write failed") },
+        )
+        throwingHandler.add(Recording(onResumed = { throw NoClassDefFoundError() }))
+
+        registered.single().onActivityResumed(activity)
+
+        registered.shouldBeEmpty()
+    }
+
+    @Test
+    fun `a guard already queued in the failing dispatch does not run its callback`() {
+        val later = Recording()
+        callbacks.add(Recording(onResumed = { throw NoClassDefFoundError() }))
+        callbacks.add(later)
+        val dispatch = registered.toList()
+
+        dispatch.forEach { it.onActivityResumed(activity) }
+
+        later.resumed.shouldBeEmpty()
+        failures shouldHaveSize 1
+    }
+
+    @Test
+    fun `a plugin cannot register callbacks again after it was detached`() {
+        callbacks.detachAll()
+
+        callbacks.add(Recording())
+
+        registered.shouldBeEmpty()
+    }
+
+    @Test
+    fun `adding the same callback twice leaves no guard after detachAll`() {
+        val callback = Recording()
+        callbacks.add(callback)
+        callbacks.add(callback)
+
+        callbacks.detachAll()
+
+        registered.shouldBeEmpty()
+    }
+
     private class Recording(private val onResumed: () -> Unit = {}) : ActivityLifecycleCallbacks {
         val resumed = mutableListOf<Activity>()
 
