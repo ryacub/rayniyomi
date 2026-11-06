@@ -39,7 +39,7 @@ class RecoveryApplyRunner(
                     copyCoverOf(entry, result.destinationId, coverFailures)
                 }
             }
-        } catch (e: CancellationException) {
+        } catch (e: Exception) {
             withContext(NonCancellable) {
                 repository.interruptRun(runToken)
                 repository.getEntries(sessionId)
@@ -75,17 +75,22 @@ class RecoveryApplyRunner(
     }
 
     private suspend fun holdBlockedRows(sessionId: Long) {
-        val rows = repository.getEntries(sessionId).filter { it.selected && it.state !in RecoveryState.finished }
+        val rows = repository.getEntries(sessionId).filter {
+            it.state == RecoveryState.COMPLETED || (it.selected && it.state !in RecoveryState.finished)
+        }
         val identities = preparer.identities(rows.map { it.originalId })
         val blocked = RecoveryBatchValidator.blocked(
             rows.mapNotNull { entry ->
                 val original = identities[entry.originalId] ?: return@mapNotNull null
                 val destination = entry.choice
-                    ?.takeIf { entry.state in RecoveryState.applicable }
+                    ?.takeIf { entry.state in RecoveryState.applicable || entry.state == RecoveryState.COMPLETED }
                     ?.let { RecoveryIdentity(it.sourceId, it.url) }
                 RecoveryBatchValidator.Row(entry.id, original, destination)
             },
         )
-        blocked.forEach { (entryId, reason) -> repository.holdForReview(entryId, reason.name) }
+        val pending = rows.filter { it.state != RecoveryState.COMPLETED }.map { it.id }.toSet()
+        blocked.filterKeys {
+            it in pending
+        }.forEach { (entryId, reason) -> repository.holdForReview(entryId, reason.name) }
     }
 }

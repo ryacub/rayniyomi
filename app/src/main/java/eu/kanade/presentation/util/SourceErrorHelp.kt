@@ -15,7 +15,7 @@ enum class SourceErrorAction(val labelRes: StringResource) {
     Retry(MR.strings.action_retry),
     OpenInWebView(MR.strings.action_open_in_web_view),
     Help(MR.strings.label_help),
-    Migrate(MR.strings.recovery_title),
+    Migrate(MR.strings.action_migrate),
 }
 
 fun SourceErrorAction.toEmptyScreenAction(onClick: () -> Unit): EmptyScreenAction {

@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.recovery.RecoveryApplyRunner
 import tachiyomi.domain.recovery.RecoverySearcher
 import tachiyomi.domain.recovery.RecoverySessionEntries
@@ -54,24 +56,40 @@ class RecoveryScreenModel(
 
     private var work: Job? = null
     private var entriesJob: Job? = null
+    private val previewJobs = mutableMapOf<Long, Job>()
 
     init {
-        viewModelScope.launch(ioDispatcher) { load() }
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                load()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Recovery failed to load" }
+                mutableState.update { it.copy(step = Step.Select, workError = e.messageOrName()) }
+            }
+        }
     }
 
     private suspend fun load() {
+        repository.reconcileAfterProcessStart()
         val originals = backend.originals(sourceId, originalIds)
-        val sources = backend.destinationSources(sourceId)
+        val excluded = originals.map(RecoveryOriginal::sourceId).toSet() + setOfNotNull(sourceId)
+        val sources = backend.destinationSources(excluded)
         mutableState.update {
             it.copy(
                 originals = originals,
                 selectedOriginals = originals.map(RecoveryOriginal::id).toSet(),
                 sources = sources,
+                titles = it.titles + originals.associate { original -> original.id to original.title },
             )
         }
+        val requested = originals.map(RecoveryOriginal::id).toSet()
         val open = repository.getLatestOpenSession()
-        if (open != null) {
-            mutableState.update { it.copy(keepOriginal = open.keepOriginal) }
+        val openOriginals = open?.let { session -> repository.getEntries(session.id).map { it.originalId } }.orEmpty()
+        if (open != null && openOriginals.any { it in requested }) {
+            val titles = backend.originals(null, openOriginals).associate { it.id to it.title }
+            mutableState.update { it.copy(keepOriginal = open.keepOriginal, titles = it.titles + titles) }
             attach(open.id)
         } else {
             mutableState.update { it.copy(step = Step.Select) }
@@ -125,18 +143,30 @@ class RecoveryScreenModel(
 
     fun choose(entryId: Long, candidate: RecoveryCandidate) {
         val entry = state.value.entries.firstOrNull { it.id == entryId } ?: return
+        previewJobs.remove(entryId)?.cancel()
         mutableState.update {
-            it.copy(chosen = it.chosen + (entryId to candidate), previewErrors = it.previewErrors - entryId)
+            it.copy(
+                chosen = it.chosen + (entryId to candidate),
+                previews = it.previews - entryId,
+                previewErrors = it.previewErrors - entryId,
+            )
         }
-        viewModelScope.launch(ioDispatcher) {
+        previewJobs[entryId] = viewModelScope.launch(ioDispatcher) {
             try {
                 val preview = backend.preview(entry.originalId, candidate)
-                mutableState.update { it.copy(previews = it.previews + (entryId to preview)) }
+                mutableState.update {
+                    if (it.chosen[entryId] != candidate) it else it.copy(previews = it.previews + (entryId to preview))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val message = e.message ?: e::class.simpleName.orEmpty()
-                mutableState.update { it.copy(previewErrors = it.previewErrors + (entryId to message)) }
+                mutableState.update {
+                    if (it.chosen[entryId] != candidate) {
+                        it
+                    } else {
+                        it.copy(previewErrors = it.previewErrors + (entryId to e.messageOrName()))
+                    }
+                }
             }
         }
     }
@@ -192,6 +222,8 @@ class RecoveryScreenModel(
     fun startAnother() {
         work?.cancel()
         entriesJob?.cancel()
+        previewJobs.values.forEach(Job::cancel)
+        previewJobs.clear()
         mutableState.update {
             it.copy(
                 step = Step.Select,
@@ -201,32 +233,43 @@ class RecoveryScreenModel(
                 previews = emptyMap(),
                 previewErrors = emptyMap(),
                 coverFailures = emptyMap(),
+                workError = null,
             )
         }
     }
 
     private fun launchWork(busy: Busy, block: suspend () -> Unit) {
         if (work?.isActive == true) return
-        mutableState.update { it.copy(busy = busy) }
+        mutableState.update { it.copy(busy = busy, workError = null) }
         work = viewModelScope.launch(ioDispatcher) {
             try {
                 block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Recovery work failed" }
+                mutableState.update { it.copy(workError = e.messageOrName()) }
+                state.value.sessionId?.let { refreshEntries(it) }
             } finally {
                 mutableState.update { it.copy(busy = null) }
             }
         }
     }
 
-    private fun clearPreview(entryId: Long) = mutableState.update {
-        it.copy(
-            chosen = it.chosen - entryId,
-            previews = it.previews - entryId,
-            previewErrors =
-            it.previewErrors - entryId,
-        )
+    private fun clearPreview(entryId: Long) {
+        previewJobs.remove(entryId)?.cancel()
+        mutableState.update {
+            it.copy(
+                chosen = it.chosen - entryId,
+                previews = it.previews - entryId,
+                previewErrors = it.previewErrors - entryId,
+            )
+        }
     }
 
     private fun newToken() = UUID.randomUUID().toString()
+
+    private fun Exception.messageOrName() = message ?: this::class.simpleName.orEmpty()
 
     private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value
 
@@ -242,7 +285,9 @@ class RecoveryScreenModel(
         val unsupported: Int,
         val skipped: Int,
     ) {
-        val fullyRecovered: Boolean get() = completed > 0 && failed == 0 && unresolved == 0 && unsupported == 0
+        val needsAttention: Int get() = failed + unresolved + unsupported
+
+        val fullyRecovered: Boolean get() = completed > 0 && needsAttention == 0 && skipped == 0
     }
 
     @Immutable
@@ -250,6 +295,7 @@ class RecoveryScreenModel(
         val step: Step = Step.Loading,
         val sessionId: Long? = null,
         val originals: List<RecoveryOriginal> = emptyList(),
+        val titles: Map<Long, String> = emptyMap(),
         val selectedOriginals: Set<Long> = emptySet(),
         val sources: List<RecoverySourceOption> = emptyList(),
         val selectedSources: Set<Long> = emptySet(),
@@ -260,6 +306,7 @@ class RecoveryScreenModel(
         val previewErrors: Map<Long, String> = emptyMap(),
         val coverFailures: Map<Long, String> = emptyMap(),
         val busy: Busy? = null,
+        val workError: String? = null,
     ) {
         val summary: Summary
             get() = Summary(
@@ -270,10 +317,19 @@ class RecoveryScreenModel(
                 skipped = entries.count { it.state == RecoveryState.SKIPPED },
             )
 
+        val applicableCount: Int
+            get() = entries.count { it.selected && it.choice != null && it.state in RecoveryState.applicable }
+
+        fun titleOf(entry: RecoveryEntry): String = titles[entry.originalId] ?: entry.searchQuery
+
         fun canApprove(entryId: Long): Boolean {
             val entry = entries.firstOrNull { it.id == entryId } ?: return false
-            val preview = previews[entryId] ?: return false
-            return entryId in chosen && !preview.destination.seasons && entry.state !in RecoveryState.locked
+            val candidate = chosen[entryId] ?: return false
+            val destination = previews[entryId]?.destination ?: return false
+            return destination.sourceId == candidate.sourceId &&
+                destination.url == candidate.url &&
+                !destination.seasons &&
+                entry.state !in RecoveryState.locked
         }
 
         private companion object {

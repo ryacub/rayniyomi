@@ -91,9 +91,9 @@ class AnimeRecoveryBackend(
         }
     }
 
-    override suspend fun destinationSources(excludeSourceId: Long?): List<RecoverySourceOption> =
+    override suspend fun destinationSources(excludeSourceIds: Set<Long>): List<RecoverySourceOption> =
         sourceManager.getCatalogueSources()
-            .filter { it.id != excludeSourceId }
+            .filter { it.id !in excludeSourceIds }
             .sortedWith(compareBy({ it.lang }, { it.name.lowercase() }))
             .map { RecoverySourceOption(id = it.id, name = it.name, lang = it.lang) }
 

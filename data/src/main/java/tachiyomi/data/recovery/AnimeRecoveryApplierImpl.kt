@@ -166,6 +166,7 @@ class AnimeRecoveryApplierImpl(
             recoveryQueries.mergeItemState(
                 seen = from.seen,
                 bookmark = from.bookmark,
+                dateFetch = from.date_fetch,
                 itemId = to._id,
             )
             recoveryQueries.mergeHistory(destinationItemId = to._id, originalItemId = from._id)

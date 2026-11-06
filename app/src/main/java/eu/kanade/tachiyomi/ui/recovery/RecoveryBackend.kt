@@ -38,7 +38,7 @@ interface RecoveryBackend {
 
     suspend fun originals(sourceId: Long?, originalIds: List<Long>): List<RecoveryOriginal>
 
-    suspend fun destinationSources(excludeSourceId: Long?): List<RecoverySourceOption>
+    suspend fun destinationSources(excludeSourceIds: Set<Long>): List<RecoverySourceOption>
 
     suspend fun preview(originalId: Long, candidate: RecoveryCandidate): RecoveryPreview
 

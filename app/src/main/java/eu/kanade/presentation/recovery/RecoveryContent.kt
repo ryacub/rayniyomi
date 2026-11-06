@@ -108,7 +108,7 @@ fun RecoveryScreenContent(
 
     if (confirming) {
         ConfirmApplyDialog(
-            readyCount = state.entries.count { it.selected && it.state == RecoveryState.READY },
+            readyCount = state.applicableCount,
             keepOriginal = state.keepOriginal,
             onDismiss = { confirming = false },
             onConfirm = {
@@ -132,6 +132,9 @@ fun RecoveryScreenContent(
 @Composable
 private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: RecoveryActions, onApply: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        state.workError?.let {
+            Text(stringResource(MR.strings.recovery_work_failed, it), color = MaterialTheme.colorScheme.error)
+        }
         if (state.busy != null) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
             OutlinedButton(onClick = actions.cancel, modifier = Modifier.fillMaxWidth()) {
@@ -146,9 +149,12 @@ private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: Recover
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(MR.strings.recovery_action_find)) }
             Step.Review -> {
-                val ready = state.entries.count { it.selected && it.state == RecoveryState.READY }
+                val ready = state.applicableCount
                 Button(onClick = onApply, enabled = ready > 0, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(MR.strings.recovery_action_apply, ready))
+                }
+                TextButton(onClick = actions.startAnother, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(MR.strings.recovery_action_start_another))
                 }
             }
             else -> Unit
@@ -231,13 +237,12 @@ private fun ReviewStep(
     actions: RecoveryActions,
     onSearch: (RecoveryEntry) -> Unit,
 ) {
-    val titles = state.originals.associate { it.id to it.title }
     val sourceNames = state.sources.associate { it.id to it.name }
     LazyColumn(contentPadding = contentPadding) {
         items(state.entries, key = { "entry-${it.id}" }) { entry ->
             ReviewRow(
                 entry = entry,
-                title = titles[entry.originalId] ?: entry.searchQuery,
+                title = state.titleOf(entry),
                 media = media,
                 sourceNames = sourceNames,
                 chosen = state.chosen[entry.id],
@@ -281,7 +286,12 @@ private fun ReviewRow(
         }
         when (entry.state) {
             RecoveryState.UNSUPPORTED -> SeasonsHelp(entry, actions)
-            RecoveryState.NEEDS_REVIEW, RecoveryState.MISSING, RecoveryState.FAILED, RecoveryState.INTERRUPTED -> {
+            RecoveryState.SELECTED,
+            RecoveryState.NEEDS_REVIEW,
+            RecoveryState.MISSING,
+            RecoveryState.FAILED,
+            RecoveryState.INTERRUPTED,
+            -> {
                 if (entry.choice == null) {
                     entry.candidates.forEach { candidate ->
                         CandidateRow(candidate, sourceNames, selected = candidate == chosen) {
@@ -383,12 +393,16 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
     val summary = state.summary
     LazyColumn(contentPadding = contentPadding) {
         item {
-            val attention = summary.failed + summary.unresolved + summary.unsupported
             Text(
                 text = if (summary.fullyRecovered) {
                     stringResource(MR.strings.recovery_result_full, summary.completed)
                 } else {
-                    stringResource(MR.strings.recovery_result_partial, summary.completed, attention)
+                    stringResource(
+                        MR.strings.recovery_result_partial,
+                        summary.completed,
+                        summary.needsAttention,
+                        summary.skipped,
+                    )
                 },
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(16.dp).semantics { heading() },
@@ -409,7 +423,7 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
             }
         }
         items(state.entries, key = { "result-${it.id}" }) { entry ->
-            val title = state.originals.firstOrNull { it.id == entry.originalId }?.title ?: entry.searchQuery
+            val title = state.titleOf(entry)
             ListItem(
                 headlineContent = { Text(title) },
                 supportingContent = {

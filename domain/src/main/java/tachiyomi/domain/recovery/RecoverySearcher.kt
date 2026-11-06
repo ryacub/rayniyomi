@@ -32,7 +32,7 @@ class RecoverySearcher(
         val entries = repository.getEntries(sessionId).filter { it.id in claimed }
         try {
             searchEntries(entries, session.destinationSourceIds, runToken)
-        } catch (e: CancellationException) {
+        } catch (e: Exception) {
             withContext(NonCancellable) { repository.interruptRun(runToken) }
             throw e
         }
