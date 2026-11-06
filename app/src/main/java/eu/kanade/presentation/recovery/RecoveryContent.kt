@@ -268,6 +268,7 @@ private fun ReviewStep(
                 preview = state.previews[entry.id],
                 previewError = state.previewErrors[entry.id],
                 canApprove = state.canApprove(entry.id),
+                canSearch = state.busy == null,
                 actions = actions,
                 onSearch = { onSearch(entry) },
             )
@@ -286,6 +287,7 @@ private fun ReviewRow(
     preview: RecoveryPreview?,
     previewError: String?,
     canApprove: Boolean,
+    canSearch: Boolean,
     actions: RecoveryActions,
     onSearch: () -> Unit,
 ) {
@@ -322,7 +324,7 @@ private fun ReviewRow(
                         Button(onClick = { actions.approve(entry.id) }, enabled = canApprove) {
                             Text(stringResource(MR.strings.recovery_action_use_match))
                         }
-                        TextButton(onClick = onSearch) {
+                        TextButton(onClick = onSearch, enabled = canSearch) {
                             Text(stringResource(MR.strings.recovery_action_search_manually))
                         }
                         TextButton(onClick = {
