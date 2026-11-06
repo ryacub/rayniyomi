@@ -153,7 +153,21 @@ internal object MangaExtensionLoader {
      *
      * @param context The application context.
      */
-    suspend fun loadMangaExtensions(context: Context): List<MangaLoadResult> {
+    suspend fun loadMangaExtensions(context: Context): List<MangaLoadResult> = coroutineScope {
+        findExtensionPackages(context).map {
+            async { loadMangaExtension(context, it) }
+        }.awaitAll()
+    }
+
+    suspend fun readInstalledExtensions(context: Context): List<MangaExtension.Installed> = coroutineScope {
+        findExtensionPackages(context).map {
+            async { readExtensionMetadata(context, it) }
+        }.awaitAll()
+            .filterIsInstance<MangaLoadResult.Success>()
+            .map { it.extension }
+    }
+
+    private fun findExtensionPackages(context: Context): List<MangaExtensionInfo> {
         val pkgManager = context.packageManager
 
         val installedPkgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -188,7 +202,7 @@ internal object MangaExtensionLoader {
             ?.toList()
             .orEmpty()
 
-        val extPkgs = (sharedExtPkgs + privateExtPkgs)
+        return (sharedExtPkgs + privateExtPkgs)
             // Remove duplicates. Shared takes priority than private by default
             .distinctBy { it.packageInfo.packageName }
             // Compare version number
@@ -198,15 +212,6 @@ internal object MangaExtensionLoader {
                 selectExtensionPackage(sharedPkg, privatePkg)
             }
             .toList()
-
-        if (extPkgs.isEmpty()) return emptyList()
-
-        // Load each extension concurrently and wait for completion
-        return coroutineScope {
-            extPkgs.map {
-                async { loadMangaExtension(context, it) }
-            }.awaitAll()
-        }
     }
 
     /**
@@ -271,6 +276,77 @@ internal object MangaExtensionLoader {
      * @param extensionInfo The extension to load.
      */
     private suspend fun loadMangaExtension(context: Context, extensionInfo: MangaExtensionInfo): MangaLoadResult {
+        val result = readExtensionMetadata(context, extensionInfo)
+        if (result !is MangaLoadResult.Success) return result
+
+        val extension = result.extension
+        val pkgManager = context.packageManager
+        val pkgName = extension.pkgName
+        val extName = extension.name
+        val appInfo = requireNotNull(extensionInfo.packageInfo.applicationInfo)
+        val metadata = requireNotNull(appInfo.metaData)
+        val sourceClassMetadata = metadata.get(METADATA_SOURCE_CLASS) as String
+
+        val classLoader = try {
+            ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($pkgName)" }
+            return loadError(extName, "source class loader failed")
+        }
+
+        val sources = sourceClassMetadata
+            .split(";")
+            .map {
+                val sourceClass = it.trim()
+                if (sourceClass.startsWith(".")) {
+                    pkgName + sourceClass
+                } else {
+                    sourceClass
+                }
+            }
+            .flatMap {
+                instantiateSources(
+                    extensionName = extName,
+                    sourceClass = it,
+                    instantiate = {
+                        when (val obj = Class.forName(it, false, classLoader).getDeclaredConstructor().newInstance()) {
+                            is MangaSource -> listOf(obj)
+                            is SourceFactory -> obj.createSources()
+                            else -> throw Exception("Unknown source class type: ${obj.javaClass}")
+                        }
+                    },
+                    fallback = {
+                        val fallBackClassLoader = PathClassLoader(appInfo.sourceDir, null, context.classLoader)
+                        when (
+                            val obj = Class.forName(
+                                it,
+                                false,
+                                fallBackClassLoader,
+                            ).getDeclaredConstructor().newInstance()
+                        ) {
+                            is MangaSource -> {
+                                listOf(obj)
+                            }
+                            is SourceFactory -> obj.createSources()
+                            else -> throw Exception("Unknown source class type: ${obj.javaClass}")
+                        }
+                    },
+                ) ?: return loadError(extName, "source failed to load")
+            }
+
+        val langs = sources.map { it.lang }.toSet()
+        val lang = when (langs.size) {
+            0 -> ""
+            1 -> langs.first()
+            else -> "all"
+        }
+
+        return MangaLoadResult.Success(
+            extension.copy(sources = sources, lang = lang, icon = appInfo.loadIcon(pkgManager)),
+        )
+    }
+
+    private suspend fun readExtensionMetadata(context: Context, extensionInfo: MangaExtensionInfo): MangaLoadResult {
         val pkgManager = context.packageManager
         val pkgInfo = extensionInfo.packageInfo
         val pkgName = pkgInfo.packageName
@@ -318,7 +394,7 @@ internal object MangaExtensionLoader {
             is Int -> value
             else -> return loadError(extName, "malformed metadata")
         }
-        val sourceClassMetadata = when (val value = metadata.get(METADATA_SOURCE_CLASS)) {
+        when (val value = metadata.get(METADATA_SOURCE_CLASS)) {
             null -> return loadError(extName, "missing source class metadata")
             is String -> value.takeIf { it.isNotBlank() }
                 ?: return loadError(extName, "malformed metadata")
@@ -355,71 +431,17 @@ internal object MangaExtensionLoader {
             return loadError(extName, "NSFW extensions are disabled")
         }
 
-        val classLoader = try {
-            ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($pkgName)" }
-            return loadError(extName, "source class loader failed")
-        }
-
-        val sources = sourceClassMetadata
-            .split(";")
-            .map {
-                val sourceClass = it.trim()
-                if (sourceClass.startsWith(".")) {
-                    pkgInfo.packageName + sourceClass
-                } else {
-                    sourceClass
-                }
-            }
-            .flatMap {
-                instantiateSources(
-                    extensionName = extName,
-                    sourceClass = it,
-                    instantiate = {
-                        when (val obj = Class.forName(it, false, classLoader).getDeclaredConstructor().newInstance()) {
-                            is MangaSource -> listOf(obj)
-                            is SourceFactory -> obj.createSources()
-                            else -> throw Exception("Unknown source class type: ${obj.javaClass}")
-                        }
-                    },
-                    fallback = {
-                        val fallBackClassLoader = PathClassLoader(appInfo.sourceDir, null, context.classLoader)
-                        when (
-                            val obj = Class.forName(
-                                it,
-                                false,
-                                fallBackClassLoader,
-                            ).getDeclaredConstructor().newInstance()
-                        ) {
-                            is MangaSource -> {
-                                listOf(obj)
-                            }
-                            is SourceFactory -> obj.createSources()
-                            else -> throw Exception("Unknown source class type: ${obj.javaClass}")
-                        }
-                    },
-                ) ?: return loadError(extName, "source failed to load")
-            }
-
-        val langs = sources.map { it.lang }.toSet()
-        val lang = when (langs.size) {
-            0 -> ""
-            1 -> langs.first()
-            else -> "all"
-        }
-
         val extension = MangaExtension.Installed(
             name = extName,
             pkgName = pkgName,
             versionName = versionName,
             versionCode = versionCode,
             libVersion = libVersion,
-            lang = lang,
+            lang = "",
             isNsfw = isNsfw,
-            sources = sources,
+            sources = emptyList(),
             pkgFactory = pkgFactory,
-            icon = appInfo.loadIcon(pkgManager),
+            icon = null,
             isShared = extensionInfo.isShared,
             signatureHash = signatureHash,
         )

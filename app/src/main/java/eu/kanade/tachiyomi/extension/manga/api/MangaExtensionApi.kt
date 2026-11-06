@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
-import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
 import eu.kanade.tachiyomi.extension.manga.util.MangaExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.network.GET
@@ -150,9 +149,7 @@ internal class MangaExtensionApi {
 
         val extensions = findExtensions().extensions
 
-        val installedExtensions = MangaExtensionLoader.loadMangaExtensions(context)
-            .filterIsInstance<MangaLoadResult.Success>()
-            .map { it.extension }
+        val installedExtensions = MangaExtensionLoader.readInstalledExtensions(context)
 
         val extensionsWithUpdate = mutableListOf<MangaExtension.Installed>()
         val availableExtensionsByPackage = extensions.groupBy { it.pkgName }
