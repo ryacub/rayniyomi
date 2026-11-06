@@ -2,6 +2,13 @@ package eu.kanade.tachiyomi.ui.recovery
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -25,6 +32,21 @@ class RecoveryScreenModel(
     private val now: () -> Long = System::currentTimeMillis,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StateViewModel<RecoveryScreenModel.State>(State()) {
+
+    @AssistedInject
+    constructor(
+        @Assisted media: RecoveryMedia,
+        @Assisted sourceId: Long?,
+        @Assisted originalIds: List<Long>,
+        backends: RecoveryBackends,
+    ) : this(media, sourceId, originalIds, backends.of(media))
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(media: RecoveryMedia, sourceId: Long?, originalIds: List<Long>): RecoveryScreenModel
+    }
 
     private val repository = backend.repository
     private val searcher = RecoverySearcher(repository, backend.search)
