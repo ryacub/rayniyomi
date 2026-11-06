@@ -48,6 +48,7 @@ class MoreTabSettingsEntryAndroidTest {
         composeRule.onNodeWithText(SETTINGS).performClick()
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
+        assertEquals(2, rootNavigator.size)
 
         composeRule.onNodeWithContentDescription(NAVIGATE_UP).performClick()
         composeRule.waitForIdle()
