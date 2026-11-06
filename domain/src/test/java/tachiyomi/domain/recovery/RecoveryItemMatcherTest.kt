@@ -19,8 +19,8 @@ class RecoveryItemMatcherTest {
 
         assertEquals(
             listOf(
-                RecoveryItemPair("o0", "d1", copyPosition = false),
-                RecoveryItemPair("o1", "d0", copyPosition = false),
+                RecoveryItemPair("o0", "d1"),
+                RecoveryItemPair("o1", "d0"),
             ),
             pairs,
         )
@@ -37,7 +37,7 @@ class RecoveryItemMatcherTest {
     fun `unrecognized numbers stay unmapped`() {
         val pairs = RecoveryItemMatcher.suggest(items("o", -1.0, 4.0), items("d", -1.0, 4.0))
 
-        assertEquals(listOf(RecoveryItemPair("o1", "d1", copyPosition = false)), pairs)
+        assertEquals(listOf(RecoveryItemPair("o1", "d1")), pairs)
     }
 
     @Test

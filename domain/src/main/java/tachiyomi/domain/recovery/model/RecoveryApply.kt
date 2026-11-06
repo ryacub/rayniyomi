@@ -40,7 +40,6 @@ data class RecoveryItem(
 data class RecoveryItemPair(
     val originalUrl: String,
     val destinationUrl: String,
-    val copyPosition: Boolean,
 )
 
 data class RecoveryTrack(

@@ -85,7 +85,7 @@ class RecoveryScreenModelTest {
 
         override suspend fun preview(originalId: Long, candidate: RecoveryCandidate) = RecoveryPreview(
             destination = destination(candidate),
-            pairs = listOf(RecoveryItemPair("o1", "d1", copyPosition = false)),
+            pairs = listOf(RecoveryItemPair("o1", "d1")),
             originalItemCount = 2,
         )
 
@@ -189,9 +189,9 @@ class RecoveryScreenModelTest {
             model.approve(entry.id)
             val approved = model.awaitState { s -> s.entries.single().state == RecoveryState.READY }
 
-            assertEquals(listOf(RecoveryItemPair("o1", "d1", false)), previewed.previews.getValue(entry.id).pairs)
+            assertEquals(listOf(RecoveryItemPair("o1", "d1")), previewed.previews.getValue(entry.id).pairs)
             assertEquals(RecoveryCandidate(20, "/m/1", "/m/1"), approved.entries.single().choice)
-            assertEquals(listOf(RecoveryItemPair("o1", "d1", false)), approved.entries.single().pairs)
+            assertEquals(listOf(RecoveryItemPair("o1", "d1")), approved.entries.single().pairs)
         }
     }
 

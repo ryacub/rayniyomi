@@ -147,7 +147,7 @@ class RecoverySearcherTest {
         MangaRecoveryDb().use { db ->
             val (repository, sessionId) = db.session(RecoveryState.NEEDS_REVIEW)
             val entryId = repository.entry(sessionId, 1).id
-            val pairs = listOf(RecoveryItemPair("o1", "d1", copyPosition = true))
+            val pairs = listOf(RecoveryItemPair("o1", "d1"))
 
             repository.approve(entryId, candidate(20, "/m/1"), pairs)
             val approved = repository.entry(sessionId, 1)

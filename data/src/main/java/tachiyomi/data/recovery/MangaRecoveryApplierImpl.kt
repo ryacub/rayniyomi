@@ -160,7 +160,6 @@ class MangaRecoveryApplierImpl(
             recoveryQueries.mergeItemState(
                 read = from.read,
                 bookmark = from.bookmark,
-                lastPageRead = if (pair.copyPosition) from.last_page_read else 0,
                 itemId = to._id,
             )
             recoveryQueries.mergeHistory(destinationItemId = to._id, originalItemId = from._id)

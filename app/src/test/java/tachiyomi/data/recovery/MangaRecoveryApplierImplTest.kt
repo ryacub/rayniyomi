@@ -45,7 +45,6 @@ class MangaRecoveryApplierImplTest {
         items: List<RecoveryItem> = listOf(item("d1", 1.0), item("d2", 2.0), item("d3", 3.0)),
         tracks: List<RecoveryTrack> = emptyList(),
         keepOriginal: Boolean = true,
-        copyPosition: Boolean = false,
         destinationSource: Long = 20,
         destinationUrl: String = "/m/1",
     ) = RecoveryApplyRequest(
@@ -58,7 +57,7 @@ class MangaRecoveryApplierImplTest {
             title = "Destination",
             items = items,
         ),
-        pairs = pairs.map { (from, to) -> RecoveryItemPair(from, to, copyPosition) },
+        pairs = pairs.map { (from, to) -> RecoveryItemPair(from, to) },
         tracks = tracks,
         keepOriginal = keepOriginal,
         now = 5_000,
@@ -175,20 +174,15 @@ class MangaRecoveryApplierImplTest {
     }
 
     @Test
-    fun `a page position moves only when the pair allows it`() = runTest {
+    fun `a page position stays on the original`() = runTest {
         MangaRecoveryDb().use { db ->
             val f = db.fixture()
             db.insertChapter(11, originalId, "o1", 1.0, lastPageRead = 12)
 
-            f.applier.apply(f.request(pairs = listOf("o1" to "d1"), copyPosition = false))
+            f.applier.apply(f.request(pairs = listOf("o1" to "d1")))
+
             assertEquals(0L, db.chapterValue(f.destinationId(), "d1", "last_page_read"))
-        }
-        MangaRecoveryDb().use { db ->
-            val f = db.fixture()
-            db.insertChapter(11, originalId, "o1", 1.0, lastPageRead = 12)
-
-            f.applier.apply(f.request(pairs = listOf("o1" to "d1"), copyPosition = true))
-            assertEquals(12L, db.chapterValue(f.destinationId(), "d1", "last_page_read"))
+            assertEquals(12L, db.chapterValue(originalId, "o1", "last_page_read"))
         }
     }
 

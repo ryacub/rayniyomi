@@ -11,7 +11,7 @@ object RecoveryItemMatcher {
         return original.mapNotNull { item ->
             if (originalByNumber[item.number] !== item) return@mapNotNull null
             val match = destinationByNumber[item.number] ?: return@mapNotNull null
-            RecoveryItemPair(originalUrl = item.url, destinationUrl = match.url, copyPosition = false)
+            RecoveryItemPair(originalUrl = item.url, destinationUrl = match.url)
         }
     }
 

@@ -105,13 +105,12 @@ INSERT INTO chapters(manga_id, url, name, scanlator, read, bookmark, last_page_r
 VALUES (:mangaId, :url, :name, :scanlator, 0, 0, 0, :number, :sourceOrder, :dateFetch, :dateUpload);
 
 getItemState:
-SELECT _id, read, bookmark, last_page_read FROM chapters WHERE manga_id = :mangaId AND url = :url LIMIT 1;
+SELECT _id, read, bookmark FROM chapters WHERE manga_id = :mangaId AND url = :url LIMIT 1;
 
 mergeItemState:
 UPDATE chapters SET
     read = read OR :read,
-    bookmark = bookmark OR :bookmark,
-    last_page_read = CASE WHEN read = 0 AND last_page_read = 0 THEN :lastPageRead ELSE last_page_read END
+    bookmark = bookmark OR :bookmark
 WHERE _id = :itemId;
 
 mergeHistory:

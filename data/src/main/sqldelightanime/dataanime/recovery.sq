@@ -105,13 +105,12 @@ INSERT INTO episodes(anime_id, url, name, scanlator, seen, bookmark, last_second
 VALUES (:animeId, :url, :name, :scanlator, 0, 0, 0, 0, :number, :sourceOrder, :dateFetch, :dateUpload, 0);
 
 getItemState:
-SELECT _id, seen, bookmark, last_second_seen FROM episodes WHERE anime_id = :animeId AND url = :url LIMIT 1;
+SELECT _id, seen, bookmark FROM episodes WHERE anime_id = :animeId AND url = :url LIMIT 1;
 
 mergeItemState:
 UPDATE episodes SET
     seen = seen OR :seen,
-    bookmark = bookmark OR :bookmark,
-    last_second_seen = CASE WHEN seen = 0 AND last_second_seen = 0 THEN :lastSecondSeen ELSE last_second_seen END
+    bookmark = bookmark OR :bookmark
 WHERE _id = :itemId;
 
 mergeHistory:
