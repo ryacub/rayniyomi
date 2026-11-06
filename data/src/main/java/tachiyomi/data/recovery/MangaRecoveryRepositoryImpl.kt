@@ -69,10 +69,12 @@ class MangaRecoveryRepositoryImpl(
         runToken: String,
         state: RecoveryState,
         candidates: List<RecoveryCandidate>,
+        searchErrors: Map<Long, String>,
     ): Boolean = handler.await {
         recoveryQueries.saveSearchResult(
             state = state.name,
             candidates = RecoveryCodec.encodeCandidates(candidates),
+            searchErrors = RecoveryCodec.encodeErrors(searchErrors),
             entryId = entryId,
             runToken = runToken,
             searchingState = RecoveryState.SEARCHING.name,

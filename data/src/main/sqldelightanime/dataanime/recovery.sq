@@ -15,6 +15,7 @@ CREATE TABLE recovery_entries(
     state TEXT NOT NULL,
     search_query TEXT NOT NULL,
     candidates TEXT NOT NULL DEFAULT '[]',
+    search_errors TEXT NOT NULL DEFAULT '{}',
     choice TEXT,
     pairs TEXT NOT NULL DEFAULT '[]',
     result_id INTEGER,
@@ -65,7 +66,7 @@ UPDATE recovery_entries SET state = :toState, run_token = :runToken
 WHERE _id IN :entryIds AND selected = 1 AND state IN :fromStates;
 
 saveSearchResult:
-UPDATE recovery_entries SET state = :state, candidates = :candidates, run_token = NULL
+UPDATE recovery_entries SET state = :state, candidates = :candidates, search_errors = :searchErrors, run_token = NULL
 WHERE _id = :entryId AND run_token = :runToken AND state = :searchingState;
 
 interruptRun:
@@ -87,7 +88,7 @@ getOriginal:
 SELECT favorite, viewer, episode_flags, date_added, fetch_type FROM animes WHERE _id = :animeId;
 
 findDestination:
-SELECT _id, favorite FROM animes WHERE source = :source AND url = :url ORDER BY favorite DESC, _id LIMIT 1;
+SELECT _id, favorite, fetch_type FROM animes WHERE source = :source AND url = :url ORDER BY favorite DESC, _id LIMIT 1;
 
 insertDestination:
 INSERT INTO animes(source, url, artist, author, description, genre, title, status, thumbnail_url, favorite, initialized, viewer, episode_flags, cover_last_modified, date_added, season_flags, season_number, season_source_order, background_last_modified)

@@ -58,6 +58,9 @@ class AnimeRecoveryApplierImpl(
         val target = request.destination
 
         val existing = recoveryQueries.findDestination(target.sourceId, target.url).executeAsOneOrNull()
+        if (target.seasons || existing?.fetch_type == FetchType.Seasons) {
+            throw RecoveryReview(RecoveryReviewReason.SEASONS_CANDIDATE)
+        }
         val destinationId = existing?._id ?: run {
             recoveryQueries.insertDestination(
                 source = target.sourceId,
@@ -158,11 +161,8 @@ class AnimeRecoveryApplierImpl(
     private fun AnimeDatabase.mergePairs(request: RecoveryApplyRequest, destinationId: Long) {
         request.pairs.forEach { pair ->
             val from = recoveryQueries.getItemState(request.originalId, pair.originalUrl).executeAsOneOrNull()
-                ?: return@forEach
-            val to =
-                checkNotNull(recoveryQueries.getItemState(destinationId, pair.destinationUrl).executeAsOneOrNull()) {
-                    "Destination item ${pair.destinationUrl} is missing"
-                }
+            val to = recoveryQueries.getItemState(destinationId, pair.destinationUrl).executeAsOneOrNull()
+            if (from == null || to == null) throw RecoveryReview(RecoveryReviewReason.MAPPING_CHANGED)
             recoveryQueries.mergeItemState(
                 seen = from.seen,
                 bookmark = from.bookmark,

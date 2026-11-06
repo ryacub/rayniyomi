@@ -13,6 +13,7 @@ CREATE TABLE recovery_entries(
     state TEXT NOT NULL,
     search_query TEXT NOT NULL,
     candidates TEXT NOT NULL DEFAULT '[]',
+    search_errors TEXT NOT NULL DEFAULT '{}',
     choice TEXT,
     pairs TEXT NOT NULL DEFAULT '[]',
     result_id INTEGER,

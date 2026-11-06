@@ -10,6 +10,7 @@ data class RecoveryEntry(
     val state: RecoveryState,
     val searchQuery: String,
     val candidates: List<RecoveryCandidate>,
+    val searchErrors: Map<Long, String>,
     val choice: RecoveryCandidate?,
     val pairs: List<RecoveryItemPair>,
     val resultId: Long?,

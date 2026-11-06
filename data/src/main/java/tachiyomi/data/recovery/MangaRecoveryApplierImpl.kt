@@ -155,11 +155,8 @@ class MangaRecoveryApplierImpl(
     private fun Database.mergePairs(request: RecoveryApplyRequest, destinationId: Long) {
         request.pairs.forEach { pair ->
             val from = recoveryQueries.getItemState(request.originalId, pair.originalUrl).executeAsOneOrNull()
-                ?: return@forEach
-            val to =
-                checkNotNull(recoveryQueries.getItemState(destinationId, pair.destinationUrl).executeAsOneOrNull()) {
-                    "Destination item ${pair.destinationUrl} is missing"
-                }
+            val to = recoveryQueries.getItemState(destinationId, pair.destinationUrl).executeAsOneOrNull()
+            if (from == null || to == null) throw RecoveryReview(RecoveryReviewReason.MAPPING_CHANGED)
             recoveryQueries.mergeItemState(
                 read = from.read,
                 bookmark = from.bookmark,

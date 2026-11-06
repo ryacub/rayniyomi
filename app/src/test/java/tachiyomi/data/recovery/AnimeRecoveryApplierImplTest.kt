@@ -10,6 +10,7 @@ import tachiyomi.domain.recovery.model.RecoveryApplyResult
 import tachiyomi.domain.recovery.model.RecoveryDestination
 import tachiyomi.domain.recovery.model.RecoveryItem
 import tachiyomi.domain.recovery.model.RecoveryItemPair
+import tachiyomi.domain.recovery.model.RecoveryReviewReason
 import tachiyomi.domain.recovery.model.RecoveryState
 
 class AnimeRecoveryApplierImplTest {
@@ -41,6 +42,7 @@ class AnimeRecoveryApplierImplTest {
             items = listOf(1.0, 2.0, 3.0).map {
                 RecoveryItem(url = "d${it.toInt()}", name = "Episode $it", number = it)
             },
+            seasons = seasons,
         ),
         pairs = listOf("o1" to "d1", "o2" to "d2", "o3" to "d3").map { (from, to) ->
             RecoveryItemPair(from, to, copyPosition = from in copyPosition)
@@ -95,7 +97,7 @@ class AnimeRecoveryApplierImplTest {
 
             val result = AnimeRecoveryApplierImpl(db.handler).apply(request(entryId, emptySet(), seasons = true))
 
-            assertEquals(RecoveryApplyResult.Unsupported, result)
+            assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.SEASONS_CANDIDATE), result)
             assertTrue(db.driver.longs("SELECT _id FROM animes WHERE source = 20").isEmpty())
         }
     }
@@ -109,9 +111,12 @@ class AnimeRecoveryApplierImplTest {
 
             val result = AnimeRecoveryApplierImpl(db.handler).apply(request(entryId, emptySet()))
 
-            assertEquals(RecoveryApplyResult.Unsupported, result)
+            assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.SEASONS_CANDIDATE), result)
             assertTrue(db.driver.longs("SELECT _id FROM episodes WHERE anime_id = 2").isEmpty())
-            assertEquals(listOf("UNSUPPORTED"), db.driver.strings("SELECT state FROM recovery_entries WHERE _id = $entryId"))
+            assertEquals(
+                listOf("NEEDS_REVIEW"),
+                db.driver.strings("SELECT state FROM recovery_entries WHERE _id = $entryId"),
+            )
         }
     }
 }

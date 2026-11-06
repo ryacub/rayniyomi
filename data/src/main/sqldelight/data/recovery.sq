@@ -15,6 +15,7 @@ CREATE TABLE recovery_entries(
     state TEXT NOT NULL,
     search_query TEXT NOT NULL,
     candidates TEXT NOT NULL DEFAULT '[]',
+    search_errors TEXT NOT NULL DEFAULT '{}',
     choice TEXT,
     pairs TEXT NOT NULL DEFAULT '[]',
     result_id INTEGER,
@@ -65,7 +66,7 @@ UPDATE recovery_entries SET state = :toState, run_token = :runToken
 WHERE _id IN :entryIds AND selected = 1 AND state IN :fromStates;
 
 saveSearchResult:
-UPDATE recovery_entries SET state = :state, candidates = :candidates, run_token = NULL
+UPDATE recovery_entries SET state = :state, candidates = :candidates, search_errors = :searchErrors, run_token = NULL
 WHERE _id = :entryId AND run_token = :runToken AND state = :searchingState;
 
 interruptRun:

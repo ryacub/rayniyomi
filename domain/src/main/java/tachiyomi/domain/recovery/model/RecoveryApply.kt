@@ -18,6 +18,7 @@ data class RecoveryDestination(
     val url: String,
     val title: String,
     val items: List<RecoveryItem>,
+    val seasons: Boolean = false,
     val artist: String? = null,
     val author: String? = null,
     val description: String? = null,
@@ -62,6 +63,8 @@ enum class RecoveryReviewReason {
     SHARED_DESTINATION,
     DESTINATION_IS_ORIGINAL,
     TRACKER_CONFLICT,
+    MAPPING_CHANGED,
+    SEASONS_CANDIDATE,
 }
 
 sealed interface RecoveryApplyResult {

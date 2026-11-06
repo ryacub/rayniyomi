@@ -19,6 +19,11 @@ internal object RecoveryCodec {
     fun decodeCandidates(value: String): List<RecoveryCandidate> =
         runCatching { json.decodeFromString<List<RecoveryCandidate>>(value) }.getOrDefault(emptyList())
 
+    fun encodeErrors(errors: Map<Long, String>): String = json.encodeToString(errors)
+
+    fun decodeErrors(value: String): Map<Long, String> =
+        runCatching { json.decodeFromString<Map<Long, String>>(value) }.getOrDefault(emptyMap())
+
     fun encodeChoice(choice: RecoveryCandidate): String = json.encodeToString(choice)
 
     fun decodeChoice(value: String?): RecoveryCandidate? =
@@ -40,6 +45,7 @@ internal object RecoveryCodec {
         state: String,
         searchQuery: String,
         candidates: String,
+        searchErrors: String,
         choice: String?,
         pairs: String,
         resultId: Long?,
@@ -53,6 +59,7 @@ internal object RecoveryCodec {
         state = RecoveryState.entries.firstOrNull { it.name == state } ?: RecoveryState.INTERRUPTED,
         searchQuery = searchQuery,
         candidates = decodeCandidates(candidates),
+        searchErrors = decodeErrors(searchErrors),
         choice = decodeChoice(choice),
         pairs = decodePairs(pairs),
         resultId = resultId,

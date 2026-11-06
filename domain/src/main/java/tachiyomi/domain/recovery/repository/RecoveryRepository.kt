@@ -39,6 +39,7 @@ interface RecoveryRepository {
         runToken: String,
         state: RecoveryState,
         candidates: List<RecoveryCandidate>,
+        searchErrors: Map<Long, String> = emptyMap(),
     ): Boolean
 
     suspend fun claimForSearch(sessionId: Long, runToken: String): List<Long>

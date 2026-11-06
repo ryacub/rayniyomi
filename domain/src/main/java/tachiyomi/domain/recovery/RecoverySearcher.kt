@@ -31,7 +31,7 @@ class RecoverySearcher(
             entries.map { entry ->
                 async {
                     val outcome = searchAll(session.destinationSourceIds, entry.searchQuery)
-                    repository.saveSearchResult(entry.id, runToken, outcome.state, outcome.candidates)
+                    repository.saveSearchResult(entry.id, runToken, outcome.state, outcome.candidates, outcome.errors)
                 }
             }.awaitAll()
         }
@@ -42,23 +42,30 @@ class RecoverySearcher(
             async {
                 permits.withPermit {
                     try {
-                        search.search(sourceId, query).take(maxResultsPerSource)
+                        Result.success(search.search(sourceId, query).take(maxResultsPerSource))
                     } catch (e: CancellationException) {
                         throw e
-                    } catch (_: Exception) {
-                        null
+                    } catch (e: Exception) {
+                        Result.failure(e)
                     }
                 }
             }
         }.awaitAll()
-        val candidates = perSource.filterNotNull().flatten()
+        val candidates = perSource.mapNotNull { it.getOrNull() }.flatten()
+        val errors = sourceIds.zip(perSource).mapNotNull { (sourceId, result) ->
+            result.exceptionOrNull()?.let { sourceId to (it.message ?: it::class.simpleName.orEmpty()) }
+        }.toMap()
         val state = when {
             candidates.isNotEmpty() -> RecoveryState.NEEDS_REVIEW
-            perSource.all { it == null } -> RecoveryState.FAILED
+            errors.size == sourceIds.size -> RecoveryState.FAILED
             else -> RecoveryState.MISSING
         }
-        Outcome(state, candidates)
+        Outcome(state, candidates, errors)
     }
 
-    private data class Outcome(val state: RecoveryState, val candidates: List<RecoveryCandidate>)
+    private data class Outcome(
+        val state: RecoveryState,
+        val candidates: List<RecoveryCandidate>,
+        val errors: Map<Long, String>,
+    )
 }
