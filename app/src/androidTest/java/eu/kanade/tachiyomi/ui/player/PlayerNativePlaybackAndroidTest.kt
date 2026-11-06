@@ -138,6 +138,8 @@ class PlayerNativePlaybackAndroidTest {
 
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, media)
         val player = playerViewModel()
+        awaitCondition("Initial player setup did not complete") { !player.isLoadingEpisode.value }
+        instrumentation.runOnMainSync { }
         loadUnloadGate()
         instrumentation.runOnMainSync { player.unpause() }
         MPVLib.command(arrayOf("seek", "5", "absolute+exact"))
@@ -158,6 +160,8 @@ class PlayerNativePlaybackAndroidTest {
         trace.awaitError(missing)
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, media, after = eventCountBeforeRecovery)
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_PLAYBACK_RESTART, media, after = eventCountBeforeRecovery)
+        awaitCondition("Recovery setup did not complete") { !player.isLoadingEpisode.value }
+        instrumentation.runOnMainSync { }
 
         val recoveredPosition = MPVLib.getPropertyDouble("time-pos") ?: error("MPV time-pos unavailable after recovery")
         assertEquals("Recovery changed the saved position", retainedPosition, recoveredPosition, 0.5)
