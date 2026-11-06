@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
+import cafe.adriel.voyager.navigator.NavigatorDisposeBehavior
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
@@ -34,7 +35,13 @@ class MoreTabSettingsEntryAndroidTest {
         composeRule.setContent {
             MaterialTheme {
                 CompositionLocalProvider(LocalMetroViewModelFactory provides appGraph.metroViewModelFactory) {
-                    Navigator(HomeHostScreen) { navigator ->
+                    Navigator(
+                        screen = HomeHostScreen,
+                        disposeBehavior = NavigatorDisposeBehavior(
+                            disposeNestedNavigators = false,
+                            disposeSteps = true,
+                        ),
+                    ) { navigator ->
                         rootNavigator = navigator
                         DefaultNavigatorScreenTransition(navigator = navigator)
                     }
