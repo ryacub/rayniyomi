@@ -60,7 +60,12 @@ class RecoverySearcherTest {
     fun `a failing source keeps the results of the other source`() = runTest {
         MangaRecoveryDb().use { db ->
             val (repository, sessionId) = db.session(RecoveryState.SELECTED)
-            val search = FakeSearch(mapOf(20L to { throw IOException("timeout") }, 30L to { listOf(candidate(30, "/m/9")) }))
+            val search = FakeSearch(
+                mapOf(
+                    20L to { throw IOException("timeout") },
+                    30L to { listOf(candidate(30, "/m/9")) },
+                ),
+            )
 
             RecoverySearcher(repository, search).run(sessionId, "run")
 
@@ -171,8 +176,8 @@ class RecoverySearcherTest {
             repository.claim(listOf(ids.getValue(3)), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "old")
             repository.interruptRun("old")
 
-            val forApply = repository.claimForApply(sessionId, "apply")
             val forSearch = repository.claimForSearch(sessionId, "search")
+            val forApply = repository.claimForApply(sessionId, "apply")
 
             assertEquals(listOf(ids.getValue(1), ids.getValue(2)), forApply.sorted())
             assertEquals(listOf(ids.getValue(3)), forSearch)

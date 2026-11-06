@@ -11,6 +11,7 @@ data class RecoveryEntry(
     val searchQuery: String,
     val candidates: List<RecoveryCandidate>,
     val choice: RecoveryCandidate?,
+    val pairs: List<RecoveryItemPair>,
     val resultId: Long?,
     val error: String?,
     val runToken: String?,
@@ -27,4 +28,9 @@ data class RecoveryCandidate(
     val sourceId: Long,
     val url: String,
     val title: String,
+)
+
+data class RecoveryIdentity(
+    val sourceId: Long,
+    val url: String,
 )

@@ -1,5 +1,7 @@
 package tachiyomi.domain.recovery.model
 
+import kotlinx.serialization.Serializable
+
 data class RecoveryApplyRequest(
     val entryId: Long,
     val runToken: String,
@@ -33,6 +35,7 @@ data class RecoveryItem(
     val sourceOrder: Long = 0,
 )
 
+@Serializable
 data class RecoveryItemPair(
     val originalUrl: String,
     val destinationUrl: String,
@@ -56,6 +59,8 @@ data class RecoveryTrack(
 
 enum class RecoveryReviewReason {
     SELF_TARGET,
+    SHARED_DESTINATION,
+    DESTINATION_IS_ORIGINAL,
     TRACKER_CONFLICT,
 }
 

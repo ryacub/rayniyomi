@@ -7,9 +7,11 @@ import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.domain.recovery.model.NewRecoveryEntry
 import tachiyomi.domain.recovery.model.RecoveryCandidate
 import tachiyomi.domain.recovery.model.RecoveryEntry
+import tachiyomi.domain.recovery.model.RecoveryItemPair
 import tachiyomi.domain.recovery.model.RecoverySession
 import tachiyomi.domain.recovery.model.RecoveryState
 import tachiyomi.domain.recovery.repository.RecoveryRepository
+import tachiyomi.mi.data.AnimeDatabase
 
 class AnimeRecoveryRepositoryImpl(
     private val handler: AnimeDatabaseHandler,
@@ -75,6 +77,53 @@ class AnimeRecoveryRepositoryImpl(
             runToken = runToken,
             searchingState = RecoveryState.SEARCHING.name,
         ).value == 1L
+    }
+
+    override suspend fun claimForSearch(sessionId: Long, runToken: String): List<Long> =
+        claimWhere(runToken, RecoveryState.SEARCHING) {
+            recoveryQueries.claimableForSearch(sessionId, RecoveryCodec.names(RecoveryState.searchable)).executeAsList()
+        }
+
+    override suspend fun claimForApply(sessionId: Long, runToken: String): List<Long> =
+        claimWhere(runToken, RecoveryState.APPLYING) {
+            recoveryQueries.claimableForApply(sessionId, RecoveryCodec.names(RecoveryState.applicable)).executeAsList()
+        }
+
+    override suspend fun approve(entryId: Long, choice: RecoveryCandidate, pairs: List<RecoveryItemPair>): Boolean =
+        handler.await {
+            recoveryQueries.approve(
+                choice = RecoveryCodec.encodeChoice(choice),
+                pairs = RecoveryCodec.encodePairs(pairs),
+                readyState = RecoveryState.READY.name,
+                entryId = entryId,
+                lockedStates = RecoveryCodec.names(RecoveryState.locked),
+            ).value == 1L
+        }
+
+    override suspend fun reopen(entryId: Long): Boolean = handler.await {
+        recoveryQueries.reopen(
+            reviewState = RecoveryState.NEEDS_REVIEW.name,
+            entryId = entryId,
+            lockedStates = RecoveryCodec.names(RecoveryState.locked),
+        ).value == 1L
+    }
+
+    override suspend fun skip(entryId: Long): Boolean = handler.await {
+        recoveryQueries.skip(
+            skippedState = RecoveryState.SKIPPED.name,
+            entryId = entryId,
+            lockedStates = RecoveryCodec.names(RecoveryState.locked),
+        ).value == 1L
+    }
+
+    private suspend fun claimWhere(
+        runToken: String,
+        to: RecoveryState,
+        select: AnimeDatabase.() -> List<Long>,
+    ): List<Long> = handler.await(inTransaction = true) {
+        val ids = select()
+        recoveryQueries.claim(to.name, runToken, ids, RecoveryCodec.names(RecoveryState.entries.toSet()))
+        ids
     }
 
     override suspend fun interruptRun(runToken: String): Int = handler.await {

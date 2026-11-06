@@ -3,6 +3,7 @@ package tachiyomi.data.recovery
 import kotlinx.serialization.json.Json
 import tachiyomi.domain.recovery.model.RecoveryCandidate
 import tachiyomi.domain.recovery.model.RecoveryEntry
+import tachiyomi.domain.recovery.model.RecoveryItemPair
 import tachiyomi.domain.recovery.model.RecoveryState
 
 internal object RecoveryCodec {
@@ -18,8 +19,15 @@ internal object RecoveryCodec {
     fun decodeCandidates(value: String): List<RecoveryCandidate> =
         runCatching { json.decodeFromString<List<RecoveryCandidate>>(value) }.getOrDefault(emptyList())
 
+    fun encodeChoice(choice: RecoveryCandidate): String = json.encodeToString(choice)
+
     fun decodeChoice(value: String?): RecoveryCandidate? =
         value?.let { runCatching { json.decodeFromString<RecoveryCandidate>(it) }.getOrNull() }
+
+    fun encodePairs(pairs: List<RecoveryItemPair>): String = json.encodeToString(pairs)
+
+    fun decodePairs(value: String): List<RecoveryItemPair> =
+        runCatching { json.decodeFromString<List<RecoveryItemPair>>(value) }.getOrDefault(emptyList())
 
     fun names(states: Set<RecoveryState>): List<String> = states.map { it.name }
 
@@ -33,6 +41,7 @@ internal object RecoveryCodec {
         searchQuery: String,
         candidates: String,
         choice: String?,
+        pairs: String,
         resultId: Long?,
         error: String?,
         runToken: String?,
@@ -45,6 +54,7 @@ internal object RecoveryCodec {
         searchQuery = searchQuery,
         candidates = decodeCandidates(candidates),
         choice = decodeChoice(choice),
+        pairs = decodePairs(pairs),
         resultId = resultId,
         error = error,
         runToken = runToken,

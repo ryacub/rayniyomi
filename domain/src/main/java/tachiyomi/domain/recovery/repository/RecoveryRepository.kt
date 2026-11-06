@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.recovery.model.NewRecoveryEntry
 import tachiyomi.domain.recovery.model.RecoveryCandidate
 import tachiyomi.domain.recovery.model.RecoveryEntry
+import tachiyomi.domain.recovery.model.RecoveryItemPair
 import tachiyomi.domain.recovery.model.RecoverySession
 import tachiyomi.domain.recovery.model.RecoveryState
 
@@ -39,6 +40,16 @@ interface RecoveryRepository {
         state: RecoveryState,
         candidates: List<RecoveryCandidate>,
     ): Boolean
+
+    suspend fun claimForSearch(sessionId: Long, runToken: String): List<Long>
+
+    suspend fun claimForApply(sessionId: Long, runToken: String): List<Long>
+
+    suspend fun approve(entryId: Long, choice: RecoveryCandidate, pairs: List<RecoveryItemPair>): Boolean
+
+    suspend fun reopen(entryId: Long): Boolean
+
+    suspend fun skip(entryId: Long): Boolean
 
     suspend fun interruptRun(runToken: String): Int
 

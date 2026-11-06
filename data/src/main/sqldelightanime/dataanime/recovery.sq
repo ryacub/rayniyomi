@@ -16,6 +16,7 @@ CREATE TABLE recovery_entries(
     search_query TEXT NOT NULL,
     candidates TEXT NOT NULL DEFAULT '[]',
     choice TEXT,
+    pairs TEXT NOT NULL DEFAULT '[]',
     result_id INTEGER,
     error TEXT,
     run_token TEXT,
@@ -128,3 +129,23 @@ SELECT sync_id, remote_id FROM anime_sync WHERE anime_id = :animeId;
 insertTrackIfMissing:
 INSERT OR IGNORE INTO anime_sync(anime_id, sync_id, remote_id, library_id, title, last_episode_seen, total_episodes, status, score, remote_url, start_date, finish_date, private)
 VALUES (:animeId, :syncId, :remoteId, :libraryId, :title, :lastProgress, :totalItems, :status, :score, :remoteUrl, :startDate, :finishDate, :private);
+
+claimableForSearch:
+SELECT _id FROM recovery_entries
+WHERE session_id = :sessionId AND selected = 1 AND choice IS NULL AND state IN :states;
+
+claimableForApply:
+SELECT _id FROM recovery_entries
+WHERE session_id = :sessionId AND selected = 1 AND choice IS NOT NULL AND state IN :states;
+
+approve:
+UPDATE recovery_entries SET choice = :choice, pairs = :pairs, state = :readyState, error = NULL
+WHERE _id = :entryId AND state NOT IN :lockedStates;
+
+reopen:
+UPDATE recovery_entries SET choice = NULL, pairs = '[]', state = :reviewState
+WHERE _id = :entryId AND state NOT IN :lockedStates;
+
+skip:
+UPDATE recovery_entries SET state = :skippedState
+WHERE _id = :entryId AND state NOT IN :lockedStates;
