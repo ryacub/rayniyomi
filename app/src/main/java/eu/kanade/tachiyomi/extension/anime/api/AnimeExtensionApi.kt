@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.ExtensionCatalog
 import eu.kanade.tachiyomi.extension.ExtensionUpdateNotifier
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
-import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
 import eu.kanade.tachiyomi.extension.anime.util.AnimeExtensionLoader
 import eu.kanade.tachiyomi.extension.selectPreferredExtensionCandidate
 import eu.kanade.tachiyomi.network.GET
@@ -75,9 +74,7 @@ internal class AnimeExtensionApi {
 
         val extensions = findExtensions().extensions
 
-        val installedExtensions = AnimeExtensionLoader.loadExtensions(context)
-            .filterIsInstance<AnimeLoadResult.Success>()
-            .map { it.extension }
+        val installedExtensions = AnimeExtensionLoader.readInstalledExtensions(context)
 
         val extensionsWithUpdate = mutableListOf<AnimeExtension.Installed>()
         val availableExtensionsByPackage = extensions.groupBy { it.pkgName }
