@@ -72,6 +72,7 @@ class RecoverySearcherTest {
             val entry = repository.entry(sessionId, 1)
             assertEquals(RecoveryState.NEEDS_REVIEW, entry.state)
             assertEquals(listOf(candidate(30, "/m/9")), entry.candidates)
+            assertEquals(mapOf(20L to "timeout"), entry.searchErrors)
         }
     }
 
@@ -95,7 +96,9 @@ class RecoverySearcherTest {
 
             RecoverySearcher(repository, search).run(sessionId, "run")
 
-            assertEquals(RecoveryState.FAILED, repository.entry(sessionId, 1).state)
+            val entry = repository.entry(sessionId, 1)
+            assertEquals(RecoveryState.FAILED, entry.state)
+            assertEquals(mapOf(20L to "a", 30L to "b"), entry.searchErrors)
         }
     }
 

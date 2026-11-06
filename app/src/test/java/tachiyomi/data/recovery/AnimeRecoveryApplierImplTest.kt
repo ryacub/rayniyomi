@@ -30,7 +30,7 @@ class AnimeRecoveryApplierImplTest {
         return entryId
     }
 
-    private fun request(entryId: Long, copyPosition: Set<String>) = RecoveryApplyRequest(
+    private fun request(entryId: Long, copyPosition: Set<String>, seasons: Boolean = false) = RecoveryApplyRequest(
         entryId = entryId,
         runToken = "run",
         originalId = originalId,
@@ -85,6 +85,33 @@ class AnimeRecoveryApplierImplTest {
                 listOf("UNSUPPORTED"),
                 db.driver.strings("SELECT state FROM recovery_entries WHERE _id = $entryId"),
             )
+        }
+    }
+
+    @Test
+    fun `a season-type candidate is never applied`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+
+            val result = AnimeRecoveryApplierImpl(db.handler).apply(request(entryId, emptySet(), seasons = true))
+
+            assertEquals(RecoveryApplyResult.Unsupported, result)
+            assertTrue(db.driver.longs("SELECT _id FROM animes WHERE source = 20").isEmpty())
+        }
+    }
+
+    @Test
+    fun `an existing season-type destination row is never applied`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+            db.insertAnime(2, source = 20, url = "/a/1")
+            db.setSeasonsFetchType(2)
+
+            val result = AnimeRecoveryApplierImpl(db.handler).apply(request(entryId, emptySet()))
+
+            assertEquals(RecoveryApplyResult.Unsupported, result)
+            assertTrue(db.driver.longs("SELECT _id FROM episodes WHERE anime_id = 2").isEmpty())
+            assertEquals(listOf("UNSUPPORTED"), db.driver.strings("SELECT state FROM recovery_entries WHERE _id = $entryId"))
         }
     }
 }

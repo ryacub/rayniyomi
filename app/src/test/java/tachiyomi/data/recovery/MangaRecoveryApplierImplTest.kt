@@ -326,4 +326,31 @@ class MangaRecoveryApplierImplTest {
             assertEquals("NEEDS_REVIEW", f.state())
         }
     }
+
+    @Test
+    fun `a reviewed pair whose original chapter is gone needs review and writes nothing`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val f = db.fixture()
+            db.insertChapter(11, originalId, "o1", 1.0, read = true)
+
+            val result = f.applier.apply(f.request(pairs = listOf("o1" to "d1", "gone" to "d2")))
+
+            assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.MAPPING_CHANGED), result)
+            assertTrue(db.driver.longs("SELECT _id FROM mangas WHERE source = 20").isEmpty())
+            assertEquals("NEEDS_REVIEW", f.state())
+        }
+    }
+
+    @Test
+    fun `a reviewed pair whose destination chapter is gone needs review`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val f = db.fixture()
+            db.insertChapter(11, originalId, "o1", 1.0, read = true)
+
+            val result = f.applier.apply(f.request(pairs = listOf("o1" to "d9")))
+
+            assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.MAPPING_CHANGED), result)
+            assertEquals("NEEDS_REVIEW", f.state())
+        }
+    }
 }
