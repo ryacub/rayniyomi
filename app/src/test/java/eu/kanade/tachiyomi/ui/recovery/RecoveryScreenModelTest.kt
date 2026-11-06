@@ -503,4 +503,45 @@ class RecoveryScreenModelTest {
             assertEquals(RecoveryState.INTERRUPTED, backend.repository.getEntries(entry.sessionId).single().state)
         }
     }
+
+    @Test
+    fun `a resumed session reports the requested titles it does not hold`() = runTest {
+        withDb { db ->
+            db.seed(1, 2)
+            val backend = FakeBackend(db, listOf(original(1), original(2)), results())
+            backend.repository.createSession(
+                listOf(20L),
+                true,
+                listOf(NewRecoveryEntry(1, "Title 1", RecoveryState.NEEDS_REVIEW)),
+                500,
+            )
+
+            val state = model(backend).awaitState { it.step == RecoveryScreenModel.Step.Review }
+
+            assertEquals(1, state.notInSession)
+        }
+    }
+
+    @Test
+    fun `searching the remaining titles finds matches for rows whose search stopped`() = runTest {
+        withDb { db ->
+            db.seed(1)
+            val backend = FakeBackend(db, listOf(original(1)), results("/m/1"))
+            backend.repository.createSession(
+                listOf(20L),
+                true,
+                listOf(NewRecoveryEntry(1, "Title 1", RecoveryState.INTERRUPTED)),
+                500,
+            )
+            val model = model(backend)
+            model.awaitState { it.step == RecoveryScreenModel.Step.Review && it.entries.isNotEmpty() }
+
+            model.searchRemaining()
+            val state = model.awaitState { s ->
+                s.busy == null && s.entries.single().state == RecoveryState.NEEDS_REVIEW
+            }
+
+            assertEquals(listOf("/m/1"), state.entries.single().candidates.map { it.url })
+        }
+    }
 }

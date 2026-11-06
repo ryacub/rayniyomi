@@ -179,7 +179,7 @@ class MangaRecoveryRepositoryImplTest {
             val open = repository.newSession(1L to RecoveryState.FAILED, createdAt = 1_000)
             repository.newSession(2L to RecoveryState.COMPLETED, 3L to RecoveryState.UNSUPPORTED, createdAt = 2_000)
 
-            assertEquals(open, repository.getLatestOpenSession()?.id)
+            assertEquals(open, repository.getLatestOpenSession(listOf(1L, 2L, 3L))?.id)
         }
     }
 
@@ -194,6 +194,19 @@ class MangaRecoveryRepositoryImplTest {
             db.driver.exec("DELETE FROM mangas WHERE _id = 1")
 
             assertEquals(listOf(2L), repository.getEntries(sessionId).map { it.originalId })
+        }
+    }
+
+    @Test
+    fun `the latest open session for some titles skips newer sessions without them`() = runTest {
+        MangaRecoveryDb().use { db ->
+            (1L..3L).forEach(db::insertManga)
+            val repository = db.repository()
+            val older = repository.newSession(1L to RecoveryState.FAILED, createdAt = 1_000)
+            repository.newSession(2L to RecoveryState.FAILED, createdAt = 2_000)
+
+            assertEquals(older, repository.getLatestOpenSession(listOf(1L))?.id)
+            assertEquals(null, repository.getLatestOpenSession(listOf(3L)))
         }
     }
 }
