@@ -9,14 +9,19 @@ import tachiyomi.domain.recovery.model.RecoveryItemPair
 class RecoveryItemMatcherTest {
 
     private fun items(prefix: String, vararg numbers: Double) =
-        numbers.mapIndexed { index, number -> RecoveryItem(url = "$prefix$index", name = "Item $number", number = number) }
+        numbers.mapIndexed { index, number ->
+            RecoveryItem(url = "$prefix$index", name = "Item $number", number = number)
+        }
 
     @Test
     fun `unique numbers pair one to one without a position copy`() {
         val pairs = RecoveryItemMatcher.suggest(items("o", 1.0, 2.0), items("d", 2.0, 1.0, 3.0))
 
         assertEquals(
-            listOf(RecoveryItemPair("o0", "d1", copyPosition = false), RecoveryItemPair("o1", "d0", copyPosition = false)),
+            listOf(
+                RecoveryItemPair("o0", "d1", copyPosition = false),
+                RecoveryItemPair("o1", "d0", copyPosition = false),
+            ),
             pairs,
         )
     }

@@ -10,7 +10,9 @@ class RecoveryBatchValidatorTest {
     private fun row(entryId: Long, original: String, destination: String?) = RecoveryBatchValidator.Row(
         entryId = entryId,
         original = RecoveryIdentity(sourceId = 1, url = original),
-        destination = destination?.let { RecoveryIdentity(sourceId = if (it.startsWith("self")) 1 else 20, url = it.removePrefix("self:")) },
+        destination = destination?.let {
+            RecoveryIdentity(sourceId = if (it.startsWith("self")) 1 else 20, url = it.removePrefix("self:"))
+        },
     )
 
     @Test
