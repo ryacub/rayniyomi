@@ -135,7 +135,15 @@ internal class AnimeRecoveryDb : AutoCloseable {
 
     fun setSeasonsFetchType(animeId: Long) = driver.exec("UPDATE animes SET fetch_type = 0 WHERE _id = $animeId")
 
-    fun insertEpisode(id: Long, animeId: Long, url: String, number: Double, seen: Boolean = false, lastSecond: Long = 0) =
+    @Suppress("LongParameterList")
+    fun insertEpisode(
+        id: Long,
+        animeId: Long,
+        url: String,
+        number: Double,
+        seen: Boolean = false,
+        lastSecond: Long = 0,
+    ) =
         driver.exec(
             "INSERT INTO episodes(_id, anime_id, url, name, seen, bookmark, last_second_seen, total_seconds, " +
                 "episode_number, source_order, date_fetch, date_upload, fillermark) VALUES ($id, $animeId, '$url', " +
