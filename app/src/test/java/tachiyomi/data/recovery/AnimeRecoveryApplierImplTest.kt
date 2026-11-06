@@ -31,7 +31,12 @@ class AnimeRecoveryApplierImplTest {
         return entryId
     }
 
-    private fun request(entryId: Long, seasons: Boolean = false) = RecoveryApplyRequest(
+    private fun request(
+        entryId: Long,
+        seasons: Boolean = false,
+        items: List<RecoveryItem> = listOf(1.0, 2.0, 3.0).map { episode("d${it.toInt()}", it) },
+        pairs: List<Pair<String, String>> = listOf("o1" to "d1", "o2" to "d2", "o3" to "d3"),
+    ) = RecoveryApplyRequest(
         entryId = entryId,
         runToken = "run",
         originalId = originalId,
@@ -39,15 +44,19 @@ class AnimeRecoveryApplierImplTest {
             sourceId = 20,
             url = "/a/1",
             title = "Destination",
-            items = listOf(1.0, 2.0, 3.0).map {
-                RecoveryItem(url = "d${it.toInt()}", name = "Episode $it", number = it)
-            },
+            items = items,
             seasons = seasons,
         ),
-        pairs = listOf("o1" to "d1", "o2" to "d2", "o3" to "d3").map { (from, to) -> RecoveryItemPair(from, to) },
+        pairs = pairs.map { (from, to) -> RecoveryItemPair(from, to) },
         tracks = emptyList(),
         keepOriginal = true,
         now = 5_000,
+    )
+
+    private fun episode(url: String, number: Double) = RecoveryItem(
+        url = url,
+        name = "Episode $number",
+        number = number,
     )
 
     @Test
@@ -131,6 +140,38 @@ class AnimeRecoveryApplierImplTest {
             val destination = db.driver.longs("SELECT _id FROM animes WHERE source = 20").single()
             assertEquals(777L, db.episodeValue(destination, "d1", "date_fetch"))
             assertEquals(5_000L, db.episodeValue(destination, "d2", "date_fetch"))
+        }
+    }
+
+    @Test
+    fun `an episode URL the source lists twice is inserted once`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+
+            AnimeRecoveryApplierImpl(db.handler).apply(
+                request(entryId, items = listOf(episode("d1", 1.0), episode("d1", 1.0)), pairs = emptyList()),
+            )
+
+            val destination = db.driver.longs("SELECT _id FROM animes WHERE source = 20").single()
+            assertEquals(listOf("d1"), db.driver.strings("SELECT url FROM episodes WHERE anime_id = $destination"))
+        }
+    }
+
+    @Test
+    fun `a reviewed pair to an episode the source no longer lists needs review and writes nothing`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+            db.insertAnime(2, source = 20, url = "/a/1")
+            db.insertEpisode(21, 2, "stale", 1.0, seen = false)
+            db.insertEpisode(11, originalId, "o1", 1.0, seen = true)
+
+            val result = AnimeRecoveryApplierImpl(db.handler).apply(
+                request(entryId, items = listOf(episode("d2", 2.0)), pairs = listOf("o1" to "stale")),
+            )
+
+            assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.MAPPING_CHANGED), result)
+            assertEquals(0L, db.episodeValue(2, "stale", "seen"))
+            assertEquals(listOf("NEEDS_REVIEW"), db.driver.strings("SELECT state FROM recovery_entries"))
         }
     }
 }

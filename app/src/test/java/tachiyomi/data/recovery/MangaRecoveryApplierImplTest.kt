@@ -360,4 +360,38 @@ class MangaRecoveryApplierImplTest {
             assertEquals(5_000L, db.chapterValue(f.destinationId(), "d2", "date_fetch"))
         }
     }
+
+    @Test
+    fun `a chapter URL the source lists twice is inserted once`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val f = db.fixture()
+
+            f.applier.apply(f.request(items = listOf(item("d1", 1.0), item("d1", 1.0), item("d2", 2.0))))
+
+            assertEquals(
+                listOf("d1", "d2"),
+                db.driver.strings("SELECT url FROM chapters WHERE manga_id = ${f.destinationId()} ORDER BY url"),
+            )
+        }
+    }
+
+    @Test
+    fun `a reviewed pair to a chapter the source no longer lists needs review and writes nothing`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val f = db.fixture()
+            db.insertManga(2, source = 20, url = "/m/1")
+            db.setFlags(2, viewer = 0, chapterFlags = 0, favorite = false)
+            db.insertChapter(21, 2, "stale", 1.0, read = false)
+            db.insertChapter(11, originalId, "o1", 1.0, read = true)
+
+            val result = f.applier.apply(
+                f.request(pairs = listOf("o1" to "stale"), items = listOf(item("d2", 2.0)), keepOriginal = false),
+            )
+
+            assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.MAPPING_CHANGED), result)
+            assertEquals(0L, db.chapterValue(2, "stale", "read"))
+            assertEquals(listOf(1L), db.driver.longs("SELECT favorite FROM mangas WHERE _id = $originalId"))
+            assertEquals("NEEDS_REVIEW", f.state())
+        }
+    }
 }

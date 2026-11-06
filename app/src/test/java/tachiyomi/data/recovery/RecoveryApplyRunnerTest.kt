@@ -73,6 +73,33 @@ class RecoveryApplyRunnerTest {
         }
     }
 
+    private class CancelAfterClaim(
+        private val delegate: RecoveryRepository,
+        private val duringRead: Boolean,
+    ) : RecoveryRepository by delegate {
+        private var cancelNextRead = false
+
+        private fun afterClaim(claimed: List<Long>): List<Long> {
+            if (!duringRead) throw CancellationException("left the screen")
+            cancelNextRead = true
+            return claimed
+        }
+
+        override suspend fun claimForSearch(sessionId: Long, runToken: String): List<Long> =
+            afterClaim(delegate.claimForSearch(sessionId, runToken))
+
+        override suspend fun claimForApply(sessionId: Long, runToken: String): List<Long> =
+            afterClaim(delegate.claimForApply(sessionId, runToken))
+
+        override suspend fun getEntries(sessionId: Long): List<RecoveryEntry> {
+            if (cancelNextRead) {
+                cancelNextRead = false
+                throw CancellationException("left the screen")
+            }
+            return delegate.getEntries(sessionId)
+        }
+    }
+
     private suspend fun MangaRecoveryDb.readySession(count: Int): Pair<MangaRecoveryRepositoryImpl, Long> {
         val repository = MangaRecoveryRepositoryImpl(handler)
         (1L..count).forEach { insertManga(it) }
@@ -284,6 +311,75 @@ class RecoveryApplyRunnerTest {
 
             assertEquals("disk full", error?.message)
             assertEquals(listOf(RecoveryState.INTERRUPTED, RecoveryState.INTERRUPTED), repository.states(sessionId))
+        }
+    }
+
+    @Test
+    fun `a cancel right after the search claim or while reading the claimed rows marks them interrupted`() = runTest {
+        listOf(false, true).forEach { duringRead ->
+            MangaRecoveryDb().use { db ->
+                val repository = MangaRecoveryRepositoryImpl(db.handler)
+                db.insertManga(1)
+                val sessionId = repository.createSession(
+                    listOf(20L),
+                    true,
+                    listOf(NewRecoveryEntry(1, "Title 1", RecoveryState.SELECTED)),
+                    1_000,
+                )
+                val search = RecoverySourceSearch { _, _ -> emptyList() }
+
+                runCatching {
+                    RecoverySearcher(CancelAfterClaim(repository, duringRead), search).run(sessionId, "run")
+                }
+
+                assertEquals(listOf(RecoveryState.INTERRUPTED), repository.states(sessionId), "read=$duringRead")
+            }
+        }
+    }
+
+    @Test
+    fun `a cancel right after the apply claim or while reading the claimed rows marks them interrupted`() = runTest {
+        listOf(false, true).forEach { duringRead ->
+            MangaRecoveryDb().use { db ->
+                val (repository, sessionId) = db.readySession(2)
+
+                runCatching {
+                    RecoveryApplyRunner(
+                        CancelAfterClaim(repository, duringRead),
+                        MangaRecoveryApplierImpl(db.handler),
+                        FakePreparer(),
+                        Covers()::copy,
+                    ).run(sessionId, "run")
+                }
+
+                assertEquals(
+                    listOf(RecoveryState.INTERRUPTED, RecoveryState.INTERRUPTED),
+                    repository.states(sessionId),
+                    "read=$duringRead",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a cancel during the cover copy copies the cover again before the run ends`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val (repository, sessionId) = db.readySession(1)
+            val copied = mutableListOf<Long>()
+            var calls = 0
+            val copy: suspend (Long, Long) -> Unit = { _, destinationId ->
+                if (calls++ == 0) throw CancellationException("left the screen")
+                copied += destinationId
+            }
+
+            runCatching {
+                RecoveryApplyRunner(repository, MangaRecoveryApplierImpl(db.handler), FakePreparer(), copy)
+                    .run(sessionId, "run")
+            }
+
+            val entry = repository.getEntries(sessionId).single()
+            assertEquals(RecoveryState.COMPLETED, entry.state)
+            assertEquals(listOf(checkNotNull(entry.resultId)), copied)
         }
     }
 }
