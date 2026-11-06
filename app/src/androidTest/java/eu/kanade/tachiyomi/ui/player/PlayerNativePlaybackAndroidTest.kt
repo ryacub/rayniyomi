@@ -55,8 +55,16 @@ class PlayerNativePlaybackAndroidTest {
         instrumentation.runOnMainSync { player.unpause() }
         val loadedPosition = trace.awaitPositionAfter(0.5)
         assertTrue("Fallback MPV time-pos did not advance: $loadedPosition", loadedPosition > 0.5)
-        assertTrue("No native START_FILE named the failed first URL: ${trace.snapshot()}", trace.hasStartFor(missing))
-        assertTrue("MPV reported no error for the failed first URL: ${trace.snapshot()}", trace.hasErrorFor(missing))
+        val nativeError = trace.errors.singleOrNull()
+        val fallbackLoad = trace.events.first {
+            it.eventId == MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED && it.path?.sameFile(media) == true
+        }
+        assertTrue(
+            "MPV reported no file-open error before fallback: ${trace.snapshot()}",
+            nativeError != null && nativeError.message == "loading failed" &&
+                nativeError.sequence < fallbackLoad.sequence &&
+                trace.logs.any { it.startsWith("Cannot open file '${missing.path}'") },
+        )
         assertTrue(
             "Fallback did not become the current production video",
             player.currentVideo.value?.videoUrl == media.toURI().toString(),

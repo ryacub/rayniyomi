@@ -72,11 +72,19 @@ internal class PlayerFileLoadedHandler(
         onChaptersUpdated: (List<IndexedSegment>) -> Unit,
         onSetChapter: (Float) -> Unit,
         aniSkipFetcher: suspend (Int?) -> List<TimeStamp>?,
+        onTracksReady: () -> Unit = {},
     ) = withContext(Dispatchers.IO) {
         configurePlayback(currentVideo)
         setupMetadata(animeTitle, episodeName, episodeNumber, onVideoAspectUpdate)
         val chapters =
-            setupMediaElements(currentVideo, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
+            setupMediaElements(
+                currentVideo,
+                currentChapters,
+                playerDuration,
+                onChaptersUpdated,
+                onSetChapter,
+                onTracksReady,
+            )
         integrateAniSkip(
             currentChapters = chapters,
             playerDuration = playerDuration,
@@ -116,9 +124,10 @@ internal class PlayerFileLoadedHandler(
         playerDuration: Int?,
         onChaptersUpdated: (List<IndexedSegment>) -> Unit,
         onSetChapter: (Float) -> Unit,
+        onTracksReady: () -> Unit,
     ): List<IndexedSegment> {
         val chapters = setupChapters(video, currentChapters, playerDuration, onChaptersUpdated, onSetChapter)
-        setupTracks(video)
+        setupTracks(video, onTracksReady)
         return chapters
     }
 
@@ -205,16 +214,16 @@ internal class PlayerFileLoadedHandler(
         mpvLibProxy.setPropertyString("force-media-title", title)
     }
 
-    private suspend fun setupTracks(video: Video?) = withContext(Dispatchers.IO) {
+    private suspend fun setupTracks(video: Video?, onTracksReady: () -> Unit) = withContext(Dispatchers.IO) {
         _isLoadingTracks.update { true }
 
         val audioTracks = video?.audioTracks?.takeIf { it.isNotEmpty() }
         val subtitleTracks = video?.subtitleTracks?.takeIf { it.isNotEmpty() }
 
-        // If no external audio or subtitle tracks are present, loadTracks() won't be
-        // called and we need to signal completion manually
+        // Without external tracks, no later track-list event may complete setup.
         if (audioTracks == null && subtitleTracks == null) {
             _isLoadingTracks.update { false }
+            onTracksReady()
             return@withContext
         }
 

@@ -151,6 +151,21 @@ class PlayerActivityHostInitOrderTest {
     }
 
     @Test
+    fun `mpv stays alive after a load error so the next server can load`() {
+        val activitySource = loadPlayerActivitySource()
+        val setupIdx = activitySource.indexOf("private suspend fun setupPlayerMPV()")
+        val setupBody = activitySource.substring(setupIdx, activitySource.indexOf("fun setupCustomButtons"))
+        val playerInitIdx = setupBody.indexOf("player.initialize(")
+        val idleIdx = setupBody.indexOf("MPVLib.setPropertyString(\"idle\", \"yes\")")
+
+        assertTrue(playerInitIdx >= 0, "Expected player.initialize to exist")
+        assertTrue(
+            idleIdx > playerInitIdx,
+            "idle=yes must be set after player.initialize, which sets idle=once",
+        )
+    }
+
+    @Test
     fun `key events do not touch player state before mpv is ready`() {
         val source = loadPlayerActivitySource()
         val keyDownBody = source.functionBody("override fun onKeyDown")

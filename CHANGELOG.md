@@ -18,6 +18,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- The player tries another available video after a startup failure, including after rapid selections. It waits for hosters that still load and keeps unopened hosters available for manual selection. Playback recovery keeps the pause state and position (#1417).
+- CloudStream links that set no User-Agent now send the app's default one, as CloudStream does. Links a CloudStream plugin found before an error are kept instead of dropped (#1417).
 - The app updater offers only app releases. Before, a newer CloudStream runtime or plugin release showed as an app update, and the download picked its `SHA256SUMS.txt` file and always failed (#1409).
 - The automatic Cloudflare check now waits for the challenge to finish. Before, it stopped at the first page load and failed. It also stops at once on a challenge that needs a tap, solves challenges of non-GET requests on the site root, and lets concurrent requests to one site share one check. A WebView crash during the check no longer closes the app (#1411).
 - The player no longer crashes when you return to it while mpv has the video height but not the video aspect. The picture-in-picture window then opens without a fixed aspect ratio (#1421).
