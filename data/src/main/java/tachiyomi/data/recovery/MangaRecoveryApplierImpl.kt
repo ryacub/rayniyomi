@@ -138,7 +138,7 @@ class MangaRecoveryApplierImpl(
 
     private fun Database.insertMissingItems(request: RecoveryApplyRequest, destinationId: Long) {
         val known = recoveryQueries.getItemUrls(destinationId).executeAsList().toSet()
-        request.destination.items.filter { it.url !in known }.forEach { item ->
+        request.destination.items.distinctBy { it.url }.filter { it.url !in known }.forEach { item ->
             recoveryQueries.insertItem(
                 mangaId = destinationId,
                 url = item.url,
@@ -153,6 +153,9 @@ class MangaRecoveryApplierImpl(
     }
 
     private fun Database.mergePairs(request: RecoveryApplyRequest, destinationId: Long) {
+        val listed = request.destination.items.mapTo(HashSet()) { it.url }
+        val unlisted = request.pairs.any { it.destinationUrl !in listed }
+        if (unlisted) throw RecoveryReview(RecoveryReviewReason.MAPPING_CHANGED)
         request.pairs.forEach { pair ->
             val from = recoveryQueries.getItemState(request.originalId, pair.originalUrl).executeAsOneOrNull()
             val to = recoveryQueries.getItemState(destinationId, pair.destinationUrl).executeAsOneOrNull()

@@ -7,7 +7,9 @@ import tachiyomi.domain.items.episode.service.EpisodeRecognition
 import tachiyomi.domain.recovery.model.RecoveryItem
 
 @JvmName("chaptersToRecoveryItems")
-fun List<SChapter>.toRecoveryItems(mangaTitle: String): List<RecoveryItem> = mapIndexed { index, chapter ->
+fun List<SChapter>.toRecoveryItems(
+    mangaTitle: String,
+): List<RecoveryItem> = distinctBy { it.url }.mapIndexed { index, chapter ->
     RecoveryItem(
         url = chapter.url,
         name = chapter.name,
@@ -23,7 +25,9 @@ fun List<SChapter>.toRecoveryItems(mangaTitle: String): List<RecoveryItem> = map
 }
 
 @JvmName("episodesToRecoveryItems")
-fun List<SEpisode>.toRecoveryItems(animeTitle: String): List<RecoveryItem> = mapIndexed { index, episode ->
+fun List<SEpisode>.toRecoveryItems(
+    animeTitle: String,
+): List<RecoveryItem> = distinctBy { it.url }.mapIndexed { index, episode ->
     RecoveryItem(
         url = episode.url,
         name = episode.name,

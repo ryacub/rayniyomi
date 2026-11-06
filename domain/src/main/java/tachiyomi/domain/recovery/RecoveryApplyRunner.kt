@@ -27,16 +27,17 @@ class RecoveryApplyRunner(
     suspend fun run(sessionId: Long, runToken: String): RecoveryRunReport {
         val session = repository.getSession(sessionId) ?: return RecoveryRunReport()
         holdBlockedRows(sessionId)
-        val claimed = repository.claimForApply(sessionId, runToken).toSet()
+        var claimed = emptySet<Long>()
         val coverFailures = mutableMapOf<Long, String>()
         val coversDone = mutableSetOf<Long>()
         try {
+            claimed = repository.claimForApply(sessionId, runToken).toSet()
             repository.getEntries(sessionId).filter { it.id in claimed }.forEach { entry ->
                 currentCoroutineContext().ensureActive()
                 val result = applyOne(entry, session)
                 if (result is RecoveryApplyResult.Completed) {
-                    coversDone += entry.id
                     copyCoverOf(entry, result.destinationId, coverFailures)
+                    coversDone += entry.id
                 }
             }
         } catch (e: Exception) {

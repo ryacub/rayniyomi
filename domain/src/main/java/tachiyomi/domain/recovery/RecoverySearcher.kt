@@ -28,9 +28,9 @@ class RecoverySearcher(
 
     suspend fun run(sessionId: Long, runToken: String) {
         val session = repository.getSession(sessionId) ?: return
-        val claimed = repository.claimForSearch(sessionId, runToken).toSet()
-        val entries = repository.getEntries(sessionId).filter { it.id in claimed }
         try {
+            val claimed = repository.claimForSearch(sessionId, runToken).toSet()
+            val entries = repository.getEntries(sessionId).filter { it.id in claimed }
             searchEntries(entries, session.destinationSourceIds, runToken)
         } catch (e: Exception) {
             withContext(NonCancellable) { repository.interruptRun(runToken) }
