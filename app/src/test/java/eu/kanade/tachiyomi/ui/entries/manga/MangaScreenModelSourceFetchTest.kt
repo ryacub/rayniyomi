@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.entries.manga
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewModelScope
+import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.domain.source.manga.model.RemoteMangaUpdate
 import eu.kanade.domain.track.service.TrackPreferences
@@ -18,12 +19,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.async
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
@@ -64,6 +65,7 @@ class MangaScreenModelSourceFetchTest {
     fun setUp() {
         vt.setUpMain()
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true)
+        every { testAppGraph.basePreferences } returns BasePreferences(mockk(relaxed = true), InMemoryPreferenceStore())
         coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } answers {
             Result.success(RemoteMangaUpdate(manga = secondArg(), newChapters = emptyList()))
         }
@@ -161,7 +163,11 @@ class MangaScreenModelSourceFetchTest {
 
     @Test
     fun `a failed refresh of a library title offers recovery for its source`() = runTest(vt.scheduler) {
-        val model = createModel(manga = manga(initialized = true).copy(favorite = true, source = 7L), chapters = listOf(chapter()))
+        val model =
+            createModel(
+                manga = manga(initialized = true).copy(favorite = true, source = 7L),
+                chapters = listOf(chapter()),
+            )
         advanceUntilIdle()
         coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } returns
             Result.failure(IllegalStateException("source down"))

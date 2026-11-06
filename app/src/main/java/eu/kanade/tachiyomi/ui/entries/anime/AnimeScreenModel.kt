@@ -65,6 +65,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -73,6 +75,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -339,9 +342,24 @@ class AnimeScreenModel(
         if (e is HttpException && e.code == 103) return
 
         logcat(LogPriority.ERROR, e)
-        viewModelScope.launch {
-            snackbarHostState.showSnackbar(message = with(context) { e.formattedMessage })
+        viewModelScope.launch { showSourceFailure(with(context) { e.formattedMessage }) }
+    }
+
+    private val recoveryChannel = Channel<Long>(Channel.BUFFERED)
+    val recoveryRequests: Flow<Long> = recoveryChannel.receiveAsFlow()
+
+    private suspend fun showSourceFailure(message: String) {
+        val entry = successState?.anime
+        if (entry?.favorite != true) {
+            snackbarHostState.showSnackbar(message = message)
+            return
         }
+        val result = snackbarHostState.showSnackbar(
+            message = message,
+            actionLabel = context.stringResource(MR.strings.recovery_title),
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) recoveryChannel.send(entry.source)
     }
 
     fun toggleFavorite() {
@@ -654,9 +672,7 @@ class AnimeScreenModel(
             }
         }
 
-        viewModelScope.launch {
-            snackbarHostState.showSnackbar(message = message)
-        }
+        viewModelScope.launch { showSourceFailure(message) }
         val newAnime = animeRepository.getAnimeById(animeId)
         updateSuccessState { it.copy(anime = newAnime, isRefreshingData = false) }
     }

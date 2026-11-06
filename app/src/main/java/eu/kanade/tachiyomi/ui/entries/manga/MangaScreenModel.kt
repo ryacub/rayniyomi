@@ -68,6 +68,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -76,6 +78,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -368,9 +371,24 @@ class MangaScreenModel(
             with(context) { e.formattedMessage }
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch { showSourceFailure(message) }
+    }
+
+    private val recoveryChannel = Channel<Long>(Channel.BUFFERED)
+    val recoveryRequests: Flow<Long> = recoveryChannel.receiveAsFlow()
+
+    private suspend fun showSourceFailure(message: String) {
+        val entry = successState?.manga
+        if (entry?.favorite != true) {
             snackbarHostState.showSnackbar(message = message)
+            return
         }
+        val result = snackbarHostState.showSnackbar(
+            message = message,
+            actionLabel = context.stringResource(MR.strings.recovery_title),
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) recoveryChannel.send(entry.source)
     }
 
     fun toggleFavorite() {

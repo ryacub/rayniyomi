@@ -58,6 +58,8 @@ import eu.kanade.tachiyomi.ui.entries.track.TrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.anime.AnimeLibraryTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.setting.pushSettings
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
@@ -122,6 +124,12 @@ class AnimeScreen(
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e) { "Failed to get anime URL" }
                 }
+            }
+        }
+
+        LaunchedEffect(screenModel) {
+            screenModel.recoveryRequests.collect { sourceId ->
+                navigator.push(RecoveryScreen(RecoveryMedia.ANIME, sourceId, screenModel.source?.name))
             }
         }
 
