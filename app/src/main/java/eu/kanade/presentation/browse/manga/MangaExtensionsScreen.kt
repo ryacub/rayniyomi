@@ -544,6 +544,14 @@ fun ExtensionTrustDialog(
     onClickDismiss: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    var actionHandled by remember { mutableStateOf(false) }
+
+    fun completeDialog(action: () -> Unit) {
+        if (actionHandled) return
+        actionHandled = true
+        action()
+    }
+
     AlertDialog(
         title = {
             Text(text = stringResource(MR.strings.untrusted_extension))
@@ -552,15 +560,15 @@ fun ExtensionTrustDialog(
             Text(text = stringResource(MR.strings.untrusted_extension_message))
         },
         confirmButton = {
-            TextButton(onClick = onClickConfirm) {
+            TextButton(onClick = { completeDialog(onClickConfirm) }) {
                 Text(text = stringResource(MR.strings.ext_trust))
             }
         },
         dismissButton = {
-            TextButton(onClick = onClickDismiss) {
+            TextButton(onClick = { completeDialog(onClickDismiss) }) {
                 Text(text = stringResource(MR.strings.ext_uninstall))
             }
         },
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { completeDialog(onDismissRequest) },
     )
 }
