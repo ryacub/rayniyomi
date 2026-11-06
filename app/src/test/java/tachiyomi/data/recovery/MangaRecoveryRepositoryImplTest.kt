@@ -51,7 +51,7 @@ class MangaRecoveryRepositoryImplTest {
     }
 
     @Test
-    fun `claim takes only selected entries in an allowed state and stamps the run token`() = runTest {
+    fun `a search claim takes only selected entries in a searchable state and stamps the run token`() = runTest {
         MangaRecoveryDb().use { db ->
             (1L..3L).forEach(db::insertManga)
             val repository = db.repository()
@@ -64,12 +64,7 @@ class MangaRecoveryRepositoryImplTest {
             val third = entries.single { it.originalId == 3L }
             repository.setSelected(third.id, selected = false)
 
-            val claimed = repository.claim(
-                entryIds = entries.map { it.id },
-                from = setOf(RecoveryState.SELECTED),
-                to = RecoveryState.SEARCHING,
-                runToken = "run-a",
-            )
+            val claimed = repository.claimForSearch(sessionId, "run-a")
 
             val first = repository.getEntries(sessionId).single { it.originalId == 1L }
             assertEquals(listOf(first.id), claimed)
@@ -87,7 +82,7 @@ class MangaRecoveryRepositoryImplTest {
             val repository = db.repository()
             val sessionId = repository.newSession(1L to RecoveryState.SELECTED)
             val entryId = repository.getEntries(sessionId).single().id
-            repository.claim(listOf(entryId), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "run-a")
+            db.driver.claim(listOf(entryId), RecoveryState.SEARCHING, "run-a")
             val candidate = RecoveryCandidate(sourceId = 20, url = "/m/1", title = "Title 1")
 
             val saved = repository.saveSearchResult(entryId, "run-a", RecoveryState.NEEDS_REVIEW, listOf(candidate))
@@ -107,7 +102,7 @@ class MangaRecoveryRepositoryImplTest {
             val repository = db.repository()
             val sessionId = repository.newSession(1L to RecoveryState.SELECTED)
             val entryId = repository.getEntries(sessionId).single().id
-            repository.claim(listOf(entryId), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "run-a")
+            db.driver.claim(listOf(entryId), RecoveryState.SEARCHING, "run-a")
 
             val saved = repository.saveSearchResult(
                 entryId,
@@ -135,9 +130,9 @@ class MangaRecoveryRepositoryImplTest {
                 3L to RecoveryState.SELECTED,
             )
             val ids = repository.getEntries(sessionId).associate { it.originalId to it.id }
-            repository.claim(listOf(ids.getValue(1L)), setOf(RecoveryState.SELECTED), RecoveryState.APPLYING, "run-a")
-            repository.claim(listOf(ids.getValue(2L)), setOf(RecoveryState.COMPLETED), RecoveryState.COMPLETED, "run-a")
-            repository.claim(listOf(ids.getValue(3L)), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "run-b")
+            db.driver.claim(listOf(ids.getValue(1L)), RecoveryState.APPLYING, "run-a")
+            db.driver.claim(listOf(ids.getValue(2L)), RecoveryState.COMPLETED, "run-a")
+            db.driver.claim(listOf(ids.getValue(3L)), RecoveryState.SEARCHING, "run-b")
 
             val interrupted = repository.interruptRun("run-a")
 
@@ -160,11 +155,11 @@ class MangaRecoveryRepositoryImplTest {
                 4L to RecoveryState.SELECTED,
             )
             val ids = repository.getEntries(sessionId).associate { it.originalId to it.id }
-            repository.claim(listOf(ids.getValue(1L)), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "old")
-            repository.claim(listOf(ids.getValue(2L)), setOf(RecoveryState.SELECTED), RecoveryState.APPLYING, "old")
+            db.driver.claim(listOf(ids.getValue(1L)), RecoveryState.SEARCHING, "old")
+            db.driver.claim(listOf(ids.getValue(2L)), RecoveryState.APPLYING, "old")
 
             val first = repository.reconcileAfterProcessStart()
-            repository.claim(listOf(ids.getValue(4L)), setOf(RecoveryState.SELECTED), RecoveryState.APPLYING, "live")
+            db.driver.claim(listOf(ids.getValue(4L)), RecoveryState.APPLYING, "live")
             val second = repository.reconcileAfterProcessStart()
 
             assertEquals(2, first)

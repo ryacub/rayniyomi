@@ -57,13 +57,9 @@ SELECT * FROM recovery_entries WHERE session_id = :sessionId ORDER BY _id;
 setSelected:
 UPDATE recovery_entries SET selected = :selected WHERE _id = :entryId;
 
-getClaimable:
-SELECT _id FROM recovery_entries
-WHERE _id IN :entryIds AND selected = 1 AND state IN :fromStates;
-
 claim:
 UPDATE recovery_entries SET state = :toState, run_token = :runToken
-WHERE _id IN :entryIds AND selected = 1 AND state IN :fromStates;
+WHERE _id IN :entryIds;
 
 saveSearchResult:
 UPDATE recovery_entries SET state = :state, candidates = :candidates, search_errors = :searchErrors, run_token = NULL

@@ -26,7 +26,7 @@ class AnimeRecoveryRepositoryImplTest {
             )
             val ids = repository.getEntries(sessionId).associate { it.originalId to it.id }
             val candidate = RecoveryCandidate(sourceId = 20, url = "/a/1", title = "Title 1")
-            repository.claim(ids.values.toList(), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "old")
+            db.driver.claim(ids.values.toList(), RecoveryState.SEARCHING, "old")
             repository.saveSearchResult(ids.getValue(1L), "old", RecoveryState.NEEDS_REVIEW, listOf(candidate))
 
             val reconciled = repository.reconcileAfterProcessStart()

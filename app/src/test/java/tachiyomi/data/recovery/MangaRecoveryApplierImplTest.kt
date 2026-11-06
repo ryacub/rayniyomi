@@ -36,7 +36,7 @@ class MangaRecoveryApplierImplTest {
             createdAt = 1_000,
         )
         val entryId = repository.getEntries(sessionId).single().id
-        repository.claim(listOf(entryId), setOf(RecoveryState.READY), RecoveryState.APPLYING, runToken)
+        driver.claim(listOf(entryId), RecoveryState.APPLYING, runToken)
         return Fixture(this, repository, entryId)
     }
 

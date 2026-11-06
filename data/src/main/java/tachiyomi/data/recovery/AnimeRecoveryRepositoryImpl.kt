@@ -52,18 +52,6 @@ class AnimeRecoveryRepositoryImpl(
         handler.await { recoveryQueries.setSelected(selected, entryId) }
     }
 
-    override suspend fun claim(
-        entryIds: List<Long>,
-        from: Set<RecoveryState>,
-        to: RecoveryState,
-        runToken: String,
-    ): List<Long> = handler.await(inTransaction = true) {
-        val fromStates = RecoveryCodec.names(from)
-        val claimable = recoveryQueries.getClaimable(entryIds, fromStates).executeAsList()
-        recoveryQueries.claim(to.name, runToken, claimable, fromStates)
-        claimable
-    }
-
     override suspend fun saveSearchResult(
         entryId: Long,
         runToken: String,
@@ -154,7 +142,7 @@ class AnimeRecoveryRepositoryImpl(
         reconcileAfterProcessStart()
         return handler.await(inTransaction = true) {
             val ids = select()
-            recoveryQueries.claim(to.name, runToken, ids, RecoveryCodec.names(RecoveryState.entries.toSet()))
+            recoveryQueries.claim(to.name, runToken, ids)
             ids
         }
     }

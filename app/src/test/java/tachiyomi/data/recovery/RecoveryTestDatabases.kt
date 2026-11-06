@@ -17,6 +17,7 @@ import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.handlers.anime.AndroidAnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.AndroidMangaDatabaseHandler
+import tachiyomi.domain.recovery.model.RecoveryState
 import tachiyomi.mi.data.AnimeDatabase
 import java.util.Properties
 
@@ -41,6 +42,11 @@ internal fun SqlDriver.strings(sql: String): List<String?> = executeQuery(
 ).value
 
 internal fun SqlDriver.longs(sql: String): List<Long> = strings(sql).map { it!!.toLong() }
+
+internal fun SqlDriver.claim(entryIds: List<Long>, to: RecoveryState, runToken: String) = exec(
+    "UPDATE recovery_entries SET state = '${to.name}', run_token = '$runToken' " +
+        "WHERE _id IN (${entryIds.joinToString()})",
+)
 
 internal class MangaRecoveryDb : AutoCloseable {
 

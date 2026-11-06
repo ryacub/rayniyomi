@@ -27,13 +27,6 @@ interface RecoveryRepository {
 
     suspend fun setSelected(entryId: Long, selected: Boolean)
 
-    suspend fun claim(
-        entryIds: List<Long>,
-        from: Set<RecoveryState>,
-        to: RecoveryState,
-        runToken: String,
-    ): List<Long>
-
     suspend fun saveSearchResult(
         entryId: Long,
         runToken: String,

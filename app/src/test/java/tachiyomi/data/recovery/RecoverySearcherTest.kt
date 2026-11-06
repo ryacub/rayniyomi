@@ -175,8 +175,8 @@ class RecoverySearcherTest {
             val ids = repository.getEntries(sessionId).associate { it.originalId to it.id }
             repository.approve(ids.getValue(1), candidate(20, "/m/1"), emptyList())
             repository.approve(ids.getValue(2), candidate(20, "/m/2"), emptyList())
-            repository.claim(listOf(ids.getValue(2)), setOf(RecoveryState.READY), RecoveryState.APPLYING, "old")
-            repository.claim(listOf(ids.getValue(3)), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "old")
+            db.driver.claim(listOf(ids.getValue(2)), RecoveryState.APPLYING, "old")
+            db.driver.claim(listOf(ids.getValue(3)), RecoveryState.SEARCHING, "old")
             repository.interruptRun("old")
 
             val forSearch = repository.claimForSearch(sessionId, "search")
