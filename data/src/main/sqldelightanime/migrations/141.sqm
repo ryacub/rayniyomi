@@ -1,11 +1,11 @@
-CREATE TABLE recovery_sessions(
+CREATE TABLE IF NOT EXISTS recovery_sessions(
     _id INTEGER NOT NULL PRIMARY KEY,
     created_at INTEGER NOT NULL,
     destination_source_ids TEXT NOT NULL,
     keep_original INTEGER NOT NULL
 );
 
-CREATE TABLE recovery_entries(
+CREATE TABLE IF NOT EXISTS recovery_entries(
     _id INTEGER NOT NULL PRIMARY KEY,
     session_id INTEGER NOT NULL,
     original_id INTEGER NOT NULL,
@@ -24,4 +24,4 @@ CREATE TABLE recovery_entries(
     FOREIGN KEY(original_id) REFERENCES animes (_id) ON DELETE CASCADE
 );
 
-CREATE INDEX recovery_entries_session_id_index ON recovery_entries(session_id);
+CREATE INDEX IF NOT EXISTS recovery_entries_session_id_index ON recovery_entries(session_id);
