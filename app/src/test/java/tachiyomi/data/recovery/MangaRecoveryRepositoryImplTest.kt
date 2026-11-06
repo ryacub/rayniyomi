@@ -20,7 +20,9 @@ class MangaRecoveryRepositoryImplTest {
     ): Long = createSession(
         destinationSourceIds = listOf(20L, 30L),
         keepOriginal = true,
-        entries = originals.map { (id, state) -> NewRecoveryEntry(originalId = id, searchQuery = "Title $id", state = state) },
+        entries = originals.map { (id, state) ->
+            NewRecoveryEntry(originalId = id, searchQuery = "Title $id", state = state)
+        },
         createdAt = createdAt,
     )
 
@@ -134,6 +136,7 @@ class MangaRecoveryRepositoryImplTest {
             )
             val ids = repository.getEntries(sessionId).associate { it.originalId to it.id }
             repository.claim(listOf(ids.getValue(1L)), setOf(RecoveryState.SELECTED), RecoveryState.APPLYING, "run-a")
+            repository.claim(listOf(ids.getValue(2L)), setOf(RecoveryState.COMPLETED), RecoveryState.COMPLETED, "run-a")
             repository.claim(listOf(ids.getValue(3L)), setOf(RecoveryState.SELECTED), RecoveryState.SEARCHING, "run-b")
 
             val interrupted = repository.interruptRun("run-a")

@@ -1,0 +1,76 @@
+import kotlin.Boolean;
+
+CREATE TABLE recovery_sessions(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    destination_source_ids TEXT NOT NULL,
+    keep_original INTEGER AS Boolean NOT NULL
+);
+
+CREATE TABLE recovery_entries(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    session_id INTEGER NOT NULL,
+    original_id INTEGER NOT NULL,
+    selected INTEGER AS Boolean NOT NULL DEFAULT 1,
+    state TEXT NOT NULL,
+    search_query TEXT NOT NULL,
+    candidates TEXT NOT NULL DEFAULT '[]',
+    choice TEXT,
+    result_id INTEGER,
+    error TEXT,
+    run_token TEXT,
+    UNIQUE (session_id, original_id),
+    FOREIGN KEY(session_id) REFERENCES recovery_sessions (_id) ON DELETE CASCADE,
+    FOREIGN KEY(original_id) REFERENCES mangas (_id) ON DELETE CASCADE
+);
+
+CREATE INDEX recovery_entries_session_id_index ON recovery_entries(session_id);
+
+insertSession:
+INSERT INTO recovery_sessions(created_at, destination_source_ids, keep_original)
+VALUES (:createdAt, :destinationSourceIds, :keepOriginal);
+
+insertEntry:
+INSERT INTO recovery_entries(session_id, original_id, state, search_query)
+VALUES (:sessionId, :originalId, :state, :searchQuery);
+
+selectLastInsertedRowId:
+SELECT last_insert_rowid();
+
+getSession:
+SELECT * FROM recovery_sessions WHERE _id = :sessionId;
+
+getLatestOpenSession:
+SELECT rs.* FROM recovery_sessions rs
+WHERE EXISTS (
+    SELECT 1 FROM recovery_entries re
+    WHERE re.session_id = rs._id AND re.state NOT IN :finishedStates
+)
+ORDER BY rs.created_at DESC, rs._id DESC
+LIMIT 1;
+
+getEntries:
+SELECT * FROM recovery_entries WHERE session_id = :sessionId ORDER BY _id;
+
+setSelected:
+UPDATE recovery_entries SET selected = :selected WHERE _id = :entryId;
+
+getClaimable:
+SELECT _id FROM recovery_entries
+WHERE _id IN :entryIds AND selected = 1 AND state IN :fromStates;
+
+claim:
+UPDATE recovery_entries SET state = :toState, run_token = :runToken
+WHERE _id IN :entryIds AND selected = 1 AND state IN :fromStates;
+
+saveSearchResult:
+UPDATE recovery_entries SET state = :state, candidates = :candidates, run_token = NULL
+WHERE _id = :entryId AND run_token = :runToken AND state = :searchingState;
+
+interruptRun:
+UPDATE recovery_entries SET state = :interruptedState, run_token = NULL
+WHERE run_token = :runToken AND state IN :unfinishedStates;
+
+interruptAll:
+UPDATE recovery_entries SET state = :interruptedState, run_token = NULL
+WHERE state IN :unfinishedStates;
