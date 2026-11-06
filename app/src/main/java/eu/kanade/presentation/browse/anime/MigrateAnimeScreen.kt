@@ -34,15 +34,17 @@ fun MigrateAnimeScreen(
                 title = title,
                 navigateUp = navigateUp,
                 actions = {
-                    AppBarActions(
-                        persistentListOf(
-                            AppBar.Action(
-                                title = stringResource(MR.strings.recovery_title),
-                                icon = Icons.Outlined.SwapVert,
-                                onClick = onClickRecover,
+                    if (!state.isEmpty) {
+                        AppBarActions(
+                            persistentListOf(
+                                AppBar.Action(
+                                    title = stringResource(MR.strings.recovery_title),
+                                    icon = Icons.Outlined.SwapVert,
+                                    onClick = onClickRecover,
+                                ),
                             ),
-                        ),
-                    )
+                        )
+                    }
                 },
                 scrollBehavior = scrollBehavior,
             )
