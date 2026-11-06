@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Extension trust dialogs no longer crash when Trust and Uninstall taps overlap. The dialog accepts only the first action. See #1428.
 - The player tries another available video after a startup failure, including after rapid selections. It waits for hosters that still load and keeps unopened hosters available for manual selection. Playback recovery keeps the pause state and position (#1417).
 - CloudStream links that set no User-Agent now send the app's default one, as CloudStream does. Links a CloudStream plugin found before an error are kept instead of dropped (#1417).
 - The app updater offers only app releases. Before, a newer CloudStream runtime or plugin release showed as an app update, and the download picked its `SHA256SUMS.txt` file and always failed (#1409).
