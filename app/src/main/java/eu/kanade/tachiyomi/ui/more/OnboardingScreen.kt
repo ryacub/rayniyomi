@@ -13,6 +13,7 @@ import eu.kanade.presentation.more.settings.screen.SettingsDataScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
+import eu.kanade.tachiyomi.ui.setting.pushSettings
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsStateWithLifecycle
 
@@ -44,7 +45,7 @@ class OnboardingScreen : Screen() {
             onRestoreBackup = {
                 finishOnboarding()
                 SearchableSettings.highlightKey = restoreSettingKey
-                navigator.push(SettingsScreen(SettingsScreen.Destination.DataAndStorage))
+                navigator.pushSettings(SettingsScreen(SettingsScreen.Destination.DataAndStorage))
             },
         )
     }

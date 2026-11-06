@@ -22,6 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The automatic Cloudflare check now waits for the challenge to finish. Before, it stopped at the first page load and failed. It also stops at once on a challenge that needs a tap, solves challenges of non-GET requests on the site root, and lets concurrent requests to one site share one check. A WebView crash during the check no longer closes the app (#1411).
 - The player no longer crashes when you return to it while mpv has the video height but not the video aspect. The picture-in-picture window then opens without a fixed aspect ratio (#1421).
 - A CloudStream plugin that needs a library the runtime does not have, such as MOOSAHub, no longer closes the app. The plugin drops out of the source list and the other plugins load. A plugin whose activity callback throws is detached, and a plugin that crashes the app is turned off until it or the app changes (#1422).
+- A fast double tap on a settings entry no longer closes the app. Settings now opens once, and one back press closes it. Before, the second tap opened a second settings screen, and the two screens registered the same saved-state key (#1427).
 
 ### Changed
 
