@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.recovery
 
 import eu.kanade.domain.entries.anime.model.hasCustomCover
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
@@ -41,6 +42,7 @@ class AnimeRecoveryBackend(
     private val getTracks: GetAnimeTracks,
     private val trackerManager: TrackerManager,
     private val coverCache: AnimeCoverCache,
+    private val sourcePreferences: SourcePreferences,
     private val now: () -> Long = System::currentTimeMillis,
 ) : RecoveryBackend {
 
@@ -93,7 +95,7 @@ class AnimeRecoveryBackend(
 
     override suspend fun destinationSources(excludeSourceIds: Set<Long>): List<RecoverySourceOption> =
         sourceManager.getCatalogueSources()
-            .filter { it.id !in excludeSourceIds }
+            .filter { it.id !in excludeSourceIds && it.isEnabled() }
             .sortedWith(compareBy({ it.lang }, { it.name.lowercase() }))
             .map { RecoverySourceOption(id = it.id, name = it.name, lang = it.lang) }
 
@@ -162,6 +164,10 @@ class AnimeRecoveryBackend(
             moved.toRecoveryTrack()
         }
     }
+
+    private fun AnimeSource.isEnabled(): Boolean =
+        lang in sourcePreferences.enabledLanguages().get() &&
+            id.toString() !in sourcePreferences.disabledAnimeSources().get()
 
     private fun requireSource(sourceId: Long): AnimeSource =
         checkNotNull(sourceManager.get(sourceId)) { "Source $sourceId is not installed" }

@@ -4,6 +4,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -60,6 +61,7 @@ object RecoveryModule {
         getTracks: GetMangaTracks,
         trackerManager: TrackerManager,
         coverCache: MangaCoverCache,
+        sourcePreferences: SourcePreferences,
     ): MangaRecoveryBackend = MangaRecoveryBackend(
         repository = repository,
         applier = MangaRecoveryApplierImpl(handler),
@@ -70,6 +72,7 @@ object RecoveryModule {
         getTracks = getTracks,
         trackerManager = trackerManager,
         coverCache = coverCache,
+        sourcePreferences = sourcePreferences,
     )
 
     @Provides
@@ -85,6 +88,7 @@ object RecoveryModule {
         getTracks: GetAnimeTracks,
         trackerManager: TrackerManager,
         coverCache: AnimeCoverCache,
+        sourcePreferences: SourcePreferences,
     ): AnimeRecoveryBackend = AnimeRecoveryBackend(
         repository = repository,
         applier = AnimeRecoveryApplierImpl(handler),
@@ -95,6 +99,7 @@ object RecoveryModule {
         getTracks = getTracks,
         trackerManager = trackerManager,
         coverCache = coverCache,
+        sourcePreferences = sourcePreferences,
     )
 
     @Provides

@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.recovery
 
 import eu.kanade.domain.entries.manga.model.hasCustomCover
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.MangaCoverCache
 import eu.kanade.tachiyomi.data.track.EnhancedMangaTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -39,6 +40,7 @@ class MangaRecoveryBackend(
     private val getTracks: GetMangaTracks,
     private val trackerManager: TrackerManager,
     private val coverCache: MangaCoverCache,
+    private val sourcePreferences: SourcePreferences,
     private val now: () -> Long = System::currentTimeMillis,
 ) : RecoveryBackend {
 
@@ -89,7 +91,7 @@ class MangaRecoveryBackend(
 
     override suspend fun destinationSources(excludeSourceIds: Set<Long>): List<RecoverySourceOption> =
         sourceManager.getOnlineSources()
-            .filter { it.id !in excludeSourceIds }
+            .filter { it.id !in excludeSourceIds && it.isEnabled() }
             .sortedWith(compareBy({ it.lang }, { it.name.lowercase() }))
             .map { RecoverySourceOption(id = it.id, name = it.name, lang = it.lang) }
 
@@ -158,6 +160,10 @@ class MangaRecoveryBackend(
             moved.toRecoveryTrack()
         }
     }
+
+    private fun MangaSource.isEnabled(): Boolean =
+        lang in sourcePreferences.enabledLanguages().get() &&
+            id.toString() !in sourcePreferences.disabledMangaSources().get()
 
     private fun requireSource(sourceId: Long): MangaSource =
         checkNotNull(sourceManager.get(sourceId)) { "Source $sourceId is not installed" }

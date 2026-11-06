@@ -32,7 +32,7 @@ class RecoveryScreen(
         RecoveryScreenContent(
             state = state,
             media = media,
-            failedSourceName = sourceName,
+            failedSourceName = sourceName?.takeIf(String::isNotBlank),
             actions = RecoveryActions(
                 navigateUp = navigator::pop,
                 toggleOriginal = screenModel::toggleOriginal,
