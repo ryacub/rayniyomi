@@ -127,6 +127,7 @@ class PlayerActivity : BaseActivity() {
     private val playerObserver by lazy { PlayerObserver(this) }
     internal val mpvLoadTracker = MpvLoadTracker<MpvVideoLoadRequest>()
     private var lastVideoLoadRequest: MpvVideoLoadRequest? = null
+    private var tracksReadyRequest: MpvVideoLoadRequest? = null
     private lateinit var playerView: AniyomiMPVView
     private lateinit var rootView: View
     val player: AniyomiMPVView
@@ -387,6 +388,7 @@ class PlayerActivity : BaseActivity() {
         }
         mpvLoadTracker.close()
         lastVideoLoadRequest = null
+        tracksReadyRequest = null
 
         audioFocusRequest?.let {
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, it)
@@ -715,7 +717,10 @@ class PlayerActivity : BaseActivity() {
             }
             "track-list" -> {
                 viewModel.loadTracks()
-                if (!fileLoadedHandler.isLoadingTracks.value) {
+                val request = mpvLoadTracker.loadedItem()
+                if (request != null && request === tracksReadyRequest &&
+                    viewModel.currentEpisode.value?.id == request.episodeId
+                ) {
                     viewModel.onFinishLoadingTracks()
                 }
             }
@@ -1092,6 +1097,7 @@ class PlayerActivity : BaseActivity() {
             }
             val request = MpvVideoLoadRequest(video, resumePosition, episode?.id)
             lastVideoLoadRequest = request
+            tracksReadyRequest = null
             val reservation = mpvLoadTracker.requestLoad(request) ?: return@runOnUiThread
             issueVideoLoad(reservation)
         }
@@ -1252,6 +1258,8 @@ class PlayerActivity : BaseActivity() {
                         if (!player.isExiting && request != null && mpvLoadTracker.loadedItem() === request &&
                             viewModel.currentEpisode.value?.id == request.episodeId
                         ) {
+                            tracksReadyRequest = request
+                            viewModel.loadTracks()
                             viewModel.onFinishLoadingTracks()
                         }
                     }

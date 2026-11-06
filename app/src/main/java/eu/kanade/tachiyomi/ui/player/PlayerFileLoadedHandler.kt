@@ -235,6 +235,7 @@ internal class PlayerFileLoadedHandler(
         }
 
         _isLoadingTracks.update { false }
+        onTracksReady()
     }
 
     private fun setupChapters(
