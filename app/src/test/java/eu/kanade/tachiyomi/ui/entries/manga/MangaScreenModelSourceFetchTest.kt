@@ -18,6 +18,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -155,6 +157,37 @@ class MangaScreenModelSourceFetchTest {
 
         model.snackbarHostState.currentSnackbarData?.visuals?.message shouldBe "IllegalStateException: source down"
         model.successState().isRefreshingData shouldBe false
+    }
+
+    @Test
+    fun `a failed refresh of a library title offers recovery for its source`() = runTest(vt.scheduler) {
+        val model = createModel(manga = manga(initialized = true).copy(favorite = true, source = 7L), chapters = listOf(chapter()))
+        advanceUntilIdle()
+        coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(IllegalStateException("source down"))
+
+        model.fetchAllFromSource()
+        advanceUntilIdle()
+        val snackbar = checkNotNull(model.snackbarHostState.currentSnackbarData)
+        val request = async { model.recoveryRequests.first() }
+        snackbar.performAction()
+        advanceUntilIdle()
+
+        (snackbar.visuals.actionLabel != null) shouldBe true
+        request.await() shouldBe 7L
+    }
+
+    @Test
+    fun `a failed refresh of a title outside the library offers no recovery`() = runTest(vt.scheduler) {
+        val model = createModel(manga = manga(initialized = true).copy(favorite = false), chapters = listOf(chapter()))
+        advanceUntilIdle()
+        coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(IllegalStateException("source down"))
+
+        model.fetchAllFromSource()
+        advanceUntilIdle()
+
+        model.snackbarHostState.currentSnackbarData?.visuals?.actionLabel shouldBe null
     }
 
     @Test
