@@ -50,12 +50,13 @@ import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
-import eu.kanade.tachiyomi.ui.browse.manga.migration.manga.MigrateMangaScreen
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaDialog
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaDialogScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreenModel.Listing
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -241,7 +242,9 @@ data class BrowseMangaSourceScreen(
                 onWebViewClick = onWebViewClick,
                 onHelpClick = { uriHandler.openUri(sourceHelpUrl(it)) },
                 onLocalSourceHelpClick = onHelpClick,
-                onMigrateClick = { navigator.push(MigrateMangaScreen(sourceId)) }.takeIf { hasLibraryEntries },
+                onMigrateClick = {
+                    navigator.push(RecoveryScreen(RecoveryMedia.MANGA, sourceId, screenModel.source.name))
+                }.takeIf { hasLibraryEntries },
                 onMangaClick = { navigator.push((MangaScreen(it.id, true))) },
                 onMangaLongClick = { manga ->
                     scope.launchIO {

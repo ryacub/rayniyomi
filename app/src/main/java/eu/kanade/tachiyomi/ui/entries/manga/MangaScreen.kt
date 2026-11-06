@@ -55,6 +55,8 @@ import eu.kanade.tachiyomi.ui.entries.track.TrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.setting.pushSettings
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
@@ -116,6 +118,12 @@ class MangaScreen(
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e) { "Failed to get manga URL" }
                 }
+            }
+        }
+
+        LaunchedEffect(screenModel) {
+            screenModel.recoveryRequests.collect { sourceId ->
+                navigator.push(RecoveryScreen(RecoveryMedia.MANGA, sourceId, screenModel.source?.name))
             }
         }
 

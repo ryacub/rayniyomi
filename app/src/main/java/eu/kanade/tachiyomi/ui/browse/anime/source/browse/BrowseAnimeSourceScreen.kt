@@ -51,13 +51,14 @@ import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferencesScreen
-import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.MigrateAnimeScreen
 import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.season.MigrateSeasonSelectScreen
 import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialog
 import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialogScreenModel
 import eu.kanade.tachiyomi.ui.browse.anime.source.browse.BrowseAnimeSourceScreenModel.Listing
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -243,7 +244,9 @@ data class BrowseAnimeSourceScreen(
                 onWebViewClick = onWebViewClick,
                 onHelpClick = { uriHandler.openUri(sourceHelpUrl(it)) },
                 onLocalAnimeSourceHelpClick = onHelpClick,
-                onMigrateClick = { navigator.push(MigrateAnimeScreen(sourceId)) }.takeIf { hasLibraryEntries },
+                onMigrateClick = {
+                    navigator.push(RecoveryScreen(RecoveryMedia.ANIME, sourceId, screenModel.source.name))
+                }.takeIf { hasLibraryEntries },
                 onAnimeClick = { navigator.push((AnimeScreen(it.id, true))) },
                 onAnimeLongClick = { anime ->
                     scope.launchIO {

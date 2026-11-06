@@ -57,6 +57,8 @@ import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -163,6 +165,10 @@ data object AnimeLibraryTab : Tab {
                 onOpenSettings = {
                     showUpdateSummary = false
                     navigator.push(SettingsLibraryScreen)
+                },
+                onRecoverFailed = { ids ->
+                    showUpdateSummary = false
+                    navigator.push(RecoveryScreen(RecoveryMedia.ANIME, originalIds = ids))
                 },
             )
         }

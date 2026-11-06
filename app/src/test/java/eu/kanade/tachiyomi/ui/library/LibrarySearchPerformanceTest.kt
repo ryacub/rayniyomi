@@ -6,8 +6,10 @@ import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.library.anime.AnimeLibraryItem
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryItem
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -53,6 +55,18 @@ class LibrarySearchPerformanceTest {
                     ),
                 ),
             ),
+        )
+    }
+
+    @AfterEach
+    fun tearDown() {
+        clearMocks(
+            testAppGraph,
+            answers = false,
+            recordedCalls = true,
+            childMocks = false,
+            verificationMarks = false,
+            exclusionRules = false,
         )
     }
 
@@ -124,15 +138,13 @@ class LibrarySearchPerformanceTest {
     }
 
     private fun buildMangaLibrary(): List<MangaLibraryItem> {
-        val enSource = mockk<MangaSource>()
-        every { enSource.name } returns "MangaDex"
-        every { enSource.lang } returns "en"
-        val jaSource = mockk<MangaSource>()
-        every { jaSource.name } returns "MangaPlus"
-        every { jaSource.lang } returns "ja"
-        val sourceManager = mockk<MangaSourceManager>()
-        every { sourceManager.getOrStub(EN_SOURCE_ID) } returns enSource
-        every { sourceManager.getOrStub(JA_SOURCE_ID) } returns jaSource
+        val sources = mapOf(
+            EN_SOURCE_ID to mangaSource("MangaDex", "en"),
+            JA_SOURCE_ID to mangaSource("MangaPlus", "ja"),
+        )
+        val sourceManager = object : MangaSourceManager by mockk() {
+            override fun getOrStub(sourceKey: Long): MangaSource = sources.getValue(sourceKey)
+        }
         return (0 until size).map { i ->
             val id = i + 1L
             val manga = Manga.create().copy(
@@ -168,15 +180,13 @@ class LibrarySearchPerformanceTest {
     }
 
     private fun buildAnimeLibrary(): List<AnimeLibraryItem> {
-        val enSource = mockk<AnimeSource>()
-        every { enSource.name } returns "Crunchyroll"
-        every { enSource.lang } returns "en"
-        val jaSource = mockk<AnimeSource>()
-        every { jaSource.name } returns "Netflix"
-        every { jaSource.lang } returns "ja"
-        val sourceManager = mockk<AnimeSourceManager>()
-        every { sourceManager.getOrStub(EN_SOURCE_ID) } returns enSource
-        every { sourceManager.getOrStub(JA_SOURCE_ID) } returns jaSource
+        val sources = mapOf(
+            EN_SOURCE_ID to animeSource("Crunchyroll", "en"),
+            JA_SOURCE_ID to animeSource("Netflix", "ja"),
+        )
+        val sourceManager = object : AnimeSourceManager by mockk() {
+            override fun getOrStub(sourceKey: Long): AnimeSource = sources.getValue(sourceKey)
+        }
         return (0 until size).map { i ->
             val id = i + 1L
             val anime = Anime.create().copy(
@@ -210,6 +220,16 @@ class LibrarySearchPerformanceTest {
                 sourceManager = sourceManager,
             )
         }
+    }
+
+    private fun mangaSource(sourceName: String, sourceLang: String): MangaSource = object : MangaSource by mockk() {
+        override val name = sourceName
+        override val lang = sourceLang
+    }
+
+    private fun animeSource(sourceName: String, sourceLang: String): AnimeSource = object : AnimeSource by mockk() {
+        override val name = sourceName
+        override val lang = sourceLang
     }
 
     private companion object {

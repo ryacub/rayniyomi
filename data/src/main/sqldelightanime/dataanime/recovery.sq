@@ -1,0 +1,164 @@
+import kotlin.Boolean;
+
+CREATE TABLE recovery_sessions(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    destination_source_ids TEXT NOT NULL,
+    keep_original INTEGER AS Boolean NOT NULL
+);
+
+CREATE TABLE recovery_entries(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    session_id INTEGER NOT NULL,
+    original_id INTEGER NOT NULL,
+    selected INTEGER AS Boolean NOT NULL DEFAULT 1,
+    state TEXT NOT NULL,
+    search_query TEXT NOT NULL,
+    candidates TEXT NOT NULL DEFAULT '[]',
+    search_errors TEXT NOT NULL DEFAULT '{}',
+    choice TEXT,
+    pairs TEXT NOT NULL DEFAULT '[]',
+    result_id INTEGER,
+    error TEXT,
+    run_token TEXT,
+    UNIQUE (session_id, original_id),
+    FOREIGN KEY(session_id) REFERENCES recovery_sessions (_id) ON DELETE CASCADE,
+    FOREIGN KEY(original_id) REFERENCES animes (_id) ON DELETE CASCADE
+);
+
+CREATE INDEX recovery_entries_session_id_index ON recovery_entries(session_id);
+
+insertSession:
+INSERT INTO recovery_sessions(created_at, destination_source_ids, keep_original)
+VALUES (:createdAt, :destinationSourceIds, :keepOriginal);
+
+insertEntry:
+INSERT INTO recovery_entries(session_id, original_id, state, search_query)
+VALUES (:sessionId, :originalId, :state, :searchQuery);
+
+selectLastInsertedRowId:
+SELECT last_insert_rowid();
+
+getSession:
+SELECT * FROM recovery_sessions WHERE _id = :sessionId;
+
+getLatestOpenSession:
+SELECT rs.* FROM recovery_sessions rs
+WHERE EXISTS (
+    SELECT 1 FROM recovery_entries re
+    WHERE re.session_id = rs._id AND re.state NOT IN :finishedStates
+) AND EXISTS (
+    SELECT 1 FROM recovery_entries re
+    WHERE re.session_id = rs._id AND re.original_id IN :originalIds
+)
+ORDER BY rs.created_at DESC, rs._id DESC
+LIMIT 1;
+
+getEntries:
+SELECT * FROM recovery_entries WHERE session_id = :sessionId ORDER BY _id;
+
+setSelected:
+UPDATE recovery_entries SET selected = :selected WHERE _id = :entryId;
+
+claim:
+UPDATE recovery_entries SET state = :toState, run_token = :runToken
+WHERE _id IN :entryIds;
+
+saveSearchResult:
+UPDATE recovery_entries SET state = :state, candidates = :candidates, search_errors = :searchErrors, run_token = NULL
+WHERE _id = :entryId AND run_token = :runToken AND state = :searchingState;
+
+interruptRun:
+UPDATE recovery_entries SET state = :interruptedState, run_token = NULL
+WHERE run_token = :runToken AND state IN :unfinishedStates;
+
+interruptAll:
+UPDATE recovery_entries SET state = :interruptedState, run_token = NULL
+WHERE state IN :unfinishedStates;
+
+getEntryOwner:
+SELECT state FROM recovery_entries WHERE _id = :entryId AND run_token = :runToken;
+
+finishEntry:
+UPDATE recovery_entries SET state = :state, result_id = :resultId, error = :error
+WHERE _id = :entryId AND run_token = :runToken AND state = :applyingState;
+
+getOriginal:
+SELECT favorite, viewer, episode_flags, date_added, fetch_type FROM animes WHERE _id = :animeId;
+
+findDestination:
+SELECT _id, favorite, fetch_type FROM animes WHERE source = :source AND url = :url ORDER BY favorite DESC, _id LIMIT 1;
+
+insertDestination:
+INSERT INTO animes(source, url, artist, author, description, genre, title, status, thumbnail_url, favorite, initialized, viewer, episode_flags, cover_last_modified, date_added, season_flags, season_number, season_source_order, background_last_modified)
+VALUES (:source, :url, :artist, :author, :description, :genre, :title, :status, :thumbnailUrl, 0, 0, :viewer, :episodeFlags, 0, :dateAdded, 0, -1, 0, 0);
+
+addToLibrary:
+UPDATE animes SET favorite = 1, viewer = :viewer, episode_flags = :episodeFlags, date_added = :dateAdded
+WHERE _id = :animeId;
+
+removeFromLibrary:
+UPDATE animes SET favorite = 0 WHERE _id = :animeId;
+
+getItemUrls:
+SELECT url FROM episodes WHERE anime_id = :animeId;
+
+insertItem:
+INSERT INTO episodes(anime_id, url, name, scanlator, seen, bookmark, last_second_seen, total_seconds, episode_number, source_order, date_fetch, date_upload, fillermark)
+VALUES (:animeId, :url, :name, :scanlator, 0, 0, 0, 0, :number, :sourceOrder, :dateFetch, :dateUpload, 0);
+
+getItemState:
+SELECT _id, seen, bookmark, date_fetch FROM episodes WHERE anime_id = :animeId AND url = :url LIMIT 1;
+
+mergeItemState:
+UPDATE episodes SET
+    seen = seen OR :seen,
+    bookmark = bookmark OR :bookmark,
+    date_fetch = min(date_fetch, :dateFetch)
+WHERE _id = :itemId;
+
+mergeHistory:
+INSERT INTO animehistory(episode_id, last_seen)
+SELECT :destinationItemId, last_seen FROM animehistory WHERE episode_id = :originalItemId AND 1
+ON CONFLICT(episode_id) DO UPDATE SET
+    last_seen = max(coalesce(last_seen, 0), coalesce(excluded.last_seen, 0));
+
+getTrackRemoteIds:
+SELECT sync_id, remote_id FROM anime_sync WHERE anime_id = :animeId;
+
+insertTrackIfMissing:
+INSERT OR IGNORE INTO anime_sync(anime_id, sync_id, remote_id, library_id, title, last_episode_seen, total_episodes, status, score, remote_url, start_date, finish_date, private)
+VALUES (:animeId, :syncId, :remoteId, :libraryId, :title, :lastProgress, :totalItems, :status, :score, :remoteUrl, :startDate, :finishDate, :private);
+
+claimableForSearch:
+SELECT _id FROM recovery_entries
+WHERE session_id = :sessionId AND selected = 1 AND choice IS NULL AND state IN :states;
+
+claimableForApply:
+SELECT _id FROM recovery_entries
+WHERE session_id = :sessionId AND selected = 1 AND choice IS NOT NULL AND state IN :states;
+
+approve:
+UPDATE recovery_entries SET choice = :choice, pairs = :pairs, state = :readyState, error = NULL
+WHERE _id = :entryId AND state NOT IN :lockedStates;
+
+reopen:
+UPDATE recovery_entries SET choice = NULL, pairs = '[]', state = :reviewState
+WHERE _id = :entryId AND state NOT IN :lockedStates;
+
+skip:
+UPDATE recovery_entries SET state = :skippedState
+WHERE _id = :entryId AND state NOT IN :lockedStates;
+
+holdForReview:
+UPDATE recovery_entries SET state = :reviewState, error = :reason
+WHERE _id = :entryId AND state IN :applicableStates;
+
+failRun:
+UPDATE recovery_entries SET state = :failedState, error = :message, run_token = NULL
+WHERE _id = :entryId AND run_token = :runToken AND state = :applyingState;
+
+setQuery:
+UPDATE recovery_entries SET search_query = :query, state = :selectedState, selected = 1, choice = NULL,
+    pairs = '[]', candidates = '[]', search_errors = '{}', error = NULL
+WHERE _id = :entryId AND state NOT IN :lockedStates;

@@ -95,4 +95,20 @@
         <item quantity="one">%d repo</item>
         <item quantity="other">%d repos</item>
     </plurals>
+    <plurals name="recovery_confirm_title">
+        <item quantity="one">Apply %d replacement?</item>
+        <item quantity="other">Apply %d replacements?</item>
+    </plurals>
+    <plurals name="recovery_result_full">
+        <item quantity="one">%d title recovered</item>
+        <item quantity="other">All %d titles recovered</item>
+    </plurals>
+    <plurals name="recovery_result_attention">
+        <item quantity="one">%d needs attention</item>
+        <item quantity="other">%d need attention</item>
+    </plurals>
+    <plurals name="recovery_not_in_session">
+        <item quantity="one">%d selected title is not in this unfinished recovery. Finish it, or start another recovery to add it.</item>
+        <item quantity="other">%d selected titles are not in this unfinished recovery. Finish it, or start another recovery to add them.</item>
+    </plurals>
 </resources>

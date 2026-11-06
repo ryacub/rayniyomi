@@ -58,6 +58,8 @@ import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -171,6 +173,10 @@ data object MangaLibraryTab : Tab {
                 onOpenSettings = {
                     showUpdateSummary = false
                     navigator.push(SettingsLibraryScreen)
+                },
+                onRecoverFailed = { ids ->
+                    showUpdateSummary = false
+                    navigator.push(RecoveryScreen(RecoveryMedia.MANGA, originalIds = ids))
                 },
             )
         }

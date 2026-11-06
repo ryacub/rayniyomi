@@ -91,6 +91,7 @@ import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.settings.SubtitlePreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import eu.kanade.tachiyomi.ui.recovery.RecoveryModule
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import mihon.domain.extensionrepo.anime.interactor.CreateAnimeExtensionRepo
@@ -208,6 +209,7 @@ import tachiyomi.source.local.io.manga.LocalMangaSourceFileSystem
         ItemBindings::class,
         SourceBindings::class,
         SYDomainModule::class,
+        RecoveryModule::class,
     ],
 )
 interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {

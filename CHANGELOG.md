@@ -14,6 +14,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Added
 - Anime extension repositories accept `repo.json` and `index.pb` links, as manga repositories already do (#1410).
+- A guided recovery flow moves library titles from a source that stopped working to a different source. Open it from a source error, the migration list, a failed library update, or a failed refresh of a library title. It searches the sources you pick, shows each match for review, and then moves chapters or episodes, read state, history, trackers, categories, and custom covers. Each title reports its own result. A cancel or an app restart does not damage a title that is not finished. Anime with seasons are not supported in the batch flow; the screen tells you to migrate them one at a time (#1413).
 
 ### Improved
 

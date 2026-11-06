@@ -12,6 +12,8 @@ import eu.kanade.presentation.browse.manga.MigrateMangaScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaSearchScreen
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
+import eu.kanade.tachiyomi.ui.recovery.RecoveryScreen
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.flow.collectLatest
 import tachiyomi.i18n.MR
@@ -42,6 +44,9 @@ data class MigrateMangaScreen(
             state = state,
             onClickItem = { navigator.push(MigrateMangaSearchScreen(it.id)) },
             onClickCover = { navigator.push(MangaScreen(it.id)) },
+            onClickRecover = {
+                navigator.push(RecoveryScreen(RecoveryMedia.MANGA, sourceId, state.source?.name))
+            },
         )
 
         LaunchedEffect(Unit) {

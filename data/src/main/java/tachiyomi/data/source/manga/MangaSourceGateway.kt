@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.source.online.ResolvableSource
 import eu.kanade.tachiyomi.source.online.UriType
@@ -26,6 +27,9 @@ object MangaSourceGateway {
 
     suspend fun latest(source: MangaSource, page: Int): MangasPage =
         guard(source) { source.getLatestUpdates(page) }
+
+    suspend fun update(source: MangaSource, manga: SManga): SMangaUpdate =
+        guard(source) { source.getMangaUpdate(manga, emptyList(), fetchDetails = true, fetchChapters = true) }
 
     suspend fun pages(source: MangaSource, chapter: SChapter): List<Page> =
         guard(source) { source.getPageList(chapter) }
