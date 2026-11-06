@@ -74,3 +74,57 @@ WHERE run_token = :runToken AND state IN :unfinishedStates;
 interruptAll:
 UPDATE recovery_entries SET state = :interruptedState, run_token = NULL
 WHERE state IN :unfinishedStates;
+
+getEntryOwner:
+SELECT state FROM recovery_entries WHERE _id = :entryId AND run_token = :runToken;
+
+finishEntry:
+UPDATE recovery_entries SET state = :state, result_id = :resultId, error = :error
+WHERE _id = :entryId AND run_token = :runToken AND state = :applyingState;
+
+getOriginal:
+SELECT favorite, viewer, episode_flags, date_added, fetch_type FROM animes WHERE _id = :animeId;
+
+findDestination:
+SELECT _id, favorite FROM animes WHERE source = :source AND url = :url ORDER BY favorite DESC, _id LIMIT 1;
+
+insertDestination:
+INSERT INTO animes(source, url, artist, author, description, genre, title, status, thumbnail_url, favorite, initialized, viewer, episode_flags, cover_last_modified, date_added, season_flags, season_number, season_source_order, background_last_modified)
+VALUES (:source, :url, :artist, :author, :description, :genre, :title, :status, :thumbnailUrl, 0, 0, :viewer, :episodeFlags, 0, :dateAdded, 0, -1, 0, 0);
+
+addToLibrary:
+UPDATE animes SET favorite = 1, viewer = :viewer, episode_flags = :episodeFlags, date_added = :dateAdded
+WHERE _id = :animeId;
+
+removeFromLibrary:
+UPDATE animes SET favorite = 0 WHERE _id = :animeId;
+
+getItemUrls:
+SELECT url FROM episodes WHERE anime_id = :animeId;
+
+insertItem:
+INSERT INTO episodes(anime_id, url, name, scanlator, seen, bookmark, last_second_seen, total_seconds, episode_number, source_order, date_fetch, date_upload, fillermark)
+VALUES (:animeId, :url, :name, :scanlator, 0, 0, 0, 0, :number, :sourceOrder, :dateFetch, :dateUpload, 0);
+
+getItemState:
+SELECT _id, seen, bookmark, last_second_seen FROM episodes WHERE anime_id = :animeId AND url = :url LIMIT 1;
+
+mergeItemState:
+UPDATE episodes SET
+    seen = seen OR :seen,
+    bookmark = bookmark OR :bookmark,
+    last_second_seen = CASE WHEN seen = 0 AND last_second_seen = 0 THEN :lastSecondSeen ELSE last_second_seen END
+WHERE _id = :itemId;
+
+mergeHistory:
+INSERT INTO animehistory(episode_id, last_seen)
+SELECT :destinationItemId, last_seen FROM animehistory WHERE episode_id = :originalItemId AND 1
+ON CONFLICT(episode_id) DO UPDATE SET
+    last_seen = max(coalesce(last_seen, 0), coalesce(excluded.last_seen, 0));
+
+getTrackRemoteIds:
+SELECT sync_id, remote_id FROM anime_sync WHERE anime_id = :animeId;
+
+insertTrackIfMissing:
+INSERT OR IGNORE INTO anime_sync(anime_id, sync_id, remote_id, library_id, title, last_episode_seen, total_episodes, status, score, remote_url, start_date, finish_date, private)
+VALUES (:animeId, :syncId, :remoteId, :libraryId, :title, :lastProgress, :totalItems, :status, :score, :remoteUrl, :startDate, :finishDate, :private);

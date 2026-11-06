@@ -38,7 +38,9 @@ class AnimeRecoveryApplierImplTest {
             sourceId = 20,
             url = "/a/1",
             title = "Destination",
-            items = listOf(1.0, 2.0, 3.0).map { RecoveryItem(url = "d${it.toInt()}", name = "Episode $it", number = it) },
+            items = listOf(1.0, 2.0, 3.0).map {
+                RecoveryItem(url = "d${it.toInt()}", name = "Episode $it", number = it)
+            },
         ),
         pairs = listOf("o1" to "d1", "o2" to "d2", "o3" to "d3").map { (from, to) ->
             RecoveryItemPair(from, to, copyPosition = from in copyPosition)
@@ -79,7 +81,10 @@ class AnimeRecoveryApplierImplTest {
 
             assertEquals(RecoveryApplyResult.Unsupported, result)
             assertTrue(db.driver.longs("SELECT _id FROM animes WHERE source = 20").isEmpty())
-            assertEquals(listOf("UNSUPPORTED"), db.driver.strings("SELECT state FROM recovery_entries WHERE _id = $entryId"))
+            assertEquals(
+                listOf("UNSUPPORTED"),
+                db.driver.strings("SELECT state FROM recovery_entries WHERE _id = $entryId"),
+            )
         }
     }
 }

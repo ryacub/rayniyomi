@@ -21,7 +21,9 @@ class MangaRecoveryApplierImplTest {
 
     private class Fixture(val db: MangaRecoveryDb, val repository: MangaRecoveryRepositoryImpl, val entryId: Long) {
         val applier = MangaRecoveryApplierImpl(db.handler)
-        fun destinationId(): Long = db.driver.longs("SELECT _id FROM mangas WHERE source = 20 AND url = '/m/1'").single()
+        fun destinationId(): Long = db.driver.longs(
+            "SELECT _id FROM mangas WHERE source = 20 AND url = '/m/1'",
+        ).single()
     }
 
     private suspend fun MangaRecoveryDb.fixture(): Fixture {
@@ -117,8 +119,15 @@ class MangaRecoveryApplierImplTest {
             assertEquals(1L, db.chapterValue(2, "d1", "read"))
             assertEquals(1L, db.chapterValue(2, "d1", "bookmark"))
             assertEquals(1L, db.chapterValue(2, "extra", "read"))
-            assertEquals(listOf("d1", "d2", "d3", "extra"), db.driver.strings("SELECT url FROM chapters WHERE manga_id = 2 ORDER BY url"))
-            assertEquals(listOf(5L, 9L), db.driver.longs("SELECT viewer FROM mangas WHERE _id = 2") + db.driver.longs("SELECT chapter_flags FROM mangas WHERE _id = 2"))
+            assertEquals(
+                listOf("d1", "d2", "d3", "extra"),
+                db.driver.strings("SELECT url FROM chapters WHERE manga_id = 2 ORDER BY url"),
+            )
+            assertEquals(
+                listOf(5L, 9L),
+                db.driver.longs("SELECT viewer FROM mangas WHERE _id = 2") +
+                    db.driver.longs("SELECT chapter_flags FROM mangas WHERE _id = 2"),
+            )
         }
     }
 
@@ -152,8 +161,16 @@ class MangaRecoveryApplierImplTest {
             f.applier.apply(f.request(pairs = listOf("o1" to "d1", "o2" to "d2")))
 
             val d2 = db.driver.longs("SELECT _id FROM chapters WHERE manga_id = 2 AND url = 'd2'").single()
-            assertEquals(listOf(9_000L, 100L), db.driver.longs("SELECT last_read FROM history WHERE chapter_id = 21") + db.driver.longs("SELECT time_read FROM history WHERE chapter_id = 21"))
-            assertEquals(listOf(4_000L, 70L), db.driver.longs("SELECT last_read FROM history WHERE chapter_id = $d2") + db.driver.longs("SELECT time_read FROM history WHERE chapter_id = $d2"))
+            assertEquals(
+                listOf(9_000L, 100L),
+                db.driver.longs("SELECT last_read FROM history WHERE chapter_id = 21") +
+                    db.driver.longs("SELECT time_read FROM history WHERE chapter_id = 21"),
+            )
+            assertEquals(
+                listOf(4_000L, 70L),
+                db.driver.longs("SELECT last_read FROM history WHERE chapter_id = $d2") +
+                    db.driver.longs("SELECT time_read FROM history WHERE chapter_id = $d2"),
+            )
         }
     }
 
@@ -187,7 +204,10 @@ class MangaRecoveryApplierImplTest {
 
             f.applier.apply(f.request())
 
-            assertEquals(listOf(1L, 3L), db.driver.longs("SELECT category_id FROM mangas_categories WHERE manga_id = 2 ORDER BY category_id"))
+            assertEquals(
+                listOf(1L, 3L),
+                db.driver.longs("SELECT category_id FROM mangas_categories WHERE manga_id = 2 ORDER BY category_id"),
+            )
         }
     }
 
@@ -197,7 +217,7 @@ class MangaRecoveryApplierImplTest {
             val f = db.fixture()
             db.insertCategory(1)
             db.insertMangaCategory(originalId, 1)
-            db.insertManga(2, source = 20, url = "/m/1", )
+            db.insertManga(2, source = 20, url = "/m/1")
             db.insertTrack(2, syncId = 1, remoteId = 500, lastRead = 2.0)
 
             val result = f.applier.apply(f.request(tracks = listOf(track(syncId = 1, remoteId = 999, lastRead = 4.0))))
@@ -218,12 +238,30 @@ class MangaRecoveryApplierImplTest {
             db.insertTrack(2, syncId = 1, remoteId = 500, lastRead = 6.0)
 
             f.applier.apply(
-                f.request(tracks = listOf(track(syncId = 1, remoteId = 500, lastRead = 4.0), track(syncId = 2, remoteId = 77, lastRead = 3.0))),
+                f.request(
+                    tracks = listOf(
+                        track(syncId = 1, remoteId = 500, lastRead = 8.0),
+                        track(syncId = 2, remoteId = 77, lastRead = 3.0),
+                    ),
+                ),
             )
 
-            assertEquals(listOf(1L, 2L), db.driver.longs("SELECT sync_id FROM manga_sync WHERE manga_id = 2 ORDER BY sync_id"))
-            assertEquals(listOf("6.0"), db.driver.strings("SELECT last_chapter_read FROM manga_sync WHERE manga_id = 2 AND sync_id = 1"))
-            assertEquals(listOf(77L), db.driver.longs("SELECT remote_id FROM manga_sync WHERE manga_id = 2 AND sync_id = 2"))
+            assertEquals(
+                listOf(1L, 2L),
+                db.driver.longs("SELECT sync_id FROM manga_sync WHERE manga_id = 2 ORDER BY sync_id"),
+            )
+            assertEquals(
+                listOf("8.0"),
+                db.driver.strings("SELECT last_chapter_read FROM manga_sync WHERE manga_id = 2 AND sync_id = 1"),
+            )
+            assertEquals(
+                listOf("https://t/500"),
+                db.driver.strings("SELECT remote_url FROM manga_sync WHERE manga_id = 2 AND sync_id = 1"),
+            )
+            assertEquals(
+                listOf(77L),
+                db.driver.longs("SELECT remote_id FROM manga_sync WHERE manga_id = 2 AND sync_id = 2"),
+            )
         }
     }
 
