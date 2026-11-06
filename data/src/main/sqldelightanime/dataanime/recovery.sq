@@ -150,3 +150,11 @@ WHERE _id = :entryId AND state NOT IN :lockedStates;
 skip:
 UPDATE recovery_entries SET state = :skippedState
 WHERE _id = :entryId AND state NOT IN :lockedStates;
+
+holdForReview:
+UPDATE recovery_entries SET state = :reviewState, error = :reason
+WHERE _id = :entryId AND state IN :applicableStates;
+
+failRun:
+UPDATE recovery_entries SET state = :failedState, error = :message, run_token = NULL
+WHERE _id = :entryId AND run_token = :runToken AND state = :applyingState;

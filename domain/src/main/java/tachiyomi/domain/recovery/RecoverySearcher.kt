@@ -1,12 +1,15 @@
 package tachiyomi.domain.recovery
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import tachiyomi.domain.recovery.model.RecoveryCandidate
+import tachiyomi.domain.recovery.model.RecoveryEntry
 import tachiyomi.domain.recovery.model.RecoveryState
 import tachiyomi.domain.recovery.repository.RecoveryRepository
 
@@ -27,10 +30,19 @@ class RecoverySearcher(
         val session = repository.getSession(sessionId) ?: return
         val claimed = repository.claimForSearch(sessionId, runToken).toSet()
         val entries = repository.getEntries(sessionId).filter { it.id in claimed }
+        try {
+            searchEntries(entries, session.destinationSourceIds, runToken)
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) { repository.interruptRun(runToken) }
+            throw e
+        }
+    }
+
+    private suspend fun searchEntries(entries: List<RecoveryEntry>, sourceIds: List<Long>, runToken: String) {
         coroutineScope {
             entries.map { entry ->
                 async {
-                    val outcome = searchAll(session.destinationSourceIds, entry.searchQuery)
+                    val outcome = searchAll(sourceIds, entry.searchQuery)
                     repository.saveSearchResult(entry.id, runToken, outcome.state, outcome.candidates, outcome.errors)
                 }
             }.awaitAll()

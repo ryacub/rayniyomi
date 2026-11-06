@@ -83,7 +83,11 @@ class RecoveryApplyRunnerTest {
             createdAt = 1_000,
         )
         repository.getEntries(sessionId).forEach {
-            repository.approve(it.id, RecoveryCandidate(20, "/m/${it.originalId}", "Title ${it.originalId}"), emptyList())
+            repository.approve(
+                it.id,
+                RecoveryCandidate(20, "/m/${it.originalId}", "Title ${it.originalId}"),
+                emptyList(),
+            )
         }
         return repository to sessionId
     }
@@ -98,7 +102,10 @@ class RecoveryApplyRunnerTest {
             val spy = LockSpy(repository)
             val real = MangaRecoveryApplierImpl(db.handler)
             val lockedDuringApply = mutableListOf<Boolean>()
-            val applier = RecoveryApplier { request -> lockedDuringApply += spy.depth > 0; real.apply(request) }
+            val applier = RecoveryApplier { request ->
+                lockedDuringApply += spy.depth > 0
+                real.apply(request)
+            }
             val covers = Covers()
 
             RecoveryApplyRunner(spy, applier, FakePreparer(), covers::copy).run(sessionId, "run")
@@ -133,7 +140,12 @@ class RecoveryApplyRunnerTest {
         MangaRecoveryDb().use { db ->
             val (repository, sessionId) = db.readySession(2)
 
-            RecoveryApplyRunner(repository, MangaRecoveryApplierImpl(db.handler), FakePreparer(failFor = setOf(1)), Covers()::copy)
+            RecoveryApplyRunner(
+                repository,
+                MangaRecoveryApplierImpl(db.handler),
+                FakePreparer(failFor = setOf(1)),
+                Covers()::copy,
+            )
                 .run(sessionId, "run")
 
             val entries = repository.getEntries(sessionId).sortedBy { it.originalId }
@@ -152,7 +164,10 @@ class RecoveryApplyRunnerTest {
                 awaitCancellation()
             }
 
-            val job = launch { RecoveryApplyRunner(repository, applier, FakePreparer(), Covers()::copy).run(sessionId, "run") }
+            val job =
+                launch {
+                    RecoveryApplyRunner(repository, applier, FakePreparer(), Covers()::copy).run(sessionId, "run")
+                }
             started.await()
             job.cancel()
             job.join()

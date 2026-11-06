@@ -52,6 +52,10 @@ interface RecoveryRepository {
 
     suspend fun skip(entryId: Long): Boolean
 
+    suspend fun holdForReview(entryId: Long, reason: String): Boolean
+
+    suspend fun failRun(entryId: Long, runToken: String, message: String): Boolean
+
     suspend fun interruptRun(runToken: String): Int
 
     suspend fun reconcileAfterProcessStart(): Int

@@ -118,14 +118,36 @@ class MangaRecoveryRepositoryImpl(
         ).value == 1L
     }
 
+    override suspend fun holdForReview(entryId: Long, reason: String): Boolean = handler.await {
+        recoveryQueries.holdForReview(
+            reviewState = RecoveryState.NEEDS_REVIEW.name,
+            reason = reason,
+            entryId = entryId,
+            applicableStates = RecoveryCodec.names(RecoveryState.applicable),
+        ).value == 1L
+    }
+
+    override suspend fun failRun(entryId: Long, runToken: String, message: String): Boolean = handler.await {
+        recoveryQueries.failRun(
+            failedState = RecoveryState.FAILED.name,
+            message = message,
+            entryId = entryId,
+            runToken = runToken,
+            applyingState = RecoveryState.APPLYING.name,
+        ).value == 1L
+    }
+
     private suspend fun claimWhere(
         runToken: String,
         to: RecoveryState,
         select: Database.() -> List<Long>,
-    ): List<Long> = handler.await(inTransaction = true) {
-        val ids = select()
-        recoveryQueries.claim(to.name, runToken, ids, RecoveryCodec.names(RecoveryState.entries.toSet()))
-        ids
+    ): List<Long> {
+        reconcileAfterProcessStart()
+        return handler.await(inTransaction = true) {
+            val ids = select()
+            recoveryQueries.claim(to.name, runToken, ids, RecoveryCodec.names(RecoveryState.entries.toSet()))
+            ids
+        }
     }
 
     override suspend fun interruptRun(runToken: String): Int = handler.await {
