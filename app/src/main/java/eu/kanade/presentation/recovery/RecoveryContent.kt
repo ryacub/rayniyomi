@@ -49,6 +49,7 @@ import tachiyomi.domain.recovery.model.RecoveryReviewReason
 import tachiyomi.domain.recovery.model.RecoveryState
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
 
@@ -63,6 +64,7 @@ class RecoveryActions(
     val skip: (Long) -> Unit,
     val reopen: (Long) -> Unit,
     val searchAgain: (Long, String) -> Unit,
+    val searchRemaining: () -> Unit,
     val apply: () -> Unit,
     val cancel: () -> Unit,
     val retryFailed: () -> Unit,
@@ -149,6 +151,11 @@ private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: Recover
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(MR.strings.recovery_action_find)) }
             Step.Review -> {
+                if (state.searchableCount > 0) {
+                    OutlinedButton(onClick = actions.searchRemaining, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(MR.strings.recovery_action_search_remaining, state.searchableCount))
+                    }
+                }
                 val ready = state.applicableCount
                 Button(onClick = onApply, enabled = ready > 0, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(MR.strings.recovery_action_apply, ready))
@@ -239,6 +246,18 @@ private fun ReviewStep(
 ) {
     val sourceNames = state.sources.associate { it.id to it.name }
     LazyColumn(contentPadding = contentPadding) {
+        if (state.notInSession > 0) {
+            item {
+                Text(
+                    text = pluralStringResource(
+                        MR.plurals.recovery_not_in_session,
+                        state.notInSession,
+                        state.notInSession,
+                    ),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
         items(state.entries, key = { "entry-${it.id}" }) { entry ->
             ReviewRow(
                 entry = entry,
@@ -536,7 +555,8 @@ private fun RecoveryState.label() = when (this) {
 
 private val previewActions = RecoveryActions(
     navigateUp = {}, toggleOriginal = {}, toggleSource = {}, setKeepOriginal = {}, findReplacements = {},
-    choose = { _, _ -> }, approve = {}, skip = {}, reopen = {}, searchAgain = { _, _ -> }, apply = {},
+    choose = { _, _ ->
+    }, approve = {}, skip = {}, reopen = {}, searchAgain = { _, _ -> }, searchRemaining = {}, apply = {},
     cancel = {}, retryFailed = {}, reviewUnresolved = {}, startAnother = {}, openTitle = {}, migrateAlone = {},
 )
 

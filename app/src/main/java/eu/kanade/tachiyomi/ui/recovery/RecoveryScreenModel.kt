@@ -25,6 +25,7 @@ import tachiyomi.domain.recovery.model.RecoveryCandidate
 import tachiyomi.domain.recovery.model.RecoveryEntry
 import tachiyomi.domain.recovery.model.RecoveryState
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class RecoveryScreenModel(
     val media: RecoveryMedia,
@@ -56,7 +57,7 @@ class RecoveryScreenModel(
 
     private var work: Job? = null
     private var entriesJob: Job? = null
-    private val previewJobs = mutableMapOf<Long, Job>()
+    private val previewJobs = ConcurrentHashMap<Long, Job>()
 
     init {
         viewModelScope.launch(ioDispatcher) {
@@ -84,12 +85,18 @@ class RecoveryScreenModel(
                 titles = it.titles + originals.associate { original -> original.id to original.title },
             )
         }
-        val requested = originals.map(RecoveryOriginal::id).toSet()
-        val open = repository.getLatestOpenSession()
-        val openOriginals = open?.let { session -> repository.getEntries(session.id).map { it.originalId } }.orEmpty()
-        if (open != null && openOriginals.any { it in requested }) {
+        val requested = originals.map(RecoveryOriginal::id)
+        val open = repository.getLatestOpenSession(requested)
+        if (open != null) {
+            val openOriginals = repository.getEntries(open.id).map { it.originalId }
             val titles = backend.originals(null, openOriginals).associate { it.id to it.title }
-            mutableState.update { it.copy(keepOriginal = open.keepOriginal, titles = it.titles + titles) }
+            mutableState.update {
+                it.copy(
+                    keepOriginal = open.keepOriginal,
+                    titles = it.titles + titles,
+                    notInSession = requested.count { id -> id !in openOriginals },
+                )
+            }
             attach(open.id)
         } else {
             mutableState.update { it.copy(step = Step.Select) }
@@ -133,10 +140,18 @@ class RecoveryScreenModel(
         refreshEntries(sessionId)
     }
 
-    fun searchAgain(entryId: Long, query: String) = launchWork(Busy.Searching) {
-        val sessionId = state.value.sessionId ?: return@launchWork
-        if (!repository.setQuery(entryId, query)) return@launchWork
+    fun searchAgain(entryId: Long, query: String) {
         clearPreview(entryId)
+        launchWork(Busy.Searching) {
+            val sessionId = state.value.sessionId ?: return@launchWork
+            if (!repository.setQuery(entryId, query)) return@launchWork
+            searcher.run(sessionId, newToken())
+            refreshEntries(sessionId)
+        }
+    }
+
+    fun searchRemaining() = launchWork(Busy.Searching) {
+        val sessionId = state.value.sessionId ?: return@launchWork
         searcher.run(sessionId, newToken())
         refreshEntries(sessionId)
     }
@@ -151,7 +166,7 @@ class RecoveryScreenModel(
                 previewErrors = it.previewErrors - entryId,
             )
         }
-        previewJobs[entryId] = viewModelScope.launch(ioDispatcher) {
+        val job = viewModelScope.launch(ioDispatcher) {
             try {
                 val preview = backend.preview(entry.originalId, candidate)
                 mutableState.update {
@@ -169,6 +184,8 @@ class RecoveryScreenModel(
                 }
             }
         }
+        previewJobs[entryId] = job
+        job.invokeOnCompletion { previewJobs.remove(entryId, job) }
     }
 
     fun approve(entryId: Long) {
@@ -234,6 +251,7 @@ class RecoveryScreenModel(
                 previewErrors = emptyMap(),
                 coverFailures = emptyMap(),
                 workError = null,
+                notInSession = 0,
             )
         }
     }
@@ -249,7 +267,7 @@ class RecoveryScreenModel(
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Recovery work failed" }
                 mutableState.update { it.copy(workError = e.messageOrName()) }
-                state.value.sessionId?.let { refreshEntries(it) }
+                state.value.sessionId?.let { runCatching { refreshEntries(it) } }
             } finally {
                 mutableState.update { it.copy(busy = null) }
             }
@@ -307,6 +325,7 @@ class RecoveryScreenModel(
         val coverFailures: Map<Long, String> = emptyMap(),
         val busy: Busy? = null,
         val workError: String? = null,
+        val notInSession: Int = 0,
     ) {
         val summary: Summary
             get() = Summary(
@@ -316,6 +335,11 @@ class RecoveryScreenModel(
                 unsupported = entries.count { it.state == RecoveryState.UNSUPPORTED },
                 skipped = entries.count { it.state == RecoveryState.SKIPPED },
             )
+
+        val searchableCount: Int
+            get() = entries.count {
+                it.selected && it.choice == null && it.candidates.isEmpty() && it.state in RecoveryState.searchable
+            }
 
         val applicableCount: Int
             get() = entries.count { it.selected && it.choice != null && it.state in RecoveryState.applicable }

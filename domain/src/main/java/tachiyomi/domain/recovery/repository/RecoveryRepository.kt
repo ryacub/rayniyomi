@@ -19,7 +19,7 @@ interface RecoveryRepository {
 
     suspend fun getSession(sessionId: Long): RecoverySession?
 
-    suspend fun getLatestOpenSession(): RecoverySession?
+    suspend fun getLatestOpenSession(originalIds: List<Long>): RecoverySession?
 
     suspend fun getEntries(sessionId: Long): List<RecoveryEntry>
 

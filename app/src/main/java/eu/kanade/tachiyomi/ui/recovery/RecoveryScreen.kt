@@ -44,6 +44,7 @@ class RecoveryScreen(
                 skip = screenModel::skip,
                 reopen = screenModel::reopen,
                 searchAgain = screenModel::searchAgain,
+                searchRemaining = screenModel::searchRemaining,
                 apply = screenModel::applySelected,
                 cancel = screenModel::cancel,
                 retryFailed = screenModel::retryFailed,

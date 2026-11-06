@@ -960,6 +960,7 @@
     <string name="recovery_action_retry_failed">Retry failed</string>
     <string name="recovery_action_review_unresolved">Review unresolved</string>
     <string name="recovery_action_start_another">Start another recovery</string>
+    <string name="recovery_action_search_remaining">Search remaining titles (%d)</string>
     <string name="recovery_action_migrate_alone">Migrate on its own</string>
     <string name="recovery_action_keep_as_is">Keep as is</string>
     <string name="recovery_search_hint">Title to search</string>

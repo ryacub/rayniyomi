@@ -47,6 +47,9 @@ SELECT rs.* FROM recovery_sessions rs
 WHERE EXISTS (
     SELECT 1 FROM recovery_entries re
     WHERE re.session_id = rs._id AND re.state NOT IN :finishedStates
+) AND EXISTS (
+    SELECT 1 FROM recovery_entries re
+    WHERE re.session_id = rs._id AND re.original_id IN :originalIds
 )
 ORDER BY rs.created_at DESC, rs._id DESC
 LIMIT 1;

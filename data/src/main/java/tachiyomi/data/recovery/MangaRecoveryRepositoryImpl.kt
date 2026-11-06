@@ -37,9 +37,9 @@ class MangaRecoveryRepositoryImpl(
     override suspend fun getSession(sessionId: Long): RecoverySession? =
         handler.awaitOneOrNull { recoveryQueries.getSession(sessionId, ::session) }
 
-    override suspend fun getLatestOpenSession(): RecoverySession? =
+    override suspend fun getLatestOpenSession(originalIds: List<Long>): RecoverySession? =
         handler.awaitOneOrNull {
-            recoveryQueries.getLatestOpenSession(RecoveryCodec.names(RecoveryState.finished), ::session)
+            recoveryQueries.getLatestOpenSession(RecoveryCodec.names(RecoveryState.finished), originalIds, ::session)
         }
 
     override suspend fun getEntries(sessionId: Long): List<RecoveryEntry> =
