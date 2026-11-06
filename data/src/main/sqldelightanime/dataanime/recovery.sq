@@ -158,3 +158,8 @@ WHERE _id = :entryId AND state IN :applicableStates;
 failRun:
 UPDATE recovery_entries SET state = :failedState, error = :message, run_token = NULL
 WHERE _id = :entryId AND run_token = :runToken AND state = :applyingState;
+
+setQuery:
+UPDATE recovery_entries SET search_query = :query, state = :selectedState, selected = 1, choice = NULL,
+    pairs = '[]', candidates = '[]', search_errors = '{}', error = NULL
+WHERE _id = :entryId AND state NOT IN :lockedStates;

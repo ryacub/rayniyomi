@@ -118,6 +118,15 @@ class MangaRecoveryRepositoryImpl(
         ).value == 1L
     }
 
+    override suspend fun setQuery(entryId: Long, query: String): Boolean = handler.await {
+        recoveryQueries.setQuery(
+            query = query,
+            selectedState = RecoveryState.SELECTED.name,
+            entryId = entryId,
+            lockedStates = RecoveryCodec.names(RecoveryState.locked),
+        ).value == 1L
+    }
+
     override suspend fun holdForReview(entryId: Long, reason: String): Boolean = handler.await {
         recoveryQueries.holdForReview(
             reviewState = RecoveryState.NEEDS_REVIEW.name,

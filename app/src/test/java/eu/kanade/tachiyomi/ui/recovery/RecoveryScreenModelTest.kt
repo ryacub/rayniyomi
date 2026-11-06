@@ -1,10 +1,15 @@
 package eu.kanade.tachiyomi.ui.recovery
 
+import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.test.VirtualTime
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -101,15 +106,26 @@ class RecoveryScreenModelTest {
         ids.forEach { insertChapter(it * 10 + 1, it, "o1", 1.0, read = true) }
     }
 
+    private val models = mutableListOf<RecoveryScreenModel>()
+
     private fun model(backend: RecoveryBackend, sourceId: Long? = 1) =
-        RecoveryScreenModel(RecoveryMedia.MANGA, sourceId, emptyList(), backend, now = { 1_000 })
+        RecoveryScreenModel(RecoveryMedia.MANGA, sourceId, emptyList(), backend, now = { 1_000 }).also(models::add)
+
+    private suspend inline fun withDb(block: (MangaRecoveryDb) -> Unit) = MangaRecoveryDb().use { db ->
+        try {
+            block(db)
+        } finally {
+            models.forEach { it.viewModelScope.coroutineContext.job.cancelAndJoin() }
+            models.clear()
+        }
+    }
 
     private suspend fun RecoveryScreenModel.awaitState(predicate: (RecoveryScreenModel.State) -> Boolean) =
-        withTimeout(10_000) { state.first(predicate) }
+        withContext(Dispatchers.Default.limitedParallelism(1)) { withTimeout(10_000) { state.first(predicate) } }
 
     @Test
     fun `an unfinished session resumes at review instead of starting over`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1)
             val backend = FakeBackend(db, listOf(original(1)), results())
             val sessionId = backend.repository.createSession(
@@ -128,7 +144,7 @@ class RecoveryScreenModelTest {
 
     @Test
     fun `find replacements searches all selected titles once and marks season titles unsupported`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1, 2, 3)
             val queries = mutableListOf<String>()
             val search = RecoverySourceSearch { sourceId, query ->
@@ -142,7 +158,10 @@ class RecoveryScreenModelTest {
             model.toggleSource(20)
             model.toggleOriginal(3)
             model.findReplacements()
-            val state = model.awaitState { s -> s.step == RecoveryScreenModel.Step.Review && s.entries.isNotEmpty() && s.busy == null }
+            val state = model.awaitState { s ->
+                s.step == RecoveryScreenModel.Step.Review && s.entries.isNotEmpty() &&
+                    s.busy == null
+            }
 
             assertEquals(listOf("Title 1"), queries)
             assertEquals(
@@ -154,14 +173,16 @@ class RecoveryScreenModelTest {
 
     @Test
     fun `a previewed candidate proposes pairs and approval makes the row ready`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1)
             val backend = FakeBackend(db, listOf(original(1)), results("/m/1"))
             val model = model(backend)
             model.awaitState { it.step == RecoveryScreenModel.Step.Select }
             model.toggleSource(20)
             model.findReplacements()
-            val entry = model.awaitState { s -> s.entries.any { it.state == RecoveryState.NEEDS_REVIEW } }.entries.single()
+            val entry = model.awaitState { s ->
+                s.entries.any { it.state == RecoveryState.NEEDS_REVIEW }
+            }.entries.single()
 
             model.choose(entry.id, entry.candidates.single())
             val previewed = model.awaitState { entry.id in it.previews }
@@ -170,19 +191,22 @@ class RecoveryScreenModelTest {
 
             assertEquals(listOf(RecoveryItemPair("o1", "d1", false)), previewed.previews.getValue(entry.id).pairs)
             assertEquals(RecoveryCandidate(20, "/m/1", "/m/1"), approved.entries.single().choice)
+            assertEquals(listOf(RecoveryItemPair("o1", "d1", false)), approved.entries.single().pairs)
         }
     }
 
     @Test
     fun `a season-type candidate cannot be approved`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1)
             val backend = FakeBackend(db, listOf(original(1)), results("/s/1"), seasonCandidates = setOf("/s/1"))
             val model = model(backend)
             model.awaitState { it.step == RecoveryScreenModel.Step.Select }
             model.toggleSource(20)
             model.findReplacements()
-            val entry = model.awaitState { s -> s.entries.any { it.state == RecoveryState.NEEDS_REVIEW } }.entries.single()
+            val entry = model.awaitState { s ->
+                s.entries.any { it.state == RecoveryState.NEEDS_REVIEW }
+            }.entries.single()
 
             model.choose(entry.id, entry.candidates.single())
             val previewed = model.awaitState { entry.id in it.previews }
@@ -195,14 +219,17 @@ class RecoveryScreenModelTest {
 
     @Test
     fun `apply shows a partial batch as partial and copies covers for completed rows`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1, 2)
             val backend = FakeBackend(db, listOf(original(1), original(2)), results("/m/x"))
             val model = model(backend)
             model.awaitState { it.step == RecoveryScreenModel.Step.Select }
             model.toggleSource(20)
             model.findReplacements()
-            val entries = model.awaitState { s -> s.entries.size == 2 && s.entries.all { it.state == RecoveryState.NEEDS_REVIEW } }.entries
+            val entries = model.awaitState { s ->
+                s.entries.size == 2 &&
+                    s.entries.all { it.state == RecoveryState.NEEDS_REVIEW }
+            }.entries
             val first = entries.single { it.originalId == 1L }
             model.choose(first.id, first.candidates.single())
             model.awaitState { first.id in it.previews }
@@ -221,7 +248,7 @@ class RecoveryScreenModelTest {
 
     @Test
     fun `cancel during apply keeps finished rows and leaves the rest resumable`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1)
             val started = CompletableDeferred<Unit>()
             val blocking = RecoveryApplier {
@@ -233,7 +260,9 @@ class RecoveryScreenModelTest {
             model.awaitState { it.step == RecoveryScreenModel.Step.Select }
             model.toggleSource(20)
             model.findReplacements()
-            val entry = model.awaitState { s -> s.entries.any { it.state == RecoveryState.NEEDS_REVIEW } }.entries.single()
+            val entry = model.awaitState { s ->
+                s.entries.any { it.state == RecoveryState.NEEDS_REVIEW }
+            }.entries.single()
             model.choose(entry.id, entry.candidates.single())
             model.awaitState { entry.id in it.previews }
             model.approve(entry.id)
@@ -242,7 +271,9 @@ class RecoveryScreenModelTest {
             model.applySelected()
             started.await()
             model.cancel()
-            val state = model.awaitState { s -> s.busy == null && s.entries.single().state == RecoveryState.INTERRUPTED }
+            val state = model.awaitState { s ->
+                s.busy == null && s.entries.single().state == RecoveryState.INTERRUPTED
+            }
 
             assertTrue(state.summary.unresolved == 1)
         }
@@ -250,7 +281,7 @@ class RecoveryScreenModelTest {
 
     @Test
     fun `a manual search replaces the candidates of one row only`() = runTest {
-        MangaRecoveryDb().use { db ->
+        withDb { db ->
             db.seed(1, 2)
             val search = RecoverySourceSearch { sourceId, query ->
                 if (sourceId == 20L) listOf(RecoveryCandidate(20, "/q/$query", query)) else emptyList()
@@ -260,11 +291,18 @@ class RecoveryScreenModelTest {
             model.awaitState { it.step == RecoveryScreenModel.Step.Select }
             model.toggleSource(20)
             model.findReplacements()
-            val entries = model.awaitState { s -> s.entries.size == 2 && s.entries.all { it.state == RecoveryState.NEEDS_REVIEW } }.entries
+            val entries = model.awaitState { s ->
+                s.entries.size == 2 &&
+                    s.entries.all { it.state == RecoveryState.NEEDS_REVIEW }
+            }.entries
             val first = entries.single { it.originalId == 1L }
 
             model.searchAgain(first.id, "Other name")
-            val state = model.awaitState { s -> s.entries.single { it.id == first.id }.candidates.firstOrNull()?.title == "Other name" && s.busy == null }
+            val state = model.awaitState { s ->
+                s.entries.single { it.id == first.id }.candidates.firstOrNull()?.title ==
+                    "Other name" &&
+                    s.busy == null
+            }
 
             assertEquals(listOf("Title 2"), state.entries.single { it.originalId == 2L }.candidates.map { it.title })
         }
