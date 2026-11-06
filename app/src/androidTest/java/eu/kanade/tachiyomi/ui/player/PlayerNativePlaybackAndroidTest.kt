@@ -147,7 +147,14 @@ class PlayerNativePlaybackAndroidTest {
         val retainedPosition = MPVLib.getPropertyDouble("time-pos") ?: error("MPV time-pos unavailable")
 
         val eventCountBeforeRecovery = trace.events.size
-        clickVideo(player, 1, "manual-B")
+        trace.recordSelection("manual-B")
+        instrumentation.runOnMainSync {
+            // Saved progress can lag behind the native seek position.
+            checkNotNull(player.currentEpisode.value).last_second_seen = 0L
+            player.showSheet(Sheets.None)
+            player.showSheet(Sheets.QualityTracks)
+            player.onVideoClicked(0, 1)
+        }
         trace.awaitError(missing)
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, media, after = eventCountBeforeRecovery)
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_PLAYBACK_RESTART, media, after = eventCountBeforeRecovery)
