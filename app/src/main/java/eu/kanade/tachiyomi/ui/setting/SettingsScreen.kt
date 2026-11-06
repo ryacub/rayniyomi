@@ -140,3 +140,9 @@ internal fun SettingsTwoPaneContent(
         },
     )
 }
+
+fun Navigator.pushSettings(screen: SettingsScreen = SettingsScreen()) {
+    if (lastItem !is SettingsScreen) {
+        push(screen)
+    }
+}

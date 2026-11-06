@@ -56,6 +56,7 @@ import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
+import eu.kanade.tachiyomi.ui.setting.pushSettings
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.toShareIntent
@@ -148,7 +149,7 @@ class MangaScreen(
             }.takeIf { isHttpSource },
             onTrackingClicked = {
                 if (!successState.hasLoggedInTrackers) {
-                    navigator.push(SettingsScreen(SettingsScreen.Destination.Tracking))
+                    navigator.pushSettings(SettingsScreen(SettingsScreen.Destination.Tracking))
                 } else {
                     screenModel.showTrackDialog()
                 }

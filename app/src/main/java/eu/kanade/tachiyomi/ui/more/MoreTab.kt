@@ -34,6 +34,7 @@ import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.download.DownloadsTab
 import eu.kanade.tachiyomi.ui.setting.PlayerSettingsScreen
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
+import eu.kanade.tachiyomi.ui.setting.pushSettings
 import eu.kanade.tachiyomi.ui.stats.StatsTab
 import eu.kanade.tachiyomi.ui.storage.StorageTab
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +61,7 @@ data object MoreTab : Tab {
         }
 
     override suspend fun onReselect(navigator: Navigator) {
-        navigator.push(SettingsScreen())
+        navigator.pushSettings()
     }
 
     @Composable
@@ -81,10 +82,12 @@ data object MoreTab : Tab {
             onClickCategories = { navigator.push(CategoriesTab) },
             onClickStats = { navigator.push(StatsTab) },
             onClickStorage = { navigator.push(StorageTab) },
-            onClickDataAndStorage = { navigator.push(SettingsScreen(SettingsScreen.Destination.DataAndStorage)) },
+            onClickDataAndStorage = {
+                navigator.pushSettings(SettingsScreen(SettingsScreen.Destination.DataAndStorage))
+            },
             onClickPlayerSettings = { navigator.push(PlayerSettingsScreen(mainSettings = false)) },
-            onClickSettings = { navigator.push(SettingsScreen()) },
-            onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
+            onClickSettings = { navigator.pushSettings() },
+            onClickAbout = { navigator.pushSettings(SettingsScreen(SettingsScreen.Destination.About)) },
             lightNovelUiState = screenModel.lightNovelUiState.collectAsStateWithLifecycle().value,
             onClickLightNovels = { screenModel.launchLightNovels() },
             onClickInstallPlugin = { screenModel.launchInstallFlow(navigator) },
@@ -113,7 +116,7 @@ internal class MoreScreenModel(
     }
 
     fun launchInstallFlow(navigator: Navigator) {
-        navigator.push(SettingsScreen())
+        navigator.pushSettings()
     }
 
     private var _downloadQueueState: MutableStateFlow<DownloadQueueState> = MutableStateFlow(
