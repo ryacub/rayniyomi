@@ -117,4 +117,20 @@ class AnimeRecoveryApplierImplTest {
             )
         }
     }
+
+    @Test
+    fun `a paired episode keeps the original fetch date so it does not show as a new update`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+            db.insertEpisode(11, originalId, "o1", 1.0, dateFetch = 777)
+            db.insertEpisode(12, originalId, "o2", 2.0, dateFetch = 9_000)
+            db.insertEpisode(13, originalId, "o3", 3.0, dateFetch = 778)
+
+            AnimeRecoveryApplierImpl(db.handler).apply(request(entryId))
+
+            val destination = db.driver.longs("SELECT _id FROM animes WHERE source = 20").single()
+            assertEquals(777L, db.episodeValue(destination, "d1", "date_fetch"))
+            assertEquals(5_000L, db.episodeValue(destination, "d2", "date_fetch"))
+        }
+    }
 }

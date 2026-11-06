@@ -251,4 +251,39 @@ class RecoveryApplyRunnerTest {
             assertTrue(newProcess.getEntries(sessionId).single().runToken == "new")
         }
     }
+
+    @Test
+    fun `a row whose destination a finished row already took returns to review`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val (repository, sessionId) = db.readySession(2)
+            val second = repository.getEntries(sessionId).single { it.originalId == 2L }
+            repository.reopen(second.id)
+            val runner =
+                RecoveryApplyRunner(repository, MangaRecoveryApplierImpl(db.handler), FakePreparer(), Covers()::copy)
+            runner.run(sessionId, "run-1")
+
+            repository.approve(second.id, RecoveryCandidate(20, "/m/1", "Title 1"), emptyList())
+            runner.run(sessionId, "run-2")
+
+            val held = repository.getEntries(sessionId).single { it.originalId == 2L }
+            assertEquals(RecoveryState.NEEDS_REVIEW, held.state)
+            assertEquals(RecoveryReviewReason.SHARED_DESTINATION.name, held.error)
+            assertEquals(RecoveryState.COMPLETED, repository.getEntries(sessionId).single { it.originalId == 1L }.state)
+        }
+    }
+
+    @Test
+    fun `an unexpected apply error marks the claimed rows interrupted`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val (repository, sessionId) = db.readySession(2)
+            val applier = RecoveryApplier { throw IllegalStateException("disk full") }
+
+            val error = runCatching {
+                RecoveryApplyRunner(repository, applier, FakePreparer(), Covers()::copy).run(sessionId, "run")
+            }.exceptionOrNull()
+
+            assertEquals("disk full", error?.message)
+            assertEquals(listOf(RecoveryState.INTERRUPTED, RecoveryState.INTERRUPTED), repository.states(sessionId))
+        }
+    }
 }

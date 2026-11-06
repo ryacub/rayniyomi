@@ -85,10 +85,11 @@ internal class MangaRecoveryDb : AutoCloseable {
         read: Boolean = false,
         bookmark: Boolean = false,
         lastPageRead: Long = 0,
+        dateFetch: Long = 0,
     ) = driver.exec(
         "INSERT INTO chapters(_id, manga_id, url, name, read, bookmark, last_page_read, chapter_number, " +
             "source_order, date_fetch, date_upload) VALUES ($id, $mangaId, '$url', 'Chapter $number', " +
-            "${if (read) 1 else 0}, ${if (bookmark) 1 else 0}, $lastPageRead, $number, 0, 0, 0)",
+            "${if (read) 1 else 0}, ${if (bookmark) 1 else 0}, $lastPageRead, $number, 0, $dateFetch, 0)",
     )
 
     fun insertHistory(chapterId: Long, lastRead: Long, timeRead: Long) = driver.exec(
@@ -149,11 +150,12 @@ internal class AnimeRecoveryDb : AutoCloseable {
         number: Double,
         seen: Boolean = false,
         lastSecond: Long = 0,
+        dateFetch: Long = 0,
     ) =
         driver.exec(
             "INSERT INTO episodes(_id, anime_id, url, name, seen, bookmark, last_second_seen, total_seconds, " +
                 "episode_number, source_order, date_fetch, date_upload, fillermark) VALUES ($id, $animeId, '$url', " +
-                "'Episode $number', ${if (seen) 1 else 0}, 0, $lastSecond, 1440, $number, 0, 0, 0, 0)",
+                "'Episode $number', ${if (seen) 1 else 0}, 0, $lastSecond, 1440, $number, 0, $dateFetch, 0, 0)",
         )
 
     fun insertHistory(episodeId: Long, lastSeen: Long) = driver.exec(

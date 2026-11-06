@@ -10,6 +10,7 @@ import tachiyomi.domain.recovery.model.NewRecoveryEntry
 import tachiyomi.domain.recovery.model.RecoveryCandidate
 import tachiyomi.domain.recovery.model.RecoveryItemPair
 import tachiyomi.domain.recovery.model.RecoveryState
+import tachiyomi.domain.recovery.repository.RecoveryRepository
 import java.io.IOException
 
 class RecoverySearcherTest {
@@ -184,6 +185,28 @@ class RecoverySearcherTest {
 
             assertEquals(listOf(ids.getValue(1), ids.getValue(2)), forApply.sorted())
             assertEquals(listOf(ids.getValue(3)), forSearch)
+        }
+    }
+
+    @Test
+    fun `an unexpected error while saving results marks the claimed rows interrupted`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val (repository, sessionId) = db.session(RecoveryState.SELECTED)
+            val failing = object : RecoveryRepository by repository {
+                override suspend fun saveSearchResult(
+                    entryId: Long,
+                    runToken: String,
+                    state: RecoveryState,
+                    candidates: List<RecoveryCandidate>,
+                    searchErrors: Map<Long, String>,
+                ): Boolean = throw IllegalStateException("disk full")
+            }
+            val search = FakeSearch(mapOf(20L to { emptyList() }, 30L to { emptyList() }))
+
+            val error = runCatching { RecoverySearcher(failing, search).run(sessionId, "run") }.exceptionOrNull()
+
+            assertEquals("disk full", error?.message)
+            assertEquals(RecoveryState.INTERRUPTED, repository.entry(sessionId, 1).state)
         }
     }
 }

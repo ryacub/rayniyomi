@@ -347,4 +347,17 @@ class MangaRecoveryApplierImplTest {
             assertEquals("NEEDS_REVIEW", f.state())
         }
     }
+
+    @Test
+    fun `a paired chapter keeps the original fetch date so it does not show as a new update`() = runTest {
+        MangaRecoveryDb().use { db ->
+            val f = db.fixture()
+            db.insertChapter(11, originalId, "o1", 1.0, dateFetch = 777)
+
+            f.applier.apply(f.request(pairs = listOf("o1" to "d1")))
+
+            assertEquals(777L, db.chapterValue(f.destinationId(), "d1", "date_fetch"))
+            assertEquals(5_000L, db.chapterValue(f.destinationId(), "d2", "date_fetch"))
+        }
+    }
 }

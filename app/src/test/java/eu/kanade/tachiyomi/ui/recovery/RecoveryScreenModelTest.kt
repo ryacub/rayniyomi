@@ -6,6 +6,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.test.runTest
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.data.recovery.MangaRecoveryApplierImpl
 import tachiyomi.data.recovery.MangaRecoveryDb
 import tachiyomi.data.recovery.MangaRecoveryRepositoryImpl
+import tachiyomi.data.recovery.claim
 import tachiyomi.domain.recovery.RecoveryPreparer
 import tachiyomi.domain.recovery.RecoverySourceSearch
 import tachiyomi.domain.recovery.model.NewRecoveryEntry
@@ -50,6 +52,7 @@ class RecoveryScreenModelTest {
         override val search: RecoverySourceSearch,
         private val seasonCandidates: Set<String> = emptySet(),
         applier: RecoveryApplier? = null,
+        private val previewGate: suspend (RecoveryCandidate) -> Unit = {},
     ) : RecoveryBackend {
         override val repository = MangaRecoveryRepositoryImpl(db.handler)
         override val applier: RecoveryApplier = applier ?: MangaRecoveryApplierImpl(db.handler)
@@ -78,12 +81,26 @@ class RecoveryScreenModelTest {
             seasons = candidate.url in seasonCandidates,
         )
 
-        override suspend fun originals(sourceId: Long?, originalIds: List<Long>) = originalsList
+        override suspend fun originals(sourceId: Long?, originalIds: List<Long>) = if (originalIds.isEmpty()) {
+            originalsList
+        } else {
+            originalIds.map { id ->
+                originalsList.firstOrNull { it.id == id } ?: RecoveryOriginal(id, "Title $id", null, 1, false)
+            }
+        }
 
-        override suspend fun destinationSources(excludeSourceId: Long?) =
-            listOf(RecoverySourceOption(20, "Source A", "en"), RecoverySourceOption(30, "Source B", "en"))
+        override suspend fun destinationSources(excludeSourceIds: Set<Long>) = listOf(
+            RecoverySourceOption(1, "Broken", "en"),
+            RecoverySourceOption(20, "Source A", "en"),
+            RecoverySourceOption(30, "Source B", "en"),
+        ).filter { it.id !in excludeSourceIds }
 
-        override suspend fun preview(originalId: Long, candidate: RecoveryCandidate) = RecoveryPreview(
+        override suspend fun preview(originalId: Long, candidate: RecoveryCandidate): RecoveryPreview {
+            previewGate(candidate)
+            return previewOf(candidate)
+        }
+
+        private fun previewOf(candidate: RecoveryCandidate) = RecoveryPreview(
             destination = destination(candidate),
             pairs = listOf(RecoveryItemPair("o1", "d1")),
             originalItemCount = 2,
@@ -276,6 +293,7 @@ class RecoveryScreenModelTest {
             }
 
             assertTrue(state.summary.unresolved == 1)
+            assertEquals(1, state.applicableCount)
         }
     }
 
@@ -305,6 +323,184 @@ class RecoveryScreenModelTest {
             }
 
             assertEquals(listOf("Title 2"), state.entries.single { it.originalId == 2L }.candidates.map { it.title })
+        }
+    }
+
+    private fun entry(id: Long, state: RecoveryState, choice: RecoveryCandidate? = null) = RecoveryEntry(
+        id = id,
+        sessionId = 1,
+        originalId = id,
+        selected = true,
+        state = state,
+        searchQuery = "Title $id",
+        candidates = emptyList(),
+        searchErrors = emptyMap(),
+        choice = choice,
+        pairs = emptyList(),
+        resultId = null,
+        error = null,
+        runToken = null,
+    )
+
+    private suspend fun RecoveryScreenModel.approveOnlyRow(): RecoveryEntry {
+        awaitState { it.step == RecoveryScreenModel.Step.Select }
+        toggleSource(20)
+        findReplacements()
+        val entry = awaitState { s -> s.entries.any { it.state == RecoveryState.NEEDS_REVIEW } }.entries.single()
+        choose(entry.id, entry.candidates.first())
+        awaitState { entry.id in it.previews }
+        approve(entry.id)
+        awaitState { s -> s.entries.single().state == RecoveryState.READY }
+        return entry
+    }
+
+    @Test
+    fun `an open session for other titles does not take over a new recovery`() = runTest {
+        withDb { db ->
+            db.seed(1, 9)
+            val backend = FakeBackend(db, listOf(original(1)), results())
+            backend.repository.createSession(
+                listOf(20L),
+                true,
+                listOf(NewRecoveryEntry(9, "Title 9", RecoveryState.MISSING)),
+                500,
+            )
+
+            val state = model(backend).awaitState { it.step != RecoveryScreenModel.Step.Loading }
+
+            assertEquals(RecoveryScreenModel.Step.Select, state.step)
+            assertEquals(null, state.sessionId)
+        }
+    }
+
+    @Test
+    fun `reopening after a process death frees rows the old process left running`() = runTest {
+        withDb { db ->
+            db.seed(1)
+            val backend = FakeBackend(db, listOf(original(1)), results())
+            val sessionId = backend.repository.createSession(
+                listOf(20L),
+                true,
+                listOf(NewRecoveryEntry(1, "Title 1", RecoveryState.NEEDS_REVIEW)),
+                500,
+            )
+            db.driver.claim(backend.repository.getEntries(sessionId).map { it.id }, RecoveryState.APPLYING, "old")
+
+            val state = model(backend).awaitState {
+                it.step == RecoveryScreenModel.Step.Review && it.entries.isNotEmpty()
+            }
+
+            assertEquals(RecoveryState.INTERRUPTED, state.entries.single().state)
+        }
+    }
+
+    @Test
+    fun `a resumed session names every row by its title`() = runTest {
+        withDb { db ->
+            db.seed(1, 2)
+            val backend = FakeBackend(db, listOf(original(1)), results())
+            backend.repository.createSession(
+                listOf(20L),
+                true,
+                listOf(
+                    NewRecoveryEntry(1, "Title 1", RecoveryState.NEEDS_REVIEW),
+                    NewRecoveryEntry(2, "Edited query", RecoveryState.NEEDS_REVIEW),
+                ),
+                500,
+            )
+
+            val state = model(backend).awaitState { it.step == RecoveryScreenModel.Step.Review }
+
+            assertEquals("Title 2", state.titles[2L])
+        }
+    }
+
+    @Test
+    fun `the sources of the titles being recovered are not offered as destinations`() = runTest {
+        withDb { db ->
+            db.seed(1)
+            val backend = FakeBackend(db, listOf(original(1)), results())
+
+            val state = model(backend, sourceId = null).awaitState { it.step == RecoveryScreenModel.Step.Select }
+
+            assertEquals(listOf(20L, 30L), state.sources.map { it.id })
+        }
+    }
+
+    @Test
+    fun `a slow preview of an earlier choice never replaces the preview of the current choice`() = runTest {
+        withDb { db ->
+            db.seed(1)
+            val release = CompletableDeferred<Unit>()
+            val backend = FakeBackend(
+                db,
+                listOf(original(1)),
+                results("/m/a", "/m/b"),
+                previewGate = { if (it.url == "/m/a") release.await() },
+            )
+            val model = model(backend)
+            model.awaitState { it.step == RecoveryScreenModel.Step.Select }
+            model.toggleSource(20)
+            model.findReplacements()
+            val entry = model.awaitState { s ->
+                s.entries.any { it.state == RecoveryState.NEEDS_REVIEW }
+            }.entries.single()
+            val (first, second) = entry.candidates
+
+            model.choose(entry.id, first)
+            model.choose(entry.id, second)
+            model.awaitState { it.previews[entry.id]?.destination?.url == "/m/b" }
+            release.complete(Unit)
+            withContext(Dispatchers.Default) { delay(300) }
+
+            val state = model.state.value
+            assertEquals("/m/b", state.previews.getValue(entry.id).destination.url)
+            assertTrue(state.canApprove(entry.id))
+        }
+    }
+
+    @Test
+    fun `a preview of another candidate does not allow approval`() {
+        val chosen = RecoveryCandidate(20, "/m/b", "B")
+        val other = RecoveryCandidate(20, "/m/a", "A")
+        val state = RecoveryScreenModel.State(
+            entries = listOf(entry(1, RecoveryState.NEEDS_REVIEW)),
+            chosen = mapOf(1L to chosen),
+            previews = mapOf(
+                1L to RecoveryPreview(
+                    destination = RecoveryDestination(other.sourceId, other.url, other.title, emptyList()),
+                    pairs = emptyList(),
+                    originalItemCount = 0,
+                ),
+            ),
+        )
+
+        assertFalse(state.canApprove(1))
+    }
+
+    @Test
+    fun `a batch with a skipped row is not reported as fully recovered`() {
+        val state = RecoveryScreenModel.State(
+            entries = listOf(entry(1, RecoveryState.COMPLETED), entry(2, RecoveryState.SKIPPED)),
+        )
+
+        assertFalse(state.summary.fullyRecovered)
+    }
+
+    @Test
+    fun `an unexpected apply error ends the work, frees the row, and reports the error`() = runTest {
+        withDb { db ->
+            db.seed(1)
+            val failing = RecoveryApplier { throw IllegalStateException("disk full") }
+            val backend = FakeBackend(db, listOf(original(1)), results("/m/1"), applier = failing)
+            val model = model(backend)
+            val entry = model.approveOnlyRow()
+
+            model.applySelected()
+            val state = model.awaitState { it.busy == null && it.workError != null }
+
+            assertEquals("disk full", state.workError)
+            assertEquals(RecoveryState.INTERRUPTED, backend.repository.getEntries(entry.sessionId).single().state)
         }
     }
 }
