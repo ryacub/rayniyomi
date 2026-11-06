@@ -244,14 +244,15 @@ class RecoveryScreenModelTest {
             model.toggleSource(20)
             model.findReplacements()
             val entries = model.awaitState { s ->
-                s.entries.size == 2 &&
+                s.busy == null &&
+                    s.entries.size == 2 &&
                     s.entries.all { it.state == RecoveryState.NEEDS_REVIEW }
             }.entries
             val first = entries.single { it.originalId == 1L }
             model.choose(first.id, first.candidates.single())
             model.awaitState { first.id in it.previews }
             model.approve(first.id)
-            model.awaitState { s -> s.entries.any { it.state == RecoveryState.READY } }
+            model.awaitState { s -> s.busy == null && s.entries.any { it.state == RecoveryState.READY } }
 
             model.applySelected()
             val result = model.awaitState { it.step == RecoveryScreenModel.Step.Result }
@@ -283,7 +284,7 @@ class RecoveryScreenModelTest {
             model.choose(entry.id, entry.candidates.single())
             model.awaitState { entry.id in it.previews }
             model.approve(entry.id)
-            model.awaitState { s -> s.entries.single().state == RecoveryState.READY }
+            model.awaitState { s -> s.busy == null && s.entries.single().state == RecoveryState.READY }
 
             model.applySelected()
             started.await()
@@ -310,7 +311,8 @@ class RecoveryScreenModelTest {
             model.toggleSource(20)
             model.findReplacements()
             val entries = model.awaitState { s ->
-                s.entries.size == 2 &&
+                s.busy == null &&
+                    s.entries.size == 2 &&
                     s.entries.all { it.state == RecoveryState.NEEDS_REVIEW }
             }.entries
             val first = entries.single { it.originalId == 1L }
@@ -350,7 +352,7 @@ class RecoveryScreenModelTest {
         choose(entry.id, entry.candidates.first())
         awaitState { entry.id in it.previews }
         approve(entry.id)
-        awaitState { s -> s.entries.single().state == RecoveryState.READY }
+        awaitState { s -> s.busy == null && s.entries.single().state == RecoveryState.READY }
         return entry
     }
 
