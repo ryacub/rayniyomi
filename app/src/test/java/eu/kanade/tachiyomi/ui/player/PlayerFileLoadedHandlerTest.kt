@@ -391,6 +391,7 @@ class PlayerFileLoadedHandlerTest {
 
     @Test
     fun `isLoadingTracks transitions from true to false during track setup`() = runTest {
+        var tracksReady = false
         val audioTrack = createMockTrack("https://example.com/audio.mp3", "en")
         val video = createMockVideo(audioTracks = listOf(audioTrack))
         val chapters = emptyList<IndexedSegment>()
@@ -415,9 +416,11 @@ class PlayerFileLoadedHandlerTest {
             onChaptersUpdated = onChaptersUpdated,
             onSetChapter = onSetChapter,
             aniSkipFetcher = aniSkipFetcher,
+            onTracksReady = { tracksReady = true },
         )
 
         assertFalse(handler.isLoadingTracks.first())
+        assertTrue(tracksReady, "External track setup must notify its owner when complete")
     }
 
     @Test
