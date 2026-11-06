@@ -88,6 +88,7 @@ internal fun LibraryUpdateSummarySheet(
     onDismissRequest: () -> Unit,
     onOpenEntry: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onRecoverFailed: (List<Long>) -> Unit,
 ) {
     var updatedExpanded by remember(summary.executionId) { mutableStateOf(true) }
     var skippedExpanded by remember(summary.executionId) { mutableStateOf(true) }
@@ -172,6 +173,14 @@ internal fun LibraryUpdateSummarySheet(
                     )
                 }
                 if (failedExpanded) {
+                    item {
+                        Button(
+                            onClick = { onRecoverFailed(summary.failed.map { it.entry.id }.distinct()) },
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                        ) {
+                            Text(stringResource(MR.strings.recovery_title))
+                        }
+                    }
                     summary.failed.groupBy { it.error }.forEach { (error, entries) ->
                         item { FailedErrorHeader(error) }
                         items(entries, key = { "failed-${it.entry.id}" }) { failedEntry ->
