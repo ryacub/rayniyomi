@@ -414,14 +414,17 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
         item {
             Text(
                 text = if (summary.fullyRecovered) {
-                    stringResource(MR.strings.recovery_result_full, summary.completed)
+                    pluralStringResource(MR.plurals.recovery_result_full, summary.completed, summary.completed)
                 } else {
-                    stringResource(
-                        MR.strings.recovery_result_partial,
-                        summary.completed,
-                        summary.needsAttention,
-                        summary.skipped,
-                    )
+                    listOfNotNull(
+                        stringResource(MR.strings.recovery_result_recovered, summary.completed),
+                        summary.needsAttention.takeIf { it > 0 }?.let {
+                            pluralStringResource(MR.plurals.recovery_result_attention, it, it)
+                        },
+                        summary.skipped.takeIf { it > 0 }?.let {
+                            stringResource(MR.strings.recovery_result_skipped, it)
+                        },
+                    ).joinToString()
                 },
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(16.dp).semantics { heading() },
@@ -474,7 +477,7 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
 private fun ConfirmApplyDialog(readyCount: Int, keepOriginal: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(MR.strings.recovery_confirm_title, readyCount)) },
+        title = { Text(pluralStringResource(MR.plurals.recovery_confirm_title, readyCount, readyCount)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(

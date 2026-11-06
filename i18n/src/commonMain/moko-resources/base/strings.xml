@@ -989,13 +989,12 @@
     <string name="recovery_reason_destination_is_original">This match is another title in this recovery.</string>
     <string name="recovery_reason_tracker_conflict">A tracker points to a different title on each side.</string>
     <string name="recovery_reason_mapping_changed">The chapter list changed. Review the match again.</string>
-    <string name="recovery_confirm_title">Apply %d replacements?</string>
     <string name="recovery_confirm_keep">The original titles stay in your library.</string>
     <string name="recovery_confirm_replace">The original titles leave your library. Their data and downloads stay.</string>
     <string name="recovery_confirm_transfer">Read state, bookmarks, history, categories, and trackers move for each matched chapter or episode.</string>
     <string name="recovery_confirm_limits">Positions inside a chapter or episode do not move. Unmatched items keep their state on the original. Downloads do not move.</string>
-    <string name="recovery_result_full">All %d titles recovered</string>
-    <string name="recovery_result_partial">%1$d recovered, %2$d need attention, %3$d skipped</string>
+    <string name="recovery_result_recovered">%d recovered</string>
+    <string name="recovery_result_skipped">%d skipped</string>
     <string name="recovery_work_failed">The last step stopped because of an error: %s. Titles that did not finish keep their data.</string>
     <string name="recovery_cover_failed">The custom cover did not copy: %s</string>
     <string name="cant_open_last_read_chapter">Unable to open last read chapter</string>
