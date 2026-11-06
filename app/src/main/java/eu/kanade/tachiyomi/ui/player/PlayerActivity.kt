@@ -125,6 +125,9 @@ class PlayerActivity : BaseActivity() {
         },
     )
     private val playerObserver by lazy { PlayerObserver(this) }
+    internal val mpvLoadTracker = MpvLoadTracker<MpvVideoLoadRequest>()
+    private var lastVideoLoadRequest: MpvVideoLoadRequest? = null
+    private var tracksReadyRequest: MpvVideoLoadRequest? = null
     private lateinit var playerView: AniyomiMPVView
     private lateinit var rootView: View
     val player: AniyomiMPVView
@@ -383,6 +386,9 @@ class PlayerActivity : BaseActivity() {
         if (::playerView.isInitialized) {
             player.isExiting = true
         }
+        mpvLoadTracker.close()
+        lastVideoLoadRequest = null
+        tracksReadyRequest = null
 
         audioFocusRequest?.let {
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, it)
@@ -527,6 +533,9 @@ class PlayerActivity : BaseActivity() {
                 cacheDir = applicationContext.cacheDir.path,
                 logLvl = logLevel,
             )
+            // mpv-lib sets idle=once inside initialize(), which lets mpv quit after a load error,
+            // before the next server can be loaded. keep-open already covers the end of a file.
+            MPVLib.setPropertyString("idle", "yes")
             mpvReady = true
             setup.fontsDir?.let { mpvInitializer.applyFontsDirectory(it) }
             MPVLib.addLogObserver(playerObserver)
@@ -619,6 +628,7 @@ class PlayerActivity : BaseActivity() {
 
         player.isExiting = false
         super.onResume()
+        mpvLoadTracker.reservedLoad()?.let(::issueVideoLoad)
 
         // A backgrounded resize (e.g. exiting split-screen) leaves mpv's surface at the
         // stale size. setFixedSize/setSizeFromLayout forces a fresh surfaceChanged at the
@@ -707,7 +717,10 @@ class PlayerActivity : BaseActivity() {
             }
             "track-list" -> {
                 viewModel.loadTracks()
-                if (!fileLoadedHandler.isLoadingTracks.value) {
+                val request = mpvLoadTracker.loadedItem()
+                if (request != null && request === tracksReadyRequest &&
+                    viewModel.currentEpisode.value?.id == request.episodeId
+                ) {
                     viewModel.onFinishLoadingTracks()
                 }
             }
@@ -1057,46 +1070,67 @@ class PlayerActivity : BaseActivity() {
     }
 
     fun setVideo(video: Video?, position: Long? = null) {
-        if (player.isExiting) return
         if (video == null) return
+        val episodeId = viewModel.currentEpisode.value?.id
 
-        if (viewModel.isCasting.value && viewModel.canCast(video)) {
-            viewModel.startCastQueue(video, position ?: 0L)
-            return
-        }
+        runOnUiThread {
+            if (player.isExiting || viewModel.currentEpisode.value?.id != episodeId) return@runOnUiThread
 
-        setHttpOptions(video)
-
-        if (viewModel.isLoadingEpisode.value) {
-            viewModel.currentEpisode.value?.let { episode ->
-                val preservePos = playerPreferences.preserveWatchingPosition().get()
-                val resumePosition = position
-                    ?: if (episode.seen && !preservePos) {
-                        0L
-                    } else {
-                        episode.last_second_seen
-                    }
-                MPVLib.command(arrayOf("set", "start", "${resumePosition / 1000F}"))
+            if (viewModel.isCasting.value && viewModel.canCast(video)) {
+                viewModel.startCastQueue(video, position ?: 0L)
+                return@runOnUiThread
             }
-        } else {
-            player.timePos?.let {
-                MPVLib.command(arrayOf("set", "start", "${player.timePos}"))
+
+            val episode = viewModel.currentEpisode.value
+            val previous = lastVideoLoadRequest?.takeIf { it.episodeId == episode?.id }
+            val loaded = mpvLoadTracker.loadedItem()
+            val resumePosition = position ?: if (previous != null) {
+                if (loaded === previous) {
+                    MPVLib.getPropertyDouble("time-pos")?.let { (it * 1000).toLong() } ?: previous.position
+                } else {
+                    previous.position
+                }
+            } else if (episode?.seen == true && !playerPreferences.preserveWatchingPosition().get()) {
+                0L
+            } else {
+                episode?.last_second_seen ?: 0L
             }
+            val request = MpvVideoLoadRequest(video, resumePosition, episode?.id)
+            lastVideoLoadRequest = request
+            tracksReadyRequest = null
+            val reservation = mpvLoadTracker.requestLoad(request) ?: return@runOnUiThread
+            issueVideoLoad(reservation)
         }
+    }
 
-        val videoOptions = video.mpvArgs.joinToString(",") { (option, value) ->
-            "$option=\"$value\""
+    internal fun issueVideoLoad(reservation: MpvLoadTracker.Reservation<MpvVideoLoadRequest>) {
+        runOnUiThread {
+            if (player.isExiting || !mpvLoadTracker.onLoadIssued(reservation)) return@runOnUiThread
+
+            val video = reservation.item.video
+            setHttpOptions(video)
+
+            MPVLib.command(arrayOf("set", "start", "${reservation.item.position / 1000.0}"))
+
+            val videoOptions = video.mpvArgs.joinToString(",") { (option, value) ->
+                "$option=\"$value\""
+            }
+
+            MPVLib.command(
+                arrayOf(
+                    "loadfile",
+                    parseVideoUrl(video.videoUrl),
+                    "replace",
+                    "0",
+                    videoOptions,
+                ),
+            )
         }
+    }
 
-        MPVLib.command(
-            arrayOf(
-                "loadfile",
-                parseVideoUrl(video.videoUrl),
-                "replace",
-                "0",
-                videoOptions,
-            ),
-        )
+    internal fun onVideoLoadFailed(video: Video) {
+        if (player.isExiting) return
+        viewModel.onVideoLoadFailed(video)
     }
 
     /**
@@ -1196,6 +1230,8 @@ class PlayerActivity : BaseActivity() {
     // at void is.xyz.mpv.MPVLib.event(int) (MPVLib.java:86)
     private fun fileLoaded() {
         if (player.isExiting) return
+        val request = mpvLoadTracker.loadedItem()
+        val video = request?.video ?: viewModel.currentVideo.value
 
         setupPlayerOrientation()
         viewModel.waitingSkipIntro = playerPreferences.waitingTimeIntroSkip().get()
@@ -1203,7 +1239,7 @@ class PlayerActivity : BaseActivity() {
         lifecycleScope.launchIO {
             viewModel.loadChapters()
             fileLoadedHandler.onFileLoaded(
-                currentVideo = viewModel.currentVideo.value,
+                currentVideo = video,
                 animeTitle = viewModel.currentAnime.value?.title,
                 episodeName = viewModel.currentEpisode.value?.name,
                 episodeNumber = viewModel.currentEpisode.value?.episode_number?.toDouble(),
@@ -1217,6 +1253,17 @@ class PlayerActivity : BaseActivity() {
                 onChaptersUpdated = { chapters -> viewModel.updateChapters(chapters) },
                 onSetChapter = { pos -> viewModel.setChapter(pos) },
                 aniSkipFetcher = { duration -> viewModel.aniSkipResponse(duration) },
+                onTracksReady = {
+                    lifecycleScope.launch {
+                        if (!player.isExiting && request != null && mpvLoadTracker.loadedItem() === request &&
+                            viewModel.currentEpisode.value?.id == request.episodeId
+                        ) {
+                            tracksReadyRequest = request
+                            viewModel.loadTracks()
+                            viewModel.onFinishLoadingTracks()
+                        }
+                    }
+                },
             )
         }
     }
@@ -1227,3 +1274,5 @@ class PlayerActivity : BaseActivity() {
         }
     }
 }
+
+internal data class MpvVideoLoadRequest(val video: Video, val position: Long, val episodeId: Long?)

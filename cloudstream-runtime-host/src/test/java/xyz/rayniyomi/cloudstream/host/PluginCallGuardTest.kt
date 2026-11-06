@@ -40,4 +40,30 @@ class PluginCallGuardTest {
     fun `cancellation is not wrapped`() = runTest {
         shouldThrow<CancellationException> { guardPluginCall<Unit>("A") { throw CancellationException("stop") } }
     }
+
+    @Test
+    fun `link loading keeps links emitted before an error`() = runTest {
+        val error = guardLinkLoading("A", hasLinks = { true }) { throw IOException("HTTP 500") }
+
+        error?.message shouldContain "HTTP 500"
+    }
+
+    @Test
+    fun `link loading without links still throws`() = runTest {
+        shouldThrow<PluginCallException> {
+            guardLinkLoading("A", hasLinks = { false }) { throw IOException("HTTP 500") }
+        }
+    }
+
+    @Test
+    fun `link loading that succeeds returns no error`() = runTest {
+        guardLinkLoading("A", hasLinks = { true }) {} shouldBe null
+    }
+
+    @Test
+    fun `link loading propagates cancellation even with links`() = runTest {
+        shouldThrow<CancellationException> {
+            guardLinkLoading("A", hasLinks = { true }) { throw CancellationException("stop") }
+        }
+    }
 }

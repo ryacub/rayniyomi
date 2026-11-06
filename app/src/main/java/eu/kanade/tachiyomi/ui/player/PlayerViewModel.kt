@@ -1327,6 +1327,10 @@ class PlayerViewModel internal constructor(
         )
     }
 
+    fun onVideoLoadFailed(video: Video) {
+        hosterOrchestrator.onVideoLoadFailed(video, currentSource.value)
+    }
+
     fun onHosterClicked(index: Int) {
         hosterOrchestrator.onHosterClicked(index, currentSource.value)
     }
