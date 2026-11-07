@@ -60,6 +60,7 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
+import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescription
@@ -76,6 +77,8 @@ import eu.kanade.tachiyomi.source.manga.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.entries.manga.ChapterList
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreenModel
+import eu.kanade.tachiyomi.util.chapter.SavedReadingPosition
+import eu.kanade.tachiyomi.util.chapter.savedReadingPosition
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -374,6 +377,7 @@ private fun MangaScreenSmallImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
+            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -381,11 +385,10 @@ private fun MangaScreenSmallImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        val isReading = remember(state.chapters) {
-                            state.chapters.fastAny { it.chapter.read }
-                        }
-                        Text(
-                            text = stringResource(if (isReading) MR.strings.action_resume else MR.strings.action_start),
+                        ContinueReadingFabText(
+                            state = state,
+                            strokedCue = strokedCue,
+                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -640,6 +643,7 @@ fun MangaScreenLargeImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
+            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -647,13 +651,10 @@ fun MangaScreenLargeImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        val isReading = remember(state.chapters) {
-                            state.chapters.fastAny { it.chapter.read }
-                        }
-                        Text(
-                            text = stringResource(
-                                if (isReading) MR.strings.action_resume else MR.strings.action_start,
-                            ),
+                        ContinueReadingFabText(
+                            state = state,
+                            strokedCue = strokedCue,
+                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -910,6 +911,35 @@ private fun LazyListScope.sharedChapterItems(
             }
         }
     }
+}
+
+@Composable
+private fun ContinueReadingFabText(
+    state: MangaScreenModel.State.Success,
+    strokedCue: String?,
+    onCueStroked: (String) -> Unit,
+) {
+    val position = remember(state.chapters, state.manga) { state.chapters.savedReadingPosition(state.manga) }
+    val isReading = remember(state.chapters) { state.chapters.fastAny { it.chapter.read } }
+    ResumeFabText(
+        label = stringResource(
+            if (isReading || position != null) MR.strings.action_resume else MR.strings.action_start,
+        ),
+        cue = position?.let { savedPositionCue(state.manga, it) },
+        strokedCue = strokedCue,
+        onCueStroked = onCueStroked,
+    )
+}
+
+@Composable
+private fun savedPositionCue(manga: Manga, position: SavedReadingPosition): String {
+    val chapter = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
+        stringResource(MR.strings.display_mode_chapter, formatChapterNumber(position.chapter.chapterNumber))
+    } else {
+        position.chapter.name
+    }
+    val page = position.page ?: return chapter
+    return "$chapter • ${stringResource(MR.strings.chapter_progress, page)}"
 }
 
 private fun onChapterItemClick(

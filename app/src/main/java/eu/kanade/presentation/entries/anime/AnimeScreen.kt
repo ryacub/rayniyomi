@@ -39,8 +39,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +79,7 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
+import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -89,6 +92,8 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreenModel
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeSeasonItem
 import eu.kanade.tachiyomi.ui.entries.anime.EpisodeList
+import eu.kanade.tachiyomi.util.episode.SavedWatchingPosition
+import eu.kanade.tachiyomi.util.episode.savedWatchingPosition
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
 import tachiyomi.domain.entries.anime.model.Anime
@@ -432,6 +437,7 @@ private fun AnimeScreenSmallImpl(
                 val isFABVisible = remember(episodes) {
                     episodes.fastAny { !it.episode.seen } && !isAnySelected
                 }
+                var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
                 AnimatedVisibility(
                     visible = isFABVisible,
                     enter = fadeIn(),
@@ -439,13 +445,10 @@ private fun AnimeScreenSmallImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            val isWatching = remember(state.episodes) {
-                                state.episodes.fastAny { it.episode.seen }
-                            }
-                            Text(
-                                text = stringResource(
-                                    if (isWatching) MR.strings.action_resume else MR.strings.action_start,
-                                ),
+                            ContinueWatchingFabText(
+                                state = state,
+                                strokedCue = strokedCue,
+                                onCueStroked = { strokedCue = it },
                             )
                         },
                         icon = {
@@ -771,6 +774,7 @@ fun AnimeScreenLargeImpl(
                 val isFABVisible = remember(episodes) {
                     episodes.fastAny { !it.episode.seen } && !isAnySelected
                 }
+                var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
                 AnimatedVisibility(
                     visible = isFABVisible,
                     enter = fadeIn(),
@@ -778,13 +782,10 @@ fun AnimeScreenLargeImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            val isWatching = remember(state.episodes) {
-                                state.episodes.fastAny { it.episode.seen }
-                            }
-                            Text(
-                                text = stringResource(
-                                    if (isWatching) MR.strings.action_resume else MR.strings.action_start,
-                                ),
+                            ContinueWatchingFabText(
+                                state = state,
+                                strokedCue = strokedCue,
+                                onCueStroked = { strokedCue = it },
                             )
                         },
                         icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -1139,6 +1140,41 @@ private fun onEpisodeItemClick(
         isAnyEpisodeSelected -> onToggleSelection(true)
         else -> onEpisodeClicked(episodeItem.episode, false)
     }
+}
+
+@Composable
+private fun ContinueWatchingFabText(
+    state: AnimeScreenModel.State.Success,
+    strokedCue: String?,
+    onCueStroked: (String) -> Unit,
+) {
+    val position = remember(state.episodes, state.anime) { state.episodes.savedWatchingPosition(state.anime) }
+    val isWatching = remember(state.episodes) { state.episodes.fastAny { it.episode.seen } }
+    ResumeFabText(
+        label = stringResource(
+            if (isWatching || position != null) MR.strings.action_resume else MR.strings.action_start,
+        ),
+        cue = position?.let { savedPositionCue(state.anime, it) },
+        strokedCue = strokedCue,
+        onCueStroked = onCueStroked,
+    )
+}
+
+@Composable
+private fun savedPositionCue(anime: Anime, position: SavedWatchingPosition): String {
+    val episode = if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
+        stringResource(AYMR.strings.display_mode_episode, formatEpisodeNumber(position.episode.episodeNumber))
+    } else {
+        position.episode.name
+    }
+    val positionMillis = position.positionMillis ?: return episode
+    val totalMillis = position.episode.totalSeconds
+    val time = if (totalMillis > 0L) {
+        stringResource(AYMR.strings.episode_progress, formatTime(positionMillis), formatTime(totalMillis))
+    } else {
+        formatTime(positionMillis)
+    }
+    return "$episode • $time"
 }
 
 private fun formatTime(milliseconds: Long, useDayFormat: Boolean = false): String {
