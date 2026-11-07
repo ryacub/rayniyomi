@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.animesource.model.SerializableVideo.Companion.toVideo
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 
 open class Hoster(
     val hosterUrl: String = "",
@@ -12,7 +13,16 @@ open class Hoster(
     val videoList: List<Video>? = null,
     val internalData: String = "",
     val lazy: Boolean = false,
+    val memo: JsonObject = JsonObject(emptyMap()),
 ) {
+    constructor(
+        hosterUrl: String = "",
+        hosterName: String = "",
+        videoList: List<Video>? = null,
+        internalData: String = "",
+        lazy: Boolean = false,
+    ) : this(hosterUrl, hosterName, videoList, internalData, lazy, JsonObject(emptyMap()))
+
     @Transient
     @Volatile
     var status: State = State.IDLE
@@ -30,8 +40,23 @@ open class Hoster(
         videoList: List<Video>? = this.videoList,
         internalData: String = this.internalData,
         lazy: Boolean = this.lazy,
+        memo: JsonObject = this.memo,
     ): Hoster {
-        return Hoster(hosterUrl, hosterName, videoList, internalData, lazy)
+        return Hoster(hosterUrl, hosterName, videoList, internalData, lazy, memo)
+    }
+
+    @Deprecated(
+        message = "Use the copy overload that takes memo",
+        level = DeprecationLevel.HIDDEN,
+    )
+    fun copy(
+        hosterUrl: String = this.hosterUrl,
+        hosterName: String = this.hosterName,
+        videoList: List<Video>? = this.videoList,
+        internalData: String = this.internalData,
+        lazy: Boolean = this.lazy,
+    ): Hoster {
+        return Hoster(hosterUrl, hosterName, videoList, internalData, lazy, this.memo)
     }
 
     companion object {
@@ -56,6 +81,7 @@ data class SerializableHoster(
     val videoList: String? = null,
     val internalData: String = "",
     val lazy: Boolean = false,
+    val memo: JsonObject = JsonObject(emptyMap()),
 ) {
     companion object {
         fun List<Hoster>.serialize(): String =
@@ -67,6 +93,7 @@ data class SerializableHoster(
                         host.videoList?.serialize(),
                         host.internalData,
                         host.lazy,
+                        host.memo,
                     )
                 },
             )
@@ -80,6 +107,7 @@ data class SerializableHoster(
                         sHost.videoList?.toVideoList(),
                         sHost.internalData,
                         sHost.lazy,
+                        sHost.memo,
                     )
                 }
     }

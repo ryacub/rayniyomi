@@ -443,17 +443,9 @@ class EpisodeOptionsDialogScreenModel(
         return _hosterList.value.mapIndexed { index, h ->
             val state = hosterStateList.getOrNull(index)
             if (state is HosterState.Ready) {
-                Hoster(
-                    hosterName = h.hosterName,
-                    hosterUrl = h.hosterUrl,
-                    videoList = state.videoList,
-                )
+                h.copy(videoList = state.videoList, lazy = false)
             } else {
-                Hoster(
-                    hosterName = h.hosterName,
-                    hosterUrl = h.hosterUrl,
-                    videoList = h.videoList,
-                )
+                h.copy(lazy = false)
             }
         }
     }
