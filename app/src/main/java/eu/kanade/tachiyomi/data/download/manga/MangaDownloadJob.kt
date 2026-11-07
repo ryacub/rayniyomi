@@ -105,6 +105,7 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                     applicationContext.getString(R.string.download_notifier_text_only_wifi),
                     DownloadDisplayStatus.WAITING_FOR_WIFI,
                 )
+                downloadManager.markRetriesBlocked(DownloadDisplayStatus.WAITING_FOR_WIFI)
             }
             !noWifi
         } else {
@@ -112,6 +113,7 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 applicationContext.getString(R.string.download_notifier_no_network),
                 DownloadDisplayStatus.WAITING_FOR_NETWORK,
             )
+            downloadManager.markRetriesBlocked(DownloadDisplayStatus.WAITING_FOR_NETWORK)
             false
         }
     }
@@ -133,7 +135,11 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
             WorkManager.getInstance(context)
-                .enqueueUniqueWork(TAG, ExistingWorkPolicy.KEEP, request)
+                .enqueueUniqueWork(
+                    TAG,
+                    if (resetFailed) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    request,
+                )
         }
 
         fun stop(context: Context) {

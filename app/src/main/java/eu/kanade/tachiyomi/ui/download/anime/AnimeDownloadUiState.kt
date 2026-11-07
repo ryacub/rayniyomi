@@ -23,6 +23,7 @@ data class AnimeDownloadUiItem(
 ) : DownloadQueueEntry {
     override val recovery get() = download.recovery
     override val displayStatus get() = download.displayStatusFlow
+    override val canRetryBlocked get() = download.retryOrder > 0
     override val downloadId get() = download.episode.id
     override val entryId get() = download.anime.id
     override val key get() = download.episode.url

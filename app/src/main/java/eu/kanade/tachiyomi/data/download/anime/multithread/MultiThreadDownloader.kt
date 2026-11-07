@@ -62,10 +62,17 @@ class MultiThreadDownloader(
         onRecovery: (DownloadRecovery) -> Unit = {},
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        val rangeSupport = rangeRequestHandler.checkRangeSupport(videoUrl, headers)
-            as? RangeRequestHandler.RangeSupportResult.Supported
+        val rangeSupport = when (val result = rangeRequestHandler.checkRangeSupport(videoUrl, headers)) {
+            is RangeRequestHandler.RangeSupportResult.Supported -> result
+            is RangeRequestHandler.RangeSupportResult.Error -> {
+                return DownloadResult.Error(DownloadError.UnknownError(result.exception))
+            }
+            is RangeRequestHandler.RangeSupportResult.NotSupported -> {
+                return DownloadResult.Error(DownloadError.InvalidRange(result.reason))
+            }
+        }
         val existingProgress = stateStore.loadProgressIfMatching(episodeId, videoUrl)
-        val entityTag = rangeSupport?.entityTag
+        val entityTag = rangeSupport.entityTag
             ?: return DownloadResult.Error(DownloadError.InvalidRange("Server has no strong video validator"))
         val transferHeaders = (headers ?: Headers.Builder().build()).newBuilder().set("If-Range", entityTag).build()
 

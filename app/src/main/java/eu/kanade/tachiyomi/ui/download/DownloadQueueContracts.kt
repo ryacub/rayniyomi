@@ -12,6 +12,7 @@ interface DownloadQueueEntry {
     val progress: Float
     val recovery: StateFlow<DownloadRecovery?>
     val displayStatus: StateFlow<DownloadDisplayStatus>
+    val canRetryBlocked: Boolean
 }
 
 interface DownloadQueueGroup<I : DownloadQueueEntry> {

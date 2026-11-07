@@ -220,7 +220,11 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
-                    if (displayStatus == DownloadDisplayStatus.FAILED) {
+                    val waitingForConnection = displayStatus == DownloadDisplayStatus.WAITING_FOR_NETWORK ||
+                        displayStatus == DownloadDisplayStatus.WAITING_FOR_WIFI
+                    if (displayStatus == DownloadDisplayStatus.FAILED ||
+                        (item.canRetryBlocked && waitingForConnection)
+                    ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(MR.strings.action_retry)) },
                             onClick = {
@@ -293,13 +297,15 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(top = 4.dp),
         )
-        val recoveryMessage = when (recovery) {
-            DownloadRecovery.RESUME -> MR.strings.download_recovery_resume
-            DownloadRecovery.REPAIR -> MR.strings.download_recovery_repair
-            DownloadRecovery.RESTART -> MR.strings.download_recovery_restart
-            null ->
-                MR.strings.download_recovery_check
-                    .takeIf { displayStatus == DownloadDisplayStatus.FAILED }
+        val recoveryMessage = when (displayStatus) {
+            DownloadDisplayStatus.WAITING_FOR_NETWORK -> MR.strings.download_notifier_no_network
+            DownloadDisplayStatus.WAITING_FOR_WIFI -> MR.strings.download_notifier_text_only_wifi
+            else -> when (recovery) {
+                DownloadRecovery.RESUME -> MR.strings.download_recovery_resume
+                DownloadRecovery.REPAIR -> MR.strings.download_recovery_repair
+                DownloadRecovery.RESTART -> MR.strings.download_recovery_restart
+                null -> MR.strings.download_recovery_check.takeIf { displayStatus == DownloadDisplayStatus.FAILED }
+            }
         }
         if (recoveryMessage != null) {
             Text(

@@ -134,11 +134,7 @@ class MangaDownloadManager(
             mutationScope = scope,
             retryDownload = { download ->
                 if (downloader.retryFailed(download) && !downloader.isRunning) {
-                    if (MangaDownloadJob.isRunning(context)) {
-                        downloader.start(resetFailed = false)
-                    } else {
-                        MangaDownloadJob.start(context, resetFailed = false)
-                    }
+                    MangaDownloadJob.start(context, resetFailed = false)
                 }
             },
         )
@@ -162,6 +158,8 @@ class MangaDownloadManager(
         }
         return true
     }
+    fun markRetriesBlocked(status: DownloadDisplayStatus) = downloader.markRetriesBlocked(status)
+
     fun downloaderStop(
         reason: String? = null,
         blockedStatus: DownloadDisplayStatus? = null,

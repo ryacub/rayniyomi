@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.anime.resume
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import logcat.logcat
@@ -84,6 +85,8 @@ class RangeRequestHandler(
                     else -> parseRangeSupportResponse(response)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Error checking range support for $url: ${e.message}" }
             RangeSupportResult.Error(e)

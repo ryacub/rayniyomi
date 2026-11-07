@@ -208,8 +208,12 @@ class MangaDownloader(
      */
     fun start(): Boolean = start(resetFailed = true)
 
+    @Synchronized
     internal fun retryFailed(download: MangaDownload): Boolean {
-        if (download.status != MangaDownload.State.ERROR) return false
+        val blocked = download.status == MangaDownload.State.QUEUE && download.retryOrder > 0 &&
+            download.displayStatus in
+            setOf(DownloadDisplayStatus.WAITING_FOR_NETWORK, DownloadDisplayStatus.WAITING_FOR_WIFI)
+        if (download.status != MangaDownload.State.ERROR && !blocked) return false
         val order = retryVersion.value + 1
         download.retryOrder = order
         download.retryAttempt = 0
@@ -219,6 +223,12 @@ class MangaDownloader(
         download.status = MangaDownload.State.QUEUE
         retryVersion.value = order
         return true
+    }
+
+    internal fun markRetriesBlocked(status: DownloadDisplayStatus) {
+        queueState.value.filter { it.retryOrder > 0 && it.status == MangaDownload.State.QUEUE }.forEach {
+            it.displayStatus = status
+        }
     }
 
     internal fun start(resetFailed: Boolean): Boolean {
@@ -368,7 +378,7 @@ class MangaDownloader(
                         }.filter { it }
                     activeDownloadsErroredFlow.first()
                 }
-                if (areAllDownloadsFinished()) stop()
+                stopIfIdle()
             }.distinctUntilChanged()
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
@@ -697,7 +707,10 @@ class MangaDownloader(
                 check(file.length() > 0) { "Downloaded page is empty" }
                 splitTallImageIfNeeded(page, tmpDir)
                 val completedFiles = stagedPageFiles(tmpDir, filename)
-                check(completedFiles.any { isDownloadedImageFile(it, filename) }) { "Downloaded page is missing" }
+                check(
+                    completedFiles.any { isDownloadedImageFile(it, filename) } &&
+                        completedFiles.all(::hasImageContent),
+                ) { "Downloaded page is missing or invalid" }
                 receipt.save(completedFiles)
             }
             page.uri = file.uri
@@ -923,6 +936,11 @@ class MangaDownloader(
     /**
      * Returns true if all the queued downloads are in DOWNLOADED or ERROR state.
      */
+    @Synchronized
+    private fun stopIfIdle() {
+        if (areAllDownloadsFinished()) stop()
+    }
+
     private fun areAllDownloadsFinished(): Boolean {
         return queueState.value.none { it.status.value <= MangaDownload.State.DOWNLOADING.value }
     }
@@ -981,8 +999,11 @@ private fun stagedPageFiles(directory: UniFile, filename: String): List<UniFile>
 @VisibleForTesting
 internal fun isDownloadedImageFile(file: UniFile, filename: String): Boolean {
     val name = file.name ?: return false
-    return (name.startsWith("$filename.") || name.startsWith("${filename}__001")) && file.length() > 0
+    return (name.startsWith("$filename.") || name.startsWith("${filename}__001")) && hasImageContent(file)
 }
+
+private fun hasImageContent(file: UniFile): Boolean =
+    file.length() > 0 && file.openInputStream().use { ImageUtil.findImageType(it) != null }
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024

@@ -432,6 +432,7 @@ class AnimeDownloaderTest {
 
     @Test
     fun `incomplete output records the incomplete code without a notification`() = runTest {
+        every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns true
         val video = mockk<Video>(relaxed = true)
         val download = testDownload(video)
 
@@ -553,6 +554,7 @@ class AnimeDownloaderTest {
         val tmpDir = mockk<UniFile>(relaxed = true)
         every { tmpDir.filePath } returns null
         every { tmpDir.createFile(any()) } returns mkvFile
+        every { tmpDir.renameTo(any()) } returns true
         var listedFiles = false
         every { tmpDir.listFiles() } answers {
             if (listedFiles) {

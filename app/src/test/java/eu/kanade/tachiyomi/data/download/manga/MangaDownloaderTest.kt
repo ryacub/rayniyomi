@@ -2,6 +2,8 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.app.Notification
 import android.content.Context
+import android.content.res.Resources
+import android.util.DisplayMetrics
 import androidx.core.app.NotificationCompat
 import com.hippo.unifile.UniFile
 import eu.kanade.domain.source.service.SourcePreferences
@@ -50,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
@@ -60,6 +63,7 @@ import tachiyomi.domain.source.manga.service.MangaSourceManager
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.InputStream
 
 class MangaDownloaderTest {
 
@@ -168,7 +172,16 @@ class MangaDownloaderTest {
             every { openInputStream() } answers { html.inputStream() }
         }
 
-        assertFalse(isDownloadedImageFile(file, "001"))
+        mockkStatic(Resources::class)
+        every { Resources.getSystem() } returns mockk { every { displayMetrics } returns DisplayMetrics() }
+        mockkObject(ImageUtil)
+        try {
+            every { ImageUtil.findImageType(any<InputStream>()) } returns null
+            assertFalse(isDownloadedImageFile(file, "001"))
+        } finally {
+            unmockkObject(ImageUtil)
+            unmockkStatic(Resources::class)
+        }
     }
 
     @Test
