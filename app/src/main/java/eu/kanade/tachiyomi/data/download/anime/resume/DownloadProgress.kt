@@ -26,6 +26,7 @@ data class DownloadProgress(
     @ProtoNumber(6) val status: Status = Status.IN_PROGRESS,
     // Do not reuse 7 or 8: saved files still hold Long timestamps there.
     @ProtoNumber(9) val entityTag: String? = null,
+    @ProtoNumber(10) val resourceUrl: String? = null,
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     enum class Status {

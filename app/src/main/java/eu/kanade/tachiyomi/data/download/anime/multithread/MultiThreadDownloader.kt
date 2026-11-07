@@ -64,13 +64,13 @@ class MultiThreadDownloader(
             as? RangeRequestHandler.RangeSupportResult.Supported
         val existingProgress = stateStore.loadProgressIfMatching(episodeId, videoUrl)
         val entityTag = rangeSupport?.entityTag
-        val transferHeaders = entityTag?.let {
-            (headers ?: Headers.Builder().build()).newBuilder().set("If-Range", it).build()
-        } ?: headers
+            ?: return DownloadResult.Error(DownloadError.InvalidRange("Server has no strong video validator"))
+        val transferHeaders = (headers ?: Headers.Builder().build()).newBuilder().set("If-Range", entityTag).build()
 
         return if (existingProgress != null &&
             existingProgress.status != DownloadProgress.Status.COMPLETED &&
-            entityTag != null && existingProgress.entityTag == entityTag &&
+            existingProgress.entityTag == entityTag &&
+            existingProgress.resourceUrl == rangeSupport.resourceUrl &&
             existingProgress.totalBytes == rangeSupport.totalSize
         ) {
             logcat(LogPriority.INFO) { "Resuming download for episode $episodeId" }
@@ -121,21 +121,15 @@ class MultiThreadDownloader(
         tmpDir: UniFile,
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit,
-        rangeSupport: RangeRequestHandler.RangeSupportResult.Supported?,
+        rangeSupport: RangeRequestHandler.RangeSupportResult.Supported,
     ): DownloadResult {
-        val totalBytes = rangeSupport?.totalSize ?: -1L
+        val totalBytes = rangeSupport.totalSize
 
         // Get current thread count from provider (respects runtime preference changes)
         val maxThreads = maxThreadsProvider()
 
         // Calculate chunks
-        val chunks = if (totalBytes > 0) {
-            ChunkSizeCalculator.calculateChunks(totalBytes, maxThreads)
-        } else {
-            // Unknown size, use single chunk with open-ended range
-            // This tells the server to send from byte 0 to the end
-            listOf(ChunkRange(0, -1))
-        }
+        val chunks = ChunkSizeCalculator.calculateChunks(totalBytes, maxThreads)
 
         // Create progress
         val progress = DownloadProgress(
@@ -154,7 +148,8 @@ class MultiThreadDownloader(
                 )
             },
             status = DownloadProgress.Status.IN_PROGRESS,
-            entityTag = rangeSupport?.entityTag,
+            entityTag = rangeSupport.entityTag,
+            resourceUrl = rangeSupport.resourceUrl,
         )
 
         return performDownload(progress, headers, tmpDir, outputFile, onProgress, resume = false)
@@ -186,7 +181,9 @@ class MultiThreadDownloader(
                     return DownloadResult.Error(DownloadError.InvalidTempDirectory("Cannot clear stale chunk"))
                 }
             }
-            stateStore.saveProgress(progress)
+            if (!stateStore.checkpoint(progress)) {
+                return DownloadResult.Error(DownloadError.InvalidTempDirectory("Cannot save the video checkpoint"))
+            }
         }
         val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
         val chunkState = ChunkStateTracker(progress.chunks) { chunk ->
@@ -201,7 +198,7 @@ class MultiThreadDownloader(
                     scope.async {
                         downloadChunkWithRetry(
                             chunk = chunk,
-                            videoUrl = progress.videoUrl,
+                            progress = progress,
                             headers = headers,
                             tempDir = tempDirFile,
                             onChunkProgress = { bytes ->
@@ -284,7 +281,7 @@ class MultiThreadDownloader(
      */
     private suspend fun downloadChunkWithRetry(
         chunk: ChunkProgress,
-        videoUrl: String,
+        progress: DownloadProgress,
         headers: Headers?,
         tempDir: File,
         onChunkProgress: (Long) -> Unit,
@@ -296,12 +293,15 @@ class MultiThreadDownloader(
             val tempFile = File(tempDir, chunk.tempFileName)
 
             return chunkDownloader.downloadChunk(
-                videoUrl = videoUrl,
+                videoUrl = progress.videoUrl,
                 chunk = ChunkRange(chunk.startByte, chunk.endByte),
                 headers = headers,
                 tempFile = tempFile,
                 isFirstChunk = chunk.index == 0,
                 onProgress = onChunkProgress,
+                identity = progress.resourceUrl?.let { resource ->
+                    progress.entityTag?.let { tag -> VideoRangeIdentity(resource, tag, progress.totalBytes) }
+                },
             )
         } finally {
             ChunkDownloader.Companion.CONCURRENT_CHUNK_SEMAPHORE.release()

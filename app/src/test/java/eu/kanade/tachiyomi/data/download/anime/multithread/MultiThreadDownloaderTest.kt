@@ -55,6 +55,7 @@ class MultiThreadDownloaderTest {
 
     private val stateStore = mockk<DownloadStateStore>(relaxed = true) {
         every { loadProgressIfMatching(any(), any()) } returns null
+        every { checkpoint(any()) } returns true
     }
 
     @BeforeEach
@@ -176,6 +177,10 @@ class MultiThreadDownloaderTest {
         val checkpoint = AtomicReference<DownloadProgress>()
         val storeWithCheckpoint = mockk<DownloadStateStore>(relaxed = true) {
             every { loadProgressIfMatching(any(), any()) } answers { checkpoint.get() }
+            every { checkpoint(any()) } answers {
+                checkpoint.set(firstArg())
+                true
+            }
             every { saveProgress(any()) } answers { checkpoint.set(firstArg()) }
         }
         val firstProgress = CompletableDeferred<Unit>()
@@ -354,6 +359,7 @@ class MultiThreadDownloaderTest {
         val saved = slot<DownloadProgress>()
         val pausingStore = mockk<DownloadStateStore>(relaxed = true) {
             every { loadProgressIfMatching(any(), any()) } returns null
+            every { checkpoint(any()) } returns true
             every { saveProgress(capture(saved)) } just Runs
         }
         val someBytesWritten = CountDownLatch(1)
@@ -432,6 +438,7 @@ class MultiThreadDownloaderTest {
             },
             status = DownloadProgress.Status.ERROR,
             entityTag = VIDEO_TAG,
+            resourceUrl = videoUrl,
         )
         val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
             every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns savedProgress

@@ -8,6 +8,9 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
 import logcat.logcat
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -49,18 +52,28 @@ class DownloadStateStore(
      *
      * @param progress The progress to save
      */
-    @OptIn(ExperimentalSerializationApi::class)
     fun saveProgress(progress: DownloadProgress) {
-        try {
-            memoryCache[progress.episodeId] = progress
+        checkpoint(progress)
+    }
 
+    @OptIn(ExperimentalSerializationApi::class)
+    internal fun checkpoint(progress: DownloadProgress): Boolean {
+        return try {
             val file = getProgressFile(progress.episodeId)
-            val bytes = protoBuf.encodeToByteArray(progress)
-            file.writeBytes(bytes)
+            val pending = File.createTempFile("episode-", ".tmp", progressDir)
+            try {
+                pending.writeBytes(protoBuf.encodeToByteArray(progress))
+                Files.move(pending.toPath(), file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+            } finally {
+                pending.delete()
+            }
+            memoryCache[progress.episodeId] = progress
+            true
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) {
                 "Failed to save download progress for episode ${progress.episodeId}"
             }
+            false
         }
     }
 
