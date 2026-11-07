@@ -1,5 +1,6 @@
 package eu.kanade.presentation.recovery
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -30,13 +31,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
+import eu.kanade.presentation.util.MEDIUM_WIDTH_BREAKPOINT_DP
 import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
 import eu.kanade.tachiyomi.ui.recovery.RecoveryOriginal
 import eu.kanade.tachiyomi.ui.recovery.RecoveryPreview
@@ -150,22 +154,45 @@ private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: Recover
                 enabled = state.selectedSources.isNotEmpty() && state.selectedOriginals.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(MR.strings.recovery_action_find)) }
-            Step.Review -> {
-                if (state.searchableCount > 0) {
-                    OutlinedButton(onClick = actions.searchRemaining, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(MR.strings.recovery_action_search_remaining, state.searchableCount))
-                    }
+            Step.Review -> if (LocalConfiguration.current.isShortAndWide()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StartAnotherButton(actions, Modifier.weight(1f))
+                    SearchRemainingButton(state, actions, Modifier.weight(1f))
+                    ApplyButton(state, onApply, Modifier.weight(1f))
                 }
-                val ready = state.applicableCount
-                Button(onClick = onApply, enabled = ready > 0, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(MR.strings.recovery_action_apply, ready))
-                }
-                TextButton(onClick = actions.startAnother, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(MR.strings.recovery_action_start_another))
-                }
+            } else {
+                SearchRemainingButton(state, actions, Modifier.fillMaxWidth())
+                ApplyButton(state, onApply, Modifier.fillMaxWidth())
+                StartAnotherButton(actions, Modifier.fillMaxWidth())
             }
             else -> Unit
         }
+    }
+}
+
+private fun Configuration.isShortAndWide(): Boolean =
+    screenHeightDp < WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND && screenWidthDp >= MEDIUM_WIDTH_BREAKPOINT_DP
+
+@Composable
+private fun SearchRemainingButton(state: RecoveryScreenModel.State, actions: RecoveryActions, modifier: Modifier) {
+    if (state.searchableCount == 0) return
+    OutlinedButton(onClick = actions.searchRemaining, modifier = modifier) {
+        Text(stringResource(MR.strings.recovery_action_search_remaining, state.searchableCount))
+    }
+}
+
+@Composable
+private fun ApplyButton(state: RecoveryScreenModel.State, onApply: () -> Unit, modifier: Modifier) {
+    val ready = state.applicableCount
+    Button(onClick = onApply, enabled = ready > 0, modifier = modifier) {
+        Text(stringResource(MR.strings.recovery_action_apply, ready))
+    }
+}
+
+@Composable
+private fun StartAnotherButton(actions: RecoveryActions, modifier: Modifier) {
+    TextButton(onClick = actions.startAnother, modifier = modifier) {
+        Text(stringResource(MR.strings.recovery_action_start_another))
     }
 }
 
