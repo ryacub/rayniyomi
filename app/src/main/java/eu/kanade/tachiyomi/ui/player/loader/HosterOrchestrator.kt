@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.getChangedAt
+import eu.kanade.tachiyomi.util.lang.Hash
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,7 @@ class HosterOrchestrator(
 ) {
     private companion object {
         const val HOSTER_LOAD_PARALLELISM = 4
+        const val VIDEO_ID_PREFIX = "video:"
     }
 
     private val _hosterList = MutableStateFlow<List<Hoster>>(emptyList())
@@ -87,13 +89,21 @@ class HosterOrchestrator(
         getHosterVideoLinksJob?.cancel()
     }
 
-    private fun invalidateRecovery() {
-        synchronized(this) { selectionGeneration.incrementAndGet() }
+    private fun invalidateRecovery(): Long {
+        val generation = synchronized(this) { selectionGeneration.incrementAndGet() }
         recoveryJob?.cancel()
+        return generation
     }
 
-    fun loadHosters(source: AnimeSource, hosterList: List<Hoster>, hosterIndex: Int, videoIndex: Int) {
-        invalidateRecovery()
+    fun loadHosters(
+        source: AnimeSource,
+        hosterList: List<Hoster>,
+        hosterIndex: Int,
+        videoIndex: Int,
+        rememberedServer: String? = null,
+    ) {
+        val generation = invalidateRecovery()
+        val rememberedIndex = rememberedServer?.let { rememberedHosterIndex(hosterList, it) }
         val hasFoundPreferredVideo = AtomicBoolean(false)
 
         _hosterList.update { hosterList }
@@ -104,11 +114,11 @@ class HosterOrchestrator(
         getHosterVideoLinksJob?.cancel()
         getHosterVideoLinksJob = scope.launch(hosterLoadDispatcher) {
             _hosterState.update {
-                hosterList.map { hoster ->
-                    if (hoster.lazy) {
-                        HosterState.Idle(hoster.hosterName)
-                    } else {
-                        hoster.videoList?.let { videoList ->
+                hosterList.mapIndexed { index, hoster ->
+                    when {
+                        hoster.lazy && index == rememberedIndex -> HosterState.Loading(hoster.hosterName)
+                        hoster.lazy -> HosterState.Idle(hoster.hosterName)
+                        else -> hoster.videoList?.let { videoList ->
                             HosterState.Ready(
                                 hoster.hosterName,
                                 videoList,
@@ -123,11 +133,24 @@ class HosterOrchestrator(
                 coroutineScope {
                     hosterList.mapIndexed { hosterIdx, hoster ->
                         async {
-                            val hosterState = EpisodeLoader.loadHosterVideos(source, hoster)
+                            val hosterState = EpisodeLoader.loadHosterVideos(
+                                source,
+                                hoster,
+                                force = hosterIdx == rememberedIndex,
+                            )
 
                             _hosterState.updateAt(hosterIdx, hosterState)
 
-                            if (hosterState is HosterState.Ready) {
+                            if (rememberedServer != null && hosterIdx == rememberedIndex) {
+                                if (hosterState is HosterState.Ready) {
+                                    hasFoundPreferredVideo.set(
+                                        tryRememberedServer(source, hosterIdx, rememberedServer, generation),
+                                    )
+                                }
+                                return@async
+                            }
+
+                            if (rememberedServer == null && hosterState is HosterState.Ready) {
                                 if (hosterIdx == hosterIndex) {
                                     hosterState.videoList.getOrNull(videoIndex)?.let {
                                         hasFoundPreferredVideo.set(true)
@@ -163,7 +186,8 @@ class HosterOrchestrator(
                     }.awaitAll()
 
                     if (hasFoundPreferredVideo.compareAndSet(false, true)) {
-                        if (!loadBestAvailableVideo(source)) {
+                        val fallbackGeneration = generation.takeIf { rememberedServer != null }
+                        if (!loadBestAvailableVideo(source, fallbackGeneration) && !isStale(fallbackGeneration)) {
                             onNoVideosAvailable()
                         }
                     }
@@ -177,6 +201,47 @@ class HosterOrchestrator(
             }
         }
     }
+
+    private suspend fun tryRememberedServer(
+        source: AnimeSource,
+        index: Int,
+        server: String,
+        generation: Long,
+    ): Boolean {
+        if (isStale(generation)) return false
+        val hoster = hosterState.value.getOrNull(index) as? HosterState.Ready ?: return false
+        val videoIndex = if (server.startsWith(VIDEO_ID_PREFIX)) {
+            hoster.videoList.indices.singleOrNull { videoIdentity(hoster.videoList[it]) == server } ?: return false
+        } else {
+            HosterLoader.selectBestVideo(listOf(hoster)).second
+        }
+        val video = hoster.videoList.getOrNull(videoIndex) ?: return false
+        return loadVideo(source, video, index, videoIndex, generation)
+    }
+
+    private fun rememberedHosterIndex(hosters: List<Hoster>, server: String): Int? {
+        if (server.startsWith(VIDEO_ID_PREFIX)) {
+            return 0.takeIf { hosters.singleOrNull()?.hosterName == Hoster.NO_HOSTER_LIST }
+        }
+        return hosters.indices.singleOrNull { hosterIdentity(hosters[it]) == server }
+    }
+
+    private fun serverIdentity(hosterIndex: Int, hoster: HosterState.Ready, video: Video): String? {
+        val hosters = hosterList.value
+        val selectedHoster = hosters.getOrNull(hosterIndex) ?: return null
+        val identity = hosterIdentity(selectedHoster)
+        if (identity != null) return identity.takeIf { rememberedHosterIndex(hosters, it) == hosterIndex }
+        if (hosters.size != 1 || selectedHoster.hosterName != Hoster.NO_HOSTER_LIST) return null
+        return videoIdentity(video)?.takeIf { key -> hoster.videoList.count { videoIdentity(it) == key } == 1 }
+    }
+
+    private fun hosterIdentity(hoster: Hoster): String? = hoster.hosterName
+        .takeIf { it.isNotBlank() && it != Hoster.NO_HOSTER_LIST }
+        ?.let { "hoster:${Hash.sha256(it.toByteArray())}" }
+
+    private fun videoIdentity(video: Video): String? = video.videoTitle
+        .takeIf(String::isNotBlank)
+        ?.let { "$VIDEO_ID_PREFIX${Hash.sha256(it.toByteArray())}" }
 
     /** Marks [failedVideo] failed and loads the next server. Ignores a video that is no longer current. */
     fun onVideoLoadFailed(failedVideo: Video, source: AnimeSource?) {
@@ -245,6 +310,7 @@ class HosterOrchestrator(
         var currentVideo = video
         val oldSelectedIndex = _selectedHosterVideoIndex.value
 
+        if (isStale(generation)) return false
         onLoadingStateChanged?.invoke(true)
 
         while (true) {
@@ -348,10 +414,10 @@ class HosterOrchestrator(
         currentSource: AnimeSource?,
         onSuccess: () -> Unit,
         onFailure: () -> Unit,
+        onSelection: (String?) -> Unit = {},
     ) {
-        val hosterState = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready
-        val video = hosterState?.videoList
-            ?.getOrNull(videoIndex)
+        val hosterState = _hosterState.value.getOrNull(hosterIndex) as? HosterState.Ready ?: return
+        val video = hosterState.videoList.getOrNull(videoIndex)
             ?: return
 
         val videoState = hosterState.videoState
@@ -363,6 +429,7 @@ class HosterOrchestrator(
         }
 
         invalidateRecovery()
+        onSelection(serverIdentity(hosterIndex, hosterState, video))
         scope.launch(hosterLoadDispatcher) {
             val success = loadVideo(currentSource, video, hosterIndex, videoIndex)
             if (success) {

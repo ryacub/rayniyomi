@@ -121,6 +121,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
@@ -1198,6 +1199,7 @@ class PlayerViewModel internal constructor(
         val hosterList: List<Hoster>?,
         val videoIndex: Pair<Int, Int>,
         val position: Long?,
+        val rememberedServer: String? = null,
     )
 
     private var currentHosterList: List<Hoster>? = null
@@ -1269,10 +1271,13 @@ class PlayerViewModel internal constructor(
                         }
                 }
 
+                val explicitSelection = hostList.isNotBlank() && hostIndex >= 0 && vidIndex >= 0
+                val rememberedServer = if (explicitSelection) null else rememberedServer()
                 val result = InitResult(
                     hosterList = currentHosterList,
-                    videoIndex = qualityIndex,
+                    videoIndex = if (rememberedServer == null) qualityIndex else Pair(-1, -1),
                     position = episodePosition,
+                    rememberedServer = rememberedServer,
                 )
                 Pair(result, Result.success(true))
             } else {
@@ -1307,11 +1312,27 @@ class PlayerViewModel internal constructor(
     /**
      * Set the video list for hosters.
      */
-    fun loadHosters(source: AnimeSource, hosterList: List<Hoster>, hosterIndex: Int, videoIndex: Int) {
-        hosterOrchestrator.loadHosters(source, hosterList, hosterIndex, videoIndex)
+    fun loadHosters(
+        source: AnimeSource,
+        hosterList: List<Hoster>,
+        hosterIndex: Int,
+        videoIndex: Int,
+        rememberedServer: String? = rememberedServer(),
+    ) {
+        hosterOrchestrator.loadHosters(source, hosterList, hosterIndex, videoIndex, rememberedServer)
     }
 
+    private fun episodeServerPreference(): Preference<String>? {
+        val episode = currentEpisode.value ?: return null
+        val anime = currentAnime.value ?: return null
+        return playerPreferences.episodeServer("${anime.source}:${anime.id}:${episode.id}:${episode.url}")
+    }
+
+    private fun rememberedServer(): String? = episodeServerPreference()?.get()?.takeIf(String::isNotEmpty)
+
     fun onVideoClicked(hosterIndex: Int, videoIndex: Int) {
+        val preference = episodeServerPreference()
+            ?.takeUnless { getIncognitoState.await(currentAnime.value?.source) }
         hosterOrchestrator.onVideoClicked(
             hosterIndex,
             videoIndex,
@@ -1323,6 +1344,9 @@ class PlayerViewModel internal constructor(
             },
             onFailure = {
                 updateIsLoadingEpisode(false)
+            },
+            onSelection = { server ->
+                if (server == null) preference?.delete() else preference?.set(server)
             },
         )
     }

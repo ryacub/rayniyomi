@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
+import eu.kanade.tachiyomi.util.lang.Hash
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -281,6 +282,56 @@ class HosterOrchestratorTest {
         } finally {
             scope.cancel()
         }
+    }
+
+    @Test
+    fun `a remembered lazy server loads once even if tapped while loading`() = runTest(vt.scheduler) {
+        val hoster = Hoster(hosterName = "lazy", lazy = true)
+        val video = Video(videoUrl = "https://example.invalid/lazy", initialized = true)
+        val releaseHoster = CompletableDeferred<Unit>()
+        val source = mockk<AnimeHttpSource>()
+        var loads = 0
+        coEvery { source.getVideoList(hoster) } coAnswers {
+            loads++
+            releaseHoster.await()
+            listOf(video)
+        }
+        every { with(source) { listOf(video).sortVideos() } } returns listOf(video)
+        val player = HosterOrchestrator(this, onNoVideosAvailable = {}, hosterLoadDispatcher = vt.io)
+
+        player.loadHosters(source, listOf(hoster), -1, -1, "hoster:${Hash.sha256("lazy")}")
+        advanceUntilIdle()
+        player.onHosterClicked(0, source)
+        advanceUntilIdle()
+        releaseHoster.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, loads)
+        assertEquals(video, player.currentVideo.value)
+    }
+
+    @Test
+    fun `a missing remembered server falls back with a previous selection`() = runTest(vt.scheduler) {
+        val previous = Video(videoUrl = "https://example.invalid/previous", initialized = true)
+        val next = Video(videoUrl = "https://example.invalid/next", preferred = true, initialized = true)
+        val source = mockk<AnimeHttpSource>()
+        every { with(source) { listOf(previous).sortVideos() } } returns listOf(previous)
+        every { with(source) { listOf(next).sortVideos() } } returns listOf(next)
+        val player = HosterOrchestrator(this, onNoVideosAvailable = {}, hosterLoadDispatcher = vt.io)
+        player.loadHosters(source, listOf(Hoster(hosterName = "previous", videoList = listOf(previous))), 0, 0)
+        advanceUntilIdle()
+        assertEquals(previous, player.currentVideo.value)
+
+        player.loadHosters(
+            source,
+            listOf(Hoster(hosterName = "next", videoList = listOf(next))),
+            -1,
+            -1,
+            "hoster:${Hash.sha256("missing")}",
+        )
+        advanceUntilIdle()
+
+        assertEquals(next, player.currentVideo.value)
     }
 
     @Test
