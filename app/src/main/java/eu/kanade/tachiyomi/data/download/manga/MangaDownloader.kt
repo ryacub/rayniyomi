@@ -933,7 +933,7 @@ class MangaDownloader(
 @VisibleForTesting
 internal fun isDownloadedImageFile(file: UniFile, filename: String): Boolean {
     val name = file.name ?: return false
-    return name.startsWith("$filename.") || name.startsWith("${filename}__001")
+    return (name.startsWith("$filename.") || name.startsWith("${filename}__001")) && file.length() > 0
 }
 
 // Arbitrary minimum required space to start a download: 200 MB
