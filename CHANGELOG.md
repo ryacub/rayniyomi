@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - A guided recovery flow moves library titles from a source that stopped working to a different source. Open it from a source error, the migration list, a failed library update, or a failed refresh of a library title. It searches the sources you pick, shows each match for review, and then moves chapters or episodes, read state, history, trackers, categories, and custom covers. Each title reports its own result. A cancel or an app restart does not damage a title that is not finished. Anime with seasons are not supported in the batch flow; the screen tells you to migrate them one at a time (#1413).
 
 ### Improved
+- The Resume button on a manga or anime screen shows where you stopped, such as "Chapter 12 • Page: 8" or "Episode 3 • 12:31/23:40", with a short highlight stroke when the value is new. When the reader opens, its menu stays up until the saved page shows, then withdraws unless you touch it. A library unread badge briefly tints when its count goes down after you read (#1446).
 - The player tries the server you last chose when you reopen the same episode. If that server is unavailable, playback can still use another server (#1438).
 - In landscape on a phone, the recovery Review step shows its actions in one row. Before, the three stacked buttons took about 43% of the screen height (#1434).
 
