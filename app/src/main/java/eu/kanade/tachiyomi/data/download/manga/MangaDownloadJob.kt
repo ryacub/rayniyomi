@@ -67,14 +67,13 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 applicationContext.activeNetworkState(),
                 downloadPreferences.downloadOnlyOverWifi().get(),
             )
-            if (!(networkCheck && downloadManager.downloaderStart(inputData.getBoolean(RESET_FAILED, true)))) {
-                return Result.failure()
-            }
+            if (!networkCheck) return Result.success()
+            if (!downloadManager.downloaderStart(inputData.getBoolean(RESET_FAILED, true))) return Result.success()
 
             setForegroundSafely()
 
             coroutineScope {
-                combineTransform(
+                val networkMonitor = combineTransform(
                     applicationContext.networkStateFlow(),
                     downloadPreferences.downloadOnlyOverWifi().changes(),
                     transform = { a, b -> emit(checkNetworkState(a, b)) },
@@ -83,10 +82,14 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                     .launchIn(this)
 
                 // Keep the worker active while downloads are running and network constraints allow it.
-                while (!isStopped && downloadManager.isRunning && networkCheck) {
-                    delay(250)
+                try {
+                    while (!isStopped && downloadManager.isRunning && networkCheck) {
+                        delay(250)
+                    }
+                    Result.success()
+                } finally {
+                    networkMonitor.cancel()
                 }
-                Result.success()
             }
         } catch (e: CancellationException) {
             throw e // The downloader cancels this worker through stop() when the queue completes.

@@ -39,6 +39,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.download.service.DownloadPreferences
+import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -77,7 +78,7 @@ class AnimeVideoDownloader(
                     DownloadStrategy.FFMPEG,
                     -> {
                         download.recovery.value = DownloadRecovery.RESTART
-                        ffmpegDownload(download, tmpDir, videoFile, filename)
+                        ffmpegDownload(download, videoFile, filename)
                     }
                 }
             } catch (e: Exception) {
@@ -123,6 +124,9 @@ class AnimeVideoDownloader(
         }
 
         val multiThreadEnabled = preferences.multiThreadDownloads().get()
+        if (multiThreadEnabled && multiThreadDownloader.hasCheckpoint(download.episode.id, videoUrl)) {
+            return DownloadStrategy.MULTI_THREAD
+        }
         val maxConnections = preferences.multiThreadConnections().get().coerceIn(1, 4)
         val result = strategySelector.selectStrategy(
             videoUrl = videoUrl,
@@ -187,7 +191,7 @@ class AnimeVideoDownloader(
                             download.lastErrorCode = "RANGE_UNSUPPORTED"
                             download.lastErrorReason = "Server does not support range requests, falling back"
                         }
-                        ffmpegDownload(download, tmpDir, videoFile, filename)
+                        ffmpegDownload(download, videoFile, filename)
                         return
                     }
                     is DownloadError.DiskFull -> {
@@ -209,7 +213,6 @@ class AnimeVideoDownloader(
 
     private suspend fun ffmpegDownload(
         download: AnimeDownload,
-        tmpDir: UniFile,
         videoFile: UniFile,
         filename: String,
     ) {
@@ -251,10 +254,14 @@ class AnimeVideoDownloader(
                 ffmpegOptions,
                 {
                     if (it.returnCode.isValueSuccess) {
-                        tmpDir.findFile("$filename.tmp")?.apply {
-                            renameTo("$filename.mkv")
+                        val published = runCatching { videoFile.renameTo("$filename.mkv") }
+                        if (published.getOrDefault(false)) {
+                            continuation.resume(it)
+                        } else {
+                            continuation.resumeWithException(
+                                IOException("Cannot publish staged video", published.exceptionOrNull()),
+                            )
                         }
-                        continuation.resume(it)
                     } else {
                         val output = it.output
                         if (DownloadFailureClassifier.isLowStorageFailure(output)) {

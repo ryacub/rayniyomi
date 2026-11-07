@@ -634,38 +634,33 @@ class AnimeDownloader(
             }
             val videoFile = stagedVideo.takeUnless { useInternalDownloader }
             // External downloader handoff can already have produced the file.
-            val file = when {
-                videoFile != null -> videoFile
-                else -> {
-                    notifier.onProgressChange(download)
+            if (videoFile == null) {
+                notifier.onProgressChange(download)
 
-                    download.status = AnimeDownload.State.DOWNLOADING
-                    download.progress = 0
-                    download.displayStatus = DownloadDisplayStatus.CONNECTING
-                    download.blockedReason = null
-                    download.lastProgressAt = System.currentTimeMillis()
-                    download.retryAttempt = 0
+                download.status = AnimeDownload.State.DOWNLOADING
+                download.progress = 0
+                download.displayStatus = DownloadDisplayStatus.CONNECTING
+                download.blockedReason = null
+                download.lastProgressAt = System.currentTimeMillis()
+                download.retryAttempt = 0
 
-                    // If videoFile is not existing then download it
-                    if (useInternalDownloader) {
-                        // Stall reporting stops before progress collection, to avoid a stale state update.
-                        DownloadMonitors.withMonitors(
-                            DownloadMonitorBuilders.monitors(download, download.progressFlow) {
-                                notifier.onProgressChange(it)
-                            },
-                        ) {
-                            videoDownloader.download(download, tmpDir, filename)
-                        }
-                    } else {
-                        val betterFileName = DiskUtil.buildValidFilename(
-                            "${download.anime.title} - ${download.episode.name}",
-                        )
-                        downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
+                if (useInternalDownloader) {
+                    // Stall reporting stops before progress collection, to avoid a stale state update.
+                    DownloadMonitors.withMonitors(
+                        DownloadMonitorBuilders.monitors(download, download.progressFlow) {
+                            notifier.onProgressChange(it)
+                        },
+                    ) {
+                        videoDownloader.download(download, tmpDir, filename)
                     }
+                } else {
+                    val betterFileName = DiskUtil.buildValidFilename(
+                        "${download.anime.title} - ${download.episode.name}",
+                    )
+                    downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
                 }
             }
 
-            video.videoUrl = file.uri.path ?: ""
             download.progress = 100
             video.status = Video.State.READY
             return VideoFetchResult.Success

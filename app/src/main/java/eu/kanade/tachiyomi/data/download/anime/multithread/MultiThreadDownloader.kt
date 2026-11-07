@@ -98,6 +98,9 @@ class MultiThreadDownloader(
         }
     }
 
+    internal fun hasCheckpoint(episodeId: Long, url: String): Boolean =
+        stateStore.loadProgress(episodeId)?.let { it.videoUrl == url && it.entityTag != null } == true
+
     internal fun discardStagedChunks(episodeId: Long, directory: UniFile) {
         val names = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
         directory.listFiles().orEmpty().forEach { file ->
