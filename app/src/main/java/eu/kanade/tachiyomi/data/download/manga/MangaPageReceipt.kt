@@ -23,6 +23,8 @@ internal class MangaPageReceipt(cacheDirectory: File?, download: MangaDownload, 
         .joinToString("") { value -> "${value?.length ?: -1}:${value.orEmpty()}" }
         .encodeUtf8().sha256().hex()
 
+    val exists: Boolean get() = receipt?.isFile == true
+
     fun matches(files: List<UniFile>): Boolean {
         val saved = receipt ?: return false
         if (!saved.isFile || files.isEmpty()) return false

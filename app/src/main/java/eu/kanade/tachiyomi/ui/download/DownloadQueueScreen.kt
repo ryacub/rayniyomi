@@ -24,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +36,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.kanade.presentation.components.DropdownMenu
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -182,7 +184,9 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
     screenModel: DownloadQueueActions<I>,
     modifier: Modifier = Modifier,
 ) {
-    val progress by remember { derivedStateOf { item.progress } }
+    val progress = item.progress
+    val recovery by item.recovery.collectAsStateWithLifecycle()
+    val displayStatus by item.displayStatus.collectAsStateWithLifecycle()
     var menuExpanded by remember { mutableStateOf(false) }
 
     Column(
@@ -216,6 +220,16 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    if (displayStatus == DownloadDisplayStatus.FAILED) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(MR.strings.action_retry)) },
+                            onClick = {
+                                screenModel.retryDownload(item)
+                                menuExpanded = false
+                            },
+                        )
+                    }
+
                     DropdownMenuItem(
                         text = { Text(stringResource(MR.strings.action_move_to_top)) },
                         onClick = {
@@ -279,6 +293,21 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(top = 4.dp),
         )
+        val recoveryMessage = when (recovery) {
+            DownloadRecovery.RESUME -> MR.strings.download_recovery_resume
+            DownloadRecovery.REPAIR -> MR.strings.download_recovery_repair
+            DownloadRecovery.RESTART -> MR.strings.download_recovery_restart
+            null ->
+                MR.strings.download_recovery_check
+                    .takeIf { displayStatus == DownloadDisplayStatus.FAILED }
+        }
+        if (recoveryMessage != null) {
+            Text(
+                text = stringResource(recoveryMessage),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 

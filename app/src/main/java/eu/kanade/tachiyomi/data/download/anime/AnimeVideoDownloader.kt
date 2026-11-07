@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.data.download.core.RetriesExhaustedException
 import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import eu.kanade.tachiyomi.util.storage.toFFmpegString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +76,7 @@ class AnimeVideoDownloader(
                     DownloadStrategy.SINGLE_THREAD,
                     DownloadStrategy.FFMPEG,
                     -> {
+                        download.recovery.value = DownloadRecovery.RESTART
                         ffmpegDownload(download, tmpDir, videoFile, filename)
                     }
                 }
@@ -160,6 +162,7 @@ class AnimeVideoDownloader(
             },
             tmpDir = tmpDir,
             outputFile = videoFile,
+            onRecovery = { download.recovery.value = it },
         ) { progress ->
             download.progress = progress.progressPercent.coerceIn(0, 100)
             download.lastProgressAt = System.currentTimeMillis()
@@ -169,13 +172,13 @@ class AnimeVideoDownloader(
 
         when (result) {
             is DownloadResult.Success -> {
-                tmpDir.findFile("$filename.tmp")?.apply {
-                    renameTo("$filename.$extension")
-                }
+                check(videoFile.renameTo("$filename.$extension")) { "Cannot publish staged video" }
             }
             is DownloadResult.Error -> {
                 when (val error = result.error) {
                     is DownloadError.InvalidRange -> {
+                        multiThreadDownloader.discardStagedChunks(episodeId, tmpDir)
+                        download.recovery.value = DownloadRecovery.RESTART
                         if (error.msg.contains("not satisfiable", ignoreCase = true)) {
                             download.displayStatus = DownloadDisplayStatus.RETRYING
                             download.lastErrorCode = "RANGE_NOT_SATISFIABLE"

@@ -13,6 +13,7 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -66,7 +67,7 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 applicationContext.activeNetworkState(),
                 downloadPreferences.downloadOnlyOverWifi().get(),
             )
-            if (!(networkCheck && downloadManager.downloaderStart())) {
+            if (!(networkCheck && downloadManager.downloaderStart(inputData.getBoolean(RESET_FAILED, true)))) {
                 return Result.failure()
             }
 
@@ -118,9 +119,12 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
     companion object {
         private const val TAG = "AnimeDownloader"
 
-        fun start(context: Context) {
+        private const val RESET_FAILED = "reset_failed"
+
+        fun start(context: Context, resetFailed: Boolean = true) {
             val request = OneTimeWorkRequestBuilder<AnimeDownloadJob>()
                 .addTag(TAG)
+                .setInputData(workDataOf(RESET_FAILED to resetFailed))
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
                     30,

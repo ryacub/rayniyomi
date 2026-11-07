@@ -29,6 +29,7 @@ class DownloadQueueMutations<D : Any>(
     private val stopDownloader: () -> Unit,
     private val startDownloads: () -> Unit,
     mutationScope: CoroutineScope,
+    private val retryDownload: (D) -> Unit = {},
 ) {
     private val queueActor = DownloadQueueActor(mutationScope)
 
@@ -54,6 +55,11 @@ class DownloadQueueMutations<D : Any>(
         queueActor.submit(DownloadQueueCommand.StartNow(id)) {
             runReducerCommand(DownloadQueueCommand.StartNow(id))
         }
+    }
+
+    suspend fun retry(downloadId: Long) {
+        val command = DownloadQueueCommand.Retry(downloadId)
+        queueActor.submit(command) { runReducerCommand(command) }
     }
 
     suspend fun reorderQueueByIds(downloadIds: List<Long>) {
@@ -108,6 +114,9 @@ class DownloadQueueMutations<D : Any>(
     ): Boolean {
         try {
             when (effect) {
+                is DownloadQueueEffect.RetryById -> {
+                    getQueuedDownloadOrNull(effect.downloadId)?.let(retryDownload)
+                }
                 is DownloadQueueEffect.MoveToFrontById -> {
                     val existing = queueState.value.find { itemId(it) == effect.downloadId }
                     val toMove = existing ?: createFromId(effect.downloadId) ?: return false

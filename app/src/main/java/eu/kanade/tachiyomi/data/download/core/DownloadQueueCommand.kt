@@ -7,6 +7,7 @@ package eu.kanade.tachiyomi.data.download.core
  * cannot directly mutate queue state.
  */
 sealed interface DownloadQueueCommand {
+    data class Retry(val downloadId: Long) : DownloadQueueCommand
     data class StartNow(val downloadId: Long) : DownloadQueueCommand
     data class Reorder(val orderedIds: List<Long>) : DownloadQueueCommand
     data class AddToStart(val downloadIds: List<Long>) : DownloadQueueCommand

@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.resume.RangeRequestHandler
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -58,6 +59,7 @@ class MultiThreadDownloader(
         headers: Headers?,
         tmpDir: UniFile,
         outputFile: UniFile,
+        onRecovery: (DownloadRecovery) -> Unit = {},
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
         val rangeSupport = rangeRequestHandler.checkRangeSupport(videoUrl, headers)
@@ -74,10 +76,40 @@ class MultiThreadDownloader(
             existingProgress.totalBytes == rangeSupport.totalSize
         ) {
             logcat(LogPriority.INFO) { "Resuming download for episode $episodeId" }
+            val chunkDir = tmpDir.filePath?.let(::File)
+            if (chunkDir != null) {
+                onRecovery(recoveryFor(existingProgress, chunkDir))
+            }
             resume(existingProgress, transferHeaders, tmpDir, outputFile, onProgress)
         } else {
+            if (existingProgress != null ||
+                tmpDir.filePath?.let(::File)?.list().orEmpty().any { it.startsWith("chunk_${episodeId}_") }
+            ) {
+                onRecovery(DownloadRecovery.RESTART)
+            }
             startNewDownload(episodeId, videoUrl, transferHeaders, tmpDir, outputFile, onProgress, rangeSupport)
         }
+    }
+
+    internal fun discardStagedChunks(episodeId: Long, directory: UniFile) {
+        val names = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
+        directory.listFiles().orEmpty().forEach { file ->
+            if (names.matches(file.name.orEmpty())) {
+                check(file.delete()) { "Cannot remove an invalid video chunk" }
+            }
+        }
+        stateStore.deleteProgress(episodeId)
+    }
+
+    private fun recoveryFor(progress: DownloadProgress, directory: File): DownloadRecovery {
+        var hasSavedBytes = false
+        for (chunk in progress.chunks) {
+            val file = File(directory, chunk.tempFileName)
+            val size = file.length()
+            if (size > chunk.totalBytes || size < chunk.downloadedBytes) return DownloadRecovery.REPAIR
+            if (size > 0) hasSavedBytes = true
+        }
+        return if (hasSavedBytes) DownloadRecovery.RESUME else DownloadRecovery.RESTART
     }
 
     /**

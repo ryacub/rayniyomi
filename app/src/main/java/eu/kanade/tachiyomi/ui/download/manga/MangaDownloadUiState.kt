@@ -21,6 +21,8 @@ data class MangaDownloadUiItem(
     val download: MangaDownload,
     override val progress: Float,
 ) : DownloadQueueEntry {
+    override val recovery get() = download.recovery
+    override val displayStatus get() = download.displayStatusFlow
     override val downloadId get() = download.chapter.id
     override val entryId get() = download.manga.id
     override val key get() = download.chapter.url

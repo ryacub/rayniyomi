@@ -19,6 +19,12 @@ enum class DownloadDisplayStatus {
     FAILED,
 }
 
+enum class DownloadRecovery {
+    RESUME,
+    REPAIR,
+    RESTART,
+}
+
 /**
  * Primary blocker category for queued or paused downloads.
  */

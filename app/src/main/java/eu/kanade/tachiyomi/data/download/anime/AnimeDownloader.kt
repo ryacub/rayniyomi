@@ -84,6 +84,7 @@ class AnimeDownloader(
      */
     private val _queueState = MutableStateFlow<List<AnimeDownload>>(emptyList())
     val queueState = _queueState.asStateFlow()
+    private val retryVersion = MutableStateFlow(0L)
 
     /**
      * Store for persisting downloads across restarts.
@@ -197,13 +198,32 @@ class AnimeDownloader(
      *
      * @return true if the downloader is started, false otherwise.
      */
-    fun start(): Boolean {
+    fun start(): Boolean = start(resetFailed = true)
+
+    internal fun retryFailed(download: AnimeDownload): Boolean {
+        if (download.status != AnimeDownload.State.ERROR) return false
+        val order = retryVersion.value + 1
+        download.retryOrder = order
+        download.retryAttempt = 0
+        failureReporter.clear(download)
+        download.blockedReason = DownloadBlockedReason.SLOT
+        download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+        download.status = AnimeDownload.State.QUEUE
+        retryVersion.value = order
+        return true
+    }
+
+    internal fun start(resetFailed: Boolean): Boolean {
         if (isRunning || queueState.value.isEmpty()) {
             return false
         }
 
-        val pending = queueState.value.filter { it.status != AnimeDownload.State.DOWNLOADED }
+        val pending = queueState.value.filter {
+            it.status != AnimeDownload.State.DOWNLOADED && (resetFailed || it.status != AnimeDownload.State.ERROR)
+        }
+        if (pending.isEmpty()) return false
         pending.forEach {
+            if (resetFailed) it.retryOrder = 0L
             if (it.status != AnimeDownload.State.QUEUE) it.status = AnimeDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
             it.blockedReason = DownloadBlockedReason.SLOT
@@ -298,13 +318,13 @@ class AnimeDownloader(
         if (isRunning) return
 
         downloaderJob = scope.launch {
-            val activeDownloadsFlow = queueState.transformLatest { queue ->
+            val activeDownloadsFlow = queueState.combine(retryVersion) { queue, _ -> queue }.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
                         .filter {
                             it.status.value <= AnimeDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
+                        .sortedWith(compareBy<AnimeDownload> { it.retryOrder }.thenByDescending { it.priority.value })
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
@@ -376,7 +396,6 @@ class AnimeDownloader(
             download.status = AnimeDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
             failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
-            stop()
         }
     }
 

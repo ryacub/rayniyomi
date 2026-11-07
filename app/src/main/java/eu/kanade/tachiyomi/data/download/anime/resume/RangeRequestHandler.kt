@@ -117,7 +117,14 @@ class RangeRequestHandler(
                 val entityTag = response.header("ETag")?.takeIf {
                     it.length >= 2 && it.first() == '"' && it.last() == '"'
                 }
-                RangeSupportResult.Supported(contentLength, acceptRanges, entityTag, entityTag?.let { response.request.url.toString() })
+                RangeSupportResult.Supported(
+                    contentLength,
+                    acceptRanges,
+                    entityTag,
+                    entityTag?.let {
+                        response.request.url.toString()
+                    },
+                )
             }
         }
     }

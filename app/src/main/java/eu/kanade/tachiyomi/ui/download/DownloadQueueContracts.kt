@@ -1,11 +1,17 @@
 package eu.kanade.tachiyomi.ui.download
 
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
+import kotlinx.coroutines.flow.StateFlow
+
 interface DownloadQueueEntry {
     val downloadId: Long?
     val entryId: Long
     val key: String
     val name: String
     val progress: Float
+    val recovery: StateFlow<DownloadRecovery?>
+    val displayStatus: StateFlow<DownloadDisplayStatus>
 }
 
 interface DownloadQueueGroup<I : DownloadQueueEntry> {
@@ -24,6 +30,7 @@ interface DownloadQueueActions<I : DownloadQueueEntry> {
     fun moveToBottom(item: I)
     fun moveToTopSeries(entryId: Long)
     fun moveToBottomSeries(entryId: Long)
+    fun retryDownload(item: I)
     fun cancelDownload(item: I)
     fun cancelSeries(entryId: Long)
 }

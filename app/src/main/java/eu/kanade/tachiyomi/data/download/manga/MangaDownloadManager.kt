@@ -132,6 +132,15 @@ class MangaDownloadManager(
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
             mutationScope = scope,
+            retryDownload = { download ->
+                if (downloader.retryFailed(download) && !downloader.isRunning) {
+                    if (MangaDownloadJob.isRunning(context)) {
+                        downloader.start(resetFailed = false)
+                    } else {
+                        MangaDownloadJob.start(context, resetFailed = false)
+                    }
+                }
+            },
         )
     }
 
@@ -142,8 +151,8 @@ class MangaDownloadManager(
         get() = downloader.queueState
 
     // For use by DownloadService only
-    fun downloaderStart(): Boolean {
-        val started = downloader.start()
+    fun downloaderStart(resetFailed: Boolean = true): Boolean {
+        val started = downloader.start(resetFailed)
         if (!started) return false
 
         // Reset stale crash state after successful downloader start.
@@ -177,6 +186,8 @@ class MangaDownloadManager(
     /**
      * Tells the downloader to pause downloads.
      */
+    suspend fun retryDownload(id: Long) = queueMutations.retry(id)
+
     fun pauseDownloads() {
         downloader.pause()
         downloader.stop()

@@ -21,6 +21,8 @@ data class AnimeDownloadUiItem(
     val download: AnimeDownload,
     override val progress: Float,
 ) : DownloadQueueEntry {
+    override val recovery get() = download.recovery
+    override val displayStatus get() = download.displayStatusFlow
     override val downloadId get() = download.episode.id
     override val entryId get() = download.anime.id
     override val key get() = download.episode.url

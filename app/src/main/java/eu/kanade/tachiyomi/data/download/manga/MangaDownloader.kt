@@ -21,6 +21,7 @@ import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.di.appGraph
@@ -51,6 +52,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -110,6 +112,7 @@ class MangaDownloader(
      */
     private val _queueState = MutableStateFlow<List<MangaDownload>>(emptyList())
     val queueState = _queueState.asStateFlow()
+    private val retryVersion = MutableStateFlow(0L)
 
     /**
      * Store for persisting downloads across restarts.
@@ -203,13 +206,32 @@ class MangaDownloader(
      *
      * @return true if the downloader is started, false otherwise.
      */
-    fun start(): Boolean {
+    fun start(): Boolean = start(resetFailed = true)
+
+    internal fun retryFailed(download: MangaDownload): Boolean {
+        if (download.status != MangaDownload.State.ERROR) return false
+        val order = retryVersion.value + 1
+        download.retryOrder = order
+        download.retryAttempt = 0
+        failureReporter.clear(download)
+        download.blockedReason = DownloadBlockedReason.SLOT
+        download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+        download.status = MangaDownload.State.QUEUE
+        retryVersion.value = order
+        return true
+    }
+
+    internal fun start(resetFailed: Boolean): Boolean {
         if (isRunning || queueState.value.isEmpty()) {
             return false
         }
 
-        val pending = queueState.value.filter { it.status != MangaDownload.State.DOWNLOADED }
+        val pending = queueState.value.filter {
+            it.status != MangaDownload.State.DOWNLOADED && (resetFailed || it.status != MangaDownload.State.ERROR)
+        }
+        if (pending.isEmpty()) return false
         pending.forEach {
+            if (resetFailed) it.retryOrder = 0L
             if (it.status != MangaDownload.State.QUEUE) it.status = MangaDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
             it.blockedReason = DownloadBlockedReason.SLOT
@@ -307,7 +329,7 @@ class MangaDownloader(
         if (isRunning) return
 
         downloaderJob = scope.launch {
-            val activeDownloadsFlow = queueState.transformLatest { queue ->
+            val activeDownloadsFlow = queueState.combine(retryVersion) { queue, _ -> queue }.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
                         .filter {
@@ -317,7 +339,7 @@ class MangaDownloader(
                                 it.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
                                 it.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
+                        .sortedWith(compareBy<MangaDownload> { it.retryOrder }.thenByDescending { it.priority.value })
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
@@ -346,6 +368,7 @@ class MangaDownloader(
                         }.filter { it }
                     activeDownloadsErroredFlow.first()
                 }
+                if (areAllDownloadsFinished()) stop()
             }.distinctUntilChanged()
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
@@ -376,9 +399,6 @@ class MangaDownloader(
             if (download.status == MangaDownload.State.DOWNLOADED) {
                 removeFromQueue(download)
             }
-            if (areAllDownloadsFinished()) {
-                stop()
-            }
         } catch (e: Throwable) {
             val action = DownloadFailurePolicy.forDownloadJob(e, currentCoroutineContext().isActive)
             if (action !is DownloadFailureAction.Report) throw e
@@ -387,7 +407,6 @@ class MangaDownloader(
             download.status = MangaDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
             failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
-            stop()
         }
     }
 
@@ -477,6 +496,7 @@ class MangaDownloader(
      */
     @VisibleForTesting
     internal suspend fun downloadChapter(download: MangaDownload) {
+        download.recovery.value = null
         download.displayStatus = DownloadDisplayStatus.PREPARING
         download.blockedReason = DownloadBlockedReason.PREPARING
         val mangaDir = provider.getMangaDir(download.manga.title, download.source)
@@ -646,6 +666,20 @@ class MangaDownloader(
             val receipt = MangaPageReceipt(context.cacheDir, download, page)
             val stagedFiles = stagedPageFiles(tmpDir, filename)
             val reusable = receipt.matches(stagedFiles)
+            val recovery = when {
+                reusable -> DownloadRecovery.RESUME
+                receipt.exists -> DownloadRecovery.REPAIR
+                stagedFiles.isNotEmpty() -> DownloadRecovery.RESTART
+                else -> null
+            }
+            if (recovery != null) {
+                download.recovery.update { previous ->
+                    when {
+                        previous == null || previous == recovery -> recovery
+                        else -> DownloadRecovery.REPAIR
+                    }
+                }
+            }
             if (!reusable) {
                 stagedFiles.forEach { check(it.delete()) { "Cannot remove an invalid staged page" } }
             }
