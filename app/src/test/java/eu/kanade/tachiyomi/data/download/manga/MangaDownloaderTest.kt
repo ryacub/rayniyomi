@@ -48,6 +48,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.download.service.DownloadPreferences
@@ -56,10 +57,14 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.GetChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 
 class MangaDownloaderTest {
+
+    @TempDir
+    lateinit var cacheDirectory: File
 
     private lateinit var downloader: MangaDownloader
     private lateinit var provider: MangaDownloadProvider
@@ -100,6 +105,7 @@ class MangaDownloaderTest {
         every { NotificationReceiver.openMangaEntryPendingActivity(any(), any()) } returns mockk(relaxed = true)
 
         val context = mockk<Context>(relaxed = true)
+        every { context.cacheDir } returns cacheDirectory
         val notificationBuilder = mockk<NotificationCompat.Builder>(relaxed = true)
         every { context.notificationBuilder(any(), any()) } returns notificationBuilder
         every { context.notify(any<Int>(), any<Notification>()) } just runs

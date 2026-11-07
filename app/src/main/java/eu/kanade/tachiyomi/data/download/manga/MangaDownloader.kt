@@ -591,7 +591,7 @@ class MangaDownloader(
             if (downloadPreferences.saveChaptersAsCBZ().get()) {
                 archiveChapter(mangaDir, chapterDirname, tmpDir)
             } else {
-                tmpDir.renameTo(chapterDirname)
+                check(tmpDir.renameTo(chapterDirname)) { "Cannot publish chapter directory" }
             }
             cache.addChapter(chapterDirname, mangaDir, download.manga)
 
@@ -642,13 +642,15 @@ class MangaDownloader(
         // Delete temp file if it exists
         tmpFile?.delete()
 
-        // Try to find the image file
-        val imageFile = tmpDir.listFiles()?.firstOrNull { isDownloadedImageFile(it, filename) }
-
         try {
-            // If the image is already downloaded, do nothing. Otherwise download from network
+            val receipt = MangaPageReceipt(context.cacheDir, download, page)
+            val stagedFiles = stagedPageFiles(tmpDir, filename)
+            val reusable = receipt.matches(stagedFiles)
+            if (!reusable) {
+                stagedFiles.forEach { check(it.delete()) { "Cannot remove an invalid staged page" } }
+            }
             val file = when {
-                imageFile != null -> imageFile
+                reusable -> stagedFiles.first()
                 chapterCache.isImageInCache(page.imageUrl!!) -> copyImageFromCache(
                     chapterCache.getImageFile(page.imageUrl!!),
                     tmpDir,
@@ -657,8 +659,13 @@ class MangaDownloader(
                 else -> downloadImage(page, download, download.source, tmpDir, filename, dataSaver)
             }
 
-            // When the page is ready, set page path, progress (just in case) and status
-            splitTallImageIfNeeded(page, tmpDir)
+            if (!reusable) {
+                check(file.length() > 0) { "Downloaded page is empty" }
+                splitTallImageIfNeeded(page, tmpDir)
+                val completedFiles = stagedPageFiles(tmpDir, filename)
+                check(completedFiles.any { isDownloadedImageFile(it, filename) }) { "Downloaded page is missing" }
+                receipt.save(completedFiles)
+            }
             page.uri = file.uri
             page.progress = 100
             page.status = Page.State.READY
@@ -707,7 +714,7 @@ class MangaDownloader(
                 throttledSource.saveTo(file.openOutputStream())
                 throttledSource.close()
                 val extension = getImageExtension(response, file)
-                file.renameTo("$filename.$extension")
+                check(file.renameTo("$filename.$extension")) { "Cannot publish staged page" }
             } catch (e: Exception) {
                 response.close()
                 file.delete()
@@ -762,8 +769,9 @@ class MangaDownloader(
                 input.copyTo(output)
             }
         }
-        val extension = ImageUtil.findImageType(cacheFile.inputStream()) ?: return tmpFile
-        tmpFile.renameTo("$filename.${extension.extension}")
+        val extension = cacheFile.inputStream().use(ImageUtil::findImageType)
+            ?: error("Cached page does not have a recognized image type")
+        check(tmpFile.renameTo("$filename.${extension.extension}")) { "Cannot publish cached page" }
         cacheFile.delete()
         return tmpFile
     }
@@ -841,7 +849,7 @@ class MangaDownloader(
                 writer.write(file)
             }
         }
-        zip.renameTo("$dirname.cbz")
+        check(zip.renameTo("$dirname.cbz")) { "Cannot publish chapter archive" }
         tmpDir.delete()
     }
 
@@ -929,6 +937,12 @@ class MangaDownloader(
         private const val DOWNLOADS_QUEUED_WARNING_THRESHOLD = 30
     }
 }
+
+private fun stagedPageFiles(directory: UniFile, filename: String): List<UniFile> =
+    directory.listFiles().orEmpty().filter {
+        val name = it.name.orEmpty()
+        (name.startsWith("$filename.") && !name.endsWith(".tmp")) || name.startsWith("${filename}__")
+    }.sortedBy { it.name }
 
 @VisibleForTesting
 internal fun isDownloadedImageFile(file: UniFile, filename: String): Boolean {
