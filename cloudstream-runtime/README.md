@@ -21,7 +21,17 @@ The manager lists plugins whose repository metadata includes Anime, AnimeMovie, 
 
 Bristege v1 in the re-3arabi repository shows why both checks matter. Its repository metadata lists Anime, but the plugin binary reports Movie and TvSeries provider types. The host therefore does not expose Bristege as an anime source.
 
-AnimeWitcher v3 passed search on debug and release hosts. The release host also loaded details and episodes and played video with software decoding on API 36. Its title WebView link returns `Error: URI Too Long`; Share and Copy URL use the same provider URL.
+### Tested plugins
+
+The checks below ran on 2026-11-07 on an Android 16 (API 36) arm64 emulator with software decoding. The app was a debug build of `main` at `28681428d`, and the runtime came from the same commit. This runtime includes the Anichi fix from `99b002c07`. The `cloudstream-runtime-v16.1` release does not include it.
+
+Hardware decoding and release app builds are untested. A plugin or workflow that this table does not list is untested.
+
+| Plugin | Repository | Passed workflows | Known limits |
+| --- | --- | --- | --- |
+| AnimeWitcher v4 | re-3arabi | Browse, search, details, episode list, playback, seek, retry after a failed start, download, and offline playback of a download | An interrupted download starts again from the beginning. |
+| AnimeRift v2 | re-3arabi | Browse, search, details, episode list, playback, and seek | Downloads failed in the tested storage folder. The cause is the Rayniyomi multi-thread downloader, not the plugin. If the network fails at playback start, the player stays at 00:00 without an error. Go back and start the episode again. |
+| Anichi v29 | phisher98 | Browse, search, details, and episode list | Playback and download stop at a Cloudflare Turnstile check that needs manual interaction. This test could not pass the check. |
 
 The runtime cannot load every CloudStream plugin. A plugin can require APIs or resources that this runtime does not provide. The runtime skips plugins that it cannot load. Other CloudStream plugins and native Rayniyomi extensions remain available.
 
