@@ -163,6 +163,11 @@ REQUIRED_METHODS = {
         "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)Leu/kanade/tachiyomi/animesource/model/Hoster;",
         "Leu/kanade/tachiyomi/animesource/model/Hoster;->getMemo()Lkotlinx/serialization/json/JsonObject;",
         "Leu/kanade/tachiyomi/animesource/model/Video;->getMemo()Lkotlinx/serialization/json/JsonObject;",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Z)V",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Z)Leu/kanade/tachiyomi/animesource/model/Hoster;",
+        "Leu/kanade/tachiyomi/animesource/model/Video;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Z)V",
+        "Leu/kanade/tachiyomi/animesource/model/Video;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Z)Leu/kanade/tachiyomi/animesource/model/Video;",
     ],
     # R1078: lib-1.6 extensions call these. The 0.18.1.388 release did not define them.
     # scripts/check_extension_links.py finds such members in an extension catalogue.
