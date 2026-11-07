@@ -160,6 +160,18 @@ class MangaDownloaderTest {
     }
 
     @Test
+    fun `a nonempty HTML response cannot count as a downloaded image`() {
+        val html = "<html>Try again later</html>".toByteArray()
+        val file = mockk<UniFile> {
+            every { name } returns "001.jpg"
+            every { length() } returns html.size.toLong()
+            every { openInputStream() } answers { html.inputStream() }
+        }
+
+        assertFalse(isDownloadedImageFile(file, "001"))
+    }
+
+    @Test
     fun `a staged page with no recovery receipt is fetched again`() = runTest {
         val stalePage = mockk<UniFile>(relaxed = true) {
             every { name } returns "001.jpg"
