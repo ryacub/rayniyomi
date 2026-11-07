@@ -521,7 +521,6 @@ class ReaderActivity : BaseActivity() {
                 currentPage = state.currentPage,
                 totalPages = state.totalPages,
                 onPageIndexChange = {
-                    cancelSavedPageReveal()
                     isScrollingThroughPages = true
                     moveToPageIndex(it)
                 },
@@ -558,6 +557,7 @@ class ReaderActivity : BaseActivity() {
                 onSelectAutoScrollPreset = ::setWebtoonAutoScrollSpeed,
                 onAutoScrollSpeedChange = ::setWebtoonAutoScrollSpeed,
                 onClickSettings = viewModel::openSettingsDialog,
+                onMenuTouched = ::cancelSavedPageReveal,
             )
 
             if (flashOnPageChange) {
