@@ -1,10 +1,5 @@
 package com.lagradost.cloudstream3.syncproviders.providers
 
-/**
- * Declares the AniList response types that .cs3 plugins reference by name.
- * The outer class is intentionally empty. Jackson loads it as the enclosing class.
- * Property names match the AniList JSON keys, so no property annotations are needed.
- */
 class AniListApi {
 
     data class Title(
