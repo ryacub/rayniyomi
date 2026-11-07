@@ -138,7 +138,7 @@ class AnimeDownloadManager(
         if (downloadPreferences.animeDownloadJobCrashCount().get() > 0) {
             downloadPreferences.animeDownloadJobCrashCount().set(0)
         }
-        return downloader.start(resetFailed)
+        return if (resetFailed) downloader.start() else downloader.start(resetFailed = false)
     }
     fun markRetriesBlocked(status: DownloadDisplayStatus) = downloader.markRetriesBlocked(status)
 

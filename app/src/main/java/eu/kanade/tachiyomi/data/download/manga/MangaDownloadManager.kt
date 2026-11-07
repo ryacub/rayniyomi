@@ -148,7 +148,7 @@ class MangaDownloadManager(
 
     // For use by DownloadService only
     fun downloaderStart(resetFailed: Boolean = true): Boolean {
-        val started = downloader.start(resetFailed)
+        val started = if (resetFailed) downloader.start() else downloader.start(resetFailed = false)
         if (!started) return false
 
         // Reset stale crash state after successful downloader start.
