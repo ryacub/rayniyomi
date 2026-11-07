@@ -380,6 +380,7 @@ class MultiThreadDownloaderTest {
                 )
             },
             status = DownloadProgress.Status.ERROR,
+            entityTag = VIDEO_TAG,
         )
         val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
             every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns savedProgress
@@ -425,6 +426,7 @@ class MultiThreadDownloaderTest {
             if (request.method == "HEAD") {
                 return MockResponse()
                     .setHeader("Accept-Ranges", "bytes")
+                    .setHeader("ETag", VIDEO_TAG)
                     .setHeader("Content-Length", body.size)
             }
             // A GET without a range gets the 200 that the downloader rejects as InvalidRange.
@@ -449,6 +451,7 @@ class MultiThreadDownloaderTest {
 
     private companion object {
         const val EPISODE_ID = 42L
+        const val VIDEO_TAG = "\"episode-v1\""
 
         // MP4 "ftyp" box for the signature check.
         val MP4_HEADER =

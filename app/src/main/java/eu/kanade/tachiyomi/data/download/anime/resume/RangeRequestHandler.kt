@@ -34,6 +34,7 @@ class RangeRequestHandler(
         data class Supported(
             val totalSize: Long,
             val acceptsRanges: String,
+            val entityTag: String? = null,
         ) : RangeSupportResult()
 
         /**
@@ -112,7 +113,10 @@ class RangeRequestHandler(
                 RangeSupportResult.NotSupported("Content length unknown or zero")
             }
             else -> {
-                RangeSupportResult.Supported(contentLength, acceptRanges)
+                val entityTag = response.header("ETag")?.takeIf {
+                    it.length >= 2 && it.first() == '"' && it.last() == '"'
+                }
+                RangeSupportResult.Supported(contentLength, acceptRanges, entityTag)
             }
         }
     }

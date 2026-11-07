@@ -213,6 +213,16 @@ class ChunkDownloader(
     ): ChunkDownloadResult {
         return when {
             response.code == HttpURLConnection.HTTP_PARTIAL -> {
+                val expectedTag = response.request.header("If-Range")
+                if (expectedTag != null) {
+                    val returnedTag = response.header("ETag")
+                    val expectedRange = "bytes ${chunk.startByte + keptBytes}-${chunk.endByte}/"
+                    if ((returnedTag != null && returnedTag != expectedTag) ||
+                        response.header("Content-Range")?.startsWith(expectedRange) != true
+                    ) {
+                        return ChunkDownloadResult.Error(DownloadError.InvalidRange("Remote video changed"))
+                    }
+                }
                 handleSuccessResponse(response, tempFile, keptBytes, isFirstChunk, onProgress)
             }
             response.code == HttpURLConnection.HTTP_OK -> {

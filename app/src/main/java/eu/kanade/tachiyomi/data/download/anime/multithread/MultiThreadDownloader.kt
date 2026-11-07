@@ -60,14 +60,23 @@ class MultiThreadDownloader(
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        // Check for existing progress
+        val rangeSupport = rangeRequestHandler.checkRangeSupport(videoUrl, headers)
+            as? RangeRequestHandler.RangeSupportResult.Supported
         val existingProgress = stateStore.loadProgressIfMatching(episodeId, videoUrl)
+        val entityTag = rangeSupport?.entityTag
+        val transferHeaders = entityTag?.let {
+            (headers ?: Headers.Builder().build()).newBuilder().set("If-Range", it).build()
+        } ?: headers
 
-        return if (existingProgress != null && existingProgress.status != DownloadProgress.Status.COMPLETED) {
+        return if (existingProgress != null &&
+            existingProgress.status != DownloadProgress.Status.COMPLETED &&
+            entityTag != null && existingProgress.entityTag == entityTag &&
+            existingProgress.totalBytes == rangeSupport.totalSize
+        ) {
             logcat(LogPriority.INFO) { "Resuming download for episode $episodeId" }
-            resume(existingProgress, headers, tmpDir, outputFile, onProgress)
+            resume(existingProgress, transferHeaders, tmpDir, outputFile, onProgress)
         } else {
-            startNewDownload(episodeId, videoUrl, headers, tmpDir, outputFile, onProgress)
+            startNewDownload(episodeId, videoUrl, transferHeaders, tmpDir, outputFile, onProgress, rangeSupport)
         }
     }
 
@@ -112,14 +121,9 @@ class MultiThreadDownloader(
         tmpDir: UniFile,
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit,
+        rangeSupport: RangeRequestHandler.RangeSupportResult.Supported?,
     ): DownloadResult {
-        // Check range support
-        val rangeSupport = rangeRequestHandler.checkRangeSupport(videoUrl, headers)
-
-        val totalBytes = when (rangeSupport) {
-            is RangeRequestHandler.RangeSupportResult.Supported -> rangeSupport.totalSize
-            else -> -1L
-        }
+        val totalBytes = rangeSupport?.totalSize ?: -1L
 
         // Get current thread count from provider (respects runtime preference changes)
         val maxThreads = maxThreadsProvider()
@@ -150,6 +154,7 @@ class MultiThreadDownloader(
                 )
             },
             status = DownloadProgress.Status.IN_PROGRESS,
+            entityTag = rangeSupport?.entityTag,
         )
 
         return performDownload(progress, headers, tmpDir, outputFile, onProgress, resume = false)
@@ -166,10 +171,6 @@ class MultiThreadDownloader(
         onProgress: (DownloadProgress) -> Unit,
         resume: Boolean,
     ): DownloadResult {
-        // Create supervisor scope that is a child of the caller's scope
-        // This ensures proper cancellation propagation while allowing independent job management
-        val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
-
         // Get temp directory as File
         val tempDirFile = File(
             tmpDir.filePath ?: return DownloadResult.Error(
@@ -178,7 +179,16 @@ class MultiThreadDownloader(
         )
 
         // A file left by another download of this episode can hold other bytes.
-        if (!resume) progress.chunks.forEach { File(tempDirFile, it.tempFileName).delete() }
+        if (!resume) {
+            for (chunk in progress.chunks) {
+                val file = File(tempDirFile, chunk.tempFileName)
+                if (file.exists() && !file.delete()) {
+                    return DownloadResult.Error(DownloadError.InvalidTempDirectory("Cannot clear stale chunk"))
+                }
+            }
+            stateStore.saveProgress(progress)
+        }
+        val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
         val chunkState = ChunkStateTracker(progress.chunks) { chunk ->
             ChunkDownloader.keptBytes(ChunkRange(chunk.startByte, chunk.endByte), File(tempDirFile, chunk.tempFileName))
         }
