@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.anime.multithread
 
+import android.content.Context
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
@@ -91,6 +92,40 @@ class MultiThreadDownloaderTest {
         finalProgress.chunks.size shouldBe 2
         finalProgress.chunks.all { it.downloadedBytes == it.totalBytes } shouldBe true
         finalProgress.downloadedBytes shouldBe video.size.toLong()
+    }
+
+    @Test
+    fun `a fresh process can load the episode progress before the first chunk request`() = runTest {
+        val context = mockk<Context> {
+            every { cacheDir } returns tempDir
+        }
+        val ranges = RangeDispatcher(video)
+        val videoUrl = server.url("/episode.mp4").toString()
+        val foundProgressOnDisk = AtomicBoolean()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.getHeader("Range") != null) {
+                    val progress = DownloadStateStore(context).loadProgress(EPISODE_ID)
+                    foundProgressOnDisk.set(progress?.videoUrl == videoUrl && progress.chunks.isNotEmpty())
+                }
+                return ranges.dispatch(request)
+            }
+        }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val downloader = MultiThreadDownloader(OkHttpClient(), DownloadStateStore(context), maxThreadsProvider = { 1 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(File(tempDir, "episode.mp4")),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        foundProgressOnDisk.get() shouldBe true
     }
 
     @Test
