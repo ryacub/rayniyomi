@@ -114,11 +114,11 @@ class HosterOrchestrator(
         getHosterVideoLinksJob?.cancel()
         getHosterVideoLinksJob = scope.launch(hosterLoadDispatcher) {
             _hosterState.update {
-                hosterList.map { hoster ->
-                    if (hoster.lazy) {
-                        HosterState.Idle(hoster.hosterName)
-                    } else {
-                        hoster.videoList?.let { videoList ->
+                hosterList.mapIndexed { index, hoster ->
+                    when {
+                        hoster.lazy && index == rememberedIndex -> HosterState.Loading(hoster.hosterName)
+                        hoster.lazy -> HosterState.Idle(hoster.hosterName)
+                        else -> hoster.videoList?.let { videoList ->
                             HosterState.Ready(
                                 hoster.hosterName,
                                 videoList,
@@ -150,7 +150,7 @@ class HosterOrchestrator(
                                 return@async
                             }
 
-                            if (rememberedIndex == null && hosterState is HosterState.Ready) {
+                            if (rememberedServer == null && hosterState is HosterState.Ready) {
                                 if (hosterIdx == hosterIndex) {
                                     hosterState.videoList.getOrNull(videoIndex)?.let {
                                         hasFoundPreferredVideo.set(true)
@@ -186,7 +186,7 @@ class HosterOrchestrator(
                     }.awaitAll()
 
                     if (hasFoundPreferredVideo.compareAndSet(false, true)) {
-                        val fallbackGeneration = generation.takeIf { rememberedIndex != null }
+                        val fallbackGeneration = generation.takeIf { rememberedServer != null }
                         if (!loadBestAvailableVideo(source, fallbackGeneration) && !isStale(fallbackGeneration)) {
                             onNoVideosAvailable()
                         }
