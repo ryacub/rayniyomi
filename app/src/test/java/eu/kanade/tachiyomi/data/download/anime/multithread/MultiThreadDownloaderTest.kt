@@ -15,6 +15,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -38,6 +39,7 @@ import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class MultiThreadDownloaderTest {
 
@@ -151,6 +153,55 @@ class MultiThreadDownloaderTest {
 
         result.shouldBeInstanceOf<DownloadResult.Success>()
         output.readBytes().contentEquals(video) shouldBe true
+    }
+
+    @Test
+    fun `a reused ETag on a different redirect target cannot validate a staged prefix`() = runTest {
+        val videoUrl = server.url("/episode.mp4").toString()
+        val replacement = video.copyOf().apply { this[1023] = 99 }
+        val oldRanges = RangeDispatcher(video, bytesPer20Millis = 64 * 1024)
+        val newRanges = RangeDispatcher(replacement)
+        val target = AtomicReference("/original.mp4")
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when (request.path) {
+                "/episode.mp4" -> MockResponse().setResponseCode(302).setHeader("Location", target.get())
+                "/original.mp4" -> oldRanges.dispatch(request)
+                else -> newRanges.dispatch(request)
+            }
+        }
+        val cache = mockk<Context> { every { cacheDir } returns tempDir }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val output = File(tempDir, "episode.mp4")
+        val downloader = MultiThreadDownloader(OkHttpClient(), DownloadStateStore(cache), maxThreadsProvider = { 1 })
+        val checkpoint = AtomicReference<DownloadProgress>()
+        val storeWithCheckpoint = mockk<DownloadStateStore>(relaxed = true) {
+            every { loadProgressIfMatching(any(), any()) } answers { checkpoint.get() }
+            every { saveProgress(any()) } answers { checkpoint.set(firstArg()) }
+        }
+        val firstProgress = CompletableDeferred<Unit>()
+        val download = launch(Dispatchers.IO) {
+            MultiThreadDownloader(OkHttpClient(), storeWithCheckpoint, maxThreadsProvider = { 1 }).download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            ) {
+                firstProgress.complete(Unit)
+            }
+        }
+        firstProgress.await()
+        download.cancelAndJoin()
+        val saved = checkNotNull(checkpoint.get())
+        DownloadStateStore(cache).saveProgress(saved)
+        target.set("/replacement.mp4")
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(chunkDir), documentAt(output))
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(replacement) shouldBe true
     }
 
     @Test
