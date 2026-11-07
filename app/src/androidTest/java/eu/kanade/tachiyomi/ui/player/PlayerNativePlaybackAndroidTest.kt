@@ -45,6 +45,32 @@ class PlayerNativePlaybackAndroidTest {
     private var animeId: Long? = null
 
     @Test
+    fun reopeningEpisodeRestoresManualServerAfterReorder() = runBlocking {
+        val mediaA = mediaFile()
+        val mediaB = mediaFile()
+        val mediaC = mediaFile()
+        val replacementB = mediaFile()
+        val episode = createEpisode()
+        val hosterA = Hoster(hosterName = "A", videoList = listOf(video(mediaA, "A")))
+        val hosterB = Hoster(hosterName = "B", videoList = listOf(video(mediaB, "B")))
+        val hosterC = Hoster(hosterName = "C", videoList = listOf(video(mediaC, "C")))
+        launchPlayer(episode, listOf(hosterA, hosterB, hosterC))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaA)
+        val player = playerViewModel()
+        instrumentation.runOnMainSync { player.onVideoClicked(1, 0) }
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaB)
+
+        scenario?.close()
+        val changedB = hosterB.copy(videoList = listOf(video(replacementB, "B")))
+        launchPlayer(episode, listOf(hosterC, hosterA, changedB))
+
+        val reopenedPlayer = playerViewModel()
+        awaitCondition("Reopened episode did not select a video") { reopenedPlayer.currentVideo.value != null }
+        assertEquals("B", reopenedPlayer.currentVideo.value?.videoTitle)
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, replacementB)
+    }
+
+    @Test
     fun failedFirstUrlLoadsFallbackAndAdvancesPlayback() = runBlocking {
         val media = mediaFile()
         val missing = missingFile("first")
@@ -218,6 +244,11 @@ class PlayerNativePlaybackAndroidTest {
     }
 
     private suspend fun launchPlayer(videos: List<Video>) {
+        val hosters = listOf(Hoster(hosterName = "R1176 local fixture", videoList = videos))
+        launchPlayer(createEpisode(), hosters, startIndex = 0)
+    }
+
+    private suspend fun createEpisode(): Episode {
         val fixture = Anime.create().copy(
             source = LocalAnimeSource.ID,
             url = "r1176-native-${UUID.randomUUID()}",
@@ -226,7 +257,7 @@ class PlayerNativePlaybackAndroidTest {
         )
         val id = checkNotNull(appGraph.animeRepository.insertAnime(fixture))
         animeId = id
-        val episode = appGraph.episodeRepository.addAllEpisodes(
+        return appGraph.episodeRepository.addAllEpisodes(
             listOf(
                 Episode.create().copy(
                     animeId = id,
@@ -237,8 +268,12 @@ class PlayerNativePlaybackAndroidTest {
                 ),
             ),
         ).single()
-        val hosters = listOf(Hoster(hosterName = "R1176 local fixture", videoList = videos))
-        val intent = PlayerActivity.newIntent(context, id, episode.id, hosters, 0, 0)
+    }
+
+    private fun launchPlayer(episode: Episode, hosters: List<Hoster>, startIndex: Int = -1) {
+        val intent = PlayerActivity.newIntent(context, episode.animeId, episode.id, hosters, startIndex, startIndex)
+        MPVLib.removeObserver(trace)
+        MPVLib.removeLogObserver(trace)
         MPVLib.addObserver(trace)
         MPVLib.addLogObserver(trace)
         scenario = ActivityScenario.launch(intent)
