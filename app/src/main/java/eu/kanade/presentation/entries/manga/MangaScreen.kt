@@ -60,6 +60,7 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
+import eu.kanade.presentation.entries.components.ResumeCue
 import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
@@ -932,14 +933,13 @@ private fun ContinueReadingFabText(
 }
 
 @Composable
-private fun savedPositionCue(manga: Manga, position: SavedReadingPosition): String {
+private fun savedPositionCue(manga: Manga, position: SavedReadingPosition): ResumeCue {
     val chapter = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
         stringResource(MR.strings.display_mode_chapter, formatChapterNumber(position.chapter.chapterNumber))
     } else {
         position.chapter.name
     }
-    val page = position.page ?: return chapter
-    return "$chapter • ${stringResource(MR.strings.chapter_progress, page)}"
+    return ResumeCue(item = chapter, progress = position.page?.let { stringResource(MR.strings.chapter_progress, it) })
 }
 
 private fun onChapterItemClick(

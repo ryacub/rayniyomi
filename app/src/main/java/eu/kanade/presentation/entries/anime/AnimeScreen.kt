@@ -79,6 +79,7 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
+import eu.kanade.presentation.entries.components.ResumeCue
 import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
@@ -1161,20 +1162,20 @@ private fun ContinueWatchingFabText(
 }
 
 @Composable
-private fun savedPositionCue(anime: Anime, position: SavedWatchingPosition): String {
+private fun savedPositionCue(anime: Anime, position: SavedWatchingPosition): ResumeCue {
     val episode = if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
         stringResource(AYMR.strings.display_mode_episode, formatEpisodeNumber(position.episode.episodeNumber))
     } else {
         position.episode.name
     }
-    val positionMillis = position.positionMillis ?: return episode
+    val positionMillis = position.positionMillis ?: return ResumeCue(item = episode, progress = null)
     val totalMillis = position.episode.totalSeconds
     val time = if (totalMillis > 0L) {
         stringResource(AYMR.strings.episode_progress, formatTime(positionMillis), formatTime(totalMillis))
     } else {
         formatTime(positionMillis)
     }
-    return "$episode • $time"
+    return ResumeCue(item = episode, progress = time)
 }
 
 private fun formatTime(milliseconds: Long, useDayFormat: Boolean = false): String {
