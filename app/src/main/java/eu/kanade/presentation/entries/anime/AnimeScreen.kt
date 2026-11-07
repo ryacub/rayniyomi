@@ -1150,11 +1150,8 @@ private fun ContinueWatchingFabText(
     onCueStroked: (String) -> Unit,
 ) {
     val position = remember(state.episodes, state.anime) { state.episodes.savedWatchingPosition(state.anime) }
-    val isWatching = remember(state.episodes) { state.episodes.fastAny { it.episode.seen } }
     ResumeFabText(
-        label = stringResource(
-            if (isWatching || position != null) MR.strings.action_resume else MR.strings.action_start,
-        ),
+        label = stringResource(if (position != null) MR.strings.action_resume else MR.strings.action_start),
         cue = position?.let { savedPositionCue(state.anime, it) },
         strokedCue = strokedCue,
         onCueStroked = onCueStroked,

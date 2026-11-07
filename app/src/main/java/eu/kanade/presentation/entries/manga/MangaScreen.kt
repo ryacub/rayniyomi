@@ -921,11 +921,8 @@ private fun ContinueReadingFabText(
     onCueStroked: (String) -> Unit,
 ) {
     val position = remember(state.chapters, state.manga) { state.chapters.savedReadingPosition(state.manga) }
-    val isReading = remember(state.chapters) { state.chapters.fastAny { it.chapter.read } }
     ResumeFabText(
-        label = stringResource(
-            if (isReading || position != null) MR.strings.action_resume else MR.strings.action_start,
-        ),
+        label = stringResource(if (position != null) MR.strings.action_resume else MR.strings.action_start),
         cue = position?.let { savedPositionCue(state.manga, it) },
         strokedCue = strokedCue,
         onCueStroked = onCueStroked,
