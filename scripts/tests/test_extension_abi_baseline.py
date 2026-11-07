@@ -143,7 +143,7 @@ class ExtensionAbiBaselineTest(unittest.TestCase):
             self.assertIn(signature, required)
 
     def test_requires_the_anime_hoster_memo_constructor(self) -> None:
-        """R1185: the crash signature for an extension-lib 16 anime extension."""
+        """The constructor that extension-lib 16 anime extensions call on a missing memo."""
         required = REQUIRED_METHODS.get("anime hoster and video memo members", [])
 
         self.assertIn(

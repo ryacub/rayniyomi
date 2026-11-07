@@ -10,12 +10,28 @@ class VideoExtensionAbiTest {
 
     @Test
     fun `constructor with memo and defaults resolves for extension bytecode`() {
+        val expected = listOf(
+            String::class.java,
+            String::class.java,
+            Int::class.javaObjectType,
+            Int::class.javaObjectType,
+            okhttp3.Headers::class.java,
+            Boolean::class.javaPrimitiveType,
+            List::class.java,
+            List::class.java,
+            List::class.java,
+            List::class.java,
+            List::class.java,
+            List::class.java,
+            String::class.java,
+            Boolean::class.javaPrimitiveType,
+            JsonObject::class.java,
+            Int::class.javaPrimitiveType,
+            defaultConstructorMarker,
+        )
+
         Video::class.java.declaredConstructors
-            .any { ctor ->
-                ctor.parameterTypes.size == 17 &&
-                    ctor.parameterTypes[14] == JsonObject::class.java &&
-                    ctor.parameterTypes.last() == defaultConstructorMarker
-            } shouldBe true
+            .any { it.parameterTypes.toList() == expected } shouldBe true
     }
 
     @Test

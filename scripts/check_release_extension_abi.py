@@ -153,21 +153,28 @@ REQUIRED_METHODS = {
         "Leu/kanade/tachiyomi/util/JsoupExtensionsKt;->asJsoup(Lokhttp3/Response;Ljava/lang/String;)Lorg/jsoup/nodes/Document;",
         "Leu/kanade/tachiyomi/util/JsoupExtensionsKt;->asJsoup$default(Lokhttp3/Response;Ljava/lang/String;ILjava/lang/Object;)Lorg/jsoup/nodes/Document;",
     ],
-    # R1185: extension-lib 16 anime extensions call the Hoster and Video constructors and copy
-    # methods with the lib-16 signatures. The baseline drops synthetic members, so these rows
-    # guard the NoSuchMethodError crash.
+    # Extension-lib 16 anime extensions call these constructors and copy methods, and the
+    # memo members are new. The baseline drops synthetic members, so this group guards
+    # the NoSuchMethodError that the release build raised for missing hoster members.
     "anime hoster and video memo members": [
-        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)V",
-        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;ILkotlin/jvm/internal/DefaultConstructorMarker;)V",
-        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V",
-        "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)Leu/kanade/tachiyomi/animesource/model/Hoster;",
-        "Leu/kanade/tachiyomi/animesource/model/Hoster;->getMemo()Lkotlinx/serialization/json/JsonObject;",
-        "Leu/kanade/tachiyomi/animesource/model/Video;->getMemo()Lkotlinx/serialization/json/JsonObject;",
         "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Z)V",
         "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)V",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;ILkotlin/jvm/internal/DefaultConstructorMarker;)V",
         "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Z)Leu/kanade/tachiyomi/animesource/model/Hoster;",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)Leu/kanade/tachiyomi/animesource/model/Hoster;",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy$default(Leu/kanade/tachiyomi/animesource/model/Hoster;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZILjava/lang/Object;)Leu/kanade/tachiyomi/animesource/model/Hoster;",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;->copy$default(Leu/kanade/tachiyomi/animesource/model/Hoster;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;ILjava/lang/Object;)Leu/kanade/tachiyomi/animesource/model/Hoster;",
+        "Leu/kanade/tachiyomi/animesource/model/Hoster;->getMemo()Lkotlinx/serialization/json/JsonObject;",
+        "Leu/kanade/tachiyomi/animesource/model/Video;->getMemo()Lkotlinx/serialization/json/JsonObject;",
         "Leu/kanade/tachiyomi/animesource/model/Video;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Z)V",
+        "Leu/kanade/tachiyomi/animesource/model/Video;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V",
+        "Leu/kanade/tachiyomi/animesource/model/Video;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)V",
+        "Leu/kanade/tachiyomi/animesource/model/Video;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;ILkotlin/jvm/internal/DefaultConstructorMarker;)V",
         "Leu/kanade/tachiyomi/animesource/model/Video;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Z)Leu/kanade/tachiyomi/animesource/model/Video;",
+        "Leu/kanade/tachiyomi/animesource/model/Video;->copy(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;)Leu/kanade/tachiyomi/animesource/model/Video;",
+        "Leu/kanade/tachiyomi/animesource/model/Video;->copy$default(Leu/kanade/tachiyomi/animesource/model/Video;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ZILjava/lang/Object;)Leu/kanade/tachiyomi/animesource/model/Video;",
+        "Leu/kanade/tachiyomi/animesource/model/Video;->copy$default(Leu/kanade/tachiyomi/animesource/model/Video;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Lokhttp3/Headers;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;ILjava/lang/Object;)Leu/kanade/tachiyomi/animesource/model/Video;",
     ],
     # R1078: lib-1.6 extensions call these. The 0.18.1.388 release did not define them.
     # scripts/check_extension_links.py finds such members in an extension catalogue.

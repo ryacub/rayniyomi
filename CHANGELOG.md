@@ -20,7 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - In landscape on a phone, the recovery Review step shows its actions in one row. Before, the three stacked buttons took about 43% of the screen height (#1434).
 
 ### Fixed
-- Anime extensions that send a `memo` on hosters and videos, such as MovieBox, list servers again. The player no longer reports them as incompatible.
+- Anime extensions that set `memo` on hosters and videos, such as MovieBox, can list servers. Before, the player reported them as incompatible.
 - Extension update checks read package metadata without creating sources again at startup. This also keeps the CloudStream crash guard tied to active plugins (#1425).
 - Extension trust dialogs no longer crash when Trust and Uninstall taps overlap. The dialog accepts only the first action. See #1428.
 - The player tries another available video after a startup failure, including after rapid selections. It waits for hosters that still load and keeps unopened hosters available for manual selection. Playback recovery keeps the pause state and position (#1417).
