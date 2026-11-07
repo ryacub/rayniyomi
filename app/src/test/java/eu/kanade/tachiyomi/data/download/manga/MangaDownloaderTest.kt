@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -61,6 +62,7 @@ import java.io.IOException
 class MangaDownloaderTest {
 
     private lateinit var downloader: MangaDownloader
+    private lateinit var provider: MangaDownloadProvider
     private val testDispatcher = StandardTestDispatcher()
 
     @BeforeEach
@@ -104,9 +106,10 @@ class MangaDownloaderTest {
         every { context.stringResource(any()) } returns "mocked"
         every { context.stringResource(any(), *anyVararg()) } returns "mocked"
 
+        provider = mockk(relaxed = true)
         downloader = MangaDownloader(
             context = context,
-            provider = mockk(relaxed = true),
+            provider = provider,
             cache = mockk(relaxed = true),
             sourceManager = mockk(relaxed = true),
             chapterCache = mockk(relaxed = true),
@@ -148,6 +151,35 @@ class MangaDownloaderTest {
         }
 
         assertFalse(isDownloadedImageFile(file, "001"))
+    }
+
+    @Test
+    fun `a staged page with no recovery receipt is fetched again`() = runTest {
+        val stalePage = mockk<UniFile>(relaxed = true) {
+            every { name } returns "001.jpg"
+            every { length() } returns 1024L
+            every { delete() } returns true
+        }
+        val staging = mockk<UniFile>(relaxed = true) {
+            every { listFiles() } returns arrayOf(stalePage)
+        }
+        val mangaDirectory = mockk<UniFile> {
+            every { createDirectory(any()) } returns staging
+        }
+        every { provider.getMangaDir(any(), any()) } returns mangaDirectory
+        val download = MangaDownload(
+            source = mockk(relaxed = true),
+            manga = Manga.create().copy(id = 1L, title = "Test"),
+            chapter = Chapter.create().copy(id = 1L, name = "Ch1"),
+        ).apply {
+            pages = listOf(Page(0, url = "current-page", imageUrl = "current-image"))
+        }
+        mockkObject(MangaSourceGateway)
+        coEvery { MangaSourceGateway.image(any(), any(), any()) } throws FileNotFoundException("EPERM")
+
+        downloader.downloadChapter(download)
+
+        coVerify(exactly = 1) { MangaSourceGateway.image(any(), any(), any()) }
     }
 
     @Test
