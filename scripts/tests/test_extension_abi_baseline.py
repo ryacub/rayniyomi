@@ -142,6 +142,17 @@ class ExtensionAbiBaselineTest(unittest.TestCase):
         ):
             self.assertIn(signature, required)
 
+    def test_requires_the_anime_hoster_memo_constructor(self) -> None:
+        """R1185: the crash signature for an extension-lib 16 anime extension."""
+        required = REQUIRED_METHODS.get("anime hoster and video memo members", [])
+
+        self.assertIn(
+            "Leu/kanade/tachiyomi/animesource/model/Hoster;-><init>("
+            "Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;"
+            "ZLkotlinx/serialization/json/JsonObject;ILkotlin/jvm/internal/DefaultConstructorMarker;)V",
+            required,
+        )
+
 
 class ExtensionSupertypeTest(unittest.TestCase):
     """`invoke-interface Source.getSupportsLatest` needs a receiver that implements Source.
