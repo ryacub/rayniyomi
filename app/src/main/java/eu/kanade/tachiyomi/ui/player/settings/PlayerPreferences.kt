@@ -47,7 +47,7 @@ class PlayerPreferences(
     fun showFailedHosters() = preferenceStore.getBoolean("pref_show_failed_hosters", false)
     fun showEmptyHosters() = preferenceStore.getBoolean("pref_show_empty_hosters", false)
     internal fun episodeServer(episodeKey: String) = preferenceStore.getString(
-        Preference.appStateKey("episode_server_${Hash.sha256(episodeKey)}"),
+        Preference.appStateKey("episode_server_${Hash.sha256(episodeKey.toByteArray())}"),
     )
 
     // Display

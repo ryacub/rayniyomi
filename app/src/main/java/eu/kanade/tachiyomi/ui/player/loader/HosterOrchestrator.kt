@@ -237,11 +237,11 @@ class HosterOrchestrator(
 
     private fun hosterIdentity(hoster: Hoster): String? = hoster.hosterName
         .takeIf { it.isNotBlank() && it != Hoster.NO_HOSTER_LIST }
-        ?.let { "hoster:${Hash.sha256(it)}" }
+        ?.let { "hoster:${Hash.sha256(it.toByteArray())}" }
 
     private fun videoIdentity(video: Video): String? = video.videoTitle
         .takeIf(String::isNotBlank)
-        ?.let { "$VIDEO_ID_PREFIX${Hash.sha256(it)}" }
+        ?.let { "$VIDEO_ID_PREFIX${Hash.sha256(it.toByteArray())}" }
 
     /** Marks [failedVideo] failed and loads the next server. Ignores a video that is no longer current. */
     fun onVideoLoadFailed(failedVideo: Video, source: AnimeSource?) {
