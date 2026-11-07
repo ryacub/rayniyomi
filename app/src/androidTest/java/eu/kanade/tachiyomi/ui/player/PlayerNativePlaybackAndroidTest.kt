@@ -68,6 +68,29 @@ class PlayerNativePlaybackAndroidTest {
         awaitCondition("Reopened episode did not select a video") { reopenedPlayer.currentVideo.value != null }
         assertEquals("B", reopenedPlayer.currentVideo.value?.videoTitle)
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, replacementB)
+
+        scenario?.close()
+        val fallback = mediaFile()
+        val failedMedia = missingFile("remembered")
+        val missingB = hosterB.copy(videoList = listOf(video(failedMedia, "B")))
+        val fallbackA = hosterA.copy(videoList = listOf(video(fallback, "A")))
+        launchPlayer(episode, listOf(fallbackA, missingB))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, fallback)
+        assertTrue(
+            "MPV did not report that the remembered server failed to open",
+            trace.logs.any { it.startsWith("Cannot open file '${failedMedia.path}'") },
+        )
+
+        scenario?.close()
+        val returnedB = mediaFile()
+        launchPlayer(episode, listOf(hosterA, hosterB.copy(videoList = listOf(video(returnedB, "B")))))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, returnedB)
+
+        scenario?.close()
+        val otherEpisode = addEpisode(episode.animeId, 2.0)
+        val otherA = mediaFile()
+        launchPlayer(otherEpisode, listOf(hosterA.copy(videoList = listOf(video(otherA, "A"))), hosterB))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, otherA)
     }
 
     @Test
@@ -257,13 +280,17 @@ class PlayerNativePlaybackAndroidTest {
         )
         val id = checkNotNull(appGraph.animeRepository.insertAnime(fixture))
         animeId = id
+        return addEpisode(id, 1.0)
+    }
+
+    private suspend fun addEpisode(id: Long, number: Double): Episode {
         return appGraph.episodeRepository.addAllEpisodes(
             listOf(
                 Episode.create().copy(
                     animeId = id,
                     url = "r1176-native-episode-${UUID.randomUUID()}",
                     name = "R1176 native player episode",
-                    episodeNumber = 1.0,
+                    episodeNumber = number,
                     totalSeconds = 24,
                 ),
             ),

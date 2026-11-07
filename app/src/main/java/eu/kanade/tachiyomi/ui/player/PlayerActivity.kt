@@ -263,6 +263,7 @@ class PlayerActivity : BaseActivity() {
                     hosterList = initResult.first.hosterList ?: emptyList(),
                     hosterIndex = initResult.first.videoIndex.first,
                     videoIndex = initResult.first.videoIndex.second,
+                    rememberedServer = initResult.first.rememberedServer,
                 )
             }
         }
