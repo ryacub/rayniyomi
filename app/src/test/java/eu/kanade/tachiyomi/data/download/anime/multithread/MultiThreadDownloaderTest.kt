@@ -129,6 +129,31 @@ class MultiThreadDownloaderTest {
     }
 
     @Test
+    fun `a legacy checkpoint cannot resume from unverified bytes at the same URL`() = runTest {
+        val videoUrl = server.url("/episode.mp4").toString()
+        val stalePrefix = video.copyOf(1024).apply { this[lastIndex] = 99 }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val chunkName = "chunk_${EPISODE_ID}_0.tmp"
+        File(chunkDir, chunkName).writeBytes(stalePrefix)
+        val progress = DownloadProgress(
+            episodeId = EPISODE_ID,
+            videoUrl = videoUrl,
+            totalBytes = video.size.toLong(),
+            chunks = listOf(ChunkProgress(0, 0, video.lastIndex.toLong(), tempFileName = chunkName)),
+        )
+        every { stateStore.loadProgressIfMatching(EPISODE_ID, videoUrl) } returns progress
+        val output = File(tempDir, "episode.mp4")
+        val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 1 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(chunkDir), documentAt(output))
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+    }
+
+    @Test
     fun `resume downloads again a chunk saved as complete whose file is gone`() = runTest {
         val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
 
