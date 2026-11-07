@@ -141,6 +141,16 @@ class MangaDownloaderTest {
     }
 
     @Test
+    fun `an empty staged page cannot be reused as a downloaded image`() {
+        val file = mockk<UniFile> {
+            every { name } returns "001.jpg"
+            every { length() } returns 0L
+        }
+
+        assertFalse(isDownloadedImageFile(file, "001"))
+    }
+
+    @Test
     fun `cancellation during image url fetch does not mark page error`() = runTest {
         val page = Page(0)
         val download = MangaDownload(
