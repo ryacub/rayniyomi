@@ -54,6 +54,7 @@ import eu.kanade.tachiyomi.ui.entries.track.EntryType
 import eu.kanade.tachiyomi.ui.entries.track.TrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
+import eu.kanade.tachiyomi.ui.reader.CoverHandoff
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.readerEntry
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.liveAnimatorDurationScale
@@ -139,7 +140,7 @@ class MangaScreen(
             chapterSwipeStartAction = screenModel.chapterSwipeStartAction,
             chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
             navigateUp = navigator::pop,
-            onChapterClicked = { openChapter(context, it) },
+            onChapterClicked = { chapter, cover -> openChapter(context, chapter, cover) },
             onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
             onAddToLibraryClicked = {
                 screenModel.toggleFavorite()
@@ -169,7 +170,9 @@ class MangaScreen(
             onTagSearch = { scope.launch { performGenreSearch(navigator, it, screenModel.source!!) } },
             onFilterButtonClicked = screenModel::showSettingsDialog,
             onRefresh = screenModel::fetchAllFromSource,
-            onContinueReading = { continueReading(context, successState.chapters.startAction(successState.manga)) },
+            onContinueReading = { cover ->
+                continueReading(context, successState.chapters.startAction(successState.manga), cover)
+            },
             onSearch = { query, global -> scope.launch { performSearch(navigator, query, global) } },
             onCoverClicked = screenModel::showCoverDialog,
             onShareClicked = { shareManga(context, screenModel.manga, screenModel.source) }.takeIf { isHttpSource },
@@ -332,19 +335,26 @@ class MangaScreen(
         }
     }
 
-    private fun continueReading(context: Context, action: StartAction) {
+    private fun continueReading(context: Context, action: StartAction, cover: CoverHandoff?) {
         val chapter = when (action) {
             is StartAction.FirstStart -> action.chapter
             is StartAction.Resume -> action.chapter
             StartAction.None -> return
         }
         val entry = readerEntry(action, liveAnimatorDurationScale())
-        context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id, entry))
+        context.startActivity(
+            ReaderActivity.newIntent(context, chapter.mangaId, chapter.id, entry, cover.withAnimations()),
+        )
     }
 
-    private fun openChapter(context: Context, chapter: Chapter) {
-        context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id))
+    private fun openChapter(context: Context, chapter: Chapter, cover: CoverHandoff?) {
+        context.startActivity(
+            ReaderActivity.newIntent(context, chapter.mangaId, chapter.id, cover = cover.withAnimations()),
+        )
     }
+
+    private fun CoverHandoff?.withAnimations(): CoverHandoff? =
+        takeIf { liveAnimatorDurationScale() != 0f }
 
     private fun getMangaUrl(manga_: Manga?, source_: MangaSource?): String? {
         val manga = manga_ ?: return null

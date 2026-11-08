@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View.LAYER_TYPE_HARDWARE
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -63,6 +64,7 @@ import eu.kanade.presentation.reader.DisplayRefreshHost
 import eu.kanade.presentation.reader.OrientationSelectDialog
 import eu.kanade.presentation.reader.PageIndicatorText
 import eu.kanade.presentation.reader.ReaderContentOverlay
+import eu.kanade.presentation.reader.ReaderCoverOverlay
 import eu.kanade.presentation.reader.ReaderPageActionsDialog
 import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
@@ -133,11 +135,19 @@ class ReaderActivity : BaseActivity() {
             mangaId: Long?,
             chapterId: Long?,
             entry: ReaderEntry = ReaderEntry.Default,
+            cover: CoverHandoff? = null,
         ): Intent {
             return Intent(context, ReaderActivity::class.java).apply {
                 putExtra("manga", mangaId)
                 putExtra("chapter", chapterId)
                 putExtra("entry", entry.name)
+                cover?.let {
+                    putExtra("cover_left", it.left)
+                    putExtra("cover_top", it.top)
+                    putExtra("cover_width", it.width)
+                    putExtra("cover_height", it.height)
+                    putExtra("cover_url", it.url)
+                }
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
         }
@@ -185,7 +195,8 @@ class ReaderActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerSecureActivity(this)
         val entry = intent.getStringExtra("entry")?.let(ReaderEntry::valueOf) ?: ReaderEntry.Default
-        applyEntryTransition(entry)
+        val cover = coverHandoffFromIntent()
+        applyEntryTransition(entry, hasCover = cover != null)
 
         super.onCreate(savedInstanceState)
 
@@ -233,6 +244,7 @@ class ReaderActivity : BaseActivity() {
         config = ReaderConfig()
         initializeMenu()
         if (revealSavedPage) revealSavedPage()
+        if (cover != null && firstLoad) showCoverOverlay(cover)
 
         // Finish when incognito mode is disabled
         preferences.incognitoMode().changes()
@@ -639,17 +651,53 @@ class ReaderActivity : BaseActivity() {
         setMenuVisibility(viewModel.state.value.menuVisible)
     }
 
-    private fun applyEntryTransition(entry: ReaderEntry) {
-        val (enter, exit) = when (entry) {
-            ReaderEntry.Default -> R.anim.shared_axis_x_push_enter to R.anim.shared_axis_x_push_exit
-            ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
-            ReaderEntry.Immediate -> 0 to 0
+    private fun coverHandoffFromIntent(): CoverHandoff? {
+        val url = intent.getStringExtra("cover_url") ?: return null
+        return CoverHandoff(
+            left = intent.getFloatExtra("cover_left", 0f),
+            top = intent.getFloatExtra("cover_top", 0f),
+            width = intent.getFloatExtra("cover_width", 0f),
+            height = intent.getFloatExtra("cover_height", 0f),
+            url = url,
+        )
+    }
+
+    private fun applyEntryTransition(entry: ReaderEntry, hasCover: Boolean) {
+        val (enter, exit) = if (hasCover) {
+            0 to 0
+        } else {
+            when (entry) {
+                ReaderEntry.Default -> R.anim.shared_axis_x_push_enter to R.anim.shared_axis_x_push_exit
+                ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
+                ReaderEntry.Immediate -> 0 to 0
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, enter, exit)
         } else {
             @Suppress("DEPRECATION")
             overridePendingTransition(enter, exit)
+        }
+    }
+
+    private val coverOverlayFinished = mutableStateOf(false)
+
+    private fun showCoverOverlay(handoff: CoverHandoff) {
+        val view = ComposeView(this)
+        view.setContent {
+            ReaderCoverOverlay(
+                handoff = handoff,
+                finished = coverOverlayFinished.value,
+                onFinished = { view.post { (view.parent as? ViewGroup)?.removeView(view) } },
+            )
+        }
+        addContentView(
+            view,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
+        lifecycleScope.launch {
+            selectedPage.awaitSelectedPageSettled()
+            coverOverlayFinished.value = true
         }
     }
 

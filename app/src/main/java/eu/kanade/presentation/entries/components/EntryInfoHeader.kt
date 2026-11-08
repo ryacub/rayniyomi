@@ -391,7 +391,7 @@ private fun EntryAndSourceTitlesLarge(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ItemCover.Book(
-            modifier = Modifier.fillMaxWidth(0.65f),
+            modifier = Modifier.fillMaxWidth(0.65f).reportCoverBounds(),
             data = ImageRequest.Builder(LocalContext.current)
                 .data(coverData)
                 .crossfade(true)
@@ -436,7 +436,8 @@ private fun EntryAndSourceTitlesSmall(
         ItemCover.Book(
             modifier = Modifier
                 .sizeIn(maxWidth = 100.dp)
-                .align(Alignment.Top),
+                .align(Alignment.Top)
+                .reportCoverBounds(),
             data = ImageRequest.Builder(LocalContext.current)
                 .data(coverData)
                 .crossfade(true)
