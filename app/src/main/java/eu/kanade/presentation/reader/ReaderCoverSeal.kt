@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 /**
  * Covers the reader until the first page is ready. A translucent sheet peels back from the
@@ -45,6 +46,7 @@ fun ReaderCoverSeal(
     }
     LaunchedEffect(ready) {
         if (ready) {
+            delay(WINDOW_FADE_MILLIS)
             peel.animateTo(1f, tween(durationMillis = 450, easing = PeelEasing))
         }
     }
@@ -74,6 +76,9 @@ fun ReaderCoverSeal(
         }
     }
 }
+
+/** Matches the window fade in ReaderActivity, so the peel starts after the reader is visible. */
+private const val WINDOW_FADE_MILLIS = 200L
 
 /** Starts gently, runs quickly through the middle, and settles without a hard stop. */
 private val PeelEasing: Easing = CubicBezierEasing(0.33f, 0f, 0.15f, 1f)

@@ -649,8 +649,8 @@ class ReaderActivity : BaseActivity() {
     private fun applyEntryTransition(entry: ReaderEntry) {
         val (enter, exit) = when (entry) {
             ReaderEntry.Default -> R.anim.shared_axis_x_push_enter to R.anim.shared_axis_x_push_exit
-            ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
-            ReaderEntry.Peel, ReaderEntry.Immediate -> 0 to 0
+            ReaderEntry.Peel, ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
+            ReaderEntry.Immediate -> 0 to 0
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, enter, exit)
