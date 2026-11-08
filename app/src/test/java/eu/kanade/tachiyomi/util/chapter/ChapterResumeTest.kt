@@ -73,6 +73,33 @@ class ChapterResumeTest {
         assertNull(items.resumeChapter(manga(Manga.CHAPTER_SORT_ASC)))
     }
 
+    @Test
+    fun `untouched title starts for the first time`() {
+        val items = listOf(item(1.0), item(2.0))
+
+        assertEquals(
+            StartAction.FirstStart(items[0].chapter),
+            items.startAction(manga(Manga.CHAPTER_SORT_ASC)),
+        )
+    }
+
+    @Test
+    fun `progress on a later chapter only resumes instead of starting for the first time`() {
+        val items = listOf(item(1.0), item(2.0, lastPageRead = 3L))
+
+        assertEquals(
+            StartAction.Resume(items[0].chapter),
+            items.startAction(manga(Manga.CHAPTER_SORT_ASC)),
+        )
+    }
+
+    @Test
+    fun `fully read title has no start action`() {
+        val items = listOf(item(1.0, read = true), item(2.0, read = true))
+
+        assertEquals(StartAction.None, items.startAction(manga(Manga.CHAPTER_SORT_ASC)))
+    }
+
     private fun manga(flags: Long) = Manga.create().copy(
         id = 1L,
         chapterFlags = flags or Manga.CHAPTER_SORTING_NUMBER,
