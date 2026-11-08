@@ -45,7 +45,7 @@ fun ReaderCoverSeal(
     }
     LaunchedEffect(ready) {
         if (ready) {
-            peel.animateTo(1f, tween(durationMillis = 700, easing = PeelEasing))
+            peel.animateTo(1f, tween(durationMillis = 450, easing = PeelEasing))
         }
     }
     LaunchedEffect(finished) {
