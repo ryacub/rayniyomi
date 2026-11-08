@@ -51,6 +51,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import eu.kanade.presentation.entries.components.DotSeparatorText
 import eu.kanade.presentation.entries.components.ItemCover
+import eu.kanade.presentation.entries.components.ItemProgressText
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import me.saket.swipe.SwipeableActionsBox
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -67,6 +68,7 @@ fun AnimeEpisodeListItem(
     title: String,
     date: String?,
     watchProgress: String?,
+    isResumeTarget: Boolean,
     scanlator: String?,
     summary: String?,
     previewUrl: String?,
@@ -127,6 +129,7 @@ fun AnimeEpisodeListItem(
                     title = title,
                     date = date,
                     watchProgress = watchProgress,
+                    isResumeTarget = isResumeTarget,
                     fillermark = fillermark,
                     scanlator = scanlator,
                     seen = seen,
@@ -191,6 +194,7 @@ fun AnimeEpisodeListItem(
                         seen = seen,
                         date = date,
                         watchProgress = watchProgress,
+                        isResumeTarget = isResumeTarget,
                         fillermark = fillermark,
                         scanlator = scanlator,
                     )
@@ -215,6 +219,7 @@ private fun RowScope.SimpleEpisodeListItemImpl(
     title: String,
     date: String?,
     watchProgress: String?,
+    isResumeTarget: Boolean,
     fillermark: Boolean,
     scanlator: String?,
     seen: Boolean,
@@ -241,6 +246,7 @@ private fun RowScope.SimpleEpisodeListItemImpl(
             seen = seen,
             date = date,
             watchProgress = watchProgress,
+            isResumeTarget = isResumeTarget,
             fillermark = fillermark,
             scanlator = scanlator,
         )
@@ -411,6 +417,7 @@ private fun EpisodeInformation(
     seen: Boolean,
     date: String?,
     watchProgress: String?,
+    isResumeTarget: Boolean,
     fillermark: Boolean,
     scanlator: String?,
 ) {
@@ -441,12 +448,7 @@ private fun EpisodeInformation(
                 if (watchProgress != null || scanlator != null) DotSeparatorText()
             }
             if (watchProgress != null) {
-                Text(
-                    text = watchProgress,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = LocalContentColor.current.copy(alpha = DISABLED_ALPHA),
-                )
+                ItemProgressText(text = watchProgress, isResumeTarget = isResumeTarget)
                 if (scanlator != null) DotSeparatorText()
             }
             if (scanlator != null) {
@@ -498,6 +500,7 @@ fun AnimeEpisodeListItemPreview() {
         title = "Ep. 1 - To You, 2000 Years in the Future: The Fall of Zhiganshina (1)",
         date = "7/4/13",
         watchProgress = null,
+        isResumeTarget = false,
         scanlator = null,
         summary = "As Titans continue to rampage, the townspeople gather at the inner gate. But a new Titan breaks " +
             "through and this one is unlike the others. Source: crunchyroll",

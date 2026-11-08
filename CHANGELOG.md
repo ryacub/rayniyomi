@@ -18,6 +18,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - The download queue explains whether a transfer can resume, needs repair, or must start over. Retry a failed download from its own row (#1442).
+- The Resume button on a manga or anime screen names the chapter or episode it opens, with a short highlight stroke when the value is new. An episode name with a code such as S04-E24 shows only the code. In the list, that row shows its saved page or time in the accent color. When the reader opens, its menu stays up until the saved page shows, then withdraws unless you touch it. A library unread badge briefly tints when its count goes down after you read, and grows when new chapters raise it (#1446).
 - The player tries the server you last chose when you reopen the same episode. If that server is unavailable, playback can still use another server (#1438).
 - In landscape on a phone, the recovery Review step shows its actions in one row. Before, the three stacked buttons took about 43% of the screen height (#1434).
 

@@ -101,6 +101,8 @@ import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.view.setComposeContent
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
@@ -124,6 +126,7 @@ class ReaderActivity : BaseActivity() {
     companion object {
         private const val KEY_SHOW_AUTO_SCROLL_PANEL = "reader_show_auto_scroll_panel"
         private const val KEY_IS_AUTO_SCROLL_RUNNING = "reader_is_auto_scroll_running"
+        private const val KEY_SAVED_PAGE_REVEAL = "reader_saved_page_reveal"
 
         fun newIntent(context: Context, mangaId: Long?, chapterId: Long?): Intent {
             return Intent(context, ReaderActivity::class.java).apply {
@@ -161,6 +164,9 @@ class ReaderActivity : BaseActivity() {
 
     private var loadingIndicator: ReaderProgressIndicator? = null
 
+    private val selectedPage = MutableStateFlow<ReaderPage?>(null)
+    private var savedPageReveal: Job? = null
+
     var isScrollingThroughPages = false
         private set
     private var showAutoScrollPanel by mutableStateOf(false)
@@ -197,6 +203,8 @@ class ReaderActivity : BaseActivity() {
 
         viewModel.initReaderConfig(isNightMode())
 
+        val revealSavedPage = viewModel.needsInit() ||
+            savedInstanceState?.getBoolean(KEY_SAVED_PAGE_REVEAL, false) == true
         if (viewModel.needsInit()) {
             val manga = intent.extras?.getLong("manga", -1) ?: -1L
             val chapter = intent.extras?.getLong("chapter", -1) ?: -1L
@@ -225,6 +233,7 @@ class ReaderActivity : BaseActivity() {
 
         config = ReaderConfig()
         initializeMenu()
+        if (revealSavedPage) revealSavedPage()
 
         // Finish when incognito mode is disabled
         preferences.incognitoMode().changes()
@@ -336,6 +345,7 @@ class ReaderActivity : BaseActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean(KEY_SHOW_AUTO_SCROLL_PANEL, showAutoScrollPanel)
         outState.putBoolean(KEY_IS_AUTO_SCROLL_RUNNING, isAutoScrollRunning)
+        outState.putBoolean(KEY_SAVED_PAGE_REVEAL, savedPageReveal != null)
         super.onSaveInstanceState(outState)
     }
 
@@ -547,6 +557,7 @@ class ReaderActivity : BaseActivity() {
                 onSelectAutoScrollPreset = ::setWebtoonAutoScrollSpeed,
                 onAutoScrollSpeedChange = ::setWebtoonAutoScrollSpeed,
                 onClickSettings = viewModel::openSettingsDialog,
+                onMenuTouched = ::cancelSavedPageReveal,
             )
 
             if (flashOnPageChange) {
@@ -627,6 +638,20 @@ class ReaderActivity : BaseActivity() {
 
         // Set initial visibility
         setMenuVisibility(viewModel.state.value.menuVisible)
+    }
+
+    private fun revealSavedPage() {
+        setMenuVisibility(true)
+        savedPageReveal = lifecycleScope.launch {
+            selectedPage.awaitSelectedPageReady()
+            savedPageReveal = null
+            setMenuVisibility(false)
+        }
+    }
+
+    private fun cancelSavedPageReveal() {
+        savedPageReveal?.cancel()
+        savedPageReveal = null
     }
 
     /**
@@ -831,6 +856,7 @@ class ReaderActivity : BaseActivity() {
      * bottom menu and delegates the change to the presenter.
      */
     fun onPageSelected(page: ReaderPage) {
+        selectedPage.value = page
         viewModel.onPageSelected(page)
     }
 
@@ -855,6 +881,7 @@ class ReaderActivity : BaseActivity() {
      * viewer because each one implements its own touch and key events.
      */
     fun toggleMenu() {
+        cancelSavedPageReveal()
         setMenuVisibility(!viewModel.state.value.menuVisible)
     }
 
@@ -871,6 +898,7 @@ class ReaderActivity : BaseActivity() {
      * Called from the viewer to hide the menu.
      */
     fun hideMenu() {
+        if (savedPageReveal != null) return
         if (viewModel.state.value.menuVisible) {
             setMenuVisibility(false)
         }

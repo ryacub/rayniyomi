@@ -60,6 +60,7 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
+import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescription
@@ -76,6 +77,7 @@ import eu.kanade.tachiyomi.source.manga.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.entries.manga.ChapterList
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreenModel
+import eu.kanade.tachiyomi.util.chapter.resumeChapter
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -299,6 +301,7 @@ private fun MangaScreenSmallImpl(
 ) {
     val chapterListState = rememberLazyListState()
 
+    val resumeChapter = remember(state.chapters, state.manga) { state.chapters.resumeChapter(state.manga) }
     val (chapters, listItem, isAnySelected) = remember(state) {
         Triple(
             first = state.processedChapters,
@@ -374,6 +377,7 @@ private fun MangaScreenSmallImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
+            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -381,11 +385,11 @@ private fun MangaScreenSmallImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        val isReading = remember(state.chapters) {
-                            state.chapters.fastAny { it.chapter.read }
-                        }
-                        Text(
-                            text = stringResource(if (isReading) MR.strings.action_resume else MR.strings.action_start),
+                        ContinueReadingFabText(
+                            manga = state.manga,
+                            resumeChapter = resumeChapter,
+                            strokedCue = strokedCue,
+                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -498,6 +502,7 @@ private fun MangaScreenSmallImpl(
                     sharedChapterItems(
                         manga = state.manga,
                         chapters = listItem,
+                        resumeChapterId = resumeChapter?.id,
                         isAnyChapterSelected = chapters.fastAny { it.selected },
                         chapterSwipeStartAction = chapterSwipeStartAction,
                         chapterSwipeEndAction = chapterSwipeEndAction,
@@ -568,6 +573,7 @@ fun MangaScreenLargeImpl(
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
 
+    val resumeChapter = remember(state.chapters, state.manga) { state.chapters.resumeChapter(state.manga) }
     val (chapters, listItem, isAnySelected) = remember(state) {
         Triple(
             first = state.processedChapters,
@@ -640,6 +646,7 @@ fun MangaScreenLargeImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
+            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -647,13 +654,11 @@ fun MangaScreenLargeImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        val isReading = remember(state.chapters) {
-                            state.chapters.fastAny { it.chapter.read }
-                        }
-                        Text(
-                            text = stringResource(
-                                if (isReading) MR.strings.action_resume else MR.strings.action_start,
-                            ),
+                        ContinueReadingFabText(
+                            manga = state.manga,
+                            resumeChapter = resumeChapter,
+                            strokedCue = strokedCue,
+                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -761,6 +766,7 @@ fun MangaScreenLargeImpl(
                             sharedChapterItems(
                                 manga = state.manga,
                                 chapters = listItem,
+                                resumeChapterId = resumeChapter?.id,
                                 isAnyChapterSelected = chapters.fastAny { it.selected },
                                 chapterSwipeStartAction = chapterSwipeStartAction,
                                 chapterSwipeEndAction = chapterSwipeEndAction,
@@ -824,6 +830,7 @@ private fun SharedMangaBottomActionMenu(
 private fun LazyListScope.sharedChapterItems(
     manga: Manga,
     chapters: List<ChapterList>,
+    resumeChapterId: Long?,
     isAnyChapterSelected: Boolean,
     chapterSwipeStartAction: LibraryPreferences.ChapterSwipeAction,
     chapterSwipeEndAction: LibraryPreferences.ChapterSwipeAction,
@@ -854,14 +861,7 @@ private fun LazyListScope.sharedChapterItems(
                 val progress by progressSource?.flow?.collectAsStateWithLifecycle(initialValue = progressSource.value)
                     ?: rememberUpdatedState(item.downloadProgress)
                 MangaChapterListItem(
-                    title = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
-                        stringResource(
-                            MR.strings.display_mode_chapter,
-                            formatChapterNumber(item.chapter.chapterNumber),
-                        )
-                    } else {
-                        item.chapter.name
-                    },
+                    title = chapterTitle(manga, item.chapter),
                     date = relativeDateTimeText(item.chapter.dateUpload),
                     readProgress = item.chapter.lastPageRead
                         .takeIf { !item.chapter.read && it > 0L }
@@ -871,6 +871,7 @@ private fun LazyListScope.sharedChapterItems(
                                 it + 1,
                             )
                         },
+                    isResumeTarget = item.chapter.id == resumeChapterId,
                     scanlator = item.chapter.scanlator.takeIf { !it.isNullOrBlank() },
                     read = item.chapter.read,
                     bookmark = item.chapter.bookmark,
@@ -909,6 +910,30 @@ private fun LazyListScope.sharedChapterItems(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ContinueReadingFabText(
+    manga: Manga,
+    resumeChapter: Chapter?,
+    strokedCue: String?,
+    onCueStroked: (String) -> Unit,
+) {
+    ResumeFabText(
+        label = stringResource(if (resumeChapter != null) MR.strings.action_resume else MR.strings.action_start),
+        cue = resumeChapter?.let { chapterTitle(manga, it) },
+        strokedCue = strokedCue,
+        onCueStroked = onCueStroked,
+    )
+}
+
+@Composable
+private fun chapterTitle(manga: Manga, chapter: Chapter): String {
+    return if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
+        stringResource(MR.strings.display_mode_chapter, formatChapterNumber(chapter.chapterNumber))
+    } else {
+        chapter.name
     }
 }
 

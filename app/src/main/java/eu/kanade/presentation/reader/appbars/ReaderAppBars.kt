@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,11 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.AppBar
@@ -85,8 +91,16 @@ fun ReaderAppBars(
     onSelectAutoScrollPreset: (Int) -> Unit,
     onAutoScrollSpeedChange: (Int) -> Unit,
     onClickSettings: () -> Unit,
+    onMenuTouched: () -> Unit = {},
 ) {
     val isRtl = viewer is R2LPagerViewer
+    val currentOnMenuTouched by rememberUpdatedState(onMenuTouched)
+    val touchObserver = Modifier.pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            currentOnMenuTouched()
+        }
+    }
     val backgroundColor = MaterialTheme.colorScheme
         .surfaceColorAtElevation(3.dp)
         .copy(alpha = if (isSystemInDarkTheme()) 0.9f else 0.95f)
@@ -123,6 +137,7 @@ fun ReaderAppBars(
     ) {
         AnimatedVisibility(
             visible = visible,
+            modifier = touchObserver,
             enter = slideInVertically(
                 initialOffsetY = { -it },
                 animationSpec = animationSpec,
@@ -195,6 +210,7 @@ fun ReaderAppBars(
 
         AnimatedVisibility(
             visible = visible,
+            modifier = touchObserver,
             enter = slideInVertically(
                 initialOffsetY = { it },
                 animationSpec = animationSpec,
