@@ -59,7 +59,6 @@ import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
 import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
 import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList

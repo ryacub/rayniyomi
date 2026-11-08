@@ -94,6 +94,16 @@ class ChapterResumeTest {
     }
 
     @Test
+    fun `read earlier chapter without progress resumes the next chapter`() {
+        val items = listOf(item(1.0, read = true), item(2.0), item(3.0))
+
+        assertEquals(
+            StartAction.Resume(items[1].chapter),
+            items.startAction(manga(Manga.CHAPTER_SORT_ASC)),
+        )
+    }
+
+    @Test
     fun `fully read title has no start action`() {
         val items = listOf(item(1.0, read = true), item(2.0, read = true))
 

@@ -20,6 +20,11 @@ class ReaderEntryTest {
     }
 
     @Test
+    fun `no start action keeps the default reader transition`() {
+        assertEquals(ReaderEntry.Default, readerEntry(StartAction.None, animatorScale = 1f))
+    }
+
+    @Test
     fun `resume fades in at normal animation speed`() {
         assertEquals(ReaderEntry.Fade, readerEntry(StartAction.Resume(chapter), animatorScale = 1f))
     }

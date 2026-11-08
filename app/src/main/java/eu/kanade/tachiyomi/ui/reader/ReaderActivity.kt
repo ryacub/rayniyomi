@@ -671,7 +671,7 @@ class ReaderActivity : BaseActivity() {
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
         )
         lifecycleScope.launch {
-            selectedPage.awaitSelectedPageReady()
+            selectedPage.awaitSelectedPageSettled()
             coverSealFinished.value = true
         }
     }
