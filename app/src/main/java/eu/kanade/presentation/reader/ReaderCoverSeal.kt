@@ -1,7 +1,9 @@
 package eu.kanade.presentation.reader
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -32,22 +34,29 @@ import androidx.compose.ui.unit.dp
 fun ReaderCoverSeal(
     finished: Boolean,
     atEnd: Boolean,
+    ready: Boolean,
     onFinished: () -> Unit,
 ) {
+    val intro = remember { Animatable(0f) }
     val peel = remember { Animatable(0f) }
     val fade = remember { Animatable(1f) }
     LaunchedEffect(Unit) {
-        peel.animateTo(1f, tween(durationMillis = 450, easing = FastOutSlowInEasing))
+        intro.animateTo(1f, tween(durationMillis = 120, easing = LinearEasing))
+    }
+    LaunchedEffect(ready) {
+        if (ready) {
+            peel.animateTo(1f, tween(durationMillis = 450, easing = PeelEasing))
+        }
     }
     LaunchedEffect(finished) {
         if (finished) {
-            fade.animateTo(0f, tween(durationMillis = 200))
+            fade.animateTo(0f, tween(durationMillis = 300, easing = LinearEasing))
             onFinished()
         }
     }
     val sheetColor = MaterialTheme.colorScheme.surface
     val rollColor = MaterialTheme.colorScheme.onSurface
-    Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = fade.value }) {
+    Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = fade.value * intro.value }) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             withTransform(
                 {
@@ -65,6 +74,9 @@ fun ReaderCoverSeal(
         }
     }
 }
+
+/** Starts gently, runs quickly through the middle, and settles without a hard stop. */
+private val PeelEasing: Easing = CubicBezierEasing(0.33f, 0f, 0.15f, 1f)
 
 /**
  * Draws the sheet from the revealed boundary to the far edge. The boundary sits at

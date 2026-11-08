@@ -231,6 +231,7 @@ class ReaderActivity : BaseActivity() {
                 } else {
                     coverSealAtEnd.value =
                         ReadingMode.fromPreference(viewModel.getMangaReadingMode()) == ReadingMode.RIGHT_TO_LEFT
+                    coverSealReady.value = true
                 }
             }
         }
@@ -661,6 +662,7 @@ class ReaderActivity : BaseActivity() {
 
     private val coverSealFinished = mutableStateOf(false)
     private val coverSealAtEnd = mutableStateOf(false)
+    private val coverSealReady = mutableStateOf(false)
 
     private fun showCoverSeal() {
         val view = ComposeView(this)
@@ -668,6 +670,7 @@ class ReaderActivity : BaseActivity() {
             ReaderCoverSeal(
                 finished = coverSealFinished.value,
                 atEnd = coverSealAtEnd.value,
+                ready = coverSealReady.value,
                 onFinished = { view.post { (view.parent as? ViewGroup)?.removeView(view) } },
             )
         }
