@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.entries.components.DotSeparatorText
+import eu.kanade.presentation.entries.components.ItemProgressText
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import me.saket.swipe.SwipeableActionsBox
@@ -52,6 +53,7 @@ fun MangaChapterListItem(
     title: String,
     date: String?,
     readProgress: String?,
+    isResumeTarget: Boolean,
     scanlator: String?,
     read: Boolean,
     bookmark: Boolean,
@@ -157,12 +159,7 @@ fun MangaChapterListItem(
                             if (readProgress != null || scanlator != null) DotSeparatorText()
                         }
                         if (readProgress != null) {
-                            Text(
-                                text = readProgress,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = LocalContentColor.current.copy(alpha = DISABLED_ALPHA),
-                            )
+                            ItemProgressText(text = readProgress, isResumeTarget = isResumeTarget)
                             if (scanlator != null) DotSeparatorText()
                         }
                         if (scanlator != null) {

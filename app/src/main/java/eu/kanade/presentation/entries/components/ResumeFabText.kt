@@ -4,12 +4,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -22,16 +20,10 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.LayoutDirection
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 
-@Immutable
-data class ResumeCue(val item: String, val progress: String?) {
-    val text: String
-        get() = if (progress == null) item else "$item • $progress"
-}
-
 @Composable
 fun ResumeFabText(
     label: String,
-    cue: ResumeCue?,
+    cue: String?,
     strokedCue: String?,
     onCueStroked: (String) -> Unit,
 ) {
@@ -40,8 +32,8 @@ fun ResumeFabText(
         if (cue != null) {
             MarkedCue(
                 cue = cue,
-                alreadyStroked = cue.text == strokedCue,
-                onStroked = { onCueStroked(cue.text) },
+                alreadyStroked = cue == strokedCue,
+                onStroked = { onCueStroked(cue) },
             )
         }
     }
@@ -49,7 +41,7 @@ fun ResumeFabText(
 
 @Composable
 private fun MarkedCue(
-    cue: ResumeCue,
+    cue: String,
     alreadyStroked: Boolean,
     onStroked: () -> Unit,
 ) {
@@ -59,8 +51,11 @@ private fun MarkedCue(
         onStroked()
     }
     val markColor = LocalContentColor.current.copy(alpha = 0.16f)
-    val style = MaterialTheme.typography.labelSmall
-    Row(
+    Text(
+        text = cue,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier.drawBehind {
             val markHeight = size.height * 0.5f
             val markWidth = size.width * stroke.value
@@ -72,16 +67,7 @@ private fun MarkedCue(
                 cornerRadius = CornerRadius(markHeight / 2),
             )
         },
-    ) {
-        Text(
-            text = cue.item,
-            style = style,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        cue.progress?.let { Text(text = " • $it", style = style, maxLines = 1) }
-    }
+    )
 }
 
 @PreviewLightDark
@@ -90,8 +76,8 @@ private fun ResumeFabTextPreview() {
     TachiyomiPreviewTheme {
         ResumeFabText(
             label = "Resume",
-            cue = ResumeCue(item = "Chapter 12", progress = "Page: 8"),
-            strokedCue = "Chapter 12 • Page: 8",
+            cue = "Chapter 12",
+            strokedCue = "Chapter 12",
             onCueStroked = {},
         )
     }

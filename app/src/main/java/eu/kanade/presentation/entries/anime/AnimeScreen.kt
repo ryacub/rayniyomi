@@ -79,7 +79,6 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
-import eu.kanade.presentation.entries.components.ResumeCue
 import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
@@ -93,8 +92,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreenModel
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeSeasonItem
 import eu.kanade.tachiyomi.ui.entries.anime.EpisodeList
-import eu.kanade.tachiyomi.util.episode.SavedWatchingPosition
-import eu.kanade.tachiyomi.util.episode.savedWatchingPosition
+import eu.kanade.tachiyomi.util.episode.resumeEpisode
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
 import tachiyomi.domain.entries.anime.model.Anime
@@ -348,6 +346,7 @@ private fun AnimeScreenSmallImpl(
 
     val seasons = remember(state) { state.processedSeasons }
     val episodes = remember(state) { state.processedEpisodes }
+    val resumeEpisode = remember(state.episodes, state.anime) { state.episodes.resumeEpisode(state.anime) }
     val listItem = remember(state) { state.episodeListItems }
     val hasFilters = remember(state) {
         when (state.anime.fetchType) {
@@ -447,7 +446,8 @@ private fun AnimeScreenSmallImpl(
                     ExtendedFloatingActionButton(
                         text = {
                             ContinueWatchingFabText(
-                                state = state,
+                                anime = state.anime,
+                                resumeEpisode = resumeEpisode,
                                 strokedCue = strokedCue,
                                 onCueStroked = { strokedCue = it },
                             )
@@ -607,6 +607,7 @@ private fun AnimeScreenSmallImpl(
                             sharedEpisodeItems(
                                 anime = state.anime,
                                 episodes = listItem,
+                                resumeEpisodeId = resumeEpisode?.id,
                                 isAnyEpisodeSelected = episodes.fastAny { it.selected },
                                 showSummaries = state.showSummaries,
                                 showPreviews = state.showPreviews,
@@ -689,6 +690,7 @@ fun AnimeScreenLargeImpl(
 
     val seasons = remember(state) { state.processedSeasons }
     val episodes = remember(state) { state.processedEpisodes }
+    val resumeEpisode = remember(state.episodes, state.anime) { state.episodes.resumeEpisode(state.anime) }
     val listItem = remember(state) { state.episodeListItems }
 
     val isAnySelected by remember {
@@ -784,7 +786,8 @@ fun AnimeScreenLargeImpl(
                     ExtendedFloatingActionButton(
                         text = {
                             ContinueWatchingFabText(
-                                state = state,
+                                anime = state.anime,
+                                resumeEpisode = resumeEpisode,
                                 strokedCue = strokedCue,
                                 onCueStroked = { strokedCue = it },
                             )
@@ -930,6 +933,7 @@ fun AnimeScreenLargeImpl(
                                     sharedEpisodeItems(
                                         anime = state.anime,
                                         episodes = listItem,
+                                        resumeEpisodeId = resumeEpisode?.id,
                                         isAnyEpisodeSelected = episodes.fastAny { it.selected },
                                         showSummaries = state.showSummaries,
                                         showPreviews = state.showPreviews,
@@ -1036,6 +1040,7 @@ private fun LazyGridScope.sharedSeasons(
 private fun LazyGridScope.sharedEpisodeItems(
     anime: Anime,
     episodes: List<EpisodeList>,
+    resumeEpisodeId: Long?,
     isAnyEpisodeSelected: Boolean,
     showSummaries: Boolean,
     showPreviews: Boolean,
@@ -1072,14 +1077,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                 val progress by progressSource?.flow?.collectAsStateWithLifecycle(initialValue = progressSource.value)
                     ?: rememberUpdatedState(episodeItem.downloadProgress)
                 AnimeEpisodeListItem(
-                    title = if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
-                        stringResource(
-                            AYMR.strings.display_mode_episode,
-                            formatEpisodeNumber(episodeItem.episode.episodeNumber),
-                        )
-                    } else {
-                        episodeItem.episode.name
-                    },
+                    title = episodeTitle(anime, episodeItem.episode),
                     date = relativeDateTimeText(episodeItem.episode.dateUpload),
                     watchProgress = episodeItem.episode.lastSecondSeen
                         .takeIf { !episodeItem.episode.seen && it > 0L }
@@ -1090,6 +1088,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                                 formatTime(episodeItem.episode.totalSeconds),
                             )
                         },
+                    isResumeTarget = episodeItem.episode.id == resumeEpisodeId,
                     scanlator = episodeItem.episode.scanlator.takeIf { !it.isNullOrBlank() },
                     summary = episodeItem.episode.summary.takeIf { !it.isNullOrBlank() && showSummaries },
                     previewUrl = episodeItem.episode.previewUrl.takeIf { !it.isNullOrBlank() && showPreviews },
@@ -1145,34 +1144,26 @@ private fun onEpisodeItemClick(
 
 @Composable
 private fun ContinueWatchingFabText(
-    state: AnimeScreenModel.State.Success,
+    anime: Anime,
+    resumeEpisode: Episode?,
     strokedCue: String?,
     onCueStroked: (String) -> Unit,
 ) {
-    val position = remember(state.episodes, state.anime) { state.episodes.savedWatchingPosition(state.anime) }
     ResumeFabText(
-        label = stringResource(if (position != null) MR.strings.action_resume else MR.strings.action_start),
-        cue = position?.let { savedPositionCue(state.anime, it) },
+        label = stringResource(if (resumeEpisode != null) MR.strings.action_resume else MR.strings.action_start),
+        cue = resumeEpisode?.let { episodeTitle(anime, it) },
         strokedCue = strokedCue,
         onCueStroked = onCueStroked,
     )
 }
 
 @Composable
-private fun savedPositionCue(anime: Anime, position: SavedWatchingPosition): ResumeCue {
-    val episode = if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
-        stringResource(AYMR.strings.display_mode_episode, formatEpisodeNumber(position.episode.episodeNumber))
+private fun episodeTitle(anime: Anime, episode: Episode): String {
+    return if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
+        stringResource(AYMR.strings.display_mode_episode, formatEpisodeNumber(episode.episodeNumber))
     } else {
-        position.episode.name
+        episode.name
     }
-    val positionMillis = position.positionMillis ?: return ResumeCue(item = episode, progress = null)
-    val totalMillis = position.episode.totalSeconds
-    val time = if (totalMillis > 0L) {
-        stringResource(AYMR.strings.episode_progress, formatTime(positionMillis), formatTime(totalMillis))
-    } else {
-        formatTime(positionMillis)
-    }
-    return ResumeCue(item = episode, progress = time)
 }
 
 private fun formatTime(milliseconds: Long, useDayFormat: Boolean = false): String {
