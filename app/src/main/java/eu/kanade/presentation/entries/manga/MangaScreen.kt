@@ -377,7 +377,6 @@ private fun MangaScreenSmallImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
-            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -388,8 +387,6 @@ private fun MangaScreenSmallImpl(
                         ContinueReadingFabText(
                             manga = state.manga,
                             resumeChapter = resumeChapter,
-                            strokedCue = strokedCue,
-                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -646,7 +643,6 @@ fun MangaScreenLargeImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
-            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -657,8 +653,6 @@ fun MangaScreenLargeImpl(
                         ContinueReadingFabText(
                             manga = state.manga,
                             resumeChapter = resumeChapter,
-                            strokedCue = strokedCue,
-                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -917,14 +911,10 @@ private fun LazyListScope.sharedChapterItems(
 private fun ContinueReadingFabText(
     manga: Manga,
     resumeChapter: Chapter?,
-    strokedCue: String?,
-    onCueStroked: (String) -> Unit,
 ) {
     ResumeFabText(
         label = stringResource(if (resumeChapter != null) MR.strings.action_resume else MR.strings.action_start),
         cue = resumeChapter?.let { chapterTitle(manga, it) },
-        strokedCue = strokedCue,
-        onCueStroked = onCueStroked,
     )
 }
 

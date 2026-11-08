@@ -438,7 +438,6 @@ private fun AnimeScreenSmallImpl(
                 val isFABVisible = remember(episodes) {
                     episodes.fastAny { !it.episode.seen } && !isAnySelected
                 }
-                var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
                 AnimatedVisibility(
                     visible = isFABVisible,
                     enter = fadeIn(),
@@ -449,8 +448,6 @@ private fun AnimeScreenSmallImpl(
                             ContinueWatchingFabText(
                                 anime = state.anime,
                                 resumeEpisode = resumeEpisode,
-                                strokedCue = strokedCue,
-                                onCueStroked = { strokedCue = it },
                             )
                         },
                         icon = {
@@ -778,7 +775,6 @@ fun AnimeScreenLargeImpl(
                 val isFABVisible = remember(episodes) {
                     episodes.fastAny { !it.episode.seen } && !isAnySelected
                 }
-                var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
                 AnimatedVisibility(
                     visible = isFABVisible,
                     enter = fadeIn(),
@@ -789,8 +785,6 @@ fun AnimeScreenLargeImpl(
                             ContinueWatchingFabText(
                                 anime = state.anime,
                                 resumeEpisode = resumeEpisode,
-                                strokedCue = strokedCue,
-                                onCueStroked = { strokedCue = it },
                             )
                         },
                         icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -1147,8 +1141,6 @@ private fun onEpisodeItemClick(
 private fun ContinueWatchingFabText(
     anime: Anime,
     resumeEpisode: Episode?,
-    strokedCue: String?,
-    onCueStroked: (String) -> Unit,
 ) {
     ResumeFabText(
         label = stringResource(if (resumeEpisode != null) MR.strings.action_resume else MR.strings.action_start),
@@ -1159,8 +1151,6 @@ private fun ContinueWatchingFabText(
                 episodeCode(it.name) ?: it.name
             }
         },
-        strokedCue = strokedCue,
-        onCueStroked = onCueStroked,
     )
 }
 
