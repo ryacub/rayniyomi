@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 
-class ChapterSavedPositionTest {
+class ChapterResumeTest {
 
     private val previousGraph = AppGraphHolder.graphOrNull
 
@@ -31,58 +31,46 @@ class ChapterSavedPositionTest {
     }
 
     @Test
-    fun `untouched title has no saved position`() {
+    fun `untouched title has nothing to resume`() {
         val items = listOf(item(1.0), item(2.0))
 
-        assertNull(items.savedReadingPosition(manga(Manga.CHAPTER_SORT_ASC)))
+        assertNull(items.resumeChapter(manga(Manga.CHAPTER_SORT_ASC)))
     }
 
     @Test
-    fun `partly read chapter gives its one-based page`() {
+    fun `partly read chapter is the one to resume`() {
         val items = listOf(item(1.0, lastPageRead = 11L), item(2.0))
 
-        val position = items.savedReadingPosition(manga(Manga.CHAPTER_SORT_ASC))
-
-        assertEquals(1.0, position?.chapter?.chapterNumber)
-        assertEquals(12, position?.page)
+        assertEquals(1.0, items.resumeChapter(manga(Manga.CHAPTER_SORT_ASC))?.chapterNumber)
     }
 
     @Test
-    fun `finished chapter gives the next chapter without a page`() {
+    fun `finished chapter resumes at the next chapter`() {
         val items = listOf(item(1.0, read = true), item(2.0))
 
-        val position = items.savedReadingPosition(manga(Manga.CHAPTER_SORT_ASC))
-
-        assertEquals(2.0, position?.chapter?.chapterNumber)
-        assertNull(position?.page)
+        assertEquals(2.0, items.resumeChapter(manga(Manga.CHAPTER_SORT_ASC))?.chapterNumber)
     }
 
     @Test
-    fun `descending sort still names the lowest unread chapter`() {
+    fun `descending sort still resumes the lowest unread chapter`() {
         val items = listOf(item(3.0), item(2.0, lastPageRead = 4L), item(1.0, read = true))
 
-        val position = items.savedReadingPosition(manga(Manga.CHAPTER_SORT_DESC))
-
-        assertEquals(2.0, position?.chapter?.chapterNumber)
-        assertEquals(5, position?.page)
+        assertEquals(2.0, items.resumeChapter(manga(Manga.CHAPTER_SORT_DESC))?.chapterNumber)
     }
 
     @Test
-    fun `unread filter that hides read chapters keeps the saved position`() {
+    fun `unread filter that hides read chapters keeps the chapter to resume`() {
         val items = listOf(item(1.0, read = true), item(2.0, lastPageRead = 2L))
         val manga = manga(Manga.CHAPTER_SORT_ASC or Manga.CHAPTER_SHOW_UNREAD)
 
-        val position = items.savedReadingPosition(manga)
-
-        assertEquals(2.0, position?.chapter?.chapterNumber)
-        assertEquals(3, position?.page)
+        assertEquals(2.0, items.resumeChapter(manga)?.chapterNumber)
     }
 
     @Test
-    fun `fully read title has no saved position`() {
+    fun `fully read title has nothing to resume`() {
         val items = listOf(item(1.0, read = true), item(2.0, read = true))
 
-        assertNull(items.savedReadingPosition(manga(Manga.CHAPTER_SORT_ASC)))
+        assertNull(items.resumeChapter(manga(Manga.CHAPTER_SORT_ASC)))
     }
 
     private fun manga(flags: Long) = Manga.create().copy(

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 
-class EpisodeSavedPositionTest {
+class EpisodeResumeTest {
 
     private val previousGraph = AppGraphHolder.graphOrNull
 
@@ -31,58 +31,46 @@ class EpisodeSavedPositionTest {
     }
 
     @Test
-    fun `untouched series has no saved position`() {
+    fun `untouched series has nothing to resume`() {
         val items = listOf(item(1.0), item(2.0))
 
-        assertNull(items.savedWatchingPosition(anime(Anime.EPISODE_SORT_ASC)))
+        assertNull(items.resumeEpisode(anime(Anime.EPISODE_SORT_ASC)))
     }
 
     @Test
-    fun `partly watched episode gives its saved position`() {
+    fun `partly watched episode is the one to resume`() {
         val items = listOf(item(1.0, lastSecondSeen = 754_000L), item(2.0))
 
-        val position = items.savedWatchingPosition(anime(Anime.EPISODE_SORT_ASC))
-
-        assertEquals(1.0, position?.episode?.episodeNumber)
-        assertEquals(754_000L, position?.positionMillis)
+        assertEquals(1.0, items.resumeEpisode(anime(Anime.EPISODE_SORT_ASC))?.episodeNumber)
     }
 
     @Test
-    fun `finished episode gives the next episode without a position`() {
+    fun `finished episode resumes at the next episode`() {
         val items = listOf(item(1.0, seen = true), item(2.0))
 
-        val position = items.savedWatchingPosition(anime(Anime.EPISODE_SORT_ASC))
-
-        assertEquals(2.0, position?.episode?.episodeNumber)
-        assertNull(position?.positionMillis)
+        assertEquals(2.0, items.resumeEpisode(anime(Anime.EPISODE_SORT_ASC))?.episodeNumber)
     }
 
     @Test
-    fun `descending sort still names the lowest unseen episode`() {
+    fun `descending sort still resumes the lowest unseen episode`() {
         val items = listOf(item(3.0), item(2.0, lastSecondSeen = 60_000L), item(1.0, seen = true))
 
-        val position = items.savedWatchingPosition(anime(Anime.EPISODE_SORT_DESC))
-
-        assertEquals(2.0, position?.episode?.episodeNumber)
-        assertEquals(60_000L, position?.positionMillis)
+        assertEquals(2.0, items.resumeEpisode(anime(Anime.EPISODE_SORT_DESC))?.episodeNumber)
     }
 
     @Test
-    fun `unseen filter that hides seen episodes keeps the saved position`() {
+    fun `unseen filter that hides seen episodes keeps the episode to resume`() {
         val items = listOf(item(1.0, seen = true), item(2.0, lastSecondSeen = 5_000L))
         val anime = anime(Anime.EPISODE_SORT_ASC or Anime.EPISODE_SHOW_UNSEEN)
 
-        val position = items.savedWatchingPosition(anime)
-
-        assertEquals(2.0, position?.episode?.episodeNumber)
-        assertEquals(5_000L, position?.positionMillis)
+        assertEquals(2.0, items.resumeEpisode(anime)?.episodeNumber)
     }
 
     @Test
-    fun `fully watched series has no saved position`() {
+    fun `fully watched series has nothing to resume`() {
         val items = listOf(item(1.0, seen = true), item(2.0, seen = true))
 
-        assertNull(items.savedWatchingPosition(anime(Anime.EPISODE_SORT_ASC)))
+        assertNull(items.resumeEpisode(anime(Anime.EPISODE_SORT_ASC)))
     }
 
     private fun anime(flags: Long) = Anime.create().copy(
