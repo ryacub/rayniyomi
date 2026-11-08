@@ -664,7 +664,7 @@ class ReaderActivity : BaseActivity() {
 
     private fun applyEntryTransition(entry: ReaderEntry, hasCover: Boolean) {
         val (enter, exit) = if (hasCover) {
-            0 to 0
+            R.anim.player_fade_in to R.anim.player_fade_out
         } else {
             when (entry) {
                 ReaderEntry.Default -> R.anim.shared_axis_x_push_enter to R.anim.shared_axis_x_push_exit

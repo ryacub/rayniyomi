@@ -13,6 +13,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -54,7 +56,11 @@ fun ReaderCoverOverlay(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { screen = it }
-            .graphicsLayer { alpha = fade.value },
+            .graphicsLayer { alpha = fade.value }
+            .drawBehind {
+                // Hide the reader beneath, so no blank page shows around the growing cover.
+                drawRect(Color.Black, alpha = expand.value)
+            },
     ) {
         if (screen != IntSize.Zero) {
             AsyncImage(
