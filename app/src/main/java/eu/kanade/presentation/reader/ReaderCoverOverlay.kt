@@ -24,15 +24,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import eu.kanade.tachiyomi.ui.reader.CoverHandoff
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Emphasized ease: a quick start, a long settle onto the full page. */
-private val ExpandEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-
-/** When the expansion begins, measured from the start of the move. */
-private const val EXPAND_START_MILLIS = 200L
+/**
+ * The move accelerates and ends at speed. The expansion starts at that speed and slows down,
+ * so the two phases join without a pause.
+ */
+private val MoveEasing = CubicBezierEasing(0.4f, 0f, 1f, 1f)
+private val ExpandEasing = CubicBezierEasing(0f, 0f, 0.2f, 1f)
 
 /**
  * Moves the cover frame from its position on the title screen to the centre of the screen,
@@ -51,12 +50,8 @@ fun ReaderCoverOverlay(
     val fade = remember { Animatable(1f) }
     var screen by remember { mutableStateOf(IntSize.Zero) }
     LaunchedEffect(Unit) {
-        // The expansion starts before the move ends, so the two read as one motion with no pause.
-        launch { move.animateTo(1f, tween(durationMillis = 280, easing = ExpandEasing)) }
-        launch {
-            delay(EXPAND_START_MILLIS)
-            expand.animateTo(1f, tween(durationMillis = 380, easing = ExpandEasing))
-        }
+        move.animateTo(1f, tween(durationMillis = 260, easing = MoveEasing))
+        expand.animateTo(1f, tween(durationMillis = 380, easing = ExpandEasing))
     }
     LaunchedEffect(finished) {
         if (finished) {
