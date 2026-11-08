@@ -4,6 +4,7 @@ package eu.kanade.tachiyomi.data.download.core
  * Side effects emitted by [DownloadQueueReducer].
  */
 sealed interface DownloadQueueEffect {
+    data class RetryById(val downloadId: Long) : DownloadQueueEffect
     data class MoveToFrontById(val downloadId: Long) : DownloadQueueEffect
     data class ReorderByIds(val orderedIds: List<Long>) : DownloadQueueEffect
     data class AddToStartByIds(val downloadIds: List<Long>) : DownloadQueueEffect

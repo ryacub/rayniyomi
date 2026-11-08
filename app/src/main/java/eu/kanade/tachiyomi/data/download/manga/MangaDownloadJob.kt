@@ -13,6 +13,7 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -66,14 +67,13 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 applicationContext.activeNetworkState(),
                 downloadPreferences.downloadOnlyOverWifi().get(),
             )
-            if (!(networkCheck && downloadManager.downloaderStart())) {
-                return Result.failure()
-            }
+            if (!networkCheck) return Result.success()
+            if (!downloadManager.downloaderStart(inputData.getBoolean(RESET_FAILED, true))) return Result.success()
 
             setForegroundSafely()
 
             coroutineScope {
-                combineTransform(
+                val networkMonitor = combineTransform(
                     applicationContext.networkStateFlow(),
                     downloadPreferences.downloadOnlyOverWifi().changes(),
                     transform = { a, b -> emit(checkNetworkState(a, b)) },
@@ -82,10 +82,14 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                     .launchIn(this)
 
                 // Keep the worker active while downloads are running and network constraints allow it.
-                while (!isStopped && downloadManager.isRunning && networkCheck) {
-                    delay(250)
+                try {
+                    while (!isStopped && downloadManager.isRunning && networkCheck) {
+                        delay(250)
+                    }
+                    Result.success()
+                } finally {
+                    networkMonitor.cancel()
                 }
-                Result.success()
             }
         } catch (e: CancellationException) {
             throw e // The downloader cancels this worker through stop() when the queue completes.
@@ -104,6 +108,7 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                     applicationContext.getString(R.string.download_notifier_text_only_wifi),
                     DownloadDisplayStatus.WAITING_FOR_WIFI,
                 )
+                downloadManager.markRetriesBlocked(DownloadDisplayStatus.WAITING_FOR_WIFI)
             }
             !noWifi
         } else {
@@ -111,6 +116,7 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 applicationContext.getString(R.string.download_notifier_no_network),
                 DownloadDisplayStatus.WAITING_FOR_NETWORK,
             )
+            downloadManager.markRetriesBlocked(DownloadDisplayStatus.WAITING_FOR_NETWORK)
             false
         }
     }
@@ -118,9 +124,12 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
     companion object {
         private const val TAG = "MangaDownloader"
 
-        fun start(context: Context) {
+        private const val RESET_FAILED = "reset_failed"
+
+        fun start(context: Context, resetFailed: Boolean = true) {
             val request = OneTimeWorkRequestBuilder<MangaDownloadJob>()
                 .addTag(TAG)
+                .setInputData(workDataOf(RESET_FAILED to resetFailed))
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
                     30,
@@ -129,7 +138,11 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
             WorkManager.getInstance(context)
-                .enqueueUniqueWork(TAG, ExistingWorkPolicy.KEEP, request)
+                .enqueueUniqueWork(
+                    TAG,
+                    if (resetFailed) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    request,
+                )
         }
 
         fun stop(context: Context) {

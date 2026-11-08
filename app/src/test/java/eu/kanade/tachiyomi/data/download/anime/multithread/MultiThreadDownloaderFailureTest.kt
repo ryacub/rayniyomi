@@ -116,7 +116,7 @@ class MultiThreadDownloaderFailureTest {
     private fun stubChunks(vararg results: Pair<Int, ChunkDownloader.ChunkDownloadResult>) {
         val resultByStart = results.associate { (index, result) -> progress.chunks[index].startByte to result }
         coEvery {
-            chunkDownloader.downloadChunk(any(), any(), any(), any(), any(), any())
+            chunkDownloader.downloadChunk(any(), any(), any(), any(), any(), any(), any())
         } answers {
             val range = arg<ChunkRange>(1)
             val tempFile = arg<File>(3)

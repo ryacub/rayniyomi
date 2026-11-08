@@ -110,6 +110,10 @@
     <string name="action_previous_chapter">Previous chapter</string>
     <string name="action_next_chapter">Next chapter</string>
     <string name="action_retry">Retry</string>
+    <string name="download_recovery_resume">Resume from verified progress</string>
+    <string name="download_recovery_repair">Replace missing or damaged parts</string>
+    <string name="download_recovery_restart">Start over because saved progress cannot be reused</string>
+    <string name="download_recovery_check">Retry to check what can be recovered</string>
     <string name="action_remove">Remove</string>
     <string name="action_remove_everything">Remove everything</string>
     <string name="action_start">Start</string>

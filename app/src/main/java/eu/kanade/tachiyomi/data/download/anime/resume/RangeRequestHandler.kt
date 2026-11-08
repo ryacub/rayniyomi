@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.anime.resume
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import logcat.logcat
@@ -34,6 +35,8 @@ class RangeRequestHandler(
         data class Supported(
             val totalSize: Long,
             val acceptsRanges: String,
+            val entityTag: String? = null,
+            val resourceUrl: String? = null,
         ) : RangeSupportResult()
 
         /**
@@ -82,6 +85,8 @@ class RangeRequestHandler(
                     else -> parseRangeSupportResponse(response)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Error checking range support for $url: ${e.message}" }
             RangeSupportResult.Error(e)
@@ -112,7 +117,17 @@ class RangeRequestHandler(
                 RangeSupportResult.NotSupported("Content length unknown or zero")
             }
             else -> {
-                RangeSupportResult.Supported(contentLength, acceptRanges)
+                val entityTag = response.header("ETag")?.takeIf {
+                    it.length >= 2 && it.first() == '"' && it.last() == '"'
+                }
+                RangeSupportResult.Supported(
+                    contentLength,
+                    acceptRanges,
+                    entityTag,
+                    entityTag?.let {
+                        response.request.url.toString()
+                    },
+                )
             }
         }
     }

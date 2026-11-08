@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.anime.multithread
 
+import android.content.Context
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
@@ -14,6 +15,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -37,6 +39,7 @@ import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class MultiThreadDownloaderTest {
 
@@ -52,6 +55,7 @@ class MultiThreadDownloaderTest {
 
     private val stateStore = mockk<DownloadStateStore>(relaxed = true) {
         every { loadProgressIfMatching(any(), any()) } returns null
+        every { checkpoint(any()) } returns true
     }
 
     @BeforeEach
@@ -91,6 +95,118 @@ class MultiThreadDownloaderTest {
         finalProgress.chunks.size shouldBe 2
         finalProgress.chunks.all { it.downloadedBytes == it.totalBytes } shouldBe true
         finalProgress.downloadedBytes shouldBe video.size.toLong()
+    }
+
+    @Test
+    fun `a fresh process can load the episode progress before the first chunk request`() = runTest {
+        val context = mockk<Context> {
+            every { cacheDir } returns tempDir
+        }
+        val ranges = RangeDispatcher(video)
+        val videoUrl = server.url("/episode.mp4").toString()
+        val foundProgressOnDisk = AtomicBoolean()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.getHeader("Range") != null) {
+                    val progress = DownloadStateStore(context).loadProgress(EPISODE_ID)
+                    foundProgressOnDisk.set(progress?.videoUrl == videoUrl && progress.chunks.isNotEmpty())
+                }
+                return ranges.dispatch(request)
+            }
+        }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val downloader = MultiThreadDownloader(OkHttpClient(), DownloadStateStore(context), maxThreadsProvider = { 1 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(File(tempDir, "episode.mp4")),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        foundProgressOnDisk.get() shouldBe true
+    }
+
+    @Test
+    fun `a legacy checkpoint cannot resume from unverified bytes at the same URL`() = runTest {
+        val videoUrl = server.url("/episode.mp4").toString()
+        val stalePrefix = video.copyOf(1024).apply { this[lastIndex] = 99 }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val chunkName = "chunk_${EPISODE_ID}_0.tmp"
+        File(chunkDir, chunkName).writeBytes(stalePrefix)
+        val progress = DownloadProgress(
+            episodeId = EPISODE_ID,
+            videoUrl = videoUrl,
+            totalBytes = video.size.toLong(),
+            chunks = listOf(ChunkProgress(0, 0, video.lastIndex.toLong(), tempFileName = chunkName)),
+        )
+        every { stateStore.loadProgressIfMatching(EPISODE_ID, videoUrl) } returns progress
+        val output = File(tempDir, "episode.mp4")
+        val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 1 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(chunkDir), documentAt(output))
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+    }
+
+    @Test
+    fun `a reused ETag on a different redirect target cannot validate a staged prefix`() = runTest {
+        val videoUrl = server.url("/episode.mp4").toString()
+        val replacement = video.copyOf().apply { this[1023] = 99 }
+        val oldRanges = RangeDispatcher(video, bytesPer20Millis = 64 * 1024)
+        val newRanges = RangeDispatcher(replacement)
+        val target = AtomicReference("/original.mp4")
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when (request.path) {
+                "/episode.mp4" -> MockResponse().setResponseCode(302).setHeader("Location", target.get())
+                "/original.mp4" -> oldRanges.dispatch(request)
+                else -> newRanges.dispatch(request)
+            }
+        }
+        val cache = mockk<Context> { every { cacheDir } returns tempDir }
+        val chunkDir = File(tempDir, "chunks").apply { mkdirs() }
+        val output = File(tempDir, "episode.mp4")
+        val downloader = MultiThreadDownloader(OkHttpClient(), DownloadStateStore(cache), maxThreadsProvider = { 1 })
+        val checkpoint = AtomicReference<DownloadProgress>()
+        val storeWithCheckpoint = mockk<DownloadStateStore>(relaxed = true) {
+            every { loadProgressIfMatching(any(), any()) } answers { checkpoint.get() }
+            every { checkpoint(any()) } answers {
+                checkpoint.set(firstArg())
+                true
+            }
+            every { saveProgress(any()) } answers { checkpoint.set(firstArg()) }
+        }
+        val firstProgress = CompletableDeferred<Unit>()
+        val download = launch(Dispatchers.IO) {
+            MultiThreadDownloader(OkHttpClient(), storeWithCheckpoint, maxThreadsProvider = { 1 }).download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(chunkDir),
+                outputFile = documentAt(output),
+            ) {
+                firstProgress.complete(Unit)
+            }
+        }
+        firstProgress.await()
+        download.cancelAndJoin()
+        val saved = checkNotNull(checkpoint.get())
+        DownloadStateStore(cache).saveProgress(saved)
+        target.set("/replacement.mp4")
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(chunkDir), documentAt(output))
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(replacement) shouldBe true
     }
 
     @Test
@@ -243,6 +359,7 @@ class MultiThreadDownloaderTest {
         val saved = slot<DownloadProgress>()
         val pausingStore = mockk<DownloadStateStore>(relaxed = true) {
             every { loadProgressIfMatching(any(), any()) } returns null
+            every { checkpoint(any()) } returns true
             every { saveProgress(capture(saved)) } just Runs
         }
         val someBytesWritten = CountDownLatch(1)
@@ -320,6 +437,8 @@ class MultiThreadDownloaderTest {
                 )
             },
             status = DownloadProgress.Status.ERROR,
+            entityTag = VIDEO_TAG,
+            resourceUrl = videoUrl,
         )
         val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
             every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns savedProgress
@@ -365,6 +484,7 @@ class MultiThreadDownloaderTest {
             if (request.method == "HEAD") {
                 return MockResponse()
                     .setHeader("Accept-Ranges", "bytes")
+                    .setHeader("ETag", VIDEO_TAG)
                     .setHeader("Content-Length", body.size)
             }
             // A GET without a range gets the 200 that the downloader rejects as InvalidRange.
@@ -389,6 +509,7 @@ class MultiThreadDownloaderTest {
 
     private companion object {
         const val EPISODE_ID = 42L
+        const val VIDEO_TAG = "\"episode-v1\""
 
         // MP4 "ftyp" box for the signature check.
         val MP4_HEADER =
