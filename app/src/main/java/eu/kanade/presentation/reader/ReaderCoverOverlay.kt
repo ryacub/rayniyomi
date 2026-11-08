@@ -30,9 +30,9 @@ import kotlin.math.roundToInt
 private val ExpandEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 /**
- * Expands the cover frame from its position on the title screen to the full reader. The image
- * keeps its aspect ratio while the frame grows. The cover fades out once [finished] becomes
- * true, which reveals the first page underneath.
+ * Moves the cover frame from its position on the title screen to the centre of the screen,
+ * then expands it to fill the reader. The image keeps its aspect ratio while the frame moves
+ * and grows. The cover fades out once [finished] becomes true, which reveals the first page.
  */
 @Composable
 fun ReaderCoverOverlay(
@@ -40,11 +40,14 @@ fun ReaderCoverOverlay(
     finished: Boolean,
     onFinished: () -> Unit,
 ) {
+    // move: cover travels from its position to the centre. expand: centre frame grows to fill.
+    val move = remember { Animatable(0f) }
     val expand = remember { Animatable(0f) }
     val fade = remember { Animatable(1f) }
     var screen by remember { mutableStateOf(IntSize.Zero) }
     LaunchedEffect(Unit) {
-        expand.animateTo(1f, tween(durationMillis = 450, easing = ExpandEasing))
+        move.animateTo(1f, tween(durationMillis = 280, easing = ExpandEasing))
+        expand.animateTo(1f, tween(durationMillis = 380, easing = ExpandEasing))
     }
     LaunchedEffect(finished) {
         if (finished) {
@@ -58,8 +61,8 @@ fun ReaderCoverOverlay(
             .onSizeChanged { screen = it }
             .graphicsLayer { alpha = fade.value }
             .drawBehind {
-                // Hide the reader beneath, so no blank page shows around the growing cover.
-                drawRect(Color.Black, alpha = expand.value)
+                // Hide the reader beneath, so no blank page shows around the moving cover.
+                drawRect(Color.Black, alpha = move.value)
             },
     ) {
         if (screen != IntSize.Zero) {
@@ -71,11 +74,16 @@ fun ReaderCoverOverlay(
                     .fillMaxSize()
                     .layout { measurable, _ ->
                         // Read the progress here, in layout, so each frame skips recomposition.
-                        val p = expand.value
-                        val width = lerp(handoff.width, screen.width.toFloat(), p).roundToInt()
-                        val height = lerp(handoff.height, screen.height.toFloat(), p).roundToInt()
-                        val x = lerp(handoff.left, 0f, p).roundToInt()
-                        val y = lerp(handoff.top, 0f, p).roundToInt()
+                        val m = move.value
+                        val e = expand.value
+                        val centreX = (screen.width - handoff.width) / 2f
+                        val centreY = (screen.height - handoff.height) / 2f
+                        val midX = lerp(handoff.left, centreX, m)
+                        val midY = lerp(handoff.top, centreY, m)
+                        val width = lerp(handoff.width, screen.width.toFloat(), e).roundToInt()
+                        val height = lerp(handoff.height, screen.height.toFloat(), e).roundToInt()
+                        val x = lerp(midX, 0f, e).roundToInt()
+                        val y = lerp(midY, 0f, e).roundToInt()
                         val placeable = measurable.measure(Constraints.fixed(width, height))
                         layout(screen.width, screen.height) { placeable.place(x, y) }
                     },
