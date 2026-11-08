@@ -92,6 +92,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreenModel
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeSeasonItem
 import eu.kanade.tachiyomi.ui.entries.anime.EpisodeList
+import eu.kanade.tachiyomi.util.episode.episodeCode
 import eu.kanade.tachiyomi.util.episode.resumeEpisode
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
@@ -1151,7 +1152,13 @@ private fun ContinueWatchingFabText(
 ) {
     ResumeFabText(
         label = stringResource(if (resumeEpisode != null) MR.strings.action_resume else MR.strings.action_start),
-        cue = resumeEpisode?.let { episodeTitle(anime, it) },
+        cue = resumeEpisode?.let {
+            if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
+                episodeTitle(anime, it)
+            } else {
+                episodeCode(it.name) ?: it.name
+            }
+        },
         strokedCue = strokedCue,
         onCueStroked = onCueStroked,
     )
