@@ -10,8 +10,8 @@ class ReaderEntryTest {
     private val chapter = Chapter.create().copy(id = 1L, mangaId = 1L)
 
     @Test
-    fun `first start peels the cover at normal animation speed`() {
-        assertEquals(ReaderEntry.Peel, readerEntry(StartAction.FirstStart(chapter), animatorScale = 1f))
+    fun `first start uses the reader slide at normal animation speed`() {
+        assertEquals(ReaderEntry.Default, readerEntry(StartAction.FirstStart(chapter), animatorScale = 1f))
     }
 
     @Test

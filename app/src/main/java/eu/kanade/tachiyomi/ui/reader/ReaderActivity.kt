@@ -13,7 +13,6 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View.LAYER_TYPE_HARDWARE
-import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -64,7 +63,6 @@ import eu.kanade.presentation.reader.DisplayRefreshHost
 import eu.kanade.presentation.reader.OrientationSelectDialog
 import eu.kanade.presentation.reader.PageIndicatorText
 import eu.kanade.presentation.reader.ReaderContentOverlay
-import eu.kanade.presentation.reader.ReaderCoverSeal
 import eu.kanade.presentation.reader.ReaderPageActionsDialog
 import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
@@ -228,10 +226,6 @@ class ReaderActivity : BaseActivity() {
                     withUIContext {
                         setInitialChapterError(exception)
                     }
-                } else {
-                    coverSealAtEnd.value =
-                        ReadingMode.fromPreference(viewModel.getMangaReadingMode()) == ReadingMode.RIGHT_TO_LEFT
-                    coverSealReady.value = true
                 }
             }
         }
@@ -239,7 +233,6 @@ class ReaderActivity : BaseActivity() {
         config = ReaderConfig()
         initializeMenu()
         if (revealSavedPage) revealSavedPage()
-        if (firstLoad && entry == ReaderEntry.Peel) showCoverSeal()
 
         // Finish when incognito mode is disabled
         preferences.incognitoMode().changes()
@@ -649,7 +642,7 @@ class ReaderActivity : BaseActivity() {
     private fun applyEntryTransition(entry: ReaderEntry) {
         val (enter, exit) = when (entry) {
             ReaderEntry.Default -> R.anim.shared_axis_x_push_enter to R.anim.shared_axis_x_push_exit
-            ReaderEntry.Peel, ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
+            ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
             ReaderEntry.Immediate -> 0 to 0
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -657,30 +650,6 @@ class ReaderActivity : BaseActivity() {
         } else {
             @Suppress("DEPRECATION")
             overridePendingTransition(enter, exit)
-        }
-    }
-
-    private val coverSealFinished = mutableStateOf(false)
-    private val coverSealAtEnd = mutableStateOf(false)
-    private val coverSealReady = mutableStateOf(false)
-
-    private fun showCoverSeal() {
-        val view = ComposeView(this)
-        view.setContent {
-            ReaderCoverSeal(
-                finished = coverSealFinished.value,
-                atEnd = coverSealAtEnd.value,
-                ready = coverSealReady.value,
-                onFinished = { view.post { (view.parent as? ViewGroup)?.removeView(view) } },
-            )
-        }
-        addContentView(
-            view,
-            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-        )
-        lifecycleScope.launch {
-            selectedPage.awaitSelectedPageSettled()
-            coverSealFinished.value = true
         }
     }
 
