@@ -19,11 +19,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * Covers the reader until the first page is ready. A translucent strip lifts from the
- * opening edge, then the cover fades out once [finished] becomes true.
+ * opening edge, which is the end edge for right-to-left reading. The cover fades out once
+ * [finished] becomes true.
  */
 @Composable
 fun ReaderCoverSeal(
     finished: Boolean,
+    atEnd: Boolean,
     onFinished: () -> Unit,
 ) {
     val lift = remember { Animatable(0f) }
@@ -45,7 +47,7 @@ fun ReaderCoverSeal(
     ) {
         Box(
             modifier = Modifier
-                .align(Alignment.CenterStart)
+                .align(if (atEnd) Alignment.CenterEnd else Alignment.CenterStart)
                 .fillMaxHeight()
                 .fillMaxWidth(0.25f * lift.value)
                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
