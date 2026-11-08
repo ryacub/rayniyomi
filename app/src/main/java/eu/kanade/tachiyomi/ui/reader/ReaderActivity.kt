@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View.LAYER_TYPE_HARDWARE
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -63,6 +64,7 @@ import eu.kanade.presentation.reader.DisplayRefreshHost
 import eu.kanade.presentation.reader.OrientationSelectDialog
 import eu.kanade.presentation.reader.PageIndicatorText
 import eu.kanade.presentation.reader.ReaderContentOverlay
+import eu.kanade.presentation.reader.ReaderCoverSeal
 import eu.kanade.presentation.reader.ReaderPageActionsDialog
 import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
@@ -128,10 +130,16 @@ class ReaderActivity : BaseActivity() {
         private const val KEY_IS_AUTO_SCROLL_RUNNING = "reader_is_auto_scroll_running"
         private const val KEY_SAVED_PAGE_REVEAL = "reader_saved_page_reveal"
 
-        fun newIntent(context: Context, mangaId: Long?, chapterId: Long?): Intent {
+        fun newIntent(
+            context: Context,
+            mangaId: Long?,
+            chapterId: Long?,
+            entry: ReaderEntry = ReaderEntry.Default,
+        ): Intent {
             return Intent(context, ReaderActivity::class.java).apply {
                 putExtra("manga", mangaId)
                 putExtra("chapter", chapterId)
+                putExtra("entry", entry.name)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
         }
@@ -178,16 +186,8 @@ class ReaderActivity : BaseActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         registerSecureActivity(this)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            overrideActivityTransition(
-                Activity.OVERRIDE_TRANSITION_OPEN,
-                R.anim.shared_axis_x_push_enter,
-                R.anim.shared_axis_x_push_exit,
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.shared_axis_x_push_enter, R.anim.shared_axis_x_push_exit)
-        }
+        val entry = intent.getStringExtra("entry")?.let(ReaderEntry::valueOf) ?: ReaderEntry.Default
+        applyEntryTransition(entry)
 
         super.onCreate(savedInstanceState)
 
@@ -203,9 +203,10 @@ class ReaderActivity : BaseActivity() {
 
         viewModel.initReaderConfig(isNightMode())
 
-        val revealSavedPage = viewModel.needsInit() ||
+        val firstLoad = viewModel.needsInit()
+        val revealSavedPage = firstLoad ||
             savedInstanceState?.getBoolean(KEY_SAVED_PAGE_REVEAL, false) == true
-        if (viewModel.needsInit()) {
+        if (firstLoad) {
             val manga = intent.extras?.getLong("manga", -1) ?: -1L
             val chapter = intent.extras?.getLong("chapter", -1) ?: -1L
             if (manga == -1L || chapter == -1L) {
@@ -234,6 +235,7 @@ class ReaderActivity : BaseActivity() {
         config = ReaderConfig()
         initializeMenu()
         if (revealSavedPage) revealSavedPage()
+        if (firstLoad && entry == ReaderEntry.Peel) showCoverSeal()
 
         // Finish when incognito mode is disabled
         preferences.incognitoMode().changes()
@@ -638,6 +640,40 @@ class ReaderActivity : BaseActivity() {
 
         // Set initial visibility
         setMenuVisibility(viewModel.state.value.menuVisible)
+    }
+
+    private fun applyEntryTransition(entry: ReaderEntry) {
+        val (enter, exit) = when (entry) {
+            ReaderEntry.Default -> R.anim.shared_axis_x_push_enter to R.anim.shared_axis_x_push_exit
+            ReaderEntry.Fade -> R.anim.player_fade_in to R.anim.player_fade_out
+            ReaderEntry.Peel, ReaderEntry.Immediate -> 0 to 0
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, enter, exit)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(enter, exit)
+        }
+    }
+
+    private val coverSealFinished = mutableStateOf(false)
+
+    private fun showCoverSeal() {
+        val view = ComposeView(this)
+        view.setContent {
+            ReaderCoverSeal(
+                finished = coverSealFinished.value,
+                onFinished = { view.post { (view.parent as? ViewGroup)?.removeView(view) } },
+            )
+        }
+        addContentView(
+            view,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
+        lifecycleScope.launch {
+            selectedPage.awaitSelectedPageReady()
+            coverSealFinished.value = true
+        }
     }
 
     private fun revealSavedPage() {
