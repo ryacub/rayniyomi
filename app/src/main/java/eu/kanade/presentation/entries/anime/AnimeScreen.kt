@@ -39,8 +39,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +79,7 @@ import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
+import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -89,6 +92,8 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreenModel
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeSeasonItem
 import eu.kanade.tachiyomi.ui.entries.anime.EpisodeList
+import eu.kanade.tachiyomi.util.episode.episodeCode
+import eu.kanade.tachiyomi.util.episode.resumeEpisode
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
 import tachiyomi.domain.entries.anime.model.Anime
@@ -342,6 +347,7 @@ private fun AnimeScreenSmallImpl(
 
     val seasons = remember(state) { state.processedSeasons }
     val episodes = remember(state) { state.processedEpisodes }
+    val resumeEpisode = remember(state.episodes, state.anime) { state.episodes.resumeEpisode(state.anime) }
     val listItem = remember(state) { state.episodeListItems }
     val hasFilters = remember(state) {
         when (state.anime.fetchType) {
@@ -432,6 +438,7 @@ private fun AnimeScreenSmallImpl(
                 val isFABVisible = remember(episodes) {
                     episodes.fastAny { !it.episode.seen } && !isAnySelected
                 }
+                var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
                 AnimatedVisibility(
                     visible = isFABVisible,
                     enter = fadeIn(),
@@ -439,13 +446,11 @@ private fun AnimeScreenSmallImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            val isWatching = remember(state.episodes) {
-                                state.episodes.fastAny { it.episode.seen }
-                            }
-                            Text(
-                                text = stringResource(
-                                    if (isWatching) MR.strings.action_resume else MR.strings.action_start,
-                                ),
+                            ContinueWatchingFabText(
+                                anime = state.anime,
+                                resumeEpisode = resumeEpisode,
+                                strokedCue = strokedCue,
+                                onCueStroked = { strokedCue = it },
                             )
                         },
                         icon = {
@@ -603,6 +608,7 @@ private fun AnimeScreenSmallImpl(
                             sharedEpisodeItems(
                                 anime = state.anime,
                                 episodes = listItem,
+                                resumeEpisodeId = resumeEpisode?.id,
                                 isAnyEpisodeSelected = episodes.fastAny { it.selected },
                                 showSummaries = state.showSummaries,
                                 showPreviews = state.showPreviews,
@@ -685,6 +691,7 @@ fun AnimeScreenLargeImpl(
 
     val seasons = remember(state) { state.processedSeasons }
     val episodes = remember(state) { state.processedEpisodes }
+    val resumeEpisode = remember(state.episodes, state.anime) { state.episodes.resumeEpisode(state.anime) }
     val listItem = remember(state) { state.episodeListItems }
 
     val isAnySelected by remember {
@@ -771,6 +778,7 @@ fun AnimeScreenLargeImpl(
                 val isFABVisible = remember(episodes) {
                     episodes.fastAny { !it.episode.seen } && !isAnySelected
                 }
+                var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
                 AnimatedVisibility(
                     visible = isFABVisible,
                     enter = fadeIn(),
@@ -778,13 +786,11 @@ fun AnimeScreenLargeImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            val isWatching = remember(state.episodes) {
-                                state.episodes.fastAny { it.episode.seen }
-                            }
-                            Text(
-                                text = stringResource(
-                                    if (isWatching) MR.strings.action_resume else MR.strings.action_start,
-                                ),
+                            ContinueWatchingFabText(
+                                anime = state.anime,
+                                resumeEpisode = resumeEpisode,
+                                strokedCue = strokedCue,
+                                onCueStroked = { strokedCue = it },
                             )
                         },
                         icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -928,6 +934,7 @@ fun AnimeScreenLargeImpl(
                                     sharedEpisodeItems(
                                         anime = state.anime,
                                         episodes = listItem,
+                                        resumeEpisodeId = resumeEpisode?.id,
                                         isAnyEpisodeSelected = episodes.fastAny { it.selected },
                                         showSummaries = state.showSummaries,
                                         showPreviews = state.showPreviews,
@@ -1034,6 +1041,7 @@ private fun LazyGridScope.sharedSeasons(
 private fun LazyGridScope.sharedEpisodeItems(
     anime: Anime,
     episodes: List<EpisodeList>,
+    resumeEpisodeId: Long?,
     isAnyEpisodeSelected: Boolean,
     showSummaries: Boolean,
     showPreviews: Boolean,
@@ -1070,14 +1078,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                 val progress by progressSource?.flow?.collectAsStateWithLifecycle(initialValue = progressSource.value)
                     ?: rememberUpdatedState(episodeItem.downloadProgress)
                 AnimeEpisodeListItem(
-                    title = if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
-                        stringResource(
-                            AYMR.strings.display_mode_episode,
-                            formatEpisodeNumber(episodeItem.episode.episodeNumber),
-                        )
-                    } else {
-                        episodeItem.episode.name
-                    },
+                    title = episodeTitle(anime, episodeItem.episode),
                     date = relativeDateTimeText(episodeItem.episode.dateUpload),
                     watchProgress = episodeItem.episode.lastSecondSeen
                         .takeIf { !episodeItem.episode.seen && it > 0L }
@@ -1088,6 +1089,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                                 formatTime(episodeItem.episode.totalSeconds),
                             )
                         },
+                    isResumeTarget = episodeItem.episode.id == resumeEpisodeId,
                     scanlator = episodeItem.episode.scanlator.takeIf { !it.isNullOrBlank() },
                     summary = episodeItem.episode.summary.takeIf { !it.isNullOrBlank() && showSummaries },
                     previewUrl = episodeItem.episode.previewUrl.takeIf { !it.isNullOrBlank() && showPreviews },
@@ -1138,6 +1140,36 @@ private fun onEpisodeItemClick(
         episodeItem.selected -> onToggleSelection(false)
         isAnyEpisodeSelected -> onToggleSelection(true)
         else -> onEpisodeClicked(episodeItem.episode, false)
+    }
+}
+
+@Composable
+private fun ContinueWatchingFabText(
+    anime: Anime,
+    resumeEpisode: Episode?,
+    strokedCue: String?,
+    onCueStroked: (String) -> Unit,
+) {
+    ResumeFabText(
+        label = stringResource(if (resumeEpisode != null) MR.strings.action_resume else MR.strings.action_start),
+        cue = resumeEpisode?.let {
+            if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
+                episodeTitle(anime, it)
+            } else {
+                episodeCode(it.name) ?: it.name
+            }
+        },
+        strokedCue = strokedCue,
+        onCueStroked = onCueStroked,
+    )
+}
+
+@Composable
+private fun episodeTitle(anime: Anime, episode: Episode): String {
+    return if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
+        stringResource(AYMR.strings.display_mode_episode, formatEpisodeNumber(episode.episodeNumber))
+    } else {
+        episode.name
     }
 }
 
