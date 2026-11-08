@@ -24,10 +24,15 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import eu.kanade.tachiyomi.ui.reader.CoverHandoff
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /** Emphasized ease: a quick start, a long settle onto the full page. */
 private val ExpandEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+/** When the expansion begins, measured from the start of the move. */
+private const val EXPAND_START_MILLIS = 200L
 
 /**
  * Moves the cover frame from its position on the title screen to the centre of the screen,
@@ -46,8 +51,12 @@ fun ReaderCoverOverlay(
     val fade = remember { Animatable(1f) }
     var screen by remember { mutableStateOf(IntSize.Zero) }
     LaunchedEffect(Unit) {
-        move.animateTo(1f, tween(durationMillis = 280, easing = ExpandEasing))
-        expand.animateTo(1f, tween(durationMillis = 380, easing = ExpandEasing))
+        // The expansion starts before the move ends, so the two read as one motion with no pause.
+        launch { move.animateTo(1f, tween(durationMillis = 280, easing = ExpandEasing)) }
+        launch {
+            delay(EXPAND_START_MILLIS)
+            expand.animateTo(1f, tween(durationMillis = 380, easing = ExpandEasing))
+        }
     }
     LaunchedEffect(finished) {
         if (finished) {
