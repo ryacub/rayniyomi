@@ -210,7 +210,7 @@ internal class LibraryCoverTransition {
 
             val motion = CoverOverlay(source, target, start)
             overlay = motion
-            Animatable(0f).animateTo(1f, tween(durationMillis = 260)) {
+            Animatable(0f).animateTo(1f, tween(durationMillis = 1_040)) {
                 if (overlay === motion && navigator.lastItem.key == target.screen) {
                     val targetBounds = bounds(target)
                     if (targetBounds == null) {

@@ -39,24 +39,24 @@ class LibraryCoverTransitionAndroidTest {
         compose.runOnIdle { fixture.open() }
         advance(64)
         compose.runOnIdle { fixture.showDetail.value = true }
-        advance(96)
+        advance(416)
         val forwardBounds = overlay.getUnclippedBoundsInRoot()
         assertTrue(forwardBounds.left > 12.dp && forwardBounds.left < 100.dp)
         assertTrue(
             (forwardBounds.right - forwardBounds.left) > 32.dp && (forwardBounds.right - forwardBounds.left) < 80.dp,
         )
-        advance(480)
+        advance(1_216)
         overlay.assertDoesNotExist()
 
         compose.runOnIdle {
             fixture.libraryOffset.value = 180.dp
             fixture.navigator.pop()
         }
-        advance(112)
+        advance(416)
         val returnBounds = overlay.getUnclippedBoundsInRoot()
         assertTrue(returnBounds.left > 100.dp && returnBounds.left < 180.dp)
         assertTrue((returnBounds.right - returnBounds.left) < 80.dp && (returnBounds.right - returnBounds.left) > 32.dp)
-        advance(480)
+        advance(1_216)
         overlay.assertDoesNotExist()
     }
 
@@ -71,7 +71,7 @@ class LibraryCoverTransitionAndroidTest {
         advance(48)
         overlay.assertExists()
         compose.runOnIdle { fixture.navigator.pop() }
-        advance(480)
+        advance(1_216)
         overlay.assertDoesNotExist()
         assertTrue(fixture.navigator.items.size == 1)
     }
@@ -87,14 +87,14 @@ class LibraryCoverTransitionAndroidTest {
             fixture.showDetail.value = true
             fixture.open()
         }
-        advance(640)
+        advance(1_216)
         compose.runOnIdle {
             fixture.libraryOffset.value = 1_000.dp
             fixture.navigator.pop()
         }
-        advance(112)
+        advance(416)
         overlay.assertDoesNotExist()
-        advance(480)
+        advance(1_216)
         assertTrue(fixture.navigator.items.size == 1)
     }
 
@@ -109,13 +109,13 @@ class LibraryCoverTransitionAndroidTest {
             fixture.showDetail.value = true
             fixture.open()
         }
-        advance(640)
+        advance(1_216)
         compose.runOnIdle { fixture.navigator.push(ChildScreen) }
-        advance(480)
+        advance(1_216)
         compose.runOnIdle { fixture.navigator.pop() }
-        advance(480)
+        advance(1_216)
         compose.runOnIdle { fixture.navigator.pop() }
-        advance(112)
+        advance(416)
         overlay.assertExists()
     }
 
@@ -130,18 +130,18 @@ class LibraryCoverTransitionAndroidTest {
             fixture.showDetail.value = true
             fixture.open()
         }
-        advance(112)
+        advance(416)
         val displayedLeft = overlay.getUnclippedBoundsInRoot().left
         assertTrue(displayedLeft > 12.dp && displayedLeft < 100.dp)
 
         compose.runOnIdle { fixture.navigator.pop() }
-        advance(112)
+        advance(416)
         val reversingLeft = overlay.getUnclippedBoundsInRoot().left
         assertTrue(
             "Cover moved from $displayedLeft to $reversingLeft",
             reversingLeft < displayedLeft && reversingLeft > 12.dp,
         )
-        advance(480)
+        advance(1_216)
         overlay.assertDoesNotExist()
     }
 
