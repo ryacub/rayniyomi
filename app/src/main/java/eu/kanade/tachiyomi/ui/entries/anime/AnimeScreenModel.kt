@@ -44,6 +44,7 @@ import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.isEntryListOutdated
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
@@ -61,6 +62,7 @@ import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -159,6 +161,7 @@ class AnimeScreenModel(
     private val fetchInterval: AnimeFetchInterval,
     private val entryRefresher: AnimeEntryRefresher,
     private val clock: Clock = Clock.systemDefaultZone(),
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     private val refreshTracksInteractor: RefreshAnimeTracks,
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
@@ -388,7 +391,7 @@ class AnimeScreenModel(
         checkDuplicate: Boolean = true,
     ) {
         val state = successState ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             val anime = state.anime
 
             if (isFavorited) {
@@ -420,7 +423,7 @@ class AnimeScreenModel(
                                 dialog = Dialog.DuplicateAnime(anime, candidate.loser, confidenceLabel),
                             )
                         }
-                        return@launchIO
+                        return@launch
                     }
                 }
 
@@ -432,14 +435,14 @@ class AnimeScreenModel(
                     // Default category set
                     defaultCategory != null -> {
                         val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) return@launchIO
+                        if (!result) return@launch
                         moveAnimeToCategory(defaultCategory)
                     }
 
                     // Automatic 'Default' or no categories
                     defaultCategoryId == 0L || categories.isEmpty() -> {
                         val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) return@launchIO
+                        if (!result) return@launch
                         moveAnimeToCategory(null)
                     }
 
@@ -536,7 +539,7 @@ class AnimeScreenModel(
         moveAnimeToCategory(categories)
         if (anime.favorite) return
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             updateAnime.awaitUpdateFavorite(anime.id, true)
         }
     }

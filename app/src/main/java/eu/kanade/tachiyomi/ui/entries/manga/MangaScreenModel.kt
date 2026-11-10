@@ -416,7 +416,7 @@ class MangaScreenModel(
         checkDuplicate: Boolean = true,
     ) {
         val state = successState ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             val manga = state.manga
 
             if (isFavorited) {
@@ -449,7 +449,7 @@ class MangaScreenModel(
                                 dialog = Dialog.DuplicateManga(manga, candidate.loser, confidenceLabel),
                             )
                         }
-                        return@launchIO
+                        return@launch
                     }
                 }
 
@@ -461,14 +461,14 @@ class MangaScreenModel(
                     // Default category set
                     defaultCategory != null -> {
                         val result = updateManga.awaitUpdateFavorite(manga.id, true)
-                        if (!result) return@launchIO
+                        if (!result) return@launch
                         moveMangaToCategory(defaultCategory)
                     }
 
                     // Automatic 'Default' or no categories
                     defaultCategoryId == 0L || categories.isEmpty() -> {
                         val result = updateManga.awaitUpdateFavorite(manga.id, true)
-                        if (!result) return@launchIO
+                        if (!result) return@launch
                         moveMangaToCategory(null)
                     }
 
@@ -565,7 +565,7 @@ class MangaScreenModel(
         moveMangaToCategory(categories)
         if (manga.favorite) return
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(ioDispatcher) {
             updateManga.awaitUpdateFavorite(manga.id, true)
         }
     }
