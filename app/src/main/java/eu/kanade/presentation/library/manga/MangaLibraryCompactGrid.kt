@@ -46,6 +46,7 @@ internal fun MangaLibraryCompactGrid(
             val manga = libraryItem.libraryManga.manga
             EntryCompactGridItem(
                 isSelected = libraryItem.libraryManga.id in selectedIds,
+                inSelectionMode = selectedIds.isNotEmpty(),
                 title = manga.title.takeIf { showTitle },
                 coverData = MangaCover(
                     mangaId = manga.id,

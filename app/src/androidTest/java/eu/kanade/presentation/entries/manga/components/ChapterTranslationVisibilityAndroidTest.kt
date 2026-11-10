@@ -149,6 +149,7 @@ class ChapterTranslationVisibilityAndroidTest {
             title = "Chapter 1",
             date = "Aug 14, 2026",
             readProgress = null,
+            isResumeTarget = false,
             scanlator = null,
             read = false,
             bookmark = false,

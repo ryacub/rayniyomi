@@ -46,6 +46,7 @@ fun AnimeLibraryCompactGrid(
             val anime = libraryItem.libraryAnime.anime
             EntryCompactGridItem(
                 isSelected = libraryItem.libraryAnime.id in selectedIds,
+                inSelectionMode = selectedIds.isNotEmpty(),
                 title = anime.title.takeIf { showTitle },
                 coverData = AnimeCover(
                     animeId = anime.id,

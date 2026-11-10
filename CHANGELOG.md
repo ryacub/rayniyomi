@@ -25,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - In landscape on a phone, the recovery Review step shows its actions in one row. Before, the three stacked buttons took about 43% of the screen height (#1434).
 
 ### Fixed
+- In library selection mode, TalkBack reads each title as selected or not selected, and announces the change while selection mode stays on (#1454).
 - Anime extensions that set `memo` on hosters and videos, such as MovieBox, can list servers. Before, the player reported them as incompatible.
 - Extension update checks read package metadata without creating sources again at startup. This also keeps the CloudStream crash guard tied to active plugins (#1425).
 - Extension trust dialogs no longer crash when Trust and Uninstall taps overlap. The dialog accepts only the first action. See #1428.
