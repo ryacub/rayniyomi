@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.download.anime.resume.ChunkSizeCalculator
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadProgress
 import eu.kanade.tachiyomi.data.download.anime.resume.DownloadStateStore
 import eu.kanade.tachiyomi.data.download.anime.resume.RangeRequestHandler
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -58,17 +59,67 @@ class MultiThreadDownloader(
         headers: Headers?,
         tmpDir: UniFile,
         outputFile: UniFile,
+        onRecovery: (DownloadRecovery) -> Unit = {},
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        // Check for existing progress
-        val existingProgress = stateStore.loadProgressIfMatching(episodeId, videoUrl)
-
-        return if (existingProgress != null && existingProgress.status != DownloadProgress.Status.COMPLETED) {
-            logcat(LogPriority.INFO) { "Resuming download for episode $episodeId" }
-            resume(existingProgress, headers, tmpDir, outputFile, onProgress)
-        } else {
-            startNewDownload(episodeId, videoUrl, headers, tmpDir, outputFile, onProgress)
+        val rangeSupport = when (val result = rangeRequestHandler.checkRangeSupport(videoUrl, headers)) {
+            is RangeRequestHandler.RangeSupportResult.Supported -> result
+            is RangeRequestHandler.RangeSupportResult.Error -> {
+                return DownloadResult.Error(DownloadError.UnknownError(result.exception))
+            }
+            is RangeRequestHandler.RangeSupportResult.NotSupported -> {
+                return DownloadResult.Error(DownloadError.InvalidRange(result.reason))
+            }
         }
+        val existingProgress = stateStore.loadProgressIfMatching(episodeId, videoUrl)
+        val entityTag = rangeSupport.entityTag
+            ?: return DownloadResult.Error(DownloadError.InvalidRange("Server has no strong video validator"))
+        val transferHeaders = (headers ?: Headers.Builder().build()).newBuilder().set("If-Range", entityTag).build()
+
+        return if (existingProgress != null &&
+            existingProgress.status != DownloadProgress.Status.COMPLETED &&
+            existingProgress.entityTag == entityTag &&
+            existingProgress.resourceUrl == rangeSupport.resourceUrl &&
+            existingProgress.totalBytes == rangeSupport.totalSize
+        ) {
+            logcat(LogPriority.INFO) { "Resuming download for episode $episodeId" }
+            val chunkDir = tmpDir.filePath?.let(::File)
+            if (chunkDir != null) {
+                onRecovery(recoveryFor(existingProgress, chunkDir))
+            }
+            resume(existingProgress, transferHeaders, tmpDir, outputFile, onProgress)
+        } else {
+            if (existingProgress != null ||
+                tmpDir.filePath?.let(::File)?.list().orEmpty().any { it.startsWith("chunk_${episodeId}_") }
+            ) {
+                onRecovery(DownloadRecovery.RESTART)
+            }
+            startNewDownload(episodeId, videoUrl, transferHeaders, tmpDir, outputFile, onProgress, rangeSupport)
+        }
+    }
+
+    internal fun hasCheckpoint(episodeId: Long, url: String): Boolean =
+        stateStore.loadProgress(episodeId)?.let { it.videoUrl == url && it.entityTag != null } == true
+
+    internal fun discardStagedChunks(episodeId: Long, directory: UniFile) {
+        val names = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
+        directory.listFiles().orEmpty().forEach { file ->
+            if (names.matches(file.name.orEmpty())) {
+                check(file.delete()) { "Cannot remove an invalid video chunk" }
+            }
+        }
+        stateStore.deleteProgress(episodeId)
+    }
+
+    private fun recoveryFor(progress: DownloadProgress, directory: File): DownloadRecovery {
+        var hasSavedBytes = false
+        for (chunk in progress.chunks) {
+            val file = File(directory, chunk.tempFileName)
+            val size = file.length()
+            if (size > chunk.totalBytes || size < chunk.downloadedBytes) return DownloadRecovery.REPAIR
+            if (size > 0) hasSavedBytes = true
+        }
+        return if (hasSavedBytes) DownloadRecovery.RESUME else DownloadRecovery.RESTART
     }
 
     /**
@@ -112,26 +163,15 @@ class MultiThreadDownloader(
         tmpDir: UniFile,
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit,
+        rangeSupport: RangeRequestHandler.RangeSupportResult.Supported,
     ): DownloadResult {
-        // Check range support
-        val rangeSupport = rangeRequestHandler.checkRangeSupport(videoUrl, headers)
-
-        val totalBytes = when (rangeSupport) {
-            is RangeRequestHandler.RangeSupportResult.Supported -> rangeSupport.totalSize
-            else -> -1L
-        }
+        val totalBytes = rangeSupport.totalSize
 
         // Get current thread count from provider (respects runtime preference changes)
         val maxThreads = maxThreadsProvider()
 
         // Calculate chunks
-        val chunks = if (totalBytes > 0) {
-            ChunkSizeCalculator.calculateChunks(totalBytes, maxThreads)
-        } else {
-            // Unknown size, use single chunk with open-ended range
-            // This tells the server to send from byte 0 to the end
-            listOf(ChunkRange(0, -1))
-        }
+        val chunks = ChunkSizeCalculator.calculateChunks(totalBytes, maxThreads)
 
         // Create progress
         val progress = DownloadProgress(
@@ -150,6 +190,8 @@ class MultiThreadDownloader(
                 )
             },
             status = DownloadProgress.Status.IN_PROGRESS,
+            entityTag = rangeSupport.entityTag,
+            resourceUrl = rangeSupport.resourceUrl,
         )
 
         return performDownload(progress, headers, tmpDir, outputFile, onProgress, resume = false)
@@ -166,10 +208,6 @@ class MultiThreadDownloader(
         onProgress: (DownloadProgress) -> Unit,
         resume: Boolean,
     ): DownloadResult {
-        // Create supervisor scope that is a child of the caller's scope
-        // This ensures proper cancellation propagation while allowing independent job management
-        val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
-
         // Get temp directory as File
         val tempDirFile = File(
             tmpDir.filePath ?: return DownloadResult.Error(
@@ -178,7 +216,18 @@ class MultiThreadDownloader(
         )
 
         // A file left by another download of this episode can hold other bytes.
-        if (!resume) progress.chunks.forEach { File(tempDirFile, it.tempFileName).delete() }
+        if (!resume) {
+            for (chunk in progress.chunks) {
+                val file = File(tempDirFile, chunk.tempFileName)
+                if (file.exists() && !file.delete()) {
+                    return DownloadResult.Error(DownloadError.InvalidTempDirectory("Cannot clear stale chunk"))
+                }
+            }
+            if (!stateStore.checkpoint(progress)) {
+                return DownloadResult.Error(DownloadError.InvalidTempDirectory("Cannot save the video checkpoint"))
+            }
+        }
+        val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
         val chunkState = ChunkStateTracker(progress.chunks) { chunk ->
             ChunkDownloader.keptBytes(ChunkRange(chunk.startByte, chunk.endByte), File(tempDirFile, chunk.tempFileName))
         }
@@ -191,7 +240,7 @@ class MultiThreadDownloader(
                     scope.async {
                         downloadChunkWithRetry(
                             chunk = chunk,
-                            videoUrl = progress.videoUrl,
+                            progress = progress,
                             headers = headers,
                             tempDir = tempDirFile,
                             onChunkProgress = { bytes ->
@@ -274,7 +323,7 @@ class MultiThreadDownloader(
      */
     private suspend fun downloadChunkWithRetry(
         chunk: ChunkProgress,
-        videoUrl: String,
+        progress: DownloadProgress,
         headers: Headers?,
         tempDir: File,
         onChunkProgress: (Long) -> Unit,
@@ -286,12 +335,15 @@ class MultiThreadDownloader(
             val tempFile = File(tempDir, chunk.tempFileName)
 
             return chunkDownloader.downloadChunk(
-                videoUrl = videoUrl,
+                videoUrl = progress.videoUrl,
                 chunk = ChunkRange(chunk.startByte, chunk.endByte),
                 headers = headers,
                 tempFile = tempFile,
                 isFirstChunk = chunk.index == 0,
                 onProgress = onChunkProgress,
+                identity = progress.resourceUrl?.let { resource ->
+                    progress.entityTag?.let { tag -> VideoRangeIdentity(resource, tag, progress.totalBytes) }
+                },
             )
         } finally {
             ChunkDownloader.Companion.CONCURRENT_CHUNK_SEMAPHORE.release()

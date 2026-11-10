@@ -25,6 +25,14 @@ object DownloadQueueReducer {
         command: DownloadQueueCommand,
     ): DownloadQueueReducerResult {
         return when (command) {
+            is DownloadQueueCommand.Retry -> DownloadQueueReducerResult(
+                nextState = state,
+                effects = if (command.downloadId in state.downloadIds) {
+                    listOf(DownloadQueueEffect.RetryById(command.downloadId))
+                } else {
+                    emptyList()
+                },
+            )
             is DownloadQueueCommand.StartNow -> reduceStartNow(state, command)
             is DownloadQueueCommand.Reorder -> reduceReorder(state, command)
             is DownloadQueueCommand.AddToStart -> reduceAddToStart(state, command)

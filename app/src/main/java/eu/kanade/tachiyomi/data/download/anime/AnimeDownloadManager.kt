@@ -118,6 +118,11 @@ class AnimeDownloadManager(
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
             mutationScope = scope,
+            retryDownload = { download ->
+                if (downloader.retryFailed(download) && !downloader.isRunning) {
+                    AnimeDownloadJob.start(context, resetFailed = false)
+                }
+            },
         )
     }
 
@@ -128,13 +133,15 @@ class AnimeDownloadManager(
         get() = downloader.queueState
 
     // For use by DownloadService only
-    fun downloaderStart(): Boolean {
+    fun downloaderStart(resetFailed: Boolean = true): Boolean {
         // Reset crash count on successful start
         if (downloadPreferences.animeDownloadJobCrashCount().get() > 0) {
             downloadPreferences.animeDownloadJobCrashCount().set(0)
         }
-        return downloader.start()
+        return if (resetFailed) downloader.start() else downloader.start(resetFailed = false)
     }
+    fun markRetriesBlocked(status: DownloadDisplayStatus) = downloader.markRetriesBlocked(status)
+
     fun downloaderStop(
         reason: String? = null,
         blockedStatus: DownloadDisplayStatus? = null,
@@ -159,6 +166,8 @@ class AnimeDownloadManager(
     /**
      * Tells the downloader to pause downloads.
      */
+    suspend fun retryDownload(id: Long) = queueMutations.retry(id)
+
     fun pauseDownloads() {
         downloader.stop()
     }

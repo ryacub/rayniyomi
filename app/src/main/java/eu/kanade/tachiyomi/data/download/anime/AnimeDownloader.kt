@@ -84,6 +84,7 @@ class AnimeDownloader(
      */
     private val _queueState = MutableStateFlow<List<AnimeDownload>>(emptyList())
     val queueState = _queueState.asStateFlow()
+    private val retryVersion = MutableStateFlow(0L)
 
     /**
      * Store for persisting downloads across restarts.
@@ -197,13 +198,42 @@ class AnimeDownloader(
      *
      * @return true if the downloader is started, false otherwise.
      */
-    fun start(): Boolean {
+    fun start(): Boolean = start(resetFailed = true)
+
+    @Synchronized
+    internal fun retryFailed(download: AnimeDownload): Boolean {
+        val blocked = download.status == AnimeDownload.State.QUEUE && download.retryOrder > 0 &&
+            download.displayStatus in
+            setOf(DownloadDisplayStatus.WAITING_FOR_NETWORK, DownloadDisplayStatus.WAITING_FOR_WIFI)
+        if (download.status != AnimeDownload.State.ERROR && !blocked) return false
+        val order = retryVersion.value + 1
+        download.retryOrder = order
+        download.retryAttempt = 0
+        failureReporter.clear(download)
+        download.blockedReason = DownloadBlockedReason.SLOT
+        download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+        download.status = AnimeDownload.State.QUEUE
+        retryVersion.value = order
+        return true
+    }
+
+    internal fun markRetriesBlocked(status: DownloadDisplayStatus) {
+        queueState.value.filter { it.retryOrder > 0 && it.status == AnimeDownload.State.QUEUE }.forEach {
+            it.displayStatus = status
+        }
+    }
+
+    internal fun start(resetFailed: Boolean): Boolean {
         if (isRunning || queueState.value.isEmpty()) {
             return false
         }
 
-        val pending = queueState.value.filter { it.status != AnimeDownload.State.DOWNLOADED }
+        val pending = queueState.value.filter {
+            it.status != AnimeDownload.State.DOWNLOADED && (resetFailed || it.status != AnimeDownload.State.ERROR)
+        }
+        if (pending.isEmpty()) return false
         pending.forEach {
+            if (resetFailed) it.retryOrder = 0L
             if (it.status != AnimeDownload.State.QUEUE) it.status = AnimeDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
             it.blockedReason = DownloadBlockedReason.SLOT
@@ -298,13 +328,13 @@ class AnimeDownloader(
         if (isRunning) return
 
         downloaderJob = scope.launch {
-            val activeDownloadsFlow = queueState.transformLatest { queue ->
+            val activeDownloadsFlow = queueState.combine(retryVersion) { queue, _ -> queue }.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
                         .filter {
                             it.status.value <= AnimeDownload.State.DOWNLOADING.value
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
+                        .sortedWith(compareBy<AnimeDownload> { it.retryOrder }.thenByDescending { it.priority.value })
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
@@ -334,7 +364,7 @@ class AnimeDownloader(
                     activeDownloadsErroredFlow.first()
                 }
 
-                if (areAllAnimeDownloadsFinished()) stop()
+                stopIfIdle()
             }.distinctUntilChanged()
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
@@ -376,7 +406,6 @@ class AnimeDownloader(
             download.status = AnimeDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
             failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
-            stop()
         }
     }
 
@@ -529,6 +558,7 @@ class AnimeDownloader(
                 }
                 is VideoFetchResult.Failed -> {
                     failureReporter.report(download, result.failure)
+                    download.status = AnimeDownload.State.ERROR
                     return
                 }
             }
@@ -548,7 +578,7 @@ class AnimeDownloader(
 
             val filename = DiskUtil.buildValidFilename("${download.anime.title} - ${download.episode.name}")
             tmpDir.findFile("${filename}_tmp.mkv")?.delete()
-            tmpDir.renameTo(episodeDirname)
+            check(tmpDir.renameTo(episodeDirname)) { "Cannot publish episode directory" }
 
             cache.addEpisode(episodeDirname, animeDir, download.anime)
 
@@ -595,43 +625,42 @@ class AnimeDownloader(
         // Delete temp file if it exists
         tmpDir.findFile("$filename.tmp")?.delete()
 
-        // Try to find the video file
-        val videoFile = tmpDir.listFiles()?.firstOrNull { it.name?.startsWith("$filename.mkv") == true }
+        val useInternalDownloader = preferences.useExternalDownloader().get() == download.changeDownloader
+        val stagedVideo = tmpDir.listFiles()?.firstOrNull { it.name == "$filename.mkv" }
 
         try {
-            // If the video is already downloaded, do nothing. Otherwise download from network
-            val file = when {
-                videoFile != null -> videoFile
-                else -> {
-                    notifier.onProgressChange(download)
+            if (useInternalDownloader && stagedVideo != null) {
+                check(stagedVideo.delete()) { "Cannot remove an unverified staged video" }
+            }
+            val videoFile = stagedVideo.takeUnless { useInternalDownloader }
+            // External downloader handoff can already have produced the file.
+            if (videoFile == null) {
+                notifier.onProgressChange(download)
 
-                    download.status = AnimeDownload.State.DOWNLOADING
-                    download.progress = 0
-                    download.displayStatus = DownloadDisplayStatus.CONNECTING
-                    download.blockedReason = null
-                    download.lastProgressAt = System.currentTimeMillis()
-                    download.retryAttempt = 0
+                download.status = AnimeDownload.State.DOWNLOADING
+                download.progress = 0
+                download.displayStatus = DownloadDisplayStatus.CONNECTING
+                download.blockedReason = null
+                download.lastProgressAt = System.currentTimeMillis()
+                download.retryAttempt = 0
 
-                    // If videoFile is not existing then download it
-                    if (preferences.useExternalDownloader().get() == download.changeDownloader) {
-                        // Stall reporting stops before progress collection, to avoid a stale state update.
-                        DownloadMonitors.withMonitors(
-                            DownloadMonitorBuilders.monitors(download, download.progressFlow) {
-                                notifier.onProgressChange(it)
-                            },
-                        ) {
-                            videoDownloader.download(download, tmpDir, filename)
-                        }
-                    } else {
-                        val betterFileName = DiskUtil.buildValidFilename(
-                            "${download.anime.title} - ${download.episode.name}",
-                        )
-                        downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
+                if (useInternalDownloader) {
+                    // Stall reporting stops before progress collection, to avoid a stale state update.
+                    DownloadMonitors.withMonitors(
+                        DownloadMonitorBuilders.monitors(download, download.progressFlow) {
+                            notifier.onProgressChange(it)
+                        },
+                    ) {
+                        videoDownloader.download(download, tmpDir, filename)
                     }
+                } else {
+                    val betterFileName = DiskUtil.buildValidFilename(
+                        "${download.anime.title} - ${download.episode.name}",
+                    )
+                    downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
                 }
             }
 
-            video.videoUrl = file.uri.path ?: ""
             download.progress = 100
             video.status = Video.State.READY
             return VideoFetchResult.Success
@@ -789,13 +818,19 @@ class AnimeDownloader(
     ): Boolean {
         val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { file ->
             file.name.orEmpty().endsWith(".tmp", ignoreCase = true)
-        }
-        return downloadedVideo.size == 1
+        }.singleOrNull() ?: return false
+        val internalDownload = preferences.useExternalDownloader().get() == download.changeDownloader
+        return !internalDownload || downloadedVideo.length() > 0
     }
 
     /**
      * Returns true if all the queued downloads are in DOWNLOADED or ERROR state.
      */
+    @Synchronized
+    private fun stopIfIdle() {
+        if (areAllAnimeDownloadsFinished()) stop()
+    }
+
     private fun areAllAnimeDownloadsFinished(): Boolean {
         return queueState.value.none { it.status.value <= AnimeDownload.State.DOWNLOADING.value }
     }

@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.download.core.DownloadFailureTarget
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.ProgressListener
@@ -42,6 +43,14 @@ data class AnimeDownload(
 
     @Transient
     val displayStatusFlow = _displayStatusFlow.asStateFlow()
+
+    @Transient
+    internal val recovery = MutableStateFlow<DownloadRecovery?>(null)
+
+    @Transient
+    @Volatile
+    internal var retryOrder = 0L
+
     override var displayStatus: DownloadDisplayStatus
         get() = _displayStatusFlow.value
         set(value) {

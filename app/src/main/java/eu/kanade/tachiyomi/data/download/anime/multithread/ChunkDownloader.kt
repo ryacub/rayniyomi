@@ -80,13 +80,14 @@ class ChunkDownloader(
      * @param onProgress Callback for progress updates (bytes downloaded in this call)
      * @return [ChunkDownloadResult] indicating success or failure
      */
-    suspend fun downloadChunk(
+    internal suspend fun downloadChunk(
         videoUrl: String,
         chunk: ChunkRange,
         headers: Headers?,
         tempFile: File,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit = {},
+        identity: VideoRangeIdentity? = null,
     ): ChunkDownloadResult {
         var lastError: Throwable? = null
         var lastResult: ChunkDownloadResult? = null
@@ -98,7 +99,7 @@ class ChunkDownloader(
             }
 
             val result = try {
-                attemptDownload(videoUrl, chunk, headers, tempFile, isFirstChunk, onProgress)
+                attemptDownload(videoUrl, chunk, headers, tempFile, isFirstChunk, onProgress, identity)
             } catch (e: CancellationException) {
                 throw e // Don't swallow cancellation
             } catch (e: Exception) {
@@ -163,6 +164,7 @@ class ChunkDownloader(
         tempFile: File,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
+        identity: VideoRangeIdentity?,
     ): ChunkDownloadResult = coroutineScope {
         val keptBytes = keptBytes(chunk, tempFile)
         if (keptBytes == chunk.size) return@coroutineScope validatedResult(tempFile, isFirstChunk, 0L)
@@ -178,7 +180,7 @@ class ChunkDownloader(
             }
         }
         try {
-            downloadResponse(call, chunk, tempFile, keptBytes, isFirstChunk, onProgress)
+            downloadResponse(call, chunk, tempFile, keptBytes, isFirstChunk, onProgress, identity)
         } finally {
             callCanceller.cancel()
         }
@@ -191,11 +193,12 @@ class ChunkDownloader(
         keptBytes: Long,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
+        identity: VideoRangeIdentity?,
     ): ChunkDownloadResult {
         return withContext(Dispatchers.IO) {
             try {
                 call.execute().use { response ->
-                    responseResult(response, chunk, tempFile, keptBytes, isFirstChunk, onProgress)
+                    responseResult(response, chunk, tempFile, keptBytes, isFirstChunk, onProgress, identity)
                 }
             } catch (e: IOException) {
                 ChunkDownloadResult.Error(e.toDownloadError())
@@ -210,9 +213,20 @@ class ChunkDownloader(
         keptBytes: Long,
         isFirstChunk: Boolean,
         onProgress: (Long) -> Unit,
+        identity: VideoRangeIdentity?,
     ): ChunkDownloadResult {
         return when {
             response.code == HttpURLConnection.HTTP_PARTIAL -> {
+                if (identity != null) {
+                    val returnedTag = response.header("ETag")
+                    val expectedRange = "bytes ${chunk.startByte + keptBytes}-${chunk.endByte}/${identity.totalBytes}"
+                    if (response.request.url.toString() != identity.resourceUrl ||
+                        (returnedTag != null && returnedTag != identity.entityTag) ||
+                        response.header("Content-Range") != expectedRange
+                    ) {
+                        return ChunkDownloadResult.Error(DownloadError.InvalidRange("Remote video changed"))
+                    }
+                }
                 handleSuccessResponse(response, tempFile, keptBytes, isFirstChunk, onProgress)
             }
             response.code == HttpURLConnection.HTTP_OK -> {
@@ -316,7 +330,7 @@ class ChunkDownloader(
         // The file holds the start of the chunk, written in order, so the next attempt continues from its end.
         // An open-ended chunk has no fixed size to check the file against, so it starts again.
         internal fun keptBytes(chunk: ChunkRange, tempFile: File): Long =
-            if (chunk.endByte < 0) 0L else tempFile.length().coerceAtMost(chunk.size)
+            if (chunk.endByte < 0) 0L else tempFile.length().takeIf { it <= chunk.size } ?: 0L
 
         /**
          * Maximum number of retry attempts.
@@ -339,3 +353,5 @@ class ChunkDownloader(
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
     }
 }
+
+internal data class VideoRangeIdentity(val resourceUrl: String, val entityTag: String, val totalBytes: Long)

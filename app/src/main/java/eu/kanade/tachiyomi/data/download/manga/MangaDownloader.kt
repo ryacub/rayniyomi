@@ -21,6 +21,7 @@ import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.di.appGraph
@@ -51,6 +52,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -110,6 +112,7 @@ class MangaDownloader(
      */
     private val _queueState = MutableStateFlow<List<MangaDownload>>(emptyList())
     val queueState = _queueState.asStateFlow()
+    private val retryVersion = MutableStateFlow(0L)
 
     /**
      * Store for persisting downloads across restarts.
@@ -203,13 +206,42 @@ class MangaDownloader(
      *
      * @return true if the downloader is started, false otherwise.
      */
-    fun start(): Boolean {
+    fun start(): Boolean = start(resetFailed = true)
+
+    @Synchronized
+    internal fun retryFailed(download: MangaDownload): Boolean {
+        val blocked = download.status == MangaDownload.State.QUEUE && download.retryOrder > 0 &&
+            download.displayStatus in
+            setOf(DownloadDisplayStatus.WAITING_FOR_NETWORK, DownloadDisplayStatus.WAITING_FOR_WIFI)
+        if (download.status != MangaDownload.State.ERROR && !blocked) return false
+        val order = retryVersion.value + 1
+        download.retryOrder = order
+        download.retryAttempt = 0
+        failureReporter.clear(download)
+        download.blockedReason = DownloadBlockedReason.SLOT
+        download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+        download.status = MangaDownload.State.QUEUE
+        retryVersion.value = order
+        return true
+    }
+
+    internal fun markRetriesBlocked(status: DownloadDisplayStatus) {
+        queueState.value.filter { it.retryOrder > 0 && it.status == MangaDownload.State.QUEUE }.forEach {
+            it.displayStatus = status
+        }
+    }
+
+    internal fun start(resetFailed: Boolean): Boolean {
         if (isRunning || queueState.value.isEmpty()) {
             return false
         }
 
-        val pending = queueState.value.filter { it.status != MangaDownload.State.DOWNLOADED }
+        val pending = queueState.value.filter {
+            it.status != MangaDownload.State.DOWNLOADED && (resetFailed || it.status != MangaDownload.State.ERROR)
+        }
+        if (pending.isEmpty()) return false
         pending.forEach {
+            if (resetFailed) it.retryOrder = 0L
             if (it.status != MangaDownload.State.QUEUE) it.status = MangaDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
             it.blockedReason = DownloadBlockedReason.SLOT
@@ -307,7 +339,7 @@ class MangaDownloader(
         if (isRunning) return
 
         downloaderJob = scope.launch {
-            val activeDownloadsFlow = queueState.transformLatest { queue ->
+            val activeDownloadsFlow = queueState.combine(retryVersion) { queue, _ -> queue }.transformLatest { queue ->
                 while (true) {
                     val activeDownloads = queue.asSequence()
                         .filter {
@@ -317,7 +349,7 @@ class MangaDownloader(
                                 it.displayStatus != DownloadDisplayStatus.WAITING_FOR_WIFI &&
                                 it.displayStatus != DownloadDisplayStatus.PAUSED_BY_USER
                         } // Ignore completed downloads, leave them in the queue
-                        .sortedByDescending { it.priority.value } // Stable, so equal priorities keep queue order
+                        .sortedWith(compareBy<MangaDownload> { it.retryOrder }.thenByDescending { it.priority.value })
                         .groupBy { it.source }
                         .toList().take(getDownloadSlots()) // Concurrently download from configured source slots
                         .map { (_, downloads) -> downloads.first() }
@@ -346,6 +378,7 @@ class MangaDownloader(
                         }.filter { it }
                     activeDownloadsErroredFlow.first()
                 }
+                stopIfIdle()
             }.distinctUntilChanged()
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
@@ -376,9 +409,6 @@ class MangaDownloader(
             if (download.status == MangaDownload.State.DOWNLOADED) {
                 removeFromQueue(download)
             }
-            if (areAllDownloadsFinished()) {
-                stop()
-            }
         } catch (e: Throwable) {
             val action = DownloadFailurePolicy.forDownloadJob(e, currentCoroutineContext().isActive)
             if (action !is DownloadFailureAction.Report) throw e
@@ -387,7 +417,6 @@ class MangaDownloader(
             download.status = MangaDownload.State.ERROR
             download.displayStatus = DownloadDisplayStatus.FAILED
             failureReporter.report(download, action.failure, reasonFallback = action.reasonFallback)
-            stop()
         }
     }
 
@@ -477,6 +506,7 @@ class MangaDownloader(
      */
     @VisibleForTesting
     internal suspend fun downloadChapter(download: MangaDownload) {
+        download.recovery.value = null
         download.displayStatus = DownloadDisplayStatus.PREPARING
         download.blockedReason = DownloadBlockedReason.PREPARING
         val mangaDir = provider.getMangaDir(download.manga.title, download.source)
@@ -591,7 +621,7 @@ class MangaDownloader(
             if (downloadPreferences.saveChaptersAsCBZ().get()) {
                 archiveChapter(mangaDir, chapterDirname, tmpDir)
             } else {
-                tmpDir.renameTo(chapterDirname)
+                check(tmpDir.renameTo(chapterDirname)) { "Cannot publish chapter directory" }
             }
             cache.addChapter(chapterDirname, mangaDir, download.manga)
 
@@ -642,13 +672,29 @@ class MangaDownloader(
         // Delete temp file if it exists
         tmpFile?.delete()
 
-        // Try to find the image file
-        val imageFile = tmpDir.listFiles()?.firstOrNull { isDownloadedImageFile(it, filename) }
-
         try {
-            // If the image is already downloaded, do nothing. Otherwise download from network
+            val receipt = MangaPageReceipt(context.cacheDir, download, page)
+            val stagedFiles = stagedPageFiles(tmpDir, filename)
+            val reusable = receipt.matches(stagedFiles)
+            val recovery = when {
+                reusable -> DownloadRecovery.RESUME
+                receipt.exists -> DownloadRecovery.REPAIR
+                stagedFiles.isNotEmpty() -> DownloadRecovery.RESTART
+                else -> null
+            }
+            if (recovery != null) {
+                download.recovery.update { previous ->
+                    when {
+                        previous == null || previous == recovery -> recovery
+                        else -> DownloadRecovery.REPAIR
+                    }
+                }
+            }
+            if (!reusable) {
+                stagedFiles.forEach { check(it.delete()) { "Cannot remove an invalid staged page" } }
+            }
             val file = when {
-                imageFile != null -> imageFile
+                reusable -> stagedFiles.first()
                 chapterCache.isImageInCache(page.imageUrl!!) -> copyImageFromCache(
                     chapterCache.getImageFile(page.imageUrl!!),
                     tmpDir,
@@ -657,8 +703,16 @@ class MangaDownloader(
                 else -> downloadImage(page, download, download.source, tmpDir, filename, dataSaver)
             }
 
-            // When the page is ready, set page path, progress (just in case) and status
-            splitTallImageIfNeeded(page, tmpDir)
+            if (!reusable) {
+                check(file.length() > 0) { "Downloaded page is empty" }
+                splitTallImageIfNeeded(page, tmpDir)
+                val completedFiles = stagedPageFiles(tmpDir, filename)
+                check(
+                    completedFiles.any { isDownloadedImageFile(it, filename) } &&
+                        completedFiles.all(::hasImageContent),
+                ) { "Downloaded page is missing or invalid" }
+                receipt.save(completedFiles)
+            }
             page.uri = file.uri
             page.progress = 100
             page.status = Page.State.READY
@@ -707,7 +761,7 @@ class MangaDownloader(
                 throttledSource.saveTo(file.openOutputStream())
                 throttledSource.close()
                 val extension = getImageExtension(response, file)
-                file.renameTo("$filename.$extension")
+                check(file.renameTo("$filename.$extension")) { "Cannot publish staged page" }
             } catch (e: Exception) {
                 response.close()
                 file.delete()
@@ -762,8 +816,9 @@ class MangaDownloader(
                 input.copyTo(output)
             }
         }
-        val extension = ImageUtil.findImageType(cacheFile.inputStream()) ?: return tmpFile
-        tmpFile.renameTo("$filename.${extension.extension}")
+        val extension = cacheFile.inputStream().use(ImageUtil::findImageType)
+            ?: error("Cached page does not have a recognized image type")
+        check(tmpFile.renameTo("$filename.${extension.extension}")) { "Cannot publish cached page" }
         cacheFile.delete()
         return tmpFile
     }
@@ -841,7 +896,7 @@ class MangaDownloader(
                 writer.write(file)
             }
         }
-        zip.renameTo("$dirname.cbz")
+        check(zip.renameTo("$dirname.cbz")) { "Cannot publish chapter archive" }
         tmpDir.delete()
     }
 
@@ -881,6 +936,11 @@ class MangaDownloader(
     /**
      * Returns true if all the queued downloads are in DOWNLOADED or ERROR state.
      */
+    @Synchronized
+    private fun stopIfIdle() {
+        if (areAllDownloadsFinished()) stop()
+    }
+
     private fun areAllDownloadsFinished(): Boolean {
         return queueState.value.none { it.status.value <= MangaDownload.State.DOWNLOADING.value }
     }
@@ -930,11 +990,20 @@ class MangaDownloader(
     }
 }
 
+private fun stagedPageFiles(directory: UniFile, filename: String): List<UniFile> =
+    directory.listFiles().orEmpty().filter {
+        val name = it.name.orEmpty()
+        (name.startsWith("$filename.") && !name.endsWith(".tmp")) || name.startsWith("${filename}__")
+    }.sortedBy { it.name }
+
 @VisibleForTesting
 internal fun isDownloadedImageFile(file: UniFile, filename: String): Boolean {
     val name = file.name ?: return false
-    return name.startsWith("$filename.") || name.startsWith("${filename}__001")
+    return (name.startsWith("$filename.") || name.startsWith("${filename}__001")) && hasImageContent(file)
 }
+
+private fun hasImageContent(file: UniFile): Boolean =
+    file.length() > 0 && file.openInputStream().use { ImageUtil.findImageType(it) != null }
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024

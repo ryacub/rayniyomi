@@ -116,6 +116,10 @@ class AnimeDownloadQueueScreenModel(
         reorder((others + series).mapNotNull { it.download.episode.id })
     }
 
+    override fun retryDownload(item: AnimeDownloadUiItem) {
+        viewModelScope.launch { downloadManager.retryDownload(item.downloadId) }
+    }
+
     override fun cancelDownload(item: AnimeDownloadUiItem) {
         cancel(listOf(item.download))
     }

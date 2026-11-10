@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.data.download.core.RetriesExhaustedException
 import eu.kanade.tachiyomi.data.download.core.StoragePermissionException
 import eu.kanade.tachiyomi.data.download.model.DownloadBlockedReason
 import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
+import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import eu.kanade.tachiyomi.util.storage.toFFmpegString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.download.service.DownloadPreferences
+import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -75,7 +77,8 @@ class AnimeVideoDownloader(
                     DownloadStrategy.SINGLE_THREAD,
                     DownloadStrategy.FFMPEG,
                     -> {
-                        ffmpegDownload(download, tmpDir, videoFile, filename)
+                        download.recovery.value = DownloadRecovery.RESTART
+                        ffmpegDownload(download, videoFile, filename)
                     }
                 }
             } catch (e: Exception) {
@@ -121,6 +124,9 @@ class AnimeVideoDownloader(
         }
 
         val multiThreadEnabled = preferences.multiThreadDownloads().get()
+        if (multiThreadEnabled && multiThreadDownloader.hasCheckpoint(download.episode.id, videoUrl)) {
+            return DownloadStrategy.MULTI_THREAD
+        }
         val maxConnections = preferences.multiThreadConnections().get().coerceIn(1, 4)
         val result = strategySelector.selectStrategy(
             videoUrl = videoUrl,
@@ -160,6 +166,7 @@ class AnimeVideoDownloader(
             },
             tmpDir = tmpDir,
             outputFile = videoFile,
+            onRecovery = { download.recovery.value = it },
         ) { progress ->
             download.progress = progress.progressPercent.coerceIn(0, 100)
             download.lastProgressAt = System.currentTimeMillis()
@@ -169,13 +176,13 @@ class AnimeVideoDownloader(
 
         when (result) {
             is DownloadResult.Success -> {
-                tmpDir.findFile("$filename.tmp")?.apply {
-                    renameTo("$filename.$extension")
-                }
+                check(videoFile.renameTo("$filename.$extension")) { "Cannot publish staged video" }
             }
             is DownloadResult.Error -> {
                 when (val error = result.error) {
                     is DownloadError.InvalidRange -> {
+                        multiThreadDownloader.discardStagedChunks(episodeId, tmpDir)
+                        download.recovery.value = DownloadRecovery.RESTART
                         if (error.msg.contains("not satisfiable", ignoreCase = true)) {
                             download.displayStatus = DownloadDisplayStatus.RETRYING
                             download.lastErrorCode = "RANGE_NOT_SATISFIABLE"
@@ -184,7 +191,7 @@ class AnimeVideoDownloader(
                             download.lastErrorCode = "RANGE_UNSUPPORTED"
                             download.lastErrorReason = "Server does not support range requests, falling back"
                         }
-                        ffmpegDownload(download, tmpDir, videoFile, filename)
+                        ffmpegDownload(download, videoFile, filename)
                         return
                     }
                     is DownloadError.DiskFull -> {
@@ -206,7 +213,6 @@ class AnimeVideoDownloader(
 
     private suspend fun ffmpegDownload(
         download: AnimeDownload,
-        tmpDir: UniFile,
         videoFile: UniFile,
         filename: String,
     ) {
@@ -248,10 +254,14 @@ class AnimeVideoDownloader(
                 ffmpegOptions,
                 {
                     if (it.returnCode.isValueSuccess) {
-                        tmpDir.findFile("$filename.tmp")?.apply {
-                            renameTo("$filename.mkv")
+                        val published = runCatching { videoFile.renameTo("$filename.mkv") }
+                        if (published.getOrDefault(false)) {
+                            continuation.resume(it)
+                        } else {
+                            continuation.resumeWithException(
+                                IOException("Cannot publish staged video", published.exceptionOrNull()),
+                            )
                         }
-                        continuation.resume(it)
                     } else {
                         val output = it.output
                         if (DownloadFailureClassifier.isLowStorageFailure(output)) {

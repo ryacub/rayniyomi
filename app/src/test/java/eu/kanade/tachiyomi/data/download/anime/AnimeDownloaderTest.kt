@@ -244,6 +244,32 @@ class AnimeDownloaderTest {
         assertEquals(listOf("save 1", "delete 1", "delete partial dir"), resumeFileEvents.toList())
     }
 
+    @Test
+    fun `starting an item retry leaves the other failed episode untouched`() {
+        val selected = testDownload(episodeId = 1L)
+        val other = testDownload(episodeId = 2L)
+        downloader.addToStartOfQueue(listOf(selected, other))
+        selected.status = AnimeDownload.State.ERROR
+        other.status = AnimeDownload.State.ERROR
+        other.lastErrorReason = "Keep this failure"
+        val selectedStarted = CountDownLatch(1)
+        mockHosters {
+            selectedStarted.countDown()
+            awaitCancellation()
+        }
+
+        try {
+            assertTrue(downloader.retryFailed(selected))
+            assertTrue(downloader.start(resetFailed = false))
+            assertTrue(selectedStarted.await(5, TimeUnit.SECONDS))
+            assertEquals(AnimeDownload.State.ERROR, other.status)
+            assertEquals("Keep this failure", other.lastErrorReason)
+            assertEquals(listOf(1L, 2L), downloader.queueState.value.map { it.episode.id })
+        } finally {
+            downloader.pause()
+        }
+    }
+
     private fun mockHosters(block: suspend () -> Nothing) {
         mockkObject(EpisodeLoader.Companion)
         coEvery { EpisodeLoader.getHosters(any(), any(), any()) } coAnswers { block() }
@@ -406,6 +432,7 @@ class AnimeDownloaderTest {
 
     @Test
     fun `incomplete output records the incomplete code without a notification`() = runTest {
+        every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns true
         val video = mockk<Video>(relaxed = true)
         val download = testDownload(video)
 
@@ -527,6 +554,7 @@ class AnimeDownloaderTest {
         val tmpDir = mockk<UniFile>(relaxed = true)
         every { tmpDir.filePath } returns null
         every { tmpDir.createFile(any()) } returns mkvFile
+        every { tmpDir.renameTo(any()) } returns true
         var listedFiles = false
         every { tmpDir.listFiles() } answers {
             if (listedFiles) {
