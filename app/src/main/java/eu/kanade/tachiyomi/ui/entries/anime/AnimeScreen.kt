@@ -11,9 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,7 +96,6 @@ class AnimeScreen(
 
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val haptic = LocalHapticFeedback.current
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
         val screenModel =
@@ -152,10 +149,7 @@ class AnimeScreen(
             onDownloadEpisode = screenModel::runEpisodeDownloadActions.takeIf {
                 !successState.source.isLocalOrStub() && successState.anime.fetchType == FetchType.Episodes
             },
-            onAddToLibraryClicked = {
-                screenModel.toggleFavorite()
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            },
+            onAddToLibraryClicked = { screenModel.toggleFavorite() },
             onWebViewClicked = {
                 openAnimeInWebView(
                     navigator,

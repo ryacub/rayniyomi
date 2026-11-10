@@ -11,7 +11,6 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -101,8 +100,8 @@ class EntryActionRowLibraryFeedbackAndroidTest {
     }
 
     private fun iconWidth(): Dp {
-        val bounds = compose.onNodeWithTag("entry-library-icon", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        return bounds.right - bounds.left
+        val node = compose.onNodeWithTag("entry-library-icon", useUnmergedTree = true).fetchSemanticsNode()
+        return with(node.layoutInfo.density) { node.boundsInRoot.width.toDp() }
     }
 
     private class CountingHaptic : HapticFeedback {
