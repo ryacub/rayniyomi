@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import dev.icerock.moko.resources.StringResource
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.mockk.coEvery
@@ -89,7 +90,7 @@ class MangaScreenModelLibraryToggleTest {
     }
 
     @Test
-    fun `a tap after the first write finishes writes again`() = runTest(vt.scheduler) {
+    fun `a tap after the add finishes removes the title`() = runTest(vt.scheduler) {
         coEvery { updateManga.awaitUpdateFavorite(any(), any()) } returns true
         val model = createModel(manga(favorite = false))
         advanceUntilIdle()
@@ -99,7 +100,48 @@ class MangaScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
+        coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, true) }
+        coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, false) }
+    }
+
+    @Test
+    fun `retry after a later successful add does not write again`() = runTest(vt.scheduler) {
+        coEvery { updateManga.awaitUpdateFavorite(any(), any()) } returns false
+        val model = createModel(manga(favorite = false))
+        advanceUntilIdle()
+        model.toggleFavorite()
+        advanceUntilIdle()
+        val snackbar = model.snackbarHostState.currentSnackbarData
+        coEvery { updateManga.awaitUpdateFavorite(any(), any()) } returns true
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        snackbar shouldNotBe null
+        snackbar?.performAction()
+        advanceUntilIdle()
+
         coVerify(exactly = 2) { updateManga.awaitUpdateFavorite(1L, true) }
+    }
+
+    @Test
+    fun `a tap while a category picker write runs does not write again`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { updateManga.awaitUpdateFavorite(any(), any()) } coAnswers {
+            gate.await()
+            true
+        }
+        val title = manga(favorite = false)
+        val model = createModel(title)
+        advanceUntilIdle()
+
+        model.moveMangaToCategoriesAndAddToLibrary(title, listOf(5L))
+        advanceUntilIdle()
+        model.toggleFavorite()
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, true) }
     }
 
     @Test
@@ -111,7 +153,7 @@ class MangaScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
-        model.failureSnackbarAction() shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, true) }
     }
 
@@ -124,7 +166,7 @@ class MangaScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
-        model.failureSnackbarAction() shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_remove_failed) shouldBe context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, false) }
     }
 
@@ -154,13 +196,13 @@ class MangaScreenModelLibraryToggleTest {
         model.moveMangaToCategoriesAndAddToLibrary(title, listOf(5L))
         advanceUntilIdle()
 
-        model.failureSnackbarAction() shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, true) }
     }
 
-    private fun MangaScreenModel.failureSnackbarAction(): String? {
+    private fun MangaScreenModel.failureSnackbarAction(message: StringResource): String? {
         val visuals = snackbarHostState.currentSnackbarData?.visuals
-        visuals?.message shouldNotBe null
+        visuals?.message shouldBe context.stringResource(message)
         return visuals?.actionLabel
     }
 

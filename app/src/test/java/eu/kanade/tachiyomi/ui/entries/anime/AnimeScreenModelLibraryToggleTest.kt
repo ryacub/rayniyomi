@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import dev.icerock.moko.resources.StringResource
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.mockk.coEvery
@@ -92,7 +93,7 @@ class AnimeScreenModelLibraryToggleTest {
     }
 
     @Test
-    fun `a tap after the first write finishes writes again`() = runTest(vt.scheduler) {
+    fun `a tap after the add finishes removes the title`() = runTest(vt.scheduler) {
         coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
         val model = loadedModel(anime(favorite = false))
 
@@ -101,7 +102,46 @@ class AnimeScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
+        coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
+        coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, false) }
+    }
+
+    @Test
+    fun `retry after a later successful add does not write again`() = runTest(vt.scheduler) {
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns false
+        val model = loadedModel(anime(favorite = false))
+        model.toggleFavorite()
+        advanceUntilIdle()
+        val snackbar = model.snackbarHostState.currentSnackbarData
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        snackbar shouldNotBe null
+        snackbar?.performAction()
+        advanceUntilIdle()
+
         coVerify(exactly = 2) { updateAnime.awaitUpdateFavorite(1L, true) }
+    }
+
+    @Test
+    fun `a tap while a category picker write runs does not write again`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } coAnswers {
+            gate.await()
+            true
+        }
+        val title = anime(favorite = false)
+        val model = loadedModel(title)
+
+        model.moveAnimeToCategoriesAndAddToLibrary(title, listOf(5L))
+        advanceUntilIdle()
+        model.toggleFavorite()
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
 
     @Test
@@ -112,7 +152,7 @@ class AnimeScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
-        model.failureSnackbarAction() shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
 
@@ -124,8 +164,23 @@ class AnimeScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
-        model.failureSnackbarAction() shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_remove_failed) shouldBe context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, false) }
+    }
+
+    @Test
+    fun `retry on a failed add writes again`() = runTest(vt.scheduler) {
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns false
+        val model = loadedModel(anime(favorite = false))
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        val snackbar = model.snackbarHostState.currentSnackbarData
+        snackbar shouldNotBe null
+        snackbar?.performAction()
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
 
     @Test
@@ -137,13 +192,13 @@ class AnimeScreenModelLibraryToggleTest {
         model.moveAnimeToCategoriesAndAddToLibrary(title, listOf(5L))
         advanceUntilIdle()
 
-        model.failureSnackbarAction() shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
 
-    private fun AnimeScreenModel.failureSnackbarAction(): String? {
+    private fun AnimeScreenModel.failureSnackbarAction(message: StringResource): String? {
         val visuals = snackbarHostState.currentSnackbarData?.visuals
-        visuals?.message shouldNotBe null
+        visuals?.message shouldBe context.stringResource(message)
         return visuals?.actionLabel
     }
 
