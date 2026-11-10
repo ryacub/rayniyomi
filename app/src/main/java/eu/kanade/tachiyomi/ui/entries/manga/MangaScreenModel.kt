@@ -59,7 +59,6 @@ import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
 import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
 import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
@@ -674,14 +673,6 @@ class MangaScreenModel(
             }
             LibraryPreferences.ChapterSwipeAction.Disabled -> throw IllegalStateException()
         }
-    }
-
-    /**
-     * Returns the next unread chapter or null if everything is read.
-     */
-    fun getNextUnreadChapter(): Chapter? {
-        val successState = successState ?: return null
-        return successState.chapters.getNextUnread(successState.manga)
     }
 
     private fun getUnreadChapters(): List<Chapter> {

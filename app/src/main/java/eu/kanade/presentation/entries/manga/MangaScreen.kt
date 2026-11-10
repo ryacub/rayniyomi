@@ -31,6 +31,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -47,18 +48,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.relativeDateTimeText
 import eu.kanade.presentation.entries.DownloadAction
 import eu.kanade.presentation.entries.EntryScreenItem
+import eu.kanade.presentation.entries.components.CoverHandoffState
 import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
+import eu.kanade.presentation.entries.components.LocalCoverHandoff
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
 import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
@@ -77,6 +83,7 @@ import eu.kanade.tachiyomi.source.manga.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.entries.manga.ChapterList
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreenModel
+import eu.kanade.tachiyomi.ui.reader.CoverHandoff
 import eu.kanade.tachiyomi.util.chapter.resumeChapter
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.domain.entries.manga.model.Manga
@@ -105,7 +112,7 @@ fun MangaScreen(
     chapterSwipeStartAction: LibraryPreferences.ChapterSwipeAction,
     chapterSwipeEndAction: LibraryPreferences.ChapterSwipeAction,
     navigateUp: () -> Unit,
-    onChapterClicked: (Chapter) -> Unit,
+    onChapterClicked: (Chapter, CoverHandoff?) -> Unit,
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
     onAddToLibraryClicked: () -> Unit,
     onWebViewClicked: (() -> Unit)?,
@@ -117,7 +124,7 @@ fun MangaScreen(
 
     onFilterButtonClicked: () -> Unit,
     onRefresh: () -> Unit,
-    onContinueReading: () -> Unit,
+    onContinueReading: (CoverHandoff?) -> Unit,
     onSearch: (query: String, global: Boolean) -> Unit,
 
     // For cover dialog
@@ -148,6 +155,12 @@ fun MangaScreen(
     onInvertSelection: () -> Unit,
 ) {
     val context = LocalContext.current
+    val coverHandoffState = remember { CoverHandoffState() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { coverHandoffState.reveal() }
+    val view = LocalView.current
+    val coverHandoff: () -> CoverHandoff? = {
+        coverHandoffState.take(view.width, view.height, state.manga.thumbnailUrl)
+    }
     val onCopyTagToClipboard: (tag: String) -> Unit = {
         if (it.isNotEmpty()) {
             context.copyToClipboard(it, it)
@@ -164,85 +177,87 @@ fun MangaScreen(
         "manga;${state.manga.id};${state.manga.thumbnailUrl};${state.manga.coverLastModified}"
     }
 
-    EntryDynamicCoverTheme(
-        enabled = dynamicCoverThemeEnabled,
-        coverData = state.manga,
-        cacheKey = coverThemeCacheKey,
-    ) {
-        if (!isTabletUi) {
-            MangaScreenSmallImpl(
-                state = state,
-                snackbarHostState = snackbarHostState,
-                nextUpdate = nextUpdate,
-                chapterSwipeStartAction = chapterSwipeStartAction,
-                chapterSwipeEndAction = chapterSwipeEndAction,
-                navigateUp = navigateUp,
-                onChapterClicked = onChapterClicked,
-                onDownloadChapter = onDownloadChapter,
-                onAddToLibraryClicked = onAddToLibraryClicked,
-                onWebViewClicked = onWebViewClicked,
-                onWebViewLongClicked = onWebViewLongClicked,
-                onTrackingClicked = onTrackingClicked,
-                onTagSearch = onTagSearch,
-                onCopyTagToClipboard = onCopyTagToClipboard,
-                onFilterClicked = onFilterButtonClicked,
-                onRefresh = onRefresh,
-                onContinueReading = onContinueReading,
-                onSearch = onSearch,
-                onCoverClicked = onCoverClicked,
-                onShareClicked = onShareClicked,
-                onDownloadActionClicked = onDownloadActionClicked,
-                onEditCategoryClicked = onEditCategoryClicked,
-                onEditIntervalClicked = onEditFetchIntervalClicked,
-                onMigrateClicked = onMigrateClicked,
-                onMultiBookmarkClicked = onMultiBookmarkClicked,
-                onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
-                onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
-                onMultiDeleteClicked = onMultiDeleteClicked,
-                onChapterSwipe = onChapterSwipe,
-                onTranslationChapter = onTranslationChapter,
-                onChapterSelected = onChapterSelected,
-                onAllChapterSelected = onAllChapterSelected,
-                onInvertSelection = onInvertSelection,
-                onSettingsClicked = onSettingsClicked,
-            )
-        } else {
-            MangaScreenLargeImpl(
-                state = state,
-                snackbarHostState = snackbarHostState,
-                chapterSwipeStartAction = chapterSwipeStartAction,
-                chapterSwipeEndAction = chapterSwipeEndAction,
-                nextUpdate = nextUpdate,
-                navigateUp = navigateUp,
-                onChapterClicked = onChapterClicked,
-                onDownloadChapter = onDownloadChapter,
-                onAddToLibraryClicked = onAddToLibraryClicked,
-                onWebViewClicked = onWebViewClicked,
-                onWebViewLongClicked = onWebViewLongClicked,
-                onTrackingClicked = onTrackingClicked,
-                onTagSearch = onTagSearch,
-                onCopyTagToClipboard = onCopyTagToClipboard,
-                onFilterButtonClicked = onFilterButtonClicked,
-                onRefresh = onRefresh,
-                onContinueReading = onContinueReading,
-                onSearch = onSearch,
-                onCoverClicked = onCoverClicked,
-                onShareClicked = onShareClicked,
-                onDownloadActionClicked = onDownloadActionClicked,
-                onEditCategoryClicked = onEditCategoryClicked,
-                onEditIntervalClicked = onEditFetchIntervalClicked,
-                onMigrateClicked = onMigrateClicked,
-                onMultiBookmarkClicked = onMultiBookmarkClicked,
-                onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
-                onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
-                onMultiDeleteClicked = onMultiDeleteClicked,
-                onChapterSwipe = onChapterSwipe,
-                onTranslationChapter = onTranslationChapter,
-                onChapterSelected = onChapterSelected,
-                onAllChapterSelected = onAllChapterSelected,
-                onInvertSelection = onInvertSelection,
-                onSettingsClicked = onSettingsClicked,
-            )
+    CompositionLocalProvider(LocalCoverHandoff provides coverHandoffState) {
+        EntryDynamicCoverTheme(
+            enabled = dynamicCoverThemeEnabled,
+            coverData = state.manga,
+            cacheKey = coverThemeCacheKey,
+        ) {
+            if (!isTabletUi) {
+                MangaScreenSmallImpl(
+                    state = state,
+                    snackbarHostState = snackbarHostState,
+                    nextUpdate = nextUpdate,
+                    chapterSwipeStartAction = chapterSwipeStartAction,
+                    chapterSwipeEndAction = chapterSwipeEndAction,
+                    navigateUp = navigateUp,
+                    onChapterClicked = { chapter -> onChapterClicked(chapter, coverHandoff()) },
+                    onDownloadChapter = onDownloadChapter,
+                    onAddToLibraryClicked = onAddToLibraryClicked,
+                    onWebViewClicked = onWebViewClicked,
+                    onWebViewLongClicked = onWebViewLongClicked,
+                    onTrackingClicked = onTrackingClicked,
+                    onTagSearch = onTagSearch,
+                    onCopyTagToClipboard = onCopyTagToClipboard,
+                    onFilterClicked = onFilterButtonClicked,
+                    onRefresh = onRefresh,
+                    onContinueReading = { onContinueReading(coverHandoff()) },
+                    onSearch = onSearch,
+                    onCoverClicked = onCoverClicked,
+                    onShareClicked = onShareClicked,
+                    onDownloadActionClicked = onDownloadActionClicked,
+                    onEditCategoryClicked = onEditCategoryClicked,
+                    onEditIntervalClicked = onEditFetchIntervalClicked,
+                    onMigrateClicked = onMigrateClicked,
+                    onMultiBookmarkClicked = onMultiBookmarkClicked,
+                    onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
+                    onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
+                    onMultiDeleteClicked = onMultiDeleteClicked,
+                    onChapterSwipe = onChapterSwipe,
+                    onTranslationChapter = onTranslationChapter,
+                    onChapterSelected = onChapterSelected,
+                    onAllChapterSelected = onAllChapterSelected,
+                    onInvertSelection = onInvertSelection,
+                    onSettingsClicked = onSettingsClicked,
+                )
+            } else {
+                MangaScreenLargeImpl(
+                    state = state,
+                    snackbarHostState = snackbarHostState,
+                    chapterSwipeStartAction = chapterSwipeStartAction,
+                    chapterSwipeEndAction = chapterSwipeEndAction,
+                    nextUpdate = nextUpdate,
+                    navigateUp = navigateUp,
+                    onChapterClicked = { chapter -> onChapterClicked(chapter, coverHandoff()) },
+                    onDownloadChapter = onDownloadChapter,
+                    onAddToLibraryClicked = onAddToLibraryClicked,
+                    onWebViewClicked = onWebViewClicked,
+                    onWebViewLongClicked = onWebViewLongClicked,
+                    onTrackingClicked = onTrackingClicked,
+                    onTagSearch = onTagSearch,
+                    onCopyTagToClipboard = onCopyTagToClipboard,
+                    onFilterButtonClicked = onFilterButtonClicked,
+                    onRefresh = onRefresh,
+                    onContinueReading = { onContinueReading(coverHandoff()) },
+                    onSearch = onSearch,
+                    onCoverClicked = onCoverClicked,
+                    onShareClicked = onShareClicked,
+                    onDownloadActionClicked = onDownloadActionClicked,
+                    onEditCategoryClicked = onEditCategoryClicked,
+                    onEditIntervalClicked = onEditFetchIntervalClicked,
+                    onMigrateClicked = onMigrateClicked,
+                    onMultiBookmarkClicked = onMultiBookmarkClicked,
+                    onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
+                    onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
+                    onMultiDeleteClicked = onMultiDeleteClicked,
+                    onChapterSwipe = onChapterSwipe,
+                    onTranslationChapter = onTranslationChapter,
+                    onChapterSelected = onChapterSelected,
+                    onAllChapterSelected = onAllChapterSelected,
+                    onInvertSelection = onInvertSelection,
+                    onSettingsClicked = onSettingsClicked,
+                )
+            }
         }
     }
 }
@@ -377,7 +392,6 @@ private fun MangaScreenSmallImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
-            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -388,8 +402,6 @@ private fun MangaScreenSmallImpl(
                         ContinueReadingFabText(
                             manga = state.manga,
                             resumeChapter = resumeChapter,
-                            strokedCue = strokedCue,
-                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -646,7 +658,6 @@ fun MangaScreenLargeImpl(
             val isFABVisible = remember(chapters) {
                 chapters.fastAny { !it.chapter.read } && !isAnySelected
             }
-            var strokedCue by rememberSaveable { mutableStateOf<String?>(null) }
             AnimatedVisibility(
                 visible = isFABVisible,
                 enter = fadeIn(),
@@ -657,8 +668,6 @@ fun MangaScreenLargeImpl(
                         ContinueReadingFabText(
                             manga = state.manga,
                             resumeChapter = resumeChapter,
-                            strokedCue = strokedCue,
-                            onCueStroked = { strokedCue = it },
                         )
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
@@ -917,14 +926,10 @@ private fun LazyListScope.sharedChapterItems(
 private fun ContinueReadingFabText(
     manga: Manga,
     resumeChapter: Chapter?,
-    strokedCue: String?,
-    onCueStroked: (String) -> Unit,
 ) {
     ResumeFabText(
         label = stringResource(if (resumeChapter != null) MR.strings.action_resume else MR.strings.action_start),
         cue = resumeChapter?.let { chapterTitle(manga, it) },
-        strokedCue = strokedCue,
-        onCueStroked = onCueStroked,
     )
 }
 

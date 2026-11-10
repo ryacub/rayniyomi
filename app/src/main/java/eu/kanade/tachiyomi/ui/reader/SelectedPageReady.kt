@@ -13,3 +13,9 @@ suspend fun Flow<Page?>.awaitSelectedPageReady() {
         .flatMapLatest { it.statusFlow }
         .first { it == Page.State.READY }
 }
+
+suspend fun Flow<Page?>.awaitSelectedPageSettled() {
+    filterNotNull()
+        .flatMapLatest { it.statusFlow }
+        .first { it == Page.State.READY || it == Page.State.ERROR }
+}
