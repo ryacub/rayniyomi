@@ -13,6 +13,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -164,7 +165,7 @@ class LibrarySelectionSemanticsAndroidTest {
     }
 
     private fun title(text: String): SemanticsNodeInteraction =
-        composeRule.onNode(hasClickAction() and hasText(text))
+        composeRule.onNode(hasClickAction() and hasAnyDescendant(hasText(text)), useUnmergedTree = true)
 
     private fun libraryManga(id: Long, title: String) = LibraryManga(
         manga = Manga.create().copy(id = id, title = title, favorite = true),
