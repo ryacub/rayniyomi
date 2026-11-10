@@ -18,6 +18,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import eu.kanade.presentation.library.anime.AnimeLibraryComfortableGrid
+import eu.kanade.presentation.library.anime.AnimeLibraryCompactGrid
 import eu.kanade.presentation.library.anime.AnimeLibraryList
 import eu.kanade.presentation.library.manga.MangaLibraryComfortableGrid
 import eu.kanade.presentation.library.manga.MangaLibraryCompactGrid
@@ -42,6 +44,10 @@ class LibrarySelectionSemanticsAndroidTest {
     private val second = libraryManga(id = 2, title = "Second manga")
     private val third = libraryManga(id = 3, title = "Third manga")
     private val mangaItems = listOf(first, second, third).map { MangaLibraryItem(it) }
+
+    private val firstAnime = libraryAnime(id = 1, title = "First anime")
+    private val secondAnime = libraryAnime(id = 2, title = "Second anime")
+    private val animeItems = listOf(firstAnime, secondAnime).map { AnimeLibraryItem(it) }
 
     private val noSelectionState = SemanticsMatcher.keyNotDefined(SemanticsProperties.Selected)
 
@@ -96,23 +102,60 @@ class LibrarySelectionSemanticsAndroidTest {
 
     @Test
     fun animeListReportsEachTitleStateInSelectionMode() {
-        val watched = libraryAnime(id = 1, title = "First anime")
-        val other = libraryAnime(id = 2, title = "Second anime")
-        composeRule.setContent {
-            Themed {
-                AnimeLibraryList(
-                    items = listOf(watched, other).map { AnimeLibraryItem(it) },
-                    rows = 0,
-                    containerHeight = 0,
-                    contentPadding = PaddingValues(),
-                    selection = listOf(watched),
-                    onClick = {},
-                    onLongClick = {},
-                    onClickContinueWatching = null,
-                    searchQuery = null,
-                    onGlobalSearchClicked = {},
-                )
-            }
+        setAnimeContent { selection ->
+            AnimeLibraryList(
+                items = animeItems,
+                rows = 0,
+                containerHeight = 0,
+                contentPadding = PaddingValues(),
+                selection = selection,
+                onClick = {},
+                onLongClick = {},
+                onClickContinueWatching = null,
+                searchQuery = null,
+                onGlobalSearchClicked = {},
+            )
+        }
+
+        title("First anime").assertIsSelected()
+        title("Second anime").assertIsNotSelected()
+    }
+
+    @Test
+    fun animeCompactGridReportsEachTitleStateInSelectionMode() {
+        setAnimeContent { selection ->
+            AnimeLibraryCompactGrid(
+                items = animeItems,
+                showTitle = true,
+                columns = 2,
+                contentPadding = PaddingValues(),
+                selection = selection,
+                onClick = {},
+                onLongClick = {},
+                onClickContinueWatching = null,
+                searchQuery = null,
+                onGlobalSearchClicked = {},
+            )
+        }
+
+        title("First anime").assertIsSelected()
+        title("Second anime").assertIsNotSelected()
+    }
+
+    @Test
+    fun animeComfortableGridReportsEachTitleStateInSelectionMode() {
+        setAnimeContent { selection ->
+            AnimeLibraryComfortableGrid(
+                items = animeItems,
+                columns = 2,
+                contentPadding = PaddingValues(),
+                selection = selection,
+                onClick = {},
+                onLongClick = {},
+                onClickContinueWatching = null,
+                searchQuery = null,
+                onGlobalSearchClicked = {},
+            )
         }
 
         title("First anime").assertIsSelected()
@@ -131,6 +174,8 @@ class LibrarySelectionSemanticsAndroidTest {
     fun selectionChangesUpdateTheReportedState() {
         var selection by mutableStateOf(listOf(first, second))
         composeRule.setContent { Themed { CompactGrid(selection) } }
+        title("Second manga").assertIsSelected()
+        title("Third manga").assertIsNotSelected()
 
         selection = listOf(first, third)
         composeRule.waitForIdle()
@@ -141,6 +186,10 @@ class LibrarySelectionSemanticsAndroidTest {
 
     private fun setMangaContent(content: @Composable (List<LibraryManga>) -> Unit) {
         composeRule.setContent { Themed { content(listOf(first)) } }
+    }
+
+    private fun setAnimeContent(content: @Composable (List<LibraryAnime>) -> Unit) {
+        composeRule.setContent { Themed { content(listOf(firstAnime)) } }
     }
 
     @Composable
