@@ -2,7 +2,7 @@ package eu.kanade.presentation.entries.components
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -30,12 +30,14 @@ class EntryActionRowLibraryFeedbackAndroidTest {
     val compose = createComposeRule()
 
     private val haptic = CountingHaptic()
+    private val favorite = mutableStateOf(false)
+    private val confirmations = mutableIntStateOf(0)
 
     @Test
     fun addingATitleBouncesTheIconOnce() {
-        val favorite = show(initial = false)
+        show(initial = false)
 
-        compose.runOnIdle { favorite.value = true }
+        compose.runOnIdle { confirmAdd() }
         compose.mainClock.advanceTimeBy(150)
         val peak = iconWidth()
         compose.mainClock.advanceTimeBy(500)
@@ -58,12 +60,24 @@ class EntryActionRowLibraryFeedbackAndroidTest {
 
     @Test
     fun aLibraryChangeFiresOneHaptic() {
-        val favorite = show(initial = false)
+        show(initial = false)
 
-        compose.runOnIdle { favorite.value = true }
+        compose.runOnIdle { confirmAdd() }
         compose.mainClock.advanceTimeBy(500)
 
         assertEquals(1, haptic.count)
+    }
+
+    @Test
+    fun aLibraryChangeFromElsewhereDoesNotBounceOrBuzz() {
+        show(initial = true)
+
+        compose.runOnIdle { favorite.value = false }
+        compose.mainClock.advanceTimeBy(150)
+        val width = iconWidth()
+
+        assertTrue("icon width after an unconfirmed change was $width", width < 20.5.dp)
+        assertEquals(0, haptic.count)
     }
 
     @Test
@@ -74,14 +88,20 @@ class EntryActionRowLibraryFeedbackAndroidTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
-    private fun show(initial: Boolean): MutableState<Boolean> {
-        val favorite = mutableStateOf(initial)
+    private fun confirmAdd() {
+        favorite.value = true
+        confirmations.intValue++
+    }
+
+    private fun show(initial: Boolean) {
+        favorite.value = initial
         compose.mainClock.autoAdvance = false
         compose.setContent {
             MaterialTheme {
                 CompositionLocalProvider(LocalHapticFeedback provides haptic) {
                     EntryActionRow(
                         favorite = favorite.value,
+                        libraryConfirmations = confirmations.value,
                         trackingCount = 0,
                         nextUpdate = null,
                         isUserIntervalMode = false,
@@ -96,7 +116,6 @@ class EntryActionRowLibraryFeedbackAndroidTest {
             }
         }
         compose.mainClock.advanceTimeBy(32)
-        return favorite
     }
 
     private fun iconWidth(): Dp {

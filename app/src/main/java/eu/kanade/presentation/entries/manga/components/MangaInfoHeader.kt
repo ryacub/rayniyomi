@@ -39,6 +39,7 @@ fun MangaInfoBox(
 @Composable
 fun MangaActionRow(
     favorite: Boolean,
+    libraryConfirmations: Int,
     trackingCount: Int,
     nextUpdate: Instant?,
     isUserIntervalMode: Boolean,
@@ -52,6 +53,7 @@ fun MangaActionRow(
 ) {
     EntryActionRow(
         favorite = favorite,
+        libraryConfirmations = libraryConfirmations,
         trackingCount = trackingCount,
         nextUpdate = nextUpdate,
         isUserIntervalMode = isUserIntervalMode,

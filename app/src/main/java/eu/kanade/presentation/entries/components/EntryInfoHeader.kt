@@ -68,6 +68,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -205,6 +206,7 @@ fun EntryInfoBox(
 @Composable
 fun EntryActionRow(
     favorite: Boolean,
+    libraryConfirmations: Int,
     trackingCount: Int,
     nextUpdate: Instant?,
     isUserIntervalMode: Boolean,
@@ -217,7 +219,7 @@ fun EntryActionRow(
     modifier: Modifier = Modifier,
 ) {
     val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
-    val libraryIconScale = rememberLibraryChangeFeedback(favorite)
+    val libraryIconScale = rememberLibraryChangeFeedback(libraryConfirmations)
 
     val nextUpdateDays = remember(nextUpdate) {
         return@remember if (nextUpdate != null) {
@@ -293,13 +295,13 @@ fun EntryActionRow(
 }
 
 @Composable
-private fun rememberLibraryChangeFeedback(favorite: Boolean): Animatable<Float, AnimationVector1D> {
+private fun rememberLibraryChangeFeedback(confirmations: Int): Animatable<Float, AnimationVector1D> {
     val haptic = LocalHapticFeedback.current
     val scale = remember { Animatable(1f) }
-    var shownFavorite by remember { mutableStateOf(favorite) }
-    LaunchedEffect(favorite) {
-        if (favorite == shownFavorite) return@LaunchedEffect
-        shownFavorite = favorite
+    var shownConfirmations by remember { mutableIntStateOf(confirmations) }
+    LaunchedEffect(confirmations) {
+        if (confirmations == shownConfirmations) return@LaunchedEffect
+        shownConfirmations = confirmations
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         scale.snapTo(1f)
         scale.animateTo(
@@ -756,8 +758,8 @@ fun RowScope.EntryActionButton(
     icon: ImageVector,
     color: Color,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     iconModifier: Modifier = Modifier,
 ) {
     TextButton(
@@ -806,6 +808,7 @@ private fun EntryInfoBoxPreview() {
 private fun EntryActionRowPreview() {
     EntryActionRow(
         favorite = true,
+        libraryConfirmations = 0,
         trackingCount = 2,
         nextUpdate = null,
         isUserIntervalMode = false,

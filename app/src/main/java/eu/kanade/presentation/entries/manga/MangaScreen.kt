@@ -455,6 +455,7 @@ private fun MangaScreenSmallImpl(
                     ) {
                         MangaActionRow(
                             favorite = state.manga.favorite,
+                            libraryConfirmations = state.libraryConfirmations,
                             trackingCount = state.trackingCount,
                             nextUpdate = nextUpdate,
                             isUserIntervalMode = state.manga.fetchInterval < 0,
@@ -709,6 +710,7 @@ fun MangaScreenLargeImpl(
                         )
                         MangaActionRow(
                             favorite = state.manga.favorite,
+                            libraryConfirmations = state.libraryConfirmations,
                             trackingCount = state.trackingCount,
                             nextUpdate = nextUpdate,
                             isUserIntervalMode = state.manga.fetchInterval < 0,

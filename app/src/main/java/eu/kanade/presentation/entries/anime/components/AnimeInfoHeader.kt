@@ -41,6 +41,7 @@ fun AnimeInfoBox(
 @Composable
 fun AnimeActionRow(
     favorite: Boolean,
+    libraryConfirmations: Int,
     trackingCount: Int,
     nextUpdate: Instant?,
     isUserIntervalMode: Boolean,
@@ -54,6 +55,7 @@ fun AnimeActionRow(
 ) {
     EntryActionRow(
         favorite = favorite,
+        libraryConfirmations = libraryConfirmations,
         trackingCount = trackingCount,
         nextUpdate = nextUpdate,
         isUserIntervalMode = isUserIntervalMode,

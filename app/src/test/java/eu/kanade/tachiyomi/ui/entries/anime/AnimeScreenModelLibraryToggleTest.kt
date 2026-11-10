@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.entries.anime
 import android.content.Context
 import android.content.res.Resources
 import androidx.lifecycle.Lifecycle
+import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.track.service.TrackPreferences
@@ -12,7 +13,6 @@ import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
-import dev.icerock.moko.resources.StringResource
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.mockk.coEvery
@@ -145,6 +145,22 @@ class AnimeScreenModelLibraryToggleTest {
     }
 
     @Test
+    fun `only a successful change confirms the library button`() = runTest(vt.scheduler) {
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns false
+        val model = loadedModel(anime(favorite = false))
+        model.toggleFavorite()
+        advanceUntilIdle()
+        val afterFailure = model.successState().libraryConfirmations
+
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        afterFailure shouldBe 0
+        model.successState().libraryConfirmations shouldBe 1
+    }
+
+    @Test
     fun `a failed add offers a retry`() = runTest(vt.scheduler) {
         coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns false
         val model = loadedModel(anime(favorite = false))
@@ -152,7 +168,8 @@ class AnimeScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
-        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe
+            context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
 
@@ -164,7 +181,8 @@ class AnimeScreenModelLibraryToggleTest {
         model.toggleFavorite()
         advanceUntilIdle()
 
-        model.failureSnackbarAction(MR.strings.library_remove_failed) shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_remove_failed) shouldBe
+            context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, false) }
     }
 
@@ -192,9 +210,12 @@ class AnimeScreenModelLibraryToggleTest {
         model.moveAnimeToCategoriesAndAddToLibrary(title, listOf(5L))
         advanceUntilIdle()
 
-        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe context.stringResource(MR.strings.action_retry)
+        model.failureSnackbarAction(MR.strings.library_add_failed) shouldBe
+            context.stringResource(MR.strings.action_retry)
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
+
+    private fun AnimeScreenModel.successState() = state.value as AnimeScreenModel.State.Success
 
     private fun AnimeScreenModel.failureSnackbarAction(message: StringResource): String? {
         val visuals = snackbarHostState.currentSnackbarData?.visuals

@@ -397,18 +397,20 @@ class AnimeScreenModel(
         if (libraryChange?.isActive == true) return
         libraryChange = viewModelScope.launch(ioDispatcher) {
             val anime = state.anime
+            val retry = { toggleFavorite(onRemoved, checkDuplicate) }
 
             if (isFavorited) {
                 // Remove from library
-                if (updateAnime.awaitUpdateFavorite(anime.id, false)) {
-                    // Remove covers and update last modified in db
-                    if (anime.removeCovers() != anime) {
-                        updateAnime.awaitUpdateCoverLastModified(anime.id)
-                    }
-                    withUIContext { onRemoved() }
-                } else {
-                    showLibraryChangeFailure(adding = false) { toggleFavorite(onRemoved, checkDuplicate) }
+                if (!updateAnime.awaitUpdateFavorite(anime.id, false)) {
+                    showLibraryChangeFailure(adding = false, retry)
+                    return@launch
                 }
+                confirmLibraryChange(favorite = false)
+                // Remove covers and update last modified in db
+                if (anime.removeCovers() != anime) {
+                    updateAnime.awaitUpdateCoverLastModified(anime.id)
+                }
+                withUIContext { onRemoved() }
             } else {
                 // Add to library
                 // First, check if duplicate exists if callback is provided
@@ -437,32 +439,16 @@ class AnimeScreenModel(
                 val categories = getCategories()
                 val defaultCategoryId = libraryPreferences.defaultAnimeCategory().get().toLong()
                 val defaultCategory = categories.find { it.id == defaultCategoryId }
-                when {
-                    // Default category set
-                    defaultCategory != null -> {
-                        val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) {
-                            showLibraryChangeFailure(adding = true) { toggleFavorite(onRemoved, checkDuplicate) }
-                            return@launch
-                        }
-                        moveAnimeToCategory(defaultCategory)
+                if (defaultCategory == null && defaultCategoryId != 0L && categories.isNotEmpty()) {
+                    isFromChangeCategory = true
+                    showChangeCategoryDialog()
+                } else {
+                    if (!updateAnime.awaitUpdateFavorite(anime.id, true)) {
+                        showLibraryChangeFailure(adding = true, retry)
+                        return@launch
                     }
-
-                    // Automatic 'Default' or no categories
-                    defaultCategoryId == 0L || categories.isEmpty() -> {
-                        val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) {
-                            showLibraryChangeFailure(adding = true) { toggleFavorite(onRemoved, checkDuplicate) }
-                            return@launch
-                        }
-                        moveAnimeToCategory(null)
-                    }
-
-                    // Choose a category
-                    else -> {
-                        isFromChangeCategory = true
-                        showChangeCategoryDialog()
-                    }
+                    confirmLibraryChange(favorite = true)
+                    moveAnimeToCategory(defaultCategory)
                 }
 
                 // Finally match with enhanced tracking when available
@@ -549,12 +535,23 @@ class AnimeScreenModel(
 
     fun moveAnimeToCategoriesAndAddToLibrary(anime: Anime, categories: List<Long>) {
         moveAnimeToCategory(categories)
-        if (anime.favorite) return
+        if (anime.favorite || libraryChange?.isActive == true) return
 
-        viewModelScope.launch(ioDispatcher) {
-            if (!updateAnime.awaitUpdateFavorite(anime.id, true)) {
+        libraryChange = viewModelScope.launch(ioDispatcher) {
+            if (updateAnime.awaitUpdateFavorite(anime.id, true)) {
+                confirmLibraryChange(favorite = true)
+            } else {
                 showLibraryChangeFailure(adding = true) { moveAnimeToCategoriesAndAddToLibrary(anime, categories) }
             }
+        }
+    }
+
+    private fun confirmLibraryChange(favorite: Boolean) {
+        updateSuccessState {
+            it.copy(
+                anime = it.anime.copy(favorite = favorite),
+                libraryConfirmations = it.libraryConfirmations + 1,
+            )
         }
     }
 
@@ -567,7 +564,7 @@ class AnimeScreenModel(
                 actionLabel = context.stringResource(MR.strings.action_retry),
                 withDismissAction = true,
             )
-            if (result == SnackbarResult.ActionPerformed) retry()
+            if (result == SnackbarResult.ActionPerformed && isFavorited != adding) retry()
         }
     }
 
@@ -803,7 +800,7 @@ class AnimeScreenModel(
                     withDismissAction = true,
                 )
                 if (result == SnackbarResult.ActionPerformed && !isFavorited) {
-                    toggleFavorite()
+                    withUIContext { toggleFavorite() }
                 }
             }
         }
@@ -1538,6 +1535,7 @@ class AnimeScreenModel(
             val isRefreshingData: Boolean = false,
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
+            val libraryConfirmations: Int = 0,
             val trackItems: List<AnimeTrackItem> = emptyList(),
             val nextAiringEpisode: Pair<Int, Long> = Pair(
                 anime.nextEpisodeToAir,
