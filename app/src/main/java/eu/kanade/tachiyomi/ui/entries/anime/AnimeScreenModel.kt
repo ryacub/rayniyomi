@@ -65,6 +65,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -210,6 +211,8 @@ class AnimeScreenModel(
     private val selectionController = EntrySelectionController(selectedEpisodeIds)
 
     internal var isFromChangeCategory: Boolean = false
+
+    private var libraryChange: Job? = null
 
     internal val autoOpenTrack: Boolean
         get() = successState?.hasLoggedInTrackers == true && trackPreferences.trackOnAddingToLibrary().get()
@@ -391,7 +394,8 @@ class AnimeScreenModel(
         checkDuplicate: Boolean = true,
     ) {
         val state = successState ?: return
-        viewModelScope.launch(ioDispatcher) {
+        if (libraryChange?.isActive == true) return
+        libraryChange = viewModelScope.launch(ioDispatcher) {
             val anime = state.anime
 
             if (isFavorited) {
@@ -402,6 +406,8 @@ class AnimeScreenModel(
                         updateAnime.awaitUpdateCoverLastModified(anime.id)
                     }
                     withUIContext { onRemoved() }
+                } else {
+                    showLibraryChangeFailure(adding = false) { toggleFavorite(onRemoved, checkDuplicate) }
                 }
             } else {
                 // Add to library
@@ -435,14 +441,20 @@ class AnimeScreenModel(
                     // Default category set
                     defaultCategory != null -> {
                         val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) return@launch
+                        if (!result) {
+                            showLibraryChangeFailure(adding = true) { toggleFavorite(onRemoved, checkDuplicate) }
+                            return@launch
+                        }
                         moveAnimeToCategory(defaultCategory)
                     }
 
                     // Automatic 'Default' or no categories
                     defaultCategoryId == 0L || categories.isEmpty() -> {
                         val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) return@launch
+                        if (!result) {
+                            showLibraryChangeFailure(adding = true) { toggleFavorite(onRemoved, checkDuplicate) }
+                            return@launch
+                        }
                         moveAnimeToCategory(null)
                     }
 
@@ -540,7 +552,22 @@ class AnimeScreenModel(
         if (anime.favorite) return
 
         viewModelScope.launch(ioDispatcher) {
-            updateAnime.awaitUpdateFavorite(anime.id, true)
+            if (!updateAnime.awaitUpdateFavorite(anime.id, true)) {
+                showLibraryChangeFailure(adding = true) { moveAnimeToCategoriesAndAddToLibrary(anime, categories) }
+            }
+        }
+    }
+
+    private fun showLibraryChangeFailure(adding: Boolean, retry: () -> Unit) {
+        viewModelScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = context.stringResource(
+                    if (adding) MR.strings.library_add_failed else MR.strings.library_remove_failed,
+                ),
+                actionLabel = context.stringResource(MR.strings.action_retry),
+                withDismissAction = true,
+            )
+            if (result == SnackbarResult.ActionPerformed) retry()
         }
     }
 

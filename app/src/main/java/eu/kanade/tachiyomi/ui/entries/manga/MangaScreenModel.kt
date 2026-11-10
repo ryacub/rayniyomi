@@ -66,6 +66,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -205,6 +206,8 @@ class MangaScreenModel(
     private val selectionController = EntrySelectionController(selectedChapterIds)
 
     internal var isFromChangeCategory: Boolean = false
+
+    private var libraryChange: Job? = null
 
     internal val autoOpenTrack: Boolean
         get() = successState?.trackingAvailable == true && trackPreferences.trackOnAddingToLibrary().get()
@@ -416,7 +419,8 @@ class MangaScreenModel(
         checkDuplicate: Boolean = true,
     ) {
         val state = successState ?: return
-        viewModelScope.launch(ioDispatcher) {
+        if (libraryChange?.isActive == true) return
+        libraryChange = viewModelScope.launch(ioDispatcher) {
             val manga = state.manga
 
             if (isFavorited) {
@@ -427,6 +431,8 @@ class MangaScreenModel(
                         updateManga.awaitUpdateCoverLastModified(manga.id)
                     }
                     withUIContext { onRemoved() }
+                } else {
+                    showLibraryChangeFailure(adding = false) { toggleFavorite(onRemoved, checkDuplicate) }
                 }
             } else {
                 // Add to library
@@ -461,14 +467,20 @@ class MangaScreenModel(
                     // Default category set
                     defaultCategory != null -> {
                         val result = updateManga.awaitUpdateFavorite(manga.id, true)
-                        if (!result) return@launch
+                        if (!result) {
+                            showLibraryChangeFailure(adding = true) { toggleFavorite(onRemoved, checkDuplicate) }
+                            return@launch
+                        }
                         moveMangaToCategory(defaultCategory)
                     }
 
                     // Automatic 'Default' or no categories
                     defaultCategoryId == 0L || categories.isEmpty() -> {
                         val result = updateManga.awaitUpdateFavorite(manga.id, true)
-                        if (!result) return@launch
+                        if (!result) {
+                            showLibraryChangeFailure(adding = true) { toggleFavorite(onRemoved, checkDuplicate) }
+                            return@launch
+                        }
                         moveMangaToCategory(null)
                     }
 
@@ -566,7 +578,22 @@ class MangaScreenModel(
         if (manga.favorite) return
 
         viewModelScope.launch(ioDispatcher) {
-            updateManga.awaitUpdateFavorite(manga.id, true)
+            if (!updateManga.awaitUpdateFavorite(manga.id, true)) {
+                showLibraryChangeFailure(adding = true) { moveMangaToCategoriesAndAddToLibrary(manga, categories) }
+            }
+        }
+    }
+
+    private fun showLibraryChangeFailure(adding: Boolean, retry: () -> Unit) {
+        viewModelScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = context.stringResource(
+                    if (adding) MR.strings.library_add_failed else MR.strings.library_remove_failed,
+                ),
+                actionLabel = context.stringResource(MR.strings.action_retry),
+                withDismissAction = true,
+            )
+            if (result == SnackbarResult.ActionPerformed) retry()
         }
     }
 
