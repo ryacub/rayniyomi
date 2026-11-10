@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.entries.manga
 
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.isPaused
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.ui.entries.common.EntryDownloadProgress
 import tachiyomi.domain.entries.manga.model.Manga
@@ -45,6 +46,7 @@ internal class MangaChapterListItemMapper(
             ChapterList.Item(
                 chapter = chapter,
                 downloadState = downloadState,
+                downloadPaused = activeDownload?.displayStatus?.isPaused == true,
                 downloadProgress = activeDownload?.progress ?: 0,
                 downloadProgressSource = activeDownload?.let {
                     EntryDownloadProgress(it.progressFlow) { it.progress }

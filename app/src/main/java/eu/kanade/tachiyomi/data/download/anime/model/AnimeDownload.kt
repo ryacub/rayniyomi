@@ -85,6 +85,14 @@ data class AnimeDownload(
 
     @Transient
     val progressFlow = progressStateFlow.asStateFlow()
+
+    private val titleProgress = MutableStateFlow(-1)
+    internal val titleProgressFlow = titleProgress.asStateFlow()
+
+    internal fun updateTitleProgress(percent: Int) {
+        titleProgress.value = percent
+    }
+
     var progress: Int
         get() = progressStateFlow.value
         set(value) {
@@ -105,6 +113,7 @@ data class AnimeDownload(
             -1
         }
         if (progress != newProgress) progress = newProgress
+        updateTitleProgress(newProgress)
     }
 
     enum class State(val value: Int) {

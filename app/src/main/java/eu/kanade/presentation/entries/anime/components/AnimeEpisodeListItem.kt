@@ -80,6 +80,7 @@ fun AnimeEpisodeListItem(
     downloadIndicatorEnabled: Boolean,
     downloadStateProvider: () -> AnimeDownload.State,
     downloadProgressProvider: () -> Int,
+    downloadPaused: Boolean = false,
     episodeSwipeStartAction: LibraryPreferences.EpisodeSwipeAction,
     episodeSwipeEndAction: LibraryPreferences.EpisodeSwipeAction,
     onLongClick: () -> Unit,
@@ -137,6 +138,7 @@ fun AnimeEpisodeListItem(
                     downloadIndicatorEnabled = downloadIndicatorEnabled,
                     downloadStateProvider = downloadStateProvider,
                     downloadProgressProvider = downloadProgressProvider,
+                    downloadPaused = downloadPaused,
                     onDownloadClick = onDownloadClick,
                 )
                 return@Row
@@ -172,6 +174,7 @@ fun AnimeEpisodeListItem(
                                     downloadIndicatorEnabled = downloadIndicatorEnabled,
                                     downloadStateProvider = downloadStateProvider,
                                     downloadProgressProvider = downloadProgressProvider,
+                                    downloadPaused = downloadPaused,
                                     onDownloadClick = onDownloadClick,
                                 )
                             }
@@ -205,6 +208,7 @@ fun AnimeEpisodeListItem(
                             downloadIndicatorEnabled = downloadIndicatorEnabled,
                             downloadStateProvider = downloadStateProvider,
                             downloadProgressProvider = downloadProgressProvider,
+                            downloadPaused = downloadPaused,
                             onDownloadClick = onDownloadClick,
                         )
                     }
@@ -227,6 +231,7 @@ private fun RowScope.SimpleEpisodeListItemImpl(
     downloadIndicatorEnabled: Boolean,
     downloadStateProvider: () -> AnimeDownload.State,
     downloadProgressProvider: () -> Int,
+    downloadPaused: Boolean,
     onDownloadClick: ((EpisodeDownloadAction) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -257,6 +262,7 @@ private fun RowScope.SimpleEpisodeListItemImpl(
         downloadIndicatorEnabled = downloadIndicatorEnabled,
         downloadStateProvider = downloadStateProvider,
         downloadProgressProvider = downloadProgressProvider,
+        downloadPaused = downloadPaused,
         onDownloadClick = onDownloadClick,
     )
 }
@@ -468,6 +474,7 @@ private fun BookmarkDownloadIcons(
     downloadIndicatorEnabled: Boolean,
     downloadStateProvider: () -> AnimeDownload.State,
     downloadProgressProvider: () -> Int,
+    downloadPaused: Boolean,
     onDownloadClick: ((EpisodeDownloadAction) -> Unit)?,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -488,6 +495,7 @@ private fun BookmarkDownloadIcons(
                 .padding(start = 4.dp),
             downloadStateProvider = downloadStateProvider,
             downloadProgressProvider = downloadProgressProvider,
+            downloadPaused = downloadPaused,
             onClick = { onDownloadClick?.invoke(it) },
         )
     }

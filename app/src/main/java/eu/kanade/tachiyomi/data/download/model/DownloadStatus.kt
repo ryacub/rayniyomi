@@ -19,6 +19,9 @@ enum class DownloadDisplayStatus {
     FAILED,
 }
 
+internal val DownloadDisplayStatus.isPaused: Boolean
+    get() = this == DownloadDisplayStatus.PAUSED_BY_USER || this == DownloadDisplayStatus.PAUSED_LOW_STORAGE
+
 enum class DownloadRecovery {
     RESUME,
     REPAIR,

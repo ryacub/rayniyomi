@@ -99,6 +99,7 @@ class AnimeVideoDownloader(
                     )
                 }
                 if (attempt < 3) {
+                    download.updateTitleProgress(-1)
                     download.retryAttempt = attempt.toInt() + 1
                     download.displayStatus = DownloadDisplayStatus.RETRYING
                     delay(retryBackoffMillis shl attempt.toInt())
@@ -168,7 +169,9 @@ class AnimeVideoDownloader(
             outputFile = videoFile,
             onRecovery = { download.recovery.value = it },
         ) { progress ->
-            download.progress = progress.progressPercent.coerceIn(0, 100)
+            val percent = progress.progressPercent.coerceIn(-1, 100)
+            download.progress = percent.coerceAtLeast(0)
+            download.updateTitleProgress(percent)
             download.lastProgressAt = System.currentTimeMillis()
             download.displayStatus = DownloadDisplayStatus.DOWNLOADING
             download.retryAttempt = 0
@@ -216,6 +219,7 @@ class AnimeVideoDownloader(
         videoFile: UniFile,
         filename: String,
     ) {
+        download.updateTitleProgress(-1)
         val video = download.video!!
         val ffmpegFilename = { videoFile.uri.toFFmpegString(context) }
         val headers = video.headers ?: download.source.headers
@@ -242,12 +246,14 @@ class AnimeVideoDownloader(
             val outTime = (s.time / 1000.0).toLong()
             if (duration != 0L && outTime > 0) {
                 download.progress = (100 * outTime / duration).toInt()
+                download.updateTitleProgress(download.progress.coerceIn(0, 100))
                 download.lastProgressAt = System.currentTimeMillis()
                 download.displayStatus = DownloadDisplayStatus.DOWNLOADING
             }
         }
 
         duration = getDuration(ffprobeCommand(video.videoUrl, headerOptions))?.toLong() ?: 0L
+        download.updateTitleProgress(if (duration > 0) 0 else -1)
 
         suspendCancellableCoroutine { continuation ->
             val session = FFmpegKit.executeWithArgumentsAsync(

@@ -1,17 +1,13 @@
 package eu.kanade.presentation.entries.manga.components
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,17 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
-import eu.kanade.presentation.components.ArrowModifier
+import eu.kanade.presentation.components.ActiveDownloadMark
 import eu.kanade.presentation.components.DropdownMenu
-import eu.kanade.presentation.components.IndicatorModifier
 import eu.kanade.presentation.components.IndicatorSize
-import eu.kanade.presentation.components.IndicatorStrokeWidth
 import eu.kanade.presentation.components.commonClickable
+import eu.kanade.presentation.components.downloadCompletionScale
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import tachiyomi.i18n.MR
@@ -53,8 +46,11 @@ fun ChapterDownloadIndicator(
     downloadProgressProvider: () -> Int,
     onClick: (ChapterDownloadAction) -> Unit,
     modifier: Modifier = Modifier,
+    downloadPaused: Boolean = false,
 ) {
-    when (val downloadState = downloadStateProvider()) {
+    val downloadState = downloadStateProvider()
+    val completionScale = downloadCompletionScale(downloadState == MangaDownload.State.DOWNLOADED)
+    when (downloadState) {
         MangaDownload.State.NOT_DOWNLOADED -> NotDownloadedIndicator(
             enabled = enabled,
             modifier = modifier,
@@ -63,12 +59,14 @@ fun ChapterDownloadIndicator(
         MangaDownload.State.QUEUE, MangaDownload.State.DOWNLOADING -> DownloadingIndicator(
             enabled = enabled,
             modifier = modifier,
-            downloadState = downloadState,
+            queued = downloadState == MangaDownload.State.QUEUE,
+            paused = downloadPaused,
             downloadProgressProvider = downloadProgressProvider,
             onClick = onClick,
         )
         MangaDownload.State.DOWNLOADED -> DownloadedIndicator(
             enabled = enabled,
+            completionScale = { completionScale.value },
             modifier = modifier,
             onClick = onClick,
         )
@@ -110,7 +108,8 @@ private fun NotDownloadedIndicator(
 @Composable
 private fun DownloadingIndicator(
     enabled: Boolean,
-    downloadState: MangaDownload.State,
+    queued: Boolean,
+    paused: Boolean,
     downloadProgressProvider: () -> Int,
     onClick: (ChapterDownloadAction) -> Unit,
     modifier: Modifier = Modifier,
@@ -127,41 +126,7 @@ private fun DownloadingIndicator(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        val arrowColor: Color
-        val strokeColor = MaterialTheme.colorScheme.onSurfaceVariant
-        val downloadProgress = downloadProgressProvider()
-        val indeterminate = downloadState == MangaDownload.State.QUEUE ||
-            (downloadState == MangaDownload.State.DOWNLOADING && downloadProgress == 0)
-        if (indeterminate) {
-            arrowColor = strokeColor
-            CircularProgressIndicator(
-                modifier = IndicatorModifier,
-                color = strokeColor,
-                strokeWidth = IndicatorStrokeWidth,
-                trackColor = Color.Transparent,
-                strokeCap = StrokeCap.Butt,
-            )
-        } else {
-            val animatedProgress by animateFloatAsState(
-                targetValue = downloadProgress / 100f,
-                animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
-                label = "progress",
-            )
-            arrowColor = if (animatedProgress < 0.5f) {
-                strokeColor
-            } else {
-                MaterialTheme.colorScheme.background
-            }
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = IndicatorModifier,
-                color = strokeColor,
-                strokeWidth = IndicatorSize / 2,
-                trackColor = Color.Transparent,
-                strokeCap = StrokeCap.Butt,
-                gapSize = 0.dp,
-            )
-        }
+        ActiveDownloadMark(queued, paused, downloadProgressProvider())
         DropdownMenu(expanded = isMenuExpanded, onDismissRequest = { isMenuExpanded = false }) {
             DropdownMenuItem(
                 text = { Text(text = stringResource(MR.strings.action_start_downloading_now)) },
@@ -178,18 +143,13 @@ private fun DownloadingIndicator(
                 },
             )
         }
-        Icon(
-            imageVector = Icons.Outlined.ArrowDownward,
-            contentDescription = null,
-            modifier = ArrowModifier,
-            tint = arrowColor,
-        )
     }
 }
 
 @Composable
 private fun DownloadedIndicator(
     enabled: Boolean,
+    completionScale: () -> Float,
     modifier: Modifier = Modifier,
     onClick: (ChapterDownloadAction) -> Unit,
 ) {
@@ -207,8 +167,12 @@ private fun DownloadedIndicator(
     ) {
         Icon(
             imageVector = Icons.Filled.CheckCircle,
-            contentDescription = null,
-            modifier = Modifier.size(IndicatorSize),
+            contentDescription = stringResource(MR.strings.label_downloaded),
+            modifier = Modifier.size(IndicatorSize).graphicsLayer {
+                val scale = completionScale()
+                scaleX = scale
+                scaleY = scale
+            },
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         DropdownMenu(expanded = isMenuExpanded, onDismissRequest = { isMenuExpanded = false }) {

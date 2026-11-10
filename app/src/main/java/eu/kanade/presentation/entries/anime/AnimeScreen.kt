@@ -1097,6 +1097,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                     downloadIndicatorEnabled = !isAnyEpisodeSelected && !anime.isLocal(),
                     downloadStateProvider = { episodeItem.downloadState },
                     downloadProgressProvider = { progress },
+                    downloadPaused = episodeItem.downloadPaused,
                     episodeSwipeStartAction = episodeSwipeStartAction,
                     episodeSwipeEndAction = episodeSwipeEndAction,
                     onLongClick = {

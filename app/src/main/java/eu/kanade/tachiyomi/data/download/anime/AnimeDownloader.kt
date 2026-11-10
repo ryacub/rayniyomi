@@ -552,6 +552,11 @@ class AnimeDownloader(
             }
             when (val result = videoFetchResult) {
                 VideoFetchResult.Success -> Unit
+                VideoFetchResult.HandedOff -> {
+                    download.status = AnimeDownload.State.NOT_DOWNLOADED
+                    removeFromQueue(download)
+                    return
+                }
                 is VideoFetchResult.PausedLowStorage -> {
                     failureReporter.report(download, result.failure)
                     return
@@ -563,7 +568,7 @@ class AnimeDownloader(
                 }
             }
 
-            if (!isDownloadSuccessful(download, tmpDir)) {
+            if (!isDownloadSuccessful(tmpDir)) {
                 download.status = AnimeDownload.State.ERROR
                 download.displayStatus = DownloadDisplayStatus.FAILED
                 failureReporter.report(
@@ -637,6 +642,7 @@ class AnimeDownloader(
             if (videoFile == null) {
                 notifier.onProgressChange(download)
 
+                download.updateTitleProgress(-1)
                 download.status = AnimeDownload.State.DOWNLOADING
                 download.progress = 0
                 download.displayStatus = DownloadDisplayStatus.CONNECTING
@@ -657,11 +663,13 @@ class AnimeDownloader(
                     val betterFileName = DiskUtil.buildValidFilename(
                         "${download.anime.title} - ${download.episode.name}",
                     )
-                    downloadVideoExternal(download.video!!, download.source, tmpDir, betterFileName)
+                    downloadVideoExternal(video, download.source, tmpDir, betterFileName)
+                    return VideoFetchResult.HandedOff
                 }
             }
 
             download.progress = 100
+            download.updateTitleProgress(100)
             video.status = Video.State.READY
             return VideoFetchResult.Success
         } catch (e: Exception) {
@@ -694,133 +702,95 @@ class AnimeDownloader(
         failureReporter.report(download, DownloadFailurePolicy.lowStorageFailure(message))
     }
 
-    /**
-     * Returns the observable which downloads the video with an external downloader.
-     *
-     * @param video the video to download.
-     * @param source the source of the video.
-     * @param tmpDir the temporary directory of the download.
-     * @param filename the filename of the video.
-     */
     private suspend fun downloadVideoExternal(
         video: Video,
         source: AnimeHttpSource,
         tmpDir: UniFile,
         filename: String,
-    ): UniFile {
-        try {
-            val file = tmpDir.createFile("${filename}_tmp.mkv")!!
-            val tmpDirPath = tmpDir.filePath
-            tmpDirPath?.let { path ->
-                withUIContext {
-                    context.copyToClipboard("Episode download location", path.substringBeforeLast("_tmp"))
-                }
+    ) {
+        val tmpDirPath = tmpDir.filePath
+        tmpDirPath?.let { path ->
+            withUIContext {
+                context.copyToClipboard("Episode download location", path.substringBeforeLast("_tmp"))
             }
-
-            // TODO: support other file formats!!
-            // start download with intent
-            val pm = context.packageManager
-            val pkgName = preferences.externalDownloaderSelection().get()
-            val intent: Intent
-            if (pkgName.isNotEmpty()) {
-                intent = pm.getLaunchIntentForPackage(pkgName) ?: throw Exception(
-                    "Launch intent not found",
-                )
-                when {
-                    // 1DM
-                    pkgName.startsWith("idm.internet.download.manager") -> {
-                        val headers = (video.headers ?: source.headers).toMap()
-                        val bundle = Bundle()
-                        for ((key, value) in headers) {
-                            bundle.putString(key, value)
-                        }
-
-                        intent.apply {
-                            component = ComponentName(
-                                pkgName,
-                                "idm.internet.download.manager.Downloader",
-                            )
-                            action = Intent.ACTION_VIEW
-                            data = video.videoUrl.toUri()
-
-                            putExtra("extra_filename", "$filename.mkv")
-                            putExtra("extra_headers", bundle)
-                        }
-                    }
-                    // ADM
-                    pkgName.startsWith("com.dv.adm") -> {
-                        val headers = (video.headers ?: source.headers).toList()
-                        val bundle = Bundle()
-                        headers.forEach { a ->
-                            bundle.putString(
-                                a.first,
-                                a.second.replace("http", "h_ttp"),
-                            )
-                        }
-
-                        intent.apply {
-                            component = ComponentName(pkgName, "$pkgName.AEditor")
-                            action = Intent.ACTION_VIEW
-                            putExtra(
-                                "com.dv.get.ACTION_LIST_ADD",
-                                "${video.videoUrl.toUri()}<info>$filename.mkv",
-                            )
-                            putExtra(
-                                "com.dv.get.ACTION_LIST_PATH",
-                                tmpDirPath?.substringBeforeLast("_")
-                                    ?: throw IOException(
-                                        "The download location has no local file path, " +
-                                            "which the selected external downloader requires",
-                                    ),
-                            )
-                            putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
-                        }
-                        file.delete()
-                        tmpDir.delete()
-                        queueState.value.find { anime -> anime.video == video }?.let { download ->
-                            download.status = AnimeDownload.State.DOWNLOADED
-                            download.displayStatus = DownloadDisplayStatus.COMPLETED
-                            // Delete successful downloads from queue
-                            if (download.status == AnimeDownload.State.DOWNLOADED) {
-                                // Remove downloaded episode from queue
-                                removeFromQueue(download)
-                            }
-                            if (areAllAnimeDownloadsFinished()) {
-                                stop()
-                            }
-                        }
-                    }
-                }
-            } else {
-                intent = Intent(Intent.ACTION_VIEW).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    setDataAndType(video.videoUrl.toUri(), "video/*")
-                    putExtra("extra_filename", filename)
-                }
-            }
-            context.startActivity(intent)
-            return file
-        } catch (e: Exception) {
-            tmpDir.findFile("${filename}_tmp.mkv")?.delete()
-            throw e
         }
+
+        // TODO: support other file formats!!
+        // start download with intent
+        val pm = context.packageManager
+        val pkgName = preferences.externalDownloaderSelection().get()
+        val intent: Intent
+        if (pkgName.isNotEmpty()) {
+            intent = pm.getLaunchIntentForPackage(pkgName) ?: throw Exception(
+                "Launch intent not found",
+            )
+            when {
+                // 1DM
+                pkgName.startsWith("idm.internet.download.manager") -> {
+                    val headers = (video.headers ?: source.headers).toMap()
+                    val bundle = Bundle()
+                    for ((key, value) in headers) {
+                        bundle.putString(key, value)
+                    }
+
+                    intent.apply {
+                        component = ComponentName(
+                            pkgName,
+                            "idm.internet.download.manager.Downloader",
+                        )
+                        action = Intent.ACTION_VIEW
+                        data = video.videoUrl.toUri()
+
+                        putExtra("extra_filename", "$filename.mkv")
+                        putExtra("extra_headers", bundle)
+                    }
+                }
+                // ADM
+                pkgName.startsWith("com.dv.adm") -> {
+                    val headers = (video.headers ?: source.headers).toList()
+                    val bundle = Bundle()
+                    headers.forEach { a ->
+                        bundle.putString(
+                            a.first,
+                            a.second.replace("http", "h_ttp"),
+                        )
+                    }
+
+                    intent.apply {
+                        component = ComponentName(pkgName, "$pkgName.AEditor")
+                        action = Intent.ACTION_VIEW
+                        putExtra(
+                            "com.dv.get.ACTION_LIST_ADD",
+                            "${video.videoUrl.toUri()}<info>$filename.mkv",
+                        )
+                        putExtra(
+                            "com.dv.get.ACTION_LIST_PATH",
+                            tmpDirPath?.substringBeforeLast("_")
+                                ?: throw IOException(
+                                    "The download location has no local file path, " +
+                                        "which the selected external downloader requires",
+                                ),
+                        )
+                        putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
+                    }
+                }
+            }
+        } else {
+            intent = Intent(Intent.ACTION_VIEW).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                setDataAndType(video.videoUrl.toUri(), "video/*")
+                putExtra("extra_filename", filename)
+            }
+        }
+        context.startActivity(intent)
     }
 
-    /**
-     * Checks if the download was successful.
-     *
-     * @param download the download to check.
-     * @param tmpDir the directory where the download is currently stored.
-     */
-    private fun isDownloadSuccessful(
-        download: AnimeDownload,
-        tmpDir: UniFile,
-    ): Boolean {
+    private fun isDownloadSuccessful(tmpDir: UniFile): Boolean {
         val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { file ->
-            file.name.orEmpty().endsWith(".tmp", ignoreCase = true)
+            val name = file.name.orEmpty()
+            name.endsWith(".tmp", ignoreCase = true) || name.endsWith("_tmp.mkv", ignoreCase = true)
         }.singleOrNull() ?: return false
-        val internalDownload = preferences.useExternalDownloader().get() == download.changeDownloader
-        return !internalDownload || downloadedVideo.length() > 0
+        return downloadedVideo.length() > 0
     }
 
     /**
@@ -917,6 +887,7 @@ private const val MIN_DISK_SPACE = 200L * 1024 * 1024
 
 private sealed interface VideoFetchResult {
     data object Success : VideoFetchResult
+    data object HandedOff : VideoFetchResult
     data class PausedLowStorage(val failure: DownloadFailure) : VideoFetchResult
     data class Failed(val failure: DownloadFailure) : VideoFetchResult
 }

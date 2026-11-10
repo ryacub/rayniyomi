@@ -39,6 +39,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadCache
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.download.model.isPaused
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.isEntryListOutdated
@@ -622,8 +623,11 @@ class AnimeScreenModel(
                 updateItem = {
                     it.copy(
                         downloadState = download.status,
-                        downloadProgress = download.progress,
-                        downloadProgressSource = EntryDownloadProgress(download.progressFlow) { download.progress },
+                        downloadPaused = download.displayStatus.isPaused,
+                        downloadProgress = download.titleProgressFlow.value,
+                        downloadProgressSource = EntryDownloadProgress(download.titleProgressFlow) {
+                            download.titleProgressFlow.value
+                        },
                     )
                 },
             )
@@ -660,9 +664,10 @@ class AnimeScreenModel(
             EpisodeList.Item(
                 episode = episode,
                 downloadState = downloadState,
-                downloadProgress = activeDownload?.progress ?: 0,
+                downloadProgress = activeDownload?.titleProgressFlow?.value ?: -1,
+                downloadPaused = activeDownload?.displayStatus?.isPaused == true,
                 downloadProgressSource = activeDownload?.let {
-                    EntryDownloadProgress(it.progressFlow) { it.progress }
+                    EntryDownloadProgress(it.titleProgressFlow) { it.titleProgressFlow.value }
                 },
                 selected = episode.id in selectedEpisodeIds,
             )
@@ -1671,6 +1676,7 @@ sealed class EpisodeList {
         val downloadProgress: Int,
         override val selected: Boolean = false,
         val downloadProgressSource: EntryDownloadProgress? = null,
+        val downloadPaused: Boolean = false,
     ) : EpisodeList(), SelectableEntryItem {
         override val id: Long
             get() = episode.id

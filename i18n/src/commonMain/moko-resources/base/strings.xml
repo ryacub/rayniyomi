@@ -1164,6 +1164,8 @@
     <string name="download_status_retrying_attempt">Retrying (attempt %1$d)</string>
     <string name="download_status_low_storage">Not enough storage</string>
     <string name="download_status_verifying">Verifying download</string>
+    <string name="download_indicator_queued">Queued</string>
+    <string name="download_indicator_percent">%1$d%%</string>
     <string name="download_status_completed">Download complete</string>
     <string name="download_status_summary">%1$d downloading, %2$d waiting for slot, %3$d stalled</string>
     <string name="download_notifier_split_page_not_found">Page %d not found while splitting</string>

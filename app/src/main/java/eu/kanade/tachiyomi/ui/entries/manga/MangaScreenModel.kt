@@ -38,6 +38,7 @@ import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.isPaused
 import eu.kanade.tachiyomi.data.library.AutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.isEntryListOutdated
@@ -648,6 +649,7 @@ class MangaScreenModel(
                 updateItem = {
                     it.copy(
                         downloadState = download.status,
+                        downloadPaused = download.displayStatus.isPaused,
                         downloadProgress = download.progress,
                         downloadProgressSource = EntryDownloadProgress(download.progressFlow) { download.progress },
                     )
@@ -1251,6 +1253,7 @@ sealed class ChapterList {
         override val selected: Boolean = false,
         val translationState: TranslationState = TranslationState.Idle,
         val downloadProgressSource: EntryDownloadProgress? = null,
+        val downloadPaused: Boolean = false,
     ) : ChapterList(), SelectableEntryItem {
         override val id: Long
             get() = chapter.id
