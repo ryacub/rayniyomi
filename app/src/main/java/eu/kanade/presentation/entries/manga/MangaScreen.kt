@@ -42,7 +42,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -53,19 +52,21 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.relativeDateTimeText
 import eu.kanade.presentation.entries.DownloadAction
 import eu.kanade.presentation.entries.EntryScreenItem
+import eu.kanade.presentation.entries.components.CoverHandoffState
 import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
-import eu.kanade.presentation.entries.components.LocalCoverBounds
+import eu.kanade.presentation.entries.components.LocalCoverHandoff
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
 import eu.kanade.presentation.entries.components.ResumeFabText
-import eu.kanade.presentation.entries.components.coverHandoffFor
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescription
@@ -154,10 +155,11 @@ fun MangaScreen(
     onInvertSelection: () -> Unit,
 ) {
     val context = LocalContext.current
-    val coverBounds = remember { mutableStateOf<Rect?>(null) }
+    val coverHandoffState = remember { CoverHandoffState() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { coverHandoffState.reveal() }
     val view = LocalView.current
     val coverHandoff: () -> CoverHandoff? = {
-        coverHandoffFor(coverBounds.value, view.width, view.height, state.manga.thumbnailUrl)
+        coverHandoffState.take(view.width, view.height, state.manga.thumbnailUrl)
     }
     val onCopyTagToClipboard: (tag: String) -> Unit = {
         if (it.isNotEmpty()) {
@@ -175,7 +177,7 @@ fun MangaScreen(
         "manga;${state.manga.id};${state.manga.thumbnailUrl};${state.manga.coverLastModified}"
     }
 
-    CompositionLocalProvider(LocalCoverBounds provides coverBounds) {
+    CompositionLocalProvider(LocalCoverHandoff provides coverHandoffState) {
         EntryDynamicCoverTheme(
             enabled = dynamicCoverThemeEnabled,
             coverData = state.manga,

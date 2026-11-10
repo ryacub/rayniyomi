@@ -14,15 +14,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import eu.kanade.tachiyomi.ui.reader.CoverHandoff
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -47,11 +53,15 @@ internal fun coverMotionPhases(progress: Float, moveShare: Float): CoverMotionPh
     return CoverMotionPhases(move, expand)
 }
 
+/** The handoff holds window coordinates. The overlay starts below the status bar when the reader is not fullscreen. */
+internal fun CoverHandoff.relativeTo(origin: Offset): CoverHandoff =
+    copy(left = left - origin.x, top = top - origin.y)
+
 /**
  * Moves the cover frame from its position on the title screen to the centre of the screen,
  * then expands it to fill the reader. The image keeps its aspect ratio while the frame moves
  * and grows. The cover fades out after the expansion ends and [finished] becomes true, which
- * reveals the first page.
+ * reveals the first page. Touches stop here until then, so they do not reach the hidden reader.
  */
 @Composable
 fun ReaderCoverOverlay(
@@ -59,10 +69,16 @@ fun ReaderCoverOverlay(
     finished: Boolean,
     onFinished: () -> Unit,
 ) {
+    val context = LocalContext.current
     val progress = remember { Animatable(0f) }
     val fade = remember { Animatable(1f) }
     var screen by remember { mutableStateOf(IntSize.Zero) }
+    var origin by remember { mutableStateOf(Offset.Zero) }
     var expanded by remember { mutableStateOf(false) }
+    // The frame grows to the full screen, so load the image at its own size, not the first frame's.
+    val image = remember(handoff.url) {
+        ImageRequest.Builder(context).data(handoff.url).size(Size.ORIGINAL).build()
+    }
     LaunchedEffect(Unit) {
         progress.animateTo(1f, tween(durationMillis = 640, easing = FastOutSlowInEasing))
         expanded = true
@@ -76,18 +92,27 @@ fun ReaderCoverOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { screen = it }
+            .onGloballyPositioned {
+                screen = it.size
+                origin = it.positionInWindow()
+            }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                }
+            }
             .graphicsLayer { alpha = fade.value }
             .drawBehind {
                 // Hide the reader beneath, so no blank page shows around the moving cover.
-                val phases = coverMotionPhases(progress.value, coverMoveShare(handoff, screen))
+                val phases = coverMotionPhases(progress.value, coverMoveShare(handoff.relativeTo(origin), screen))
                 drawRect(Color.Black, alpha = phases.move)
             },
     ) {
         if (screen != IntSize.Zero) {
-            val moveShare = remember(screen) { coverMoveShare(handoff, screen) }
+            val start = remember(origin) { handoff.relativeTo(origin) }
+            val moveShare = remember(start, screen) { coverMoveShare(start, screen) }
             AsyncImage(
-                model = handoff.url,
+                model = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -95,12 +120,12 @@ fun ReaderCoverOverlay(
                     .layout { measurable, _ ->
                         // Read the progress here, in layout, so each frame skips recomposition.
                         val (m, e) = coverMotionPhases(progress.value, moveShare)
-                        val centreX = (screen.width - handoff.width) / 2f
-                        val centreY = (screen.height - handoff.height) / 2f
-                        val midX = lerp(handoff.left, centreX, m)
-                        val midY = lerp(handoff.top, centreY, m)
-                        val width = lerp(handoff.width, screen.width.toFloat(), e).roundToInt()
-                        val height = lerp(handoff.height, screen.height.toFloat(), e).roundToInt()
+                        val centreX = (screen.width - start.width) / 2f
+                        val centreY = (screen.height - start.height) / 2f
+                        val midX = lerp(start.left, centreX, m)
+                        val midY = lerp(start.top, centreY, m)
+                        val width = lerp(start.width, screen.width.toFloat(), e).roundToInt()
+                        val height = lerp(start.height, screen.height.toFloat(), e).roundToInt()
                         val x = lerp(midX, 0f, e).roundToInt()
                         val y = lerp(midY, 0f, e).roundToInt()
                         val placeable = measurable.measure(Constraints.fixed(width, height))
