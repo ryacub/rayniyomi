@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -76,6 +78,7 @@ fun EntryCompactGridItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     isSelected: Boolean = false,
+    inSelectionMode: Boolean = false,
     title: String? = null,
     onClickContinueViewing: (() -> Unit)? = null,
     coverAlpha: Float = 1f,
@@ -84,6 +87,7 @@ fun EntryCompactGridItem(
 ) {
     GridItemSelectable(
         isSelected = isSelected,
+        inSelectionMode = inSelectionMode,
         onClick = onClick,
         onLongClick = onLongClick,
     ) {
@@ -179,6 +183,7 @@ private fun BoxScope.CoverTextOverlay(
 @Composable
 fun EntryComfortableGridItem(
     isSelected: Boolean = false,
+    inSelectionMode: Boolean = false,
     title: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -191,6 +196,7 @@ fun EntryComfortableGridItem(
 ) {
     GridItemSelectable(
         isSelected = isSelected,
+        inSelectionMode = inSelectionMode,
         onClick = onClick,
         onLongClick = onLongClick,
     ) {
@@ -295,6 +301,7 @@ private fun GridItemTitle(
 @Composable
 private fun GridItemSelectable(
     isSelected: Boolean,
+    inSelectionMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -307,6 +314,7 @@ private fun GridItemSelectable(
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
+            .selectionState(inSelectionMode = inSelectionMode, isSelected = isSelected)
             .selectedOutline(isSelected = isSelected, color = MaterialTheme.colorScheme.secondary)
             .padding(4.dp),
     ) {
@@ -329,12 +337,16 @@ private fun Modifier.selectedOutline(
     color: Color,
 ) = drawBehind { if (isSelected) drawRect(color = color) }
 
+private fun Modifier.selectionState(inSelectionMode: Boolean, isSelected: Boolean) =
+    if (inSelectionMode) semantics { selected = isSelected } else this
+
 /**
  * Layout of list item.
  */
 @Composable
 fun EntryListItem(
     isSelected: Boolean = false,
+    inSelectionMode: Boolean = false,
     title: String,
     coverData: EntryCoverModel,
     coverAlpha: Float = 1f,
@@ -363,6 +375,7 @@ fun EntryListItem(
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
+            .selectionState(inSelectionMode = inSelectionMode, isSelected = isSelected)
             .padding(horizontal = 16.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

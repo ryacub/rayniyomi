@@ -45,6 +45,7 @@ internal fun AnimeLibraryComfortableGrid(
             val anime = libraryItem.libraryAnime.anime
             EntryComfortableGridItem(
                 isSelected = libraryItem.libraryAnime.id in selectedIds,
+                inSelectionMode = selectedIds.isNotEmpty(),
                 title = anime.title,
                 coverData = AnimeCover(
                     animeId = anime.id,
