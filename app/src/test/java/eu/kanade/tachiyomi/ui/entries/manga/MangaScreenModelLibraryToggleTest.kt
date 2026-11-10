@@ -18,6 +18,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -65,6 +66,40 @@ class MangaScreenModelLibraryToggleTest {
     @AfterEach
     fun tearDown() {
         vt.tearDownMain()
+    }
+
+    @Test
+    fun `a second tap while the first write runs does not write again`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { updateManga.awaitUpdateFavorite(any(), any()) } coAnswers {
+            gate.await()
+            true
+        }
+        val model = createModel(manga(favorite = false))
+        advanceUntilIdle()
+
+        model.toggleFavorite()
+        advanceUntilIdle()
+        model.toggleFavorite()
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, true) }
+    }
+
+    @Test
+    fun `a tap after the first write finishes writes again`() = runTest(vt.scheduler) {
+        coEvery { updateManga.awaitUpdateFavorite(any(), any()) } returns true
+        val model = createModel(manga(favorite = false))
+        advanceUntilIdle()
+
+        model.toggleFavorite()
+        advanceUntilIdle()
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { updateManga.awaitUpdateFavorite(1L, true) }
     }
 
     @Test
@@ -171,7 +206,7 @@ class MangaScreenModelLibraryToggleTest {
             getMangaAndChapters = getMangaAndChapters,
             getTracks = mockk<GetMangaTracks> { every { subscribe(any<Long>()) } returns emptyFlow() },
             updateMangaFromRemote = mockk(relaxed = true),
-            entryRefresher = mockk(relaxed = true),
+            entryRefresher = mockk<MangaEntryRefresher>(relaxed = true) { every { running(any()) } returns null },
             translationManager = mockk<TranslationManager> {
                 every { translationStates } returns MutableStateFlow(emptyMap())
             },
