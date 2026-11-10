@@ -550,7 +550,7 @@ class AnimeDownloaderTest {
         val download = testDownload(video)
 
         val mkvFile = mockk<UniFile>(relaxed = true)
-        every { mkvFile.name } returns "Ch1.mkv"
+        every { mkvFile.name } returns "Series - Ch1_tmp.mkv"
         val tmpDir = mockk<UniFile>(relaxed = true)
         every { tmpDir.filePath } returns null
         every { tmpDir.createFile(any()) } returns mkvFile
@@ -582,7 +582,8 @@ class AnimeDownloaderTest {
         downloader.launchDownloadJobForTest(this, download).join()
 
         verify(exactly = 1) { testContext.startActivity(any()) }
-        assertEquals(AnimeDownload.State.DOWNLOADED, download.status)
+        assertEquals(AnimeDownload.State.NOT_DOWNLOADED, download.status)
+        verify(exactly = 0) { tmpDir.renameTo(any()) }
     }
 
     @Test
