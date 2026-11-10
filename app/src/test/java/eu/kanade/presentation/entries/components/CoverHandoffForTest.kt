@@ -3,7 +3,9 @@ package eu.kanade.presentation.entries.components
 import androidx.compose.ui.geometry.Rect
 import eu.kanade.tachiyomi.ui.reader.CoverHandoff
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class CoverHandoffForTest {
@@ -33,5 +35,33 @@ class CoverHandoffForTest {
             CoverHandoff(40f, 120f, 200f, 300f, "https://example.test/cover.jpg"),
             coverHandoffFor(onScreen, 1080, 2400, "https://example.test/cover.jpg"),
         )
+    }
+
+    @Test
+    fun `taking a handoff hides the detail cover`() {
+        val state = CoverHandoffState().apply { bounds = onScreen }
+
+        val handoff = state.take(1080, 2400, "https://example.test/cover.jpg")
+
+        assertEquals(CoverHandoff(40f, 120f, 200f, 300f, "https://example.test/cover.jpg"), handoff)
+        assertTrue(state.hidden)
+    }
+
+    @Test
+    fun `no handoff keeps the detail cover visible`() {
+        val state = CoverHandoffState()
+
+        assertNull(state.take(1080, 2400, "https://example.test/cover.jpg"))
+        assertFalse(state.hidden)
+    }
+
+    @Test
+    fun `revealing shows the detail cover again`() {
+        val state = CoverHandoffState().apply { bounds = onScreen }
+        state.take(1080, 2400, "https://example.test/cover.jpg")
+
+        state.reveal()
+
+        assertFalse(state.hidden)
     }
 }

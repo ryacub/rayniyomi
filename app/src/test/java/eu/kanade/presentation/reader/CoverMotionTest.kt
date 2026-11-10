@@ -1,5 +1,6 @@
 package eu.kanade.presentation.reader
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
 import eu.kanade.tachiyomi.ui.reader.CoverHandoff
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -41,5 +42,12 @@ class CoverMotionTest {
 
         assertEquals(1f, phases.move)
         assertEquals(0.5f, phases.expand, 0.001f)
+    }
+
+    @Test
+    fun `the cover is placed relative to an overlay that starts below the status bar`() {
+        val inOverlay = phoneCover.relativeTo(Offset(0f, 63f))
+
+        assertEquals(CoverHandoff(16f, 41f, 100f, 150f, "https://example.test/cover.jpg"), inOverlay)
     }
 }
