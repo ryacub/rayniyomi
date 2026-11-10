@@ -44,6 +44,8 @@ import eu.kanade.presentation.library.components.LibraryToolbarProgress
 import eu.kanade.presentation.library.components.LibraryUpdateSummarySheet
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.more.settings.screen.SettingsLibraryScreen
+import eu.kanade.presentation.util.LibraryCoverKey
+import eu.kanade.presentation.util.LocalLibraryCoverTransition
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.LibraryUpdateMedia
@@ -108,6 +110,7 @@ data object AnimeLibraryTab : Tab {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val coverTransition = LocalLibraryCoverTransition.current
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val haptic = LocalHapticFeedback.current
@@ -270,7 +273,14 @@ data object AnimeLibraryTab : Tab {
                         hasActiveFilters = state.hasActiveFilters,
                         showPageTabs = state.showCategoryTabs || !state.searchQuery.isNullOrEmpty(),
                         onChangeCurrentPage = { screenModel.activeCategoryIndex = it },
-                        onAnimeClicked = { navigator.push(AnimeScreen(it)) },
+                        onAnimeClicked = {
+                            val detail = AnimeScreen(it)
+                            if (coverTransition == null) {
+                                navigator.push(detail)
+                            } else {
+                                coverTransition.open(navigator, detail, LibraryCoverKey(false, it))
+                            }
+                        },
                         onContinueWatchingClicked = { it: LibraryAnime ->
                             scope.launchIO {
                                 val episode = screenModel.getNextUnseenEpisode(it.anime)

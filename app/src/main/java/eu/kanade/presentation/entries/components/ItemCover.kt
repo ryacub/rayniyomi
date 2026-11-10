@@ -9,6 +9,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import coil3.compose.AsyncImage
@@ -28,9 +29,11 @@ enum class ItemCover(val ratio: Float) {
         contentDescription: String = "",
         shape: Shape = MaterialTheme.shapes.extraSmall,
         onClick: (() -> Unit)? = null,
+        onPainterReady: ((Painter) -> Unit)? = null,
     ) {
         AsyncImage(
             model = data,
+            onSuccess = onPainterReady?.let { callback -> { state -> callback(state.painter) } },
             placeholder = ColorPainter(CoverPlaceholderColor),
             error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             contentDescription = contentDescription,

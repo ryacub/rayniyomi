@@ -69,7 +69,7 @@ import eu.kanade.presentation.more.settings.screen.browse.AnimeExtensionReposScr
 import eu.kanade.presentation.more.settings.screen.browse.MangaExtensionReposScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
 import eu.kanade.presentation.util.AssistContentScreen
-import eu.kanade.presentation.util.DefaultNavigatorScreenTransition
+import eu.kanade.presentation.util.LibraryCoverTransitionHost
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -258,7 +258,7 @@ class MainActivity : BaseActivity() {
                     // Consume insets already used by app state banners
                     Box {
                         // Shows current screen
-                        DefaultNavigatorScreenTransition(
+                        LibraryCoverTransitionHost(
                             navigator = navigator,
                             modifier = Modifier
                                 .padding(contentPadding)

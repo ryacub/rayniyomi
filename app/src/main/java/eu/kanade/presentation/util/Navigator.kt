@@ -3,6 +3,9 @@ package eu.kanade.presentation.util
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -47,16 +50,21 @@ interface AssistContentScreen {
 fun DefaultNavigatorScreenTransition(
     navigator: Navigator,
     modifier: Modifier = Modifier,
+    useFade: (Screen, Screen) -> Boolean = { _, _ -> false },
     content: ScreenTransitionContent = { it.Content() },
 ) {
     val slideDistance = rememberSlideDistance()
     ScreenTransition(
         navigator = navigator,
         transition = {
-            materialSharedAxisX(
-                forward = navigator.lastEvent != StackEvent.Pop,
-                slideDistance = slideDistance,
-            )
+            if (useFade(initialState, targetState)) {
+                fadeIn() togetherWith fadeOut()
+            } else {
+                materialSharedAxisX(
+                    forward = navigator.lastEvent != StackEvent.Pop,
+                    slideDistance = slideDistance,
+                )
+            }
         },
         modifier = modifier,
         content = content,
