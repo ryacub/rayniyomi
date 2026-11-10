@@ -91,6 +91,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import eu.kanade.presentation.components.DropdownMenu
+import eu.kanade.presentation.util.LibraryTransitionCover
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.i18n.MR
@@ -390,9 +391,11 @@ private fun EntryAndSourceTitlesLarge(
             .padding(start = 16.dp, top = appBarPadding + 16.dp, end = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ItemCover.Book(
+        LibraryTransitionCover(
+            source = false,
             modifier = Modifier.fillMaxWidth(0.65f).reportCoverBounds(),
-            data = ImageRequest.Builder(LocalContext.current)
+            data = coverData,
+            model = ImageRequest.Builder(LocalContext.current)
                 .data(coverData)
                 .crossfade(true)
                 .build(),
@@ -433,12 +436,14 @@ private fun EntryAndSourceTitlesSmall(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ItemCover.Book(
+        LibraryTransitionCover(
+            source = false,
             modifier = Modifier
                 .sizeIn(maxWidth = 100.dp)
                 .align(Alignment.Top)
                 .reportCoverBounds(),
-            data = ImageRequest.Builder(LocalContext.current)
+            data = coverData,
+            model = ImageRequest.Builder(LocalContext.current)
                 .data(coverData)
                 .crossfade(true)
                 .build(),

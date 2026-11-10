@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.entries.components.ItemCover
+import eu.kanade.presentation.util.LibraryTransitionCover
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.BadgeGroup
 import tachiyomi.presentation.core.i18n.stringResource
@@ -88,7 +89,8 @@ fun EntryCompactGridItem(
     ) {
         EntryGridCover(
             cover = {
-                ItemCover.Book(
+                LibraryTransitionCover(
+                    source = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .alpha(if (isSelected) GRID_SELECTED_COVER_ALPHA else coverAlpha),
@@ -195,7 +197,8 @@ fun EntryComfortableGridItem(
         Column {
             EntryGridCover(
                 cover = {
-                    ItemCover.Book(
+                    LibraryTransitionCover(
+                        source = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .alpha(if (isSelected) GRID_SELECTED_COVER_ALPHA else coverAlpha),
@@ -363,7 +366,8 @@ fun EntryListItem(
             .padding(horizontal = 16.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ItemCover.Book(
+        LibraryTransitionCover(
+            source = true,
             modifier = Modifier
                 .fillMaxHeight()
                 .alpha(coverAlpha),

@@ -45,6 +45,8 @@ import eu.kanade.presentation.library.manga.MangaLibraryContent
 import eu.kanade.presentation.library.manga.MangaLibrarySettingsDialog
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.more.settings.screen.SettingsLibraryScreen
+import eu.kanade.presentation.util.LibraryCoverKey
+import eu.kanade.presentation.util.LocalLibraryCoverTransition
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.LibraryUpdateMedia
@@ -108,6 +110,7 @@ data object MangaLibraryTab : Tab {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val coverTransition = LocalLibraryCoverTransition.current
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val haptic = LocalHapticFeedback.current
@@ -279,7 +282,14 @@ data object MangaLibraryTab : Tab {
                         hasActiveFilters = state.hasActiveFilters,
                         showPageTabs = state.showCategoryTabs || !state.searchQuery.isNullOrEmpty(),
                         onChangeCurrentPage = { screenModel.activeCategoryIndex = it },
-                        onMangaClicked = { navigator.push(MangaScreen(it)) },
+                        onMangaClicked = {
+                            val detail = MangaScreen(it)
+                            if (coverTransition == null) {
+                                navigator.push(detail)
+                            } else {
+                                coverTransition.open(navigator, detail, LibraryCoverKey(true, it))
+                            }
+                        },
                         onContinueReadingClicked = { it: LibraryManga ->
                             scope.launchIO {
                                 val chapter = screenModel.getNextUnreadChapter(it.manga)
