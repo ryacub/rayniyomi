@@ -475,6 +475,41 @@ class AnimeDownloaderTest {
     }
 
     @Test
+    fun `a staged directory with a video name does not complete the download`() = runTest {
+        every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns true
+        val download = testDownload(mockk<Video>(relaxed = true))
+        val stagedDirectory = mockk<UniFile> {
+            every { name } returns "Ch1.mkv"
+            every { isFile } returns false
+            every { length() } returns 64L
+        }
+        val tmpDir = mockk<UniFile>(relaxed = true) {
+            every { listFiles() } returns arrayOf(stagedDirectory)
+            every { renameTo(any()) } returns true
+        }
+        val animeDir = mockk<UniFile>(relaxed = true) {
+            every { createDirectory(any()) } returns tmpDir
+        }
+        val provider = mockk<AnimeDownloadProvider>(relaxed = true) {
+            every { getAnimeDir(any(), any()) } returns animeDir
+        }
+        downloader = AnimeDownloader(
+            context = testContext,
+            provider = provider,
+            cache = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            stateStore = mockk(relaxed = true),
+            strategySelector = strategySelector,
+            multiThreadDownloader = mockk(relaxed = true),
+        )
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals("INCOMPLETE", download.lastErrorCode)
+        verify(exactly = 0) { tmpDir.renameTo(any()) }
+    }
+
+    @Test
     fun `a failed video fetch pauses for low storage and reports once`() = runTest {
         downloader.retryBackoffMillis = 0L
         val video = mockk<Video>(relaxed = true)
