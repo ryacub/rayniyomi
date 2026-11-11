@@ -26,6 +26,7 @@ class AddMangaTracks(
     private val trackerManager: TrackerManager,
 ) {
 
+    // TODO: update all trackers based on common data
     suspend fun bind(tracker: MangaTracker, item: MangaTrack, mangaId: Long) = withNonCancellableContext {
         withIOContext {
             val allChapters = getChaptersByMangaId.await(mangaId)
@@ -36,6 +37,7 @@ class AddMangaTracks(
 
             insertTrack.await(track)
 
+            // TODO: merge into [SyncChapterProgressWithTrack]?
             // Update chapter progress if newer chapters marked read locally
             if (hasReadChapters) {
                 val latestLocalReadChapterNumber = allChapters

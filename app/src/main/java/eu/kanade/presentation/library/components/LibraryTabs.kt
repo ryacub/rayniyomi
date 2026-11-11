@@ -31,6 +31,8 @@ internal fun LibraryTabs(
         PrimaryScrollableTabRow(
             selectedTabIndex = currentPageIndex,
             edgePadding = 0.dp,
+            // TODO: use default when width is fixed upstream
+            // https://issuetracker.google.com/issues/242879624
             divider = {},
         ) {
             categories.forEachIndexed { index, category ->

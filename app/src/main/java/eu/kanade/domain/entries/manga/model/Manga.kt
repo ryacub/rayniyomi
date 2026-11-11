@@ -11,6 +11,7 @@ import tachiyomi.core.metadata.comicinfo.ComicInfoPublishingStatus
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 
+// TODO: move these into the domain model
 val Manga.readingMode: Long
     get() = viewerFlags and ReadingMode.MASK.toLong()
 

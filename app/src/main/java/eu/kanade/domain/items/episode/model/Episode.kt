@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.database.models.anime.EpisodeImpl
 import tachiyomi.domain.items.episode.model.Episode
 import eu.kanade.tachiyomi.data.database.models.anime.Episode as DbEpisode
 
+// TODO: Remove when all deps are migrated
 fun Episode.toSEpisode(): SEpisode {
     return SEpisode.create().also {
         it.url = url

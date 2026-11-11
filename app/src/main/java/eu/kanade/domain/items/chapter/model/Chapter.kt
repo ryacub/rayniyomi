@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import eu.kanade.tachiyomi.data.database.models.manga.Chapter as DbChapter
 
+// TODO: Remove when all deps are migrated
 fun Chapter.toSChapter(): SChapter {
     return SChapter.create().also {
         it.url = url
