@@ -431,7 +431,7 @@ class MultiThreadDownloaderTest {
     @Test
     fun `a download into a folder without file write access completes and keeps no chunk files`() = runTest {
         val (folder, output) = folderWithoutFileWriteAccess()
-        val downloader = MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 })
+        val downloader = MultiThreadDownloader(OkHttpClient(), storeInNewProcess(), maxThreadsProvider = { 2 })
 
         val result = withContext(Dispatchers.IO) {
             downloader.download(
@@ -455,12 +455,12 @@ class MultiThreadDownloaderTest {
             val (folder, output) = folderWithoutFileWriteAccess()
             val videoUrl = server.url("/episode.mp4").toString()
             interruptAfterTwoMebibytes(folder, output, videoUrl)
-            val chunkStarts = appStore().loadProgress(EPISODE_ID)!!.chunks.map { it.startByte }
+            val chunkStarts = storeInNewProcess().loadProgress(EPISODE_ID)!!.chunks.map { it.startByte }
 
             val ranges = RangeDispatcher(video)
             server.dispatcher = ranges
             val result = withContext(Dispatchers.IO) {
-                MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 }).download(
+                MultiThreadDownloader(OkHttpClient(), storeInNewProcess(), maxThreadsProvider = { 2 }).download(
                     episodeId = EPISODE_ID,
                     videoUrl = videoUrl,
                     headers = null,
@@ -480,7 +480,7 @@ class MultiThreadDownloaderTest {
         interruptAfterTwoMebibytes(folder, output, server.url("/episode.mp4").toString())
         chunkFilesIn(appCache).isNotEmpty() shouldBe true
 
-        appStore().deleteProgress(EPISODE_ID)
+        storeInNewProcess().deleteProgress(EPISODE_ID)
 
         chunkFilesIn(appCache) shouldBe emptyList()
     }
@@ -503,7 +503,7 @@ class MultiThreadDownloaderTest {
                 tempFileName = "chunk_${EPISODE_ID}_$index.tmp",
             )
         }
-        appStore().checkpoint(
+        storeInNewProcess().checkpoint(
             DownloadProgress(
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
@@ -517,7 +517,7 @@ class MultiThreadDownloaderTest {
         ) shouldBe true
 
         val result = withContext(Dispatchers.IO) {
-            MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 }).download(
+            MultiThreadDownloader(OkHttpClient(), storeInNewProcess(), maxThreadsProvider = { 2 }).download(
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
@@ -535,7 +535,7 @@ class MultiThreadDownloaderTest {
         server.dispatcher = RangeDispatcher(video, bytesPer20Millis = 64 * 1024)
         val someBytesWritten = CountDownLatch(1)
         val download = launch(Dispatchers.IO) {
-            MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 }).download(
+            MultiThreadDownloader(OkHttpClient(), storeInNewProcess(), maxThreadsProvider = { 2 }).download(
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
@@ -548,8 +548,7 @@ class MultiThreadDownloaderTest {
         download.cancelAndJoin()
     }
 
-    // Each call is a new process: the store has no progress in memory.
-    private fun appStore() = DownloadStateStore(mockk<Context> { every { cacheDir } returns appCache })
+    private fun storeInNewProcess() = DownloadStateStore(mockk<Context> { every { cacheDir } returns appCache })
 
     // A SAF document takes writes through its stream, but scoped storage refuses new java.io.File entries in the folder.
     private fun folderWithoutFileWriteAccess(): Pair<File, File> {
