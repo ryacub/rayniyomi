@@ -19,6 +19,7 @@ package eu.kanade.tachiyomi.ui.player.controls.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -67,16 +68,17 @@ fun CurrentChapter(
             targetState = chapter,
             transitionSpec = {
                 when {
-                    reduceMotion -> fadeIn().togetherWith(fadeOut())
+                    reduceMotion ->
+                        fadeIn().togetherWith(fadeOut()).using(SizeTransform(clip = false) { _, _ -> snap() })
                     targetState.start > initialState.start ->
                         (slideInVertically { height -> height } + fadeIn())
                             .togetherWith(slideOutVertically { height -> -height } + fadeOut())
+                            .using(SizeTransform(clip = false))
                     else ->
                         (slideInVertically { height -> -height } + fadeIn())
                             .togetherWith(slideOutVertically { height -> height } + fadeOut())
-                }.using(
-                    SizeTransform(clip = false),
-                )
+                            .using(SizeTransform(clip = false))
+                }
             },
             label = "Chapter",
         ) { currentChapter ->

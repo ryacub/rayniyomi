@@ -18,8 +18,6 @@
 package eu.kanade.tachiyomi.ui.player.controls
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -27,6 +25,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -56,12 +55,12 @@ fun PlayerPanels(
         contentKey = { it.name },
         transitionSpec = {
             if (reduceMotion) {
-                (fadeIn() togetherWith fadeOut()).using(SizeTransform { _, _ -> snap() })
+                fadeIn() togetherWith fadeOut()
             } else {
                 fadeIn() + slideInHorizontally { it / 3 } togetherWith fadeOut() + slideOutHorizontally { it / 2 }
             }
         },
-        modifier = modifier,
+        modifier = if (reduceMotion) modifier.fillMaxSize() else modifier,
     ) { currentPanel ->
         when (currentPanel) {
             Panels.None -> {

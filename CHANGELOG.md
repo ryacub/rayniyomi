@@ -16,7 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - Tablet sheets fade out before closing. Reader page numbers and selection toolbars fade between states. Filtered chapters, episodes, and download queue rows slide into place. Queue progress bars move smoothly, and dragging a source header moves the whole group (#1466).
-- The extended action buttons on title, category, and migration screens collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
+- Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
 - With system animations off, the reader turns pages, jumps from the slider, zooms wide pages, pans, and scrolls webtoons in one step. Before, page turns and jumps still slid, and the wide-page zoom and the key pan still moved (#1465).

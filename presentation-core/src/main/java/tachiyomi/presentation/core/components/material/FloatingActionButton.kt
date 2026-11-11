@@ -15,7 +15,6 @@ import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -64,24 +63,23 @@ fun ExtendedFloatingActionButton(
             transitionSpec = { spring(dampingRatio = 1f, stiffness = 3800f) },
             label = "labelAlpha",
         ) { it }
-        val fullyCollapsed by remember(expandTransition) {
-            derivedStateOf { expandTransition.currentState == 0f && !expandTransition.isRunning }
-        }
+        val showLabel = expandTransition.currentState != 0f || expandTransition.targetState != 0f
 
         Row(
             modifier = Modifier
                 .layout { measurable, constraints ->
+                    val collapsedWidth = FabContainerSize.roundToPx()
                     val expandedWidth = measurable.maxIntrinsicWidth(constraints.maxHeight)
-                    val width = lerp(FabContainerSize.roundToPx(), expandedWidth, widthProgress)
+                    val width = lerp(collapsedWidth, expandedWidth, widthProgress).coerceAtLeast(collapsedWidth)
                     val placeable = measurable.measure(constraints)
-                    layout(width, placeable.height) { placeable.place(0, 0) }
+                    layout(width, placeable.height) { placeable.placeRelative(0, 0) }
                 }
                 .sizeIn(minWidth = FabContainerSize, minHeight = FabContainerSize)
                 .padding(start = ExtendedFabStartPadding, end = ExtendedFabEndPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             icon()
-            if (!fullyCollapsed) {
+            if (showLabel) {
                 Row(modifier = Modifier.graphicsLayer { alpha = labelAlpha }) {
                     Spacer(Modifier.width(ExtendedFabIconPadding))
                     text()
