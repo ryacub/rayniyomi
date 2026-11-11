@@ -80,6 +80,7 @@ fun QualitySheet(
     onClickHoster: (Int) -> Unit,
     onClickVideo: (Int, Int) -> Unit,
     displayHosters: Pair<Boolean, Boolean>,
+    reduceMotion: Boolean,
     onDismissRequest: () -> Unit,
     dismissSheet: Boolean,
     modifier: Modifier = Modifier,
@@ -104,8 +105,8 @@ fun QualitySheet(
 
             AnimatedVisibility(
                 visible = isLoadingHosters,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+                enter = if (reduceMotion) fadeIn() else fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                exit = if (reduceMotion) fadeOut() else fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
             ) {
                 Box(
                     modifier = modifier
@@ -125,12 +126,8 @@ fun QualitySheet(
 
             AnimatedVisibility(
                 visible = !isLoadingHosters,
-                enter = fadeIn() + slideInVertically(
-                    initialOffsetY = { it / 2 },
-                ),
-                exit = fadeOut() + slideOutVertically(
-                    targetOffsetY = { it / 2 },
-                ),
+                enter = if (reduceMotion) fadeIn() else fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                exit = if (reduceMotion) fadeOut() else fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
             ) {
                 if (hosterState.size == 1 &&
                     hosterState.first().name == Hoster.NO_HOSTER_LIST &&

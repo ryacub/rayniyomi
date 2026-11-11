@@ -127,6 +127,7 @@ fun PlayerControls(
     val currentAnime by viewModel.currentAnime.collectAsStateWithLifecycle()
 
     val playerTimeToDisappear by playerPreferences.playerTimeToDisappear().collectAsStateWithLifecycle()
+    val reduceMotion by playerPreferences.reduceMotion().collectAsStateWithLifecycle()
     var isSeeking by remember { mutableStateOf(false) }
     var resetControls by remember { mutableStateOf(true) }
 
@@ -193,7 +194,6 @@ fun PlayerControls(
                 val volume by viewModel.currentVolume.collectAsStateWithLifecycle()
                 val mpvVolume by viewModel.currentMPVVolume.collectAsStateWithLifecycle()
                 val swapVolumeAndBrightness by gesturePreferences.swapVolumeBrightness().collectAsStateWithLifecycle()
-                val reduceMotion by playerPreferences.reduceMotion().collectAsStateWithLifecycle()
 
                 LaunchedEffect(volume, mpvVolume, isVolumeSliderShown) {
                     delay(2000)
@@ -328,8 +328,8 @@ fun PlayerControls(
 
                 AnimatedVisibility(
                     controlsShown && areControlsLocked,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
+                    enter = fadeIn(playerControlsEnterAnimationSpec()),
+                    exit = fadeOut(playerControlsExitAnimationSpec()),
                     modifier = Modifier.constrainAs(unlockControlsButton) {
                         top.linkTo(parent.top, spacing.medium)
                         start.linkTo(parent.start, spacing.medium)
@@ -567,6 +567,7 @@ fun PlayerControls(
                     BottomLeftPlayerControls(
                         playbackSpeed,
                         currentChapter = currentChapter?.toSegment(),
+                        reduceMotion = reduceMotion,
                         onLockControls = viewModel::lockControls,
                         onCycleRotation = viewModel::cycleScreenRotations,
                         orientationControlEnabled = honorsOrientationRequests(LocalConfiguration.current),
@@ -615,6 +616,7 @@ fun PlayerControls(
             onClickHoster = viewModel::onHosterClicked,
             onClickVideo = viewModel::onVideoClicked,
             displayHosters = Pair(showFailedHosters, emptyHosters),
+            reduceMotion = reduceMotion,
 
             chapter = currentChapter?.toSegment(),
             chapters = chapters.map { it.toSegment() }.toImmutableList(),
@@ -650,6 +652,7 @@ fun PlayerControls(
         val panel by viewModel.panelShown.collectAsStateWithLifecycle()
         PlayerPanels(
             panelShown = panel,
+            reduceMotion = reduceMotion,
             onDismissRequest = { viewModel.showPanel(Panels.None) },
         )
 

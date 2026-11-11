@@ -52,6 +52,7 @@ import tachiyomi.presentation.core.components.material.padding
 @Composable
 fun CurrentChapter(
     chapter: Segment,
+    reduceMotion: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
@@ -65,12 +66,14 @@ fun CurrentChapter(
         AnimatedContent(
             targetState = chapter,
             transitionSpec = {
-                if (targetState.start > initialState.start) {
-                    (slideInVertically { height -> height } + fadeIn())
-                        .togetherWith(slideOutVertically { height -> -height } + fadeOut())
-                } else {
-                    (slideInVertically { height -> -height } + fadeIn())
-                        .togetherWith(slideOutVertically { height -> height } + fadeOut())
+                when {
+                    reduceMotion -> fadeIn().togetherWith(fadeOut())
+                    targetState.start > initialState.start ->
+                        (slideInVertically { height -> height } + fadeIn())
+                            .togetherWith(slideOutVertically { height -> -height } + fadeOut())
+                    else ->
+                        (slideInVertically { height -> -height } + fadeIn())
+                            .togetherWith(slideOutVertically { height -> height } + fadeOut())
                 }.using(
                     SizeTransform(clip = false),
                 )
