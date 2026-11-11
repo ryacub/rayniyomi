@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import tachiyomi.presentation.core.util.disableContentInteractions
 import kotlin.math.roundToInt
 
 private val sheetAnimationSpec = tween<Float>(durationMillis = 350)
@@ -74,13 +75,14 @@ fun AdaptiveSheet(
         val latestOnDismissRequest by rememberUpdatedState(onDismissRequest)
         val internalOnDismissRequest = { dismissRequested = true }
 
-        LaunchedEffect(dismissRequested) {
-            alpha.animateTo(if (dismissRequested) 0f else 1f, sheetAnimationSpec)
-            if (dismissRequested) latestOnDismissRequest()
+        val isDismissing = dismissRequested
+        LaunchedEffect(isDismissing) {
+            alpha.animateTo(if (isDismissing) 0f else 1f, sheetAnimationSpec)
+            if (isDismissing) latestOnDismissRequest()
         }
 
         Box(
-            modifier = Modifier
+            modifier = (if (isDismissing) Modifier.disableContentInteractions() else Modifier)
                 .clickable(
                     interactionSource = null,
                     indication = null,
@@ -106,6 +108,7 @@ fun AdaptiveSheet(
                 content = {
                     BackHandler(onBack = internalOnDismissRequest)
                     content()
+                    BackHandler(enabled = isDismissing, onBack = {})
                 },
             )
         }

@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -38,11 +39,13 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -63,6 +66,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.Pill
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.clearFocusOnSoftKeyboardHide
+import tachiyomi.presentation.core.util.disableContentInteractions
 import tachiyomi.presentation.core.util.runOnEnterKeyPressed
 import tachiyomi.presentation.core.util.secondaryItemAlpha
 import tachiyomi.presentation.core.util.showSoftKeyboard
@@ -168,6 +172,7 @@ fun AppBar(
 }
 
 internal const val SELECTION_TRANSITION_MILLIS = 150
+internal val LocalSelectionToolbarActive = staticCompositionLocalOf { true }
 
 @Composable
 internal fun SelectionModeTransition(
@@ -186,7 +191,13 @@ internal fun SelectionModeTransition(
         contentKey = { it > 0 },
         label = "Selection toolbar",
     ) { count ->
-        content(count)
+        val isActive = (count > 0) == (selectedCount > 0)
+        val modifier = if (isActive) Modifier else Modifier.disableContentInteractions()
+        CompositionLocalProvider(LocalSelectionToolbarActive provides isActive) {
+            Box(modifier = modifier, propagateMinConstraints = true) {
+                content(count)
+            }
+        }
     }
 }
 
@@ -241,7 +252,8 @@ fun AppBarTitle(
 fun AppBarActions(
     actions: ImmutableList<AppBar.AppBarAction>,
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    val isActive = LocalSelectionToolbarActive.current
+    var showMenu by remember(isActive) { mutableStateOf(false) }
 
     actions.filterIsInstance<AppBar.Action>().map {
         TooltipBox(
@@ -251,7 +263,8 @@ fun AppBarActions(
                     Text(it.title)
                 }
             },
-            state = rememberTooltipState(),
+            state = key(isActive) { rememberTooltipState() },
+            enableUserInput = isActive,
         ) {
             IconButton(
                 onClick = it.onClick,
@@ -275,7 +288,8 @@ fun AppBarActions(
                     Text(stringResource(MR.strings.action_menu_overflow_description))
                 }
             },
-            state = rememberTooltipState(),
+            state = key(isActive) { rememberTooltipState() },
+            enableUserInput = isActive,
         ) {
             IconButton(
                 onClick = { showMenu = !showMenu },
@@ -289,18 +303,20 @@ fun AppBarActions(
             }
         }
 
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-        ) {
-            overflowActions.map {
-                DropdownMenuItem(
-                    onClick = {
-                        it.onClick()
-                        showMenu = false
-                    },
-                    text = { Text(it.title, fontWeight = FontWeight.Normal) },
-                )
+        if (isActive) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+            ) {
+                overflowActions.map {
+                    DropdownMenuItem(
+                        onClick = {
+                            it.onClick()
+                            showMenu = false
+                        },
+                        text = { Text(it.title, fontWeight = FontWeight.Normal) },
+                    )
+                }
             }
         }
     }
@@ -327,6 +343,7 @@ fun SearchToolbar(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val isActive = LocalSelectionToolbarActive.current
     val focusRequester = remember { FocusRequester() }
 
     AppBar(
@@ -346,6 +363,7 @@ fun SearchToolbar(
 
             BasicTextField(
                 value = searchQuery,
+                enabled = isActive,
                 onValueChange = onChangeSearchQuery,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -408,7 +426,8 @@ fun SearchToolbar(
                                 Text(stringResource(MR.strings.action_search))
                             }
                         },
-                        state = rememberTooltipState(),
+                        state = key(isActive) { rememberTooltipState() },
+                        enableUserInput = isActive,
                     ) {
                         IconButton(
                             onClick = onClick,
@@ -427,7 +446,8 @@ fun SearchToolbar(
                                 Text(stringResource(MR.strings.action_reset))
                             }
                         },
-                        state = rememberTooltipState(),
+                        state = key(isActive) { rememberTooltipState() },
+                        enableUserInput = isActive,
                     ) {
                         IconButton(
                             onClick = {

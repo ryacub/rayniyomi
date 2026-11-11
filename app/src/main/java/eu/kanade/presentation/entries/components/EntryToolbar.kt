@@ -24,6 +24,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.EntryDownloadDropdownMenu
+import eu.kanade.presentation.components.LocalSelectionToolbarActive
 import eu.kanade.presentation.components.SELECTION_TRANSITION_MILLIS
 import eu.kanade.presentation.components.SelectionModeTransition
 import eu.kanade.presentation.entries.DownloadAction
@@ -82,8 +83,9 @@ fun EntryToolbar(
         actions = {
             SelectionModeTransition(actionModeCounter, contentAlignment = Alignment.CenterEnd) { selectedCount ->
                 Row {
-                    var downloadExpanded by remember { mutableStateOf(false) }
-                    if (onClickDownload != null) {
+                    val isActive = LocalSelectionToolbarActive.current
+                    var downloadExpanded by remember(isActive) { mutableStateOf(false) }
+                    if (onClickDownload != null && isActive) {
                         val onDismissRequest = { downloadExpanded = false }
                         EntryDownloadDropdownMenu(
                             expanded = downloadExpanded,
