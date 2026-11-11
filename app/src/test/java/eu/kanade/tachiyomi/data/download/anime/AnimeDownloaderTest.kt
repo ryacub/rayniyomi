@@ -537,6 +537,28 @@ class AnimeDownloaderTest {
     }
 
     @Test
+    fun `a completed download deletes its resume progress`() = runTest {
+        every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns true
+        val download = testDownload(mockk(relaxed = true))
+        val mkvFile = mockk<UniFile>(relaxed = true)
+        every { mkvFile.name } returns "Ch1.mkv"
+        every { mkvFile.isFile } returns true
+        every { mkvFile.length() } returns 64L
+        val tmpDir = mockk<UniFile>(relaxed = true)
+        every { tmpDir.findFile(any()) } returns null
+        every { tmpDir.listFiles() } returns arrayOf(mkvFile)
+        every { tmpDir.renameTo(any()) } returns true
+        val animeDir = mockk<UniFile>(relaxed = true)
+        every { provider.getAnimeDir(any(), any()) } returns animeDir
+        every { animeDir.createDirectory(any()) } returns tmpDir
+
+        downloader.launchDownloadJobForTest(this, download).join()
+
+        assertEquals(AnimeDownload.State.DOWNLOADED, download.status)
+        verify { stateStore.deleteProgress(1L) }
+    }
+
+    @Test
     fun `a failed video fetch pauses for low storage and reports once`() = runTest {
         downloader.retryBackoffMillis = 0L
         val video = mockk<Video>(relaxed = true)

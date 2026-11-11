@@ -64,6 +64,17 @@ class DownloadStateStoreTest {
     }
 
     @Test
+    fun `a checkpoint saves after the system clears the cache directory`(@TempDir cacheDir: File) {
+        val context = mockk<Context> { every { this@mockk.cacheDir } returns cacheDir }
+        val store = DownloadStateStore(context)
+        cacheDir.listFiles().orEmpty().forEach { it.deleteRecursively() }
+
+        store.checkpoint(
+            DownloadProgress(episodeId = 7L, videoUrl = "http://example.com/video.mp4", totalBytes = 100L),
+        ) shouldBe true
+    }
+
+    @Test
     fun `progressPercent should calculate correctly`() {
         val progress = createTestProgress(
             totalBytes = 1000L,

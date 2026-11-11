@@ -108,8 +108,9 @@ class MultiThreadDownloaderFailureTest {
     }
 
     private suspend fun resumeDownload(output: File = File(tempDir, "unused.mp4")): DownloadResult {
+        every { stateStore.chunkDirectory } returns chunkDir
         val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, chunkDownloader = chunkDownloader)
-        return downloader.resume(progress, null, uniFileAt(chunkDir), documentAt(output))
+        return downloader.resume(progress, null, documentAt(output))
     }
 
     // A Success chunk leaves its full temp file behind, like the real downloader.
@@ -138,10 +139,6 @@ class MultiThreadDownloaderFailureTest {
         endByte = end,
         tempFileName = "chunk_${EPISODE_ID}_$index.tmp",
     )
-
-    private fun uniFileAt(file: File): UniFile = mockk {
-        every { filePath } returns file.absolutePath
-    }
 
     private fun documentAt(file: File): UniFile = mockk {
         every { filePath } returns null

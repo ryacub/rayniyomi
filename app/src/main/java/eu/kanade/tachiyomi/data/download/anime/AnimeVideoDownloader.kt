@@ -184,7 +184,7 @@ class AnimeVideoDownloader(
             is DownloadResult.Error -> {
                 when (val error = result.error) {
                     is DownloadError.InvalidRange -> {
-                        multiThreadDownloader.discardStagedChunks(episodeId, tmpDir)
+                        multiThreadDownloader.discardStagedChunks(episodeId)
                         download.recovery.value = DownloadRecovery.RESTART
                         if (error.msg.contains("not satisfiable", ignoreCase = true)) {
                             download.displayStatus = DownloadDisplayStatus.RETRYING

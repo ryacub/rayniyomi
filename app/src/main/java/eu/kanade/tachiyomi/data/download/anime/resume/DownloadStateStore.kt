@@ -21,8 +21,10 @@ import java.util.concurrent.ConcurrentHashMap
  * - Process death
  * - Network interruptions
  *
- * Progress files are stored in the app's cache directory. A file is deleted
- * when its download completes, leaves the queue, or gets a new video URL.
+ * Progress files and chunk files are stored in the app's cache directory, because
+ * scoped storage can refuse direct file writes in the selected storage folder. The
+ * files of an episode are deleted when its download completes, leaves the queue, or
+ * gets a new video URL.
  */
 class DownloadStateStore(
     context: Context,
@@ -30,11 +32,9 @@ class DownloadStateStore(
     /**
      * Directory where progress files are stored.
      */
-    private val progressDir = File(context.cacheDir, PROGRESS_DIR_NAME).apply {
-        if (!exists()) {
-            mkdirs()
-        }
-    }
+    private val progressDir = File(context.cacheDir, PROGRESS_DIR_NAME).apply { mkdirs() }
+
+    val chunkDirectory = File(context.cacheDir, CHUNK_DIR_NAME)
 
     /**
      * In-memory cache of progress entries to reduce disk I/O.
@@ -60,6 +60,7 @@ class DownloadStateStore(
     internal fun checkpoint(progress: DownloadProgress): Boolean {
         return try {
             val file = getProgressFile(progress.episodeId)
+            progressDir.mkdirs()
             val pending = File.createTempFile("episode-", ".tmp", progressDir)
             try {
                 pending.writeBytes(protoBuf.encodeToByteArray(progress))
@@ -142,6 +143,8 @@ class DownloadStateStore(
             if (file.exists()) {
                 file.delete()
             }
+            val chunkName = chunkNamePattern(episodeId)
+            chunkDirectory.listFiles { _, name -> chunkName.matches(name) }.orEmpty().forEach { it.delete() }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Failed to delete progress for episode $episodeId: ${e.message}" }
         }
@@ -156,6 +159,11 @@ class DownloadStateStore(
 
     companion object {
         private const val PROGRESS_DIR_NAME = "download_progress"
+        private const val CHUNK_DIR_NAME = "download_chunks"
         private const val PROGRESS_FILE_EXTENSION = "dp"
+
+        internal fun chunkFileName(episodeId: Long, index: Int) = "chunk_${episodeId}_$index.tmp"
+
+        internal fun chunkNamePattern(episodeId: Long) = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
     }
 }

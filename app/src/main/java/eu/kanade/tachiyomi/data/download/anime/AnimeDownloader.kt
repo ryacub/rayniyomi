@@ -396,6 +396,8 @@ class AnimeDownloader(
 
             // Remove successful download from queue
             if (download.status == AnimeDownload.State.DOWNLOADED) {
+                // FFmpeg can finish an episode that has multi-thread chunks from an earlier attempt.
+                stateStore.deleteProgress(download.episode.id)
                 removeFromQueue(download)
             }
         } catch (e: Throwable) {
