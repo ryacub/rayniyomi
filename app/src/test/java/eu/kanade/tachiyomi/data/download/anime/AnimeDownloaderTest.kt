@@ -475,6 +475,29 @@ class AnimeDownloaderTest {
     }
 
     @Test
+    fun `pausing from the download manager keeps the active episode paused`() = runTest {
+        val download = testDownload()
+        downloader.addToStartOfQueue(listOf(download))
+        download.status = AnimeDownload.State.DOWNLOADING
+        val manager = AnimeDownloadManager(
+            context = testContext,
+            storageManager = mockk(relaxed = true),
+            provider = provider,
+            cache = mockk(relaxed = true),
+            getCategories = mockk(relaxed = true),
+            sourceManager = mockk(relaxed = true),
+            downloadPreferences = testAppGraph.downloadPreferences,
+            downloaderForTesting = downloader,
+            scopeForTesting = backgroundScope,
+        )
+
+        manager.pauseDownloads()
+
+        assertEquals(DownloadDisplayStatus.PAUSED_BY_USER, download.displayStatus)
+        assertEquals(AnimeDownload.State.QUEUE, download.status)
+    }
+
+    @Test
     fun `a staged directory with a video name does not complete the download`() = runTest {
         every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns true
         val download = testDownload(mockk<Video>(relaxed = true))
