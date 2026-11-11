@@ -44,6 +44,7 @@ import eu.kanade.tachiyomi.data.library.EntryUpdateContext
 import eu.kanade.tachiyomi.data.library.isEntryListOutdated
 import eu.kanade.tachiyomi.data.track.EnhancedAnimeTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.ui.entries.anime.track.AnimeTrackItem
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
@@ -61,8 +62,10 @@ import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -159,6 +162,7 @@ class AnimeScreenModel(
     private val fetchInterval: AnimeFetchInterval,
     private val entryRefresher: AnimeEntryRefresher,
     private val clock: Clock = Clock.systemDefaultZone(),
+    @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     private val refreshTracksInteractor: RefreshAnimeTracks,
 ) : StateViewModel<AnimeScreenModel.State>(State.Loading) {
@@ -207,6 +211,8 @@ class AnimeScreenModel(
     private val selectionController = EntrySelectionController(selectedEpisodeIds)
 
     internal var isFromChangeCategory: Boolean = false
+
+    private var libraryChange: Job? = null
 
     internal val autoOpenTrack: Boolean
         get() = successState?.hasLoggedInTrackers == true && trackPreferences.trackOnAddingToLibrary().get()
@@ -388,18 +394,23 @@ class AnimeScreenModel(
         checkDuplicate: Boolean = true,
     ) {
         val state = successState ?: return
-        viewModelScope.launchIO {
+        if (libraryChange?.isActive == true) return
+        libraryChange = viewModelScope.launch(ioDispatcher) {
             val anime = state.anime
+            val retry = { toggleFavorite(onRemoved, checkDuplicate) }
 
             if (isFavorited) {
                 // Remove from library
-                if (updateAnime.awaitUpdateFavorite(anime.id, false)) {
-                    // Remove covers and update last modified in db
-                    if (anime.removeCovers() != anime) {
-                        updateAnime.awaitUpdateCoverLastModified(anime.id)
-                    }
-                    withUIContext { onRemoved() }
+                if (!updateAnime.awaitUpdateFavorite(anime.id, false)) {
+                    showLibraryChangeFailure(adding = false, retry)
+                    return@launch
                 }
+                confirmLibraryChange(favorite = false)
+                // Remove covers and update last modified in db
+                if (anime.removeCovers() != anime) {
+                    updateAnime.awaitUpdateCoverLastModified(anime.id)
+                }
+                withUIContext { onRemoved() }
             } else {
                 // Add to library
                 // First, check if duplicate exists if callback is provided
@@ -420,7 +431,7 @@ class AnimeScreenModel(
                                 dialog = Dialog.DuplicateAnime(anime, candidate.loser, confidenceLabel),
                             )
                         }
-                        return@launchIO
+                        return@launch
                     }
                 }
 
@@ -428,32 +439,24 @@ class AnimeScreenModel(
                 val categories = getCategories()
                 val defaultCategoryId = libraryPreferences.defaultAnimeCategory().get().toLong()
                 val defaultCategory = categories.find { it.id == defaultCategoryId }
-                when {
-                    // Default category set
-                    defaultCategory != null -> {
-                        val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) return@launchIO
-                        moveAnimeToCategory(defaultCategory)
+                if (defaultCategory == null && defaultCategoryId != 0L && categories.isNotEmpty()) {
+                    isFromChangeCategory = true
+                    showChangeCategoryDialog()
+                } else {
+                    if (!updateAnime.awaitUpdateFavorite(anime.id, true)) {
+                        showLibraryChangeFailure(adding = true, retry)
+                        return@launch
                     }
-
-                    // Automatic 'Default' or no categories
-                    defaultCategoryId == 0L || categories.isEmpty() -> {
-                        val result = updateAnime.awaitUpdateFavorite(anime.id, true)
-                        if (!result) return@launchIO
-                        moveAnimeToCategory(null)
-                    }
-
-                    // Choose a category
-                    else -> {
-                        isFromChangeCategory = true
-                        showChangeCategoryDialog()
-                    }
+                    confirmLibraryChange(favorite = true)
+                    moveAnimeToCategory(defaultCategory)
                 }
 
                 // Finally match with enhanced tracking when available
-                addTracks.bindEnhancedTrackers(anime, state.source)
-                if (autoOpenTrack) {
-                    showTrackDialog()
+                viewModelScope.launch(ioDispatcher) {
+                    addTracks.bindEnhancedTrackers(anime, state.source)
+                    if (autoOpenTrack) {
+                        showTrackDialog()
+                    }
                 }
             }
         }
@@ -534,10 +537,36 @@ class AnimeScreenModel(
 
     fun moveAnimeToCategoriesAndAddToLibrary(anime: Anime, categories: List<Long>) {
         moveAnimeToCategory(categories)
-        if (anime.favorite) return
+        if (anime.favorite || libraryChange?.isActive == true) return
 
-        viewModelScope.launchIO {
-            updateAnime.awaitUpdateFavorite(anime.id, true)
+        libraryChange = viewModelScope.launch(ioDispatcher) {
+            if (updateAnime.awaitUpdateFavorite(anime.id, true)) {
+                confirmLibraryChange(favorite = true)
+            } else {
+                showLibraryChangeFailure(adding = true) { moveAnimeToCategoriesAndAddToLibrary(anime, categories) }
+            }
+        }
+    }
+
+    private fun confirmLibraryChange(favorite: Boolean) {
+        updateSuccessState {
+            it.copy(
+                anime = it.anime.copy(favorite = favorite),
+                libraryConfirmations = it.libraryConfirmations + 1,
+            )
+        }
+    }
+
+    private fun showLibraryChangeFailure(adding: Boolean, retry: () -> Unit) {
+        viewModelScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = context.stringResource(
+                    if (adding) MR.strings.library_add_failed else MR.strings.library_remove_failed,
+                ),
+                actionLabel = context.stringResource(MR.strings.action_retry),
+                withDismissAction = true,
+            )
+            if (result == SnackbarResult.ActionPerformed && isFavorited != adding) retry()
         }
     }
 
@@ -773,7 +802,7 @@ class AnimeScreenModel(
                     withDismissAction = true,
                 )
                 if (result == SnackbarResult.ActionPerformed && !isFavorited) {
-                    toggleFavorite()
+                    withUIContext { toggleFavorite() }
                 }
             }
         }
@@ -1508,6 +1537,7 @@ class AnimeScreenModel(
             val isRefreshingData: Boolean = false,
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
+            val libraryConfirmations: Int = 0,
             val trackItems: List<AnimeTrackItem> = emptyList(),
             val nextAiringEpisode: Pair<Int, Long> = Pair(
                 anime.nextEpisodeToAir,

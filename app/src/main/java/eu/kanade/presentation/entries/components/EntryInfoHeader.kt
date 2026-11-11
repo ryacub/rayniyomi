@@ -13,7 +13,10 @@
 package eu.kanade.presentation.entries.components
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
@@ -63,7 +66,9 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -76,10 +81,17 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -194,6 +206,7 @@ fun EntryInfoBox(
 @Composable
 fun EntryActionRow(
     favorite: Boolean,
+    libraryConfirmations: Int,
     trackingCount: Int,
     nextUpdate: Instant?,
     isUserIntervalMode: Boolean,
@@ -206,6 +219,7 @@ fun EntryActionRow(
     modifier: Modifier = Modifier,
 ) {
     val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
+    val libraryIconScale = rememberLibraryChangeFeedback(libraryConfirmations)
 
     val nextUpdateDays = remember(nextUpdate) {
         return@remember if (nextUpdate != null) {
@@ -241,6 +255,13 @@ fun EntryActionRow(
             color = if (favorite) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
             onClick = onAddToLibraryClicked,
             onLongClick = onEditCategory,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            iconModifier = Modifier
+                .graphicsLayer {
+                    scaleX = libraryIconScale.value
+                    scaleY = libraryIconScale.value
+                }
+                .testTag("entry-library-icon"),
         )
         EntryActionButton(
             title = intervalTitle,
@@ -271,6 +292,28 @@ fun EntryActionRow(
             )
         }
     }
+}
+
+@Composable
+private fun rememberLibraryChangeFeedback(confirmations: Int): Animatable<Float, AnimationVector1D> {
+    val haptic = LocalHapticFeedback.current
+    val scale = remember { Animatable(1f) }
+    var shownConfirmations by remember { mutableIntStateOf(confirmations) }
+    LaunchedEffect(confirmations) {
+        if (confirmations == shownConfirmations) return@LaunchedEffect
+        shownConfirmations = confirmations
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        scale.snapTo(1f)
+        scale.animateTo(
+            targetValue = 1f,
+            animationSpec = keyframes {
+                durationMillis = 400
+                1.3f at 140
+                0.94f at 280
+            },
+        )
+    }
+    return scale
 }
 
 @Composable
@@ -715,11 +758,13 @@ fun RowScope.EntryActionButton(
     icon: ImageVector,
     color: Color,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
+    iconModifier: Modifier = Modifier,
 ) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.weight(1f),
+        modifier = modifier.weight(1f),
         onLongClick = onLongClick,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -727,7 +772,7 @@ fun RowScope.EntryActionButton(
                 imageVector = icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(20.dp),
+                modifier = iconModifier.size(20.dp),
             )
             Spacer(Modifier.height(4.dp))
             Text(
@@ -763,6 +808,7 @@ private fun EntryInfoBoxPreview() {
 private fun EntryActionRowPreview() {
     EntryActionRow(
         favorite = true,
+        libraryConfirmations = 0,
         trackingCount = 2,
         nextUpdate = null,
         isUserIntervalMode = false,
