@@ -19,6 +19,7 @@ package eu.kanade.tachiyomi.ui.player.controls.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -52,6 +53,7 @@ import tachiyomi.presentation.core.components.material.padding
 @Composable
 fun CurrentChapter(
     chapter: Segment,
+    reduceMotion: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
@@ -65,15 +67,18 @@ fun CurrentChapter(
         AnimatedContent(
             targetState = chapter,
             transitionSpec = {
-                if (targetState.start > initialState.start) {
-                    (slideInVertically { height -> height } + fadeIn())
-                        .togetherWith(slideOutVertically { height -> -height } + fadeOut())
-                } else {
-                    (slideInVertically { height -> -height } + fadeIn())
-                        .togetherWith(slideOutVertically { height -> height } + fadeOut())
-                }.using(
-                    SizeTransform(clip = false),
-                )
+                when {
+                    reduceMotion ->
+                        fadeIn().togetherWith(fadeOut()).using(SizeTransform(clip = false) { _, _ -> snap() })
+                    targetState.start > initialState.start ->
+                        (slideInVertically { height -> height } + fadeIn())
+                            .togetherWith(slideOutVertically { height -> -height } + fadeOut())
+                            .using(SizeTransform(clip = false))
+                    else ->
+                        (slideInVertically { height -> -height } + fadeIn())
+                            .togetherWith(slideOutVertically { height -> height } + fadeOut())
+                            .using(SizeTransform(clip = false))
+                }
             },
             label = "Chapter",
         ) { currentChapter ->

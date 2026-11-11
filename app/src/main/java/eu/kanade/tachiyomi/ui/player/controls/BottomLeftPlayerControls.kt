@@ -47,6 +47,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 fun BottomLeftPlayerControls(
     playbackSpeed: Float,
     currentChapter: Segment?,
+    reduceMotion: Boolean,
     onLockControls: () -> Unit,
     onCycleRotation: () -> Unit,
     orientationControlEnabled: Boolean,
@@ -120,6 +121,7 @@ fun BottomLeftPlayerControls(
         ) {
             CurrentChapter(
                 chapter = currentChapter!!,
+                reduceMotion = reduceMotion,
                 onClick = { onOpenSheet(Sheets.Chapters) },
             )
         }

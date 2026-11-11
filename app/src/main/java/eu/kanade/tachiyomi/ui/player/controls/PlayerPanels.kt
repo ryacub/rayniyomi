@@ -25,6 +25,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ import eu.kanade.tachiyomi.ui.player.controls.components.panels.VideoFiltersPane
 @Composable
 fun PlayerPanels(
     panelShown: Panels,
+    reduceMotion: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -52,9 +54,13 @@ fun PlayerPanels(
         contentAlignment = Alignment.CenterEnd,
         contentKey = { it.name },
         transitionSpec = {
-            fadeIn() + slideInHorizontally { it / 3 } togetherWith fadeOut() + slideOutHorizontally { it / 2 }
+            if (reduceMotion) {
+                fadeIn() togetherWith fadeOut()
+            } else {
+                fadeIn() + slideInHorizontally { it / 3 } togetherWith fadeOut() + slideOutHorizontally { it / 2 }
+            }
         },
-        modifier = modifier,
+        modifier = if (reduceMotion) modifier.fillMaxSize() else modifier,
     ) { currentPanel ->
         when (currentPanel) {
             Panels.None -> {

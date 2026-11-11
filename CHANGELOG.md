@@ -16,10 +16,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - Tablet sheets fade out before closing. Reader page numbers and selection toolbars fade between states. Filtered chapters, episodes, and download queue rows slide into place. Queue progress bars move smoothly, and dragging a source header moves the whole group (#1466).
+- Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
 - With system animations off, the reader turns pages, jumps from the slider, zooms wide pages, pans, and scrolls webtoons in one step. Before, page turns and jumps still slid, and the wide-page zoom and the key pan still moved (#1465).
 - Crash logs show the mpv, libplacebo, and FFmpeg build versions of the bundled player library. Before, they showed older hardcoded versions (#1474).
+- With "Reduce player animation" on, the video chapter label, the side panels, and the quality sheet only fade. Before, they still slid. The player lock button now fades on the same timing as the controls (#1468).
 
 ### Changed
 
