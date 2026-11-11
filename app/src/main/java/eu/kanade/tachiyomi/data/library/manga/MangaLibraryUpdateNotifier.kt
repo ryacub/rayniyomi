@@ -435,7 +435,6 @@ class MangaLibraryUpdateNotifier(
     }
 
     companion object {
-        // TODO: Change when implemented on Aniyomi website
         const val HELP_WARNING_URL =
             "https://aniyomi.org/docs/faq/library#why-am-i-warned-about-large-bulk-updates-and-downloads"
     }

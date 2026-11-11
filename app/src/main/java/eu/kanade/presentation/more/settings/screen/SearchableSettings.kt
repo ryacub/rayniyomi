@@ -34,7 +34,6 @@ interface SearchableSettings : Screen {
     }
 
     companion object {
-        // HACK: for the background blipping thingy.
         // The title of the target PreferenceItem
         // Set before showing the destination screen and reset after
         // See BasePreferenceWidget.highlightBackground
