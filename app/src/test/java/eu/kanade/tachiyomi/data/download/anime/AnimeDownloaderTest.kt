@@ -495,6 +495,10 @@ class AnimeDownloaderTest {
 
         assertEquals(DownloadDisplayStatus.PAUSED_BY_USER, download.displayStatus)
         assertEquals(AnimeDownload.State.QUEUE, download.status)
+
+        download.displayStatus = DownloadDisplayStatus.DOWNLOADING
+
+        assertEquals(DownloadDisplayStatus.PAUSED_BY_USER, download.displayStatus)
     }
 
     @Test
