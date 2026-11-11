@@ -32,11 +32,7 @@ class DownloadStateStore(
     /**
      * Directory where progress files are stored.
      */
-    private val progressDir = File(context.cacheDir, PROGRESS_DIR_NAME).apply {
-        if (!exists()) {
-            mkdirs()
-        }
-    }
+    private val progressDir = File(context.cacheDir, PROGRESS_DIR_NAME).apply { mkdirs() }
 
     val chunkDirectory = File(context.cacheDir, CHUNK_DIR_NAME)
 
@@ -64,6 +60,7 @@ class DownloadStateStore(
     internal fun checkpoint(progress: DownloadProgress): Boolean {
         return try {
             val file = getProgressFile(progress.episodeId)
+            progressDir.mkdirs()
             val pending = File.createTempFile("episode-", ".tmp", progressDir)
             try {
                 pending.writeBytes(protoBuf.encodeToByteArray(progress))
