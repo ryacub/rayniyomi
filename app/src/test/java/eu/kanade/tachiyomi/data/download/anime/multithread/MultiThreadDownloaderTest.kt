@@ -61,12 +61,14 @@ class MultiThreadDownloaderTest {
 
     @BeforeEach
     fun setUp() {
+        every { stateStore.chunkDirectory } returns File(tempDir, "chunks")
         server = MockWebServer()
         server.dispatcher = RangeDispatcher(video)
         server.start()
     }
 
     private val appCache by lazy { File(tempDir, "cache") }
+    private val storageFolder by lazy { File(tempDir, "storage").apply { mkdirs() } }
     private val lockedFolders = mutableListOf<File>()
 
     @AfterEach
@@ -87,7 +89,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
                 onProgress = { progressUpdates += it },
             )
@@ -127,7 +129,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(File(tempDir, "episode.mp4")),
             )
         }
@@ -154,7 +156,7 @@ class MultiThreadDownloaderTest {
         val downloader = MultiThreadDownloader(OkHttpClient(), stateStore, maxThreadsProvider = { 1 })
 
         val result = withContext(Dispatchers.IO) {
-            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(chunkDir), documentAt(output))
+            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(storageFolder), documentAt(output))
         }
 
         result.shouldBeInstanceOf<DownloadResult.Success>()
@@ -181,6 +183,7 @@ class MultiThreadDownloaderTest {
         val downloader = MultiThreadDownloader(OkHttpClient(), DownloadStateStore(cache), maxThreadsProvider = { 1 })
         val checkpoint = AtomicReference<DownloadProgress>()
         val storeWithCheckpoint = mockk<DownloadStateStore>(relaxed = true) {
+            every { chunkDirectory } returns File(tempDir, "chunks")
             every { loadProgressIfMatching(any(), any()) } answers { checkpoint.get() }
             every { checkpoint(any()) } answers {
                 checkpoint.set(firstArg())
@@ -194,7 +197,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
             ) {
                 firstProgress.complete(Unit)
@@ -207,7 +210,7 @@ class MultiThreadDownloaderTest {
         target.set("/replacement.mp4")
 
         val result = withContext(Dispatchers.IO) {
-            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(chunkDir), documentAt(output))
+            downloader.download(EPISODE_ID, videoUrl, null, uniFileAt(storageFolder), documentAt(output))
         }
 
         result.shouldBeInstanceOf<DownloadResult.Success>()
@@ -241,7 +244,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(File(tempDir, "episode.mp4")),
                 onProgress = { firstProgress.countDown() },
             )
@@ -268,7 +271,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(File(tempDir, "episode.mp4")),
                 onProgress = { firstProgress.countDown() },
             )
@@ -293,7 +296,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
             )
         }
@@ -322,7 +325,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(File(tempDir, "episode.mp4")),
             )
         }
@@ -344,7 +347,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
             )
         }
@@ -363,6 +366,7 @@ class MultiThreadDownloaderTest {
         val videoUrl = server.url("/episode.mp4").toString()
         val saved = slot<DownloadProgress>()
         val pausingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { chunkDirectory } returns File(tempDir, "chunks")
             every { loadProgressIfMatching(any(), any()) } returns null
             every { checkpoint(any()) } returns true
             every { saveProgress(capture(saved)) } just Runs
@@ -373,7 +377,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
                 onProgress = { if (it.downloadedBytes > 2L * 1024 * 1024) someBytesWritten.countDown() },
             )
@@ -385,6 +389,7 @@ class MultiThreadDownloaderTest {
         val ranges = RangeDispatcher(video)
         server.dispatcher = ranges
         val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { chunkDirectory } returns File(tempDir, "chunks")
             every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns saved.captured
         }
         val result = withContext(Dispatchers.IO) {
@@ -392,7 +397,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
             )
         }
@@ -414,7 +419,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = server.url("/episode.mp4").toString(),
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
             )
         }
@@ -580,6 +585,7 @@ class MultiThreadDownloaderTest {
             resourceUrl = videoUrl,
         )
         val resumingStore = mockk<DownloadStateStore>(relaxed = true) {
+            every { chunkDirectory } returns File(tempDir, "chunks")
             every { loadProgressIfMatching(EPISODE_ID, videoUrl) } returns savedProgress
         }
         val downloader = MultiThreadDownloader(OkHttpClient(), resumingStore, maxThreadsProvider = { 2 })
@@ -589,7 +595,7 @@ class MultiThreadDownloaderTest {
                 episodeId = EPISODE_ID,
                 videoUrl = videoUrl,
                 headers = null,
-                tmpDir = uniFileAt(chunkDir),
+                tmpDir = uniFileAt(storageFolder),
                 outputFile = documentAt(output),
             )
         }

@@ -21,8 +21,10 @@ import java.util.concurrent.ConcurrentHashMap
  * - Process death
  * - Network interruptions
  *
- * Progress files are stored in the app's cache directory. A file is deleted
- * when its download completes, leaves the queue, or gets a new video URL.
+ * Progress files and chunk files are stored in the app's cache directory, because
+ * scoped storage can refuse direct file writes in the selected storage folder. The
+ * files of an episode are deleted when its download completes, leaves the queue, or
+ * gets a new video URL.
  */
 class DownloadStateStore(
     context: Context,
@@ -35,6 +37,8 @@ class DownloadStateStore(
             mkdirs()
         }
     }
+
+    val chunkDirectory = File(context.cacheDir, CHUNK_DIR_NAME)
 
     /**
      * In-memory cache of progress entries to reduce disk I/O.
@@ -142,6 +146,8 @@ class DownloadStateStore(
             if (file.exists()) {
                 file.delete()
             }
+            val chunkName = chunkNamePattern(episodeId)
+            chunkDirectory.listFiles { _, name -> chunkName.matches(name) }.orEmpty().forEach { it.delete() }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Failed to delete progress for episode $episodeId: ${e.message}" }
         }
@@ -156,6 +162,9 @@ class DownloadStateStore(
 
     companion object {
         private const val PROGRESS_DIR_NAME = "download_progress"
+        private const val CHUNK_DIR_NAME = "download_chunks"
         private const val PROGRESS_FILE_EXTENSION = "dp"
+
+        internal fun chunkNamePattern(episodeId: Long) = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
     }
 }

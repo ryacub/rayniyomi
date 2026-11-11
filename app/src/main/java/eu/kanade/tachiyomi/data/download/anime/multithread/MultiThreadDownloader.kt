@@ -48,7 +48,7 @@ class MultiThreadDownloader(
      * @param episodeId The episode ID for progress tracking
      * @param videoUrl The URL to download from
      * @param headers Optional headers to include in requests
-     * @param tmpDir The temporary directory for chunk files
+     * @param tmpDir The episode folder. Chunk files that an older version left there are removed.
      * @param outputFile The final output file
      * @param onProgress Callback for download progress updates
      * @return [DownloadResult] indicating success or failure
@@ -62,6 +62,7 @@ class MultiThreadDownloader(
         onRecovery: (DownloadRecovery) -> Unit = {},
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
+        removeChunks(episodeId, tmpDir)
         val rangeSupport = when (val result = rangeRequestHandler.checkRangeSupport(videoUrl, headers)) {
             is RangeRequestHandler.RangeSupportResult.Supported -> result
             is RangeRequestHandler.RangeSupportResult.Error -> {
@@ -83,32 +84,31 @@ class MultiThreadDownloader(
             existingProgress.totalBytes == rangeSupport.totalSize
         ) {
             logcat(LogPriority.INFO) { "Resuming download for episode $episodeId" }
-            val chunkDir = tmpDir.filePath?.let(::File)
-            if (chunkDir != null) {
-                onRecovery(recoveryFor(existingProgress, chunkDir))
-            }
-            resume(existingProgress, transferHeaders, tmpDir, outputFile, onProgress)
+            onRecovery(recoveryFor(existingProgress, stateStore.chunkDirectory))
+            resume(existingProgress, transferHeaders, outputFile, onProgress)
         } else {
-            if (existingProgress != null ||
-                tmpDir.filePath?.let(::File)?.list().orEmpty().any { it.startsWith("chunk_${episodeId}_") }
-            ) {
+            val chunkName = DownloadStateStore.chunkNamePattern(episodeId)
+            if (existingProgress != null || stateStore.chunkDirectory.list().orEmpty().any(chunkName::matches)) {
                 onRecovery(DownloadRecovery.RESTART)
             }
-            startNewDownload(episodeId, videoUrl, transferHeaders, tmpDir, outputFile, onProgress, rangeSupport)
+            startNewDownload(episodeId, videoUrl, transferHeaders, outputFile, onProgress, rangeSupport)
         }
     }
 
     internal fun hasCheckpoint(episodeId: Long, url: String): Boolean =
         stateStore.loadProgress(episodeId)?.let { it.videoUrl == url && it.entityTag != null } == true
 
-    internal fun discardStagedChunks(episodeId: Long, directory: UniFile) {
-        val names = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
+    internal fun discardStagedChunks(episodeId: Long) {
+        stateStore.deleteProgress(episodeId)
+    }
+
+    private fun removeChunks(episodeId: Long, directory: UniFile) {
+        val chunkName = DownloadStateStore.chunkNamePattern(episodeId)
         directory.listFiles().orEmpty().forEach { file ->
-            if (names.matches(file.name.orEmpty())) {
+            if (chunkName.matches(file.name.orEmpty())) {
                 check(file.delete()) { "Cannot remove an invalid video chunk" }
             }
         }
-        stateStore.deleteProgress(episodeId)
     }
 
     private fun recoveryFor(progress: DownloadProgress, directory: File): DownloadRecovery {
@@ -127,7 +127,6 @@ class MultiThreadDownloader(
      *
      * @param progress The saved progress state
      * @param headers Optional headers to include
-     * @param tmpDir The temporary directory
      * @param outputFile The final output file
      * @param onProgress Callback for progress updates
      * @return [DownloadResult] indicating success or failure
@@ -135,14 +134,12 @@ class MultiThreadDownloader(
     suspend fun resume(
         progress: DownloadProgress,
         headers: Headers?,
-        tmpDir: UniFile,
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        val chunkDir = tmpDir.filePath?.let(::File)
         val verifiedProgress = progress.copy(
             chunks = progress.chunks.map { chunk ->
-                val savedBytes = chunkDir?.let { File(it, chunk.tempFileName).length() }
+                val savedBytes = File(stateStore.chunkDirectory, chunk.tempFileName).length()
                 if (chunk.isComplete && savedBytes != chunk.totalBytes) {
                     chunk.copy(downloadedBytes = 0, status = ChunkProgress.ChunkStatus.PENDING)
                 } else {
@@ -150,7 +147,7 @@ class MultiThreadDownloader(
                 }
             },
         )
-        return performDownload(verifiedProgress, headers, tmpDir, outputFile, onProgress, resume = true)
+        return performDownload(verifiedProgress, headers, outputFile, onProgress, resume = true)
     }
 
     /**
@@ -160,7 +157,6 @@ class MultiThreadDownloader(
         episodeId: Long,
         videoUrl: String,
         headers: Headers?,
-        tmpDir: UniFile,
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit,
         rangeSupport: RangeRequestHandler.RangeSupportResult.Supported,
@@ -194,7 +190,7 @@ class MultiThreadDownloader(
             resourceUrl = rangeSupport.resourceUrl,
         )
 
-        return performDownload(progress, headers, tmpDir, outputFile, onProgress, resume = false)
+        return performDownload(progress, headers, outputFile, onProgress, resume = false)
     }
 
     /**
@@ -203,17 +199,11 @@ class MultiThreadDownloader(
     private suspend fun performDownload(
         progress: DownloadProgress,
         headers: Headers?,
-        tmpDir: UniFile,
         outputFile: UniFile,
         onProgress: (DownloadProgress) -> Unit,
         resume: Boolean,
     ): DownloadResult {
-        // Get temp directory as File
-        val tempDirFile = File(
-            tmpDir.filePath ?: return DownloadResult.Error(
-                DownloadError.InvalidTempDirectory("Cannot access temp directory"),
-            ),
-        )
+        val tempDirFile = stateStore.chunkDirectory
 
         // A file left by another download of this episode can hold other bytes.
         if (!resume) {
