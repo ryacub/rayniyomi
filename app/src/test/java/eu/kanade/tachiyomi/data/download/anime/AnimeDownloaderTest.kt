@@ -537,7 +537,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `a completed download deletes its resume progress and staged chunks`() = runTest {
+    fun `a completed download deletes its resume progress`() = runTest {
         every { testAppGraph.downloadPreferences.useExternalDownloader().get() } returns true
         val download = testDownload(mockk(relaxed = true))
         val mkvFile = mockk<UniFile>(relaxed = true)
