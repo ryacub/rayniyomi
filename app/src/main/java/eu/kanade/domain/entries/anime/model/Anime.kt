@@ -7,7 +7,6 @@ import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.domain.entries.anime.model.Anime
 
-// TODO: move these into the domain model
 val Anime.downloadedFilter: TriState
     get() {
         if (appGraph.basePreferences.downloadedOnly().get()) return TriState.ENABLED_IS

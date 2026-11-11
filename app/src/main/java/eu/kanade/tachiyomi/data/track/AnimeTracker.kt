@@ -36,7 +36,6 @@ interface AnimeTracker {
 
     fun getRewatchingStatus(): Long
 
-    // TODO: Store all scores as 10 point in the future maybe?
     fun get10PointScore(track: DomainAnimeTrack): Double {
         return track.score
     }
@@ -51,7 +50,6 @@ interface AnimeTracker {
 
     suspend fun refresh(track: AnimeTrack): AnimeTrack
 
-    // TODO: move this to an interactor, and update all trackers based on common data
     suspend fun register(item: AnimeTrack, animeId: Long) {
         item.anime_id = animeId
         try {
