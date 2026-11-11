@@ -169,6 +169,7 @@ class AnimeDownloadManager(
     suspend fun retryDownload(id: Long) = queueMutations.retry(id)
 
     fun pauseDownloads() {
+        downloader.pause()
         downloader.stop()
     }
 
