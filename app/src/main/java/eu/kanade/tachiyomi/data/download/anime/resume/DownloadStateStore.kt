@@ -165,6 +165,8 @@ class DownloadStateStore(
         private const val CHUNK_DIR_NAME = "download_chunks"
         private const val PROGRESS_FILE_EXTENSION = "dp"
 
+        internal fun chunkFileName(episodeId: Long, index: Int) = "chunk_${episodeId}_$index.tmp"
+
         internal fun chunkNamePattern(episodeId: Long) = Regex("chunk_${episodeId}_[0-9]+\\.tmp")
     }
 }

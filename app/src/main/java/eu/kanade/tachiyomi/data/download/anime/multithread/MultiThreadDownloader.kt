@@ -62,7 +62,7 @@ class MultiThreadDownloader(
         onRecovery: (DownloadRecovery) -> Unit = {},
         onProgress: (DownloadProgress) -> Unit = {},
     ): DownloadResult {
-        removeChunks(episodeId, tmpDir)
+        removeLegacyChunks(episodeId, tmpDir)
         val rangeSupport = when (val result = rangeRequestHandler.checkRangeSupport(videoUrl, headers)) {
             is RangeRequestHandler.RangeSupportResult.Supported -> result
             is RangeRequestHandler.RangeSupportResult.Error -> {
@@ -102,11 +102,12 @@ class MultiThreadDownloader(
         stateStore.deleteProgress(episodeId)
     }
 
-    private fun removeChunks(episodeId: Long, directory: UniFile) {
+    // The download no longer reads these files. A file that stays only adds bytes to the episode folder.
+    private fun removeLegacyChunks(episodeId: Long, directory: UniFile) {
         val chunkName = DownloadStateStore.chunkNamePattern(episodeId)
         directory.listFiles().orEmpty().forEach { file ->
-            if (chunkName.matches(file.name.orEmpty())) {
-                check(file.delete()) { "Cannot remove an invalid video chunk" }
+            if (chunkName.matches(file.name.orEmpty()) && !file.delete()) {
+                logcat(LogPriority.WARN) { "Cannot remove the old video chunk ${file.name}" }
             }
         }
     }
@@ -182,7 +183,7 @@ class MultiThreadDownloader(
                     endByte = range.endByte,
                     downloadedBytes = 0,
                     status = ChunkProgress.ChunkStatus.PENDING,
-                    tempFileName = "chunk_${episodeId}_$index.tmp",
+                    tempFileName = DownloadStateStore.chunkFileName(episodeId, index),
                 )
             },
             status = DownloadProgress.Status.IN_PROGRESS,
@@ -203,12 +204,12 @@ class MultiThreadDownloader(
         onProgress: (DownloadProgress) -> Unit,
         resume: Boolean,
     ): DownloadResult {
-        val tempDirFile = stateStore.chunkDirectory
+        val chunkDirectory = stateStore.chunkDirectory
 
         // A file left by another download of this episode can hold other bytes.
         if (!resume) {
             for (chunk in progress.chunks) {
-                val file = File(tempDirFile, chunk.tempFileName)
+                val file = File(chunkDirectory, chunk.tempFileName)
                 if (file.exists() && !file.delete()) {
                     return DownloadResult.Error(DownloadError.InvalidTempDirectory("Cannot clear stale chunk"))
                 }
@@ -219,7 +220,10 @@ class MultiThreadDownloader(
         }
         val scope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext.job))
         val chunkState = ChunkStateTracker(progress.chunks) { chunk ->
-            ChunkDownloader.keptBytes(ChunkRange(chunk.startByte, chunk.endByte), File(tempDirFile, chunk.tempFileName))
+            ChunkDownloader.keptBytes(
+                ChunkRange(chunk.startByte, chunk.endByte),
+                File(chunkDirectory, chunk.tempFileName),
+            )
         }
 
         return try {
@@ -232,7 +236,7 @@ class MultiThreadDownloader(
                             chunk = chunk,
                             progress = progress,
                             headers = headers,
-                            tempDir = tempDirFile,
+                            tempDir = chunkDirectory,
                             onChunkProgress = { bytes ->
                                 chunkState.addBytes(chunk.index, bytes)
                                 onProgress(chunkState.applyTo(progress))
@@ -254,7 +258,7 @@ class MultiThreadDownloader(
 
             // Check if all chunks completed successfully
             val allComplete = progress.chunks.all { chunk ->
-                val chunkFile = File(tempDirFile, chunk.tempFileName)
+                val chunkFile = File(chunkDirectory, chunk.tempFileName)
                 if (chunk.endByte < 0) {
                     // Open-ended range - just check that file exists and has some content
                     chunkFile.exists() && chunkFile.length() > 0
@@ -273,7 +277,7 @@ class MultiThreadDownloader(
 
             val mergeResult = chunkMerger.mergeChunks(
                 progress = updatedProgress,
-                tempDir = tempDirFile,
+                tempDir = chunkDirectory,
                 outputFile = outputFile,
             )
 
