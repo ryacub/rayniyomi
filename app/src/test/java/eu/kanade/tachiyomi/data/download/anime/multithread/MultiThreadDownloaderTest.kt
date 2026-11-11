@@ -16,6 +16,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -65,8 +66,12 @@ class MultiThreadDownloaderTest {
         server.start()
     }
 
+    private val appCache by lazy { File(tempDir, "cache") }
+    private val lockedFolders = mutableListOf<File>()
+
     @AfterEach
     fun tearDown() {
+        lockedFolders.forEach { it.setWritable(true) }
         server.shutdown()
     }
 
@@ -418,6 +423,140 @@ class MultiThreadDownloaderTest {
         output.readBytes().contentEquals(video) shouldBe true
     }
 
+    @Test
+    fun `a download into a folder without file write access completes and keeps no chunk files`() = runTest {
+        val (folder, output) = folderWithoutFileWriteAccess()
+        val downloader = MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 })
+
+        val result = withContext(Dispatchers.IO) {
+            downloader.download(
+                episodeId = EPISODE_ID,
+                videoUrl = server.url("/episode.mp4").toString(),
+                headers = null,
+                tmpDir = uniFileAt(folder),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+        folder.list().orEmpty().toList() shouldBe listOf(output.name)
+        chunkFilesIn(appCache) shouldBe emptyList()
+    }
+
+    @Test
+    fun `an interrupted download in a folder without file write access resumes after a restart`() =
+        runBlocking<Unit> {
+            val (folder, output) = folderWithoutFileWriteAccess()
+            val videoUrl = server.url("/episode.mp4").toString()
+            interruptAfterTwoMebibytes(folder, output, videoUrl)
+            val chunkStarts = appStore().loadProgress(EPISODE_ID)!!.chunks.map { it.startByte }
+
+            val ranges = RangeDispatcher(video)
+            server.dispatcher = ranges
+            val result = withContext(Dispatchers.IO) {
+                MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 }).download(
+                    episodeId = EPISODE_ID,
+                    videoUrl = videoUrl,
+                    headers = null,
+                    tmpDir = uniFileAt(folder),
+                    outputFile = documentAt(output),
+                )
+            }
+
+            result.shouldBeInstanceOf<DownloadResult.Success>()
+            output.readBytes().contentEquals(video) shouldBe true
+            ranges.requestedRanges.map { it.rangeStart() }.filter { it in chunkStarts } shouldBe emptyList()
+        }
+
+    @Test
+    fun `deleting the progress of an interrupted download removes its staged chunks`() = runBlocking<Unit> {
+        val (folder, output) = folderWithoutFileWriteAccess()
+        interruptAfterTwoMebibytes(folder, output, server.url("/episode.mp4").toString())
+        chunkFilesIn(appCache).isNotEmpty() shouldBe true
+
+        appStore().deleteProgress(EPISODE_ID)
+
+        chunkFilesIn(appCache) shouldBe emptyList()
+    }
+
+    @Test
+    fun `a resumed download removes chunk files that an older version left in the storage folder`() = runTest {
+        val folder = File(tempDir, "episode_tmp").apply { mkdirs() }
+        val legacyChunk = File(folder, "chunk_${EPISODE_ID}_0.tmp").apply { writeBytes(video.copyOf(1024)) }
+        val output = File(folder, "episode.mp4").apply { createNewFile() }
+        val videoUrl = server.url("/episode.mp4").toString()
+        val chunks = ChunkSizeCalculator.calculateChunks(video.size.toLong(), 2).mapIndexed { index, range ->
+            ChunkProgress(
+                index = index,
+                startByte = range.startByte,
+                endByte = range.endByte,
+                downloadedBytes = if (index == 0) legacyChunk.length() else 0,
+                status = ChunkProgress.ChunkStatus.PENDING,
+                tempFileName = "chunk_${EPISODE_ID}_$index.tmp",
+            )
+        }
+        appStore().checkpoint(
+            DownloadProgress(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                totalBytes = video.size.toLong(),
+                downloadedBytes = legacyChunk.length(),
+                chunks = chunks,
+                status = DownloadProgress.Status.PAUSED,
+                entityTag = VIDEO_TAG,
+                resourceUrl = videoUrl,
+            ),
+        ) shouldBe true
+
+        val result = withContext(Dispatchers.IO) {
+            MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 }).download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(folder),
+                outputFile = documentAt(output),
+            )
+        }
+
+        result.shouldBeInstanceOf<DownloadResult.Success>()
+        output.readBytes().contentEquals(video) shouldBe true
+        folder.list().orEmpty().toList() shouldBe listOf(output.name)
+    }
+
+    private suspend fun CoroutineScope.interruptAfterTwoMebibytes(folder: File, output: File, videoUrl: String) {
+        server.dispatcher = RangeDispatcher(video, bytesPer20Millis = 64 * 1024)
+        val someBytesWritten = CountDownLatch(1)
+        val download = launch(Dispatchers.IO) {
+            MultiThreadDownloader(OkHttpClient(), appStore(), maxThreadsProvider = { 2 }).download(
+                episodeId = EPISODE_ID,
+                videoUrl = videoUrl,
+                headers = null,
+                tmpDir = uniFileAt(folder),
+                outputFile = documentAt(output),
+                onProgress = { if (it.downloadedBytes > 2L * 1024 * 1024) someBytesWritten.countDown() },
+            )
+        }
+        someBytesWritten.await(10, TimeUnit.SECONDS) shouldBe true
+        download.cancelAndJoin()
+    }
+
+    // Each call is a new process: the store has no progress in memory.
+    private fun appStore() = DownloadStateStore(mockk<Context> { every { cacheDir } returns appCache })
+
+    // A SAF document takes writes through its stream, but scoped storage refuses new java.io.File entries in the folder.
+    private fun folderWithoutFileWriteAccess(): Pair<File, File> {
+        val folder = File(tempDir, "episode_tmp").apply { mkdirs() }
+        val output = File(folder, "episode.mp4").apply { createNewFile() }
+        folder.setWritable(false)
+        lockedFolders += folder
+        runCatching { File(folder, "probe").createNewFile() }.getOrDefault(false) shouldBe false
+        return folder to output
+    }
+
+    private fun chunkFilesIn(directory: File): List<String> =
+        directory.walkTopDown().filter { it.isFile && it.name.startsWith("chunk_") }.map { it.name }.toList()
+
     private suspend fun resumeFromCompleteChunks(chunkDir: File) {
         val output = File(tempDir, "episode.mp4")
         val videoUrl = server.url("/episode.mp4").toString()
@@ -463,6 +602,14 @@ class MultiThreadDownloaderTest {
 
     private fun uniFileAt(file: File): UniFile = mockk {
         every { filePath } returns file.absolutePath
+        every { listFiles() } answers {
+            file.listFiles()?.map { child ->
+                mockk<UniFile> {
+                    every { name } returns child.name
+                    every { delete() } answers { child.delete() }
+                }
+            }?.toTypedArray()
+        }
     }
 
     // A SAF document has no usable file path, so the app can only write it through its stream.
