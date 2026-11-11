@@ -39,6 +39,7 @@ import com.github.chrisbanes.photoview.PhotoView
 import eu.kanade.tachiyomi.data.coil.cropBorders
 import eu.kanade.tachiyomi.data.coil.customDecoder
 import eu.kanade.tachiyomi.di.appGraph
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.liveAnimatorDurationScale
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonSubsamplingImageView
 import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import eu.kanade.tachiyomi.util.view.isVisibleOnScreen
@@ -161,11 +162,11 @@ open class ReaderPageImageView @JvmOverloads constructor(
             val targetScale = height.toFloat() / sHeight.toFloat()
             val animation = animateScaleAndCenter(targetScale, point) ?: return@Runnable
             animation
-                .withDuration(500)
+                .withDuration(500.instantWhenAnimationsOff().toLong())
                 .withEasing(EASE_IN_OUT_QUAD)
                 .withInterruptible(true)
                 .start()
-        }.also { handler?.postDelayed(it, 500) }
+        }.also { handler?.postDelayed(it, 500.instantWhenAnimationsOff().toLong()) }
     }
 
     fun setImage(drawable: Drawable, config: Config) {
@@ -293,7 +294,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
             val target = fn(view.center ?: return, view)
             view.animateCenter(target)!!
                 .withEasing(EASE_OUT_QUAD)
-                .withDuration(250)
+                .withDuration(250.instantWhenAnimationsOff().toLong())
                 .withInterruptible(true)
                 .start()
         }
@@ -484,9 +485,11 @@ open class ReaderPageImageView @JvmOverloads constructor(
         context.imageLoader.enqueue(request)
     }
 
-    private fun Int.getSystemScaledDuration(): Int {
-        return (this * context.animatorDurationScale).toInt().coerceAtLeast(1)
-    }
+    private fun Int.getSystemScaledDuration(): Int =
+        scaledAnimationDuration(this, liveAnimatorDurationScale(), context.animatorDurationScale)
+
+    private fun Int.instantWhenAnimationsOff(): Int =
+        scaledAnimationDuration(this, liveAnimatorDurationScale(), settingsScale = 1f)
 
     /**
      * All of the config except [zoomDuration] will only be used for non-animated image.
@@ -614,3 +617,7 @@ internal fun displayedImageBoundsInContainer(
     containerWidth = containerWidth,
     containerHeight = containerHeight,
 )
+
+/** Below API 33 the live scale is only 0 or 1, so Settings keeps the nonzero multiplier. */
+internal fun scaledAnimationDuration(baseMs: Int, liveScale: Float, settingsScale: Float): Int =
+    if (liveScale == 0f) 1 else (baseMs * settingsScale).toInt().coerceAtLeast(1)

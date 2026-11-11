@@ -28,7 +28,6 @@ internal class PageCurlCoordinator(
             pager.removeCallbacks(runnable)
         }
     },
-    private val storedTransitionStyle: () -> PageTransitionStyle,
     private val effectiveTransitionStyle: () -> PageTransitionStyle,
     private val sourceHolder: () -> PagerPageHolder?,
     private val readerItemAt: (Int) -> ReaderPage?,
@@ -87,12 +86,7 @@ internal class PageCurlCoordinator(
 
     /** Starts one turn or hands it to the existing non-curl fallback path. */
     private fun startTurn(turn: QueuedTurn, withinRapidNavigationWindow: Boolean) {
-        val preference = storedTransitionStyle()
-        val style = if (preference == PageTransitionStyle.CURL) {
-            effectiveTransitionStyle()
-        } else {
-            preference
-        }
+        val style = effectiveTransitionStyle()
         val useAnimation = style != PageTransitionStyle.NONE
         val source = sourceHolder()
         val targetHolder = readerItemAt(turn.targetPosition)?.let(holderFor)

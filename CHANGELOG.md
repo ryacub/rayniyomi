@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- With system animations off, the reader turns pages, jumps from the slider, zooms wide pages, pans, and scrolls webtoons in one step. Before, page turns and jumps still slid, and the wide-page zoom and the key pan still moved (#1465).
 
 ### Changed
 

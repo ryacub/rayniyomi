@@ -36,7 +36,7 @@ class PagerConfigEffectiveTransitionStyleTest {
             PageTransitionStyle.CURL,
             liveAnimatorDurationScale(Build.VERSION_CODES.TIRAMISU),
         ) shouldBe
-            PageTransitionStyle.SLIDE
+            PageTransitionStyle.NONE
         settingsScale shouldBe 1f
     }
 
@@ -68,8 +68,8 @@ class PagerConfigEffectiveTransitionStyleTest {
     }
 
     @Test
-    fun `CURL with scale 0 downgrades to SLIDE`() {
-        effectiveTransitionStyle(PageTransitionStyle.CURL, 0f) shouldBe PageTransitionStyle.SLIDE
+    fun `CURL with scale 0 becomes NONE`() {
+        effectiveTransitionStyle(PageTransitionStyle.CURL, 0f) shouldBe PageTransitionStyle.NONE
     }
 
     @Test
@@ -83,8 +83,13 @@ class PagerConfigEffectiveTransitionStyleTest {
     }
 
     @Test
-    fun `SLIDE with scale 0 stays SLIDE`() {
-        effectiveTransitionStyle(PageTransitionStyle.SLIDE, 0f) shouldBe PageTransitionStyle.SLIDE
+    fun `SLIDE with scale 0 becomes NONE`() {
+        effectiveTransitionStyle(PageTransitionStyle.SLIDE, 0f) shouldBe PageTransitionStyle.NONE
+    }
+
+    @Test
+    fun `SLIDE with scale 1 stays SLIDE`() {
+        effectiveTransitionStyle(PageTransitionStyle.SLIDE, 1f) shouldBe PageTransitionStyle.SLIDE
     }
 
     @Test
