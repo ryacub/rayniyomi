@@ -38,7 +38,7 @@ class RecoverySchemaMigrationTest {
         val upgraded = inMemoryDriver().also { AnimeDatabase.Schema.create(it) }
         upgraded.dropRecoveryObjects()
 
-        AnimeDatabase.Schema.migrate(upgraded, AnimeDatabase.Schema.version - 1, AnimeDatabase.Schema.version)
+        AnimeDatabase.Schema.migrate(upgraded, 141, 142)
 
         val expected = fresh.recoverySchema()
         assertTrue(expected.isNotEmpty())

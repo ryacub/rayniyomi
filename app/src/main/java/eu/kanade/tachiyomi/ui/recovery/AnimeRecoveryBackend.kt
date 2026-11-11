@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.ui.recovery
 
 import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -47,8 +46,7 @@ class AnimeRecoveryBackend(
 ) : RecoveryBackend {
 
     override val search = RecoverySourceSearch { sourceId, query ->
-        val source = requireSource(sourceId) as? AnimeCatalogueSource
-            ?: error("Source $sourceId cannot search")
+        val source = requireSource(sourceId)
         AnimeSourceGateway.search(source, 1, query, AnimeSourceGateway.filters(source)).animes
             .map { RecoveryCandidate(sourceId = sourceId, url = it.url, title = it.title) }
     }

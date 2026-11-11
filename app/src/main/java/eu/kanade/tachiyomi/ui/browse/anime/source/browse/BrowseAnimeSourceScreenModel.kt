@@ -27,7 +27,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.presentation.util.ioCoroutineScope
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
@@ -61,6 +61,7 @@ import tachiyomi.domain.entries.anime.model.toAnimeUpdate
 import tachiyomi.domain.items.episode.interactor.SetAnimeDefaultEpisodeFlags
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.interactor.GetRemoteAnime
+import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import java.time.Instant
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter as AnimeSourceModelFilter
@@ -102,7 +103,7 @@ class BrowseAnimeSourceScreenModel(
     val source = sourceManager.getOrStub(sourceId)
 
     init {
-        if (source is AnimeCatalogueSource) {
+        if (source !is StubAnimeSource) {
             var filtersFailed = false
 
             val initialListing = state.value.listing
@@ -183,7 +184,7 @@ class BrowseAnimeSourceScreenModel(
     /**
      * Returns the extension filters, and records a defective extension so the screen can report it.
      */
-    private fun AnimeCatalogueSource.filterListOrEmpty(): AnimeFilterList {
+    private fun AnimeSource.filterListOrEmpty(): AnimeFilterList {
         val filters = getFilterListOrNull()
         if (filters == null) {
             mutableState.update { it.copy(filtersFailed = true) }
@@ -196,7 +197,7 @@ class BrowseAnimeSourceScreenModel(
     }
 
     fun resetFilters() {
-        if (source !is AnimeCatalogueSource) return
+        if (source is StubAnimeSource) return
 
         val filters = source.filterListOrEmpty()
         mutableState.update { it.copy(filters = filters) }
@@ -207,7 +208,7 @@ class BrowseAnimeSourceScreenModel(
     }
 
     fun setFilters(filters: AnimeFilterList) {
-        if (source !is AnimeCatalogueSource) return
+        if (source is StubAnimeSource) return
 
         mutableState.update {
             it.copy(
@@ -217,7 +218,7 @@ class BrowseAnimeSourceScreenModel(
     }
 
     fun search(query: String? = null, filters: AnimeFilterList? = null) {
-        if (source !is AnimeCatalogueSource) return
+        if (source is StubAnimeSource) return
 
         val input = state.value.listing as? Listing.Search
             ?: Listing.Search(query = null, filters = source.filterListOrEmpty())
@@ -234,7 +235,7 @@ class BrowseAnimeSourceScreenModel(
     }
 
     fun searchGenre(genreName: String) {
-        if (source !is AnimeCatalogueSource) return
+        if (source is StubAnimeSource) return
 
         val defaultFilters = source.filterListOrEmpty()
         var genreExists = false

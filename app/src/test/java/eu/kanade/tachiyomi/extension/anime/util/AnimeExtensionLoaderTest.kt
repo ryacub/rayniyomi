@@ -77,6 +77,7 @@ class AnimeExtensionLoaderTest {
     @Test
     fun `apk loader uses the declared library version before the package version`() = runTest {
         val metadata = mockk<Bundle>(relaxed = true)
+        every { metadata.get(any()) } returns null
         every { metadata.get("aniyomix.extensionLib") } returns 17
 
         loadExtension(metadata, versionName = "1.0.0") shouldBe AnimeLoadResult.Error(

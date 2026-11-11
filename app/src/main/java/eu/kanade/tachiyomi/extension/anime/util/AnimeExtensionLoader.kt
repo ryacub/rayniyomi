@@ -10,7 +10,6 @@ import androidx.core.content.pm.PackageInfoCompat
 import dalvik.system.PathClassLoader
 import eu.kanade.domain.extension.anime.interactor.TrustAnimeExtension
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
 import eu.kanade.tachiyomi.di.appGraph
@@ -44,8 +43,11 @@ internal object AnimeExtensionLoader {
     private const val METADATA_NSFW = "tachiyomi.animeextension.nsfw"
     private const val METADATA_HAS_README = "tachiyomi.animeextension.hasReadme"
     private const val METADATA_HAS_CHANGELOG = "tachiyomi.animeextension.hasChangelog"
-    const val LIB_VERSION_MIN = 12
-    const val LIB_VERSION_MAX = 16
+    private const val METADATA_EXTENSION_LIB = "aniyomix.extensionLib"
+    private const val METADATA_CONTENT_WARNING = "aniyomix.contentWarning"
+    private val supportedLibVersions = setOf(14.0, 16.0, 17.0)
+
+    fun isSupportedLibVersion(version: Double): Boolean = version in supportedLibVersions
 
     @Suppress("DEPRECATION")
     private val PACKAGE_FLAGS = PackageManager.GET_CONFIGURATIONS or
@@ -301,7 +303,7 @@ internal object AnimeExtensionLoader {
                 ) ?: return loadError(extName, "source failed to load")
             }
 
-        val langs = sources.filterIsInstance<AnimeCatalogueSource>()
+        val langs = sources
             .map { it.lang }
             .toSet()
         val lang = when (langs.size) {
@@ -335,20 +337,24 @@ internal object AnimeExtensionLoader {
         }
 
         // Validate lib version
-        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
-        if (libVersion == null || libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
+        val libVersion = (metadata.get(METADATA_EXTENSION_LIB) as? Int)
+            ?.takeUnless { it == 0 }
+            ?.toDouble()
+            ?: versionName.substringBeforeLast('.').toDoubleOrNull()
+        if (libVersion == null || !isSupportedLibVersion(libVersion)) {
             logcat(LogPriority.WARN) {
-                "Lib version is $libVersion, while only versions " +
-                    "$LIB_VERSION_MIN to $LIB_VERSION_MAX are allowed"
+                "Lib version is $libVersion, while only versions ${supportedLibVersions.joinToString()} are supported"
             }
             return loadError(extName, "unsupported library version")
         }
 
-        val isNsfw = when (val value = metadata.get(METADATA_NSFW)) {
+        val legacyNsfw = when (val value = metadata.get(METADATA_NSFW)) {
             null -> false
             is Int -> value == 1
             else -> return loadError(extName, "malformed metadata")
         }
+        val contentWarning = metadata.get(METADATA_CONTENT_WARNING) as? Int ?: 0
+        val isNsfw = legacyNsfw || contentWarning > 0
         when (val value = metadata.get(METADATA_SOURCE_CLASS)) {
             null -> return loadError(extName, "missing source class metadata")
             is String -> value.takeIf { it.isNotBlank() }

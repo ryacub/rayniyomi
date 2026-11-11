@@ -105,6 +105,8 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     /**
      * Visible name of the source.
      */
+    open fun getHomeUrl(): String = baseUrl
+
     override fun toString() = "$name (${lang.uppercase()})"
 
     /**
@@ -130,14 +132,14 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      *
      * @param page the page number to retrieve.
      */
-    protected abstract fun popularAnimeRequest(page: Int): Request
+    protected open fun popularAnimeRequest(page: Int): Request = throw UnsupportedOperationException()
 
     /**
      * Parses the response from the site and returns a [AnimesPage] object.
      *
      * @param response the response from the site.
      */
-    protected abstract fun popularAnimeParse(response: Response): AnimesPage
+    protected open fun popularAnimeParse(response: Response): AnimesPage = throw UnsupportedOperationException()
 
     /**
      * Returns an observable containing a page with a list of anime. Normally it's not needed to
@@ -173,14 +175,18 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      * @param query the search query.
      * @param filters the list of filters to apply.
      */
-    protected abstract fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request
+    protected open fun searchAnimeRequest(
+        page: Int,
+        query: String,
+        filters: AnimeFilterList,
+    ): Request = throw UnsupportedOperationException()
 
     /**
      * Parses the response from the site and returns a [AnimesPage] object.
      *
      * @param response the response from the site.
      */
-    protected abstract fun searchAnimeParse(response: Response): AnimesPage
+    protected open fun searchAnimeParse(response: Response): AnimesPage = throw UnsupportedOperationException()
 
     /**
      * Returns an observable containing a page with a list of latest anime updates.
@@ -204,14 +210,14 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      *
      * @param page the page number to retrieve.
      */
-    protected abstract fun latestUpdatesRequest(page: Int): Request
+    protected open fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
 
     /**
      * Parses the response from the site and returns a [AnimesPage] object.
      *
      * @param response the response from the site.
      */
-    protected abstract fun latestUpdatesParse(response: Response): AnimesPage
+    protected open fun latestUpdatesParse(response: Response): AnimesPage = throw UnsupportedOperationException()
 
     /**
      * Get the updated details for a anime.
@@ -249,7 +255,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      *
      * @param response the response from the site.
      */
-    protected abstract fun animeDetailsParse(response: Response): SAnime
+    protected open fun animeDetailsParse(response: Response): SAnime = throw UnsupportedOperationException()
 
     /**
      * Get all the available episodes for an anime.
@@ -287,14 +293,14 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      *
      * @param response the response from the site.
      */
-    protected abstract fun episodeListParse(response: Response): List<SEpisode>
+    protected open fun episodeListParse(response: Response): List<SEpisode> = throw UnsupportedOperationException()
 
     /**
      * Parses the response from the site and returns a SEpisode Object.
      *
      * @param response the response from the site.
      */
-    protected abstract fun episodeVideoParse(response: Response): SEpisode
+    protected open fun episodeVideoParse(response: Response): SEpisode = throw UnsupportedOperationException()
 
     /**
      * Get all the available seasons for an anime.
@@ -331,7 +337,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      * @param response the response from the site.
      * @return the list of seasons.
      */
-    protected abstract fun seasonListParse(response: Response): List<SAnime>
+    protected open fun seasonListParse(response: Response): List<SAnime> = throw UnsupportedOperationException()
 
     /**
      * Get the list of hoster for an episode. The first hoster in the list should
@@ -368,7 +374,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      * @param response the response from the site.
      * @return the list of hosters.
      */
-    protected abstract fun hosterListParse(response: Response): List<Hoster>
+    protected open fun hosterListParse(response: Response): List<Hoster> = throw UnsupportedOperationException()
 
     /**
      * Get the list of videos for a hoster.
@@ -405,7 +411,10 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      * @param hoster the hoster.
      * @return the list of videos.
      */
-    protected abstract fun videoListParse(response: Response, hoster: Hoster): List<Video>
+    protected open fun videoListParse(
+        response: Response,
+        hoster: Hoster,
+    ): List<Video> = throw UnsupportedOperationException()
 
     /**
      * Returns the resolved video of the episode link. Override only if it's needed to resolve
@@ -455,7 +464,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      *
      * @param response the response from the site.
      */
-    protected abstract fun videoListParse(response: Response): List<Video>
+    protected open fun videoListParse(response: Response): List<Video> = throw UnsupportedOperationException()
 
     /**
      * Sorts the hoster list. Override this according to the user's preference.
@@ -518,7 +527,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      *
      * @param response the response from the site.
      */
-    protected abstract fun videoUrlParse(response: Response): String
+    protected open fun videoUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     /**
      * Returns the response of the source video.

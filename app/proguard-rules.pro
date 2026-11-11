@@ -62,6 +62,12 @@
 -keep class eu.kanade.tachiyomi.animesource.** extends eu.kanade.tachiyomi.animesource.AnimeSource { public protected *; }
 
 -keep class eu.kanade.tachiyomi.util.JsoupExtensionsKt { public protected *; }
+-keepclassmembers class eu.kanade.tachiyomi.source.anime.AndroidAnimeSourceManager {
+    public java.util.ArrayList getCatalogueSources();
+}
+-keepclassmembers class eu.kanade.tachiyomi.util.SourceFiltersKt {
+    public static eu.kanade.tachiyomi.animesource.model.AnimeFilterList getFilterListOrNull(eu.kanade.tachiyomi.animesource.AnimeCatalogueSource);
+}
 ##---------------End: extension source API ABI ----------
 
 ##---------------Begin: proguard configuration for RxJava 1.x  ----------

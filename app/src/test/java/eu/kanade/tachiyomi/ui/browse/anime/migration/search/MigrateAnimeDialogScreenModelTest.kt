@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.browse.anime.migration.search
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import io.kotest.matchers.shouldBe
@@ -62,7 +63,7 @@ class MigrateAnimeDialogScreenModelTest {
 
     @Test
     fun `failed episode fetch reports failure and leaves the new entry out of the library`() = runTest {
-        coEvery { newSource.getEpisodeList(any()) } throws IOException("offline")
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } throws IOException("offline")
 
         val result: Any? = model.migrateAnime(oldAnime, newAnime, replace = true, flags = allFlags)
 
@@ -74,7 +75,8 @@ class MigrateAnimeDialogScreenModelTest {
 
     @Test
     fun `failed episode sync reports failure and keeps the old entry and its downloads`() = runTest {
-        coEvery { newSource.getEpisodeList(any()) } returns emptyList()
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } answers
+            { SAnimeEpisodeUpdate(firstArg(), emptyList()) }
         coEvery { syncEpisodesWithSource.await(any(), any(), any(), any(), any()) } throws IllegalStateException("db")
         coEvery { updateAnime.await(any()) } returns true
         coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
@@ -88,7 +90,8 @@ class MigrateAnimeDialogScreenModelTest {
 
     @Test
     fun `rejected library write keeps the old entry and its downloads`() = runTest {
-        coEvery { newSource.getEpisodeList(any()) } returns emptyList()
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } answers
+            { SAnimeEpisodeUpdate(firstArg(), emptyList()) }
         coEvery { updateAnime.await(any()) } returns false
 
         val result: Any? = model.migrateAnime(oldAnime, newAnime, replace = true, flags = allFlags)
@@ -100,7 +103,8 @@ class MigrateAnimeDialogScreenModelTest {
 
     @Test
     fun `rejected unfavorite of the old entry keeps its downloads`() = runTest {
-        coEvery { newSource.getEpisodeList(any()) } returns emptyList()
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } answers
+            { SAnimeEpisodeUpdate(firstArg(), emptyList()) }
         coEvery { updateAnime.await(any()) } returns true
         coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns false
 
@@ -112,7 +116,8 @@ class MigrateAnimeDialogScreenModelTest {
 
     @Test
     fun `successful migration reports success`() = runTest {
-        coEvery { newSource.getEpisodeList(any()) } returns emptyList()
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } answers
+            { SAnimeEpisodeUpdate(firstArg(), emptyList()) }
         coEvery { updateAnime.await(any()) } returns true
         coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
 
@@ -125,7 +130,8 @@ class MigrateAnimeDialogScreenModelTest {
 
     @Test
     fun `cancellation propagates to the caller`() = runTest {
-        coEvery { newSource.getEpisodeList(any()) } throws CancellationException("left screen")
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } throws
+            CancellationException("left screen")
 
         val error = runCatching {
             model.migrateAnime(oldAnime, newAnime, replace = true, flags = allFlags)

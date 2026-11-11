@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.StateViewModel
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.di.ViewModelSearchDispatcher
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.ui.browse.common.search.SearchRequestCoordinator
@@ -56,8 +56,8 @@ abstract class AnimeSearchScreenModel(
 
     protected var extensionFilter: String? = null
 
-    private val sortComparator = { map: Map<AnimeCatalogueSource, AnimeSearchItemResult> ->
-        compareBy<AnimeCatalogueSource>(
+    private val sortComparator = { map: Map<AnimeSource, AnimeSearchItemResult> ->
+        compareBy<AnimeSource>(
             { (map[it] as? AnimeSearchItemResult.Success)?.isEmpty ?: true },
             { "${it.id}" !in pinnedSources },
             { "${it.name.lowercase()} (${it.lang})" },
@@ -83,7 +83,7 @@ abstract class AnimeSearchScreenModel(
         }
     }
 
-    open fun getEnabledSources(): List<AnimeCatalogueSource> {
+    open fun getEnabledSources(): List<AnimeSource> {
         return sourceManager.getCatalogueSources()
             .filter { it.lang in enabledLanguages && "${it.id}" !in disabledSources }
             .sortedWith(
@@ -94,7 +94,7 @@ abstract class AnimeSearchScreenModel(
             )
     }
 
-    private fun getSelectedSources(): List<AnimeCatalogueSource> {
+    private fun getSelectedSources(): List<AnimeSource> {
         val enabledSources = getEnabledSources()
 
         val filter = extensionFilter
@@ -105,7 +105,6 @@ abstract class AnimeSearchScreenModel(
         return extensionManager.installedExtensionsFlow.value
             .filter { it.pkgName == filter }
             .flatMap { it.sources }
-            .filterIsInstance<AnimeCatalogueSource>()
             .filter { it in enabledSources }
     }
 
@@ -158,7 +157,7 @@ abstract class AnimeSearchScreenModel(
         }
     }
 
-    fun retrySource(source: AnimeCatalogueSource) {
+    fun retrySource(source: AnimeSource) {
         val query = lastQuery ?: return
         if (state.value.items[source] !is AnimeSearchItemResult.Error) return
 
@@ -169,7 +168,7 @@ abstract class AnimeSearchScreenModel(
         }
     }
 
-    private suspend fun searchSource(source: AnimeCatalogueSource, query: String, requestId: Long) {
+    private suspend fun searchSource(source: AnimeSource, query: String, requestId: Long) {
         val result = try {
             val page = withContext(searchDispatcher) {
                 AnimeSourceGateway.search(source, 1, query, AnimeSourceGateway.filters(source))
@@ -189,8 +188,8 @@ abstract class AnimeSearchScreenModel(
 
     private fun updateItems(
         transform: (
-            PersistentMap<AnimeCatalogueSource, AnimeSearchItemResult>,
-        ) -> PersistentMap<AnimeCatalogueSource, AnimeSearchItemResult>,
+            PersistentMap<AnimeSource, AnimeSearchItemResult>,
+        ) -> PersistentMap<AnimeSource, AnimeSearchItemResult>,
     ) {
         mutableState.update { state ->
             val items = transform(state.items)
@@ -202,7 +201,7 @@ abstract class AnimeSearchScreenModel(
         }
     }
 
-    private fun updateItem(source: AnimeCatalogueSource, result: AnimeSearchItemResult) {
+    private fun updateItem(source: AnimeSource, result: AnimeSearchItemResult) {
         updateItems { it.put(source, result) }
     }
 
@@ -212,7 +211,7 @@ abstract class AnimeSearchScreenModel(
         val searchQuery: String? = null,
         val sourceFilter: AnimeSourceFilter = AnimeSourceFilter.PinnedOnly,
         val onlyShowHasResults: Boolean = false,
-        val items: PersistentMap<AnimeCatalogueSource, AnimeSearchItemResult> = persistentMapOf(),
+        val items: PersistentMap<AnimeSource, AnimeSearchItemResult> = persistentMapOf(),
     ) {
         val progress: Int = items.count { it.value !is AnimeSearchItemResult.Loading }
         val total: Int = items.size

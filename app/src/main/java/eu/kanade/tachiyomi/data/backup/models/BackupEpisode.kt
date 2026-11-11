@@ -1,7 +1,11 @@
 package eu.kanade.tachiyomi.data.backup.models
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.protobuf.ProtoNumber
+import tachiyomi.core.common.util.lang.EmptyJsonObject
+import tachiyomi.core.common.util.lang.toByteArray
+import tachiyomi.core.common.util.lang.toJsonObject
 import tachiyomi.domain.items.episode.model.Episode
 
 @Serializable
@@ -25,6 +29,7 @@ data class BackupEpisode(
     @ProtoNumber(10) var sourceOrder: Long = 0,
     @ProtoNumber(11) var lastModifiedAt: Long = 0,
     @ProtoNumber(12) var version: Long = 0,
+    @ProtoNumber(13) var memo: ByteArray = EmptyJsonObject.toByteArray(),
 
     // Aniyomi specific values
     @ProtoNumber(501) var fillermark: Boolean = false,
@@ -50,6 +55,7 @@ data class BackupEpisode(
             sourceOrder = this@BackupEpisode.sourceOrder,
             lastModifiedAt = this@BackupEpisode.lastModifiedAt,
             version = this@BackupEpisode.version,
+            memo = this@BackupEpisode.memo.toJsonObject(),
         )
     }
 }
@@ -74,6 +80,7 @@ val backupEpisodeMapper = {
         summary: String?,
         previewUrl: String?,
         fillermark: Boolean,
+        memo: JsonObject,
     ->
     BackupEpisode(
         url = url,
@@ -92,5 +99,6 @@ val backupEpisodeMapper = {
         sourceOrder = source_order,
         lastModifiedAt = lastModifiedAt,
         version = version,
+        memo = memo.toByteArray(),
     )
 }

@@ -16,6 +16,7 @@ fun Episode.toSEpisode(): SEpisode {
         it.scanlator = scanlator
         it.summary = summary
         it.preview_url = previewUrl
+        it.memo = memo
     }
 }
 
@@ -29,6 +30,7 @@ fun Episode.copyFromSEpisode(sEpisode: SEpisode): Episode {
         scanlator = sEpisode.scanlator?.ifBlank { null },
         summary = sEpisode.summary?.ifBlank { null },
         previewUrl = sEpisode.preview_url?.ifBlank { null },
+        memo = sEpisode.memo,
     )
 }
 

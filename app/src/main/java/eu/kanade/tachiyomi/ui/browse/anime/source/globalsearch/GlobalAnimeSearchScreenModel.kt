@@ -9,7 +9,7 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.di.ViewModelSearchDispatcher
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import kotlinx.coroutines.CoroutineDispatcher
@@ -60,7 +60,7 @@ class GlobalAnimeSearchScreenModel(
         }
     }
 
-    override fun getEnabledSources(): List<AnimeCatalogueSource> {
+    override fun getEnabledSources(): List<AnimeSource> {
         return super.getEnabledSources()
             .filter { state.value.sourceFilter != AnimeSourceFilter.PinnedOnly || "${it.id}" in pinnedSources }
     }

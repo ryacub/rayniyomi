@@ -77,7 +77,7 @@ class ExtensionUpdateMetadataTest {
                         pkgName = pkg.packageName,
                         versionName = "14.0.1",
                         versionCode = if (index == 0) 2 else 1,
-                        libVersion = if (index == 0) 14.0 else 15.0,
+                        libVersion = if (index == 0) 14.0 else 16.0,
                         lang = "en",
                         isNsfw = false,
                         sources = emptyList(),

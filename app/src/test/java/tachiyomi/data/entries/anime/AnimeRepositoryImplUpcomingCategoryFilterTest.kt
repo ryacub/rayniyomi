@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import dataanime.Animehistory
 import dataanime.Animes
+import dataanime.Episodes
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.DateColumnAdapter
 import tachiyomi.data.FetchTypeColumnAdapter
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.entries.anime.AnimeRepositoryImpl
 import tachiyomi.data.handlers.anime.AndroidAnimeDatabaseHandler
@@ -167,7 +169,9 @@ private class CategoryFilterUpcomingAnimeDb : AutoCloseable {
             genreAdapter = StringListColumnAdapter,
             update_strategyAdapter = AnimeUpdateStrategyColumnAdapter,
             fetch_typeAdapter = FetchTypeColumnAdapter,
+            memoAdapter = MemoColumnAdapter,
         ),
+        episodesAdapter = Episodes.Adapter(memoAdapter = MemoColumnAdapter),
     )
 
     val handler = AndroidAnimeDatabaseHandler(database, driver)

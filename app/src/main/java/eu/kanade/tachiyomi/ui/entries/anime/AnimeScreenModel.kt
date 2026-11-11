@@ -18,6 +18,7 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
+import eu.kanade.domain.entries.anime.interactor.SyncRelatedAnimeWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.downloadedFilter
 import eu.kanade.domain.entries.anime.model.seasonDownloadedFilter
@@ -63,6 +64,7 @@ import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +86,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
@@ -99,6 +103,7 @@ import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
+import tachiyomi.domain.entries.anime.interactor.GetRelatedAnime
 import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeSeasonFlags
@@ -162,6 +167,8 @@ class AnimeScreenModel(
     private val mergeLibraryAnime: MergeLibraryAnime,
     private val fetchInterval: AnimeFetchInterval,
     private val entryRefresher: AnimeEntryRefresher,
+    getRelatedAnime: GetRelatedAnime,
+    private val syncRelatedAnimeWithSource: SyncRelatedAnimeWithSource,
     private val clock: Clock = Clock.systemDefaultZone(),
     @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
@@ -229,6 +236,11 @@ class AnimeScreenModel(
             }
         }
     }
+
+    val relatedAnime = getRelatedAnime.subscribe(animeId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val relatedRefresh = Mutex()
 
     init {
         viewModelScope.launchIO {
@@ -301,6 +313,7 @@ class AnimeScreenModel(
             }
             // Start observe tracking since it only needs animeId
             observeTrackers()
+            refreshRelatedAnime(anime, forceRefresh = false)
 
             // Fetch info-episodes when needed
             if (viewModelScope.isActive) {
@@ -320,7 +333,23 @@ class AnimeScreenModel(
     fun fetchAllFromSource() {
         val state = successState?.takeUnless { it.isRefreshingData } ?: return
         val refresh = entryRefresher.refresh(state.source, state.anime, state.trackItems)
+        refreshRelatedAnime(state.anime, forceRefresh = true)
         viewModelScope.launch { showRefresh(refresh) }
+    }
+
+    private fun refreshRelatedAnime(anime: Anime, forceRefresh: Boolean) {
+        viewModelScope.launch {
+            if (!relatedRefresh.tryLock()) return@launch
+            try {
+                withContext(ioDispatcher) { syncRelatedAnimeWithSource.await(anime, forceRefresh) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.WARN, e)
+            } finally {
+                relatedRefresh.unlock()
+            }
+        }
     }
 
     private suspend fun showRefresh(refresh: Deferred<AnimeRefreshResult>) {

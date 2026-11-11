@@ -6,6 +6,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.FetchTypeColumnAdapter
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.domain.entries.anime.model.Anime
@@ -189,6 +190,7 @@ class AnimeRepositoryImpl(
                 episodeFlags = anime.episodeFlags,
                 coverLastModified = anime.coverLastModified,
                 backgroundLastModified = anime.backgroundLastModified,
+                memo = anime.memo,
                 dateAdded = anime.dateAdded,
                 updateStrategy = anime.updateStrategy,
                 version = anime.version,
@@ -273,6 +275,7 @@ class AnimeRepositoryImpl(
                     episodeFlags = value.episodeFlags,
                     coverLastModified = value.coverLastModified,
                     backgroundLastModified = value.backgroundLastModified,
+                    memo = value.memo?.let(MemoColumnAdapter::encode),
                     dateAdded = value.dateAdded,
                     animeId = value.id,
                     updateStrategy = value.updateStrategy?.let(AnimeUpdateStrategyColumnAdapter::encode),

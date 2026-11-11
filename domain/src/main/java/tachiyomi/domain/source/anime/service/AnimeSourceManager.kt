@@ -1,6 +1,5 @@
 package tachiyomi.domain.source.anime.service
 
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +10,7 @@ interface AnimeSourceManager {
 
     val isInitialized: StateFlow<Boolean>
 
-    val catalogueSources: Flow<List<AnimeCatalogueSource>>
+    val catalogueSources: Flow<List<AnimeSource>>
 
     fun get(sourceKey: Long): AnimeSource?
 
@@ -19,7 +18,7 @@ interface AnimeSourceManager {
 
     fun getOnlineSources(): List<AnimeHttpSource>
 
-    fun getCatalogueSources(): List<AnimeCatalogueSource>
+    fun getCatalogueSources(): List<AnimeSource>
 
     fun getStubSources(): List<StubAnimeSource>
 }

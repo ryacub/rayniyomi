@@ -1,7 +1,12 @@
 package eu.kanade.tachiyomi.animesource
 
+import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimeRelation
+import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
+import eu.kanade.tachiyomi.animesource.model.SAnimeSeasonUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.util.awaitSingle
@@ -23,7 +28,44 @@ interface AnimeSource {
     val name: String
 
     val lang: String
-        get() = ""
+        get() = "all"
+
+    val supportsLatest: Boolean
+        get() = false
+
+    fun getFilterList(): AnimeFilterList = AnimeFilterList()
+
+    suspend fun getPopularAnime(page: Int): AnimesPage = throw UnsupportedOperationException()
+
+    suspend fun getLatestUpdates(page: Int): AnimesPage = throw UnsupportedOperationException()
+
+    suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage =
+        throw UnsupportedOperationException()
+
+    suspend fun getAnimeEpisodeUpdate(
+        anime: SAnime,
+        episodes: List<SEpisode>,
+        fetchDetails: Boolean,
+        fetchEpisodes: Boolean,
+    ): SAnimeEpisodeUpdate = SAnimeEpisodeUpdate(
+        anime = if (fetchDetails) getAnimeDetails(anime) else anime,
+        episodes = if (fetchEpisodes) getEpisodeList(anime) else episodes,
+    )
+
+    suspend fun getAnimeSeasonUpdate(
+        anime: SAnime,
+        seasons: List<SAnime>,
+        fetchDetails: Boolean,
+        fetchSeasons: Boolean,
+    ): SAnimeSeasonUpdate = SAnimeSeasonUpdate(
+        anime = if (fetchDetails) getAnimeDetails(anime) else anime,
+        seasons = if (fetchSeasons) getSeasonList(anime) else seasons,
+    )
+
+    val supportsRelatedAnime: Boolean
+        get() = false
+
+    suspend fun getRelatedAnimeList(anime: SAnime): List<AnimeRelation> = emptyList()
 
     /**
      * Get the updated details for a anime.
@@ -56,7 +98,7 @@ interface AnimeSource {
      * @param anime the anime to fetch seasons for.
      * @return the anime list for the anime.
      */
-    suspend fun getSeasonList(anime: SAnime): List<SAnime>
+    suspend fun getSeasonList(anime: SAnime): List<SAnime> = throw UnsupportedOperationException()
 
     /**
      * Get the list of hoster for an episode. The first hoster in the list should

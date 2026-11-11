@@ -22,6 +22,7 @@ import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
+import eu.kanade.domain.items.episode.model.toSEpisode
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -498,13 +499,27 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     private suspend fun updateAnime(anime: Anime, fetchWindow: Pair<Long, Long>): List<Episode> {
         val source = sourceManager.getOrStub(anime.source)
 
-        // Update anime metadata if needed
-        if (libraryPreferences.autoUpdateMetadata().get()) {
-            val networkAnime = AnimeSourceGateway.details(source, anime.toSAnime())
-            updateAnime.awaitUpdateFromSource(anime, networkAnime, manualFetch = false, coverCache, backgroundCache)
+        val fetchMetadata = libraryPreferences.autoUpdateMetadata().get()
+        val episodes = if (AnimeSourceGateway.usesCombinedUpdates(source, FetchType.Episodes)) {
+            val existing = getEpisodesByAnimeId.await(anime.id).map(Episode::toSEpisode)
+            val remote = AnimeSourceGateway.updateEpisodes(
+                source,
+                anime.toSAnime(),
+                existing,
+                fetchDetails = fetchMetadata,
+                fetchEpisodes = true,
+            )
+            if (fetchMetadata) {
+                updateAnime.awaitUpdateFromSource(anime, remote.anime, manualFetch = false, coverCache, backgroundCache)
+            }
+            remote.episodes
+        } else {
+            if (fetchMetadata) {
+                val networkAnime = AnimeSourceGateway.details(source, anime.toSAnime())
+                updateAnime.awaitUpdateFromSource(anime, networkAnime, manualFetch = false, coverCache, backgroundCache)
+            }
+            AnimeSourceGateway.episodes(source, anime.toSAnime())
         }
-
-        val episodes = AnimeSourceGateway.episodes(source, anime.toSAnime())
 
         // Get anime from database to account for if it was removed during the update and
         // to get latest data so it doesn't get overwritten later on

@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.util
 
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -21,8 +22,11 @@ import tachiyomi.data.source.manga.MangaSourceGateway
 fun MangaSource.getFilterListOrNull(): FilterList? =
     runSourceFilterCatching({ name }) { MangaSourceGateway.filters(this) }
 
-fun AnimeCatalogueSource.getFilterListOrNull(): AnimeFilterList? =
+fun AnimeSource.getFilterListOrNull(): AnimeFilterList? =
     runSourceFilterCatching({ name }) { AnimeSourceGateway.filters(this) }
+
+fun AnimeCatalogueSource.getFilterListOrNull(): AnimeFilterList? =
+    (this as AnimeSource).getFilterListOrNull()
 
 private inline fun <T> Any.runSourceFilterCatching(sourceName: () -> String, filters: () -> T): T? {
     return try {

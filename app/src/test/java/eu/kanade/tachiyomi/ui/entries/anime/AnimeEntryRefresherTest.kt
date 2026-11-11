@@ -8,6 +8,7 @@ import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.di.testAppGraph
@@ -40,10 +41,18 @@ class AnimeEntryRefresherTest {
     private val anime = Anime.create().copy(id = 1L, source = 1L, favorite = true, fetchType = FetchType.Episodes)
     private val newEpisode = Episode.create().copy(id = 10L, animeId = 1L)
     private val airing = Pair(4, 1_700_000_000L)
-    private val source = mockk<AnimeSource> {
-        every { name } returns "Test"
-        coEvery { getAnimeDetails(any()) } returns SAnime.create()
-        coEvery { getEpisodeList(any()) } returns listOf(SEpisode.create())
+    private val source = LegacySource()
+
+    private class LegacySource : AnimeSource {
+        override val id = 1L
+        override val name = "Legacy"
+        var details: suspend () -> SAnime = { SAnime.create() }
+        var episodes: suspend () -> List<SEpisode> = { listOf(SEpisode.create()) }
+        var seasons: suspend () -> List<SAnime> = { emptyList() }
+
+        override suspend fun getAnimeDetails(anime: SAnime) = details()
+        override suspend fun getEpisodeList(anime: SAnime) = episodes()
+        override suspend fun getSeasonList(anime: SAnime) = seasons()
     }
     private val updateAnime = mockk<UpdateAnime>(relaxed = true)
     private val syncEpisodesWithSource = mockk<SyncEpisodesWithSource> {
@@ -88,7 +97,7 @@ class AnimeEntryRefresherTest {
     @Test
     fun `a refresh runs to the end after its caller is cancelled`() = runTest {
         val gate = CompletableDeferred<Unit>()
-        coEvery { source.getEpisodeList(any()) } coAnswers {
+        source.episodes = {
             gate.await()
             listOf(SEpisode.create())
         }
@@ -107,7 +116,7 @@ class AnimeEntryRefresherTest {
     @Test
     fun `a details failure is returned and the episodes are still saved`() = runTest {
         val error = IllegalStateException("details down")
-        coEvery { source.getAnimeDetails(any()) } throws error
+        source.details = { throw error }
 
         val result = refresher().refresh(source, anime, emptyList()).await()
 
@@ -120,7 +129,7 @@ class AnimeEntryRefresherTest {
     fun `a refresh of a season anime saves the seasons and the episodes of unfinished seasons`() = runTest {
         val seasonAnime = anime.copy(fetchType = FetchType.Seasons)
         val season = Anime.create().copy(id = 2L, source = 1L, fetchType = FetchType.Episodes)
-        coEvery { source.getSeasonList(any()) } returns listOf(SAnime.create())
+        source.seasons = { listOf(SAnime.create()) }
         coEvery { syncSeasonsWithSource.await(any(), seasonAnime, source, any(), any()) } returns listOf(season)
 
         refresher().refresh(source, seasonAnime, emptyList()).await()
@@ -132,7 +141,7 @@ class AnimeEntryRefresherTest {
     @Test
     fun `a second refresh of the same entry joins the running one`() = runTest {
         val gate = CompletableDeferred<Unit>()
-        coEvery { source.getEpisodeList(any()) } coAnswers {
+        source.episodes = {
             gate.await()
             listOf(SEpisode.create())
         }
@@ -150,7 +159,7 @@ class AnimeEntryRefresherTest {
     @Test
     fun `the running refresh of an entry is found until it ends`() = runTest {
         val gate = CompletableDeferred<Unit>()
-        coEvery { source.getEpisodeList(any()) } coAnswers {
+        source.episodes = {
             gate.await()
             listOf(SEpisode.create())
         }
@@ -164,6 +173,39 @@ class AnimeEntryRefresherTest {
 
         (whileRunning === refresh) shouldBe true
         refresher.running(anime.id) shouldBe null
+    }
+
+    @Test
+    fun `a lib 17 refresh sends existing episodes and requests both updates once`() = runTest {
+        val existing = newEpisode.copy(url = "episode", name = "Episode")
+        coEvery { getEpisodesByAnimeId.await(anime.id) } returns listOf(existing)
+        val returnedAnime = SAnime.create()
+        val returnedEpisodes = listOf(SEpisode.create())
+        var combinedCalls = 0
+        val lib17 = object : AnimeSource {
+            override val id = 17L
+            override val name = "Lib 17"
+
+            override suspend fun getAnimeEpisodeUpdate(
+                anime: SAnime,
+                episodes: List<SEpisode>,
+                fetchDetails: Boolean,
+                fetchEpisodes: Boolean,
+            ): SAnimeEpisodeUpdate {
+                episodes.map { it.url } shouldBe listOf(existing.url)
+                fetchDetails shouldBe true
+                fetchEpisodes shouldBe true
+                combinedCalls++
+                return SAnimeEpisodeUpdate(returnedAnime, returnedEpisodes)
+            }
+        }
+
+        val result = refresher().refresh(lib17, anime, emptyList()).await()
+
+        result shouldBe AnimeRefreshResult(detailsError = null, itemsError = null, nextAiringEpisode = airing)
+        combinedCalls shouldBe 1
+        coVerify { updateAnime.awaitUpdateFromSource(anime, returnedAnime, true) }
+        coVerify { syncEpisodesWithSource.await(returnedEpisodes, anime, lib17, true, any()) }
     }
 
     private fun TestScope.refresher() = AnimeEntryRefresher(

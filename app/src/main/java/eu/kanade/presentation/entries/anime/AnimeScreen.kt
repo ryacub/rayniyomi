@@ -75,6 +75,7 @@ import eu.kanade.presentation.entries.anime.components.AnimeSeasonListItem
 import eu.kanade.presentation.entries.anime.components.EpisodeDownloadAction
 import eu.kanade.presentation.entries.anime.components.ExpandableAnimeDescription
 import eu.kanade.presentation.entries.anime.components.NextEpisodeAiringListItem
+import eu.kanade.presentation.entries.anime.components.RelatedAnimeRows
 import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
@@ -97,6 +98,7 @@ import eu.kanade.tachiyomi.util.episode.resumeEpisode
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.AnimeRelationGroup
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.items.episode.service.missingEntriesCount
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -118,6 +120,9 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun AnimeScreen(
     state: AnimeScreenModel.State.Success,
+    relatedAnime: List<AnimeRelationGroup>,
+    onRelatedClick: (Anime) -> Unit,
+    onRelatedLongClick: (Anime) -> Unit,
     snackbarHostState: SnackbarHostState,
     nextUpdate: Instant?,
     isTabletUi: Boolean,
@@ -196,6 +201,9 @@ fun AnimeScreen(
         if (!isTabletUi) {
             AnimeScreenSmallImpl(
                 state = state,
+                relatedAnime = relatedAnime,
+                onRelatedClick = onRelatedClick,
+                onRelatedLongClick = onRelatedLongClick,
                 snackbarHostState = snackbarHostState,
                 nextUpdate = nextUpdate,
                 episodeSwipeStartAction = episodeSwipeStartAction,
@@ -238,6 +246,9 @@ fun AnimeScreen(
         } else {
             AnimeScreenLargeImpl(
                 state = state,
+                relatedAnime = relatedAnime,
+                onRelatedClick = onRelatedClick,
+                onRelatedLongClick = onRelatedLongClick,
                 snackbarHostState = snackbarHostState,
                 nextUpdate = nextUpdate,
                 episodeSwipeStartAction = episodeSwipeStartAction,
@@ -285,6 +296,9 @@ fun AnimeScreen(
 @Composable
 private fun AnimeScreenSmallImpl(
     state: AnimeScreenModel.State.Success,
+    relatedAnime: List<AnimeRelationGroup>,
+    onRelatedClick: (Anime) -> Unit,
+    onRelatedLongClick: (Anime) -> Unit,
     snackbarHostState: SnackbarHostState,
     nextUpdate: Instant?,
     episodeSwipeStartAction: LibraryPreferences.EpisodeSwipeAction,
@@ -534,6 +548,12 @@ private fun AnimeScreenSmallImpl(
                         )
                     }
 
+                    if (relatedAnime.isNotEmpty()) {
+                        item(key = "related-anime", span = { GridItemSpan(maxLineSpan) }) {
+                            RelatedAnimeRows(relatedAnime, onRelatedClick, onRelatedLongClick)
+                        }
+                    }
+
                     item(
                         key = EntryScreenItem.ITEM_HEADER,
                         contentType = EntryScreenItem.ITEM_HEADER,
@@ -630,6 +650,9 @@ private fun AnimeScreenSmallImpl(
 @Composable
 fun AnimeScreenLargeImpl(
     state: AnimeScreenModel.State.Success,
+    relatedAnime: List<AnimeRelationGroup>,
+    onRelatedClick: (Anime) -> Unit,
+    onRelatedLongClick: (Anime) -> Unit,
     snackbarHostState: SnackbarHostState,
     nextUpdate: Instant?,
     episodeSwipeStartAction: LibraryPreferences.EpisodeSwipeAction,
@@ -845,6 +868,9 @@ fun AnimeScreenLargeImpl(
                                 onTagSearch = onTagSearch,
                                 onCopyTagToClipboard = onCopyTagToClipboard,
                             )
+                            if (relatedAnime.isNotEmpty()) {
+                                RelatedAnimeRows(relatedAnime, onRelatedClick, onRelatedLongClick)
+                            }
                         }
                     },
                     endContent = {
