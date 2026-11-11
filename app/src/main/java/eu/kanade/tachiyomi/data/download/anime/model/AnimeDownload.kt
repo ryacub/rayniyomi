@@ -8,10 +8,12 @@ import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.download.model.DownloadPriority
 import eu.kanade.tachiyomi.data.download.model.DownloadRecovery
 import eu.kanade.tachiyomi.data.download.model.DownloadStatusSnapshot
+import eu.kanade.tachiyomi.data.download.model.isPaused
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.network.ProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisode
@@ -54,7 +56,9 @@ data class AnimeDownload(
     override var displayStatus: DownloadDisplayStatus
         get() = _displayStatusFlow.value
         set(value) {
-            _displayStatusFlow.value = value
+            _displayStatusFlow.update { current ->
+                if (current.isPaused && value == DownloadDisplayStatus.DOWNLOADING) current else value
+            }
         }
 
     @Transient
