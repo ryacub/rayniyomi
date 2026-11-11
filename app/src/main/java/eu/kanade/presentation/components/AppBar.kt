@@ -1,5 +1,11 @@
 package eu.kanade.presentation.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -32,7 +38,6 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -84,30 +89,26 @@ fun AppBar(
 
     scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
-    val isActionMode by remember(actionModeCounter) {
-        derivedStateOf { actionModeCounter > 0 }
-    }
-
     AppBar(
         modifier = modifier,
         backgroundColor = backgroundColor,
         titleContent = {
-            if (isActionMode) {
-                AppBarTitle(actionModeCounter.toString())
-            } else {
-                AppBarTitle(title, subtitle = subtitle)
+            SelectionModeTransition(actionModeCounter) { selectedCount ->
+                if (selectedCount > 0) {
+                    AppBarTitle(selectedCount.toString())
+                } else {
+                    AppBarTitle(title, subtitle = subtitle)
+                }
             }
         },
         navigateUp = navigateUp,
         navigationIcon = navigationIcon,
         actions = {
-            if (isActionMode) {
-                actionModeActions()
-            } else {
-                actions()
+            SelectionModeTransition(actionModeCounter, contentAlignment = Alignment.CenterEnd) { selectedCount ->
+                Row(content = if (selectedCount > 0) actionModeActions else actions)
             }
         },
-        isActionMode = isActionMode,
+        isActionMode = actionModeCounter > 0,
         onCancelActionMode = onCancelActionMode,
         scrollBehavior = scrollBehavior,
     )
@@ -131,6 +132,11 @@ fun AppBar(
 
     scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
+    val defaultContainerColor by animateColorAsState(
+        targetValue = MaterialTheme.colorScheme.surfaceColorAtElevation(if (isActionMode) 3.dp else 0.dp),
+        animationSpec = tween(durationMillis = SELECTION_TRANSITION_MILLIS),
+        label = "Selection toolbar color",
+    )
     Column(
         modifier = modifier,
     ) {
@@ -154,12 +160,33 @@ fun AppBar(
             title = titleContent,
             actions = actions,
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = backgroundColor ?: MaterialTheme.colorScheme.surfaceColorAtElevation(
-                    elevation = if (isActionMode) 3.dp else 0.dp,
-                ),
+                containerColor = backgroundColor ?: defaultContainerColor,
             ),
             scrollBehavior = scrollBehavior,
         )
+    }
+}
+
+internal const val SELECTION_TRANSITION_MILLIS = 150
+
+@Composable
+internal fun SelectionModeTransition(
+    selectedCount: Int,
+    contentAlignment: Alignment = Alignment.TopStart,
+    content: @Composable (Int) -> Unit,
+) {
+    AnimatedContent(
+        targetState = selectedCount,
+        transitionSpec = {
+            val enter = fadeIn(tween(durationMillis = SELECTION_TRANSITION_MILLIS))
+            val exit = fadeOut(tween(durationMillis = SELECTION_TRANSITION_MILLIS))
+            (enter togetherWith exit).using(null)
+        },
+        contentAlignment = contentAlignment,
+        contentKey = { it > 0 },
+        label = "Selection toolbar",
+    ) { count ->
+        content(count)
     }
 }
 

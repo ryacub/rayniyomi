@@ -76,7 +76,7 @@ fun AdaptiveSheet(
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = dialogProperties,
+        properties = if (isTabletUi) tabletDialogProperties else dialogProperties,
     ) {
         AdaptiveSheetImpl(
             modifier = modifier,
@@ -90,6 +90,13 @@ fun AdaptiveSheet(
 }
 
 private val dialogProperties = DialogProperties(
+    usePlatformDefaultWidth = false,
+    decorFitsSystemWindows = true,
+)
+
+private val tabletDialogProperties = DialogProperties(
+    dismissOnBackPress = false,
+    dismissOnClickOutside = false,
     usePlatformDefaultWidth = false,
     decorFitsSystemWindows = true,
 )

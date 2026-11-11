@@ -862,16 +862,18 @@ private fun LazyListScope.sharedChapterItems(
         contentType = { EntryScreenItem.ITEM },
     ) { item ->
         val haptic = LocalHapticFeedback.current
+        val rowModifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
 
         when (item) {
             is ChapterList.MissingCount -> {
-                MissingItemCountListItem(count = item.count)
+                MissingItemCountListItem(count = item.count, modifier = rowModifier)
             }
             is ChapterList.Item -> {
                 val progressSource = item.downloadProgressSource
                 val progress by progressSource?.flow?.collectAsStateWithLifecycle(initialValue = progressSource.value)
                     ?: rememberUpdatedState(item.downloadProgress)
                 MangaChapterListItem(
+                    modifier = rowModifier,
                     title = chapterTitle(manga, item.chapter),
                     date = relativeDateTimeText(item.chapter.dateUpload),
                     readProgress = item.chapter.lastPageRead

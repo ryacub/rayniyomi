@@ -2,7 +2,7 @@ package tachiyomi.presentation.core.components
 
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.clickable
@@ -25,9 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -68,18 +69,16 @@ fun AdaptiveSheet(
     }
 
     if (isTabletUi) {
-        var targetAlpha by remember { mutableFloatStateOf(0f) }
-        val alpha by animateFloatAsState(
-            targetValue = targetAlpha,
-            animationSpec = sheetAnimationSpec,
-            label = "alpha",
-        )
-        val internalOnDismissRequest: () -> Unit = {
-            scope.launch {
-                targetAlpha = 0f
-                onDismissRequest()
-            }
+        val alpha = remember { Animatable(0f) }
+        var dismissRequested by remember { mutableStateOf(false) }
+        val latestOnDismissRequest by rememberUpdatedState(onDismissRequest)
+        val internalOnDismissRequest = { dismissRequested = true }
+
+        LaunchedEffect(dismissRequested) {
+            alpha.animateTo(if (dismissRequested) 0f else 1f, sheetAnimationSpec)
+            if (dismissRequested) latestOnDismissRequest()
         }
+
         Box(
             modifier = Modifier
                 .clickable(
@@ -88,7 +87,7 @@ fun AdaptiveSheet(
                     onClick = internalOnDismissRequest,
                 )
                 .fillMaxSize()
-                .alpha(alpha),
+                .alpha(alpha.value),
             contentAlignment = Alignment.Center,
         ) {
             Surface(
@@ -105,14 +104,10 @@ fun AdaptiveSheet(
                 shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 content = {
-                    BackHandler(enabled = alpha > 0f, onBack = internalOnDismissRequest)
+                    BackHandler(onBack = internalOnDismissRequest)
                     content()
                 },
             )
-
-            LaunchedEffect(Unit) {
-                targetAlpha = 1f
-            }
         }
     } else {
         val decayAnimationSpec = rememberSplineBasedDecay<Float>()

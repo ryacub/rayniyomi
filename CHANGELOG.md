@@ -15,6 +15,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Added
 
 ### Improved
+- Tablet sheets fade out before closing. Reader page numbers and selection toolbars fade between states. Filtered chapters, episodes, and download queue rows slide into place. Queue progress bars move smoothly, and dragging a source header moves the whole group (#1466).
 
 ### Fixed
 

@@ -42,7 +42,9 @@ class DownloadQueueScreenAndroidTest {
             groups.value = groups.value.sortedBy { group -> ids.indexOf(group.downloads.first().downloadId) }
         }
         val nestedScroll = object : NestedScrollConnection {}
-        val dragLabel = InstrumentationRegistry.getInstrumentation().targetContext.stringResource(MR.strings.action_sort)
+        val dragLabel = InstrumentationRegistry.getInstrumentation().targetContext.stringResource(
+            MR.strings.action_sort,
+        )
         composeRule.setContent {
             MaterialTheme {
                 DownloadQueueScreen(
