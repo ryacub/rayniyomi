@@ -57,6 +57,34 @@ class AnimeExtensionLoaderTest {
     }
 
     @Test
+    fun `apk loader accepts only supported anime extension libraries`() = runTest {
+        val errors = (12..17).associateWith { version ->
+            loadExtension(Bundle(), versionName = "$version.0.0")
+        }
+
+        val unsupported = AnimeLoadResult.Error("Failed to load extension Example Anime: unsupported library version")
+        val accepted = AnimeLoadResult.Error("Failed to load extension Example Anime: missing source class metadata")
+        errors shouldBe mapOf(
+            12 to unsupported,
+            13 to unsupported,
+            14 to accepted,
+            15 to unsupported,
+            16 to accepted,
+            17 to accepted,
+        )
+    }
+
+    @Test
+    fun `apk loader uses the declared library version before the package version`() = runTest {
+        val metadata = mockk<Bundle>(relaxed = true)
+        every { metadata.get("aniyomix.extensionLib") } returns 17
+
+        loadExtension(metadata, versionName = "1.0.0") shouldBe AnimeLoadResult.Error(
+            "Failed to load extension Example Anime: missing source class metadata",
+        )
+    }
+
+    @Test
     fun `missing required metadata field returns a named load error`() = runTest {
         val result = loadExtension(Bundle())
 
