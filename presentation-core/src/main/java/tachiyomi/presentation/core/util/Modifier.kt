@@ -16,12 +16,17 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 
 fun Modifier.selectedBackground(isSelected: Boolean): Modifier = if (isSelected) {
@@ -116,3 +121,14 @@ fun Modifier.clearFocusOnSoftKeyboardHide(
         }
     }
 }
+
+fun Modifier.disableContentInteractions(): Modifier = this
+    .clearAndSetSemantics { hideFromAccessibility() }
+    .focusProperties { canFocus = false }
+    .pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+            }
+        }
+    }

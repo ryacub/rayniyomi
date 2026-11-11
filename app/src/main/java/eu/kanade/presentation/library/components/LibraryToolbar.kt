@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.SearchToolbar
+import eu.kanade.presentation.components.SelectionModeTransition
 import eu.kanade.tachiyomi.data.library.LibraryUpdateSummary
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
@@ -51,26 +52,29 @@ internal fun LibraryToolbar(
     onClickCloseUpdateSummary: () -> Unit = {},
 ) {
     Column {
-        when {
-            selectedCount > 0 -> LibrarySelectionToolbar(
-                selectedCount = selectedCount,
-                onClickUnselectAll = onClickUnselectAll,
-                onClickSelectAll = onClickSelectAll,
-                onClickInvertSelection = onClickInvertSelection,
-            )
-            else -> LibraryRegularToolbar(
-                title = title,
-                hasFilters = hasActiveFilters,
-                searchQuery = searchQuery,
-                onSearchQueryChange = onSearchQueryChange,
-                onClickFilter = onClickFilter,
-                onClickSearchHelp = onClickSearchHelp,
-                onClickRefresh = onClickRefresh,
-                onClickGlobalUpdate = onClickGlobalUpdate,
-                onClickOpenRandomEntry = onClickOpenRandomEntry,
-                scrollBehavior = scrollBehavior,
-                navigateUp = navigateUp,
-            )
+        SelectionModeTransition(selectedCount) { count ->
+            if (count > 0) {
+                LibrarySelectionToolbar(
+                    selectedCount = count,
+                    onClickUnselectAll = onClickUnselectAll,
+                    onClickSelectAll = onClickSelectAll,
+                    onClickInvertSelection = onClickInvertSelection,
+                )
+            } else {
+                LibraryRegularToolbar(
+                    title = title,
+                    hasFilters = hasActiveFilters,
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onClickFilter = onClickFilter,
+                    onClickSearchHelp = onClickSearchHelp,
+                    onClickRefresh = onClickRefresh,
+                    onClickGlobalUpdate = onClickGlobalUpdate,
+                    onClickOpenRandomEntry = onClickOpenRandomEntry,
+                    scrollBehavior = scrollBehavior,
+                    navigateUp = navigateUp,
+                )
+            }
         }
         if (updateProgress != null) {
             LibraryUpdateProgressRow(

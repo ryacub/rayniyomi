@@ -1,11 +1,12 @@
 package eu.kanade.tachiyomi.ui.download
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,11 +22,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,66 +57,65 @@ fun <I : DownloadQueueEntry> DownloadQueueScreen(
     nestedScrollConnection: NestedScrollConnection,
 ) {
     Scaffold {
-        if (downloadList.isEmpty()) {
-            EmptyScreen(
-                stringRes = MR.strings.information_no_downloads,
-                modifier = Modifier.padding(contentPadding),
-            )
-            return@Scaffold
-        }
-
         val lazyListState = rememberLazyListState()
         val reorderState = rememberReorderableLazyListState(
             lazyListState,
             contentPadding,
         ) { from, to ->
-            val fromHeaderIndex = findHeaderIndex(downloadList, from.index)
-            val toHeaderIndex = findHeaderIndex(downloadList, to.index)
-            if (fromHeaderIndex == toHeaderIndex) {
-                val reorderedDownloads = computeReorderedDownloads(
-                    downloadList,
-                    from.index,
-                    to.index,
-                )
-                screenModel.reorder(reorderedDownloads.mapNotNull { it.downloadId })
+            val fromIndex = downloadList.indexOfFirst { it.sourceId == from.key }
+            val toIndex = downloadList.indexOfFirst { it.sourceId == to.key }
+            if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) {
+                val reorderedGroups = downloadList.toMutableList()
+                val movedGroup = reorderedGroups.removeAt(fromIndex)
+                reorderedGroups.add(toIndex, movedGroup)
+                screenModel.reorder(reorderedGroups.flatMap { group -> group.downloads.mapNotNull { it.downloadId } })
             }
         }
 
         Box(modifier = Modifier.nestedScroll(nestedScrollConnection)) {
+            if (downloadList.isEmpty()) {
+                EmptyScreen(
+                    stringRes = MR.strings.information_no_downloads,
+                    modifier = Modifier.padding(contentPadding),
+                )
+            }
             LazyColumn(
                 state = lazyListState,
                 contentPadding = contentPadding,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxSize(),
             ) {
-                items(
-                    items = downloadList,
-                    key = { header -> header.sourceId },
-                ) { header ->
-                    ReorderableItem(
-                        reorderState,
-                        header.sourceId,
-                    ) { isDragging ->
-                        DownloadQueueHeader(
-                            header = header,
-                            isDragging = isDragging,
-                            onDragStart = { screenModel.collapseAll() },
-                            onDragEnd = { screenModel.expandHeader(header.sourceId) },
-                            onToggleExpanded = { screenModel.toggleExpanded(header.sourceId) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                downloadList.forEach { header ->
+                    item(key = header.sourceId) {
+                        ReorderableItem(
+                            state = reorderState,
+                            key = header.sourceId,
+                            animateItemModifier = Modifier.animateItem(),
+                        ) { isDragging ->
+                            DownloadQueueHeader(
+                                header = header,
+                                isDragging = isDragging,
+                                onDragStart = { screenModel.collapseAll() },
+                                onDragEnd = { screenModel.expandHeader(header.sourceId) },
+                                onToggleExpanded = { screenModel.toggleExpanded(header.sourceId) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
 
-                    AnimatedVisibility(visible = header.isExpanded) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            header.downloads.forEach { item ->
-                                key(item.key) {
-                                    DownloadQueueItem(
-                                        item = item,
-                                        screenModel = screenModel,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                }
-                            }
+                    if (header.isExpanded) {
+                        items(
+                            items = header.downloads,
+                            key = { item ->
+                                item.downloadId?.let { "download-$it" } ?: "download-url-${header.sourceId}-${item.key}"
+                            },
+                        ) { item ->
+                            DownloadQueueItem(
+                                item = item,
+                                screenModel = screenModel,
+                                modifier = Modifier
+                                    .animateItem()
+                                    .fillMaxWidth(),
+                            )
                         }
                     }
                 }
@@ -185,6 +185,11 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
     modifier: Modifier = Modifier,
 ) {
     val progress = item.progress
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "Download progress",
+    )
     val recovery by item.recovery.collectAsStateWithLifecycle()
     val displayStatus by item.displayStatus.collectAsStateWithLifecycle()
     var menuExpanded by remember { mutableStateOf(false) }
@@ -286,7 +291,7 @@ private fun <I : DownloadQueueEntry> DownloadQueueItem(
         }
 
         LinearProgressIndicator(
-            progress = { progress },
+            progress = { animatedProgress },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
@@ -323,43 +328,4 @@ private fun DownloadQueueScreenPreview() {
     EmptyScreen(
         stringRes = MR.strings.information_no_downloads,
     )
-}
-
-private fun findHeaderIndex(
-    items: List<DownloadQueueGroup<*>>,
-    flatIndex: Int,
-): Int {
-    var currentIndex = 0
-    items.forEachIndexed { headerIdx, header ->
-        if (currentIndex == flatIndex) return headerIdx
-        currentIndex++
-        if (currentIndex + header.downloads.size > flatIndex) {
-            return headerIdx
-        }
-        currentIndex += header.downloads.size
-    }
-    return -1
-}
-
-private fun <I : DownloadQueueEntry> computeReorderedDownloads(
-    items: List<DownloadQueueGroup<I>>,
-    fromIndex: Int,
-    toIndex: Int,
-): List<I> {
-    val flatList = mutableListOf<Pair<I?, Boolean>>()
-    items.forEach { header ->
-        flatList.add(Pair(null, true))
-        flatList.addAll(header.downloads.map { Pair(it, false) })
-    }
-
-    if (fromIndex < 0 || fromIndex >= flatList.size || toIndex < 0 || toIndex >= flatList.size) {
-        return items.flatMap { it.downloads }
-    }
-
-    val reordered = flatList.toMutableList()
-    val item = reordered.removeAt(fromIndex)
-    reordered.add(toIndex, item)
-
-    return reordered
-        .mapNotNull { (uiItem, _) -> uiItem }
 }

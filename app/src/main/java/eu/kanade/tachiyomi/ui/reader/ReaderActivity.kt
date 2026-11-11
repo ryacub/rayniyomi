@@ -18,6 +18,10 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -447,7 +451,11 @@ class ReaderActivity : BaseActivity() {
             val state by viewModel.state.collectAsStateWithLifecycle()
             val showPageNumber by viewModel.readerPreferences.showPageNumber().collectAsStateWithLifecycle()
 
-            if (!state.menuVisible && showPageNumber) {
+            AnimatedVisibility(
+                visible = !state.menuVisible && showPageNumber,
+                enter = fadeIn(tween(durationMillis = 150, delayMillis = 120)),
+                exit = fadeOut(tween(durationMillis = 150)),
+            ) {
                 val hingeInsets = hingeInsetsDp(state.foldState)
                 Box(
                     modifier = Modifier

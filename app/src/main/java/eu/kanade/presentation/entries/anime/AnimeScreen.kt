@@ -1020,17 +1020,19 @@ private fun LazyGridScope.sharedSeasons(
 ) {
     items(
         items = seasons,
-        key = { season -> season.seasonAnime.anime },
+        key = { season -> "season-${season.seasonAnime.id}" },
         span = { GridItemSpan(if (anime.seasonDisplayGridMode == SeasonDisplayMode.List) maxLineSpan else 1) },
     ) { item ->
-        AnimeSeasonListItem(
-            anime = anime,
-            item = item,
-            containerHeight = containerHeight,
-            onSeasonClicked = onSeasonClicked,
-            onClickContinueWatching = onClickContinueWatching,
-            listItemModifier = listItemModifier,
-        )
+        Box(modifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)) {
+            AnimeSeasonListItem(
+                anime = anime,
+                item = item,
+                containerHeight = containerHeight,
+                onSeasonClicked = onSeasonClicked,
+                onClickContinueWatching = onClickContinueWatching,
+                listItemModifier = listItemModifier,
+            )
+        }
     }
 }
 
@@ -1061,12 +1063,13 @@ private fun LazyGridScope.sharedEpisodeItems(
         span = { GridItemSpan(maxLineSpan) },
     ) { episodeItem ->
         val haptic = LocalHapticFeedback.current
+        val rowModifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null).then(itemModifier)
 
         when (episodeItem) {
             is EpisodeList.MissingCount -> {
                 MissingItemCountListItem(
                     count = episodeItem.count,
-                    modifier = itemModifier,
+                    modifier = rowModifier,
                 )
             }
             is EpisodeList.Item -> {
@@ -1120,7 +1123,7 @@ private fun LazyGridScope.sharedEpisodeItems(
                     onEpisodeSwipe = {
                         onEpisodeSwipe(episodeItem, it)
                     },
-                    modifier = itemModifier,
+                    modifier = rowModifier,
                 )
             }
         }
