@@ -568,7 +568,9 @@ class AnimeDownloader(
                 }
             }
 
-            if (!isDownloadSuccessful(tmpDir)) {
+            val filename = DiskUtil.buildValidFilename("${download.anime.title} - ${download.episode.name}")
+            val externalPlaceholder = "${filename}_tmp.mkv"
+            if (!isDownloadSuccessful(tmpDir, externalPlaceholder)) {
                 download.status = AnimeDownload.State.ERROR
                 download.displayStatus = DownloadDisplayStatus.FAILED
                 failureReporter.report(
@@ -581,8 +583,7 @@ class AnimeDownloader(
             download.displayStatus = DownloadDisplayStatus.VERIFYING
             download.blockedReason = null
 
-            val filename = DiskUtil.buildValidFilename("${download.anime.title} - ${download.episode.name}")
-            tmpDir.findFile("${filename}_tmp.mkv")?.delete()
+            tmpDir.findFile(externalPlaceholder)?.delete()
             check(tmpDir.renameTo(episodeDirname)) { "Cannot publish episode directory" }
 
             cache.addEpisode(episodeDirname, animeDir, download.anime)
@@ -785,10 +786,10 @@ class AnimeDownloader(
         context.startActivity(intent)
     }
 
-    private fun isDownloadSuccessful(tmpDir: UniFile): Boolean {
+    private fun isDownloadSuccessful(tmpDir: UniFile, externalPlaceholder: String): Boolean {
         val downloadedVideo = tmpDir.listFiles().orEmpty().filterNot { file ->
             val name = file.name.orEmpty()
-            name.endsWith(".tmp", ignoreCase = true) || name.endsWith("_tmp.mkv", ignoreCase = true)
+            name.endsWith(".tmp", ignoreCase = true) || name == externalPlaceholder
         }.singleOrNull() ?: return false
         return downloadedVideo.length() > 0
     }
