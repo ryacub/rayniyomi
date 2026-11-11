@@ -452,9 +452,11 @@ class AnimeScreenModel(
                 }
 
                 // Finally match with enhanced tracking when available
-                addTracks.bindEnhancedTrackers(anime, state.source)
-                if (autoOpenTrack) {
-                    showTrackDialog()
+                viewModelScope.launch(ioDispatcher) {
+                    addTracks.bindEnhancedTrackers(anime, state.source)
+                    if (autoOpenTrack) {
+                        showTrackDialog()
+                    }
                 }
             }
         }

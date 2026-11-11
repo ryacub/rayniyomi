@@ -478,9 +478,11 @@ class MangaScreenModel(
                 }
 
                 // Finally match with enhanced tracking when available
-                addTracks.bindEnhancedTrackers(manga, state.source)
-                if (autoOpenTrack) {
-                    showTrackDialog()
+                viewModelScope.launch(ioDispatcher) {
+                    addTracks.bindEnhancedTrackers(manga, state.source)
+                    if (autoOpenTrack) {
+                        showTrackDialog()
+                    }
                 }
             }
         }
