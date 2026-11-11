@@ -162,11 +162,11 @@ open class ReaderPageImageView @JvmOverloads constructor(
             val targetScale = height.toFloat() / sHeight.toFloat()
             val animation = animateScaleAndCenter(targetScale, point) ?: return@Runnable
             animation
-                .withDuration(500.getSystemScaledDuration().toLong())
+                .withDuration(500.instantWhenAnimationsOff().toLong())
                 .withEasing(EASE_IN_OUT_QUAD)
                 .withInterruptible(true)
                 .start()
-        }.also { handler?.postDelayed(it, 500) }
+        }.also { handler?.postDelayed(it, 500.instantWhenAnimationsOff().toLong()) }
     }
 
     fun setImage(drawable: Drawable, config: Config) {
@@ -294,7 +294,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
             val target = fn(view.center ?: return, view)
             view.animateCenter(target)!!
                 .withEasing(EASE_OUT_QUAD)
-                .withDuration(250.getSystemScaledDuration().toLong())
+                .withDuration(250.instantWhenAnimationsOff().toLong())
                 .withInterruptible(true)
                 .start()
         }
@@ -487,6 +487,9 @@ open class ReaderPageImageView @JvmOverloads constructor(
 
     private fun Int.getSystemScaledDuration(): Int =
         scaledAnimationDuration(this, liveAnimatorDurationScale(), context.animatorDurationScale)
+
+    private fun Int.instantWhenAnimationsOff(): Int =
+        scaledAnimationDuration(this, liveAnimatorDurationScale(), settingsScale = 1f)
 
     /**
      * All of the config except [zoomDuration] will only be used for non-animated image.
