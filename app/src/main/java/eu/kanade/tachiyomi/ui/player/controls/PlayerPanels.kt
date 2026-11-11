@@ -18,6 +18,8 @@
 package eu.kanade.tachiyomi.ui.player.controls
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -54,7 +56,7 @@ fun PlayerPanels(
         contentKey = { it.name },
         transitionSpec = {
             if (reduceMotion) {
-                fadeIn() togetherWith fadeOut()
+                (fadeIn() togetherWith fadeOut()).using(SizeTransform { _, _ -> snap() })
             } else {
                 fadeIn() + slideInHorizontally { it / 3 } togetherWith fadeOut() + slideOutHorizontally { it / 2 }
             }
