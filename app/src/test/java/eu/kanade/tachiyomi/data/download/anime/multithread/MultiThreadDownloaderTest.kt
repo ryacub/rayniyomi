@@ -489,6 +489,8 @@ class MultiThreadDownloaderTest {
     fun `a resumed download removes chunk files that an older version left in the storage folder`() = runTest {
         val folder = File(tempDir, "episode_tmp").apply { mkdirs() }
         val legacyChunk = File(folder, "chunk_${EPISODE_ID}_0.tmp").apply { writeBytes(video.copyOf(1024)) }
+        // An older version with more connections also left a chunk index that this download does not use.
+        File(folder, "chunk_${EPISODE_ID}_3.tmp").writeBytes(video.copyOf(1024))
         val output = File(folder, "episode.mp4").apply { createNewFile() }
         val videoUrl = server.url("/episode.mp4").toString()
         val chunks = ChunkSizeCalculator.calculateChunks(video.size.toLong(), 2).mapIndexed { index, range ->
