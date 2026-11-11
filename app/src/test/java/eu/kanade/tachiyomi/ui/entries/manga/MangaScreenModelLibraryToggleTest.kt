@@ -6,6 +6,7 @@ import androidx.lifecycle.Lifecycle
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
+import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
+import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.model.Manga
@@ -50,6 +52,7 @@ class MangaScreenModelLibraryToggleTest {
         every { resources } returns this@MangaScreenModelLibraryToggleTest.resources
     }
     private val updateManga = mockk<UpdateManga>(relaxed = true)
+    private val addTracks = mockk<AddMangaTracks>(relaxed = true)
     private val downloadManager = mockk<MangaDownloadManager>(relaxed = true) {
         every { queueState } returns MutableStateFlow(emptyList())
         every { statusFlow() } returns emptyFlow()
@@ -121,6 +124,7 @@ class MangaScreenModelLibraryToggleTest {
         advanceUntilIdle()
 
         coVerify(exactly = 2) { updateManga.awaitUpdateFavorite(1L, true) }
+        coVerify(exactly = 0) { updateManga.awaitUpdateFavorite(1L, false) }
     }
 
     @Test
@@ -159,6 +163,25 @@ class MangaScreenModelLibraryToggleTest {
 
         afterFailure shouldBe 0
         model.successState().libraryConfirmations shouldBe 1
+    }
+
+    @Test
+    fun `a picker confirm while trackers bind adds the title`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { addTracks.bindEnhancedTrackers(any(), any()) } coAnswers { gate.await() }
+        coEvery { updateManga.awaitUpdateFavorite(any(), any()) } returns true
+        val title = manga(favorite = false)
+        val model = createModel(title, categories = listOf(category()))
+        advanceUntilIdle()
+
+        model.toggleFavorite()
+        advanceUntilIdle()
+        model.moveMangaToCategoriesAndAddToLibrary(title, listOf(5L))
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(1L, true) }
     }
 
     @Test
@@ -228,7 +251,7 @@ class MangaScreenModelLibraryToggleTest {
         return visuals?.actionLabel
     }
 
-    private fun createModel(manga: Manga): MangaScreenModel {
+    private fun createModel(manga: Manga, categories: List<Category> = emptyList()): MangaScreenModel {
         val getMangaAndChapters = mockk<GetMangaWithChapters> {
             coEvery { subscribe(any(), any()) } returns emptyFlow()
             coEvery { awaitManga(manga.id) } returns manga
@@ -253,9 +276,10 @@ class MangaScreenModelLibraryToggleTest {
             updateChapter = testAppGraph.updateChapter,
             updateManga = updateManga,
             getCategories = mockk<GetMangaCategories>(relaxed = true) {
-                coEvery { await() } returns emptyList()
+                coEvery { await() } returns categories
+                coEvery { await(any<Long>()) } returns emptyList()
             },
-            addTracks = testAppGraph.addMangaTracks,
+            addTracks = addTracks,
             setMangaCategories = mockk(relaxed = true),
             mangaRepository = testAppGraph.mangaRepository,
             mergeLibraryManga = mockk(relaxed = true),
@@ -277,6 +301,8 @@ class MangaScreenModelLibraryToggleTest {
             ioDispatcher = vt.io,
         )
     }
+
+    private fun category() = Category(id = 5L, name = "Reading", order = 1L, flags = 0L, hidden = false)
 
     private fun manga(favorite: Boolean) =
         Manga.create().copy(id = 1L, source = 1L, initialized = true, favorite = favorite)

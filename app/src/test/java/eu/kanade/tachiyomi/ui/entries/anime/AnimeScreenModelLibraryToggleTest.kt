@@ -6,6 +6,7 @@ import androidx.lifecycle.Lifecycle
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
+import eu.kanade.domain.track.anime.interactor.AddAnimeTracks
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
+import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
@@ -54,6 +56,7 @@ class AnimeScreenModelLibraryToggleTest {
         every { resources } returns this@AnimeScreenModelLibraryToggleTest.resources
     }
     private val updateAnime = mockk<UpdateAnime>(relaxed = true)
+    private val addTracks = mockk<AddAnimeTracks>(relaxed = true)
     private val downloadManager = mockk<AnimeDownloadManager>(relaxed = true) {
         every { queueState } returns MutableStateFlow(emptyList())
         every { statusFlow() } returns emptyFlow()
@@ -122,6 +125,7 @@ class AnimeScreenModelLibraryToggleTest {
         advanceUntilIdle()
 
         coVerify(exactly = 2) { updateAnime.awaitUpdateFavorite(1L, true) }
+        coVerify(exactly = 0) { updateAnime.awaitUpdateFavorite(1L, false) }
     }
 
     @Test
@@ -158,6 +162,24 @@ class AnimeScreenModelLibraryToggleTest {
 
         afterFailure shouldBe 0
         model.successState().libraryConfirmations shouldBe 1
+    }
+
+    @Test
+    fun `a picker confirm while trackers bind adds the title`() = runTest(vt.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { addTracks.bindEnhancedTrackers(any(), any()) } coAnswers { gate.await() }
+        coEvery { updateAnime.awaitUpdateFavorite(any(), any()) } returns true
+        val title = anime(favorite = false)
+        val model = loadedModel(title, categories = listOf(category()))
+
+        model.toggleFavorite()
+        advanceUntilIdle()
+        model.moveAnimeToCategoriesAndAddToLibrary(title, listOf(5L))
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(1L, true) }
     }
 
     @Test
@@ -223,14 +245,17 @@ class AnimeScreenModelLibraryToggleTest {
         return visuals?.actionLabel
     }
 
-    private suspend fun TestScope.loadedModel(anime: Anime): AnimeScreenModel {
-        val model = createModel(anime)
+    private suspend fun TestScope.loadedModel(
+        anime: Anime,
+        categories: List<Category> = emptyList(),
+    ): AnimeScreenModel {
+        val model = createModel(anime, categories)
         model.state.first { it is AnimeScreenModel.State.Success }
         advanceUntilIdle()
         return model
     }
 
-    private fun createModel(anime: Anime): AnimeScreenModel {
+    private fun createModel(anime: Anime, categories: List<Category> = emptyList()): AnimeScreenModel {
         val getAnimeAndEpisodesAndSeasons = mockk<GetAnimeWithEpisodesAndSeasons> {
             coEvery { subscribe(any()) } returns emptyFlow()
             coEvery { awaitAnime(anime.id) } returns anime
@@ -264,11 +289,12 @@ class AnimeScreenModelLibraryToggleTest {
             updateEpisode = mockk(relaxed = true),
             updateAnime = updateAnime,
             getCategories = mockk<GetAnimeCategories>(relaxed = true) {
-                coEvery { await() } returns emptyList()
+                coEvery { await() } returns categories
+                coEvery { await(any<Long>()) } returns emptyList()
                 every { subscribe(any()) } returns emptyFlow()
             },
             getTracks = mockk<GetAnimeTracks> { every { subscribe(any<Long>()) } returns emptyFlow() },
-            addTracks = mockk(relaxed = true),
+            addTracks = addTracks,
             setAnimeCategories = mockk(relaxed = true),
             animeRepository = mockk(relaxed = true),
             getEpisodesByAnimeId = mockk(relaxed = true),
@@ -280,6 +306,8 @@ class AnimeScreenModelLibraryToggleTest {
             refreshTracksInteractor = mockk(relaxed = true),
         )
     }
+
+    private fun category() = Category(id = 5L, name = "Reading", order = 1L, flags = 0L, hidden = false)
 
     private fun anime(favorite: Boolean) =
         Anime.create().copy(id = 1L, source = 1L, initialized = true, favorite = favorite)
