@@ -72,7 +72,6 @@ fun GlobalAnimeSearchToolbar(
                 .padding(horizontal = MaterialTheme.padding.small),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
         ) {
-            // TODO: make this UX better; it only applies when triggering a new search
             FilterChip(
                 selected = sourceFilter == AnimeSourceFilter.PinnedOnly,
                 onClick = { onChangeSearchFilter(AnimeSourceFilter.PinnedOnly) },

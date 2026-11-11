@@ -29,7 +29,7 @@ data class DummyTracker(
 ) : Tracker {
 
     override val client: OkHttpClient
-        get() = TODO("Not yet implemented")
+        get() = error("DummyTracker has no HTTP client")
 
     override fun getLogoColor(): Int = valLogoColor
 

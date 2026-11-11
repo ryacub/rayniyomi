@@ -487,7 +487,6 @@ class AnimeDownloader(
                     .filterKeys { it !is UnmeteredSource }
                     .maxOfOrNull { it.value.size }
                     ?: 0
-                // TODO: show warnings in stable
                 if (
                     queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
                     maxDownloadsFromSource > EPISODES_PER_SOURCE_QUEUE_WARNING_THRESHOLD
@@ -718,7 +717,6 @@ class AnimeDownloader(
             }
         }
 
-        // TODO: support other file formats!!
         // start download with intent
         val pm = context.packageManager
         val pkgName = preferences.externalDownloaderSelection().get()

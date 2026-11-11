@@ -72,7 +72,6 @@ fun GlobalMangaSearchToolbar(
                 .padding(horizontal = MaterialTheme.padding.small),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
         ) {
-            // TODO: make this UX better; it only applies when triggering a new search
             FilterChip(
                 selected = sourceFilter == MangaSourceFilter.PinnedOnly,
                 onClick = { onChangeSearchFilter(MangaSourceFilter.PinnedOnly) },

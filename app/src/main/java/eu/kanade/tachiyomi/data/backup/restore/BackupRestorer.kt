@@ -190,8 +190,6 @@ class BackupRestorer(
                 val lightNovelBackupData = lightNovelBackupDataSource.readBackupData(uri)
                 restoreLightNovels(lightNovelBackupData)
             }
-
-            // TODO: optionally trigger online library + tracker update
         }
     }
 
