@@ -791,7 +791,7 @@ class AnimeDownloader(
             val name = file.name.orEmpty()
             name.endsWith(".tmp", ignoreCase = true) || name == externalPlaceholder
         }.singleOrNull() ?: return false
-        return downloadedVideo.length() > 0
+        return downloadedVideo.isFile && downloadedVideo.length() > 0
     }
 
     /**

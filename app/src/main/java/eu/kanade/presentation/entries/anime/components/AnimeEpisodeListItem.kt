@@ -495,6 +495,7 @@ private fun BookmarkDownloadIcons(
                 .padding(start = 4.dp),
             downloadStateProvider = downloadStateProvider,
             downloadProgressProvider = downloadProgressProvider,
+            useTitleListStyle = true,
             downloadPaused = downloadPaused,
             onClick = { onDownloadClick?.invoke(it) },
         )

@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import eu.kanade.presentation.components.ActiveDownloadMark
 import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.components.IndicatorSize
+import eu.kanade.presentation.components.UpdatesDownloadMark
 import eu.kanade.presentation.components.commonClickable
 import eu.kanade.presentation.components.downloadCompletionScale
 import eu.kanade.tachiyomi.R
@@ -48,9 +49,14 @@ fun EpisodeDownloadIndicator(
     onClick: (EpisodeDownloadAction) -> Unit,
     modifier: Modifier = Modifier,
     downloadPaused: Boolean = false,
+    useTitleListStyle: Boolean = false,
 ) {
     val downloadState = downloadStateProvider()
-    val completionScale = downloadCompletionScale(downloadState == AnimeDownload.State.DOWNLOADED)
+    val completionScale = if (useTitleListStyle) {
+        downloadCompletionScale(downloadState == AnimeDownload.State.DOWNLOADED)
+    } else {
+        null
+    }
     when (downloadState) {
         AnimeDownload.State.NOT_DOWNLOADED -> NotDownloadedIndicator(
             enabled = enabled,
@@ -62,12 +68,13 @@ fun EpisodeDownloadIndicator(
             modifier = modifier,
             queued = downloadState == AnimeDownload.State.QUEUE,
             paused = downloadPaused,
+            useTitleListStyle = useTitleListStyle,
             downloadProgressProvider = downloadProgressProvider,
             onClick = onClick,
         )
         AnimeDownload.State.DOWNLOADED -> DownloadedIndicator(
             enabled = enabled,
-            completionScale = { completionScale.value },
+            completionScale = { completionScale?.value ?: 1f },
             modifier = modifier,
             onClick = onClick,
         )
@@ -111,6 +118,7 @@ private fun DownloadingIndicator(
     enabled: Boolean,
     queued: Boolean,
     paused: Boolean,
+    useTitleListStyle: Boolean,
     downloadProgressProvider: () -> Int,
     onClick: (EpisodeDownloadAction) -> Unit,
     modifier: Modifier = Modifier,
@@ -127,7 +135,12 @@ private fun DownloadingIndicator(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        ActiveDownloadMark(queued, paused, downloadProgressProvider())
+        val progress = downloadProgressProvider()
+        if (useTitleListStyle) {
+            ActiveDownloadMark(queued, paused, progress)
+        } else {
+            UpdatesDownloadMark(queued, progress)
+        }
         DropdownMenu(expanded = isMenuExpanded, onDismissRequest = { isMenuExpanded = false }) {
             DropdownMenuItem(
                 text = { Text(text = stringResource(MR.strings.action_start_downloading_now)) },

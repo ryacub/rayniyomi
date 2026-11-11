@@ -1,6 +1,7 @@
 package eu.kanade.presentation.components
 
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.combinedClickable
@@ -8,17 +9,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.PauseCircleOutline
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -86,6 +92,43 @@ internal fun ActiveDownloadMark(queued: Boolean, paused: Boolean, progress: Int)
         )
         else -> DownloadProgressRing(progress.coerceIn(0, 100))
     }
+}
+
+@Composable
+internal fun UpdatesDownloadMark(queued: Boolean, progress: Int) {
+    val strokeColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val arrowColor = if (queued || progress == 0) {
+        CircularProgressIndicator(
+            modifier = IndicatorModifier,
+            color = strokeColor,
+            strokeWidth = IndicatorStrokeWidth,
+            trackColor = Color.Transparent,
+            strokeCap = StrokeCap.Butt,
+        )
+        strokeColor
+    } else {
+        val animatedProgress by animateFloatAsState(
+            targetValue = progress / 100f,
+            animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+            label = "progress",
+        )
+        CircularProgressIndicator(
+            progress = { animatedProgress },
+            modifier = IndicatorModifier,
+            color = strokeColor,
+            strokeWidth = IndicatorSize / 2,
+            trackColor = Color.Transparent,
+            strokeCap = StrokeCap.Butt,
+            gapSize = 0.dp,
+        )
+        if (animatedProgress < 0.5f) strokeColor else MaterialTheme.colorScheme.background
+    }
+    Icon(
+        imageVector = Icons.Outlined.ArrowDownward,
+        contentDescription = null,
+        modifier = ArrowModifier,
+        tint = arrowColor,
+    )
 }
 
 @Composable

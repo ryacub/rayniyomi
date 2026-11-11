@@ -32,6 +32,7 @@ class ItemDownloadIndicatorAndroidTest {
             MaterialTheme {
                 EpisodeDownloadIndicator(
                     enabled = true,
+                    useTitleListStyle = true,
                     downloadStateProvider = { AnimeDownload.State.DOWNLOADING },
                     downloadProgressProvider = { -1 },
                     onClick = {},
@@ -55,6 +56,7 @@ class ItemDownloadIndicatorAndroidTest {
             MaterialTheme {
                 ChapterDownloadIndicator(
                     enabled = true,
+                    useTitleListStyle = true,
                     downloadStateProvider = { state.value },
                     downloadProgressProvider = { 100 },
                     onClick = {},
