@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.entries.manga
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueMutations
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
+import eu.kanade.tachiyomi.data.download.model.DownloadDisplayStatus
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import io.mockk.every
 import io.mockk.mockk
@@ -26,6 +27,7 @@ class MangaChapterListItemMapperTest {
         val chapter = chapter(1L)
         val queuedDownload = mockk<MangaDownload> {
             every { status } returns MangaDownload.State.DOWNLOADING
+            every { displayStatus } returns DownloadDisplayStatus.DOWNLOADING
             every { progress } returns 42
             every { progressFlow } returns MutableStateFlow(42)
         }
