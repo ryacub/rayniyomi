@@ -15,6 +15,8 @@ import io.mockk.mockk
 internal class PageCurlCoordinatorFixture(
     pageCount: Int = DEFAULT_PAGE_COUNT,
     initialItemIndex: Int = TARGET_POSITION,
+    storedStyle: PageTransitionStyle = PageTransitionStyle.CURL,
+    effectiveStyle: PageTransitionStyle = PageTransitionStyle.CURL,
 ) {
     val pager = mockk<Pager>(relaxed = true)
     val overlay = mockk<PageCurlOverlayView>(relaxed = true)
@@ -66,8 +68,8 @@ internal class PageCurlCoordinatorFixture(
         overlay = overlay,
         pager = pager,
         scheduler = scheduler,
-        storedTransitionStyle = { PageTransitionStyle.CURL },
-        effectiveTransitionStyle = { PageTransitionStyle.CURL },
+        storedTransitionStyle = { storedStyle },
+        effectiveTransitionStyle = { effectiveStyle },
         sourceHolder = { sourceHolder },
         readerItemAt = { pages.getOrNull(it) },
         capture = capture,

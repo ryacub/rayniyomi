@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.PageTransitionStyle
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -504,6 +505,19 @@ class PageCurlCoordinatorLifecycleTest {
         fixture.pendingPostedCount shouldBe 0
         fixture.delayedCallbacks.size shouldBe 0
         fixture.inputEnabled shouldBe true
+    }
+
+    @Test
+    fun `a slide turn with animations off advances without animation`() {
+        val fixture = PageCurlCoordinatorFixture(
+            storedStyle = PageTransitionStyle.SLIDE,
+            effectiveStyle = PageTransitionStyle.NONE,
+        )
+
+        fixture.requestTap(TARGET_POSITION + 1, CurlDirection.FROM_RIGHT)
+
+        fixture.advancedAnimations shouldBe listOf(false)
+        fixture.currentItemIndex shouldBe TARGET_POSITION + 1
     }
 
     private companion object {
