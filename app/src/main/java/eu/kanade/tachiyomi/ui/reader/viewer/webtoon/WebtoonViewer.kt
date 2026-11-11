@@ -20,6 +20,7 @@ import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.effectiveTransitionStyle
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import tachiyomi.core.common.util.system.logcat
@@ -66,7 +67,7 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
      * smoothScrollBy over scrollBy here.
      */
     private val useAnimatedScroll
-        get() = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
+        get() = effectiveTransitionStyle(config.pageTransitionStyle) != ReaderPreferences.PageTransitionStyle.NONE
 
     /**
      * Adapter of the recycler view.

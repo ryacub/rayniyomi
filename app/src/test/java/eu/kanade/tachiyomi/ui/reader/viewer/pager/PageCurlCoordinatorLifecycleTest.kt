@@ -508,11 +508,8 @@ class PageCurlCoordinatorLifecycleTest {
     }
 
     @Test
-    fun `a slide turn with animations off advances without animation`() {
-        val fixture = PageCurlCoordinatorFixture(
-            storedStyle = PageTransitionStyle.SLIDE,
-            effectiveStyle = PageTransitionStyle.NONE,
-        )
+    fun `a turn with animations off advances without animation`() {
+        val fixture = PageCurlCoordinatorFixture(effectiveStyle = PageTransitionStyle.NONE)
 
         fixture.requestTap(TARGET_POSITION + 1, CurlDirection.FROM_RIGHT)
 

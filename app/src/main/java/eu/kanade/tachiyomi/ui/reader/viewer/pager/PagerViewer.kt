@@ -70,7 +70,6 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
             PageCurlCoordinator(
                 overlay = PageCurlOverlayView(activity),
                 pager = pager,
-                storedTransitionStyle = { config.pageTransitionStyle },
                 effectiveTransitionStyle = { config.effectiveTransitionStyle() },
                 sourceHolder = { (currentPage as? ReaderPage)?.let(::getPageHolder) },
                 readerItemAt = { position -> adapter.items.getOrNull(position) as? ReaderPage },
@@ -342,7 +341,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
         val position = adapter.items.indexOf(page)
         if (position != -1) {
             val currentPosition = pager.currentItem
-            pager.setCurrentItem(position, true)
+            pager.setCurrentItem(position, liveAnimatorDurationScale() != 0f)
             // manually call onPageChange since ViewPager listener is not triggered in this case
             if (currentPosition == position) {
                 onPageChange(position)
@@ -397,7 +396,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
     private fun advanceToPage(targetPosition: Int, direction: CurlDirection) {
         val coordinator = curlCoordinator
         if (coordinator == null) {
-            val animate = config.pageTransitionStyle != ReaderPreferences.PageTransitionStyle.NONE
+            val animate = config.effectiveTransitionStyle() != ReaderPreferences.PageTransitionStyle.NONE
             pager.setCurrentItem(targetPosition, animate)
             return
         }

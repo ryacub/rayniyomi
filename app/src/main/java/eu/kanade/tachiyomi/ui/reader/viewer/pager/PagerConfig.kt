@@ -160,7 +160,8 @@ class PagerConfig(
 }
 
 /**
- * Downgrade CURL to SLIDE when the framework has animations turned off.
+ * Use NONE when the framework has animations turned off. The pager and webtoon
+ * scrollers do not read the animator scale, so SLIDE would still move.
  *
  * [ValueAnimator.getDurationScale] is the live framework value. It can differ
  * from the value that [android.provider.Settings.Global] reports.
@@ -169,11 +170,7 @@ internal fun effectiveTransitionStyle(
     style: ReaderPreferences.PageTransitionStyle,
     animatorDurationScale: Float = liveAnimatorDurationScale(),
 ): ReaderPreferences.PageTransitionStyle =
-    if (style == ReaderPreferences.PageTransitionStyle.CURL && animatorDurationScale == 0f) {
-        ReaderPreferences.PageTransitionStyle.SLIDE
-    } else {
-        style
-    }
+    if (animatorDurationScale == 0f) ReaderPreferences.PageTransitionStyle.NONE else style
 
 /**
  * Reads the framework animation state that controls [ValueAnimator].
