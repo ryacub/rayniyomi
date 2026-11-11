@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
+import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.core.common.util.lang.EmptyJsonObject
 import tachiyomi.data.MangaUpdateStrategyColumnAdapter
@@ -358,6 +359,7 @@ class MangaRestorer(
         val dbTrackByTrackerId = getTracks.await(manga.id).associateBy { it.trackerId }
 
         val (existingTracks, newTracks) = backupTracks
+            .filterNot { it.syncId.toLong() in TrackerManager.REMOVED_TRACKER_IDS }
             .mapNotNull {
                 val track = it.getTrackImpl()
                 val dbTrack = dbTrackByTrackerId[track.trackerId]

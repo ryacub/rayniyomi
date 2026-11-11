@@ -66,9 +66,6 @@ app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloader.kt	dir
 app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	intent.getStringExtra(EXTRA_URI)!!.toUri(),
 app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	intent.getParcelableExtraCompat(EXTRA_URI)!!,
 app/src/main/java/eu/kanade/tachiyomi/data/saver/ImageSaver.kt	input.copyTo(output!!)
-app/src/main/java/eu/kanade/tachiyomi/data/track/suwayomi/SuwayomiApi.kt	private fun getPrefBaseUrl(): String = preferences.getString(ADDRESS_TITLE, ADDRESS_DEFAULT)!!
-app/src/main/java/eu/kanade/tachiyomi/data/track/suwayomi/SuwayomiApi.kt	private fun getPrefBaseLogin(): String = preferences.getString(LOGIN_TITLE, LOGIN_DEFAULT)!!
-app/src/main/java/eu/kanade/tachiyomi/data/track/suwayomi/SuwayomiApi.kt	)!!
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/installer/PackageInstallerInstallerAnime.kt	val session = packageInstaller.openSession(activeSession!!.second)
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/installer/PackageInstallerInstallerAnime.kt	activeSession!!.second,
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstallActivity.kt	val downloadId = intent.extras!!.getLong(AnimeExtensionInstaller.EXTRA_DOWNLOAD_ID)

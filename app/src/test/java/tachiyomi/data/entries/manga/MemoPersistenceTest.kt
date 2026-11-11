@@ -31,7 +31,7 @@ class MemoPersistenceTest {
 
     @Test
     fun `schema version counts the memo migration`() {
-        assertEquals(40L, Database.Schema.version)
+        assertEquals(41L, Database.Schema.version)
     }
 
     @Test

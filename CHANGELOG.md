@@ -23,6 +23,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Changed
 
 ### Removed
+- The Suwayomi tracker. Updating the app deletes its tracking links, and old backups restore without them (#1473).
 
 ### CI
 
