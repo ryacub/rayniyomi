@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialogSc
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import mihon.presentation.core.util.collectAsLazyPagingItems
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -72,7 +73,7 @@ data class MigrateSeasonSelectScreen(
                     val source = screenModel.source as? AnimeHttpSource ?: return@BrowseAnimeSourceContent
                     navigator.push(
                         WebViewScreen(
-                            url = source.baseUrl,
+                            url = AnimeSourceGateway.homeUrl(source),
                             initialTitle = source.name,
                             sourceId = source.id,
                         ),

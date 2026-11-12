@@ -20,7 +20,7 @@ class AnimelibViewTest {
     @Test
     fun `the migration installs the library view that reads the episodes table once`() {
         InMemoryAnimeDb().use { db ->
-            AnimeDatabase.Schema.migrate(db.driver, oldVersion = 139, newVersion = AnimeDatabase.Schema.version)
+            AnimeDatabase.Schema.migrate(db.driver, oldVersion = 139, newVersion = 140)
 
             assertEquals(1, db.planRowsReadingEpisodes())
         }

@@ -13,6 +13,7 @@ import data.History
 import data.Mangas
 import dataanime.Animehistory
 import dataanime.Animes
+import dataanime.Episodes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
@@ -198,7 +199,9 @@ object AppModule {
                 genreAdapter = StringListColumnAdapter,
                 update_strategyAdapter = AnimeUpdateStrategyColumnAdapter,
                 fetch_typeAdapter = FetchTypeColumnAdapter,
+                memoAdapter = MemoColumnAdapter,
             ),
+            episodesAdapter = Episodes.Adapter(memoAdapter = MemoColumnAdapter),
         )
 
     @Provides

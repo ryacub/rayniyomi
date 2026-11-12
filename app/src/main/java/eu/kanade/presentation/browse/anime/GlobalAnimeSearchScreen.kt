@@ -10,7 +10,7 @@ import eu.kanade.presentation.browse.GlobalSearchLoadingResultItem
 import eu.kanade.presentation.browse.GlobalSearchResultItem
 import eu.kanade.presentation.browse.anime.components.GlobalAnimeSearchCardRow
 import eu.kanade.presentation.browse.anime.components.GlobalAnimeSearchToolbar
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.AnimeSearchItemResult
 import eu.kanade.tachiyomi.ui.browse.anime.source.globalsearch.AnimeSearchScreenModel
@@ -28,9 +28,9 @@ fun GlobalAnimeSearchScreen(
     onChangeSearchFilter: (AnimeSourceFilter) -> Unit,
     onToggleResults: () -> Unit,
     getAnime: @Composable (Anime) -> State<Anime>,
-    onClickSource: (AnimeCatalogueSource) -> Unit,
-    onRetrySource: (AnimeCatalogueSource) -> Unit,
-    onWebViewSource: (AnimeCatalogueSource) -> Unit,
+    onClickSource: (AnimeSource) -> Unit,
+    onRetrySource: (AnimeSource) -> Unit,
+    onWebViewSource: (AnimeSource) -> Unit,
     onClickItem: (Anime) -> Unit,
     onLongClickItem: (Anime) -> Unit,
 ) {
@@ -66,12 +66,12 @@ fun GlobalAnimeSearchScreen(
 
 @Composable
 internal fun GlobalSearchContent(
-    items: Map<AnimeCatalogueSource, AnimeSearchItemResult>,
+    items: Map<AnimeSource, AnimeSearchItemResult>,
     contentPadding: PaddingValues,
     getAnime: @Composable (Anime) -> State<Anime>,
-    onClickSource: (AnimeCatalogueSource) -> Unit,
-    onRetrySource: (AnimeCatalogueSource) -> Unit,
-    onWebViewSource: (AnimeCatalogueSource) -> Unit,
+    onClickSource: (AnimeSource) -> Unit,
+    onRetrySource: (AnimeSource) -> Unit,
+    onWebViewSource: (AnimeSource) -> Unit,
     onClickItem: (Anime) -> Unit,
     onLongClickItem: (Anime) -> Unit,
     fromSourceId: Long? = null,

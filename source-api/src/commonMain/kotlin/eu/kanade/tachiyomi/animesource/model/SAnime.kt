@@ -2,6 +2,7 @@
 
 package eu.kanade.tachiyomi.animesource.model
 
+import kotlinx.serialization.json.JsonObject
 import java.io.Serializable
 
 interface SAnime : Serializable {
@@ -37,6 +38,10 @@ interface SAnime : Serializable {
         return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
     }
 
+    var memo: JsonObject
+        get() = JsonObject(emptyMap())
+        set(value) {}
+
     fun copy() = create().also {
         it.url = url
         it.title = title
@@ -51,6 +56,7 @@ interface SAnime : Serializable {
         it.fetch_type = fetch_type
         it.season_number = season_number
         it.initialized = initialized
+        it.memo = memo
     }
 
     companion object {
@@ -61,6 +67,7 @@ interface SAnime : Serializable {
         const val PUBLISHING_FINISHED = 4
         const val CANCELLED = 5
         const val ON_HIATUS = 6
+        const val UPCOMING = 7
 
         fun create(): SAnime {
             return SAnimeImpl()

@@ -127,6 +127,7 @@ private const val STATUS_LICENSED = 3L
 private const val STATUS_PUBLISHING_FINISHED = 4L
 private const val STATUS_CANCELLED = 5L
 private const val STATUS_ON_HIATUS = 6L
+private const val STATUS_UPCOMING = 7L
 
 @Composable
 fun EntryInfoBox(
@@ -608,6 +609,7 @@ private fun ColumnScope.EntryContentInfo(
                 STATUS_PUBLISHING_FINISHED -> Icons.Outlined.Done
                 STATUS_CANCELLED -> Icons.Outlined.Close
                 STATUS_ON_HIATUS -> Icons.Outlined.Pause
+                STATUS_UPCOMING -> Icons.Outlined.Schedule
                 else -> Icons.Outlined.Block
             },
             contentDescription = null,
@@ -624,6 +626,7 @@ private fun ColumnScope.EntryContentInfo(
                     STATUS_PUBLISHING_FINISHED -> stringResource(MR.strings.publishing_finished)
                     STATUS_CANCELLED -> stringResource(MR.strings.cancelled)
                     STATUS_ON_HIATUS -> stringResource(MR.strings.on_hiatus)
+                    STATUS_UPCOMING -> stringResource(MR.strings.label_upcoming)
                     else -> stringResource(MR.strings.unknown)
                 },
                 overflow = TextOverflow.Ellipsis,

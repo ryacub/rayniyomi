@@ -5,12 +5,18 @@ import aniyomi.domain.anime.SeasonDisplayMode
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import tachiyomi.core.common.preference.TriState
+import tachiyomi.core.common.util.lang.EmptyJsonObject
 import tachiyomi.domain.entries.EntryModel
-import java.io.Serializable
+import java.io.ObjectStreamException
 import java.time.Instant
 import kotlin.math.pow
+import java.io.Serializable as JavaSerializable
 
+@Serializable
 @Immutable
 data class Anime(
     override val id: Long,
@@ -43,7 +49,8 @@ data class Anime(
     val seasonFlags: Long,
     val seasonNumber: Double,
     val seasonSourceOrder: Long,
-) : EntryModel, Serializable {
+    val memo: JsonObject = EmptyJsonObject,
+) : EntryModel, JavaSerializable {
 
     val expectedNextUpdate: Instant?
         get() = nextUpdate
@@ -342,5 +349,14 @@ data class Anime(
             seasonNumber = -1.0,
             seasonSourceOrder = 0L,
         )
+    }
+
+    // Voyager saves screens with Anime arguments, and JsonObject is not Java serializable.
+    @Throws(ObjectStreamException::class)
+    private fun writeReplace(): Any = JsonForm(Json.encodeToString(serializer(), this))
+
+    private class JsonForm(private val json: String) : JavaSerializable {
+        @Throws(ObjectStreamException::class)
+        private fun readResolve(): Any = Json.decodeFromString(serializer(), json)
     }
 }

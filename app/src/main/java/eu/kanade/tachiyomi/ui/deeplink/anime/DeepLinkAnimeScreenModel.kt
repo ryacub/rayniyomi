@@ -9,9 +9,11 @@ import dev.zacsweers.metro.AssistedInject
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
+import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toDomainAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
+import eu.kanade.domain.items.episode.model.toSourceEpisodes
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -28,7 +30,9 @@ import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.items.episode.interactor.GetEpisodeByUrlAndAnimeId
+import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 
@@ -38,6 +42,8 @@ class DeepLinkAnimeScreenModel(
     private val sourceManager: AnimeSourceManager,
     private val networkToLocalAnime: NetworkToLocalAnime,
     private val getEpisodeByUrlAndAnimeId: GetEpisodeByUrlAndAnimeId,
+    private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
+    private val updateAnime: UpdateAnime,
     private val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId,
     private val syncEpisodesWithSource: SyncEpisodesWithSource,
     @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -92,8 +98,13 @@ class DeepLinkAnimeScreenModel(
         val localEpisode = getEpisodeByUrlAndAnimeId.await(sEpisode.url, anime.id)
 
         return if (localEpisode == null) {
-            val sourceEpisodes = AnimeSourceGateway.episodes(source, anime.toSAnime())
-            val newEpisodes = syncEpisodesWithSource.await(sourceEpisodes, anime, source, false)
+            val update = AnimeSourceGateway.episodeSnapshot(source, anime.toSAnime()) {
+                getEpisodesByAnimeId.await(anime.id).toSourceEpisodes()
+            }
+            val newEpisodes = syncEpisodesWithSource.await(update.episodes, anime, source, false)
+            if (update.anime.memo != anime.memo) {
+                updateAnime.await(AnimeUpdate(id = anime.id, memo = update.anime.memo))
+            }
             newEpisodes.find { it.url == sEpisode.url }
         } else {
             localEpisode

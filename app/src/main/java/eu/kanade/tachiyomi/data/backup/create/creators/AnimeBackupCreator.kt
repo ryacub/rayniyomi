@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupEpisode
 import eu.kanade.tachiyomi.data.backup.models.backupAnimeTrackMapper
 import eu.kanade.tachiyomi.data.backup.models.backupEpisodeMapper
 import eu.kanade.tachiyomi.di.appGraph
+import tachiyomi.core.common.util.lang.toByteArray
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.entries.anime.model.Anime
@@ -93,6 +94,7 @@ private fun Anime.toBackupAnime() =
         lastModifiedAt = this.lastModifiedAt,
         favoriteModifiedAt = this.favoriteModifiedAt,
         version = this.version,
+        memo = this.memo.toByteArray(),
         fetchType = this.fetchType,
         parentId = this.parentId,
         id = this.id,

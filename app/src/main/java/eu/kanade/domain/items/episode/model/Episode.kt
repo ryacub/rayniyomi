@@ -16,8 +16,11 @@ fun Episode.toSEpisode(): SEpisode {
         it.scanlator = scanlator
         it.summary = summary
         it.preview_url = previewUrl
+        it.memo = memo
     }
 }
+
+fun List<Episode>.toSourceEpisodes(): List<SEpisode> = sortedBy(Episode::sourceOrder).map(Episode::toSEpisode)
 
 fun Episode.copyFromSEpisode(sEpisode: SEpisode): Episode {
     return this.copy(
@@ -29,6 +32,7 @@ fun Episode.copyFromSEpisode(sEpisode: SEpisode): Episode {
         scanlator = sEpisode.scanlator?.ifBlank { null },
         summary = sEpisode.summary?.ifBlank { null },
         previewUrl = sEpisode.preview_url?.ifBlank { null },
+        memo = sEpisode.memo,
     )
 }
 

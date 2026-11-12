@@ -147,6 +147,7 @@ class AnimeRestorer(
                 seasonSourceOrder = anime.seasonSourceOrder,
                 backgroundUrl = anime.backgroundUrl,
                 backgroundLastModified = anime.backgroundLastModified,
+                memo = null,
             )
         }
         return anime
@@ -228,6 +229,7 @@ class AnimeRestorer(
                     episode.summary,
                     episode.previewUrl,
                     episode.fillermark,
+                    episode.memo,
                 )
             }
         }
@@ -246,6 +248,7 @@ class AnimeRestorer(
                     seen = episode.seen,
                     bookmark = episode.bookmark,
                     fillermark = episode.fillermark,
+                    memo = null,
                     lastSecondSeen = episode.lastSecondSeen,
                     totalSeconds = episode.totalSeconds,
                     episodeNumber = null,
@@ -295,6 +298,7 @@ class AnimeRestorer(
                 seasonSourceOrder = anime.seasonSourceOrder,
                 backgroundUrl = anime.backgroundUrl,
                 backgroundLastModified = anime.backgroundLastModified,
+                memo = anime.memo,
             )
             animesQueries.selectLastInsertedRowId()
         }

@@ -49,9 +49,16 @@ class SyncEpisodesWithSource(
         source: AnimeSource,
         manualFetch: Boolean = false,
         fetchWindow: Pair<Long, Long> = Pair(0, 0),
+        expectedEpisodes: Set<Episode>? = null,
     ): List<Episode> {
         if (rawSourceEpisodes.isEmpty() && !source.isLocal()) {
             throw NoEpisodesException()
+        }
+
+        val dbEpisodes = getEpisodesByAnimeId.await(anime.id)
+
+        if (expectedEpisodes != null && dbEpisodes.toSet() != expectedEpisodes) {
+            return emptyList()
         }
 
         val now = ZonedDateTime.now()
@@ -65,8 +72,6 @@ class SyncEpisodesWithSource(
                     .copy(name = with(EpisodeSanitizer) { sEpisode.name.sanitize(anime.title) })
                     .copy(animeId = anime.id, sourceOrder = i.toLong())
             }
-
-        val dbEpisodes = getEpisodesByAnimeId.await(anime.id)
 
         val dbEpisodesByUrl = dbEpisodes.distinctBy { it.url }.associateBy { it.url }
         val sourceUrls = sourceEpisodes.mapTo(HashSet()) { it.url }
@@ -130,6 +135,7 @@ class SyncEpisodesWithSource(
                         scanlator = episode.scanlator,
                         summary = episode.summary,
                         sourceOrder = episode.sourceOrder,
+                        memo = episode.memo,
                     )
                     if (episode.dateUpload != 0L) {
                         toChangeEpisode = toChangeEpisode.copy(

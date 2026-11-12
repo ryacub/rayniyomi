@@ -48,7 +48,6 @@ import eu.kanade.presentation.entries.components.DuplicateEntryDialog
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.sourceHelpUrl
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.season.MigrateSeasonSelectScreen
@@ -65,6 +64,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import mihon.presentation.core.util.collectAsLazyPagingItems
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.source.anime.model.StubAnimeSource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -124,7 +124,7 @@ data class BrowseAnimeSourceScreen(
             val source = screenModel.source as? AnimeHttpSource ?: return@f
             navigator.push(
                 WebViewScreen(
-                    url = source.baseUrl,
+                    url = AnimeSourceGateway.homeUrl(source),
                     initialTitle = source.name,
                     sourceId = source.id,
                 ),
@@ -132,7 +132,7 @@ data class BrowseAnimeSourceScreen(
         }
 
         LaunchedEffect(screenModel.source) {
-            assistUrl = (screenModel.source as? AnimeHttpSource)?.baseUrl
+            assistUrl = (screenModel.source as? AnimeHttpSource)?.let(AnimeSourceGateway::homeUrl)
         }
 
         val filtersUnavailableMessage = stringResource(MR.strings.source_filters_unavailable)
@@ -188,7 +188,7 @@ data class BrowseAnimeSourceScreen(
                                 Text(text = stringResource(MR.strings.popular))
                             },
                         )
-                        if ((screenModel.source as AnimeCatalogueSource).supportsLatest) {
+                        if (screenModel.source.supportsLatest) {
                             FilterChip(
                                 selected = state.listing == Listing.Latest,
                                 onClick = {

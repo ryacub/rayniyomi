@@ -13,6 +13,11 @@ import androidx.work.WorkerParameters
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.copyFrom
 import eu.kanade.domain.entries.anime.model.toSAnime
+import eu.kanade.domain.entries.anime.model.toSourceSeasons
+import eu.kanade.domain.items.episode.model.toSourceEpisodes
+import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.animesource.model.FetchType
+import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -124,16 +129,9 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
                                 ) {
                                     val source = sourceManager.get(anime.source) ?: return@withUpdateNotification
                                     try {
-                                        val networkAnime = AnimeSourceGateway.details(source, anime.toSAnime())
-                                        val updatedAnime = anime
-                                            .prepUpdateCover(coverCache, networkAnime, true)
-                                            .prepUpdateBackground(backgroundCache, networkAnime, true)
-                                            .copyFrom(networkAnime)
-                                        try {
-                                            updateAnime.await(updatedAnime.toAnimeUpdate())
-                                        } catch (e: Exception) {
-                                            logcat(LogPriority.ERROR) { "Anime doesn't exist anymore" }
-                                        }
+                                        refreshMetadata(source, anime)
+                                    } catch (e: CancellationException) {
+                                        throw e
                                     } catch (e: Throwable) {
                                         // Ignore errors and continue
                                         logcat(LogPriority.ERROR, e)
@@ -147,6 +145,63 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
         }
 
         notifier.cancelProgressNotification()
+    }
+
+    private suspend fun refreshMetadata(source: AnimeSource, anime: Anime) {
+        if (!AnimeSourceGateway.usesCombinedUpdates(source, anime.fetchType)) {
+            saveMetadata(anime, AnimeSourceGateway.details(source, anime.toSAnime()))
+            return
+        }
+        when (anime.fetchType) {
+            FetchType.Episodes -> {
+                val existing = appGraph.getEpisodesByAnimeId.await(anime.id)
+                val expectedEpisodes = existing.toSet()
+                val update = AnimeSourceGateway.updateEpisodes(
+                    source,
+                    anime.toSAnime(),
+                    existing.toSourceEpisodes(),
+                    true,
+                    false,
+                )
+                saveMetadata(anime, update.anime)
+                if (update.episodes.isNotEmpty()) {
+                    appGraph.syncEpisodesWithSource.await(
+                        update.episodes,
+                        anime,
+                        source,
+                        expectedEpisodes = expectedEpisodes,
+                    )
+                }
+            }
+            FetchType.Seasons -> {
+                val existing = appGraph.animeRepository.getAnimeSeasonsById(anime.id).map { it.anime }
+                val expectedSeasons = existing.toSet()
+                val update = AnimeSourceGateway.updateSeasons(
+                    source,
+                    anime.toSAnime(),
+                    existing.toSourceSeasons(),
+                    true,
+                    false,
+                )
+                saveMetadata(anime, update.anime)
+                if (update.seasons.isNotEmpty()) {
+                    appGraph.syncSeasonsWithSource.await(
+                        update.seasons,
+                        anime,
+                        source,
+                        expectedSeasons = expectedSeasons,
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun saveMetadata(anime: Anime, remoteAnime: SAnime) {
+        val updatedAnime = anime
+            .prepUpdateCover(coverCache, remoteAnime, true)
+            .prepUpdateBackground(backgroundCache, remoteAnime, true)
+            .copyFrom(remoteAnime)
+        updateAnime.await(updatedAnime.toAnimeUpdate())
     }
 
     private suspend fun withUpdateNotification(

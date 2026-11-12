@@ -93,6 +93,7 @@ class UpdateAnime(
                 backgroundUrl = backgroundUrl,
                 status = remoteAnime.status.toLong(),
                 updateStrategy = remoteAnime.update_strategy,
+                memo = remoteAnime.memo,
                 initialized = true,
             ),
         )

@@ -54,15 +54,15 @@ class AnimeSourceGatewayTest {
                 AnimeSourceGateway.latest(this, 1)
             },
             failingCall<AnimeSource>("details") {
-                coEvery { getAnimeDetails(any()) } throws linkageError()
+                coEvery { getAnimeEpisodeUpdate(any(), any(), true, false) } throws linkageError()
                 AnimeSourceGateway.details(this, anime)
             },
             failingCall<AnimeSource>("episodes") {
-                coEvery { getEpisodeList(any()) } throws linkageError()
+                coEvery { getAnimeEpisodeUpdate(any(), any(), false, true) } throws linkageError()
                 AnimeSourceGateway.episodes(this, anime)
             },
             failingCall<AnimeSource>("seasons") {
-                coEvery { getSeasonList(any()) } throws linkageError()
+                coEvery { getAnimeSeasonUpdate(any(), any(), false, true) } throws linkageError()
                 AnimeSourceGateway.seasons(this, anime)
             },
             failingCall<AnimeSource>("hosters") {
@@ -160,7 +160,7 @@ class AnimeSourceGatewayTest {
     fun `cancellation leaves the gateway without a report`() {
         val source = mockk<AnimeSource> {
             every { name } returns "Example"
-            coEvery { getEpisodeList(any()) } throws CancellationException("cancelled")
+            coEvery { getAnimeEpisodeUpdate(any(), any(), false, true) } throws CancellationException("cancelled")
         }
         val reported = mutableListOf<SourceLinkageException>()
         SourceLinkageReporter.onFailure = { reported += it }

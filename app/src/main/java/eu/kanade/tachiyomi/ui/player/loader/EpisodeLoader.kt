@@ -35,7 +35,7 @@ class EpisodeLoader {
                 isDownloaded -> getHostersOnDownloaded(episode, anime, source)
                 source is AnimeHttpSource -> getHostersOnHttp(episode, source)
                 source is LocalAnimeSource -> getHostersOnLocal(episode)
-                else -> error("source not supported")
+                else -> AnimeSourceGateway.hosters(source, episode.toSEpisode())
             }
         }
 
@@ -134,7 +134,7 @@ class EpisodeLoader {
                 hoster.videoList != null && source is AnimeHttpSource -> hoster.videoList!!.parseVideoUrls(source)
                 hoster.videoList != null -> hoster.videoList!!
                 source is AnimeHttpSource -> getVideosOnHttp(source, hoster)
-                else -> error("source not supported")
+                else -> AnimeSourceGateway.videos(source, hoster)
             }
 
             return if (source is AnimeHttpSource) {

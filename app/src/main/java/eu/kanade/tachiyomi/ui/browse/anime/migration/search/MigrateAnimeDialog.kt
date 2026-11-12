@@ -38,6 +38,7 @@ import eu.kanade.domain.entries.anime.model.hasCustomBackground
 import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
+import eu.kanade.domain.items.episode.model.toSourceEpisodes
 import eu.kanade.presentation.components.IndicatorSize
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.animesource.AnimeSource
@@ -239,14 +240,16 @@ internal class MigrateAnimeDialogScreenModel(
         mutableState.update { it.copy(isMigrating = true) }
 
         val migrated = try {
-            val episodes = AnimeSourceGateway.episodes(source, newAnime.toSAnime())
+            val update = AnimeSourceGateway.episodeSnapshot(source, newAnime.toSAnime()) {
+                getEpisodesByAnimeId.await(newAnime.id).toSourceEpisodes()
+            }
 
             migrateAnimeInternal(
                 oldSource = prevSource,
                 newSource = source,
                 oldAnime = oldAnime,
-                newAnime = newAnime,
-                sourceEpisodes = episodes,
+                newAnime = newAnime.copy(memo = update.anime.memo),
+                sourceEpisodes = update.episodes,
                 replace = replace,
                 flags = flags,
             )
@@ -351,6 +354,7 @@ internal class MigrateAnimeDialogScreenModel(
             AnimeUpdate(
                 id = newAnime.id,
                 favorite = true,
+                memo = newAnime.memo,
                 episodeFlags = oldAnime.episodeFlags,
                 viewerFlags = oldAnime.viewerFlags,
                 dateAdded = if (replace) oldAnime.dateAdded else Instant.now().toEpochMilli(),

@@ -5,6 +5,7 @@ import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
+import eu.kanade.domain.entries.anime.interactor.SyncRelatedAnimeWithSource
 import eu.kanade.domain.entries.anime.interactor.SyncSeasonsWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.manga.interactor.GetExcludedScanlators
@@ -13,6 +14,7 @@ import eu.kanade.domain.entries.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.entries.manga.interactor.UpdateManga
 import mihon.domain.upcoming.anime.interactor.GetUpcomingAnime
 import mihon.domain.upcoming.manga.interactor.GetUpcomingManga
+import tachiyomi.data.entries.anime.AnimeRelationRepositoryImpl
 import tachiyomi.data.entries.anime.AnimeRepositoryImpl
 import tachiyomi.data.entries.manga.MangaRepositoryImpl
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
@@ -24,11 +26,13 @@ import tachiyomi.domain.entries.anime.interactor.GetAnimeFavorites
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
+import tachiyomi.domain.entries.anime.interactor.GetRelatedAnime
 import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.interactor.ResetAnimeViewerFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeSeasonFlags
+import tachiyomi.domain.entries.anime.repository.AnimeRelationRepository
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetLibraryManga
@@ -60,6 +64,21 @@ object EntryBindings {
     @SingleIn(AppScope::class)
     fun provideAnimeRepository(handler: AnimeDatabaseHandler): AnimeRepository =
         AnimeRepositoryImpl(handler = handler)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideAnimeRelationRepository(handler: AnimeDatabaseHandler): AnimeRelationRepository =
+        AnimeRelationRepositoryImpl(handler)
+
+    @Provides
+    fun provideGetRelatedAnime(repository: AnimeRelationRepository): GetRelatedAnime = GetRelatedAnime(repository)
+
+    @Provides
+    fun provideSyncRelatedAnimeWithSource(
+        sourceManager: AnimeSourceManager,
+        networkToLocalAnime: NetworkToLocalAnime,
+        relationRepository: AnimeRelationRepository,
+    ): SyncRelatedAnimeWithSource = SyncRelatedAnimeWithSource(sourceManager, networkToLocalAnime, relationRepository)
 
     @Provides
     fun provideGetDuplicateLibraryAnime(

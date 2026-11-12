@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- Anime details show related titles when the extension provides them (#1472).
 
 ### Improved
 - Tablet sheets fade out before closing. Reader page numbers and selection toolbars fade between states. Filtered chapters, episodes, and download queue rows slide into place. Queue progress bars move smoothly, and dragging a source header moves the whole group (#1466).
@@ -24,6 +25,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - With "Reduce player animation" on, the video chapter label, the side panels, and the quality sheet only fade. Before, they still slid. The player lock button now fades on the same timing as the controls (#1468).
 
 ### Changed
+- Anime extensions now support library versions 14, 16, and 17. Extensions on versions 12, 13, or 15 need an update (#1472).
 
 ### Removed
 - The Suwayomi tracker. Updating the app deletes its tracking links, and old backups restore without them (#1473).

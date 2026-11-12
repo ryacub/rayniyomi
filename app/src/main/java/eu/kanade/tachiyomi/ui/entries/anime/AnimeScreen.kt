@@ -43,7 +43,6 @@ import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.source.anime.isLocalOrStub
 import eu.kanade.tachiyomi.ui.browse.anime.migration.anime.season.MigrateSeasonSelectScreen
 import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialog
 import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeDialogScreenModel
@@ -110,6 +109,7 @@ class AnimeScreen(
         }
 
         val successState = state as AnimeScreenModel.State.Success
+        val relatedAnime by screenModel.relatedAnime.collectAsStateWithLifecycle()
         val isAnimeHttpSource = remember { successState.source is AnimeHttpSource }
 
         LaunchedEffect(successState.anime, screenModel.source) {
@@ -132,6 +132,9 @@ class AnimeScreen(
 
         AnimeScreen(
             state = successState,
+            relatedAnime = relatedAnime,
+            onRelatedClick = { navigator.push(AnimeScreen(it.id, fromSource = !it.favorite)) },
+            onRelatedLongClick = { navigator.push(GlobalAnimeSearchScreen(it.title)) },
             snackbarHostState = screenModel.snackbarHostState,
             nextUpdate = successState.anime.expectedNextUpdate,
             isTabletUi = isTabletUi(),
@@ -147,7 +150,7 @@ class AnimeScreen(
                 }
             },
             onDownloadEpisode = screenModel::runEpisodeDownloadActions.takeIf {
-                !successState.source.isLocalOrStub() && successState.anime.fetchType == FetchType.Episodes
+                isAnimeHttpSource && successState.anime.fetchType == FetchType.Episodes
             },
             onAddToLibraryClicked = { screenModel.toggleFavorite() },
             onWebViewClicked = {
@@ -190,7 +193,7 @@ class AnimeScreen(
                 )
             }.takeIf { isAnimeHttpSource },
             onDownloadActionClicked = screenModel::runDownloadAction.takeIf {
-                !successState.source.isLocalOrStub() && successState.anime.fetchType == FetchType.Episodes
+                isAnimeHttpSource && successState.anime.fetchType == FetchType.Episodes
             },
             onEditCategoryClicked = screenModel::showChangeCategoryDialog.takeIf { successState.anime.favorite },
             onEditFetchIntervalClicked = screenModel::showSetAnimeFetchIntervalDialog.takeIf {

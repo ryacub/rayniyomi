@@ -1,13 +1,16 @@
 package tachiyomi.data.source.anime
 
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimeRelation
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
+import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
+import eu.kanade.tachiyomi.animesource.model.SAnimeSeasonUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
@@ -18,30 +21,96 @@ import kotlinx.coroutines.CancellationException
 import tachiyomi.core.common.util.lang.SourceLinkageException
 import tachiyomi.core.common.util.lang.reportAsSourceFailure
 import java.lang.reflect.Method
+import kotlin.coroutines.Continuation
 
 object AnimeSourceGateway {
 
-    suspend fun popular(source: AnimeCatalogueSource, page: Int): AnimesPage =
+    suspend fun popular(source: AnimeSource, page: Int): AnimesPage =
         guard(source) { source.getPopularAnime(page) }
 
     suspend fun search(
-        source: AnimeCatalogueSource,
+        source: AnimeSource,
         page: Int,
         query: String,
         filters: AnimeFilterList,
     ): AnimesPage = guard(source) { source.getSearchAnime(page, query, filters) }
 
-    suspend fun latest(source: AnimeCatalogueSource, page: Int): AnimesPage =
+    suspend fun latest(source: AnimeSource, page: Int): AnimesPage =
         guard(source) { source.getLatestUpdates(page) }
 
-    suspend fun details(source: AnimeSource, anime: SAnime): SAnime =
-        guard(source) { source.getAnimeDetails(anime) }
+    suspend fun details(source: AnimeSource, anime: SAnime): SAnime = guard(source) {
+        if (!usesCombinedUpdates(source, anime.fetch_type)) return@guard source.getAnimeDetails(anime)
+        when (anime.fetch_type) {
+            FetchType.Episodes -> source.getAnimeEpisodeUpdate(anime, emptyList(), true, false).anime
+            FetchType.Seasons -> source.getAnimeSeasonUpdate(anime, emptyList(), true, false).anime
+        }
+    }
 
     suspend fun episodes(source: AnimeSource, anime: SAnime): List<SEpisode> =
-        guard(source) { source.getEpisodeList(anime) }
+        episodeSnapshot(source, anime) { emptyList() }.episodes
 
-    suspend fun seasons(source: AnimeSource, anime: SAnime): List<SAnime> =
-        guard(source) { source.getSeasonList(anime) }
+    suspend fun episodeSnapshot(
+        source: AnimeSource,
+        anime: SAnime,
+        existing: suspend () -> List<SEpisode>,
+    ): SAnimeEpisodeUpdate = guard(source) {
+        if (usesCombinedUpdates(source, FetchType.Episodes)) {
+            source.getAnimeEpisodeUpdate(anime, existing(), false, true)
+        } else {
+            SAnimeEpisodeUpdate(anime, source.getEpisodeList(anime))
+        }
+    }
+
+    suspend fun seasons(source: AnimeSource, anime: SAnime, existing: List<SAnime> = emptyList()): List<SAnime> =
+        guard(source) {
+            if (usesCombinedUpdates(source, FetchType.Seasons)) {
+                source.getAnimeSeasonUpdate(anime, existing, false, true).seasons
+            } else {
+                source.getSeasonList(anime)
+            }
+        }
+
+    fun usesCombinedUpdates(source: AnimeSource, fetchType: FetchType): Boolean = guard(source) {
+        val methodName = when (fetchType) {
+            FetchType.Episodes -> "getAnimeEpisodeUpdate"
+            FetchType.Seasons -> "getAnimeSeasonUpdate"
+        }
+        val method = source.javaClass.getMethod(
+            methodName,
+            SAnime::class.java,
+            List::class.java,
+            Boolean::class.java,
+            Boolean::class.java,
+            Continuation::class.java,
+        )
+        // Kotlin adds bridge methods for inherited defaults in legacy source classes.
+        !method.isBridge && method.declaringClass != AnimeSource::class.java
+    }
+
+    suspend fun updateEpisodes(
+        source: AnimeSource,
+        anime: SAnime,
+        existing: List<SEpisode>,
+        fetchDetails: Boolean,
+        fetchEpisodes: Boolean,
+    ): SAnimeEpisodeUpdate = guard(source) {
+        source.getAnimeEpisodeUpdate(anime, existing, fetchDetails, fetchEpisodes)
+    }
+
+    suspend fun updateSeasons(
+        source: AnimeSource,
+        anime: SAnime,
+        existing: List<SAnime>,
+        fetchDetails: Boolean,
+        fetchSeasons: Boolean,
+    ): SAnimeSeasonUpdate = guard(source) {
+        source.getAnimeSeasonUpdate(anime, existing, fetchDetails, fetchSeasons)
+    }
+
+    fun supportsRelatedAnime(source: AnimeSource): Boolean = guard(source) { source.supportsRelatedAnime }
+
+    suspend fun relatedAnime(source: AnimeSource, anime: SAnime): List<AnimeRelation> =
+        guard(source) { source.getRelatedAnimeList(anime) }
 
     suspend fun hosters(source: AnimeSource, episode: SEpisode): List<Hoster> =
         guard(source) { source.getHosterList(episode) }
@@ -52,7 +121,7 @@ object AnimeSourceGateway {
     suspend fun videos(source: AnimeSource, hoster: Hoster): List<Video> =
         guard(source) { source.getVideoList(hoster) }
 
-    fun filters(source: AnimeCatalogueSource): AnimeFilterList = guard(source) { source.getFilterList() }
+    fun filters(source: AnimeSource): AnimeFilterList = guard(source) { source.getFilterList() }
 
     suspend fun resolveVideo(source: AnimeHttpSource, video: Video): Video? =
         guard(source) { source.resolveVideo(video) }
@@ -65,6 +134,8 @@ object AnimeSourceGateway {
 
     suspend fun videoUrl(source: AnimeHttpSource, video: Video): String =
         guard(source) { source.getVideoUrl(video) }
+
+    fun homeUrl(source: AnimeHttpSource): String = guard(source) { source.getHomeUrl() }
 
     fun animeUrl(source: AnimeHttpSource, anime: SAnime): String = guard(source) { source.getAnimeUrl(anime) }
 

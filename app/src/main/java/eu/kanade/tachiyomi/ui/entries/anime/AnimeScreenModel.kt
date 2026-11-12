@@ -18,6 +18,7 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
+import eu.kanade.domain.entries.anime.interactor.SyncRelatedAnimeWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.downloadedFilter
 import eu.kanade.domain.entries.anime.model.seasonDownloadedFilter
@@ -63,12 +64,11 @@ import eu.kanade.tachiyomi.util.episode.getNextUnseen
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -84,6 +84,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
@@ -99,6 +101,7 @@ import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
+import tachiyomi.domain.entries.anime.interactor.GetRelatedAnime
 import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeSeasonFlags
@@ -162,6 +165,8 @@ class AnimeScreenModel(
     private val mergeLibraryAnime: MergeLibraryAnime,
     private val fetchInterval: AnimeFetchInterval,
     private val entryRefresher: AnimeEntryRefresher,
+    getRelatedAnime: GetRelatedAnime,
+    private val syncRelatedAnimeWithSource: SyncRelatedAnimeWithSource,
     private val clock: Clock = Clock.systemDefaultZone(),
     @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
@@ -229,6 +234,11 @@ class AnimeScreenModel(
             }
         }
     }
+
+    val relatedAnime = getRelatedAnime.subscribe(animeId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val relatedRefresh = Mutex()
 
     init {
         viewModelScope.launchIO {
@@ -301,14 +311,16 @@ class AnimeScreenModel(
             }
             // Start observe tracking since it only needs animeId
             observeTrackers()
+            refreshRelatedAnime(anime, forceRefresh = false)
 
-            // Fetch info-episodes when needed
-            if (viewModelScope.isActive) {
-                val fetchFromSourceTasks = listOf(
-                    async { if (needRefreshInfo) fetchAnimeFromSource() },
-                    async { if (needRefreshEpisode || needRefreshSeason) fetchEpisodesAndSeasonsFromSource() },
+            if (viewModelScope.isActive && runningRefresh == null) {
+                val (detailsError, itemsError) = entryRefresher.fetchFromSource(
+                    source,
+                    anime,
+                    fetchDetails = needRefreshInfo,
+                    fetchItems = needRefreshEpisode || needRefreshSeason,
                 )
-                fetchFromSourceTasks.awaitAll()
+                showRefreshErrors(detailsError, itemsError)
             }
             runningRefresh?.let { showRefresh(it) }
 
@@ -320,14 +332,29 @@ class AnimeScreenModel(
     fun fetchAllFromSource() {
         val state = successState?.takeUnless { it.isRefreshingData } ?: return
         val refresh = entryRefresher.refresh(state.source, state.anime, state.trackItems)
+        refreshRelatedAnime(state.anime, forceRefresh = true)
         viewModelScope.launch { showRefresh(refresh) }
+    }
+
+    private fun refreshRelatedAnime(anime: Anime, forceRefresh: Boolean) {
+        viewModelScope.launch {
+            if (!relatedRefresh.tryLock()) return@launch
+            try {
+                withContext(ioDispatcher) { syncRelatedAnimeWithSource.await(anime, forceRefresh) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.WARN, e)
+            } finally {
+                relatedRefresh.unlock()
+            }
+        }
     }
 
     private suspend fun showRefresh(refresh: Deferred<AnimeRefreshResult>) {
         updateSuccessState { it.copy(isRefreshingData = true) }
         val result = refresh.await()
-        result.detailsError?.let(::showDetailsFetchError)
-        result.itemsError?.let { showItemsFetchError(it) }
+        showRefreshErrors(result.detailsError, result.itemsError)
         updateSuccessState {
             it.copy(isRefreshingData = false, nextAiringEpisode = result.nextAiringEpisode)
         }
@@ -335,13 +362,9 @@ class AnimeScreenModel(
 
     // Anime info - start
 
-    private suspend fun fetchAnimeFromSource() {
-        val state = successState ?: return
-        try {
-            entryRefresher.fetchDetails(state.source, state.anime, manualFetch = false)
-        } catch (e: Throwable) {
-            showDetailsFetchError(e)
-        }
+    private suspend fun showRefreshErrors(detailsError: Throwable?, itemsError: Throwable?) {
+        detailsError?.let(::showDetailsFetchError)
+        itemsError?.let { showItemsFetchError(it) }
     }
 
     private fun showDetailsFetchError(e: Throwable) {
@@ -684,15 +707,6 @@ class AnimeScreenModel(
                 sourceLanguage = sourceManager.getOrStub(seasonAnime.anime.source).lang,
                 showContinueOverlay = false,
             )
-        }
-    }
-
-    private suspend fun fetchEpisodesAndSeasonsFromSource() {
-        val state = successState ?: return
-        try {
-            entryRefresher.fetchItems(state.source, state.anime, manualFetch = false)
-        } catch (e: Throwable) {
-            showItemsFetchError(e)
         }
     }
 

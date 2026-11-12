@@ -8,6 +8,7 @@ import data.History
 import data.Mangas
 import dataanime.Animehistory
 import dataanime.Animes
+import dataanime.Episodes
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.Database
 import tachiyomi.data.DateColumnAdapter
@@ -128,7 +129,9 @@ internal class AnimeRecoveryDb : AutoCloseable {
             genreAdapter = StringListColumnAdapter,
             update_strategyAdapter = AnimeUpdateStrategyColumnAdapter,
             fetch_typeAdapter = FetchTypeColumnAdapter,
+            memoAdapter = MemoColumnAdapter,
         ),
+        episodesAdapter = Episodes.Adapter(memoAdapter = MemoColumnAdapter),
     )
 
     val handler = AndroidAnimeDatabaseHandler(database, driver)

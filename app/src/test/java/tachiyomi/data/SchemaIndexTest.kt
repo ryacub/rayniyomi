@@ -63,7 +63,7 @@ class SchemaIndexTest {
             )
             db.driver.exec("CREATE INDEX IF NOT EXISTS animes_normalized_title_idx ON animes(normalized_title)")
 
-            AnimeDatabase.Schema.migrate(db.driver, oldVersion = 140, newVersion = AnimeDatabase.Schema.version)
+            AnimeDatabase.Schema.migrate(db.driver, oldVersion = 140, newVersion = 141)
 
             assertNoneOf(redundantAnimeIndexes, db.driver.indexNames())
         }

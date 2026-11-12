@@ -1,6 +1,5 @@
 package tachiyomi.data.source.anime
 
-import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
@@ -58,17 +57,17 @@ class AnimeSourceRepositoryImpl(
         query: String,
         filterList: AnimeFilterList,
     ): AnimeSourcePagingSourceType {
-        val source = sourceManager.get(sourceId) as AnimeCatalogueSource
+        val source = sourceManager.getOrStub(sourceId)
         return AnimeSourceSearchPagingSource(source, query, filterList)
     }
 
     override fun getPopularAnime(sourceId: Long): AnimeSourcePagingSourceType {
-        val source = sourceManager.get(sourceId) as AnimeCatalogueSource
+        val source = sourceManager.getOrStub(sourceId)
         return AnimeSourcePopularPagingSource(source)
     }
 
     override fun getLatestAnime(sourceId: Long): AnimeSourcePagingSourceType {
-        val source = sourceManager.get(sourceId) as AnimeCatalogueSource
+        val source = sourceManager.getOrStub(sourceId)
         return AnimeSourceLatestPagingSource(source)
     }
 }

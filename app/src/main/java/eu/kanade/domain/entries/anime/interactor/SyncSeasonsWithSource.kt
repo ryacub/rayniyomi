@@ -27,9 +27,16 @@ class SyncSeasonsWithSource(
         source: AnimeSource,
         manualFetch: Boolean = false,
         fetchWindow: Pair<Long, Long> = Pair(0, 0),
+        expectedSeasons: Set<Anime>? = null,
     ): List<Anime> {
         if (rawSourceSeasons.isEmpty() && !source.isLocal()) {
             throw NoSeasonsException()
+        }
+
+        val dbSeasons = getAnimeSeasonsByParentId.await(anime.id)
+
+        if (expectedSeasons != null && dbSeasons.map { it.anime }.toSet() != expectedSeasons) {
+            return emptyList()
         }
 
         val now = ZonedDateTime.now()
@@ -38,10 +45,8 @@ class SyncSeasonsWithSource(
             .distinctBy { it.url }
             .mapIndexed { i, sAnime ->
                 networkToLocalAnime.await(sAnime.toDomainAnime(source.id))
-                    .copy(parentId = anime.id, seasonSourceOrder = i.toLong())
+                    .copy(parentId = anime.id, seasonSourceOrder = i.toLong(), memo = sAnime.memo)
             }
-
-        val dbSeasons = getAnimeSeasonsByParentId.await(anime.id)
 
         val newSeasons = mutableListOf<Anime>()
         val updatedSeasons = mutableListOf<Anime>()
@@ -71,6 +76,7 @@ class SyncSeasonsWithSource(
                         title = season.title,
                         seasonNumber = season.seasonNumber,
                         seasonSourceOrder = season.seasonSourceOrder,
+                        memo = season.memo,
                     )
                     updatedSeasons.add(toChangeSeason)
                 }

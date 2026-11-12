@@ -489,16 +489,17 @@ private fun BookmarkDownloadIcons(
             )
         }
 
-        EpisodeDownloadIndicator(
-            enabled = downloadIndicatorEnabled,
-            modifier = Modifier
-                .padding(start = 4.dp),
-            downloadStateProvider = downloadStateProvider,
-            downloadProgressProvider = downloadProgressProvider,
-            useTitleListStyle = true,
-            downloadPaused = downloadPaused,
-            onClick = { onDownloadClick?.invoke(it) },
-        )
+        if (onDownloadClick != null || downloadStateProvider() != AnimeDownload.State.NOT_DOWNLOADED) {
+            EpisodeDownloadIndicator(
+                enabled = downloadIndicatorEnabled && onDownloadClick != null,
+                modifier = Modifier.padding(start = 4.dp),
+                downloadStateProvider = downloadStateProvider,
+                downloadProgressProvider = downloadProgressProvider,
+                useTitleListStyle = true,
+                downloadPaused = downloadPaused,
+                onClick = { onDownloadClick?.invoke(it) },
+            )
+        }
     }
 }
 

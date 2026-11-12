@@ -4,6 +4,9 @@ import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import tachiyomi.core.common.util.lang.EmptyJsonObject
+import tachiyomi.core.common.util.lang.toByteArray
+import tachiyomi.core.common.util.lang.toJsonObject
 import tachiyomi.domain.entries.anime.model.Anime
 
 @Suppress("DEPRECATION")
@@ -39,6 +42,7 @@ data class BackupAnime(
     @ProtoNumber(106) var lastModifiedAt: Long = 0,
     @ProtoNumber(107) var favoriteModifiedAt: Long? = null,
     @ProtoNumber(109) var version: Long = 0,
+    @ProtoNumber(112) var memo: ByteArray = EmptyJsonObject.toByteArray(),
 
     // Aniyomi specific values
     @ProtoNumber(500) var backgroundUrl: String? = null,
@@ -70,6 +74,7 @@ data class BackupAnime(
             lastModifiedAt = this@BackupAnime.lastModifiedAt,
             favoriteModifiedAt = this@BackupAnime.favoriteModifiedAt,
             version = this@BackupAnime.version,
+            memo = this@BackupAnime.memo.toJsonObject(),
             fetchType = this@BackupAnime.fetchType,
             parentId = this@BackupAnime.parentId,
             seasonFlags = this@BackupAnime.seasonFlags,
