@@ -39,6 +39,7 @@ class AddAnimeTracks(
             // Update chapter progress if newer chapters marked read locally
             if (hasSeenEpisodes) {
                 val latestLocalReadChapterNumber = allChapters
+                    .filter { it.isRecognizedNumber }
                     .sortedBy { it.episodeNumber }
                     .takeWhile { it.seen }
                     .lastOrNull()
