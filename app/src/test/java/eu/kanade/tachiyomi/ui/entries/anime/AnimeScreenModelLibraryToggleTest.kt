@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.entries.anime
 import android.content.Context
 import android.content.res.Resources
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelStore
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
@@ -12,6 +13,7 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.test.create
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import io.kotest.matchers.shouldBe
@@ -49,6 +51,7 @@ import tachiyomi.i18n.MR
 class AnimeScreenModelLibraryToggleTest {
 
     private val vt = VirtualTime()
+    private val viewModelStore = ViewModelStore()
     private val resources = mockk<Resources> {
         every { getString(any()) } answers { "string-${firstArg<Int>()}" }
     }
@@ -73,6 +76,7 @@ class AnimeScreenModelLibraryToggleTest {
 
     @AfterEach
     fun tearDown() {
+        viewModelStore.clear()
         vt.tearDownMain()
     }
 
@@ -249,7 +253,7 @@ class AnimeScreenModelLibraryToggleTest {
         anime: Anime,
         categories: List<Category> = emptyList(),
     ): AnimeScreenModel {
-        val model = createModel(anime, categories)
+        val model = viewModelStore.create { createModel(anime, categories) }
         model.state.first { it is AnimeScreenModel.State.Success }
         advanceUntilIdle()
         return model
