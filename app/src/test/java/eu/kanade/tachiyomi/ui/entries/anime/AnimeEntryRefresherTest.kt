@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryAnimeDb
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.util.AniChartApi
@@ -31,10 +32,12 @@ import kotlinx.serialization.json.JsonPrimitive
 import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import tachiyomi.data.items.episode.EpisodeRepositoryImpl
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.interactor.ShouldUpdateDbEpisode
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.library.service.LibraryPreferences
 
@@ -265,12 +268,59 @@ class AnimeEntryRefresherTest {
         coVerify { syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any()) }
     }
 
-    private fun TestScope.refresher() = AnimeEntryRefresher(
+    @Test
+    fun `a details-only refresh keeps an episode added while the source call runs`() = runTest {
+        InMemoryAnimeDb().use { db ->
+            db.insertAnime(id = anime.id, url = "/series", title = "Series")
+            db.insertEpisode(id = 10, animeId = anime.id, url = "/old")
+            val repository = EpisodeRepositoryImpl(db.handler)
+            val getEpisodes = GetEpisodesByAnimeId(repository)
+            val sync = SyncEpisodesWithSource(
+                downloadManager = downloadManager,
+                downloadProvider = mockk(relaxed = true),
+                episodeRepository = repository,
+                shouldUpdateDbEpisode = ShouldUpdateDbEpisode(),
+                updateAnime = updateAnime,
+                getEpisodesByAnimeId = getEpisodes,
+                libraryPreferences = mockk<LibraryPreferences> {
+                    every { markDuplicateSeenEpisodeAsSeen().get() } returns emptySet()
+                },
+            )
+            val lib17 = object : AnimeSource {
+                override val id = 17L
+                override val name = "Lib 17"
+
+                override suspend fun getAnimeEpisodeUpdate(
+                    anime: SAnime,
+                    episodes: List<SEpisode>,
+                    fetchDetails: Boolean,
+                    fetchEpisodes: Boolean,
+                ): SAnimeEpisodeUpdate {
+                    episodes.map { it.url } shouldBe listOf("/old")
+                    db.insertEpisode(id = 11, animeId = 1, url = "/concurrent")
+                    db.driver.execute(null, "UPDATE episodes SET seen = 1 WHERE _id = 11", 0)
+                    return SAnimeEpisodeUpdate(anime, episodes)
+                }
+            }
+
+            refresher(sync, getEpisodes).fetchFromSource(lib17, anime, fetchDetails = true, fetchItems = false)
+                .shouldBe(null to null)
+
+            val stored = getEpisodes.await(anime.id).associateBy { it.url }
+            stored.keys shouldBe setOf("/old", "/concurrent")
+            stored.getValue("/concurrent").seen shouldBe true
+        }
+    }
+
+    private fun TestScope.refresher(
+        episodeSync: SyncEpisodesWithSource = syncEpisodesWithSource,
+        getEpisodes: GetEpisodesByAnimeId = getEpisodesByAnimeId,
+    ) = AnimeEntryRefresher(
         updateAnime = updateAnime,
-        syncEpisodesWithSource = syncEpisodesWithSource,
+        syncEpisodesWithSource = episodeSync,
         syncSeasonsWithSource = syncSeasonsWithSource,
         populateFillerMarks = populateFillerMarks,
-        getEpisodesByAnimeId = getEpisodesByAnimeId,
+        getEpisodesByAnimeId = getEpisodes,
         filterEpisodesForDownload = filterEpisodesForDownload,
         downloadManager = downloadManager,
         libraryPreferences = libraryPreferences,
