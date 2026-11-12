@@ -3,11 +3,14 @@ package eu.kanade.tachiyomi.ui.player
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.model.Episode as DomainEpisode
 
 class PlayerEpisodeListManagerTest {
 
@@ -67,6 +71,27 @@ class PlayerEpisodeListManagerTest {
             every { it.title } returns "Test Anime"
             every { it.source } returns 1L
         }
+    }
+
+    @Test
+    fun `initEpisodeList keeps the episode memo from the database`() = runTest {
+        val memo = buildJsonObject { put("token", "abc") }
+        val anime = createMockAnime()
+        every { anime.id } returns 1L
+        coEvery { mockGetEpisodes.await(1L) } returns listOf(
+            DomainEpisode.create().copy(
+                id = 1L,
+                animeId = 1L,
+                url = "e1",
+                name = "Episode 1",
+                memo = memo,
+            ),
+        )
+        every { mockBasePreferences.downloadedOnly() } returns mockk { every { get() } returns false }
+
+        val episodes = manager.initEpisodeList(anime)
+
+        assertEquals(memo, episodes.single().memo)
     }
 
     @Test
