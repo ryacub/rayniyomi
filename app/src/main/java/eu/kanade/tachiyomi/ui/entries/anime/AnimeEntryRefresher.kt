@@ -161,8 +161,8 @@ class AnimeEntryRefresher(
                     }
                 }
                 FetchType.Seasons -> {
-                    val existing = animeRepository.getAnimeSeasonsById(anime.id)
-                    val expectedSeasons = if (fetchItems) null else existing.map { it.anime }.toSet()
+                    val existing = animeRepository.getAnimeSeasonsById(anime.id).map { it.anime }
+                    val expectedSeasons = if (fetchItems) null else existing.toSet()
                     val update = AnimeSourceGateway.updateSeasons(
                         source,
                         anime.toSAnime(),

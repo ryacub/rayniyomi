@@ -1,6 +1,5 @@
 package eu.kanade.domain.entries.anime.model
 
-import aniyomi.domain.anime.SeasonAnime
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
@@ -61,8 +60,7 @@ fun Anime.toSAnime(): SAnime = SAnime.create().also {
     it.memo = memo
 }
 
-fun List<SeasonAnime>.toSourceSeasons(): List<SAnime> = sortedBy { it.anime.seasonSourceOrder }
-    .map { it.anime.toSAnime() }
+fun List<Anime>.toSourceSeasons(): List<SAnime> = sortedBy(Anime::seasonSourceOrder).map(Anime::toSAnime)
 
 fun Anime.copyFrom(other: SAnime): Anime {
     val author = other.author ?: author

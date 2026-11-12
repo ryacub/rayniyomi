@@ -174,8 +174,8 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
                 }
             }
             FetchType.Seasons -> {
-                val existing = appGraph.animeRepository.getAnimeSeasonsById(anime.id)
-                val expectedSeasons = existing.map { it.anime }.toSet()
+                val existing = appGraph.animeRepository.getAnimeSeasonsById(anime.id).map { it.anime }
+                val expectedSeasons = existing.toSet()
                 val update = AnimeSourceGateway.updateSeasons(
                     source,
                     anime.toSAnime(),
