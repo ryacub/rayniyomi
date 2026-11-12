@@ -69,8 +69,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -315,13 +313,14 @@ class AnimeScreenModel(
             observeTrackers()
             refreshRelatedAnime(anime, forceRefresh = false)
 
-            // Fetch info-episodes when needed
-            if (viewModelScope.isActive) {
-                val fetchFromSourceTasks = listOf(
-                    async { if (needRefreshInfo) fetchAnimeFromSource() },
-                    async { if (needRefreshEpisode || needRefreshSeason) fetchEpisodesAndSeasonsFromSource() },
+            if (viewModelScope.isActive && runningRefresh == null) {
+                val (detailsError, itemsError) = entryRefresher.fetchFromSource(
+                    source,
+                    anime,
+                    fetchDetails = needRefreshInfo,
+                    fetchItems = needRefreshEpisode || needRefreshSeason,
                 )
-                fetchFromSourceTasks.awaitAll()
+                showRefreshErrors(detailsError, itemsError)
             }
             runningRefresh?.let { showRefresh(it) }
 
@@ -355,8 +354,7 @@ class AnimeScreenModel(
     private suspend fun showRefresh(refresh: Deferred<AnimeRefreshResult>) {
         updateSuccessState { it.copy(isRefreshingData = true) }
         val result = refresh.await()
-        result.detailsError?.let(::showDetailsFetchError)
-        result.itemsError?.let { showItemsFetchError(it) }
+        showRefreshErrors(result.detailsError, result.itemsError)
         updateSuccessState {
             it.copy(isRefreshingData = false, nextAiringEpisode = result.nextAiringEpisode)
         }
@@ -364,13 +362,9 @@ class AnimeScreenModel(
 
     // Anime info - start
 
-    private suspend fun fetchAnimeFromSource() {
-        val state = successState ?: return
-        try {
-            entryRefresher.fetchDetails(state.source, state.anime, manualFetch = false)
-        } catch (e: Throwable) {
-            showDetailsFetchError(e)
-        }
+    private suspend fun showRefreshErrors(detailsError: Throwable?, itemsError: Throwable?) {
+        detailsError?.let(::showDetailsFetchError)
+        itemsError?.let { showItemsFetchError(it) }
     }
 
     private fun showDetailsFetchError(e: Throwable) {
@@ -713,15 +707,6 @@ class AnimeScreenModel(
                 sourceLanguage = sourceManager.getOrStub(seasonAnime.anime.source).lang,
                 showContinueOverlay = false,
             )
-        }
-    }
-
-    private suspend fun fetchEpisodesAndSeasonsFromSource() {
-        val state = successState ?: return
-        try {
-            entryRefresher.fetchItems(state.source, state.anime, manualFetch = false)
-        } catch (e: Throwable) {
-            showItemsFetchError(e)
         }
     }
 

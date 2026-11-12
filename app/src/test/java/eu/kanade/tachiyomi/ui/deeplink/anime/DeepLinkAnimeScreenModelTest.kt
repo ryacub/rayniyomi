@@ -101,6 +101,8 @@ class DeepLinkAnimeScreenModelTest {
             sourceManager = createSourceManager(failure, invoked),
             networkToLocalAnime = mockk<NetworkToLocalAnime>(),
             getEpisodeByUrlAndAnimeId = mockk<GetEpisodeByUrlAndAnimeId>(),
+            getEpisodesByAnimeId = mockk(),
+            updateAnime = mockk(),
             getAnimeByUrlAndSourceId = mockk<GetAnimeByUrlAndSourceId>(),
             syncEpisodesWithSource = mockk<SyncEpisodesWithSource>(),
             ioDispatcher = vt.io,

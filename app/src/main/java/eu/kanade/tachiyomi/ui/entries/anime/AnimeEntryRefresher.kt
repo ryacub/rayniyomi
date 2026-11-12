@@ -4,9 +4,10 @@ import eu.kanade.domain.entries.anime.interactor.SetAnimeViewerFlags
 import eu.kanade.domain.entries.anime.interactor.SyncSeasonsWithSource
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
+import eu.kanade.domain.entries.anime.model.toSourceSeasons
 import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
-import eu.kanade.domain.items.episode.model.toSEpisode
+import eu.kanade.domain.items.episode.model.toSourceEpisodes
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.UnmeteredSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
@@ -34,6 +35,7 @@ import tachiyomi.core.common.util.lang.SourceLinkageException
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.source.anime.AnimeSourceGateway
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.model.Episode
@@ -69,57 +71,56 @@ class AnimeEntryRefresher(
         anime: Anime,
         trackItems: List<AnimeTrackItem>,
     ): Deferred<AnimeRefreshResult> = refreshes.join(anime.id) {
-        val (detailsError, itemsError) = try {
-            if (AnimeSourceGateway.usesCombinedUpdates(source, anime.fetchType)) {
-                refreshCombined(source, anime)
-            } else {
-                coroutineScope {
-                    val details = async { failureOf { fetchDetails(source, anime, manualFetch = true) } }
-                    val items = async { failureOf { fetchItems(source, anime, manualFetch = true) } }
-                    details.await() to items.await()
-                }
-            }
-        } catch (e: SourceLinkageException) {
-            e to e
-        }
+        val (detailsError, itemsError) = fetchFromSource(
+            source,
+            anime,
+            fetchDetails = true,
+            fetchItems = true,
+            manualFetch = true,
+        )
         val refreshedAnime = animeRepository.getAnimeById(anime.id)
         AnimeRefreshResult(detailsError, itemsError, updateAiringTime(refreshedAnime, trackItems, manualFetch = true))
     }
 
-    suspend fun fetchDetails(source: AnimeSource, anime: Anime, manualFetch: Boolean) {
-        withContext(dispatcher) {
-            val networkAnime = if (AnimeSourceGateway.usesCombinedUpdates(source, anime.fetchType)) {
-                when (anime.fetchType) {
-                    FetchType.Episodes ->
-                        AnimeSourceGateway.updateEpisodes(
-                            source,
-                            anime.toSAnime(),
-                            existingEpisodes(anime),
-                            true,
-                            false,
-                        ).anime
-                    FetchType.Seasons ->
-                        AnimeSourceGateway.updateSeasons(
-                            source,
-                            anime.toSAnime(),
-                            existingSeasons(anime),
-                            true,
-                            false,
-                        ).anime
-                }
+    suspend fun fetchFromSource(
+        source: AnimeSource,
+        anime: Anime,
+        fetchDetails: Boolean,
+        fetchItems: Boolean,
+        manualFetch: Boolean = false,
+    ): Pair<Throwable?, Throwable?> = withContext(dispatcher) {
+        if (!fetchDetails && !fetchItems) return@withContext null to null
+        try {
+            if (AnimeSourceGateway.usesCombinedUpdates(source, anime.fetchType)) {
+                refreshCombined(source, anime, fetchDetails, fetchItems, manualFetch)
             } else {
-                AnimeSourceGateway.details(source, anime.toSAnime())
+                coroutineScope {
+                    val details = async {
+                        if (!fetchDetails) return@async null
+                        failureOf {
+                            val remote = AnimeSourceGateway.details(source, anime.toSAnime())
+                            updateAnime.awaitUpdateFromSource(anime, remote, manualFetch)
+                        }
+                    }
+                    val items = async {
+                        if (!fetchItems) return@async null
+                        failureOf {
+                            val episodes = when (anime.fetchType) {
+                                FetchType.Episodes -> fetchEpisodes(source, anime, manualFetch)
+                                FetchType.Seasons -> {
+                                    val seasons = AnimeSourceGateway.seasons(source, anime.toSAnime())
+                                    saveSeasons(source, anime, seasons, manualFetch, refreshChildren = true)
+                                }
+                            }
+                            if (manualFetch) downloadNewEpisodes(anime, episodes)
+                        }
+                    }
+                    details.await() to items.await()
+                }
             }
-            updateAnime.awaitUpdateFromSource(anime, networkAnime, manualFetch)
+        } catch (e: SourceLinkageException) {
+            if (fetchDetails) e to null else null to e
         }
-    }
-
-    suspend fun fetchItems(source: AnimeSource, anime: Anime, manualFetch: Boolean) = withContext(dispatcher) {
-        val newEpisodes = when (anime.fetchType) {
-            FetchType.Seasons -> fetchSeasons(source, anime, manualFetch)
-            FetchType.Episodes -> fetchEpisodes(source, anime, manualFetch)
-        }
-        if (manualFetch) downloadNewEpisodes(anime, newEpisodes)
     }
 
     suspend fun updateAiringTime(
@@ -132,7 +133,13 @@ class AnimeEntryRefresher(
         return airingEpisodeData
     }
 
-    private suspend fun refreshCombined(source: AnimeSource, anime: Anime): Pair<Throwable?, Throwable?> {
+    private suspend fun refreshCombined(
+        source: AnimeSource,
+        anime: Anime,
+        fetchDetails: Boolean,
+        fetchItems: Boolean,
+        manualFetch: Boolean,
+    ): Pair<Throwable?, Throwable?> {
         val (details, saveItems) = try {
             when (anime.fetchType) {
                 FetchType.Episodes -> {
@@ -140,46 +147,66 @@ class AnimeEntryRefresher(
                         source,
                         anime.toSAnime(),
                         existingEpisodes(anime),
-                        true,
-                        true,
+                        fetchDetails,
+                        fetchItems,
                     )
-                    update.anime to suspend { saveEpisodes(source, anime, update.episodes, manualFetch = true) }
+                    update.anime to suspend {
+                        if (fetchItems || update.episodes.isNotEmpty()) {
+                            saveEpisodes(source, anime, update.episodes, manualFetch)
+                        } else {
+                            emptyList()
+                        }
+                    }
                 }
                 FetchType.Seasons -> {
                     val update = AnimeSourceGateway.updateSeasons(
                         source,
                         anime.toSAnime(),
-                        existingSeasons(anime),
-                        true,
-                        true,
+                        animeRepository.getAnimeSeasonsById(anime.id).toSourceSeasons(),
+                        fetchDetails,
+                        fetchItems,
                     )
-                    update.anime to suspend { saveSeasons(source, anime, update.seasons, manualFetch = true) }
+                    update.anime to suspend {
+                        if (fetchItems || update.seasons.isNotEmpty()) {
+                            saveSeasons(source, anime, update.seasons, manualFetch, refreshChildren = fetchItems)
+                        } else {
+                            emptyList()
+                        }
+                    }
                 }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            return e to e
+            return if (fetchDetails) e to null else null to e
         }
-        val detailsError = failureOf { updateAnime.awaitUpdateFromSource(anime, details, manualFetch = true) }
-        val itemsError = failureOf { downloadNewEpisodes(anime, saveItems()) }
+        val detailsError = failureOf {
+            if (fetchDetails) {
+                updateAnime.awaitUpdateFromSource(anime, details, manualFetch)
+            } else {
+                saveSourceMemo(anime, details)
+            }
+        }
+        val itemsError = failureOf {
+            val episodes = saveItems()
+            if (manualFetch) downloadNewEpisodes(anime, episodes)
+        }
         return detailsError to itemsError
     }
 
     private suspend fun existingEpisodes(anime: Anime): List<SEpisode> =
-        getEpisodesByAnimeId.await(anime.id).map(Episode::toSEpisode)
+        getEpisodesByAnimeId.await(anime.id).toSourceEpisodes()
 
-    private suspend fun existingSeasons(anime: Anime): List<SAnime> =
-        animeRepository.getAnimeSeasonsById(anime.id).map { it.anime.toSAnime() }
+    private suspend fun saveSourceMemo(anime: Anime, sourceAnime: SAnime) {
+        if (sourceAnime.memo != anime.memo) {
+            updateAnime.await(AnimeUpdate(id = anime.id, memo = sourceAnime.memo))
+        }
+    }
 
     private suspend fun fetchEpisodes(source: AnimeSource, anime: Anime, manualFetch: Boolean): List<Episode> {
-        val existing = if (AnimeSourceGateway.usesCombinedUpdates(source, FetchType.Episodes)) {
-            existingEpisodes(anime)
-        } else {
-            emptyList()
-        }
-        val episodes = AnimeSourceGateway.episodes(source, anime.toSAnime(), existing)
-        return saveEpisodes(source, anime, episodes, manualFetch)
+        val update = AnimeSourceGateway.episodeSnapshot(source, anime.toSAnime()) { existingEpisodes(anime) }
+        saveSourceMemo(anime, update.anime)
+        return saveEpisodes(source, anime, update.episodes, manualFetch)
     }
 
     private suspend fun saveEpisodes(
@@ -193,24 +220,15 @@ class AnimeEntryRefresher(
         return newEpisodes
     }
 
-    private suspend fun fetchSeasons(source: AnimeSource, anime: Anime, manualFetch: Boolean): List<Episode> {
-        val existing = if (AnimeSourceGateway.usesCombinedUpdates(source, FetchType.Seasons)) {
-            existingSeasons(anime)
-        } else {
-            emptyList()
-        }
-        val seasons = AnimeSourceGateway.seasons(source, anime.toSAnime(), existing)
-        return saveSeasons(source, anime, seasons, manualFetch)
-    }
-
     private suspend fun saveSeasons(
         source: AnimeSource,
         anime: Anime,
         seasons: List<SAnime>,
         manualFetch: Boolean,
+        refreshChildren: Boolean,
     ): List<Episode> {
         val newSeasons = syncSeasonsWithSource.await(seasons, anime, source)
-        if (!libraryPreferences.updateSeasonOnRefresh().get()) return emptyList()
+        if (!refreshChildren || !libraryPreferences.updateSeasonOnRefresh().get()) return emptyList()
         return fetchEpisodesOfSeasons(source, newSeasons, manualFetch)
     }
 

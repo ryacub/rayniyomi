@@ -20,6 +20,8 @@ fun Episode.toSEpisode(): SEpisode {
     }
 }
 
+fun List<Episode>.toSourceEpisodes(): List<SEpisode> = sortedBy(Episode::sourceOrder).map(Episode::toSEpisode)
+
 fun Episode.copyFromSEpisode(sEpisode: SEpisode): Episode {
     return this.copy(
         name = sEpisode.name,

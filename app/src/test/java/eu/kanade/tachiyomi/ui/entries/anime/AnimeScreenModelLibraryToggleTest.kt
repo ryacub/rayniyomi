@@ -303,7 +303,10 @@ class AnimeScreenModelLibraryToggleTest {
             fetchInterval = mockk(relaxed = true),
             getRelatedAnime = mockk { every { subscribe(any()) } returns kotlinx.coroutines.flow.emptyFlow() },
             syncRelatedAnimeWithSource = mockk(relaxed = true),
-            entryRefresher = mockk<AnimeEntryRefresher>(relaxed = true) { every { running(any()) } returns null },
+            entryRefresher = mockk<AnimeEntryRefresher>(relaxed = true) {
+                every { running(any()) } returns null
+                coEvery { fetchFromSource(any(), any(), any(), any(), any()) } returns (null to null)
+            },
             ioDispatcher = vt.io,
             refreshTracksInteractor = mockk(relaxed = true),
         )

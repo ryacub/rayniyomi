@@ -22,7 +22,7 @@ import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.toSAnime
 import eu.kanade.domain.items.episode.interactor.PopulateFillerMarks
 import eu.kanade.domain.items.episode.interactor.SyncEpisodesWithSource
-import eu.kanade.domain.items.episode.model.toSEpisode
+import eu.kanade.domain.items.episode.model.toSourceEpisodes
 import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -77,6 +77,7 @@ import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.items.episode.model.NoEpisodesException
@@ -501,7 +502,7 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
 
         val fetchMetadata = libraryPreferences.autoUpdateMetadata().get()
         val episodes = if (AnimeSourceGateway.usesCombinedUpdates(source, FetchType.Episodes)) {
-            val existing = getEpisodesByAnimeId.await(anime.id).map(Episode::toSEpisode)
+            val existing = getEpisodesByAnimeId.await(anime.id).toSourceEpisodes()
             val remote = AnimeSourceGateway.updateEpisodes(
                 source,
                 anime.toSAnime(),
@@ -511,6 +512,8 @@ class AnimeLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
             )
             if (fetchMetadata) {
                 updateAnime.awaitUpdateFromSource(anime, remote.anime, manualFetch = false, coverCache, backgroundCache)
+            } else if (remote.anime.memo != anime.memo) {
+                updateAnime.await(AnimeUpdate(id = anime.id, memo = remote.anime.memo))
             }
             remote.episodes
         } else {

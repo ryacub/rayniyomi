@@ -231,7 +231,7 @@ class AnimeEntryRefresherTest {
             }
         }
 
-        refresher().fetchItems(lib17, anime, manualFetch = false)
+        refresher().fetchFromSource(lib17, anime, fetchDetails = false, fetchItems = true) shouldBe (null to null)
 
         coVerify { updateAnime.await(AnimeUpdate(id = anime.id, memo = memo)) }
         coVerify(exactly = 0) { updateAnime.awaitUpdateFromSource(any(), any(), any(), any(), any()) }
@@ -260,7 +260,7 @@ class AnimeEntryRefresherTest {
             }
         }
 
-        refresher().fetchDetails(lib17, anime, manualFetch = false)
+        refresher().fetchFromSource(lib17, anime, fetchDetails = true, fetchItems = false) shouldBe (null to null)
 
         coVerify { syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any()) }
     }

@@ -46,14 +46,20 @@ object AnimeSourceGateway {
         }
     }
 
-    suspend fun episodes(source: AnimeSource, anime: SAnime, existing: List<SEpisode> = emptyList()): List<SEpisode> =
-        guard(source) {
-            if (usesCombinedUpdates(source, FetchType.Episodes)) {
-                source.getAnimeEpisodeUpdate(anime, existing, false, true).episodes
-            } else {
-                source.getEpisodeList(anime)
-            }
+    suspend fun episodes(source: AnimeSource, anime: SAnime): List<SEpisode> =
+        episodeSnapshot(source, anime) { emptyList() }.episodes
+
+    suspend fun episodeSnapshot(
+        source: AnimeSource,
+        anime: SAnime,
+        existing: suspend () -> List<SEpisode>,
+    ): SAnimeEpisodeUpdate = guard(source) {
+        if (usesCombinedUpdates(source, FetchType.Episodes)) {
+            source.getAnimeEpisodeUpdate(anime, existing(), false, true)
+        } else {
+            SAnimeEpisodeUpdate(anime, source.getEpisodeList(anime))
         }
+    }
 
     suspend fun seasons(source: AnimeSource, anime: SAnime, existing: List<SAnime> = emptyList()): List<SAnime> =
         guard(source) {
