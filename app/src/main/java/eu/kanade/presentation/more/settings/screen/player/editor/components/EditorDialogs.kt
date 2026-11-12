@@ -16,11 +16,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import eu.kanade.presentation.more.settings.screen.player.editor.FileCreationResult
-import kotlinx.coroutines.delay
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun FileCreateDialog(
@@ -100,8 +98,6 @@ fun FileCreateDialog(
     )
 
     LaunchedEffect(focusRequester) {
-        // TODO: https://issuetracker.google.com/issues/204502668
-        delay(0.1.seconds)
         focusRequester.requestFocus()
     }
 }

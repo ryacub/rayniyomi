@@ -17,12 +17,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import kotlinx.collections.immutable.ImmutableSet
-import kotlinx.coroutines.delay
 import mihon.domain.extensionrepo.model.ExtensionRepo
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun ExtensionRepoCreateDialog(
@@ -85,8 +83,6 @@ fun ExtensionRepoCreateDialog(
     )
 
     LaunchedEffect(focusRequester) {
-        // TODO: https://issuetracker.google.com/issues/204502668
-        delay(0.1.seconds)
         focusRequester.requestFocus()
     }
 }

@@ -27,14 +27,12 @@ import eu.kanade.presentation.more.settings.screen.player.editor.codeeditor.gith
 import eu.kanade.presentation.more.settings.screen.player.editor.codeeditor.luaHighlight
 import eu.kanade.presentation.more.settings.screen.player.editor.codeeditor.toAnnotatedString
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.coroutines.delay
 import tachiyomi.domain.custombuttons.model.CustomButton
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.DISABLED_ALPHA
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun CustomButtonButtonDialog(
@@ -175,8 +173,6 @@ fun CustomButtonButtonDialog(
     )
 
     LaunchedEffect(focusRequester) {
-        // TODO: https://issuetracker.google.com/issues/204502668
-        delay(0.1.seconds)
         focusRequester.requestFocus()
     }
 }
