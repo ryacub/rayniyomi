@@ -10,21 +10,17 @@ import dev.icerock.moko.resources.desc.ResourceFormatted
 import dev.icerock.moko.resources.desc.StringDesc
 
 fun Context.stringResource(resource: StringResource): String {
-    return StringDesc.Resource(resource).toString(this).fixed()
+    return StringDesc.Resource(resource).toString(this)
 }
 
 fun Context.stringResource(resource: StringResource, vararg args: Any): String {
-    return StringDesc.ResourceFormatted(resource, *args).toString(this).fixed()
+    return StringDesc.ResourceFormatted(resource, *args).toString(this)
 }
 
 fun Context.pluralStringResource(resource: PluralsResource, count: Int): String {
-    return StringDesc.Plural(resource, count).toString(this).fixed()
+    return StringDesc.Plural(resource, count).toString(this)
 }
 
 fun Context.pluralStringResource(resource: PluralsResource, count: Int, vararg args: Any): String {
-    return StringDesc.PluralFormatted(resource, count, *args).toString(this).fixed()
+    return StringDesc.PluralFormatted(resource, count, *args).toString(this)
 }
-
-// TODO: janky workaround for https://github.com/icerockdev/moko-resources/issues/337
-private fun String.fixed() =
-    this.replace("""\""", """"""")
