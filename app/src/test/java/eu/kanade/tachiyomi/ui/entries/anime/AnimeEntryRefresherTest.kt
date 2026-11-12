@@ -26,10 +26,13 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.AnimeUpdate
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.model.Episode
@@ -177,8 +180,9 @@ class AnimeEntryRefresherTest {
 
     @Test
     fun `a lib 17 refresh sends existing episodes and requests both updates once`() = runTest {
-        val existing = newEpisode.copy(url = "episode", name = "Episode")
-        coEvery { getEpisodesByAnimeId.await(anime.id) } returns listOf(existing)
+        val first = newEpisode.copy(url = "new", name = "New", sourceOrder = 0)
+        val second = newEpisode.copy(url = "old", name = "Old", sourceOrder = 1)
+        coEvery { getEpisodesByAnimeId.await(anime.id) } returns listOf(second, first)
         val returnedAnime = SAnime.create()
         val returnedEpisodes = listOf(SEpisode.create())
         var combinedCalls = 0
@@ -192,7 +196,7 @@ class AnimeEntryRefresherTest {
                 fetchDetails: Boolean,
                 fetchEpisodes: Boolean,
             ): SAnimeEpisodeUpdate {
-                episodes.map { it.url } shouldBe listOf(existing.url)
+                episodes.map { it.url } shouldBe listOf(first.url, second.url)
                 fetchDetails shouldBe true
                 fetchEpisodes shouldBe true
                 combinedCalls++
@@ -206,6 +210,59 @@ class AnimeEntryRefresherTest {
         combinedCalls shouldBe 1
         coVerify { updateAnime.awaitUpdateFromSource(anime, returnedAnime, true) }
         coVerify { syncEpisodesWithSource.await(returnedEpisodes, anime, lib17, true, any()) }
+    }
+
+    @Test
+    fun `an items-only refresh saves anime memo without replacing metadata`() = runTest {
+        val memo = JsonObject(mapOf("cursor" to JsonPrimitive(2)))
+        val lib17 = object : AnimeSource {
+            override val id = 17L
+            override val name = "Lib 17"
+
+            override suspend fun getAnimeEpisodeUpdate(
+                anime: SAnime,
+                episodes: List<SEpisode>,
+                fetchDetails: Boolean,
+                fetchEpisodes: Boolean,
+            ): SAnimeEpisodeUpdate {
+                fetchDetails shouldBe false
+                fetchEpisodes shouldBe true
+                return SAnimeEpisodeUpdate(anime.apply { this.memo = memo }, listOf(SEpisode.create()))
+            }
+        }
+
+        refresher().fetchItems(lib17, anime, manualFetch = false)
+
+        coVerify { updateAnime.await(AnimeUpdate(id = anime.id, memo = memo)) }
+        coVerify(exactly = 0) { updateAnime.awaitUpdateFromSource(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a details-only refresh saves items returned by the source`() = runTest {
+        val episode = SEpisode.create().apply {
+            url = "updated"
+            name = "Updated"
+            memo = JsonObject(mapOf("cursor" to JsonPrimitive(3)))
+        }
+        val lib17 = object : AnimeSource {
+            override val id = 17L
+            override val name = "Lib 17"
+
+            override suspend fun getAnimeEpisodeUpdate(
+                anime: SAnime,
+                episodes: List<SEpisode>,
+                fetchDetails: Boolean,
+                fetchEpisodes: Boolean,
+            ): SAnimeEpisodeUpdate {
+                fetchDetails shouldBe true
+                fetchEpisodes shouldBe false
+                return SAnimeEpisodeUpdate(anime, listOf(episode))
+            }
+        }
+
+        refresher().fetchDetails(lib17, anime, manualFetch = false)
+
+        coVerify { syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any()) }
     }
 
     private fun TestScope.refresher() = AnimeEntryRefresher(
