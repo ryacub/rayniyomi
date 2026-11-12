@@ -1,8 +1,6 @@
 package eu.kanade.presentation.library.components
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
@@ -25,31 +23,23 @@ internal fun LibraryTabs(
     val currentPageIndex = pagerState.currentPage.coerceAtMost(categories.lastIndex)
     val categoriesById = categories.associateBy { it.id }
     val context = LocalContext.current
-    Column(
+    PrimaryScrollableTabRow(
+        selectedTabIndex = currentPageIndex,
+        edgePadding = 0.dp,
         modifier = Modifier.zIndex(1f),
     ) {
-        PrimaryScrollableTabRow(
-            selectedTabIndex = currentPageIndex,
-            edgePadding = 0.dp,
-            // TODO: use default when width is fixed upstream
-            // https://issuetracker.google.com/issues/242879624
-            divider = {},
-        ) {
-            categories.forEachIndexed { index, category ->
-                Tab(
-                    selected = currentPageIndex == index,
-                    onClick = { onTabItemClick(index) },
-                    text = {
-                        TabText(
-                            text = category.visualName(categoriesById, context),
-                            badgeCount = getNumberOfItemsForCategory(category),
-                        )
-                    },
-                    unselectedContentColor = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+        categories.forEachIndexed { index, category ->
+            Tab(
+                selected = currentPageIndex == index,
+                onClick = { onTabItemClick(index) },
+                text = {
+                    TabText(
+                        text = category.visualName(categoriesById, context),
+                        badgeCount = getNumberOfItemsForCategory(category),
+                    )
+                },
+                unselectedContentColor = MaterialTheme.colorScheme.onSurface,
+            )
         }
-
-        HorizontalDivider()
     }
 }
