@@ -18,7 +18,6 @@ import eu.kanade.domain.items.episode.model.toSourceEpisodes
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
-import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -155,21 +154,43 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
         }
         when (anime.fetchType) {
             FetchType.Episodes -> {
-                val existing = appGraph.getEpisodesByAnimeId.await(anime.id).toSourceEpisodes()
-                val expectedUrls = existing.map(SEpisode::url)
-                val update = AnimeSourceGateway.updateEpisodes(source, anime.toSAnime(), existing, true, false)
+                val existing = appGraph.getEpisodesByAnimeId.await(anime.id)
+                val expectedEpisodes = existing.toSet()
+                val update = AnimeSourceGateway.updateEpisodes(
+                    source,
+                    anime.toSAnime(),
+                    existing.toSourceEpisodes(),
+                    true,
+                    false,
+                )
                 saveMetadata(anime, update.anime)
                 if (update.episodes.isNotEmpty()) {
-                    appGraph.syncEpisodesWithSource.await(update.episodes, anime, source, expectedUrls = expectedUrls)
+                    appGraph.syncEpisodesWithSource.await(
+                        update.episodes,
+                        anime,
+                        source,
+                        expectedEpisodes = expectedEpisodes,
+                    )
                 }
             }
             FetchType.Seasons -> {
-                val existing = appGraph.animeRepository.getAnimeSeasonsById(anime.id).toSourceSeasons()
-                val expectedUrls = existing.map(SAnime::url)
-                val update = AnimeSourceGateway.updateSeasons(source, anime.toSAnime(), existing, true, false)
+                val existing = appGraph.animeRepository.getAnimeSeasonsById(anime.id)
+                val expectedSeasons = existing.map { it.anime }.toSet()
+                val update = AnimeSourceGateway.updateSeasons(
+                    source,
+                    anime.toSAnime(),
+                    existing.toSourceSeasons(),
+                    true,
+                    false,
+                )
                 saveMetadata(anime, update.anime)
                 if (update.seasons.isNotEmpty()) {
-                    appGraph.syncSeasonsWithSource.await(update.seasons, anime, source, expectedUrls = expectedUrls)
+                    appGraph.syncSeasonsWithSource.await(
+                        update.seasons,
+                        anime,
+                        source,
+                        expectedSeasons = expectedSeasons,
+                    )
                 }
             }
         }

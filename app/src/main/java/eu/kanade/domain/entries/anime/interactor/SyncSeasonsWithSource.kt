@@ -27,7 +27,7 @@ class SyncSeasonsWithSource(
         source: AnimeSource,
         manualFetch: Boolean = false,
         fetchWindow: Pair<Long, Long> = Pair(0, 0),
-        expectedUrls: List<String>? = null,
+        expectedSeasons: Set<Anime>? = null,
     ): List<Anime> {
         if (rawSourceSeasons.isEmpty() && !source.isLocal()) {
             throw NoSeasonsException()
@@ -35,9 +35,7 @@ class SyncSeasonsWithSource(
 
         val dbSeasons = getAnimeSeasonsByParentId.await(anime.id)
 
-        if (expectedUrls != null &&
-            dbSeasons.sortedBy { it.anime.seasonSourceOrder }.map { it.anime.url } != expectedUrls
-        ) {
+        if (expectedSeasons != null && dbSeasons.map { it.anime }.toSet() != expectedSeasons) {
             return emptyList()
         }
 

@@ -49,7 +49,7 @@ class SyncEpisodesWithSource(
         source: AnimeSource,
         manualFetch: Boolean = false,
         fetchWindow: Pair<Long, Long> = Pair(0, 0),
-        expectedUrls: List<String>? = null,
+        expectedEpisodes: Set<Episode>? = null,
     ): List<Episode> {
         if (rawSourceEpisodes.isEmpty() && !source.isLocal()) {
             throw NoEpisodesException()
@@ -57,7 +57,7 @@ class SyncEpisodesWithSource(
 
         val dbEpisodes = getEpisodesByAnimeId.await(anime.id)
 
-        if (expectedUrls != null && dbEpisodes.sortedBy(Episode::sourceOrder).map(Episode::url) != expectedUrls) {
+        if (expectedEpisodes != null && dbEpisodes.toSet() != expectedEpisodes) {
             return emptyList()
         }
 

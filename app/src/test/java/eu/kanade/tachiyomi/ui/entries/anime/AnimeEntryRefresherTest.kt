@@ -268,7 +268,7 @@ class AnimeEntryRefresherTest {
         refresher().fetchFromSource(lib17, anime, fetchDetails = true, fetchItems = false) shouldBe (null to null)
 
         coVerify {
-            syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any(), expectedUrls = emptyList())
+            syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any(), expectedEpisodes = emptySet())
         }
     }
 
