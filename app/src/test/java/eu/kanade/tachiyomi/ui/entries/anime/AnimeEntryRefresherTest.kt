@@ -62,7 +62,7 @@ class AnimeEntryRefresherTest {
     }
     private val updateAnime = mockk<UpdateAnime>(relaxed = true)
     private val syncEpisodesWithSource = mockk<SyncEpisodesWithSource> {
-        coEvery { await(any(), any(), any(), any(), any()) } returns listOf(newEpisode)
+        coEvery { await(any(), any(), any(), any(), any(), matchNullable { true }) } returns listOf(newEpisode)
     }
     private val syncSeasonsWithSource = mockk<SyncSeasonsWithSource>()
     private val populateFillerMarks = mockk<PopulateFillerMarks>(relaxed = true)
@@ -265,7 +265,9 @@ class AnimeEntryRefresherTest {
 
         refresher().fetchFromSource(lib17, anime, fetchDetails = true, fetchItems = false) shouldBe (null to null)
 
-        coVerify { syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any()) }
+        coVerify {
+            syncEpisodesWithSource.await(listOf(episode), anime, lib17, false, any(), expectedUrls = emptyList())
+        }
     }
 
     @Test

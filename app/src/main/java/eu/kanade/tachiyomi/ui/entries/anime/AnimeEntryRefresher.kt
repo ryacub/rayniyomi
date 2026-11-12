@@ -143,32 +143,43 @@ class AnimeEntryRefresher(
         val (details, saveItems) = try {
             when (anime.fetchType) {
                 FetchType.Episodes -> {
+                    val existing = existingEpisodes(anime)
+                    val expectedUrls = if (fetchItems) null else existing.map(SEpisode::url)
                     val update = AnimeSourceGateway.updateEpisodes(
                         source,
                         anime.toSAnime(),
-                        existingEpisodes(anime),
+                        existing,
                         fetchDetails,
                         fetchItems,
                     )
                     update.anime to suspend {
                         if (fetchItems || update.episodes.isNotEmpty()) {
-                            saveEpisodes(source, anime, update.episodes, manualFetch)
+                            saveEpisodes(source, anime, update.episodes, manualFetch, expectedUrls)
                         } else {
                             emptyList()
                         }
                     }
                 }
                 FetchType.Seasons -> {
+                    val existing = animeRepository.getAnimeSeasonsById(anime.id).toSourceSeasons()
+                    val expectedUrls = if (fetchItems) null else existing.map(SAnime::url)
                     val update = AnimeSourceGateway.updateSeasons(
                         source,
                         anime.toSAnime(),
-                        animeRepository.getAnimeSeasonsById(anime.id).toSourceSeasons(),
+                        existing,
                         fetchDetails,
                         fetchItems,
                     )
                     update.anime to suspend {
                         if (fetchItems || update.seasons.isNotEmpty()) {
-                            saveSeasons(source, anime, update.seasons, manualFetch, refreshChildren = fetchItems)
+                            saveSeasons(
+                                source,
+                                anime,
+                                update.seasons,
+                                manualFetch,
+                                refreshChildren = fetchItems,
+                                expectedUrls = expectedUrls,
+                            )
                         } else {
                             emptyList()
                         }
@@ -214,8 +225,15 @@ class AnimeEntryRefresher(
         anime: Anime,
         episodes: List<SEpisode>,
         manualFetch: Boolean,
+        expectedUrls: List<String>? = null,
     ): List<Episode> {
-        val newEpisodes = syncEpisodesWithSource.await(episodes, anime, source, manualFetch)
+        val newEpisodes = syncEpisodesWithSource.await(
+            episodes,
+            anime,
+            source,
+            manualFetch,
+            expectedUrls = expectedUrls,
+        )
         scope.launch { populateFillerMarks.await(anime, getEpisodesByAnimeId.await(anime.id)) }
         return newEpisodes
     }
@@ -226,8 +244,9 @@ class AnimeEntryRefresher(
         seasons: List<SAnime>,
         manualFetch: Boolean,
         refreshChildren: Boolean,
+        expectedUrls: List<String>? = null,
     ): List<Episode> {
-        val newSeasons = syncSeasonsWithSource.await(seasons, anime, source)
+        val newSeasons = syncSeasonsWithSource.await(seasons, anime, source, expectedUrls = expectedUrls)
         if (!refreshChildren || !libraryPreferences.updateSeasonOnRefresh().get()) return emptyList()
         return fetchEpisodesOfSeasons(source, newSeasons, manualFetch)
     }
