@@ -32,6 +32,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import mihon.domain.items.episode.interactor.FilterEpisodesForDownload
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import tachiyomi.data.items.episode.EpisodeRepositoryImpl
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.entries.anime.model.AnimeUpdate
@@ -270,8 +272,9 @@ class AnimeEntryRefresherTest {
         }
     }
 
-    @Test
-    fun `a details-only refresh keeps an episode added while the source call runs`() = runTest {
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = ["new episode", "updated memo"])
+    fun `a details-only refresh keeps changes made during the source call`(change: String) = runTest {
         InMemoryAnimeDb().use { db ->
             db.insertAnime(id = anime.id, url = "/series", title = "Series")
             db.insertEpisode(id = 10, animeId = anime.id, url = "/old")
@@ -299,8 +302,12 @@ class AnimeEntryRefresherTest {
                     fetchEpisodes: Boolean,
                 ): SAnimeEpisodeUpdate {
                     episodes.map { it.url } shouldBe listOf("/old")
-                    db.insertEpisode(id = 11, animeId = 1, url = "/concurrent")
-                    db.driver.execute(null, "UPDATE episodes SET seen = 1 WHERE _id = 11", 0)
+                    if (change == "new episode") {
+                        db.insertEpisode(id = 11, animeId = 1, url = "/concurrent")
+                        db.driver.execute(null, "UPDATE episodes SET seen = 1 WHERE _id = 11", 0)
+                    } else {
+                        db.driver.execute(null, """UPDATE episodes SET memo = '{"cursor":7}' WHERE _id = 10""", 0)
+                    }
                     return SAnimeEpisodeUpdate(anime, episodes)
                 }
             }
@@ -309,8 +316,12 @@ class AnimeEntryRefresherTest {
                 .shouldBe(null to null)
 
             val stored = getEpisodes.await(anime.id).associateBy { it.url }
-            stored.keys shouldBe setOf("/old", "/concurrent")
-            stored.getValue("/concurrent").seen shouldBe true
+            if (change == "new episode") {
+                stored.keys shouldBe setOf("/old", "/concurrent")
+                stored.getValue("/concurrent").seen shouldBe true
+            } else {
+                stored.getValue("/old").memo shouldBe JsonObject(mapOf("cursor" to JsonPrimitive(7)))
+            }
         }
     }
 
