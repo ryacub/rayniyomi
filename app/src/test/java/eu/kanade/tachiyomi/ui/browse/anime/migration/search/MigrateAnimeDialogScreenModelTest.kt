@@ -18,6 +18,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
 import java.io.IOException
@@ -39,6 +41,7 @@ class MigrateAnimeDialogScreenModelTest {
     private val getTracks = mockk<GetAnimeTracks> {
         coEvery { await(any()) } returns emptyList()
     }
+    private val getEpisodes = mockk<GetEpisodesByAnimeId>(relaxed = true)
     private val syncEpisodesWithSource = mockk<SyncEpisodesWithSource>(relaxed = true)
     private val trackerManager = mockk<TrackerManager> {
         every { trackers } returns emptyList()
@@ -48,7 +51,7 @@ class MigrateAnimeDialogScreenModelTest {
         sourceManager = sourceManager,
         downloadManager = downloadManager,
         updateAnime = updateAnime,
-        getEpisodesByAnimeId = mockk(relaxed = true),
+        getEpisodesByAnimeId = getEpisodes,
         syncEpisodesWithSource = syncEpisodesWithSource,
         updateEpisode = mockk(relaxed = true),
         getCategories = mockk(relaxed = true),
@@ -126,6 +129,27 @@ class MigrateAnimeDialogScreenModelTest {
         result shouldBe true
         verify(exactly = 1) { downloadManager.deleteAnime(oldAnime, oldSource, any()) }
         coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(oldAnime.id, false) }
+    }
+
+    @Test
+    fun `migration supplies cached destination episodes to incremental sources`() = runTest {
+        val stored = Episode.create().copy(url = "cached", name = "Cached")
+        coEvery { getEpisodes.await(newAnime.id) } returns listOf(stored)
+        coEvery { newSource.getAnimeEpisodeUpdate(any(), any(), false, true) } answers
+            { SAnimeEpisodeUpdate(firstArg(), secondArg()) }
+        coEvery { updateAnime.await(any()) } returns true
+
+        model.migrateAnime(oldAnime, newAnime, replace = false, flags = 0) shouldBe true
+
+        coVerify {
+            syncEpisodesWithSource.await(
+                match { it.map { episode -> episode.url } == listOf(stored.url) },
+                newAnime,
+                newSource,
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
