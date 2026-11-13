@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.data.database.models
 
-import eu.kanade.domain.items.episode.model.toDbEpisode
 import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryAnimeDb
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -11,7 +10,7 @@ import tachiyomi.domain.items.episode.model.Episode
 class PersistedEntityIdTest {
 
     @Test
-    fun `inserting an episode returns an adapter with the generated id`() = runTest {
+    fun `inserting an episode returns the generated id`() = runTest {
         InMemoryAnimeDb().use { db ->
             db.insertAnime(id = 1L, url = "anime", title = "Anime")
 
@@ -23,10 +22,8 @@ class PersistedEntityIdTest {
             val persisted = EpisodeRepositoryImpl(db.handler)
                 .addAllEpisodes(listOf(episode))
                 .single()
-                .toDbEpisode()
 
-            val persistedId: Long = persisted.id
-            assertTrue(persistedId > 0L)
+            assertTrue(persisted.id > 0L)
         }
     }
 }
