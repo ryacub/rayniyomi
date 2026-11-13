@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
+- Jellyfin tracker requests can safely share cached API keys during concurrent updates (#1492).
 - Keep Recover titles actions above the system navigation bar, wrap review buttons, and place the review list and details on opposite sides of a separating vertical hinge (#1489).
 - An extension install or update no longer shows a false "Failed to load extension ...: package is not found" message. The manga side reported every anime extension as not found, and the anime side reported every manga extension (#1487).
 - When an extension update installs, the extension list no longer draws the Installed header on top of the extension. The rows now move to their new place in one step (#1488).
