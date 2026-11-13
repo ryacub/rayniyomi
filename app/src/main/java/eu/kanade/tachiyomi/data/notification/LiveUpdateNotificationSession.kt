@@ -14,15 +14,13 @@ internal class LiveUpdateNotificationSession(
 ) {
     private var token = UUID.randomUUID().toString()
     private var promotionPermitted = false
-    private var dismissed = false
-    private var finished = false
+    private var lifecycle = Lifecycle.Active
     private var postedTokens = emptyList<String>()
 
     fun reset() = synchronized(sessions) {
         unregister()
         token = UUID.randomUUID().toString()
-        dismissed = false
-        finished = false
+        lifecycle = Lifecycle.Active
         promotionPermitted = sdkInt >= Build.VERSION_CODES.BAKLAVA &&
             context.notificationManager.canPostPromotedNotifications()
         if (sdkInt >= Build.VERSION_CODES.BAKLAVA) sessions[token] = this
@@ -37,7 +35,7 @@ internal class LiveUpdateNotificationSession(
             context.notify(notificationId, builder.build())
             return@synchronized
         }
-        if (dismissed || finished) return@synchronized
+        if (lifecycle != Lifecycle.Active) return@synchronized
 
         sessions[token] = this
         notificationOwners[notificationId] = token
@@ -48,7 +46,7 @@ internal class LiveUpdateNotificationSession(
 
     fun finish() = synchronized(sessions) {
         unregister()
-        finished = true
+        lifecycle = Lifecycle.Finished
     }
 
     private fun unregister() {
@@ -56,15 +54,17 @@ internal class LiveUpdateNotificationSession(
         if (notificationOwners[notificationId] == token) notificationOwners.remove(notificationId)
     }
 
+    private enum class Lifecycle { Active, Dismissed, Finished }
+
     companion object {
         private val sessions = mutableMapOf<String, LiveUpdateNotificationSession>()
         private val notificationOwners = mutableMapOf<Int, String>()
 
         fun dismiss(token: String?) = synchronized(sessions) {
             val session = sessions[token] ?: return@synchronized
-            session.dismissed = true
+            session.lifecycle = Lifecycle.Dismissed
             if (notificationOwners[session.notificationId] != token) return@synchronized
-            session.postedTokens.forEach { sessions[it]?.dismissed = true }
+            session.postedTokens.forEach { sessions[it]?.lifecycle = Lifecycle.Dismissed }
         }
     }
 }
