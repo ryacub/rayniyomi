@@ -113,6 +113,41 @@ class LiveUpdateNotificationSessionTest {
     }
 
     @Test
+    fun `finish after dismiss keeps the run from reposting until reset`() {
+        val session = session()
+        session.show(builder)
+        LiveUpdateNotificationSession.dismiss(tokens.last())
+        session.finish()
+        clearStaticMockk(
+            Class.forName("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt").kotlin,
+            answers = false,
+        )
+        session.show(builder)
+        verify(exactly = 0) { context.notify(any<Int>(), any<Notification>()) }
+        session.reset()
+        session.show(builder)
+        verify(exactly = 1) { context.notify(101, any<Notification>()) }
+    }
+
+    @Test
+    fun `dismiss after finish keeps the run from reposting until reset`() {
+        val session = session()
+        session.show(builder)
+        val finishedToken = tokens.last()
+        session.finish()
+        LiveUpdateNotificationSession.dismiss(finishedToken)
+        clearStaticMockk(
+            Class.forName("eu.kanade.tachiyomi.util.system.NotificationExtensionsKt").kotlin,
+            answers = false,
+        )
+        session.show(builder)
+        verify(exactly = 0) { context.notify(any<Int>(), any<Notification>()) }
+        session.reset()
+        session.show(builder)
+        verify(exactly = 1) { context.notify(101, any<Notification>()) }
+    }
+
+    @Test
     fun `old token cannot dismiss a new run`() {
         val session = session()
         session.show(builder)
