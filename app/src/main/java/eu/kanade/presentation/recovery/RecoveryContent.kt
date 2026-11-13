@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -137,7 +138,12 @@ fun RecoveryScreenContent(
 
 @Composable
 private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: RecoveryActions, onApply: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (state.workError == null && state.busy == null && state.step != Step.Select && state.step != Step.Review) return
+
+    Column(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         state.workError?.let {
             Text(stringResource(MR.strings.recovery_work_failed, it), color = MaterialTheme.colorScheme.error)
         }
@@ -347,7 +353,7 @@ private fun ReviewRow(
                         }
                     }
                     PreviewSummary(media, preview, previewError)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column {
                         Button(onClick = { actions.approve(entry.id) }, enabled = canApprove) {
                             Text(stringResource(MR.strings.recovery_action_use_match))
                         }

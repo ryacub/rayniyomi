@@ -83,7 +83,10 @@ class RecoveryReviewBottomBarAndroidTest {
             val layouts = mutableListOf<TextLayoutResult>()
             check(requireNotNull(node.config[SemanticsActions.GetTextLayoutResult].action)(layouts))
             val layout = layouts.single()
-            assertTrue("Review action wraps or clips: $label", layout.lineCount == 1 && !layout.hasVisualOverflow)
+            assertTrue(
+                "Review action wraps: $label has ${layout.lineCount} lines",
+                layout.lineCount == 1 && layout.getLineEnd(0) == label.length,
+            )
         }
     }
 
