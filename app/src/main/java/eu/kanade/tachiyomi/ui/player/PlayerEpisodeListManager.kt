@@ -60,8 +60,7 @@ internal class PlayerEpisodeListManager(
 
     /**
      * Initialize the episode list for the given anime.
-     * Retrieves episodes, sorts them, filters by downloaded-only preference if enabled,
-     * and returns domain Episode objects.
+     * Retrieves episodes, sorts them, and filters by downloaded-only preference if enabled.
      */
     suspend fun initEpisodeList(anime: Anime): List<Episode> {
         val episodes = withContext(Dispatchers.IO) {

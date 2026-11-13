@@ -359,8 +359,8 @@ class ReaderViewModel(
         )
 
         // Check translation status on IO thread before switching to UI context
-        val dbChapter = newChapters.currChapter.chapter
-        val hasTranslation = hasTranslationForChapter(dbChapter)
+        val currentChapter = newChapters.currChapter.chapter
+        val hasTranslation = hasTranslationForChapter(currentChapter)
 
         withUIContext {
             mutableState.update {
@@ -457,10 +457,9 @@ class ReaderViewModel(
 
         if (chapter.pageLoader?.isLocal == false) {
             val manga = manga ?: return
-            val dbChapter = chapter.chapter
             val isDownloaded = downloadManager.isChapterDownloaded(
-                dbChapter.name,
-                dbChapter.scanlator,
+                chapter.chapter.name,
+                chapter.chapter.scanlator,
                 manga.title,
                 manga.source,
                 skipCache = true,
@@ -601,7 +600,7 @@ class ReaderViewModel(
 
         if (!incognitoMode && page.status != Page.State.ERROR) {
             val isLastPage = readerChapter.pages?.lastIndex == pageIndex
-            val updated = readerChapter.update {
+            readerChapter.update {
                 it.copy(lastPageRead = pageIndex.toLong(), read = it.read || isLastPage)
             }
 
@@ -609,11 +608,12 @@ class ReaderViewModel(
                 updateChapterProgressOnComplete(readerChapter)
             }
 
+            val latest = readerChapter.chapter
             updateChapter.await(
                 ChapterUpdate(
-                    id = updated.id,
-                    read = updated.read,
-                    lastPageRead = updated.lastPageRead,
+                    id = latest.id,
+                    read = latest.read,
+                    lastPageRead = latest.lastPageRead,
                 ),
             )
         }
@@ -683,11 +683,11 @@ class ReaderViewModel(
     fun getSource() = manga?.source?.let { sourceManager.getOrStub(it) } as? HttpSource
 
     fun getChapterUrl(): String? {
-        val sChapter = getCurrentChapter()?.chapter ?: return null
+        val chapter = getCurrentChapter()?.chapter ?: return null
         val source = getSource() ?: return null
 
         return try {
-            MangaSourceGateway.chapterUrl(source, sChapter.toSChapter())
+            MangaSourceGateway.chapterUrl(source, chapter.toSChapter())
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             null
