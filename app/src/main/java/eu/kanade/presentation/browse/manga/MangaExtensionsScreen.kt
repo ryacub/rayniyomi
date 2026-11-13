@@ -48,7 +48,6 @@ import eu.kanade.presentation.browse.manga.components.MangaExtensionIcon
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.presentation.entries.components.DotSeparatorNoSpaceText
 import eu.kanade.presentation.more.settings.screen.browse.MangaExtensionReposScreen
-import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.presentation.util.rememberRequestPackageInstallsPermissionState
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
@@ -194,14 +193,12 @@ private fun ExtensionContent(
                             }
                         ExtensionHeader(
                             textRes = header.textRes,
-                            modifier = Modifier.animateItemFastScroll(),
                             action = action,
                         )
                     }
                     is MangaExtensionUiModel.Header.Text -> {
                         ExtensionHeader(
                             text = header.text,
-                            modifier = Modifier.animateItemFastScroll(),
                         )
                     }
                 }
@@ -212,14 +209,13 @@ private fun ExtensionContent(
                 contentType = { "item" },
                 key = { item ->
                     when (item.extension) {
-                        is MangaExtension.Untrusted -> "extension-untrusted-${item.hashCode()}"
-                        is MangaExtension.Installed -> "extension-installed-${item.hashCode()}"
-                        is MangaExtension.Available -> "extension-available-${item.hashCode()}"
+                        is MangaExtension.Untrusted -> "extension-untrusted-${item.extension.pkgName}"
+                        is MangaExtension.Installed -> "extension-installed-${item.extension.pkgName}"
+                        is MangaExtension.Available -> "extension-available-${item.extension.pkgName}"
                     }
                 },
             ) { item ->
                 ExtensionItem(
-                    modifier = Modifier.animateItemFastScroll(),
                     item = item,
                     onClickItem = {
                         when (it) {
