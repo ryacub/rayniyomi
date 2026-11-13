@@ -218,11 +218,11 @@ internal object MangaExtensionLoader {
      * Attempts to load an extension from the given package name. It checks if the extension
      * contains the required feature flag before trying to load it.
      */
-    suspend fun loadMangaExtensionFromPkgName(context: Context, pkgName: String): MangaLoadResult {
+    suspend fun loadMangaExtensionFromPkgName(context: Context, pkgName: String): MangaLoadResult? {
         val extensionPackage = getMangaExtensionInfoFromPkgName(context, pkgName)
         if (extensionPackage == null) {
             logcat(LogPriority.ERROR) { "Extension package is not found ($pkgName)" }
-            return MangaLoadResult.Error("Failed to load extension $pkgName: package is not found")
+            return null
         }
         return loadMangaExtension(context, extensionPackage)
     }

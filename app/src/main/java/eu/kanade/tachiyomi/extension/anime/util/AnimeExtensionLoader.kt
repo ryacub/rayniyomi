@@ -187,11 +187,11 @@ internal object AnimeExtensionLoader {
      * Attempts to load an extension from the given package name. It checks if the extension
      * contains the required feature flag before trying to load it.
      */
-    suspend fun loadExtensionFromPkgName(context: Context, pkgName: String): AnimeLoadResult {
+    suspend fun loadExtensionFromPkgName(context: Context, pkgName: String): AnimeLoadResult? {
         val extensionPackage = getAnimeExtensionInfoFromPkgName(context, pkgName)
         if (extensionPackage == null) {
             logcat(LogPriority.ERROR) { "Extension package is not found ($pkgName)" }
-            return AnimeLoadResult.Error("Failed to load extension $pkgName: package is not found")
+            return null
         }
         return loadExtension(context, extensionPackage)
     }

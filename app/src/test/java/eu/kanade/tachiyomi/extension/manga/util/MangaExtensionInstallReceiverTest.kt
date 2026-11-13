@@ -164,7 +164,7 @@ class MangaExtensionInstallReceiverTest {
     }
 
     @Test
-    fun `replace retry succeeds after transient errors`() = runTest {
+    fun `replace retry succeeds after the package is briefly missing`() = runTest {
         val context = mockk<Context>(relaxed = true)
         val listener = mockk<MangaExtensionInstallReceiver.Listener>(relaxed = true)
         val dispatcher = StandardTestDispatcher(testScheduler)
@@ -175,8 +175,8 @@ class MangaExtensionInstallReceiverTest {
         coEvery {
             MangaExtensionLoader.loadMangaExtensionFromPkgName(any(), "pkg1")
         } returnsMany listOf(
-            MangaLoadResult.Error("load failed"),
-            MangaLoadResult.Error("load failed"),
+            null,
+            null,
             MangaLoadResult.Success(mockk(relaxed = true)),
         )
 

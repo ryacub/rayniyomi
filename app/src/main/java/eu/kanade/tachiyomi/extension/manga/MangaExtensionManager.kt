@@ -340,7 +340,7 @@ class MangaExtensionManager(
         when (val result = MangaExtensionLoader.loadMangaExtensionFromPkgName(context, extension.pkgName)) {
             is MangaLoadResult.Success -> registerNewExtension(result.extension)
             is MangaLoadResult.Error -> reportLoadError(result.message)
-            is MangaLoadResult.Untrusted -> Unit
+            is MangaLoadResult.Untrusted, null -> Unit
         }
     }
 
