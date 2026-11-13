@@ -3,11 +3,15 @@ package eu.kanade.tachiyomi.data.download.anime
 import android.content.Context
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.di.AppGraph
+import eu.kanade.tachiyomi.di.AppGraphHolder
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,6 +19,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -35,6 +43,9 @@ class AnimeDownloadCacheRenewTest {
     private val scanStarted = CountDownLatch(1)
     private val releaseScan = CountDownLatch(1)
 
+    @Volatile
+    private var episodeDirNames = listOf(EXISTING, OTHER)
+
     private val source = mockk<AnimeHttpSource> { every { id } returns SOURCE_ID }
     private val anime = Anime.create().copy(id = 1L, source = SOURCE_ID, title = ANIME_TITLE)
 
@@ -42,9 +53,10 @@ class AnimeDownloadCacheRenewTest {
         every { isDirectory } returns true
         every { name } returns ANIME_TITLE
         every { listFiles() } answers {
+            val listedNames = episodeDirNames
             scanStarted.countDown()
             releaseScan.await(10, TimeUnit.SECONDS)
-            arrayOf(episodeDir(EXISTING), episodeDir(OTHER))
+            listedNames.map(::episodeDir).toTypedArray()
         }
     }
 
@@ -86,6 +98,8 @@ class AnimeDownloadCacheRenewTest {
     @AfterEach
     fun tearDown() {
         releaseScan.countDown()
+        AppGraphHolder.graphOrNull = null
+        unmockkStatic(UniFile::class)
     }
 
     @Test
@@ -104,7 +118,7 @@ class AnimeDownloadCacheRenewTest {
         startScan()
 
         runDuringScan { cache.addEpisode(ADDED, animeDir, anime) }
-        awaitScanSwap()
+        awaitDownloaded(OTHER)
 
         isDownloaded(ADDED) shouldBe true
     }
@@ -114,9 +128,51 @@ class AnimeDownloadCacheRenewTest {
         startScan()
 
         runDuringScan { cache.removeEpisode(episode(EXISTING), anime) }
-        awaitScanSwap()
+        awaitDownloaded(OTHER)
 
         isDownloaded(EXISTING) shouldBe false
+    }
+
+    @Test
+    fun `an invalidation during a cache scan rescans the downloads folder`() {
+        startScan()
+
+        episodeDirNames = listOf(EXISTING, ADDED)
+        cache.invalidateCache()
+        releaseScan.countDown()
+
+        awaitDownloaded(ADDED)
+    }
+
+    @Test
+    fun `an invalidation while the disk index loads rescans the downloads folder`() {
+        writeDiskIndex(listOf(STALE))
+        val loadStarted = CountDownLatch(1)
+        val releaseLoad = CountDownLatch(1)
+        restoreIndexFoldersAfter(loadStarted, releaseLoad)
+        releaseScan.countDown()
+
+        isDownloaded(EXISTING) shouldBe false
+        loadStarted.await(10, TimeUnit.SECONDS) shouldBe true
+        cache.invalidateCache()
+        releaseLoad.countDown()
+
+        awaitDownloaded(EXISTING)
+    }
+
+    @Test
+    fun `a read while the disk index loads keeps the loaded index`() {
+        writeDiskIndex(listOf(STALE))
+        val loadStarted = CountDownLatch(1)
+        val releaseLoad = CountDownLatch(1)
+        restoreIndexFoldersAfter(loadStarted, releaseLoad)
+
+        isDownloaded(STALE) shouldBe false
+        loadStarted.await(10, TimeUnit.SECONDS) shouldBe true
+        releaseLoad.countDown()
+
+        awaitDownloaded(STALE)
+        scanStarted.await(1, TimeUnit.SECONDS) shouldBe false
     }
 
     private fun startScan() {
@@ -124,9 +180,9 @@ class AnimeDownloadCacheRenewTest {
         scanStarted.await(10, TimeUnit.SECONDS) shouldBe true
     }
 
-    private fun awaitScanSwap() {
+    private fun awaitDownloaded(episodeName: String) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-        while (!isDownloaded(OTHER)) {
+        while (!isDownloaded(episodeName)) {
             check(System.nanoTime() < deadline) { "The cache scan did not finish" }
             Thread.sleep(10)
         }
@@ -149,6 +205,39 @@ class AnimeDownloadCacheRenewTest {
         every { name } returns dirName
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun writeDiskIndex(episodeDirNames: List<String>) {
+        val index = IndexRoot(
+            sourceDirs = mapOf(
+                SOURCE_ID to IndexSource(
+                    animeDirs = mapOf(
+                        ANIME_TITLE to IndexAnime(dir = FOLDER_URI, episodeDirs = episodeDirNames.toSet()),
+                    ),
+                ),
+            ),
+        )
+        File(cacheDir, "dl_anime_index_cache_v3").writeBytes(ProtoBuf.encodeToByteArray(index))
+    }
+
+    private fun restoreIndexFoldersAfter(loadStarted: CountDownLatch, releaseLoad: CountDownLatch) {
+        AppGraphHolder.graphOrNull = mockk<AppGraph> { every { application } returns mockk() }
+        mockkStatic(UniFile::class)
+        every { UniFile.fromUri(any(), any()) } answers {
+            loadStarted.countDown()
+            releaseLoad.await(10, TimeUnit.SECONDS)
+            animeDir
+        }
+    }
+
+    @Serializable
+    private class IndexRoot(val dir: String? = null, val sourceDirs: Map<Long, IndexSource> = mapOf())
+
+    @Serializable
+    private class IndexSource(val dir: String? = null, val animeDirs: Map<String, IndexAnime> = mapOf())
+
+    @Serializable
+    private class IndexAnime(val dir: String? = null, val episodeDirs: Set<String> = setOf())
+
     private companion object {
         const val SOURCE_ID = 1L
         const val SOURCE_DIR_NAME = "Source"
@@ -156,5 +245,7 @@ class AnimeDownloadCacheRenewTest {
         const val EXISTING = "Existing"
         const val OTHER = "Other"
         const val ADDED = "Added"
+        const val STALE = "Stale"
+        const val FOLDER_URI = "content://folder"
     }
 }

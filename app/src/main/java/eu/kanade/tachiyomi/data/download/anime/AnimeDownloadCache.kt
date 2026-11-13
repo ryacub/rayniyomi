@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.data.download.core.DownloadCacheRenewal
 import eu.kanade.tachiyomi.data.download.core.StoredDirSize
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -56,7 +57,6 @@ import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.storage.service.StorageManager
 import java.io.File
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AnimeDownloadCache"
@@ -64,7 +64,7 @@ private const val TAG = "AnimeDownloadCache"
 /**
  * Cache where we dump the downloads directory from the filesystem. This class is needed because
  * directory checking is expensive and it slows downs the app. The cache is invalidated by the time
- * defined in [renewInterval] as we don't have any control over the filesystem and the user can
+ * defined in [DownloadCacheRenewal] as we don't have any control over the filesystem and the user can
  * delete the folders at any time without the app noticing.
  */
 class AnimeDownloadCache(
@@ -83,17 +83,7 @@ class AnimeDownloadCache(
         .onStart { emit(Unit) }
         .shareIn(scope, SharingStarted.Lazily, 1)
 
-    /**
-     * The interval after which this cache should be invalidated. 1 hour shouldn't cause major
-     * issues, as the cache is only used for UI feedback.
-     */
-    private val renewInterval = 1.hours.inWholeMilliseconds
-
-    /**
-     * The last time the cache was refreshed.
-     */
-    private var lastRenew = 0L
-    private var renewalJob: Job? = null
+    private val renewal = DownloadCacheRenewal(scope)
 
     private val _isInitializing = MutableStateFlow(false)
     val isInitializing = _isInitializing
@@ -107,25 +97,10 @@ class AnimeDownloadCache(
     private var rootDownloadsDir = RootDirectory(storageManager.getDownloadsDirectory())
     private var changesDuringScan: MutableList<(RootDirectory) -> Unit>? = null
 
-    /**
-     * Whether the initial disk cache load has completed. Used to prevent
-     * [renewCache] from starting a redundant filesystem scan while the
-     * init block is still loading the persisted index.
-     */
-    @Volatile
-    private var isInitialized = false
-
-    /**
-     * Set when [renewCache] is called before the init block finishes. The renewal
-     * is started once initialization completes, so an invalidation that arrives
-     * during startup is not dropped.
-     */
-    @Volatile
-    private var renewalPendingInit = false
-
     init {
         // Attempt to read cache file
         scope.launch {
+            var indexLoaded = false
             rootDownloadsDirMutex.withLock {
                 try {
                     if (diskCacheFile.exists()) {
@@ -133,18 +108,14 @@ class AnimeDownloadCache(
                             ProtoBuf.decodeFromByteArray<RootDirectory>(it.readBytes())
                         }
                         rootDownloadsDir = diskCache
-                        lastRenew = System.currentTimeMillis()
+                        indexLoaded = true
                     }
                 } catch (e: Throwable) {
                     logcat(LogPriority.ERROR, e) { "Failed to initialize disk cache" }
                     diskCacheFile.delete()
                 }
             }
-            isInitialized = true
-            if (renewalPendingInit) {
-                renewalPendingInit = false
-                renewCache()
-            }
+            if (renewal.finishDiskIndexLoad(indexLoaded)) renewCache()
             notifyChanges()
         }
 
@@ -344,12 +315,7 @@ class AnimeDownloadCache(
     }
 
     fun invalidateCache() {
-        // Cancel before resetting lastRenew: the renewal job's completion handler is
-        // registered with onCancelling = true, so it runs inside cancel() and writes
-        // lastRenew. Resetting first would let that write mark the cache fresh again
-        // and make renewCache() below skip the scan for a full renewInterval.
-        renewalJob?.cancel()
-        lastRenew = 0L
+        renewal.invalidate()
         diskCacheFile.delete()
         renewCache()
     }
@@ -358,23 +324,8 @@ class AnimeDownloadCache(
      * Renews the downloads cache.
      */
     private fun renewCache() {
-        // Defer if the init block hasn't finished loading the disk cache yet, as starting
-        // a filesystem scan would race with it and produce empty results. The init block
-        // starts the renewal once it completes.
-        if (!isInitialized) {
-            renewalPendingInit = true
-            return
-        }
-
-        // Avoid renewing cache if in the process nor too often.
-        if (lastRenew + renewInterval >= System.currentTimeMillis() ||
-            renewalJob?.isActive == true
-        ) {
-            return
-        }
-
-        renewalJob = scope.launchIO {
-            if (lastRenew == 0L) {
+        val renewalJob = renewal.renewIfDue { isFirstScan ->
+            if (isFirstScan) {
                 _isInitializing.emit(true)
             }
 
@@ -463,14 +414,12 @@ class AnimeDownloadCache(
             }
 
             _isInitializing.emit(false)
-        }.also {
-            it.invokeOnCompletion(onCancelling = true) { exception ->
-                if (exception != null && exception !is CancellationException) {
-                    logcat(LogPriority.ERROR, exception) { "Failed to create download cache" }
-                }
-                lastRenew = System.currentTimeMillis()
-                notifyChanges()
+        } ?: return
+        renewalJob.invokeOnCompletion { exception ->
+            if (exception != null && exception !is CancellationException) {
+                logcat(LogPriority.ERROR, exception) { "Failed to create download cache" }
             }
+            notifyChanges()
         }
 
         // Mainly to notify the indexing notifier UI

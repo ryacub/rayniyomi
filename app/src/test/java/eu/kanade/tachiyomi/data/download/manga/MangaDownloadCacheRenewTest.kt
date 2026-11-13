@@ -2,12 +2,16 @@ package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.di.AppGraph
+import eu.kanade.tachiyomi.di.AppGraphHolder
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.source.online.HttpSource
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,6 +19,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -35,6 +43,9 @@ class MangaDownloadCacheRenewTest {
     private val scanStarted = CountDownLatch(1)
     private val releaseScan = CountDownLatch(1)
 
+    @Volatile
+    private var chapterDirNames = listOf(EXISTING, OTHER)
+
     private val source = mockk<HttpSource> { every { id } returns SOURCE_ID }
     private val manga = Manga.create().copy(id = 1L, source = SOURCE_ID, title = MANGA_TITLE)
 
@@ -42,9 +53,10 @@ class MangaDownloadCacheRenewTest {
         every { isDirectory } returns true
         every { name } returns MANGA_TITLE
         every { listFiles() } answers {
+            val listedNames = chapterDirNames
             scanStarted.countDown()
             releaseScan.await(10, TimeUnit.SECONDS)
-            arrayOf(chapterDir(EXISTING), chapterDir(OTHER))
+            listedNames.map(::chapterDir).toTypedArray()
         }
     }
 
@@ -86,6 +98,8 @@ class MangaDownloadCacheRenewTest {
     @AfterEach
     fun tearDown() {
         releaseScan.countDown()
+        AppGraphHolder.graphOrNull = null
+        unmockkStatic(UniFile::class)
     }
 
     @Test
@@ -104,7 +118,7 @@ class MangaDownloadCacheRenewTest {
         startScan()
 
         runDuringScan { cache.addChapter(ADDED, mangaDir, manga) }
-        awaitScanSwap()
+        awaitDownloaded(OTHER)
 
         isDownloaded(ADDED) shouldBe true
     }
@@ -114,9 +128,51 @@ class MangaDownloadCacheRenewTest {
         startScan()
 
         runDuringScan { cache.removeChapter(chapter(EXISTING), manga) }
-        awaitScanSwap()
+        awaitDownloaded(OTHER)
 
         isDownloaded(EXISTING) shouldBe false
+    }
+
+    @Test
+    fun `an invalidation during a cache scan rescans the downloads folder`() {
+        startScan()
+
+        chapterDirNames = listOf(EXISTING, ADDED)
+        cache.invalidateCache()
+        releaseScan.countDown()
+
+        awaitDownloaded(ADDED)
+    }
+
+    @Test
+    fun `an invalidation while the disk index loads rescans the downloads folder`() {
+        writeDiskIndex(listOf(STALE))
+        val loadStarted = CountDownLatch(1)
+        val releaseLoad = CountDownLatch(1)
+        restoreIndexFoldersAfter(loadStarted, releaseLoad)
+        releaseScan.countDown()
+
+        isDownloaded(EXISTING) shouldBe false
+        loadStarted.await(10, TimeUnit.SECONDS) shouldBe true
+        cache.invalidateCache()
+        releaseLoad.countDown()
+
+        awaitDownloaded(EXISTING)
+    }
+
+    @Test
+    fun `a read while the disk index loads keeps the loaded index`() {
+        writeDiskIndex(listOf(STALE))
+        val loadStarted = CountDownLatch(1)
+        val releaseLoad = CountDownLatch(1)
+        restoreIndexFoldersAfter(loadStarted, releaseLoad)
+
+        isDownloaded(STALE) shouldBe false
+        loadStarted.await(10, TimeUnit.SECONDS) shouldBe true
+        releaseLoad.countDown()
+
+        awaitDownloaded(STALE)
+        scanStarted.await(1, TimeUnit.SECONDS) shouldBe false
     }
 
     private fun startScan() {
@@ -124,9 +180,9 @@ class MangaDownloadCacheRenewTest {
         scanStarted.await(10, TimeUnit.SECONDS) shouldBe true
     }
 
-    private fun awaitScanSwap() {
+    private fun awaitDownloaded(chapterName: String) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-        while (!isDownloaded(OTHER)) {
+        while (!isDownloaded(chapterName)) {
             check(System.nanoTime() < deadline) { "The cache scan did not finish" }
             Thread.sleep(10)
         }
@@ -149,6 +205,39 @@ class MangaDownloadCacheRenewTest {
         every { name } returns dirName
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun writeDiskIndex(chapterDirNames: List<String>) {
+        val index = IndexRoot(
+            sourceDirs = mapOf(
+                SOURCE_ID to IndexSource(
+                    mangaDirs = mapOf(
+                        MANGA_TITLE to IndexManga(dir = FOLDER_URI, chapterDirs = chapterDirNames.toSet()),
+                    ),
+                ),
+            ),
+        )
+        File(cacheDir, "dl_index_cache_v3").writeBytes(ProtoBuf.encodeToByteArray(index))
+    }
+
+    private fun restoreIndexFoldersAfter(loadStarted: CountDownLatch, releaseLoad: CountDownLatch) {
+        AppGraphHolder.graphOrNull = mockk<AppGraph> { every { application } returns mockk() }
+        mockkStatic(UniFile::class)
+        every { UniFile.fromUri(any(), any()) } answers {
+            loadStarted.countDown()
+            releaseLoad.await(10, TimeUnit.SECONDS)
+            mangaDir
+        }
+    }
+
+    @Serializable
+    private class IndexRoot(val dir: String? = null, val sourceDirs: Map<Long, IndexSource> = mapOf())
+
+    @Serializable
+    private class IndexSource(val dir: String? = null, val mangaDirs: Map<String, IndexManga> = mapOf())
+
+    @Serializable
+    private class IndexManga(val dir: String? = null, val chapterDirs: Set<String> = setOf())
+
     private companion object {
         const val SOURCE_ID = 1L
         const val SOURCE_DIR_NAME = "Source"
@@ -156,5 +245,7 @@ class MangaDownloadCacheRenewTest {
         const val EXISTING = "Existing"
         const val OTHER = "Other"
         const val ADDED = "Added"
+        const val STALE = "Stale"
+        const val FOLDER_URI = "content://folder"
     }
 }
