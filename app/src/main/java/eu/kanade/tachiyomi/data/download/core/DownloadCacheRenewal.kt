@@ -20,7 +20,6 @@ internal class DownloadCacheRenewal(private val scope: CoroutineScope) {
         loading.deferred != DeferredRenewal.None
     }
 
-    /** Returns the started scan, or null when the cache is fresh or a scan already runs. */
     fun renewIfDue(scan: suspend CoroutineScope.(isFirstScan: Boolean) -> Unit): Job? {
         val job = synchronized(lock) {
             val isFirstScan = when (val current = state) {
