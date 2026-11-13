@@ -1,12 +1,12 @@
 package eu.kanade.tachiyomi.ui.reader.viewer
 
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldStartWith
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.items.chapter.model.Chapter
 
 class ReaderPageAnalysisKeyTest {
 
@@ -48,7 +48,7 @@ class ReaderPageAnalysisKeyTest {
         parent shouldNotBe insert
     }
 
-    private fun readerChapter(id: Long) = ReaderChapter(ChapterImpl(id))
+    private fun readerChapter(id: Long) = ReaderChapter(Chapter.create().copy(id = id))
 
     private fun localPage(index: Int, chapter: ReaderChapter) = ReaderPage(index).apply {
         this.chapter = chapter

@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import kotlinx.coroutines.CancellationException
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 /**
@@ -21,7 +21,7 @@ internal fun prepareTranslationReload(
     showTranslatedPages: Boolean,
 ): Boolean {
     if (!showTranslatedPages) return false
-    chapter.requestedPage = chapter.chapter.last_page_read
+    chapter.requestedPage = chapter.chapter.lastPageRead.toInt()
     chapter.state = ReaderChapter.State.Wait
     return true
 }

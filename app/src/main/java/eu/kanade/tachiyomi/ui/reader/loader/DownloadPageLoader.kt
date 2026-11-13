@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.ui.reader.loader
 
 import android.content.Context
 import com.hippo.unifile.UniFile
-import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
@@ -81,7 +80,7 @@ internal class DownloadPageLoader(
         return downloadManager.buildPageList(
             source,
             manga,
-            chapter.chapter.toDomainChapter(),
+            chapter.chapter,
         ) { pages ->
             pages.map { page ->
                 val translatedFile = translatedFiles[page.index]

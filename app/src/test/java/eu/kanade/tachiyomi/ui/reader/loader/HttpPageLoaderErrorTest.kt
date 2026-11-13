@@ -4,7 +4,6 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.sourceHelpUrl
 import eu.kanade.tachiyomi.core.common.Constants
 import eu.kanade.tachiyomi.data.cache.ChapterCache
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.network.interceptor.CloudflareBypassException
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -19,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
+import tachiyomi.domain.items.chapter.model.Chapter
 import java.io.IOException
 
 class HttpPageLoaderErrorTest {
@@ -31,7 +31,7 @@ class HttpPageLoaderErrorTest {
             coEvery { getImageUrl(any()) } throws
                 IOException("Failed to bypass Cloudflare", CloudflareBypassException())
         }
-        val chapter = ReaderChapter(ChapterImpl(id = 2L).apply { url = "chapter-1" })
+        val chapter = ReaderChapter(Chapter.create().copy(id = 2L, url = "chapter-1"))
         val loader = HttpPageLoader(
             chapter = chapter,
             source = source,

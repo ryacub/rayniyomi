@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.domain.base.BasePreferences
-import eu.kanade.domain.items.chapter.model.toDbChapter
-import eu.kanade.tachiyomi.data.database.models.manga.isRecognizedNumber
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
@@ -87,7 +85,7 @@ internal class ReaderChapterListManager(
                 if (
                     !chapter.read &&
                     chapter.isRecognizedNumber &&
-                    chapter.chapter_number == readerChapter.chapter.chapter_number
+                    chapter.chapterNumber == readerChapter.chapter.chapterNumber
                 ) {
                     ChapterUpdate(id = chapter.id, read = true)
                 } else {
@@ -212,7 +210,6 @@ internal class ReaderChapterListManager(
                     processed
                 }
             }
-            .map { it.toDbChapter() }
             .map(::ReaderChapter)
     }
 
