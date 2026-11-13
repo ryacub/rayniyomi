@@ -337,7 +337,7 @@
         errorLine1="agp_version = &quot;9.2.1&quot;"
         errorLine2="              ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="2"
             column="15"/>
     </issue>
@@ -348,7 +348,7 @@
         errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-bin.zip"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/wrapper/gradle-wrapper.properties"
+            file="../gradle/wrapper/gradle-wrapper.properties"
             line="4"
             column="17"/>
     </issue>
@@ -359,7 +359,7 @@
         errorLine1="lifecycle_version = &quot;2.10.0&quot;"
         errorLine2="                    ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="3"
             column="21"/>
     </issue>
@@ -370,7 +370,7 @@
         errorLine1="lifecycle_version = &quot;2.10.0&quot;"
         errorLine2="                    ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="3"
             column="21"/>
     </issue>
@@ -381,7 +381,7 @@
         errorLine1="lifecycle_version = &quot;2.10.0&quot;"
         errorLine2="                    ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="3"
             column="21"/>
     </issue>
@@ -392,7 +392,7 @@
         errorLine1="lifecycle_version = &quot;2.10.0&quot;"
         errorLine2="                    ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="3"
             column="21"/>
     </issue>
@@ -403,7 +403,7 @@
         errorLine1="lifecycle_version = &quot;2.10.0&quot;"
         errorLine2="                    ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="3"
             column="21"/>
     </issue>
@@ -414,7 +414,7 @@
         errorLine1="lifecycle_version = &quot;2.10.0&quot;"
         errorLine2="                    ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="3"
             column="21"/>
     </issue>
@@ -425,7 +425,7 @@
         errorLine1="paging_version = &quot;3.4.2&quot;"
         errorLine2="                 ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="4"
             column="18"/>
     </issue>
@@ -436,7 +436,7 @@
         errorLine1="paging_version = &quot;3.4.2&quot;"
         errorLine2="                 ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="4"
             column="18"/>
     </issue>
@@ -447,7 +447,7 @@
         errorLine1="paging_version = &quot;3.4.2&quot;"
         errorLine2="                 ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="4"
             column="18"/>
     </issue>
@@ -458,7 +458,7 @@
         errorLine1="annotation = &quot;androidx.annotation:annotation:1.9.1&quot;"
         errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="10"
             column="14"/>
     </issue>
@@ -469,7 +469,7 @@
         errorLine1="appcompat = &quot;androidx.appcompat:appcompat:1.7.1&quot;"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="13"
             column="13"/>
     </issue>
@@ -480,7 +480,7 @@
         errorLine1="constraintlayout = &quot;androidx.constraintlayout:constraintlayout:2.2.1&quot;"
         errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="15"
             column="20"/>
     </issue>
@@ -491,7 +491,7 @@
         errorLine1="corektx = &quot;androidx.core:core-ktx:1.18.0&quot;"
         errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="16"
             column="11"/>
     </issue>
@@ -502,7 +502,7 @@
         errorLine1="splashscreen = &quot;androidx.core:core-splashscreen:1.0.1&quot;"
         errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="17"
             column="16"/>
     </issue>
@@ -513,7 +513,7 @@
         errorLine1="workmanager = &quot;androidx.work:work-runtime:2.11.1&quot;"
         errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            file="../gradle/androidx.versions.toml"
             line="29"
             column="15"/>
     </issue>
@@ -524,7 +524,7 @@
         errorLine1="constraint-layout = &quot;1.1.0&quot;"
         errorLine2="                    ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/aniyomi.versions.toml"
+            file="../gradle/aniyomi.versions.toml"
             line="4"
             column="21"/>
     </issue>
@@ -535,7 +535,7 @@
         errorLine1="media = &quot;1.7.1&quot;"
         errorLine2="        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/aniyomi.versions.toml"
+            file="../gradle/aniyomi.versions.toml"
             line="6"
             column="9"/>
     </issue>
@@ -579,7 +579,7 @@
         errorLine1="compose-bom = &quot;2026.03.00&quot;"
         errorLine2="              ~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/compose.versions.toml"
+            file="../gradle/compose.versions.toml"
             line="2"
             column="15"/>
     </issue>
@@ -590,7 +590,7 @@
         errorLine1="glance = &quot;androidx.glance:glance-appwidget:1.1.1&quot;"
         errorLine2="         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/compose.versions.toml"
+            file="../gradle/compose.versions.toml"
             line="18"
             column="10"/>
     </issue>
@@ -601,7 +601,7 @@
         errorLine1="cast = &quot;22.3.1&quot;"
         errorLine2="       ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="3"
             column="8"/>
     </issue>
@@ -612,7 +612,7 @@
         errorLine1="google_services = &quot;4.4.4&quot;"
         errorLine2="                  ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="4"
             column="19"/>
     </issue>
@@ -623,7 +623,7 @@
         errorLine1="firebase_crashlytics_gradle = &quot;3.0.6&quot;"
         errorLine2="                              ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="5"
             column="31"/>
     </issue>
@@ -634,7 +634,7 @@
         errorLine1="sqlite = &quot;2.6.2&quot;"
         errorLine2="         ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="14"
             column="10"/>
     </issue>
@@ -645,7 +645,7 @@
         errorLine1="sqlite = &quot;2.6.2&quot;"
         errorLine2="         ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="14"
             column="10"/>
     </issue>
@@ -656,7 +656,7 @@
         errorLine1="androidx-webkit = &quot;androidx.webkit:webkit:1.16.0&quot;"
         errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="50"
             column="19"/>
     </issue>
@@ -667,7 +667,7 @@
         errorLine1="kotlin_version = &quot;2.4.20&quot;"
         errorLine2="                 ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="2"
             column="18"/>
     </issue>
@@ -678,7 +678,7 @@
         errorLine1="kotlin_version = &quot;2.4.20&quot;"
         errorLine2="                 ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="2"
             column="18"/>
     </issue>
@@ -689,7 +689,7 @@
         errorLine1="kotlin_version = &quot;2.4.20&quot;"
         errorLine2="                 ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="2"
             column="18"/>
     </issue>
@@ -700,7 +700,7 @@
         errorLine1="serialization_version = &quot;1.9.0&quot;"
         errorLine2="                        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="3"
             column="25"/>
     </issue>
@@ -711,7 +711,7 @@
         errorLine1="serialization_version = &quot;1.9.0&quot;"
         errorLine2="                        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="3"
             column="25"/>
     </issue>
@@ -722,7 +722,7 @@
         errorLine1="serialization_version = &quot;1.9.0&quot;"
         errorLine2="                        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="3"
             column="25"/>
     </issue>
@@ -733,7 +733,7 @@
         errorLine1="xml_serialization_version = &quot;0.90.3&quot;"
         errorLine2="                            ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="4"
             column="29"/>
     </issue>
@@ -744,7 +744,7 @@
         errorLine1="xml_serialization_version = &quot;0.90.3&quot;"
         errorLine2="                            ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="4"
             column="29"/>
     </issue>
@@ -755,7 +755,7 @@
         errorLine1="immutables = { module = &quot;org.jetbrains.kotlinx:kotlinx-collections-immutable&quot;, version = &quot;0.3.8&quot; }"
         errorLine2="                                                                                         ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            file="../gradle/kotlinx.versions.toml"
             line="11"
             column="90"/>
     </issue>
@@ -766,7 +766,7 @@
         errorLine1="aboutlib_version = &quot;11.6.3&quot;"
         errorLine2="                   ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="2"
             column="20"/>
     </issue>
@@ -777,7 +777,7 @@
         errorLine1="aboutlib_version = &quot;11.6.3&quot;"
         errorLine2="                   ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="2"
             column="20"/>
     </issue>
@@ -788,7 +788,7 @@
         errorLine1="metro = &quot;1.4.5&quot;"
         errorLine2="        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="8"
             column="9"/>
     </issue>
@@ -799,7 +799,7 @@
         errorLine1="metro = &quot;1.4.5&quot;"
         errorLine2="        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="8"
             column="9"/>
     </issue>
@@ -810,7 +810,7 @@
         errorLine1="metro = &quot;1.4.5&quot;"
         errorLine2="        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="8"
             column="9"/>
     </issue>
@@ -821,7 +821,7 @@
         errorLine1="moko = &quot;0.26.0&quot;"
         errorLine2="       ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="9"
             column="8"/>
     </issue>
@@ -832,7 +832,7 @@
         errorLine1="moko = &quot;0.26.0&quot;"
         errorLine2="       ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="9"
             column="8"/>
     </issue>
@@ -843,7 +843,7 @@
         errorLine1="okhttp = &quot;5.4.0&quot;"
         errorLine2="         ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="10"
             column="10"/>
     </issue>
@@ -854,7 +854,7 @@
         errorLine1="shizuku_version = &quot;13.1.0&quot;"
         errorLine2="                  ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="12"
             column="19"/>
     </issue>
@@ -865,7 +865,7 @@
         errorLine1="shizuku_version = &quot;13.1.0&quot;"
         errorLine2="                  ~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="12"
             column="19"/>
     </issue>
@@ -876,7 +876,7 @@
         errorLine1="sqldelight = &quot;2.3.2&quot;"
         errorLine2="             ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="13"
             column="14"/>
     </issue>
@@ -887,7 +887,7 @@
         errorLine1="sqldelight = &quot;2.3.2&quot;"
         errorLine2="             ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="13"
             column="14"/>
     </issue>
@@ -898,7 +898,7 @@
         errorLine1="sqldelight = &quot;2.3.2&quot;"
         errorLine2="             ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="13"
             column="14"/>
     </issue>
@@ -909,7 +909,7 @@
         errorLine1="sqldelight = &quot;2.3.2&quot;"
         errorLine2="             ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="13"
             column="14"/>
     </issue>
@@ -920,7 +920,7 @@
         errorLine1="sqldelight = &quot;2.3.2&quot;"
         errorLine2="             ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="13"
             column="14"/>
     </issue>
@@ -931,7 +931,7 @@
         errorLine1="spotless = &quot;8.2.1&quot;"
         errorLine2="           ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="16"
             column="12"/>
     </issue>
@@ -942,7 +942,7 @@
         errorLine1="ktlint-core = &quot;1.7.1&quot;"
         errorLine2="              ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="17"
             column="15"/>
     </issue>
@@ -953,7 +953,7 @@
         errorLine1="okio = &quot;com.squareup.okio:okio:3.17.0&quot;"
         errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="30"
             column="8"/>
     </issue>
@@ -964,7 +964,7 @@
         errorLine1="conscrypt-android = &quot;org.conscrypt:conscrypt-android:2.5.3&quot;"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="35"
             column="21"/>
     </issue>
@@ -975,7 +975,7 @@
         errorLine1="jsoup = &quot;org.jsoup:jsoup:1.22.2&quot;"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="39"
             column="9"/>
     </issue>
@@ -986,7 +986,7 @@
         errorLine1="libarchive = &quot;me.zhanghai.android.libarchive:library:1.1.6&quot;"
         errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="43"
             column="14"/>
     </issue>
@@ -997,7 +997,7 @@
         errorLine1="coil-bom = { module = &quot;io.coil-kt.coil3:coil-bom&quot;, version = &quot;3.5.0&quot; }"
         errorLine2="                                                             ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="60"
             column="62"/>
     </issue>
@@ -1008,7 +1008,7 @@
         errorLine1="compose-stablemarker = &quot;com.github.skydoves:compose-stable-marker:1.0.5&quot;"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="81"
             column="24"/>
     </issue>
@@ -1019,7 +1019,7 @@
         errorLine1="reorderable = { module = &quot;sh.calvin.reorderable:reorderable&quot;, version = &quot;2.4.3&quot; }"
         errorLine2="                                                                        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="82"
             column="73"/>
     </issue>
@@ -1030,7 +1030,7 @@
         errorLine1="logcat = &quot;com.squareup.logcat:logcat:0.1&quot;"
         errorLine2="         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="88"
             column="10"/>
     </issue>
@@ -1041,7 +1041,7 @@
         errorLine1="junit-bom = { module = &quot;org.junit:junit-bom&quot;, version = &quot;6.1.0&quot; }"
         errorLine2="                                                        ~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="103"
             column="57"/>
     </issue>
@@ -1052,7 +1052,7 @@
         errorLine1="kotest-assertions = &quot;io.kotest:kotest-assertions-core:6.2.1&quot;"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="106"
             column="21"/>
     </issue>
@@ -1063,7 +1063,7 @@
         errorLine1="mockk = &quot;io.mockk:mockk:1.14.11&quot;"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            file="../gradle/libs.versions.toml"
             line="107"
             column="9"/>
     </issue>
@@ -2823,7 +2823,7 @@
         errorLine1="ffmpeg-kit = { module = &quot;com.github.jmir1:ffmpeg-kit&quot;, version.ref = &quot;ffmpeg-kit&quot; }"
         errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/aniyomi.versions.toml"
+            file="../gradle/aniyomi.versions.toml"
             line="14"
             column="15"/>
     </issue>
