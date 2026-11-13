@@ -22,6 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Keep Recover titles actions above the system navigation bar, wrap review buttons, and place the review list and details on opposite sides of a separating vertical hinge (#1489).
 - An extension install or update no longer shows a false "Failed to load extension ...: package is not found" message. The manga side reported every anime extension as not found, and the anime side reported every manga extension (#1487).
+- When an extension update installs, the extension list no longer draws the Installed header on top of the extension. The rows now move to their new place in one step (#1488).
 - Category confirmation messages preserve backslashes before quotes in names (#1479).
 - When you add a manga or anime tracker, it receives your progress through numbered chapters or episodes even if an unnumbered item is incomplete (#1481).
 - The player now passes the saved episode memo to anime extensions. Before, it passed an empty memo (#1480).
