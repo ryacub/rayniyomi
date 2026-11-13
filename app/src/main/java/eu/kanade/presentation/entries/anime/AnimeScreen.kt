@@ -93,7 +93,6 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreenModel
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeSeasonItem
 import eu.kanade.tachiyomi.ui.entries.anime.EpisodeList
-import eu.kanade.tachiyomi.util.episode.episodeCode
 import eu.kanade.tachiyomi.util.episode.resumeEpisode
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
@@ -459,10 +458,7 @@ private fun AnimeScreenSmallImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            ContinueWatchingFabText(
-                                anime = state.anime,
-                                resumeEpisode = resumeEpisode,
-                            )
+                            ResumeFabText(canResume = resumeEpisode != null)
                         },
                         icon = {
                             Icon(
@@ -806,10 +802,7 @@ fun AnimeScreenLargeImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            ContinueWatchingFabText(
-                                anime = state.anime,
-                                resumeEpisode = resumeEpisode,
-                            )
+                            ResumeFabText(canResume = resumeEpisode != null)
                         },
                         icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                         onClick = onContinueWatching,
@@ -1167,23 +1160,6 @@ private fun onEpisodeItemClick(
         isAnyEpisodeSelected -> onToggleSelection(true)
         else -> onEpisodeClicked(episodeItem.episode, false)
     }
-}
-
-@Composable
-private fun ContinueWatchingFabText(
-    anime: Anime,
-    resumeEpisode: Episode?,
-) {
-    ResumeFabText(
-        label = stringResource(if (resumeEpisode != null) MR.strings.action_resume else MR.strings.action_start),
-        cue = resumeEpisode?.let {
-            if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
-                episodeTitle(anime, it)
-            } else {
-                episodeCode(it.name) ?: it.name
-            }
-        },
-    )
 }
 
 @Composable

@@ -27,6 +27,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - With "Reduce player animation" on, the video chapter label, the side panels, and the quality sheet only fade. Before, they still slid. The player lock button now fades on the same timing as the controls (#1468).
 
 ### Changed
+- The anime and manga entry buttons show only Start or Resume (#1486).
 - Anime extensions now support library versions 14, 16, and 17. Extensions on versions 12, 13, or 15 need an update (#1472).
 
 ### Removed

@@ -399,10 +399,7 @@ private fun MangaScreenSmallImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ContinueReadingFabText(
-                            manga = state.manga,
-                            resumeChapter = resumeChapter,
-                        )
+                        ResumeFabText(canResume = resumeChapter != null)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -666,10 +663,7 @@ fun MangaScreenLargeImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ContinueReadingFabText(
-                            manga = state.manga,
-                            resumeChapter = resumeChapter,
-                        )
+                        ResumeFabText(canResume = resumeChapter != null)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -925,17 +919,6 @@ private fun LazyListScope.sharedChapterItems(
             }
         }
     }
-}
-
-@Composable
-private fun ContinueReadingFabText(
-    manga: Manga,
-    resumeChapter: Chapter?,
-) {
-    ResumeFabText(
-        label = stringResource(if (resumeChapter != null) MR.strings.action_resume else MR.strings.action_start),
-        cue = resumeChapter?.let { chapterTitle(manga, it) },
-    )
 }
 
 @Composable
