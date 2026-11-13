@@ -40,6 +40,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The Suwayomi tracker. Updating the app deletes its tracking links, and old backups restore without them (#1473).
 
 ### CI
+- Fail the pull request build on new Android lint errors (#1497).
 
 ### Other
 - Remove unused internal classes and Compose helpers (#1490).

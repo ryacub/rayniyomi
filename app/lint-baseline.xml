@@ -1,0 +1,4073 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="    NotificationManagerCompat.from(this).notify(id, notification)"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/util/system/NotificationExtensions.kt"
+            line="32"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="    NotificationManagerCompat.from(this).notify(notificationWithIdAndTags)"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/util/system/NotificationExtensions.kt"
+            line="40"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        String.format("
+        errorLine2="        ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/AnimeScreen.kt"
+            line="1203"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        String.format("
+        errorLine2="        ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/AnimeScreen.kt"
+            line="1214"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        String.format("
+        errorLine2="        ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/AnimeScreen.kt"
+            line="1223"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        String.format("
+        errorLine2="        ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/updates/anime/AnimeUpdatesUiItem.kt"
+            line="267"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        String.format("
+        errorLine2="        ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/updates/anime/AnimeUpdatesUiItem.kt"
+            line="276"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        &quot;$hours:${String.format(&quot;%02d&quot;, minutes)}:${String.format(&quot;%02d&quot;, secs)}&quot;"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastMiniController.kt"
+            line="166"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        &quot;$hours:${String.format(&quot;%02d&quot;, minutes)}:${String.format(&quot;%02d&quot;, secs)}&quot;"
+        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastMiniController.kt"
+            line="166"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="        &quot;$minutes:${String.format(&quot;%02d&quot;, secs)}&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastMiniController.kt"
+            line="168"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="                            &quot;: ${String.format(&quot;%.1f&quot;, fontSize)}x&quot;,"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/SubtitleSettingsDialog.kt"
+            line="73"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 33 (current min is 26): `android.Manifest.permission#POST_NOTIFICATIONS`"
+        errorLine1="                        permissionRequester.launch(Manifest.permission.POST_NOTIFICATIONS)"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/more/AppUpdatePromptDialogHost.kt"
+            line="90"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 33 (current min is 26): `android.Manifest.permission#POST_NOTIFICATIONS`"
+        errorLine1="                        permissionRequester.launch(Manifest.permission.POST_NOTIFICATIONS)"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/more/NewUpdateScreen.kt"
+            line="154"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 30 (current min is 26): `android.graphics.Bitmap.CompressFormat#WEBP_LOSSY`"
+        errorLine1="            isWebP(imageBytes) -> Bitmap.CompressFormat.WEBP_LOSSY"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/translation/engine/ImageFormatUtil.kt"
+            line="30"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 26): `android.app.NotificationManager#canPostPromotedNotifications`"
+        errorLine1="            context.notificationManager.canPostPromotedNotifications()"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/notification/LiveUpdateNotificationSession.kt"
+            line="25"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 33 (current min is 26): `android.animation.ValueAnimator#getDurationScale`"
+        errorLine1="        ValueAnimator.getDurationScale()"
+        errorLine2="                      ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PagerConfig.kt"
+            line="183"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="Range"
+        message="Value must be > 0.0 (was 0)"
+        errorLine1="                    modifier = Modifier.weight(0f),"
+        errorLine2="                                               ~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastControlSheet.kt"
+            line="90"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="Range"
+        message="Value must be > 0.0 (was 0)"
+        errorLine1="            modifier = Modifier.weight(0f),"
+        errorLine2="                                       ~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastControlSheet.kt"
+            line="134"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="                java.io.File(&quot;/proc/self/cmdline&quot;).readText().trim { it &lt;= &apos; &apos; }"
+        errorLine2="                                                                   ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/App.kt"
+            line="365"
+            column="68"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `enableOnBackInvokedCallback` is only used in API level 33 and higher (current min is 26)"
+        errorLine1="        android:enableOnBackInvokedCallback=&quot;true&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="42"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `localeConfig` is only used in API level 33 and higher (current min is 26)"
+        errorLine1="        android:localeConfig=&quot;@xml/locales_config&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="47"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `preserveLegacyExternalStorage` is only used in API level 30 and higher (current min is 26)"
+        errorLine1="        android:preserveLegacyExternalStorage=&quot;true&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="49"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="BatteryLife"
+        message="Use of `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html"
+        errorLine1="            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/components/BatteryOptimizationDialog.kt"
+            line="56"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="InflateParams"
+        message="Avoid passing `null` as the view root (needed to resolve layout parameters on the inflated layout&apos;s root element)"
+        errorLine1="        playerView = LayoutInflater.from(this).inflate(R.layout.player_surface, null, false) as AniyomiMPVView"
+        errorLine2="                                                                                ~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/PlayerActivity.kt"
+            line="280"
+            column="81"/>
+    </issue>
+
+    <issue
+        id="NonObservableLocale"
+        message="Reading locale in a non-observable way in a composable function"
+        errorLine1="    val localeFirstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek.value"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/mihon/feature/upcoming/components/calendar/Calendar.kt"
+            line="73"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="NonObservableLocale"
+        message="Reading locale in a non-observable way in a composable function"
+        errorLine1="                    Locale.getDefault(),"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/mihon/feature/upcoming/components/calendar/Calendar.kt"
+            line="95"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NonObservableLocale"
+        message="Reading locale in a non-observable way in a composable function"
+        errorLine1="    val formatter = DateTimeFormatter.ofPattern(&quot;MMMM yyyy&quot;, Locale.getDefault())"
+        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/mihon/feature/upcoming/components/calendar/CalendarHeader.kt"
+            line="88"
+            column="62"/>
+    </issue>
+
+    <issue
+        id="SelectedPhotoAccess"
+        message="Your app is currently not handling Selected Photos Access introduced in Android 14+"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.READ_MEDIA_IMAGES&quot; />"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$GRADLE_USER_HOME/caches/9.4.1/transforms/e093a8adcefabaf7bebb1760a647a9d0/transformed/aniyomi-mpv-lib-1.18.n/AndroidManifest.xml"
+            line="17"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="SelectedPhotoAccess"
+        message="Your app is currently not handling Selected Photos Access introduced in Android 14+"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.READ_MEDIA_VIDEO&quot; />"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$GRADLE_USER_HOME/caches/9.4.1/transforms/e093a8adcefabaf7bebb1760a647a9d0/transformed/aniyomi-mpv-lib-1.18.n/AndroidManifest.xml"
+            line="18"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="Limit vector icons sizes to 200×200 to keep icon drawing fast; see https://developer.android.com/studio/write/vector-asset-studio#when for more"
+        errorLine1="    android:width=&quot;256dp&quot;"
+        errorLine2="                   ~~~~~">
+        <location
+            file="src/main/res/drawable/ic_ani.xml"
+            line="4"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.tools.build:gradle than 9.2.1 is available: 9.5.1"
+        errorLine1="agp_version = &quot;9.2.1&quot;"
+        errorLine2="              ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="2"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of Gradle than 9.4.1 is available: 9.9.1"
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/wrapper/gradle-wrapper.properties"
+            line="4"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-common than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycle_version = &quot;2.10.0&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="3"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-process than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycle_version = &quot;2.10.0&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="3"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycle_version = &quot;2.10.0&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="3"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycle_version = &quot;2.10.0&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="3"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycle_version = &quot;2.10.0&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="3"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycle_version = &quot;2.10.0&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="3"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.paging:paging-common than 3.4.2 is available: 3.5.3"
+        errorLine1="paging_version = &quot;3.4.2&quot;"
+        errorLine2="                 ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="4"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.paging:paging-compose than 3.4.2 is available: 3.5.3"
+        errorLine1="paging_version = &quot;3.4.2&quot;"
+        errorLine2="                 ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="4"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.paging:paging-runtime than 3.4.2 is available: 3.5.3"
+        errorLine1="paging_version = &quot;3.4.2&quot;"
+        errorLine2="                 ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="4"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.annotation:annotation than 1.9.1 is available: 1.11.0"
+        errorLine1="annotation = &quot;androidx.annotation:annotation:1.9.1&quot;"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="10"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.appcompat:appcompat than 1.7.1 is available: 1.8.0"
+        errorLine1="appcompat = &quot;androidx.appcompat:appcompat:1.7.1&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="13"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.constraintlayout:constraintlayout than 2.2.1 is available: 2.2.2"
+        errorLine1="constraintlayout = &quot;androidx.constraintlayout:constraintlayout:2.2.1&quot;"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="15"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.core:core-ktx than 1.18.0 is available: 1.19.1"
+        errorLine1="corektx = &quot;androidx.core:core-ktx:1.18.0&quot;"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="16"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.core:core-splashscreen than 1.0.1 is available: 1.2.0"
+        errorLine1="splashscreen = &quot;androidx.core:core-splashscreen:1.0.1&quot;"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="17"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.work:work-runtime than 2.11.1 is available: 2.12.0"
+        errorLine1="workmanager = &quot;androidx.work:work-runtime:2.11.1&quot;"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/androidx.versions.toml"
+            line="29"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.constraintlayout:constraintlayout-compose than 1.1.0 is available: 1.1.2"
+        errorLine1="constraint-layout = &quot;1.1.0&quot;"
+        errorLine2="                    ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/aniyomi.versions.toml"
+            line="4"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.media:media than 1.7.1 is available: 1.8.0"
+        errorLine1="media = &quot;1.7.1&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/aniyomi.versions.toml"
+            line="6"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.firebase:firebase-bom than 34.10.0 is available: 35.2.0"
+        errorLine1="    implementation(platform(&quot;com.google.firebase:firebase-bom:34.10.0&quot;))"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="337"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-testing than 2.8.7 is available: 2.11.0"
+        errorLine1="    testImplementation(&quot;androidx.lifecycle:lifecycle-runtime-testing:2.8.7&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="348"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test.ext:junit than 1.2.1 is available: 1.3.0"
+        errorLine1="    androidTestImplementation(&quot;androidx.test.ext:junit:1.2.1&quot;)"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="352"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.compose:compose-bom than 2026.03.00 is available: 2026.09.00"
+        errorLine1="compose-bom = &quot;2026.03.00&quot;"
+        errorLine2="              ~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/compose.versions.toml"
+            line="2"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.glance:glance-appwidget than 1.1.1 is available: 1.2.0"
+        errorLine1="glance = &quot;androidx.glance:glance-appwidget:1.1.1&quot;"
+        errorLine2="         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/compose.versions.toml"
+            line="18"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.android.gms:play-services-cast-framework than 22.3.1 is available: 23.0.0"
+        errorLine1="cast = &quot;22.3.1&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="3"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.gms.google-services than 4.4.4 is available: 4.6.0"
+        errorLine1="google_services = &quot;4.4.4&quot;"
+        errorLine2="                  ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="4"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.firebase.crashlytics than 3.0.6 is available: 3.0.8"
+        errorLine1="firebase_crashlytics_gradle = &quot;3.0.6&quot;"
+        errorLine2="                              ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="5"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.sqlite:sqlite-framework than 2.6.2 is available: 2.7.1"
+        errorLine1="sqlite = &quot;2.6.2&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="14"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.sqlite:sqlite-ktx than 2.6.2 is available: 2.7.1"
+        errorLine1="sqlite = &quot;2.6.2&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="14"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.webkit:webkit than 1.16.0 is available: 1.18.0"
+        errorLine1="androidx-webkit = &quot;androidx.webkit:webkit:1.16.0&quot;"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="50"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.android than 2.4.20 is available: 2.4.21"
+        errorLine1="kotlin_version = &quot;2.4.20&quot;"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="2"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.4.20 is available: 2.4.21"
+        errorLine1="kotlin_version = &quot;2.4.20&quot;"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="2"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.serialization than 2.4.20 is available: 2.4.21"
+        errorLine1="kotlin_version = &quot;2.4.20&quot;"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="2"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-serialization-json than 1.9.0 is available: 1.13.0"
+        errorLine1="serialization_version = &quot;1.9.0&quot;"
+        errorLine2="                        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="3"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-serialization-json-okio than 1.9.0 is available: 1.13.0"
+        errorLine1="serialization_version = &quot;1.9.0&quot;"
+        errorLine2="                        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="3"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-serialization-protobuf than 1.9.0 is available: 1.13.0"
+        errorLine1="serialization_version = &quot;1.9.0&quot;"
+        errorLine2="                        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="3"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.github.pdvrieze.xmlutil:core-android than 0.90.3 is available: 1.0.2.1"
+        errorLine1="xml_serialization_version = &quot;0.90.3&quot;"
+        errorLine2="                            ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="4"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.github.pdvrieze.xmlutil:serialization-android than 0.90.3 is available: 1.0.2.1"
+        errorLine1="xml_serialization_version = &quot;0.90.3&quot;"
+        errorLine2="                            ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="4"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-collections-immutable than 0.3.8 is available: 0.5.2"
+        errorLine1="immutables = { module = &quot;org.jetbrains.kotlinx:kotlinx-collections-immutable&quot;, version = &quot;0.3.8&quot; }"
+        errorLine2="                                                                                         ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/kotlinx.versions.toml"
+            line="11"
+            column="90"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.mikepenz.aboutlibraries.plugin than 11.6.3 is available: 15.3.0"
+        errorLine1="aboutlib_version = &quot;11.6.3&quot;"
+        errorLine2="                   ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="2"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.mikepenz:aboutlibraries-compose-m3 than 11.6.3 is available: 15.3.0"
+        errorLine1="aboutlib_version = &quot;11.6.3&quot;"
+        errorLine2="                   ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="2"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.zacsweers.metro than 1.4.5 is available: 1.5.2"
+        errorLine1="metro = &quot;1.4.5&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="8"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.zacsweers.metro:metrox-viewmodel than 1.4.5 is available: 1.5.2"
+        errorLine1="metro = &quot;1.4.5&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="8"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.zacsweers.metro:metrox-viewmodel-compose than 1.4.5 is available: 1.5.2"
+        errorLine1="metro = &quot;1.4.5&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="8"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.icerock.mobile.multiplatform-resources than 0.26.0 is available: 0.27.1"
+        errorLine1="moko = &quot;0.26.0&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="9"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.icerock.moko:resources than 0.26.0 is available: 0.27.1"
+        errorLine1="moko = &quot;0.26.0&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="9"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.squareup.okhttp3:okhttp-bom than 5.4.0 is available: 5.5.1"
+        errorLine1="okhttp = &quot;5.4.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="10"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.rikka.shizuku:api than 13.1.0 is available: 13.1.5"
+        errorLine1="shizuku_version = &quot;13.1.0&quot;"
+        errorLine2="                  ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="12"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of dev.rikka.shizuku:provider than 13.1.0 is available: 13.1.5"
+        errorLine1="shizuku_version = &quot;13.1.0&quot;"
+        errorLine2="                  ~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="12"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of app.cash.sqldelight than 2.3.2 is available: 2.4.1"
+        errorLine1="sqldelight = &quot;2.3.2&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of app.cash.sqldelight:android-driver than 2.3.2 is available: 2.4.1"
+        errorLine1="sqldelight = &quot;2.3.2&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of app.cash.sqldelight:coroutines-extensions-jvm than 2.3.2 is available: 2.4.1"
+        errorLine1="sqldelight = &quot;2.3.2&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of app.cash.sqldelight:sqlite-3-38-dialect than 2.3.2 is available: 2.4.1"
+        errorLine1="sqldelight = &quot;2.3.2&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of app.cash.sqldelight:sqlite-driver than 2.3.2 is available: 2.4.1"
+        errorLine1="sqldelight = &quot;2.3.2&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.diffplug.spotless:spotless-plugin-gradle than 8.2.1 is available: 8.11.0"
+        errorLine1="spotless = &quot;8.2.1&quot;"
+        errorLine2="           ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="16"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.pinterest.ktlint:ktlint-cli than 1.7.1 is available: 1.8.0"
+        errorLine1="ktlint-core = &quot;1.7.1&quot;"
+        errorLine2="              ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="17"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.squareup.okio:okio than 3.17.0 is available: 3.18.2"
+        errorLine1="okio = &quot;com.squareup.okio:okio:3.17.0&quot;"
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="30"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.conscrypt:conscrypt-android than 2.5.3 is available: 2.9.0"
+        errorLine1="conscrypt-android = &quot;org.conscrypt:conscrypt-android:2.5.3&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="35"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jsoup:jsoup than 1.22.2 is available: 1.24.1"
+        errorLine1="jsoup = &quot;org.jsoup:jsoup:1.22.2&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="39"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of me.zhanghai.android.libarchive:library than 1.1.6 is available: 1.1.7"
+        errorLine1="libarchive = &quot;me.zhanghai.android.libarchive:library:1.1.6&quot;"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="43"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.coil-kt.coil3:coil-bom than 3.5.0 is available: 3.6.3"
+        errorLine1="coil-bom = { module = &quot;io.coil-kt.coil3:coil-bom&quot;, version = &quot;3.5.0&quot; }"
+        errorLine2="                                                             ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="60"
+            column="62"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.github.skydoves:compose-stable-marker than 1.0.5 is available: 1.0.7"
+        errorLine1="compose-stablemarker = &quot;com.github.skydoves:compose-stable-marker:1.0.5&quot;"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="81"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of sh.calvin.reorderable:reorderable than 2.4.3 is available: 3.1.0"
+        errorLine1="reorderable = { module = &quot;sh.calvin.reorderable:reorderable&quot;, version = &quot;2.4.3&quot; }"
+        errorLine2="                                                                        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="82"
+            column="73"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.squareup.logcat:logcat than 0.1 is available: 0.4"
+        errorLine1="logcat = &quot;com.squareup.logcat:logcat:0.1&quot;"
+        errorLine2="         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="88"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.junit:junit-bom than 6.1.0 is available: 6.1.3"
+        errorLine1="junit-bom = { module = &quot;org.junit:junit-bom&quot;, version = &quot;6.1.0&quot; }"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="103"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.kotest:kotest-assertions-core than 6.2.1 is available: 6.2.7"
+        errorLine1="kotest-assertions = &quot;io.kotest:kotest-assertions-core:6.2.1&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="106"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.mockk:mockk than 1.14.11 is available: 1.14.12"
+        errorLine1="mockk = &quot;io.mockk:mockk:1.14.11&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/libs.versions.toml"
+            line="107"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="SchemeContent can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="    val scheme = SchemeContent("
+        errorLine2="                 ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="185"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="Hct.fromInt can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        Hct.fromInt(seed),"
+        errorLine2="            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="186"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="    val dynamicColors = MaterialDynamicColors()"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="190"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        primary = dynamicColors.primary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                          ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="192"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        primary = dynamicColors.primary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                  ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="192"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.primary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        primary = dynamicColors.primary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="192"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onPrimary = dynamicColors.onPrimary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                              ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="193"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onPrimary = dynamicColors.onPrimary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                      ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="193"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onPrimary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onPrimary = dynamicColors.onPrimary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                  ~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="193"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        primaryContainer = dynamicColors.primaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="194"
+            column="61"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        primaryContainer = dynamicColors.primaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="194"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.primaryContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        primaryContainer = dynamicColors.primaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="194"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onPrimaryContainer = dynamicColors.onPrimaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="195"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onPrimaryContainer = dynamicColors.onPrimaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                        ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="195"
+            column="73"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onPrimaryContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onPrimaryContainer = dynamicColors.onPrimaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="195"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inversePrimary = dynamicColors.inversePrimary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="196"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inversePrimary = dynamicColors.inversePrimary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="196"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.inversePrimary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inversePrimary = dynamicColors.inversePrimary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="196"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        secondary = dynamicColors.secondary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                              ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="197"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        secondary = dynamicColors.secondary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                      ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="197"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.secondary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        secondary = dynamicColors.secondary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                  ~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="197"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSecondary = dynamicColors.onSecondary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                  ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="198"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSecondary = dynamicColors.onSecondary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                          ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="198"
+            column="59"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onSecondary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSecondary = dynamicColors.onSecondary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                    ~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="198"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        secondaryContainer = dynamicColors.secondaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="199"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        secondaryContainer = dynamicColors.secondaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                        ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="199"
+            column="73"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.secondaryContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        secondaryContainer = dynamicColors.secondaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="199"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSecondaryContainer = dynamicColors.onSecondaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="200"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSecondaryContainer = dynamicColors.onSecondaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                            ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="200"
+            column="77"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onSecondaryContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSecondaryContainer = dynamicColors.onSecondaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="200"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        tertiary = dynamicColors.tertiary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="201"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        tertiary = dynamicColors.tertiary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                    ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="201"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.tertiary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        tertiary = dynamicColors.tertiary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                 ~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="201"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onTertiary = dynamicColors.onTertiary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="202"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onTertiary = dynamicColors.onTertiary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="202"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onTertiary can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onTertiary = dynamicColors.onTertiary().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                   ~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="202"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        tertiaryContainer = dynamicColors.tertiaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                              ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="203"
+            column="63"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        tertiaryContainer = dynamicColors.tertiaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                      ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="203"
+            column="71"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.tertiaryContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        tertiaryContainer = dynamicColors.tertiaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="203"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onTertiaryContainer = dynamicColors.onTertiaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                  ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="204"
+            column="67"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onTertiaryContainer = dynamicColors.onTertiaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                          ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="204"
+            column="75"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onTertiaryContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onTertiaryContainer = dynamicColors.onTertiaryContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="204"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        background = dynamicColors.background().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="205"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        background = dynamicColors.background().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="205"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.background can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        background = dynamicColors.background().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                   ~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="205"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onBackground = dynamicColors.onBackground().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                    ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="206"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onBackground = dynamicColors.onBackground().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                            ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="206"
+            column="61"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onBackground can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onBackground = dynamicColors.onBackground().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="206"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surface = dynamicColors.surface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                          ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="207"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surface = dynamicColors.surface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                  ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="207"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surface can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surface = dynamicColors.surface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="207"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSurface = dynamicColors.onSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                              ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="208"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSurface = dynamicColors.onSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                      ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="208"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onSurface can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSurface = dynamicColors.onSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                  ~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="208"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceVariant = dynamicColors.surfaceVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="209"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceVariant = dynamicColors.surfaceVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="209"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceVariant can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceVariant = dynamicColors.surfaceVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="209"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSurfaceVariant = dynamicColors.onSurfaceVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="210"
+            column="61"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSurfaceVariant = dynamicColors.onSurfaceVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="210"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onSurfaceVariant can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onSurfaceVariant = dynamicColors.onSurfaceVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="210"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceTint = dynamicColors.surfaceTint().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                  ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="211"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceTint = dynamicColors.surfaceTint().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                          ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="211"
+            column="59"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceTint can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceTint = dynamicColors.surfaceTint().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                    ~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="211"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inverseSurface = dynamicColors.inverseSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="212"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inverseSurface = dynamicColors.inverseSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="212"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.inverseSurface can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inverseSurface = dynamicColors.inverseSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="212"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inverseOnSurface = dynamicColors.inverseOnSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="213"
+            column="61"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inverseOnSurface = dynamicColors.inverseOnSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="213"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.inverseOnSurface can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        inverseOnSurface = dynamicColors.inverseOnSurface().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="213"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        error = dynamicColors.error().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                      ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="214"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        error = dynamicColors.error().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                              ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="214"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.error can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        error = dynamicColors.error().getArgb(scheme).toComposeColor(),"
+        errorLine2="                              ~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="214"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onError = dynamicColors.onError().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                          ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="215"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onError = dynamicColors.onError().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                  ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="215"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onError can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onError = dynamicColors.onError().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="215"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        errorContainer = dynamicColors.errorContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="216"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        errorContainer = dynamicColors.errorContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="216"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.errorContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        errorContainer = dynamicColors.errorContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="216"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onErrorContainer = dynamicColors.onErrorContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="217"
+            column="61"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onErrorContainer = dynamicColors.onErrorContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="217"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.onErrorContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        onErrorContainer = dynamicColors.onErrorContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="217"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        outline = dynamicColors.outline().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                          ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="218"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        outline = dynamicColors.outline().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                  ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="218"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.outline can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        outline = dynamicColors.outline().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="218"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        outlineVariant = dynamicColors.outlineVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="219"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        outlineVariant = dynamicColors.outlineVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="219"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.outlineVariant can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        outlineVariant = dynamicColors.outlineVariant().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="219"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceBright = dynamicColors.surfaceBright().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                      ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="221"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceBright = dynamicColors.surfaceBright().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                              ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="221"
+            column="63"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceBright can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceBright = dynamicColors.surfaceBright().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                      ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="221"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceDim = dynamicColors.surfaceDim().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="222"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceDim = dynamicColors.surfaceDim().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                        ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="222"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceDim can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceDim = dynamicColors.surfaceDim().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                   ~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="222"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainer = dynamicColors.surfaceContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                            ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="223"
+            column="61"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainer = dynamicColors.surfaceContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="223"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceContainer can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainer = dynamicColors.surfaceContainer().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="223"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerHigh = dynamicColors.surfaceContainerHigh().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                    ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="224"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerHigh = dynamicColors.surfaceContainerHigh().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                            ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="224"
+            column="77"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceContainerHigh can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerHigh = dynamicColors.surfaceContainerHigh().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="224"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerHighest = dynamicColors.surfaceContainerHighest().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                          ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="225"
+            column="75"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerHighest = dynamicColors.surfaceContainerHighest().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                                  ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="225"
+            column="83"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceContainerHighest can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerHighest = dynamicColors.surfaceContainerHighest().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="225"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerLow = dynamicColors.surfaceContainerLow().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                  ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="226"
+            column="67"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerLow = dynamicColors.surfaceContainerLow().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                          ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="226"
+            column="75"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceContainerLow can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerLow = dynamicColors.surfaceContainerLow().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="226"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerLowest = dynamicColors.surfaceContainerLowest().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                        ~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="227"
+            column="73"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="DynamicColor.getArgb can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerLowest = dynamicColors.surfaceContainerLowest().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                                                                ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="227"
+            column="81"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="MaterialDynamicColors.surfaceContainerLowest can only be called from within the same library group (referenced groupId=`com.google.android.material` from groupId=`Rayniyomi`)"
+        errorLine1="        surfaceContainerLowest = dynamicColors.surfaceContainerLowest().getArgb(scheme).toComposeColor(),"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CustomAccentColorScheme.kt"
+            line="227"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="PreferenceManager can only be called from within the same library group prefix (referenced groupId=`androidx.preference` with prefix androidx from groupId=`Rayniyomi`)"
+        errorLine1="    val preferenceManager = PreferenceManager(context)"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/browse/sourceprefs/SourcePreferencesRenderer.kt"
+            line="54"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="RestrictedApi"
+        message="Preference.performClick can only be called from within the same library group prefix (referenced groupId=`androidx.preference` with prefix androidx from groupId=`Rayniyomi`)"
+        errorLine1="    preference.performClick()"
+        errorLine2="               ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/browse/sourceprefs/SourcePreferencesRenderer.kt"
+            line="308"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="        get() = videoDownloader.retryBackoffMillis"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt"
+            line="419"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="            videoDownloader.retryBackoffMillis = value"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloader.kt"
+            line="421"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="    val models = TranslationModelPickerFixtures.forProvider(TranslationProvider.OPENROUTER)"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="257"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="    val models = TranslationModelPickerFixtures.forProvider(TranslationProvider.OPENROUTER)"
+        errorLine2="                                                ~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="257"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="                models = listOf(TranslationModelPickerFixtures.longNameModel()),"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="279"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="                models = listOf(TranslationModelPickerFixtures.longNameModel()),"
+        errorLine2="                                                               ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="279"
+            column="64"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="            selectedModelId = TranslationModelPickerFixtures.longNameModel().id,"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="284"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="            selectedModelId = TranslationModelPickerFixtures.longNameModel().id,"
+        errorLine2="                                                             ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="284"
+            column="62"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="    val models = TranslationModelPickerFixtures.forProvider(TranslationProvider.CLAUDE)"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="297"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="    val models = TranslationModelPickerFixtures.forProvider(TranslationProvider.CLAUDE)"
+        errorLine2="                                                ~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContent.kt"
+            line="297"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="ComposableNaming"
+        message="Composable functions that return Unit should start with an uppercase letter"
+        errorLine1="private fun backPressContent() {"
+        errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/tachiyomi/ui/setting/SettingsScreenLayoutTransitionAndroidTest.kt"
+            line="70"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="    val targetWidth = ((LocalConfiguration.current.screenWidthDp * 0.4f).coerceAtMost(250f))"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/components/AnimeEpisodeListItem.kt"
+            line="375"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenHeightDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="    val maxHeight = LocalConfiguration.current.screenHeightDp.dp * .95f"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/player/components/PlayerSheet.kt"
+            line="92"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="        LocalConfiguration.current.screenWidthDp.dp.roundToPx()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderActivity.kt"
+            line="1368"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="                    pageSize = PageSize.Fixed(LocalConfiguration.current.screenWidthDp.dp * 0.9f),"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsPanel.kt"
+            line="102"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="    return configuration.screenWidthDp > MediumWidthWindowSize.value"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/mihon/core/designsystem/utils/WindowSize.kt"
+            line="12"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="    return configuration.screenWidthDp > ExpandedWidthWindowSize.value"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/mihon/core/designsystem/utils/WindowSize.kt"
+            line="19"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="ConfigurationScreenWidthHeight"
+        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
+        errorLine1="        widthDp = configuration.screenWidthDp,"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/util/WindowSize.kt"
+            line="37"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="ContextCastToActivity"
+        message="LocalContext should not be cast to Activity, use LocalActivity instead"
+        errorLine1="                    val activity = LocalContext.current as PlayerActivity"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt"
+            line="519"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="ContextCastToActivity"
+        message="LocalContext should not be cast to Activity, use LocalActivity instead"
+        errorLine1="        val activity = LocalContext.current as PlayerActivity"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt"
+            line="659"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD8FFFFFF),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CloudflareColorScheme.kt"
+            line="39"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD849454E),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/CloudflareColorScheme.kt"
+            line="65"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD8FFFFFF),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/DoomColorScheme.kt"
+            line="38"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD849454E),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/DoomColorScheme.kt"
+            line="65"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD8FFFFFF),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/MatrixColorScheme.kt"
+            line="38"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD849454E),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/MatrixColorScheme.kt"
+            line="64"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD8FFFFFF),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/SapphireColorScheme.kt"
+            line="39"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="InvalidColorHexValue"
+        message="Invalid Color hex value"
+        errorLine1="        onSurfaceVariant = Color(0xFFD849454E),"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/colorscheme/SapphireColorScheme.kt"
+            line="65"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/components/AnimeEpisodeListItem.kt"
+            line="90"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be named modifier"
+        errorLine1="    listItemModifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/components/AnimeSeasonListItem.kt"
+            line="27"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be named modifier"
+        errorLine1="    dragHandleModifier: Modifier,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/category/components/CategoryListItem.kt"
+            line="65"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/library/components/CommonEntryItem.kt"
+            line="359"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/ControlsButton.kt"
+            line="57"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/components/DuplicateEntryDialog.kt"
+            line="44"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/manga/components/MangaChapterListItem.kt"
+            line="73"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var selectedAccentSeed by mutableIntStateOf(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)"
+        errorLine2="                                      ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/CustomThemeAccentPreferenceWidgetAndroidTest.kt"
+            line="32"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var showPicker by mutableStateOf(false)"
+        errorLine2="                              ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/CustomThemeAccentPreferenceWidgetAndroidTest.kt"
+            line="33"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var pickerSession by mutableIntStateOf(0)"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/CustomThemeAccentPreferenceWidgetAndroidTest.kt"
+            line="34"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var pickerSeed by mutableIntStateOf("
+        errorLine2="                              ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/CustomThemeAccentPreferenceWidgetAndroidTest.kt"
+            line="35"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var announcement by mutableStateOf&lt;String?>(null)"
+        errorLine2="                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/CustomThemeAccentPreferenceWidgetAndroidTest.kt"
+            line="38"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var appTheme by mutableStateOf(AppTheme.DEFAULT)"
+        errorLine2="                            ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt"
+            line="36"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var selectedAccentSeed by mutableIntStateOf(UiPreferences.CUSTOM_THEME_ACCENT_SEED_UNSET)"
+        errorLine2="                                      ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt"
+            line="37"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var showPicker by mutableStateOf(false)"
+        errorLine2="                              ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt"
+            line="38"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var pickerSession by mutableIntStateOf(0)"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt"
+            line="39"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var pickerSeed by mutableIntStateOf(resolveInitialCustomAccentPickerSeed(selectedAccentSeed))"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt"
+            line="40"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="            var announcement by mutableStateOf&lt;String?>(null)"
+        errorLine2="                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/widget/ThemeAppearanceFlowAndroidTest.kt"
+            line="41"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="                    var choiceType by mutableStateOf(TranslationModelChoiceType.AUTOMATIC)"
+        errorLine2="                                      ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContentAndroidTest.kt"
+            line="200"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="                    var selectedModelId by mutableStateOf(&quot;&quot;)"
+        errorLine2="                                           ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContentAndroidTest.kt"
+            line="201"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="UnrememberedMutableState"
+        message="Creating a state object during composition without using `remember`"
+        errorLine1="                    var expanded by mutableStateOf(emptySet&lt;String>())"
+        errorLine2="                                    ~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/more/settings/screen/translation/TranslationModelPickerContentAndroidTest.kt"
+            line="202"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="Aligned16KB"
+        message="The native library `arm64-v8a/libffmpegkit.so` (from `com.github.jmir1:ffmpeg-kit:1.18`) is not 16 KB aligned"
+        errorLine1="ffmpeg-kit = { module = &quot;com.github.jmir1:ffmpeg-kit&quot;, version.ref = &quot;ffmpeg-kit&quot; }"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Documents/rayniyomi/.worktrees/codex/r1223-android-lint-baseline/gradle/aniyomi.versions.toml"
+            line="14"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="Aligned16KB"
+        message="The native library `arm64-v8a/libffmpegkit.so` (from `com.github.jmir1:ffmpeg-kit:1.18`) is not 16 KB aligned">
+        <location
+            file="$GRADLE_USER_HOME/caches/9.4.1/transforms/73a9bae9cafc79fe097b85d112b5344e/transformed/ffmpeg-kit-1.18/jni/arm64-v8a/libffmpegkit.so"/>
+    </issue>
+
+    <issue
+        id="Aligned16KB"
+        message="The native library `arm64-v8a/libffmpegkit.so` (from `com.github.jmir1:ffmpeg-kit:1.18`) is not 16 KB aligned">
+        <location
+            file="$GRADLE_USER_HOME/caches/9.4.1/transforms/73a9bae9cafc79fe097b85d112b5344e/transformed/ffmpeg-kit-1.18/jni/arm64-v8a/libffmpegkit.so"/>
+    </issue>
+
+    <issue
+        id="HardwareIds"
+        message="Using `getString` to get device identifiers is not recommended"
+        errorLine1="            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/App.kt"
+            line="344"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnsafeIntentLaunch"
+        message="This intent could be coming from an untrusted source. It is later launched by an unprotected component eu.kanade.tachiyomi.ui.deeplink.anime.DeepLinkAnimeActivity. You could either make the component eu.kanade.tachiyomi.ui.deeplink.anime.DeepLinkAnimeActivity protected; or sanitize this intent using androidx.core.content.IntentSanitizer."
+        errorLine1="        startActivity(intent)"
+        errorLine2="                      ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/deeplink/anime/DeepLinkAnimeActivity.kt"
+            line="19"
+            column="23"/>
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/deeplink/anime/DeepLinkAnimeActivity.kt"
+            line="19"
+            column="9"
+            message="The unsafe intent is launched here."/>
+    </issue>
+
+    <issue
+        id="UnsafeIntentLaunch"
+        message="This intent could be coming from an untrusted source. It is later launched by an unprotected component eu.kanade.tachiyomi.ui.deeplink.manga.DeepLinkMangaActivity. You could either make the component eu.kanade.tachiyomi.ui.deeplink.manga.DeepLinkMangaActivity protected; or sanitize this intent using androidx.core.content.IntentSanitizer."
+        errorLine1="        startActivity(intent)"
+        errorLine2="                      ~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/deeplink/manga/DeepLinkMangaActivity.kt"
+            line="19"
+            column="23"/>
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/deeplink/manga/DeepLinkMangaActivity.kt"
+            line="19"
+            column="9"
+            message="The unsafe intent is launched here."/>
+    </issue>
+
+    <issue
+        id="DataExtractionRules"
+        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
+        errorLine1="        android:allowBackup=&quot;false&quot;"
+        errorLine2="                             ~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="41"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="Recycle"
+        message="This `Cursor` should be freed up after use with `#close()`"
+        errorLine1="                context.contentResolver.query("
+        errorLine2="                                        ~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/backup/create/creators/LightNovelBackupCreator.kt"
+            line="62"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `Build.VERSION.SDK_INT >= Build.VERSION_CODES.S` is never true here"
+        errorLine1="    DynamicColors.isDynamicColorAvailable() || (DeviceUtil.isSamsung &amp;&amp; Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)"
+        errorLine2="                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/util/system/DeviceUtilExtensions.kt"
+            line="7"
+            column="73"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreenModel.kt"
+            line="135"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val lifecycle: Lifecycle,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/entries/anime/AnimeScreenModel.kt"
+            line="136"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/player/editor/codeeditor/CodeEditScreenModel.kt"
+            line="31"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreenModel.kt"
+            line="125"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val lifecycle: Lifecycle,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/entries/manga/MangaScreenModel.kt"
+            line="126"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/player/editor/PlayerSettingsEditorScreenModel.kt"
+            line="35"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val activity: PlayerActivity,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt"
+            line="153"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @Assisted private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/data/RestoreBackupScreen.kt"
+            line="180"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="MergeRootFrame"
+        message="This `&lt;FrameLayout>` can be replaced with a `&lt;merge>` tag"
+        errorLine1="&lt;FrameLayout xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/layout/reader_activity.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="        var hue by rememberSaveable(initialSeed) { mutableStateOf(initialHsv.hue) }"
+        errorLine2="                                                   ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/appearance/AdvancedCustomAccentScreen.kt"
+            line="53"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="        var saturation by rememberSaveable(initialSeed) { mutableStateOf(initialHsv.saturation) }"
+        errorLine2="                                                          ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/appearance/AdvancedCustomAccentScreen.kt"
+            line="54"
+            column="59"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="        var value by rememberSaveable(initialSeed) { mutableStateOf(initialHsv.value) }"
+        errorLine2="                                                     ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/appearance/AdvancedCustomAccentScreen.kt"
+            line="55"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="        var dragFraction by remember(sliderValue) { mutableStateOf(sliderValue) }"
+        errorLine2="                                                    ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastMiniController.kt"
+            line="89"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var textHeight by remember { mutableStateOf(0) }"
+        errorLine2="                                 ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/dialogs/EpisodeListDialog.kt"
+            line="136"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="    var speedBeforeBoost by remember { mutableStateOf(1.0f) }"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/GestureHandler.kt"
+            line="110"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="        var installStateRefreshNonce by remember { mutableStateOf(0) }"
+        errorLine2="                                                   ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/more/NewUpdateScreen.kt"
+            line="72"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="        val skipIntroLengthValue by rememberSaveable { mutableStateOf(initialSkipIntroLength) }"
+        errorLine2="                                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsGesturesScreen.kt"
+            line="233"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="                mutableStateOf(MPVLib.getPropertyDouble(&quot;sub-scale&quot;).toFloat())"
+        errorLine2="                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsMiscellaneousCard.kt"
+            line="87"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateValueProperty"
+        message="Reading `value` will cause an autoboxing operation. Use `intValue` to avoid unnecessary allocations."
+        errorLine1="                        libraryConfirmations = confirmations.value,"
+        errorLine2="                                                             ~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/entries/components/EntryActionRowLibraryFeedbackAndroidTest.kt"
+            line="104"
+            column="62"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.anim_animelibrary_enter` appears to be unused"
+        errorLine1="&lt;animated-vector"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/anim_animelibrary_enter.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.menu.chapter_download` appears to be unused"
+        errorLine1="&lt;menu xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/menu/chapter_download.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.cottoncandy_elevationOverlay` appears to be unused"
+        errorLine1="    &lt;color name=&quot;cottoncandy_elevationOverlay&quot;>@color/cottoncandy_primary&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors_cottoncandy.xml"
+            line="26"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.dimen.screen_edge_margin` appears to be unused"
+        errorLine1="    &lt;dimen name=&quot;screen_edge_margin&quot;>16dp&lt;/dimen>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/dimens.xml"
+            line="2"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.dimen.appwidget_background_radius` appears to be unused"
+        errorLine1="    &lt;dimen name=&quot;appwidget_background_radius&quot;>16dp&lt;/dimen>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/dimens.xml"
+            line="4"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.dimen.appwidget_inner_radius` appears to be unused"
+        errorLine1="    &lt;dimen name=&quot;appwidget_inner_radius&quot;>12dp&lt;/dimen>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/dimens.xml"
+            line="5"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.menu.download_single` appears to be unused"
+        errorLine1="&lt;menu xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/menu/download_single.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.draggable_card_foreground` appears to be unused"
+        errorLine1="&lt;selector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/color/draggable_card_foreground.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.bool.firebase_analytics_collection_enabled` appears to be unused"
+        errorLine1="    &lt;bool name=&quot;firebase_analytics_collection_enabled&quot; translatable=&quot;false&quot;>true&lt;/bool>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/firebase_config.xml"
+            line="13"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.bool.firebase_analytics_collection_deactivated` appears to be unused"
+        errorLine1="    &lt;bool name=&quot;firebase_analytics_collection_deactivated&quot; translatable=&quot;false&quot;>false&lt;/bool>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/firebase_config.xml"
+            line="14"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.bool.google_analytics_adid_collection_enabled` appears to be unused"
+        errorLine1="    &lt;bool name=&quot;google_analytics_adid_collection_enabled&quot; translatable=&quot;false&quot;>true&lt;/bool>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/firebase_config.xml"
+            line="17"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.bool.google_analytics_ssaid_collection_enabled` appears to be unused"
+        errorLine1="    &lt;bool name=&quot;google_analytics_ssaid_collection_enabled&quot; translatable=&quot;false&quot;>false&lt;/bool>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/firebase_config.xml"
+            line="20"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.bool.firebase_crashlytics_collection_enabled` appears to be unused"
+        errorLine1="    &lt;bool name=&quot;firebase_crashlytics_collection_enabled&quot; translatable=&quot;false&quot;>true&lt;/bool>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/firebase_config.xml"
+            line="23"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.bool.firebase_crashlytics_collection_deactivated` appears to be unused"
+        errorLine1="    &lt;bool name=&quot;firebase_crashlytics_collection_deactivated&quot; translatable=&quot;false&quot;>false&lt;/bool>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/firebase_config.xml"
+            line="24"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_animelibrary_filled_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_animelibrary_filled_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_animelibrary_outline_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_animelibrary_outline_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_animelibrary_selector_24dp` appears to be unused"
+        errorLine1="&lt;animated-selector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_animelibrary_selector_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_arrow_back_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_arrow_back_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_baseline_collections_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_baseline_collections_24.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_baseline_input_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_baseline_input_24.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_baseline_open_in_new_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_baseline_open_in_new_24.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_brightness_negative_20dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_brightness_negative_20dp.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_chrome_player_mode_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_chrome_player_mode_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_circle_200dp` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_circle_200dp.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_circle_right_200dp` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_circle_right_200dp.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_collections_baseline_state` appears to be unused"
+        errorLine1="&lt;selector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_collections_baseline_state.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_drag_handle_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_drag_handle_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_overflow_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_overflow_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_pause_circle_filled_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_pause_circle_filled_24.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_play_circle_filled_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_play_circle_filled_24.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_video_chapter_20dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_video_chapter_20dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_volume_off_24dp` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_volume_off_24dp.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.menu.main_nav` appears to be unused"
+        errorLine1="&lt;menu xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/menu/main_nav.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_enter_bottom` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_enter_bottom.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_enter_left` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_enter_left.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_enter_right` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_enter_right.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_enter_top` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_enter_top.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_exit_bottom` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_exit_bottom.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_exit_left` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_exit_left.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_exit_right` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_exit_right.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.anim.player_exit_top` appears to be unused"
+        errorLine1="&lt;set xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/anim/player_exit_top.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.style.TextAppearance_Tachiyomi_SectionHeader` appears to be unused"
+        errorLine1="    &lt;style name=&quot;TextAppearance.Tachiyomi.SectionHeader&quot; parent=&quot;TextAppearance.Material3.LabelLarge&quot;>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/styles.xml"
+            line="34"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.style.Theme_AppCompat_Light_NoActionBar_FullScreen` appears to be unused"
+        errorLine1="    &lt;style name=&quot;Theme.AppCompat.Light.NoActionBar.FullScreen&quot; parent=&quot;@style/Theme.AppCompat.Light.NoActionBar&quot;>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/themes.xml"
+            line="671"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UseOfNonLambdaOffsetOverload"
+        message="State backed values should use the lambda overload of Modifier.offset"
+        errorLine1="                            modifier = Modifier.offset(x = libraryOffset.value, y = 24.dp).width(32.dp),"
+        errorLine2="                                                ~~~~~~">
+        <location
+            file="src/androidTest/java/eu/kanade/presentation/util/LibraryCoverTransitionAndroidTest.kt"
+            line="197"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="IconDuplicates"
+        message="The following unrelated icon files have identical contents: ic_default_source.webp, ic_local_source.webp">
+        <location
+            file="src/main/res/mipmap-hdpi/ic_local_source.webp"/>
+        <location
+            file="src/main/res/mipmap-hdpi/ic_default_source.webp"/>
+    </issue>
+
+    <issue
+        id="IconDuplicates"
+        message="The following unrelated icon files have identical contents: ic_default_source.webp, ic_local_source.webp">
+        <location
+            file="src/main/res/mipmap-mdpi/ic_local_source.webp"/>
+        <location
+            file="src/main/res/mipmap-mdpi/ic_default_source.webp"/>
+    </issue>
+
+    <issue
+        id="IconDuplicates"
+        message="The following unrelated icon files have identical contents: ic_default_source.webp, ic_local_source.webp">
+        <location
+            file="src/main/res/mipmap-xhdpi/ic_local_source.webp"/>
+        <location
+            file="src/main/res/mipmap-xhdpi/ic_default_source.webp"/>
+    </issue>
+
+    <issue
+        id="IconDuplicates"
+        message="The following unrelated icon files have identical contents: ic_default_source.webp, ic_local_source.webp">
+        <location
+            file="src/main/res/mipmap-xxhdpi/ic_local_source.webp"/>
+        <location
+            file="src/main/res/mipmap-xxhdpi/ic_default_source.webp"/>
+    </issue>
+
+    <issue
+        id="IconDuplicates"
+        message="The following unrelated icon files have identical contents: ic_default_source.webp, ic_local_source.webp">
+        <location
+            file="src/main/res/mipmap-xxxhdpi/ic_local_source.webp"/>
+        <location
+            file="src/main/res/mipmap-xxxhdpi/ic_default_source.webp"/>
+    </issue>
+
+    <issue
+        id="ViewConstructor"
+        message="Custom view `Pager` is missing constructor used by tools: `(Context)` or `(Context,AttributeSet)` or `(Context,AttributeSet,int)`"
+        errorLine1="open class Pager("
+        errorLine2="           ~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/Pager.kt"
+            line="15"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.toDrawable` instead?"
+        errorLine1="                                        BitmapDrawable("
+        errorLine2="                                        ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/anime/components/AnimeImagesDialog.kt"
+            line="219"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateInstallStateRepository.kt"
+            line="26"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateInstallStateRepository.kt"
+            line="38"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateInstallStateRepository.kt"
+            line="47"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateInstallStateRepository.kt"
+            line="59"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                data = android.net.Uri.parse(&quot;package:$packageName&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/components/BatteryOptimizationDialog.kt"
+            line="57"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                data = android.net.Uri.parse(&quot;package:$packageName&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/components/BatteryOptimizationDialog.kt"
+            line="57"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.get` instead?"
+        errorLine1="                val pixel = source.getPixel(x, y)"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/theme/cover/CoverThemePaletteService.kt"
+            line="97"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            val editor = prefs.edit().remove(key)"
+        errorLine2="                         ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/security/KeystoreSecureStorage.kt"
+            line="83"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        val editor = prefs.edit().putString(key, &quot;$iv:$ciphertext&quot;)"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/security/KeystoreSecureStorage.kt"
+            line="94"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="    val BACKUP_URI: Uri = Uri.parse(SharedLightNovelBackupContract.CONTENT_URI)"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/backup/lightnovel/LightNovelBackupContract.kt"
+            line="10"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        private val CONTENT_URI = android.net.Uri.parse("
+        errorLine2="                                  ^">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/backup/create/creators/LightNovelBackupCreator.kt"
+            line="79"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val intent = Intent(Intent.ACTION_DELETE, Uri.parse(&quot;package:$PLUGIN_PACKAGE_NAME&quot;))"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/feature/novel/LightNovelPluginManager.kt"
+            line="306"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.toDrawable` instead?"
+        errorLine1="                                    BitmapDrawable("
+        errorLine2="                                    ^">
+        <location
+            file="src/main/java/eu/kanade/presentation/entries/manga/components/MangaCoverDialog.kt"
+            line="180"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Canvas.withClip` instead?"
+        errorLine1="        canvas.save()"
+        errorLine2="        ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PageCurlBackFaceRenderer.kt"
+            line="23"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX function `createBitmap` instead?"
+        errorLine1="            val bitmap = Bitmap.createBitmap("
+        errorLine2="                         ^">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PageCurlCapture.kt"
+            line="93"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Canvas.withClip` instead?"
+        errorLine1="            canvas.save()"
+        errorLine2="            ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PageCurlOverlayView.kt"
+            line="112"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Canvas.withClip` instead?"
+        errorLine1="            canvas.save()"
+        errorLine2="            ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/PageCurlOverlayView.kt"
+            line="177"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        plainPrefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/security/PinHashMigration.kt"
+            line="33"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toColorInt` instead?"
+        errorLine1="        android.graphics.Color.parseColor(it.uppercase())"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsColorsCard.kt"
+            line="203"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            if (!plainPrefs.edit().putString(providerModelKey, legacyModel).commit()) return"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/security/TranslationApiKeyMigration.kt"
+            line="57"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Canvas.withSave` instead?"
+        errorLine1="                canvas.save()"
+        errorLine2="                ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/translation/renderer/TranslationRenderer.kt"
+            line="83"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.get` instead?"
+        errorLine1="        val pixel = bitmap.getPixel(x, y)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/data/translation/renderer/TranslationRenderer.kt"
+            line="168"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    debugImplementation(&quot;androidx.compose.ui:ui-test-manifest&quot;)"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="239"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    implementation(platform(&quot;com.google.firebase:firebase-bom:34.10.0&quot;))"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="337"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    implementation(&quot;com.google.firebase:firebase-analytics&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="338"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    implementation(&quot;com.google.firebase:firebase-crashlytics&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="339"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    testImplementation(&quot;com.squareup.okhttp3:mockwebserver&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="346"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    testImplementation(&quot;androidx.lifecycle:lifecycle-runtime-testing:2.8.7&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="348"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    androidTestImplementation(&quot;androidx.compose.ui:ui-test-junit4&quot;)"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="351"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UseTomlInstead"
+        message="Use version catalog instead"
+        errorLine1="    androidTestImplementation(&quot;androidx.test.ext:junit:1.2.1&quot;)"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="352"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `Pager` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(ev: MotionEvent): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/pager/Pager.kt"
+            line="106"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `ReaderButton` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(event: MotionEvent): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/ReaderButton.kt"
+            line="23"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `WebtoonRecyclerView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(e: MotionEvent): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/webtoon/WebtoonRecyclerView.kt"
+            line="65"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `WebtoonSubsamplingImageView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(event: MotionEvent): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/tachiyomi/ui/reader/viewer/webtoon/WebtoonSubsamplingImageView.kt"
+            line="17"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="ConstantLocale"
+        message="Assigning `Locale.getDefault()` to a final static field is suspicious; this code will not work correctly if the user changes locale while the app is running"
+        errorLine1="    .ofPattern(&quot;yyyy-MM-dd&quot;, Locale.getDefault())"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/eu/kanade/presentation/track/TrackPreviewFixtures.kt"
+            line="174"
+            column="30"/>
+    </issue>
+
+</issues>
