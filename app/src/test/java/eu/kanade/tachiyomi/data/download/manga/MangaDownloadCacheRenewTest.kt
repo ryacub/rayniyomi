@@ -53,9 +53,10 @@ class MangaDownloadCacheRenewTest {
         every { isDirectory } returns true
         every { name } returns MANGA_TITLE
         every { listFiles() } answers {
+            val listedNames = chapterDirNames
             scanStarted.countDown()
             releaseScan.await(10, TimeUnit.SECONDS)
-            chapterDirNames.map(::chapterDir).toTypedArray()
+            listedNames.map(::chapterDir).toTypedArray()
         }
     }
 
@@ -157,6 +158,21 @@ class MangaDownloadCacheRenewTest {
         releaseLoad.countDown()
 
         awaitDownloaded(EXISTING)
+    }
+
+    @Test
+    fun `a read while the disk index loads keeps the loaded index`() {
+        writeDiskIndex(listOf(STALE))
+        val loadStarted = CountDownLatch(1)
+        val releaseLoad = CountDownLatch(1)
+        restoreIndexFoldersAfter(loadStarted, releaseLoad)
+
+        isDownloaded(STALE) shouldBe false
+        loadStarted.await(10, TimeUnit.SECONDS) shouldBe true
+        releaseLoad.countDown()
+
+        awaitDownloaded(STALE)
+        scanStarted.await(1, TimeUnit.SECONDS) shouldBe false
     }
 
     private fun startScan() {
