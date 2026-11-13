@@ -4,18 +4,19 @@ import eu.kanade.domain.entries.anime.interactor.UpdateAnime
 import eu.kanade.domain.entries.anime.model.hasCustomBackground
 import eu.kanade.domain.entries.anime.model.hasCustomCover
 import eu.kanade.domain.entries.anime.model.toSAnime
+import eu.kanade.domain.items.episode.model.toSEpisode
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.data.cache.AnimeBackgroundCache
 import eu.kanade.tachiyomi.data.cache.AnimeCoverCache
 import eu.kanade.tachiyomi.di.appGraph
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.source.local.entries.anime.isLocal
 import tachiyomi.source.local.image.anime.LocalAnimeBackgroundManager
 import tachiyomi.source.local.image.anime.LocalAnimeCoverManager
 import tachiyomi.source.local.image.anime.LocalEpisodeThumbnailManager
 import java.io.InputStream
 import java.time.Instant
-import eu.kanade.tachiyomi.data.database.models.anime.Episode as SEpisode
 
 /**
  * Call before updating [Anime.thumbnail_url] to ensure old cover can be cleared from cache
@@ -123,12 +124,12 @@ suspend fun Anime.editBackground(
     }
 }
 
-fun SEpisode.editThumbnail(
+fun Episode.editThumbnail(
     anime: Anime,
     thumbnailManager: LocalEpisodeThumbnailManager,
     stream: InputStream,
 ) {
     if (anime.isLocal()) {
-        thumbnailManager.update(anime.toSAnime(), this, stream)
+        thumbnailManager.update(anime.toSAnime(), toSEpisode(), stream)
     }
 }

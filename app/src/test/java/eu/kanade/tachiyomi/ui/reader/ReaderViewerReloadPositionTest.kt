@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -33,6 +32,7 @@ import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
+import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 class ReaderViewerReloadPositionTest {
@@ -49,7 +49,7 @@ class ReaderViewerReloadPositionTest {
     @ValueSource(booleans = [false, true])
     fun `viewer changes retain the selected page in incognito`(changeOrientation: Boolean) = runTest(vt.scheduler) {
         val manga = Manga.create().copy(id = 1L, source = 2L)
-        val chapter = ReaderChapter(ChapterImpl(id = 3L).apply { last_page_read = 3 })
+        val chapter = ReaderChapter(Chapter.create().copy(id = 3L, lastPageRead = 3L))
         val pages = List(50) { ReaderPage(it).apply { this.chapter = chapter } }
         chapter.state = ReaderChapter.State.Loaded(pages)
         val updateChapter = mockk<UpdateChapter>(relaxed = true)
@@ -112,7 +112,7 @@ class ReaderViewerReloadPositionTest {
             }
 
             assertEquals(39, chapter.requestedPage)
-            assertEquals(3, chapter.chapter.last_page_read)
+            assertEquals(3, chapter.chapter.lastPageRead)
             coVerify(exactly = 0) { updateChapter.await(any()) }
         } finally {
             model.viewModelScope.cancel()

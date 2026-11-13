@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import eu.kanade.tachiyomi.data.database.models.manga.Chapter
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.preference.toggle
+import tachiyomi.domain.items.chapter.model.Chapter
 
 /**
  * Owns the translated-pages reaction for the reader: it watches [TranslationManager.languageGeneration],

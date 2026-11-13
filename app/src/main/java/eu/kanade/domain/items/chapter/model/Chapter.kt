@@ -1,11 +1,8 @@
 package eu.kanade.domain.items.chapter.model
 
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.source.model.SChapter
 import tachiyomi.domain.items.chapter.model.Chapter
-import eu.kanade.tachiyomi.data.database.models.manga.Chapter as DbChapter
 
-// TODO: Remove when all deps are migrated
 fun Chapter.toSChapter(): SChapter {
     return SChapter.create().also {
         it.url = url
@@ -26,19 +23,4 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         scanlator = sChapter.scanlator?.ifBlank { null }?.trim(),
         memo = sChapter.memo,
     )
-}
-
-fun Chapter.toDbChapter(): DbChapter = ChapterImpl(id).also {
-    it.manga_id = mangaId
-    it.url = url
-    it.name = name
-    it.scanlator = scanlator
-    it.read = read
-    it.bookmark = bookmark
-    it.last_page_read = lastPageRead.toInt()
-    it.date_fetch = dateFetch
-    it.date_upload = dateUpload
-    it.chapter_number = chapterNumber.toFloat()
-    it.source_order = sourceOrder.toInt()
-    it.memo = memo
 }

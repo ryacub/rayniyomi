@@ -22,6 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Category confirmation messages preserve backslashes before quotes in names (#1479).
 - When you add a manga or anime tracker, it receives your progress through numbered chapters or episodes even if an unnumbered item is incomplete (#1481).
+- The player now passes the saved episode memo to anime extensions. Before, it passed an empty memo (#1480).
 - With system animations off, the reader turns pages, jumps from the slider, zooms wide pages, pans, and scrolls webtoons in one step. Before, page turns and jumps still slid, and the wide-page zoom and the key pan still moved (#1465).
 - Crash logs show the mpv, libplacebo, and FFmpeg build versions of the bundled player library. Before, they showed older hardcoded versions (#1474).
 - With "Reduce player animation" on, the video chapter label, the side panels, and the quality sheet only fade. Before, they still slid. The player lock button now fades on the same timing as the controls (#1468).

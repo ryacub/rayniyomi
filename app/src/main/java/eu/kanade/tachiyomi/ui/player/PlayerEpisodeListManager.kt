@@ -18,8 +18,6 @@
 package eu.kanade.tachiyomi.ui.player
 
 import eu.kanade.domain.base.BasePreferences
-import eu.kanade.domain.items.episode.model.toDbEpisode
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.util.episode.filterDownloadedEpisodes
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.items.episode.service.getEpisodeSort
 
 /**
@@ -61,8 +60,7 @@ internal class PlayerEpisodeListManager(
 
     /**
      * Initialize the episode list for the given anime.
-     * Retrieves episodes, sorts them, filters by downloaded-only preference if enabled,
-     * and converts to database Episode objects.
+     * Retrieves episodes, sorts them, and filters by downloaded-only preference if enabled.
      */
     suspend fun initEpisodeList(anime: Anime): List<Episode> {
         val episodes = withContext(Dispatchers.IO) {
@@ -78,7 +76,6 @@ internal class PlayerEpisodeListManager(
                     this
                 }
             }
-            .map { it.toDbEpisode() }
     }
 
     /**
@@ -143,6 +140,23 @@ internal class PlayerEpisodeListManager(
      */
     fun updateEpisodeList(episodeList: List<Episode>, anime: Anime?) {
         _currentPlaylist.update { filterEpisodeList(episodeList, anime) }
+    }
+
+    /**
+     * Replace the episode with [episodeId] in the playlist and in the current episode.
+     * Does not re-filter the playlist. Returns the stored episode, or null when the playlist
+     * has no episode with that id.
+     */
+    fun patchEpisode(episodeId: Long, transform: (Episode) -> Episode): Episode? {
+        var patched: Episode? = null
+        _currentPlaylist.update { playlist ->
+            playlist.map { episode ->
+                if (episode.id == episodeId) transform(episode).also { patched = it } else episode
+            }
+        }
+        val stored = patched ?: return null
+        _currentEpisode.update { current -> if (current?.id == episodeId) stored else current }
+        return stored
     }
 
     /**

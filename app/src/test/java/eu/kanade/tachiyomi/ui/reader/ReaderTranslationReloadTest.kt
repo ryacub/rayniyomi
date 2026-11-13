@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
@@ -17,16 +16,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
 class ReaderTranslationReloadTest {
 
     private fun readerChapter(lastPageRead: Int = 0): ReaderChapter {
-        val chapter = ChapterImpl(id = 1L).apply {
-            manga_id = 1L
-            name = "Chapter 1"
-            last_page_read = lastPageRead
-        }
+        val chapter = Chapter.create().copy(
+            id = 1L,
+            mangaId = 1L,
+            name = "Chapter 1",
+            lastPageRead = lastPageRead.toLong(),
+        )
         return ReaderChapter(chapter)
     }
 
@@ -390,7 +391,7 @@ class ReaderTranslationReloadTest {
     fun `no manga means no translation`() {
         computeHasTranslation(
             manga = null,
-            chapter = ChapterImpl(id = -1L).apply { name = "Chapter 1" },
+            chapter = Chapter.create().copy(name = "Chapter 1"),
             sourceManager = mockk(),
             translationStorageManager = mockk(),
             targetLanguage = "en",
@@ -399,10 +400,7 @@ class ReaderTranslationReloadTest {
 
     @Test
     fun `the stored translation is looked up by chapter, manga title, source and language`() {
-        val chapter = ChapterImpl(id = -1L).apply {
-            name = "Chapter 1"
-            scanlator = "scan"
-        }
+        val chapter = Chapter.create().copy(name = "Chapter 1", scanlator = "scan")
         val mangaSource = mockk<MangaSource>()
         val sourceManager = mockk<MangaSourceManager> {
             every { getOrStub(7L) } returns mangaSource

@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.reader.loader
 import android.app.Application
 import android.net.Uri
 import com.hippo.unifile.UniFile
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
 import eu.kanade.tachiyomi.data.download.manga.model.DownloadedChapterPage
@@ -22,6 +21,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.items.chapter.model.Chapter
 import java.io.ByteArrayInputStream
 import java.io.IOException
 
@@ -38,11 +38,7 @@ class DownloadPageLoaderTranslationTest {
     private val targetLanguage = mockk<Preference<String>>()
     private val manga = Manga.create().copy(id = 1L, source = 2L, title = "Test Manga")
     private val chapter = ReaderChapter(
-        ChapterImpl(id = 3L).apply {
-            manga_id = manga.id
-            url = "chapter-1"
-            name = "Chapter 1"
-        },
+        Chapter.create().copy(id = 3L, mangaId = manga.id, url = "chapter-1", name = "Chapter 1"),
     )
 
     @Test

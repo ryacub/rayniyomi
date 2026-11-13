@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.test.VirtualTime
@@ -33,6 +32,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.Preference
+import tachiyomi.domain.items.chapter.model.Chapter
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -123,10 +123,7 @@ class ReaderTranslationCoordinatorTest {
 
     private fun readerChapter(id: Long, name: String): ReaderChapter =
         ReaderChapter(
-            ChapterImpl(id = id).apply {
-                manga_id = 1L
-                this.name = name
-            },
+            Chapter.create().copy(id = id, mangaId = 1L, name = name),
         )
 
     /**

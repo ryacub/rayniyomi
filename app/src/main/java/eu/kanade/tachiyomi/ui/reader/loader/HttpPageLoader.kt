@@ -1,9 +1,9 @@
 package eu.kanade.tachiyomi.ui.reader.loader
 
 import aniyomi.util.DataSaver
+import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
-import eu.kanade.tachiyomi.data.database.models.manga.toDomainChapter
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -70,12 +70,12 @@ internal class HttpPageLoader(
      */
     override suspend fun getPages(): List<ReaderPage> {
         val pages = try {
-            chapterCache.getPageListFromCache(chapter.chapter.toDomainChapter())
+            chapterCache.getPageListFromCache(chapter.chapter)
         } catch (e: Throwable) {
             if (e is CancellationException) {
                 throw e
             }
-            MangaSourceGateway.pages(source, chapter.chapter)
+            MangaSourceGateway.pages(source, chapter.chapter.toSChapter())
         }
         return pages.mapIndexed { index, page ->
             // Don't trust sources and use our own indexing
@@ -143,7 +143,7 @@ internal class HttpPageLoader(
                     // Convert to pages without reader information
                     val pagesToSave = pages.map { Page(it.index, it.url, it.imageUrl) }
                     chapterCache.putPageListToCache(
-                        chapter.chapter.toDomainChapter(),
+                        chapter.chapter,
                         pagesToSave,
                     )
                 } catch (e: Throwable) {

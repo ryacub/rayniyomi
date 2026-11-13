@@ -1,10 +1,9 @@
 package eu.kanade.tachiyomi.ui.player
 
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
-import eu.kanade.tachiyomi.data.database.models.anime.EpisodeImpl
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.items.episode.model.Episode
 
 class EpisodeProgressRecorderTest {
 
@@ -17,8 +16,13 @@ class EpisodeProgressRecorderTest {
         saveIntervalMs = 10_000L,
     )
 
-    private val episodeOne = EpisodeImpl(1L)
-    private val episodeTwo = EpisodeImpl(2L)
+    private val episodeOne = Episode.create().copy(id = 1L)
+    private val episodeTwo = Episode.create().copy(id = 2L)
+
+    init {
+        sink.store[1L] = episodeOne
+        sink.store[2L] = episodeTwo
+    }
 
     @Test
     fun `ticks past the threshold complete the episode once`() {
@@ -35,6 +39,13 @@ class EpisodeProgressRecorderTest {
         recorder.onLocalTick(episodeOne, positionMs = 86_000L, totalMs = 100_000L)
 
         assertEquals(listOf(SavedState(1L, seen = true, positionMs = 86_000L)), sink.saved)
+    }
+
+    @Test
+    fun `completion stores the seen episode before it calls complete`() {
+        recorder.onLocalTick(episodeOne, positionMs = 90_000L, totalMs = 100_000L)
+
+        assertEquals(listOf(true), sink.seenWhenCompleted)
     }
 
     @Test
@@ -67,12 +78,23 @@ class EpisodeProgressRecorderTest {
     }
 
     @Test
-    fun `every tick records the position on the episode`() {
+    fun `every tick records the position on the stored episode`() {
         recorder.onLocalTick(episodeOne, positionMs = 0L, totalMs = 100_000L)
         recorder.onLocalTick(episodeOne, positionMs = 3_000L, totalMs = 100_000L)
 
-        assertEquals(3_000L, episodeOne.last_second_seen)
-        assertEquals(100_000L, episodeOne.total_seconds)
+        assertEquals(3_000L, sink.store.getValue(1L).lastSecondSeen)
+        assertEquals(100_000L, sink.store.getValue(1L).totalSeconds)
+    }
+
+    @Test
+    fun `a tick keeps a bookmark set since the previous tick`() {
+        recorder.onLocalTick(episodeOne, positionMs = 1_000L, totalMs = 100_000L)
+        sink.store[1L] = sink.store.getValue(1L).copy(bookmark = true)
+
+        recorder.onLocalTick(episodeOne, positionMs = 2_000L, totalMs = 100_000L)
+
+        assertTrue(sink.store.getValue(1L).bookmark)
+        assertEquals(2_000L, sink.store.getValue(1L).lastSecondSeen)
     }
 
     @Test
@@ -138,27 +160,47 @@ class EpisodeProgressRecorderTest {
     }
 
     @Test
-    fun `zero duration records nothing`() {
+    fun `zero duration patches nothing`() {
         recorder.onLocalTick(episodeOne, positionMs = 5_000L, totalMs = 0L)
         recorder.onCastProgress(episodeOne, positionMs = 5_000L, totalMs = 0L)
 
         assertTrue(sink.saved.isEmpty())
-        assertEquals(0L, episodeOne.last_second_seen)
+        assertEquals(0, sink.patchCalls)
+    }
+
+    @Test
+    fun `an episode missing from the store is neither completed nor saved`() {
+        sink.store.remove(1L)
+
+        recorder.onLocalTick(episodeOne, positionMs = 90_000L, totalMs = 100_000L)
+
+        assertTrue(sink.completed.isEmpty())
+        assertTrue(sink.saved.isEmpty())
     }
 
     private data class SavedState(val episodeId: Long, val seen: Boolean, val positionMs: Long)
 
     private class RecordingSink : EpisodeProgressSink {
+        val store = mutableMapOf<Long, Episode>()
         val saved = mutableListOf<SavedState>()
         val completed = mutableListOf<Long>()
+        val seenWhenCompleted = mutableListOf<Boolean>()
         var downloadAheadCalls = 0
+        var patchCalls = 0
+
+        override fun patch(episodeId: Long, transform: (Episode) -> Episode): Episode? {
+            patchCalls++
+            val current = store[episodeId] ?: return null
+            return transform(current).also { store[episodeId] = it }
+        }
 
         override fun save(episode: Episode) {
-            saved += SavedState(episode.id, episode.seen, episode.last_second_seen)
+            saved += SavedState(episode.id, episode.seen, episode.lastSecondSeen)
         }
 
         override fun complete(episode: Episode) {
             completed += episode.id
+            seenWhenCompleted += store.getValue(episode.id).seen
         }
 
         override fun downloadAhead() {

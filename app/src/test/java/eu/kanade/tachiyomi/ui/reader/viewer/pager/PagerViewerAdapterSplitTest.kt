@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import android.content.Context
-import eu.kanade.tachiyomi.data.database.models.manga.ChapterImpl
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -18,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import tachiyomi.domain.items.chapter.model.Chapter
 
 class PagerViewerAdapterSplitTest {
 
@@ -31,7 +31,7 @@ class PagerViewerAdapterSplitTest {
         mockkStatic("eu.kanade.tachiyomi.util.system.ContextExtensionsKt")
         every { any<Context>().createReaderThemeContext() } returns mockk(relaxed = true)
         val adapter = PagerViewerAdapter(viewer)
-        val chapter = ReaderChapter(ChapterImpl(id = 1L))
+        val chapter = ReaderChapter(Chapter.create().copy(id = 1L))
         adapter.currentChapter = chapter
         val visiblePage = ReaderPage(0).apply { this.chapter = chapter }
         val detachedPage = ReaderPage(1).apply { this.chapter = chapter }
@@ -147,12 +147,13 @@ class PagerViewerAdapterSplitTest {
 
     private fun createChapter(id: Long, pageCount: Int): ReaderChapter {
         val chapter = ReaderChapter(
-            ChapterImpl(id).apply {
-                manga_id = 1L
-                url = "chapter-$id"
-                name = "Chapter $id"
-                chapter_number = id.toFloat()
-            },
+            Chapter.create().copy(
+                id = id,
+                mangaId = 1L,
+                url = "chapter-$id",
+                name = "Chapter $id",
+                chapterNumber = id.toDouble(),
+            ),
         )
         chapter.state = ReaderChapter.State.Loaded(List(pageCount) { ReaderPage(it).apply { this.chapter = chapter } })
         return chapter

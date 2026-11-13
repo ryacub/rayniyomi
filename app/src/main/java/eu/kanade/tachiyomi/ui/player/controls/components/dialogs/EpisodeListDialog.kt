@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.entries.components.DotSeparatorText
 import eu.kanade.presentation.util.formatEpisodeNumber
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.util.lang.toRelativeString
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.VerticalFastScroller
 import tachiyomi.presentation.core.components.material.DISABLED_ALPHA
@@ -87,13 +87,13 @@ fun EpisodeListDialog(
                     val title = if (displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
                         stringResource(
                             AYMR.strings.display_mode_episode,
-                            formatEpisodeNumber(episode.episode_number.toDouble()),
+                            formatEpisodeNumber(episode.episodeNumber),
                         )
                     } else {
                         episode.name
                     }
 
-                    val date = episode.date_upload
+                    val date = episode.dateUpload
                         .takeIf { it > 0L }
                         ?.let {
                             LocalDate.ofInstant(
@@ -152,13 +152,11 @@ private fun EpisodeListItem(
     val textStyle = if (isCurrentEpisode) FontStyle.Italic else FontStyle.Normal
 
     val clickBookmark: (Boolean) -> Unit = { bookmarked ->
-        episode.bookmark = bookmarked
         isBookmarked = bookmarked
         onBookmarkClicked(episode.id, bookmarked)
     }
 
     val clickFillermark: (Boolean) -> Unit = { fillermarked ->
-        episode.fillermark = fillermarked
         isFillermarked = fillermarked
         onFillermarkClicked(episode.id, fillermarked)
     }
