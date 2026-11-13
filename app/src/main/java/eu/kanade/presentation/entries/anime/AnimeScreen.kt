@@ -83,6 +83,7 @@ import eu.kanade.presentation.entries.components.MissingItemCountListItem
 import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
+import eu.kanade.presentation.util.padItemNumber
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -458,7 +459,7 @@ private fun AnimeScreenSmallImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            ResumeFabText(canResume = resumeEpisode != null)
+                            ResumeEpisodeFabText(state.anime, resumeEpisode)
                         },
                         icon = {
                             Icon(
@@ -802,7 +803,7 @@ fun AnimeScreenLargeImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            ResumeFabText(canResume = resumeEpisode != null)
+                            ResumeEpisodeFabText(state.anime, resumeEpisode)
                         },
                         icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                         onClick = onContinueWatching,
@@ -1159,6 +1160,32 @@ private fun onEpisodeItemClick(
         episodeItem.selected -> onToggleSelection(false)
         isAnyEpisodeSelected -> onToggleSelection(true)
         else -> onEpisodeClicked(episodeItem.episode, false)
+    }
+}
+
+private val episodeCodePattern =
+    Regex("""\bS([0-9]+)\s*-?\s*E([0-9]+(?:\.[0-9]+)?)(?:v[0-9]+)?\b""", RegexOption.IGNORE_CASE)
+
+@Composable
+private fun ResumeEpisodeFabText(anime: Anime, episode: Episode?) {
+    ResumeFabText(
+        canResume = episode != null,
+        detail = episode?.let { resumeEpisodeCode(anime.seasonNumber, it) },
+    )
+}
+
+private fun resumeEpisodeCode(seasonNumber: Double, episode: Episode): String? {
+    episodeCodePattern.find(episode.name)?.destructured?.let { (season, number) ->
+        return "S${season.padStart(2, '0')}E${number.padItemNumber()}"
+    }
+    if (!episode.isRecognizedNumber) return null
+
+    val episodeCode = "E${formatEpisodeNumber(episode.episodeNumber).padItemNumber()}"
+    val season = seasonNumber.toInt()
+    return if (season >= 0 && season.toDouble() == seasonNumber) {
+        "S${season.toString().padStart(2, '0')}$episodeCode"
+    } else {
+        episodeCode
     }
 }
 

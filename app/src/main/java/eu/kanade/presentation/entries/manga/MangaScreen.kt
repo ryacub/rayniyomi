@@ -76,6 +76,7 @@ import eu.kanade.presentation.entries.manga.components.MangaInfoBox
 import eu.kanade.presentation.entries.manga.components.MangaTranslationSummaryCard
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatChapterNumber
+import eu.kanade.presentation.util.padItemNumber
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -399,7 +400,7 @@ private fun MangaScreenSmallImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ResumeFabText(canResume = resumeChapter != null)
+                        ResumeChapterFabText(resumeChapter)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -663,7 +664,7 @@ fun MangaScreenLargeImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ResumeFabText(canResume = resumeChapter != null)
+                        ResumeChapterFabText(resumeChapter)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -919,6 +920,15 @@ private fun LazyListScope.sharedChapterItems(
             }
         }
     }
+}
+
+@Composable
+private fun ResumeChapterFabText(chapter: Chapter?) {
+    val number = chapter?.takeIf { it.isRecognizedNumber }?.chapterNumber
+    ResumeFabText(
+        canResume = chapter != null,
+        detail = number?.let { "C${formatChapterNumber(it).padItemNumber()}" },
+    )
 }
 
 @Composable
