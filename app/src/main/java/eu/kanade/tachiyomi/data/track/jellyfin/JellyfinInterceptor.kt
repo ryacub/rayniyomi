@@ -9,12 +9,13 @@ import okhttp3.Response
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 
 class JellyfinInterceptor : Interceptor {
 
     private val sourceManager: AnimeSourceManager by lazy { appGraph.animeSourceManager }
 
-    private val apiKeys = mutableMapOf<String, String>()
+    private val apiKeys = ConcurrentHashMap<String, String>()
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
@@ -30,8 +31,9 @@ class JellyfinInterceptor : Interceptor {
         }
 
         val userId = originalRequest.url.queryParameter("userId") ?: originalRequest.url.pathSegments[1]
-        val apiKey = apiKeys[userId] ?: getApiKey(userId)?.also { apiKeys[userId] = it }
-            ?: throw IOException("Please log in through the extension")
+        val apiKey = apiKeys.computeIfAbsent(userId) {
+            getApiKey(it) ?: throw IOException("Please log in through the extension")
+        }
 
         val authUrl = originalRequest.url.newBuilder()
             .addQueryParameter("api_key", apiKey)
