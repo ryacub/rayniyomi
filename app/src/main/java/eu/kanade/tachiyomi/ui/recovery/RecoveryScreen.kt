@@ -1,8 +1,12 @@
 package eu.kanade.tachiyomi.ui.recovery
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
@@ -13,6 +17,7 @@ import eu.kanade.tachiyomi.ui.browse.anime.migration.search.MigrateAnimeSearchSc
 import eu.kanade.tachiyomi.ui.browse.manga.migration.search.MigrateMangaSearchScreen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreen
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
+import kotlinx.coroutines.flow.map
 
 class RecoveryScreen(
     private val media: RecoveryMedia,
@@ -29,9 +34,24 @@ class RecoveryScreen(
         }
         val state by screenModel.state.collectAsStateWithLifecycle()
 
+        val activity = LocalActivity.current
+        val hingeBounds = if (activity != null) {
+            val hinges = remember(activity) {
+                WindowInfoTracker.getOrCreate(activity).windowLayoutInfo(activity).map { layout ->
+                    layout.displayFeatures.filterIsInstance<FoldingFeature>()
+                        .firstOrNull { it.isSeparating && it.orientation == FoldingFeature.Orientation.VERTICAL }
+                        ?.bounds
+                }
+            }
+            hinges.collectAsStateWithLifecycle(initialValue = null).value
+        } else {
+            null
+        }
+
         RecoveryScreenContent(
             state = state,
             media = media,
+            hingeBounds = hingeBounds,
             failedSourceName = sourceName?.takeIf(String::isNotBlank),
             actions = RecoveryActions(
                 navigateUp = navigator::pop,

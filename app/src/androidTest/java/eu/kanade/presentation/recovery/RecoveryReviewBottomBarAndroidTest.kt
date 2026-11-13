@@ -1,9 +1,20 @@
 package eu.kanade.presentation.recovery
 
 import android.content.res.Configuration
+import android.graphics.Rect
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.FontScale
@@ -13,6 +24,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.then
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.DpRect
@@ -22,6 +34,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import eu.kanade.tachiyomi.ui.recovery.RecoveryMedia
 import eu.kanade.tachiyomi.ui.recovery.RecoveryScreenModel
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -31,6 +44,7 @@ import tachiyomi.domain.recovery.model.RecoveryCandidate
 import tachiyomi.domain.recovery.model.RecoveryEntry
 import tachiyomi.domain.recovery.model.RecoveryState
 import tachiyomi.i18n.MR
+import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
 class RecoveryReviewBottomBarAndroidTest {
@@ -90,6 +104,34 @@ class RecoveryReviewBottomBarAndroidTest {
         }
     }
 
+    @Test
+    fun review_buttons_share_a_row_when_there_is_room() {
+        show(DpSize(720.dp, 800.dp))
+
+        val useMatch = context.stringResource(MR.strings.recovery_action_use_match)
+        val search = context.stringResource(MR.strings.recovery_action_search_manually)
+        assertEquals(bounds(useMatch).top, bounds(search).top)
+    }
+
+    @Test
+    fun separating_hinge_keeps_title_list_and_selected_actions_in_separate_panes() {
+        var skippedId: Long? = null
+        show(DpSize(720.dp, 800.dp), entry(2, RecoveryState.SELECTED, null), splitAtHinge = true) {
+            skippedId = it
+        }
+
+        val skip = context.stringResource(MR.strings.recovery_action_skip)
+        val hingeLeft = 304.dp
+        val hingeRight = hingeLeft + 24.dp
+        assertTrue(bounds("Title 2").right <= hingeLeft)
+        assertTrue(bounds(skip).left >= hingeRight)
+        assertTrue(bounds(startAnother()).left >= hingeRight)
+        assertTrue(bounds(startAnother()).left < hingeRight + 40.dp)
+        composeRule.onNodeWithText("Title 2").performClick()
+        composeRule.onNodeWithText(skip).performClick()
+        composeRule.runOnIdle { assertEquals(2L, skippedId) }
+    }
+
     private fun searchRemaining() = context.stringResource(MR.strings.recovery_action_search_remaining, 1)
 
     private fun apply(readyCount: Int = 1) = context.stringResource(MR.strings.recovery_action_apply, readyCount)
@@ -122,7 +164,13 @@ class RecoveryReviewBottomBarAndroidTest {
         runToken = null,
     )
 
-    private fun show(window: DpSize, vararg extraEntries: RecoveryEntry, fontScale: Float = 1f) {
+    private fun show(
+        window: DpSize,
+        vararg extraEntries: RecoveryEntry,
+        fontScale: Float = 1f,
+        splitAtHinge: Boolean = false,
+        onSkip: (Long) -> Unit = {},
+    ) {
         val entries = listOf(searchableEntry()) + extraEntries
         val state = RecoveryScreenModel.State(
             step = RecoveryScreenModel.Step.Review,
@@ -133,18 +181,32 @@ class RecoveryReviewBottomBarAndroidTest {
         composeRule.setContent {
             DeviceConfigurationOverride(windowOf(window) then DeviceConfigurationOverride.FontScale(fontScale)) {
                 MaterialTheme {
-                    RecoveryScreenContent(
-                        state = state,
-                        media = RecoveryMedia.MANGA,
-                        failedSourceName = null,
-                        actions = RecoveryActions(
-                            navigateUp = {}, toggleOriginal = {}, toggleSource = {}, setKeepOriginal = {},
-                            findReplacements = {}, choose = { _, _ -> }, approve = {}, skip = {}, reopen = {},
-                            searchAgain = { _, _ -> }, searchRemaining = {}, apply = {}, cancel = {},
-                            retryFailed = {}, reviewUnresolved = {}, startAnother = {}, openTitle = {},
-                            migrateAlone = {},
-                        ),
-                    )
+                    var hinge by remember { mutableStateOf<Rect?>(null) }
+                    val density = LocalDensity.current
+                    Box(
+                        Modifier.padding(start = if (splitAtHinge) 24.dp else 0.dp).onGloballyPositioned {
+                            if (splitAtHinge) {
+                                val left = it.localToWindow(Offset.Zero).x.roundToInt() +
+                                    with(density) { 280.dp.roundToPx() }
+                                val gap = with(density) { 24.dp.roundToPx() }
+                                hinge = Rect(left, 0, left + gap, it.size.height)
+                            }
+                        },
+                    ) {
+                        RecoveryScreenContent(
+                            state = state,
+                            media = RecoveryMedia.MANGA,
+                            hingeBounds = hinge,
+                            failedSourceName = null,
+                            actions = RecoveryActions(
+                                navigateUp = {}, toggleOriginal = {}, toggleSource = {}, setKeepOriginal = {},
+                                findReplacements = {}, choose = { _, _ -> }, approve = {}, skip = onSkip, reopen = {},
+                                searchAgain = { _, _ -> }, searchRemaining = {}, apply = {}, cancel = {},
+                                retryFailed = {}, reviewUnresolved = {}, startAnother = {}, openTitle = {},
+                                migrateAlone = {},
+                            ),
+                        )
+                    }
                 }
             }
         }

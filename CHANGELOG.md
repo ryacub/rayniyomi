@@ -20,7 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
-- Keep Recover titles actions above the system navigation bar and give each review button its own row (#1489).
+- Keep Recover titles actions above the system navigation bar, wrap review buttons, and place the review list and details on opposite sides of a separating vertical hinge (#1489).
 - An extension install or update no longer shows a false "Failed to load extension ...: package is not found" message. The manga side reported every anime extension as not found, and the anime side reported every manga extension (#1487).
 - Category confirmation messages preserve backslashes before quotes in names (#1479).
 - When you add a manga or anime tracker, it receives your progress through numbered chapters or episodes even if an unnumbered item is incomplete (#1481).

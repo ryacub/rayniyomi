@@ -1,24 +1,32 @@
 package eu.kanade.presentation.recovery
 
 import android.content.res.Configuration
+import android.graphics.Rect
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -28,15 +36,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import eu.kanade.presentation.components.AppBar
@@ -57,6 +73,7 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
+import kotlin.math.roundToInt
 
 class RecoveryActions(
     val navigateUp: () -> Unit,
@@ -85,31 +102,49 @@ fun RecoveryScreenContent(
     media: RecoveryMedia,
     failedSourceName: String?,
     actions: RecoveryActions,
+    hingeBounds: Rect? = null,
 ) {
     var confirming by remember { mutableStateOf(false) }
     var manualSearch by remember { mutableStateOf<RecoveryEntry?>(null) }
 
-    Scaffold(
-        topBar = { scrollBehavior ->
-            AppBar(
-                title = stringResource(MR.strings.recovery_title),
-                navigateUp = actions.navigateUp,
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        bottomBar = {
-            RecoveryBottomBar(
-                state = state,
-                actions = actions,
-                onApply = { confirming = true },
-            )
-        },
-    ) { contentPadding ->
-        when (state.step) {
-            Step.Loading -> LoadingScreen(Modifier.padding(contentPadding))
-            Step.Select -> SelectStep(state, failedSourceName, contentPadding, actions)
-            Step.Review -> ReviewStep(state, media, contentPadding, actions, onSearch = { manualSearch = it })
-            Step.Result -> ResultStep(state, contentPadding, actions)
+    val reviewHinge = hingeBounds.takeIf { state.step == Step.Review }
+    Box(Modifier.fillMaxSize().navigationBarsPadding()) {
+        Scaffold(
+            topBar = { scrollBehavior ->
+                AppBar(
+                    title = stringResource(MR.strings.recovery_title),
+                    navigateUp = actions.navigateUp,
+                    scrollBehavior = scrollBehavior,
+                )
+            },
+            bottomBar = {
+                if (reviewHinge == null) {
+                    RecoveryBottomBar(
+                        state = state,
+                        actions = actions,
+                        onApply = { confirming = true },
+                    )
+                }
+            },
+        ) { contentPadding ->
+            when (state.step) {
+                Step.Loading -> LoadingScreen(Modifier.padding(contentPadding))
+                Step.Select -> SelectStep(state, failedSourceName, contentPadding, actions)
+                Step.Review -> if (reviewHinge == null) {
+                    ReviewStep(state, media, contentPadding, actions, onSearch = { manualSearch = it })
+                } else {
+                    FoldedReview(
+                        state = state,
+                        media = media,
+                        contentPadding = contentPadding,
+                        hingeBounds = reviewHinge,
+                        actions = actions,
+                        onSearch = { manualSearch = it },
+                        onApply = { confirming = true },
+                    )
+                }
+                Step.Result -> ResultStep(state, contentPadding, actions)
+            }
         }
     }
 
@@ -137,11 +172,16 @@ fun RecoveryScreenContent(
 }
 
 @Composable
-private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: RecoveryActions, onApply: () -> Unit) {
+private fun RecoveryBottomBar(
+    state: RecoveryScreenModel.State,
+    actions: RecoveryActions,
+    onApply: () -> Unit,
+    allowHorizontalActions: Boolean = true,
+) {
     if (state.workError == null && state.busy == null && state.step != Step.Select && state.step != Step.Review) return
 
     Column(
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         state.workError?.let {
@@ -160,7 +200,7 @@ private fun RecoveryBottomBar(state: RecoveryScreenModel.State, actions: Recover
                 enabled = state.selectedSources.isNotEmpty() && state.selectedOriginals.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(MR.strings.recovery_action_find)) }
-            Step.Review -> if (LocalConfiguration.current.isShortAndWide()) {
+            Step.Review -> if (allowHorizontalActions && LocalConfiguration.current.isShortAndWide()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StartAnotherButton(actions, Modifier.weight(1f))
                     SearchRemainingButton(state, actions, Modifier.weight(1f))
@@ -280,16 +320,7 @@ private fun ReviewStep(
     val sourceNames = state.sources.associate { it.id to it.name }
     LazyColumn(contentPadding = contentPadding) {
         if (state.notInSession > 0) {
-            item {
-                Text(
-                    text = pluralStringResource(
-                        MR.plurals.recovery_not_in_session,
-                        state.notInSession,
-                        state.notInSession,
-                    ),
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
+            item { ReviewExcludedTitles(state.notInSession) }
         }
         items(state.entries, key = { "entry-${it.id}" }) { entry ->
             ReviewRow(
@@ -309,6 +340,137 @@ private fun ReviewStep(
     }
 }
 
+@Composable
+private fun ReviewExcludedTitles(count: Int) {
+    Text(
+        text = pluralStringResource(MR.plurals.recovery_not_in_session, count, count),
+        modifier = Modifier.padding(16.dp),
+    )
+}
+
+@Composable
+private fun FoldedReview(
+    state: RecoveryScreenModel.State,
+    media: RecoveryMedia,
+    contentPadding: PaddingValues,
+    hingeBounds: Rect,
+    actions: RecoveryActions,
+    onSearch: (RecoveryEntry) -> Unit,
+    onApply: () -> Unit,
+) {
+    var selectedId by rememberSaveable(state.sessionId) { mutableStateOf<Long?>(null) }
+    val entry = state.entries.firstOrNull { it.id == selectedId } ?: state.entries.firstOrNull()
+    val sourceNames = state.sources.associate { it.id to it.name }
+    var windowLeft by remember { mutableStateOf<Int?>(null) }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(contentPadding)
+            .onGloballyPositioned { windowLeft = it.localToWindow(Offset.Zero).x.roundToInt() },
+    ) {
+        val origin = windowLeft
+        val left = hingeBounds.left - (origin ?: 0)
+        val right = hingeBounds.right - (origin ?: 0)
+        if (origin != null && left > 0 && right >= left && right < constraints.maxWidth) {
+            RecoveryReviewPanes(state, media, entry, sourceNames, left, right, actions, onSearch, onApply) {
+                selectedId = it
+            }
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f)) {
+                    ReviewStep(state, media, PaddingValues(), actions, onSearch)
+                }
+                RecoveryBottomBar(state, actions, onApply)
+            }
+        }
+    }
+}
+
+@Suppress("LongParameterList")
+@Composable
+private fun RecoveryReviewPanes(
+    state: RecoveryScreenModel.State,
+    media: RecoveryMedia,
+    entry: RecoveryEntry?,
+    sourceNames: Map<Long, String>,
+    left: Int,
+    right: Int,
+    actions: RecoveryActions,
+    onSearch: (RecoveryEntry) -> Unit,
+    onApply: () -> Unit,
+    onSelect: (Long) -> Unit,
+) {
+    Layout(
+        modifier = Modifier.fillMaxSize(),
+        content = {
+            LazyColumn {
+                if (state.notInSession > 0) {
+                    item { ReviewExcludedTitles(state.notInSession) }
+                }
+                items(state.entries, key = { it.id }) { title ->
+                    val selectedTitle = title.id == entry?.id
+                    ListItem(
+                        headlineContent = { Text(state.titleOf(title)) },
+                        supportingContent = { Text(stringResource(title.state.label())) },
+                        colors = ListItemDefaults.colors(
+                            containerColor = if (selectedTitle) {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                        ),
+                        modifier = Modifier
+                            .clickable { onSelect(title.id) }
+                            .semantics { selected = selectedTitle },
+                    )
+                }
+            }
+            BoxWithConstraints {
+                val detailScroll = key(entry?.id) { rememberScrollState() }
+                val fontScale = LocalDensity.current.fontScale
+                val scrollFooter = state.workError != null ||
+                    maxHeight < WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND.dp * fontScale
+                Column(if (scrollFooter) Modifier.verticalScroll(detailScroll) else Modifier) {
+                    val detailModifier = if (scrollFooter) {
+                        Modifier
+                    } else {
+                        Modifier.weight(1f).verticalScroll(detailScroll)
+                    }
+                    Column(detailModifier) {
+                        if (entry != null) {
+                            ReviewRow(
+                                entry = entry,
+                                title = state.titleOf(entry),
+                                media = media,
+                                sourceNames = sourceNames,
+                                chosen = state.chosen[entry.id],
+                                preview = state.previews[entry.id],
+                                previewError = state.previewErrors[entry.id],
+                                canApprove = state.canApprove(entry.id),
+                                canSearch = state.busy == null,
+                                actions = actions,
+                                onSearch = { onSearch(entry) },
+                            )
+                        }
+                    }
+                    RecoveryBottomBar(state, actions, onApply, allowHorizontalActions = false)
+                }
+            }
+        },
+    ) { panes, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val list = panes[0].measure(Constraints.fixed(left, height))
+        val detail = panes[1].measure(Constraints.fixed(width - right, height))
+        layout(width, height) {
+            list.place(0, 0)
+            detail.place(right, 0)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Suppress("LongParameterList")
 @Composable
 private fun ReviewRow(
@@ -353,7 +515,7 @@ private fun ReviewRow(
                         }
                     }
                     PreviewSummary(media, preview, previewError)
-                    Column {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { actions.approve(entry.id) }, enabled = canApprove) {
                             Text(stringResource(MR.strings.recovery_action_use_match))
                         }
