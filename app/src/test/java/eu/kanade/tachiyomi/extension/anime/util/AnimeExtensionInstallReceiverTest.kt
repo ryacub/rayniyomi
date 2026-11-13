@@ -3,10 +3,14 @@ package eu.kanade.tachiyomi.extension.anime.util
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.FeatureInfo
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 import eu.kanade.tachiyomi.extension.anime.model.AnimeLoadResult
+import io.mockk.Called
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,6 +30,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
 
 class AnimeExtensionInstallReceiverTest {
 
@@ -266,6 +272,30 @@ class AnimeExtensionInstallReceiverTest {
     }
 
     @Test
+    fun `manga extension install and update notify nothing`(@TempDir filesDir: File) = runTest {
+        val listener = mockk<AnimeExtensionInstallReceiver.Listener>(relaxed = true)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val receiver = AnimeExtensionInstallReceiver(listener, CoroutineScope(SupervisorJob() + dispatcher))
+        val mangaExtension = PackageInfo().apply {
+            packageName = MANGA_PKG
+            reqFeatures = arrayOf(FeatureInfo().apply { name = "tachiyomi.extension" })
+        }
+        val packageManager = mockk<PackageManager> {
+            every { getPackageInfo(MANGA_PKG, any<Int>()) } returns mangaExtension
+        }
+        val context = mockk<Context>(relaxed = true) {
+            every { this@mockk.filesDir } returns filesDir
+            every { this@mockk.packageManager } returns packageManager
+        }
+
+        receiver.onReceive(context, addedIntent(MANGA_PKG))
+        receiver.onReceive(context, replacedIntent(MANGA_PKG))
+        advanceUntilIdle()
+
+        verify { listener wasNot Called }
+    }
+
+    @Test
     fun `register filter contains all six actions and package scheme`() {
         val context = mockk<Context>(relaxed = true)
         val listener = mockk<AnimeExtensionInstallReceiver.Listener>(relaxed = true)
@@ -292,5 +322,9 @@ class AnimeExtensionInstallReceiverTest {
             capturedActions,
         )
         assertEquals(listOf("package"), capturedSchemes)
+    }
+
+    private companion object {
+        const val MANGA_PKG = "eu.kanade.tachiyomi.extension.en.example"
     }
 }
