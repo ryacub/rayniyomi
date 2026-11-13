@@ -45,8 +45,6 @@ app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.k
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeVideoDownloader.kt	val video = download.video!!
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/model/AnimeDownloadPart.kt	_file = placingDir.createFile("${range.first}.part.tmp")!!
-app/src/main/java/eu/kanade/tachiyomi/data/download/anime/model/AnimeDownloadPart.kt	return _file!!
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	val sourceId = sourceMap[dir.name!!.lowercase()]
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	.map { it.name!! }
 app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	.associate { it.name!! to MangaDirectory(it) }

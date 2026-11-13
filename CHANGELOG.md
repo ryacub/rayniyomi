@@ -37,6 +37,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### CI
 
 ### Other
+- Remove unused internal classes and Compose helpers (#1490).
 
 
 ## [0.18.1.472] - 2026-11-11
