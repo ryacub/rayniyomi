@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.player
 
 import eu.kanade.domain.base.BasePreferences
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import io.mockk.coEvery
 import io.mockk.every
@@ -18,7 +17,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
-import tachiyomi.domain.items.episode.model.Episode as DomainEpisode
+import tachiyomi.domain.items.episode.model.Episode
 
 class PlayerEpisodeListManagerTest {
 
@@ -40,21 +39,21 @@ class PlayerEpisodeListManagerTest {
         )
     }
 
-    private fun createMockEpisode(
+    private fun createEpisode(
         id: Long,
         seen: Boolean = false,
         bookmark: Boolean = false,
         fillermark: Boolean = false,
         name: String = "Episode $id",
     ): Episode {
-        return mockk<Episode>(relaxed = true).also {
-            every { it.id } returns id
-            every { it.seen } returns seen
-            every { it.bookmark } returns bookmark
-            every { it.fillermark } returns fillermark
-            every { it.name } returns name
-            every { it.scanlator } returns ""
-        }
+        return Episode.create().copy(
+            id = id,
+            seen = seen,
+            bookmark = bookmark,
+            fillermark = fillermark,
+            name = name,
+            scanlator = "",
+        )
     }
 
     private fun createMockAnime(
@@ -79,7 +78,7 @@ class PlayerEpisodeListManagerTest {
         val anime = createMockAnime()
         every { anime.id } returns 1L
         coEvery { mockGetEpisodes.await(1L) } returns listOf(
-            DomainEpisode.create().copy(
+            Episode.create().copy(
                 id = 1L,
                 animeId = 1L,
                 url = "e1",
@@ -97,9 +96,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList filters seen episodes when EPISODE_SHOW_UNSEEN`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, seen = false),
-            createMockEpisode(2, seen = true),
-            createMockEpisode(3, seen = false),
+            createEpisode(1, seen = false),
+            createEpisode(2, seen = true),
+            createEpisode(3, seen = false),
         )
         val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_UNSEEN)
         manager.setEpisodeId(1L)
@@ -115,9 +114,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList filters unseen episodes when EPISODE_SHOW_SEEN`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, seen = false),
-            createMockEpisode(2, seen = true),
-            createMockEpisode(3, seen = false),
+            createEpisode(1, seen = false),
+            createEpisode(2, seen = true),
+            createEpisode(3, seen = false),
         )
         val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_SEEN)
         manager.setEpisodeId(2L)
@@ -131,9 +130,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList filters bookmarked episodes when EPISODE_SHOW_NOT_BOOKMARKED`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, bookmark = false),
-            createMockEpisode(2, bookmark = true),
-            createMockEpisode(3, bookmark = false),
+            createEpisode(1, bookmark = false),
+            createEpisode(2, bookmark = true),
+            createEpisode(3, bookmark = false),
         )
         val anime = createMockAnime(bookmarkedFilter = Anime.EPISODE_SHOW_NOT_BOOKMARKED)
         manager.setEpisodeId(1L)
@@ -148,9 +147,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList filters fillermarked episodes when EPISODE_SHOW_NOT_FILLERMARKED`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, fillermark = false),
-            createMockEpisode(2, fillermark = true),
-            createMockEpisode(3, fillermark = false),
+            createEpisode(1, fillermark = false),
+            createEpisode(2, fillermark = true),
+            createEpisode(3, fillermark = false),
         )
         val anime = createMockAnime(fillermarkedFilter = Anime.EPISODE_SHOW_NOT_FILLERMARKED)
         manager.setEpisodeId(1L)
@@ -165,9 +164,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList always includes selected episode even if filtered`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, seen = false),
-            createMockEpisode(2, seen = true),
-            createMockEpisode(3, seen = false),
+            createEpisode(1, seen = false),
+            createEpisode(2, seen = true),
+            createEpisode(3, seen = false),
         )
         val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_SEEN)
         manager.setEpisodeId(1L) // Selected episode is unseen
@@ -182,8 +181,8 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList skips download checks when no filters are active`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, seen = false),
-            createMockEpisode(2, seen = true),
+            createEpisode(1, seen = false),
+            createEpisode(2, seen = true),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(1L)
@@ -198,8 +197,8 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `filterEpisodeList checks downloads when downloaded filter is active`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1, seen = false),
-            createMockEpisode(2, seen = true),
+            createEpisode(1, seen = false),
+            createEpisode(2, seen = true),
         )
         val anime = createMockAnime(downloadedFilter = Anime.EPISODE_SHOW_DOWNLOADED)
         manager.setEpisodeId(1L)
@@ -215,9 +214,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `getCurrentEpisodeIndex returns correct index`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(2L)
@@ -232,13 +231,13 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `getCurrentEpisodeIndex returns -1 when episode not found`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
+            createEpisode(1),
+            createEpisode(2),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(1L)
         manager.updateEpisodeList(episodes, anime)
-        manager.setCurrentEpisode(createMockEpisode(99)) // Not in list
+        manager.setCurrentEpisode(createEpisode(99)) // Not in list
 
         val index = manager.getCurrentEpisodeIndex()
 
@@ -248,9 +247,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `getAdjacentEpisodeId returns -1 for previous at first episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(1L)
@@ -265,9 +264,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `getAdjacentEpisodeId returns -1 for next at last episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(3L)
@@ -282,9 +281,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `getAdjacentEpisodeId returns correct previous episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(2L)
@@ -299,9 +298,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `getAdjacentEpisodeId returns correct next episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(2L)
@@ -316,9 +315,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `updateNavigationState sets hasPreviousEpisode false at first episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(1L)
@@ -334,9 +333,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `updateNavigationState sets hasNextEpisode false at last episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(3L)
@@ -352,9 +351,9 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `updateNavigationState sets both true at middle episode`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
-            createMockEpisode(3),
+            createEpisode(1),
+            createEpisode(2),
+            createEpisode(3),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(2L)
@@ -370,8 +369,8 @@ class PlayerEpisodeListManagerTest {
     @Test
     fun `updateEpisodeList updates currentPlaylist state flow`() = runTest {
         val episodes = listOf(
-            createMockEpisode(1),
-            createMockEpisode(2),
+            createEpisode(1),
+            createEpisode(2),
         )
         val anime = createMockAnime()
         manager.setEpisodeId(1L)
@@ -380,5 +379,44 @@ class PlayerEpisodeListManagerTest {
 
         val playlist = manager.currentPlaylist.first()
         assertEquals(2, playlist.size)
+    }
+
+    @Test
+    fun `patchEpisode replaces the episode in the playlist and the current episode`() = runTest {
+        val episodes = listOf(createEpisode(1), createEpisode(2), createEpisode(3))
+        manager.setEpisodeId(2L)
+        manager.updateEpisodeList(episodes, null)
+        manager.setCurrentEpisode(episodes[1])
+
+        val stored = manager.patchEpisode(2L) { it.copy(lastSecondSeen = 5_000L, bookmark = true) }
+
+        assertEquals(5_000L, stored?.lastSecondSeen)
+        assertEquals(stored, manager.currentEpisode.value)
+        assertEquals(stored, manager.currentPlaylist.value.single { it.id == 2L })
+        assertEquals(0L, manager.currentPlaylist.value.single { it.id == 1L }.lastSecondSeen)
+    }
+
+    @Test
+    fun `patchEpisode does not re-filter the playlist`() = runTest {
+        val episodes = listOf(createEpisode(1), createEpisode(2), createEpisode(3))
+        val anime = createMockAnime(unseenFilter = Anime.EPISODE_SHOW_UNSEEN)
+        manager.setEpisodeId(2L)
+        manager.updateEpisodeList(episodes, anime)
+        manager.setCurrentEpisode(episodes[1])
+
+        manager.patchEpisode(2L) { it.copy(seen = true) }
+        manager.patchEpisode(3L) { it.copy(seen = true) }
+
+        assertEquals(listOf(1L, 2L, 3L), manager.currentPlaylist.value.map { it.id })
+    }
+
+    @Test
+    fun `patchEpisode returns null for an episode that is not in the playlist`() = runTest {
+        val episodes = listOf(createEpisode(1))
+        manager.setEpisodeId(1L)
+        manager.updateEpisodeList(episodes, null)
+
+        assertEquals(null, manager.patchEpisode(99L) { it.copy(seen = true) })
+        assertEquals(episodes, manager.currentPlaylist.value)
     }
 }
