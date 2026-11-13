@@ -7,10 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import cafe.adriel.voyager.navigator.Navigator
@@ -40,7 +43,7 @@ class ExtensionListUpdateAndroidTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun animeExtensionMovesToInstalledWithoutOverlappingItsNeighbours() {
+    fun animeExtensionMovesToInstalledInOneCleanStep() {
         val updating = animeExtension("AnimeToki", "test.anime.toki", hasUpdate = true)
         val other = animeExtension("AnimeKai", "test.anime.kai", hasUpdate = false)
         var state by mutableStateOf(
@@ -71,7 +74,7 @@ class ExtensionListUpdateAndroidTest {
             }
         }
 
-        assertRowNeverOverlaps(row = "AnimeToki", otherRow = "AnimeKai") {
+        assertRowMovesCleanly(row = "AnimeToki", otherRow = "AnimeKai") {
             state = animeState(
                 MR.strings.ext_installed to listOf(
                     other to InstallStep.Idle,
@@ -82,7 +85,7 @@ class ExtensionListUpdateAndroidTest {
     }
 
     @Test
-    fun mangaExtensionMovesToInstalledWithoutOverlappingItsNeighbours() {
+    fun mangaExtensionMovesToInstalledInOneCleanStep() {
         val updating = mangaExtension("MangaToki", "test.manga.toki", hasUpdate = true)
         val other = mangaExtension("MangaKai", "test.manga.kai", hasUpdate = false)
         var state by mutableStateOf(
@@ -113,7 +116,7 @@ class ExtensionListUpdateAndroidTest {
             }
         }
 
-        assertRowNeverOverlaps(row = "MangaToki", otherRow = "MangaKai") {
+        assertRowMovesCleanly(row = "MangaToki", otherRow = "MangaKai") {
             state = mangaState(
                 MR.strings.ext_installed to listOf(
                     other to InstallStep.Idle,
@@ -123,16 +126,20 @@ class ExtensionListUpdateAndroidTest {
         }
     }
 
-    private fun assertRowNeverOverlaps(row: String, otherRow: String, completeUpdate: () -> Unit) {
+    private fun assertRowMovesCleanly(row: String, otherRow: String, completeUpdate: () -> Unit) {
         val installedHeader = InstrumentationRegistry.getInstrumentation().targetContext
             .stringResource(MR.strings.ext_installed)
         composeRule.waitForIdle()
         val pendingTop = bounds(row).top
+        assertTrue("$row must show its icon before the update completes", iconIsDrawn(row))
 
         composeRule.mainClock.autoAdvance = false
         completeUpdate()
         repeat(FRAMES_TO_CHECK) { frame ->
             composeRule.mainClock.advanceTimeByFrame()
+            if (frame == 0) {
+                assertTrue("Frame 0: $row must keep its icon while it moves", iconIsDrawn(row))
+            }
             val rowBounds = bounds(row)
             listOf(installedHeader, otherRow).forEach { neighbour ->
                 val neighbourBounds = bounds(neighbour)
@@ -150,6 +157,19 @@ class ExtensionListUpdateAndroidTest {
     }
 
     private fun bounds(text: String): DpRect = composeRule.onNodeWithText(text).getBoundsInRoot()
+
+    private fun iconIsDrawn(row: String): Boolean {
+        val pixels = composeRule.onNodeWithText(row).captureToImage().toPixelMap()
+        val centerX = with(composeRule.density) { ICON_CENTER_X.roundToPx() }
+        val centerY = pixels.height / 2
+        val halfSide = with(composeRule.density) { ICON_SAMPLE_HALF_SIDE.roundToPx() }
+        val colors = buildSet {
+            for (x in centerX - halfSide..centerX + halfSide) {
+                for (y in centerY - halfSide..centerY + halfSide) add(pixels[x, y])
+            }
+        }
+        return colors.size > 1
+    }
 
     private fun overlapVertically(first: DpRect, second: DpRect): Boolean =
         first.top.value < second.bottom.value - EDGE_TOLERANCE_DP &&
@@ -224,5 +244,9 @@ class ExtensionListUpdateAndroidTest {
     private companion object {
         const val FRAMES_TO_CHECK = 60
         const val EDGE_TOLERANCE_DP = 0.5f
+
+        // Row start padding (16 dp) plus half of the 40 dp icon box. The install spinner draws only the box edge.
+        val ICON_CENTER_X = 36.dp
+        val ICON_SAMPLE_HALF_SIDE = 6.dp
     }
 }
