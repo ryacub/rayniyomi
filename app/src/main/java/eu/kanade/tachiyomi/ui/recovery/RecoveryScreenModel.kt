@@ -12,6 +12,7 @@ import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.presentation.util.StateViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
@@ -257,9 +258,9 @@ class RecoveryScreenModel(
     }
 
     private fun launchWork(busy: Busy, block: suspend () -> Unit) {
-        if (work?.isActive == true) return
+        if (state.value.busy != null) return
         mutableState.update { it.copy(busy = busy, workError = null) }
-        work = viewModelScope.launch(ioDispatcher) {
+        val job = viewModelScope.launch(ioDispatcher, start = CoroutineStart.LAZY) {
             try {
                 block()
             } catch (e: CancellationException) {
@@ -268,10 +269,13 @@ class RecoveryScreenModel(
                 logcat(LogPriority.ERROR, e) { "Recovery work failed" }
                 mutableState.update { it.copy(workError = e.messageOrName()) }
                 state.value.sessionId?.let { runCatching { refreshEntries(it) } }
-            } finally {
-                mutableState.update { it.copy(busy = null) }
             }
         }
+        work = job
+        job.invokeOnCompletion {
+            mutableState.update { it.copy(busy = null) }
+        }
+        job.start()
     }
 
     private fun clearPreview(entryId: Long) {

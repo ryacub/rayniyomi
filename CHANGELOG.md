@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
+- Accept a manual recovery search as soon as the screen reports that the previous search is finished (#1506).
 - If you invalidate the download index while the app loads it at startup, the app now rescans the downloads folder. Before, it kept the old index for up to one hour, so download badges could be wrong (#1493).
 - Jellyfin tracker requests can safely share cached API keys during concurrent updates (#1492).
 - Keep Recover titles actions above the system navigation bar, wrap review buttons, and place the review list and details on opposite sides of a separating vertical hinge (#1489).
@@ -41,6 +42,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 - Fail the pull request build on new Android lint errors (#1497).
+- Print full unit test failures and report tests that fail and later pass on the same commit (#1506).
 
 ### Other
 - Remove unused internal classes and Compose helpers (#1490).
