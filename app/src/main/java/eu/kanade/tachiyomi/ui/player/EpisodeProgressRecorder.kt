@@ -1,9 +1,10 @@
 package eu.kanade.tachiyomi.ui.player
 
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
+import tachiyomi.domain.items.episode.model.Episode
 import kotlin.math.abs
 
 internal interface EpisodeProgressSink {
+    fun patch(episodeId: Long, transform: (Episode) -> Episode): Episode?
     fun save(episode: Episode)
     fun complete(episode: Episode)
     fun downloadAhead()
@@ -23,8 +24,8 @@ internal class EpisodeProgressRecorder(
 
     fun onLocalTick(episode: Episode, positionMs: Long, totalMs: Long) {
         if (totalMs <= 0L) return
-        val completed = record(episode, positionMs, totalMs)
-        if (completed || claimTickSave(episode.id, positionMs)) sink.save(episode)
+        val update = record(episode, positionMs, totalMs) ?: return
+        if (update.completed || claimTickSave(episode.id, positionMs)) sink.save(update.episode)
 
         val inDownloadRange = positionMs.toDouble() / totalMs > DOWNLOAD_AHEAD_FRACTION
         if (inDownloadRange && downloadAheadEpisodeId != episode.id) {
@@ -35,21 +36,26 @@ internal class EpisodeProgressRecorder(
 
     fun onCastProgress(episode: Episode, positionMs: Long, totalMs: Long) {
         if (totalMs <= 0L) return
-        record(episode, positionMs, totalMs)
-        sink.save(episode)
+        val update = record(episode, positionMs, totalMs) ?: return
+        sink.save(update.episode)
     }
 
-    private fun record(episode: Episode, positionMs: Long, totalMs: Long): Boolean {
-        episode.last_second_seen = positionMs
-        episode.total_seconds = totalMs
+    private fun record(episode: Episode, positionMs: Long, totalMs: Long): RecordedProgress? {
+        val completes = positionMs >= totalMs * completeFraction() &&
+            shouldTrack() &&
+            completedEpisodeId != episode.id
+        val stored = sink.patch(episode.id) {
+            it.copy(lastSecondSeen = positionMs, totalSeconds = totalMs, seen = it.seen || completes)
+        } ?: return null
 
-        if (positionMs < totalMs * completeFraction() || !shouldTrack()) return false
-        if (completedEpisodeId == episode.id) return false
-        completedEpisodeId = episode.id
-        episode.seen = true
-        sink.complete(episode)
-        return true
+        if (completes) {
+            completedEpisodeId = episode.id
+            sink.complete(stored)
+        }
+        return RecordedProgress(stored, completes)
     }
+
+    private class RecordedProgress(val episode: Episode, val completed: Boolean)
 
     private fun claimTickSave(episodeId: Long, positionMs: Long): Boolean {
         if (episodeId == savedEpisodeId && abs(positionMs - savedPositionMs) < saveIntervalMs) return false

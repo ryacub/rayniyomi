@@ -1,19 +1,14 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
-import eu.kanade.tachiyomi.data.database.models.anime.EpisodeImpl
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.items.episode.model.Episode
 
 class CastQueuePlannerTest {
 
     private fun ep(id: Long, seen: Boolean = false): Episode =
-        EpisodeImpl(id).apply {
-            this.seen = seen
-            url = "episode-$id"
-            name = "Episode $id"
-        }
+        Episode.create().copy(id = id, seen = seen, url = "episode-$id", name = "Episode $id")
 
     @Test
     fun `planLookahead returns the next unseen episodes after the current one`() {

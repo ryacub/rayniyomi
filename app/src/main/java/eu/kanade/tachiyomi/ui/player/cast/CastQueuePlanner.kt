@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.player.cast
 
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
+import tachiyomi.domain.items.episode.model.Episode
 
 /**
  * Chooses which episodes belong in the Cast queue.

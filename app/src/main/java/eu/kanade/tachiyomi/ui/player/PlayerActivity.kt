@@ -1094,7 +1094,7 @@ class PlayerActivity : BaseActivity() {
             } else if (episode?.seen == true && !playerPreferences.preserveWatchingPosition().get()) {
                 0L
             } else {
-                episode?.last_second_seen ?: 0L
+                episode?.lastSecondSeen ?: 0L
             }
             val request = MpvVideoLoadRequest(video, resumePosition, episode?.id)
             lastVideoLoadRequest = request
@@ -1237,7 +1237,7 @@ class PlayerActivity : BaseActivity() {
                 currentVideo = video,
                 animeTitle = viewModel.currentAnime.value?.title,
                 episodeName = viewModel.currentEpisode.value?.name,
-                episodeNumber = viewModel.currentEpisode.value?.episode_number?.toDouble(),
+                episodeNumber = viewModel.currentEpisode.value?.episodeNumber,
                 playerDuration = player.duration,
                 currentChapters = viewModel.chapters.value,
                 currentPos = viewModel.pos.value,

@@ -209,7 +209,11 @@ class PlayerNativePlaybackAndroidTest {
         trace.recordSelection("manual-B")
         instrumentation.runOnMainSync {
             // Saved progress can lag behind the native seek position.
-            checkNotNull(player.currentEpisode.value).last_second_seen = 0L
+            val episodeListManager = PlayerViewModel::class.java.getDeclaredField("episodeListManager")
+                .apply { isAccessible = true }
+                .get(player) as PlayerEpisodeListManager
+            val currentEpisodeId = checkNotNull(player.currentEpisode.value).id
+            episodeListManager.patchEpisode(currentEpisodeId) { it.copy(lastSecondSeen = 0L) }
             player.showSheet(Sheets.None)
             player.showSheet(Sheets.QualityTracks)
             player.onVideoClicked(0, 1)

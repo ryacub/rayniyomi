@@ -58,9 +58,6 @@ import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.toHost
 import eu.kanade.tachiyomi.animesource.model.TimeStamp
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.data.database.models.anime.Episode
-import eu.kanade.tachiyomi.data.database.models.anime.isRecognizedNumber
-import eu.kanade.tachiyomi.data.database.models.anime.toDomainEpisode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.saver.Image
@@ -137,6 +134,7 @@ import tachiyomi.domain.history.anime.interactor.UpsertAnimeHistory
 import tachiyomi.domain.history.anime.model.AnimeHistoryUpdate
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.items.episode.interactor.UpdateEpisode
+import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.domain.items.episode.model.EpisodeUpdate
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
@@ -245,6 +243,9 @@ class PlayerViewModel internal constructor(
 
     private val progressRecorder = EpisodeProgressRecorder(
         sink = object : EpisodeProgressSink {
+            override fun patch(episodeId: Long, transform: (Episode) -> Episode): Episode? =
+                episodeListManager.patchEpisode(episodeId, transform)
+
             override fun save(episode: Episode) = saveWatchingProgress(episode)
 
             override fun complete(episode: Episode) {
@@ -451,7 +452,7 @@ class PlayerViewModel internal constructor(
         val source = currentSource.value ?: return null
         return source is AnimeHttpSource &&
             !EpisodeLoader.isDownload(
-                episode.toDomainEpisode(),
+                episode,
                 anime,
             )
     }
@@ -1261,7 +1262,7 @@ class PlayerViewModel internal constructor(
                     }
                     qualityIndex = Pair(hostIndex, vidIndex)
                 } else {
-                    EpisodeLoader.getHosters(currentEp.toDomainEpisode(), anime, source)
+                    EpisodeLoader.getHosters(currentEp, anime, source)
                         .takeIf { it.isNotEmpty() }
                         ?.also { currentHosterList = it }
                         ?: run {
@@ -1291,7 +1292,7 @@ class PlayerViewModel internal constructor(
     private fun updateEpisode(episode: Episode) {
         mediaTitle.update { _ -> episode.name }
         _isEpisodeOnline.update { _ -> isEpisodeOnline() == true }
-        MPVLib.setPropertyDouble("user-data/current-anime/episode-number", episode.episode_number.toDouble())
+        MPVLib.setPropertyDouble("user-data/current-anime/episode-number", episode.episodeNumber)
     }
 
     private suspend fun initEpisodeList(anime: Anime): List<Episode> {
@@ -1379,7 +1380,7 @@ class PlayerViewModel internal constructor(
                     currentEpisode.value
                         ?: throw ExceptionWithStringResource("No episode loaded", AYMR.strings.no_episode_loaded)
                 currentHosterList = EpisodeLoader.getHosters(
-                    currentEpisode.toDomainEpisode(),
+                    currentEpisode,
                     anime,
                     source,
                 )
@@ -1428,7 +1429,7 @@ class PlayerViewModel internal constructor(
                 if (
                     !episode.seen &&
                     episode.isRecognizedNumber &&
-                    episode.episode_number == currentEp.episode_number
+                    episode.episodeNumber == currentEp.episodeNumber
                 ) {
                     EpisodeUpdate(id = episode.id, seen = true)
                 } else {
@@ -1450,8 +1451,8 @@ class PlayerViewModel internal constructor(
 
         viewModelScope.launchIO {
             val episodesAreDownloaded =
-                EpisodeLoader.isDownload(currentEpisode.toDomainEpisode(), anime) &&
-                    EpisodeLoader.isDownload(nextEpisode.toDomainEpisode(), anime)
+                EpisodeLoader.isDownload(currentEpisode, anime) &&
+                    EpisodeLoader.isDownload(nextEpisode, anime)
             if (!episodesAreDownloaded) {
                 return@launchIO
             }
@@ -1468,7 +1469,7 @@ class PlayerViewModel internal constructor(
      */
     private fun deleteEpisodeIfNeeded(chosenEpisode: Episode) {
         // Determine which episode should be deleted and enqueue
-        val currentEpisodePosition = currentPlaylist.value.indexOf(chosenEpisode)
+        val currentEpisodePosition = currentPlaylist.value.indexOfFirst { it.id == chosenEpisode.id }
         val removeAfterSeenSlots = downloadPreferences.removeAfterReadSlots().get()
         val episodeToDelete = currentPlaylist.value.getOrNull(
             currentEpisodePosition - removeAfterSeenSlots,
@@ -1502,14 +1503,15 @@ class PlayerViewModel internal constructor(
      */
     private suspend fun saveEpisodeProgress(episode: Episode) {
         if (!incognitoMode || hasTrackers) {
+            val latest = currentPlaylist.value.firstOrNull { it.id == episode.id } ?: episode
             updateEpisode.await(
                 EpisodeUpdate(
-                    id = episode.id,
-                    seen = episode.seen,
-                    bookmark = episode.bookmark,
-                    fillermark = episode.fillermark,
-                    lastSecondSeen = episode.last_second_seen,
-                    totalSeconds = episode.total_seconds,
+                    id = latest.id,
+                    seen = latest.seen,
+                    bookmark = latest.bookmark,
+                    fillermark = latest.fillermark,
+                    lastSecondSeen = latest.lastSecondSeen,
+                    totalSeconds = latest.totalSeconds,
                 ),
             )
         }
@@ -1532,6 +1534,7 @@ class PlayerViewModel internal constructor(
      * Bookmarks the currently active episode.
      */
     fun bookmarkEpisode(episodeId: Long, bookmarked: Boolean) {
+        episodeListManager.patchEpisode(episodeId) { it.copy(bookmark = bookmarked) }
         viewModelScope.launchNonCancellable {
             updateEpisode.await(
                 EpisodeUpdate(
@@ -1546,6 +1549,7 @@ class PlayerViewModel internal constructor(
      * Fillermarks the currently active episode.
      */
     fun fillermarkEpisode(episodeId: Long, fillermarked: Boolean) {
+        episodeListManager.patchEpisode(episodeId) { it.copy(fillermark = fillermarked) }
         viewModelScope.launchNonCancellable {
             updateEpisode.await(
                 EpisodeUpdate(
@@ -1685,7 +1689,7 @@ class PlayerViewModel internal constructor(
         val context = application
 
         viewModelScope.launchNonCancellable {
-            trackEpisode.await(context, anime.id, episode.episode_number.toDouble())
+            trackEpisode.await(context, anime.id, episode.episodeNumber)
         }
     }
 
@@ -1697,7 +1701,7 @@ class PlayerViewModel internal constructor(
         if (!episode.seen) return
         val anime = currentAnime.value ?: return
         viewModelScope.launchNonCancellable {
-            downloadManager.enqueueEpisodesToDelete(listOf(episode.toDomainEpisode()), anime)
+            downloadManager.enqueueEpisodesToDelete(listOf(episode), anime)
         }
     }
 
@@ -1763,7 +1767,7 @@ class PlayerViewModel internal constructor(
     suspend fun aniSkipResponse(playerDuration: Int?): List<TimeStamp>? {
         val animeId = currentAnime.value?.id ?: return null
         val duration = playerDuration ?: return null
-        val episodeNumber = currentEpisode.value?.episode_number?.toDouble() ?: return null
+        val episodeNumber = currentEpisode.value?.episodeNumber ?: return null
         val tracks = getTracks.await(animeId)
         if (tracks.isEmpty()) {
             logcat { "AniSkip: No tracks found for anime $animeId" }
@@ -1846,7 +1850,7 @@ class PlayerViewModel internal constructor(
         if (castManager.isDownloadedVideo(video)) {
             castManager.loadMedia(
                 video,
-                episode.toDomainEpisode(),
+                episode,
                 anime,
                 startPositionMs,
                 headers,
@@ -1854,7 +1858,7 @@ class PlayerViewModel internal constructor(
             )
             return
         }
-        val item = castManager.buildQueueItem(video, episode.toDomainEpisode(), anime, headers) ?: return
+        val item = castManager.buildQueueItem(video, episode, anime, headers) ?: return
         castQueueController.reset()
         castManager.loadQueue(listOf(item), startPositionMs)
         item.media?.contentId?.let { castQueueController.registerQueuedItem(it, episode.id) }
@@ -1880,7 +1884,7 @@ class PlayerViewModel internal constructor(
                 if (castManager.isDownloadedVideo(video)) return@forEach
                 val item = castManager.buildQueueItem(
                     video,
-                    episode.toDomainEpisode(),
+                    episode,
                     anime,
                     video.headers ?: sourceHeaders,
                 ) ?: return@forEach
@@ -1912,7 +1916,7 @@ class PlayerViewModel internal constructor(
     private suspend fun resolveCastVideo(episode: Episode): Video? = try {
         val source = currentSource.value ?: return null
         val anime = currentAnime.value ?: return null
-        val hosters = EpisodeLoader.getHosters(episode.toDomainEpisode(), anime, source)
+        val hosters = EpisodeLoader.getHosters(episode, anime, source)
         HosterLoader.getBestVideo(source, hosters)
     } catch (e: Exception) {
         logcat(LogPriority.WARN, e) { "Cannot resolve cast lookahead for episode ${episode.id}" }
