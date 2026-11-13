@@ -39,6 +39,7 @@ class AddMangaTracks(
             // Update chapter progress if newer chapters marked read locally
             if (hasReadChapters) {
                 val latestLocalReadChapterNumber = allChapters
+                    .filter { it.isRecognizedNumber }
                     .sortedBy { it.chapterNumber }
                     .takeWhile { it.read }
                     .lastOrNull()
