@@ -83,6 +83,7 @@ import eu.kanade.presentation.entries.components.MissingItemCountListItem
 import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatEpisodeNumber
+import eu.kanade.presentation.util.padItemNumber
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.FetchType
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -93,7 +94,6 @@ import eu.kanade.tachiyomi.ui.browse.anime.extension.details.AnimeSourcePreferen
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeScreenModel
 import eu.kanade.tachiyomi.ui.entries.anime.AnimeSeasonItem
 import eu.kanade.tachiyomi.ui.entries.anime.EpisodeList
-import eu.kanade.tachiyomi.util.episode.episodeCode
 import eu.kanade.tachiyomi.util.episode.resumeEpisode
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.delay
@@ -459,10 +459,7 @@ private fun AnimeScreenSmallImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            ContinueWatchingFabText(
-                                anime = state.anime,
-                                resumeEpisode = resumeEpisode,
-                            )
+                            ResumeEpisodeFabText(state.anime, resumeEpisode)
                         },
                         icon = {
                             Icon(
@@ -806,10 +803,7 @@ fun AnimeScreenLargeImpl(
                 ) {
                     ExtendedFloatingActionButton(
                         text = {
-                            ContinueWatchingFabText(
-                                anime = state.anime,
-                                resumeEpisode = resumeEpisode,
-                            )
+                            ResumeEpisodeFabText(state.anime, resumeEpisode)
                         },
                         icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                         onClick = onContinueWatching,
@@ -1169,21 +1163,30 @@ private fun onEpisodeItemClick(
     }
 }
 
+private val episodeCodePattern =
+    Regex("""\bS([0-9]+)\s*-?\s*E([0-9]+(?:\.[0-9]+)?)(?:v[0-9]+)?\b""", RegexOption.IGNORE_CASE)
+
 @Composable
-private fun ContinueWatchingFabText(
-    anime: Anime,
-    resumeEpisode: Episode?,
-) {
+private fun ResumeEpisodeFabText(anime: Anime, episode: Episode?) {
     ResumeFabText(
-        label = stringResource(if (resumeEpisode != null) MR.strings.action_resume else MR.strings.action_start),
-        cue = resumeEpisode?.let {
-            if (anime.displayMode == Anime.EPISODE_DISPLAY_NUMBER) {
-                episodeTitle(anime, it)
-            } else {
-                episodeCode(it.name) ?: it.name
-            }
-        },
+        canResume = episode != null,
+        detail = episode?.let { resumeEpisodeCode(anime.seasonNumber, it) },
     )
+}
+
+private fun resumeEpisodeCode(seasonNumber: Double, episode: Episode): String? {
+    episodeCodePattern.find(episode.name)?.destructured?.let { (season, number) ->
+        return "S${season.padStart(2, '0')}E${number.padItemNumber()}"
+    }
+    if (!episode.isRecognizedNumber) return null
+
+    val episodeCode = "E${formatEpisodeNumber(episode.episodeNumber).padItemNumber()}"
+    val season = seasonNumber.toInt()
+    return if (season >= 0 && season.toDouble() == seasonNumber) {
+        "S${season.toString().padStart(2, '0')}$episodeCode"
+    } else {
+        episodeCode
+    }
 }
 
 @Composable

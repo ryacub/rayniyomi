@@ -76,6 +76,7 @@ import eu.kanade.presentation.entries.manga.components.MangaInfoBox
 import eu.kanade.presentation.entries.manga.components.MangaTranslationSummaryCard
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatChapterNumber
+import eu.kanade.presentation.util.padItemNumber
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -399,10 +400,7 @@ private fun MangaScreenSmallImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ContinueReadingFabText(
-                            manga = state.manga,
-                            resumeChapter = resumeChapter,
-                        )
+                        ResumeChapterFabText(resumeChapter)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -666,10 +664,7 @@ fun MangaScreenLargeImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ContinueReadingFabText(
-                            manga = state.manga,
-                            resumeChapter = resumeChapter,
-                        )
+                        ResumeChapterFabText(resumeChapter)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -928,13 +923,11 @@ private fun LazyListScope.sharedChapterItems(
 }
 
 @Composable
-private fun ContinueReadingFabText(
-    manga: Manga,
-    resumeChapter: Chapter?,
-) {
+private fun ResumeChapterFabText(chapter: Chapter?) {
+    val number = chapter?.takeIf { it.isRecognizedNumber }?.chapterNumber
     ResumeFabText(
-        label = stringResource(if (resumeChapter != null) MR.strings.action_resume else MR.strings.action_start),
-        cue = resumeChapter?.let { chapterTitle(manga, it) },
+        canResume = chapter != null,
+        detail = number?.let { "C${formatChapterNumber(it).padItemNumber()}" },
     )
 }
 
