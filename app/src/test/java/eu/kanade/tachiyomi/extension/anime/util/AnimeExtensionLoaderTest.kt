@@ -130,7 +130,7 @@ class AnimeExtensionLoaderTest {
     private suspend fun loadExtension(
         metadata: Bundle?,
         versionName: String = "14.0.0",
-    ): AnimeLoadResult {
+    ): AnimeLoadResult? {
         val context = mockk<Context>(relaxed = true)
         val packageManager = mockk<PackageManager>(relaxed = true)
         val applicationInfo = ApplicationInfo().apply { this.metaData = metadata }

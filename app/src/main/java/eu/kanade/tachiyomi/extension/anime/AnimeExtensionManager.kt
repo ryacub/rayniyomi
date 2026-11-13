@@ -349,7 +349,7 @@ class AnimeExtensionManager(
         when (result) {
             is AnimeLoadResult.Success -> registerNewExtension(result.extension)
             is AnimeLoadResult.Error -> reportLoadError(result.message)
-            is AnimeLoadResult.Untrusted -> Unit
+            is AnimeLoadResult.Untrusted, null -> Unit
         }
     }
 

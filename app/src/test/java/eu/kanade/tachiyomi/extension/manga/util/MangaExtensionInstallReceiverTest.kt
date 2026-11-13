@@ -3,10 +3,14 @@ package eu.kanade.tachiyomi.extension.manga.util
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.FeatureInfo
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.extension.manga.model.MangaLoadResult
+import io.mockk.Called
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,6 +30,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
 
 class MangaExtensionInstallReceiverTest {
 
@@ -158,7 +164,7 @@ class MangaExtensionInstallReceiverTest {
     }
 
     @Test
-    fun `replace retry succeeds after transient errors`() = runTest {
+    fun `replace retry succeeds after the package is briefly missing`() = runTest {
         val context = mockk<Context>(relaxed = true)
         val listener = mockk<MangaExtensionInstallReceiver.Listener>(relaxed = true)
         val dispatcher = StandardTestDispatcher(testScheduler)
@@ -169,8 +175,8 @@ class MangaExtensionInstallReceiverTest {
         coEvery {
             MangaExtensionLoader.loadMangaExtensionFromPkgName(any(), "pkg1")
         } returnsMany listOf(
-            MangaLoadResult.Error("load failed"),
-            MangaLoadResult.Error("load failed"),
+            null,
+            null,
             MangaLoadResult.Success(mockk(relaxed = true)),
         )
 
@@ -266,6 +272,30 @@ class MangaExtensionInstallReceiverTest {
     }
 
     @Test
+    fun `anime extension install and update notify nothing`(@TempDir filesDir: File) = runTest {
+        val listener = mockk<MangaExtensionInstallReceiver.Listener>(relaxed = true)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val receiver = MangaExtensionInstallReceiver(listener, CoroutineScope(SupervisorJob() + dispatcher))
+        val animeExtension = PackageInfo().apply {
+            packageName = ANIME_PKG
+            reqFeatures = arrayOf(FeatureInfo().apply { name = "tachiyomi.animeextension" })
+        }
+        val packageManager = mockk<PackageManager> {
+            every { getPackageInfo(ANIME_PKG, any<Int>()) } returns animeExtension
+        }
+        val context = mockk<Context>(relaxed = true) {
+            every { this@mockk.filesDir } returns filesDir
+            every { this@mockk.packageManager } returns packageManager
+        }
+
+        receiver.onReceive(context, addedIntent(ANIME_PKG))
+        receiver.onReceive(context, replacedIntent(ANIME_PKG))
+        advanceUntilIdle()
+
+        verify { listener wasNot Called }
+    }
+
+    @Test
     fun `register filter contains all six actions and package scheme`() {
         val context = mockk<Context>(relaxed = true)
         val listener = mockk<MangaExtensionInstallReceiver.Listener>(relaxed = true)
@@ -292,5 +322,9 @@ class MangaExtensionInstallReceiverTest {
             capturedActions,
         )
         assertEquals(listOf("package"), capturedSchemes)
+    }
+
+    private companion object {
+        const val ANIME_PKG = "eu.kanade.tachiyomi.animeextension.en.example"
     }
 }

@@ -31,9 +31,8 @@ internal class AnimeExtensionInstallReceiver(
 
     override fun isError(result: AnimeLoadResult): Boolean = result is AnimeLoadResult.Error
 
-    override suspend fun load(context: Context, pkgName: String?): AnimeLoadResult =
+    override suspend fun load(context: Context, pkgName: String?): AnimeLoadResult? =
         pkgName?.let { AnimeExtensionLoader.loadExtensionFromPkgName(context, it) }
-            ?: AnimeLoadResult.Error("Failed to load extension: package name is missing")
 
     override fun dispatchInstalled(listener: Listener, result: AnimeLoadResult) {
         if (result is AnimeLoadResult.Success) listener.onExtensionInstalled(result.extension)

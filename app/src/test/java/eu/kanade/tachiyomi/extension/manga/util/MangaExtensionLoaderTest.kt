@@ -181,7 +181,7 @@ class MangaExtensionLoaderTest {
     private suspend fun loadExtension(
         metadata: Bundle?,
         versionName: String = "1.4.0",
-    ): MangaLoadResult {
+    ): MangaLoadResult? {
         val context = mockk<Context>(relaxed = true)
         val packageManager = mockk<PackageManager>(relaxed = true)
         val applicationInfo = ApplicationInfo().apply { this.metaData = metadata }

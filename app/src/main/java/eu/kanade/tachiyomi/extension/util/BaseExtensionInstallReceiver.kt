@@ -55,10 +55,11 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
     protected abstract fun isError(result: R): Boolean
 
     /**
-     * Loads the extension for [pkgName]. Implementations must call their loader entry point
-     * directly as an object call so tests can mock the loader object.
+     * Loads the extension for [pkgName], or returns null when no extension of this media type has
+     * that package name. Implementations must call their loader entry point directly as an object
+     * call so tests can mock the loader object.
      */
-    protected abstract suspend fun load(context: Context, pkgName: String?): R
+    protected abstract suspend fun load(context: Context, pkgName: String?): R?
 
     /**
      * Notifies [listener] of an installation when [result] carries an installed extension.
@@ -119,7 +120,7 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
                 if (isReplacing(intent)) return
 
                 scope.launch {
-                    val result = getExtensionFromIntent(context, intent)
+                    val result = getExtensionFromIntent(context, intent) ?: return@launch
                     dispatchInstalled(listener, result)
                     dispatchUntrusted(listener, result)
                     dispatchError(listener, result)
@@ -127,7 +128,7 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
             }
             Intent.ACTION_PACKAGE_REPLACED, actions.replaced -> {
                 scope.launch {
-                    val result = loadWithRetryOnReplace(context, intent)
+                    val result = loadWithRetryOnReplace(context, intent) ?: return@launch
                     dispatchUpdated(listener, result)
                     dispatchUntrusted(listener, result)
                     dispatchError(listener, result)
@@ -159,10 +160,10 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
      * because app info isn't committed to the process cache yet; retrying after a short delay
      * lets PM settle before we give up.
      */
-    private suspend fun loadWithRetryOnReplace(context: Context, intent: Intent?): R {
+    private suspend fun loadWithRetryOnReplace(context: Context, intent: Intent?): R? {
         repeat(REPLACE_RETRY_COUNT) { attempt ->
             val result = getExtensionFromIntent(context, intent)
-            if (!isError(result)) return result
+            if (result != null && !isError(result)) return result
             val pkgName = getPackageNameFromIntent(intent) ?: return result
             logcat(LogPriority.WARN) {
                 "Extension $pkgName not found after replace (attempt ${attempt + 1}/$REPLACE_RETRY_COUNT), retrying..."
@@ -178,7 +179,7 @@ internal abstract class BaseExtensionInstallReceiver<L, R>(
      * @param context The application context.
      * @param intent The intent containing the package name of the extension.
      */
-    private suspend fun getExtensionFromIntent(context: Context, intent: Intent?): R {
+    private suspend fun getExtensionFromIntent(context: Context, intent: Intent?): R? {
         val pkgName = getPackageNameFromIntent(intent)
         if (pkgName == null) {
             logcat(LogPriority.WARN) { "Package name not found" }
