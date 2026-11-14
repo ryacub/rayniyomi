@@ -144,6 +144,8 @@ fun EntryInfoBox(
     doSearch: (query: String, global: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     imageRequestBuilder: ImageRequest.Builder.() -> ImageRequest.Builder = { this },
+    backdropData: Any? = coverData,
+    onBackdropError: () -> Unit = {},
 ) {
     Box(modifier = modifier) {
         // Backdrop
@@ -153,12 +155,13 @@ fun EntryInfoBox(
         )
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(coverData)
+                .data(backdropData)
                 .imageRequestBuilder()
                 .crossfade(true)
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            onError = { onBackdropError() },
             modifier = Modifier
                 .matchParentSize()
                 .drawWithContent {
