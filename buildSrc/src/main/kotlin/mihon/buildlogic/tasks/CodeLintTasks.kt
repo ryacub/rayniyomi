@@ -74,90 +74,206 @@ abstract class CheckNullAssertionsTask : DefaultTask() {
         }
     }
 
-    private fun findNullAssertions(lines: List<String>): List<Int> {
-        val assertions = mutableListOf<Int>()
-        var state = ScanState.CODE
-        var blockCommentDepth = 0
+    private fun findNullAssertions(lines: List<String>): List<Int> =
+        maskCommentsAndLiterals(lines).flatMapIndexed { index, line ->
+            List(Regex("!!").findAll(line).count()) { index + 1 }
+        }
+}
 
-        lines.forEachIndexed { index, line ->
-            var offset = 0
-            while (offset < line.length) {
-                when (state) {
-                    ScanState.CODE -> when {
-                        line.startsWith("//", offset) -> offset = line.length
-                        line.startsWith("/*", offset) -> {
-                            state = ScanState.BLOCK_COMMENT
-                            blockCommentDepth = 1
-                            offset += 2
-                        }
-                        line.startsWith("\"\"\"", offset) -> {
-                            state = ScanState.TRIPLE_QUOTE
-                            offset += 3
-                        }
-                        line[offset] == '\"' -> {
-                            state = ScanState.STRING
-                            offset += 1
-                        }
-                        line[offset] == '\'' -> {
-                            state = ScanState.CHARACTER
-                            offset += 1
-                        }
-                        line.startsWith("!!", offset) -> {
-                            assertions.add(index + 1)
-                            offset += 2
-                        }
-                        else -> offset += 1
-                    }
-                    ScanState.BLOCK_COMMENT -> when {
-                        line.startsWith("/*", offset) -> {
-                            blockCommentDepth += 1
-                            offset += 2
-                        }
-                        line.startsWith("*/", offset) -> {
-                            blockCommentDepth -= 1
-                            offset += 2
-                            if (blockCommentDepth == 0) state = ScanState.CODE
-                        }
-                        else -> offset += 1
-                    }
-                    ScanState.TRIPLE_QUOTE -> if (line.startsWith("\"\"\"", offset)) {
-                        state = ScanState.CODE
-                        offset += 3
+abstract class CheckCancellationCatchesTask : DefaultTask() {
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceFiles: ConfigurableFileCollection
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val baselineFile: RegularFileProperty
+
+    @get:Internal
+    abstract val projectDirectory: DirectoryProperty
+
+    @TaskAction
+    fun check() {
+        val baseline = baselineFile.get().asFile.readLines()
+            .asSequence()
+            .filter { it.isNotBlank() && !it.startsWith("#") }
+            .groupingBy { it }
+            .eachCount()
+            .toMutableMap()
+        val projectDir = projectDirectory.get().asFile
+        val violations = mutableListOf<String>()
+
+        sourceFiles.asFileTree.matching { include("**/*.kt") }
+            .files
+            .sortedBy { it.path }
+            .forEach { file ->
+                val lines = file.readLines()
+                val relativePath = file.relativeTo(projectDir).invariantSeparatorsPath
+                findCatchesThatSwallowCancellation(lines).forEach { lineNumber ->
+                    val line = lines[lineNumber - 1].trim()
+                    val fingerprint = "$relativePath\t$line"
+                    val remaining = baseline[fingerprint] ?: 0
+                    if (remaining == 0) {
+                        violations.add("$relativePath:$lineNumber: $line")
                     } else {
-                        offset += 1
-                    }
-                    ScanState.STRING -> when {
-                        line[offset] == '\\' -> offset += 2
-                        line[offset] == '\"' -> {
-                            state = ScanState.CODE
-                            offset += 1
-                        }
-                        else -> offset += 1
-                    }
-                    ScanState.CHARACTER -> when {
-                        line[offset] == '\\' -> offset += 2
-                        line[offset] == '\'' -> {
-                            state = ScanState.CODE
-                            offset += 1
-                        }
-                        else -> offset += 1
+                        baseline[fingerprint] = remaining - 1
                     }
                 }
             }
-            if (state == ScanState.STRING || state == ScanState.CHARACTER) {
-                state = ScanState.CODE
-            }
+
+        val staleBaseline = baseline.filterValues { it > 0 }.keys
+        if (violations.isNotEmpty() || staleBaseline.isNotEmpty()) {
+            violations.forEach { logger.error("CANCELLATION_CATCH: $it") }
+            staleBaseline.forEach { logger.error("STALE_CANCELLATION_CATCH_BASELINE: $it") }
+            throw GradleException(
+                "Found ${violations.size} new catch(es) of Throwable or Exception that do not rethrow " +
+                    "CancellationException and ${staleBaseline.sumOf { baseline[it] ?: 0 }} stale " +
+                    "baseline entry(ies). Rethrow cancellation or catch a narrower type. Update " +
+                    "scripts/cancellation_catch_baseline.txt only to remove fixed sites. See " +
+                    "docs/cancellation-catch-baseline.md.",
+            )
+        } else {
+            logger.lifecycle("checkCancellationCatches: No new catches that swallow cancellation found ✓")
         }
-        return assertions
     }
 
-    private enum class ScanState {
-        CODE,
-        BLOCK_COMMENT,
-        TRIPLE_QUOTE,
-        STRING,
-        CHARACTER,
+    private fun findCatchesThatSwallowCancellation(lines: List<String>): List<Int> {
+        val code = maskCommentsAndLiterals(lines).joinToString("\n")
+        return GENERIC_CATCH.findAll(code)
+            .filterNot { it.rethrowsCancellation(code) }
+            .map { catch -> code.substring(0, catch.range.first).count { it == '\n' } + 1 }
+            .toList()
     }
+
+    private fun MatchResult.rethrowsCancellation(code: String): Boolean {
+        val name = groupValues[1]
+        val firstStatement = Regex(
+            """^\s*if\s*\(\s*$name\s+is\s+$CANCELLATION_TYPE\s*\)\s*(\{\s*)?throw\s+$name\b""",
+        )
+        return firstStatement.containsMatchIn(code.substring(range.last + 1)) ||
+            followsCancellationClause(code, range.first)
+    }
+
+    private fun followsCancellationClause(code: String, catchStart: Int): Boolean {
+        val closingBrace = code.lastIndexOf('}', catchStart - 1)
+        if (closingBrace < 0 || code.substring(closingBrace + 1, catchStart).isNotBlank()) return false
+        val openingBrace = matchingOpeningBrace(code, closingBrace) ?: return false
+        val clauseName = CANCELLATION_CLAUSE.find(code.substring(0, openingBrace))?.groupValues?.get(1)
+            ?: return false
+        return Regex("""\bthrow\s+$clauseName\b""").containsMatchIn(code.substring(openingBrace, closingBrace))
+    }
+
+    private fun matchingOpeningBrace(code: String, closingBrace: Int): Int? {
+        var depth = 0
+        for (index in closingBrace downTo 0) {
+            when (code[index]) {
+                '}' -> depth++
+                '{' -> if (--depth == 0) return index
+            }
+        }
+        return null
+    }
+
+    private companion object {
+        const val CANCELLATION_TYPE = """(?:[\w.]+\.)?CancellationException"""
+        val GENERIC_CATCH = Regex(
+            """catch\s*\(\s*(\w+)\s*:\s*(?:kotlin\.|java\.lang\.)?(?:Throwable|Exception)\s*\)\s*\{""",
+        )
+        val CANCELLATION_CLAUSE = Regex("""catch\s*\(\s*(\w+)\s*:\s*$CANCELLATION_TYPE\s*\)\s*$""")
+    }
+}
+
+/**
+ * Keeps line count and columns, so a match offset in the result maps back to the source line.
+ */
+internal fun maskCommentsAndLiterals(lines: List<String>): List<String> {
+    var state = ScanState.CODE
+    var blockCommentDepth = 0
+
+    return lines.map { line ->
+        val masked = StringBuilder(line.length)
+        var offset = 0
+        fun keep(count: Int) {
+            masked.append(line, offset, minOf(offset + count, line.length))
+            offset += count
+        }
+        fun mask(count: Int) {
+            repeat(minOf(count, line.length - offset)) { masked.append(' ') }
+            offset += count
+        }
+        while (offset < line.length) {
+            when (state) {
+                ScanState.CODE -> when {
+                    line.startsWith("//", offset) -> mask(line.length - offset)
+                    line.startsWith("/*", offset) -> {
+                        state = ScanState.BLOCK_COMMENT
+                        blockCommentDepth = 1
+                        mask(2)
+                    }
+                    line.startsWith("\"\"\"", offset) -> {
+                        state = ScanState.TRIPLE_QUOTE
+                        mask(3)
+                    }
+                    line[offset] == '\"' -> {
+                        state = ScanState.STRING
+                        mask(1)
+                    }
+                    line[offset] == '\'' -> {
+                        state = ScanState.CHARACTER
+                        mask(1)
+                    }
+                    else -> keep(1)
+                }
+                ScanState.BLOCK_COMMENT -> when {
+                    line.startsWith("/*", offset) -> {
+                        blockCommentDepth += 1
+                        mask(2)
+                    }
+                    line.startsWith("*/", offset) -> {
+                        blockCommentDepth -= 1
+                        mask(2)
+                        if (blockCommentDepth == 0) state = ScanState.CODE
+                    }
+                    else -> mask(1)
+                }
+                ScanState.TRIPLE_QUOTE -> if (line.startsWith("\"\"\"", offset)) {
+                    state = ScanState.CODE
+                    mask(3)
+                } else {
+                    mask(1)
+                }
+                ScanState.STRING -> when {
+                    line[offset] == '\\' -> mask(2)
+                    line[offset] == '\"' -> {
+                        state = ScanState.CODE
+                        mask(1)
+                    }
+                    else -> mask(1)
+                }
+                ScanState.CHARACTER -> when {
+                    line[offset] == '\\' -> mask(2)
+                    line[offset] == '\'' -> {
+                        state = ScanState.CODE
+                        mask(1)
+                    }
+                    else -> mask(1)
+                }
+            }
+        }
+        if (state == ScanState.STRING || state == ScanState.CHARACTER) {
+            state = ScanState.CODE
+        }
+        masked.toString()
+    }
+}
+
+private enum class ScanState {
+    CODE,
+    BLOCK_COMMENT,
+    TRIPLE_QUOTE,
+    STRING,
+    CHARACTER,
 }
 
 abstract class CheckBlockingCallsTask : DefaultTask() {

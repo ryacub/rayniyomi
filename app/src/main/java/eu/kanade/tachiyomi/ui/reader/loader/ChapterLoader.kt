@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import kotlinx.coroutines.CancellationException
 import mihon.core.archive.archiveReader
 import mihon.core.archive.epubReader
 import tachiyomi.core.common.i18n.stringResource
@@ -46,9 +47,9 @@ class ChapterLoader(
             return
         }
 
-        chapter.state = ReaderChapter.State.Loading
         withIOContext {
             logcat { "Loading pages for ${chapter.chapter.name}" }
+            chapter.state = ReaderChapter.State.Loading
             try {
                 val loader = getPageLoader(chapter)
                 chapter.pageLoader = loader
@@ -66,6 +67,9 @@ class ChapterLoader(
                 }
 
                 chapter.state = ReaderChapter.State.Loaded(pages)
+            } catch (e: CancellationException) {
+                chapter.state = ReaderChapter.State.Wait
+                throw e
             } catch (e: Throwable) {
                 chapter.state = ReaderChapter.State.Error(e)
                 throw e
