@@ -147,7 +147,11 @@ class ChapterLoader(
         val self = currentCoroutineContext().job
         fun isCurrent() = attempts[chapter] === self
 
-        val reusedLoader = if (reuseLoader) chapter.pageLoader?.takeUnless { it.isRecycled } else null
+        val reusedLoader = if (reuseLoader) {
+            synchronized(chapter) { chapter.pageLoader?.takeUnless { it.isRecycled } }
+        } else {
+            null
+        }
         var openedLoader: PageLoader? = null
         logcat { "Loading pages for ${chapter.chapter.name}" }
         try {
