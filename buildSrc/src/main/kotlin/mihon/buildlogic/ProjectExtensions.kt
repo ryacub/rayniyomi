@@ -7,6 +7,7 @@ import org.gradle.accessors.dm.LibrariesForKotlinx
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.api.Project
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
@@ -88,10 +89,14 @@ internal fun Project.configureCompose(commonExtension: CommonExtension) {
 }
 
 internal fun Project.configureTest() {
+    val runningInCi = providers.environmentVariable("CI").map { it == "true" }.getOrElse(false)
     tasks.withType<Test> {
         useJUnitPlatform()
         testLogging {
             events(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
+            if (runningInCi) {
+                exceptionFormat = TestExceptionFormat.FULL
+            }
         }
     }
 

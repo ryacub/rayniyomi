@@ -37,7 +37,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -222,25 +221,36 @@ class AnimeDownloaderTest {
     fun `removing a running episode deletes resume progress after the cancelled download saves it`() {
         val download = testDownload()
         val hostersStarted = CountDownLatch(1)
+        val allowSave = CompletableDeferred<Unit>()
+        val partialDirectoryDeleted = CountDownLatch(1)
+        every { partialEpisodeDir.delete() } answers {
+            resumeFileEvents += "delete partial dir"
+            partialDirectoryDeleted.countDown()
+            true
+        }
         mockHosters {
             hostersStarted.countDown()
             try {
                 awaitCancellation()
             } finally {
                 withContext(NonCancellable) {
-                    delay(100)
+                    allowSave.await()
                     stateStore.saveProgress(DownloadProgress(episodeId = download.episode.id, videoUrl = ""))
                 }
             }
         }
-        downloader.addToStartOfQueue(listOf(download))
-        downloader.start()
-        assertTrue(hostersStarted.await(5, TimeUnit.SECONDS))
+        try {
+            downloader.addToStartOfQueue(listOf(download))
+            downloader.start()
+            assertTrue(hostersStarted.await(5, TimeUnit.SECONDS))
 
-        downloader.pause()
-        downloader.removeFromQueueByEpisodeIds(listOf(1L))
+            downloader.pause()
+            downloader.removeFromQueueByEpisodeIds(listOf(1L))
+        } finally {
+            allowSave.complete(Unit)
+        }
 
-        verify(timeout = 2_000) { partialEpisodeDir.delete() }
+        assertTrue(partialDirectoryDeleted.await(5, TimeUnit.SECONDS))
         assertEquals(listOf("save 1", "delete 1", "delete partial dir"), resumeFileEvents.toList())
     }
 

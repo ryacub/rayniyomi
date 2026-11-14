@@ -3,12 +3,14 @@ package eu.kanade.tachiyomi.ui.recovery
 import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.test.VirtualTime
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -309,19 +311,20 @@ class RecoveryScreenModelTest {
             val model = model(backend)
             model.awaitState { it.step == RecoveryScreenModel.Step.Select }
             model.toggleSource(20)
+            val retry = launch(Dispatchers.Unconfined, start = CoroutineStart.UNDISPATCHED) {
+                val entries = model.state.first { state ->
+                    state.busy == null &&
+                        state.entries.size == 2 &&
+                        state.entries.all { it.state == RecoveryState.NEEDS_REVIEW }
+                }.entries
+                model.searchAgain(entries.single { it.originalId == 1L }.id, "Other name")
+            }
             model.findReplacements()
-            val entries = model.awaitState { s ->
-                s.busy == null &&
-                    s.entries.size == 2 &&
-                    s.entries.all { it.state == RecoveryState.NEEDS_REVIEW }
-            }.entries
-            val first = entries.single { it.originalId == 1L }
-
-            model.searchAgain(first.id, "Other name")
-            val state = model.awaitState { s ->
-                s.entries.single { it.id == first.id }.candidates.firstOrNull()?.title ==
+            retry.join()
+            val state = model.awaitState { state ->
+                state.entries.single { it.originalId == 1L }.candidates.firstOrNull()?.title ==
                     "Other name" &&
-                    s.busy == null
+                    state.busy == null
             }
 
             assertEquals(listOf("Title 2"), state.entries.single { it.originalId == 2L }.candidates.map { it.title })
