@@ -18,7 +18,7 @@ class LockoutPolicyTest {
     fun `attempt 4 returns LockedOut with 30 seconds`() {
         val result = LockoutPolicy.calculateLockout(4)
         result.shouldBeInstanceOf<LockoutState.LockedOut>()
-        (result as LockoutState.LockedOut).durationMillis shouldBe 30_000L
+        result.durationMillis shouldBe 30_000L
     }
 
     @Test
@@ -26,7 +26,7 @@ class LockoutPolicyTest {
         for (attempt in 5..6) {
             val result = LockoutPolicy.calculateLockout(attempt)
             result.shouldBeInstanceOf<LockoutState.LockedOut>()
-            (result as LockoutState.LockedOut).durationMillis shouldBe 30_000L
+            result.durationMillis shouldBe 30_000L
         }
     }
 
@@ -34,7 +34,7 @@ class LockoutPolicyTest {
     fun `attempt 7 returns LockedOut with 5 minutes`() {
         val result = LockoutPolicy.calculateLockout(7)
         result.shouldBeInstanceOf<LockoutState.LockedOut>()
-        (result as LockoutState.LockedOut).durationMillis shouldBe 300_000L
+        result.durationMillis shouldBe 300_000L
     }
 
     @Test
@@ -42,7 +42,7 @@ class LockoutPolicyTest {
         for (attempt in 8..9) {
             val result = LockoutPolicy.calculateLockout(attempt)
             result.shouldBeInstanceOf<LockoutState.LockedOut>()
-            (result as LockoutState.LockedOut).durationMillis shouldBe 300_000L
+            result.durationMillis shouldBe 300_000L
         }
     }
 

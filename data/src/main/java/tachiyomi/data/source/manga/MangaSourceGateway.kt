@@ -57,6 +57,8 @@ object MangaSourceGateway {
     fun chapterUrl(source: HttpSource, chapter: SChapter): String = guard(source) { source.getChapterUrl(chapter) }
 
     fun prepareChapter(source: HttpSource, chapter: SChapter, manga: SManga) {
+        // Older extensions can still override this hook.
+        @Suppress("DEPRECATION")
         guard(source) { source.prepareNewChapter(chapter, manga) }
     }
 

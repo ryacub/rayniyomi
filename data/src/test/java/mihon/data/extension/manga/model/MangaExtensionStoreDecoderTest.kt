@@ -58,7 +58,7 @@ class MangaExtensionStoreDecoderTest {
 
         decoded.name shouldBe "Keiyoushi"
         decoded.extensionList!!.extensions.size shouldBe 1
-        val ext = decoded.extensionList!!.extensions.first()
+        val ext = decoded.extensionList.extensions.first()
         ext.packageName shouldBe "eu.kanade.tachiyomi.extension.all.akuma"
         ext.extensionLib shouldBe "1.4"
         ext.versionName shouldBe "1.4.10"
