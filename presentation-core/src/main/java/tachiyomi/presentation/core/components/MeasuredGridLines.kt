@@ -94,12 +94,8 @@ internal class MeasuredGridLines {
 
     private fun firstIndexOf(line: Int): Int {
         measured[line]?.let { return it.firstIndex }
-        val (row, reference) = measured.entries
-            .filter { it.key < line }
-            .maxByOrNull { it.key }
-            ?.toPair()
-            ?: measured.entries.minBy { it.key }.toPair()
-        val index = reference.firstIndex + (line - row) * estimatedItemsPerLine
+        val nearestRow = measured.keys.filter { it < line }.maxOrNull() ?: measured.keys.min()
+        val index = measured.getValue(nearestRow).firstIndex + (line - nearestRow) * estimatedItemsPerLine
         return index.coerceIn(0, totalItems - 1)
     }
 
