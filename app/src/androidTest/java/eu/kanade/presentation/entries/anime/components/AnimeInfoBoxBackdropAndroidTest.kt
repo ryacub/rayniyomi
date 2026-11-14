@@ -15,7 +15,10 @@ import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
 import coil3.request.Options
+import eu.kanade.tachiyomi.data.coil.AnimeImageFetcher
 import eu.kanade.tachiyomi.data.coil.useBackground
+import okhttp3.Call
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -35,14 +38,14 @@ class AnimeInfoBoxBackdropAndroidTest {
 
     private val requests = CopyOnWriteArrayList<Boolean>()
     private var backgroundLoads = true
-    private var posterLoads = true
+    private var coverLoads = true
 
     private val anime = mutableStateOf(
         Anime.create().copy(
-            id = 1L,
+            id = 987_654L,
             title = "Jaadugar",
             thumbnailUrl = "https://example.org/poster.jpg",
-            backgroundUrl = null,
+            backgroundUrl = "https://example.org/background.jpg",
         ),
     )
 
@@ -66,13 +69,23 @@ class AnimeInfoBoxBackdropAndroidTest {
     }
 
     @Test
-    fun aLoadedBackgroundIsTheOnlyBackdropRequest() {
+    fun aLoadedBackgroundNeedsNoPosterFallback() {
         show()
 
-        awaitRequests(background = 1, poster = 1)
+        awaitRequests(background = 1, cover = 1)
         settle()
 
-        assertRequests(background = 1, poster = 1)
+        assertRequests(background = 1, cover = 1)
+    }
+
+    @Test
+    fun aMissingBackgroundUrlFallsBackToThePoster() {
+        anime.value = anime.value.copy(backgroundUrl = null)
+        show()
+
+        awaitRequests(background = 1, cover = 2)
+
+        assertRequests(background = 1, cover = 2)
     }
 
     @Test
@@ -80,21 +93,21 @@ class AnimeInfoBoxBackdropAndroidTest {
         backgroundLoads = false
         show()
 
-        awaitRequests(background = 1, poster = 2)
+        awaitRequests(background = 1, cover = 2)
 
-        assertRequests(background = 1, poster = 2)
+        assertRequests(background = 1, cover = 2)
     }
 
     @Test
     fun whenBothImagesFailTheBackdropStopsAndTheHeaderStaysUsable() {
         backgroundLoads = false
-        posterLoads = false
+        coverLoads = false
         show()
 
-        awaitRequests(background = 1, poster = 2)
+        awaitRequests(background = 1, cover = 2)
         settle()
 
-        assertRequests(background = 1, poster = 2)
+        assertRequests(background = 1, cover = 2)
         compose.onNodeWithText("Jaadugar").assertExists()
     }
 
@@ -102,12 +115,12 @@ class AnimeInfoBoxBackdropAndroidTest {
     fun aNewBackgroundIsRequestedAgainAfterAFailure() {
         backgroundLoads = false
         show()
-        awaitRequests(background = 1, poster = 2)
+        awaitRequests(background = 1, cover = 2)
 
         backgroundLoads = true
         compose.runOnIdle { anime.value = anime.value.copy(backgroundLastModified = 1L) }
 
-        awaitRequests(background = 2, poster = 2)
+        awaitRequests(background = 2, cover = 2)
         settle()
         assertEquals("background requests in $requests", 2, count(true))
     }
@@ -126,10 +139,10 @@ class AnimeInfoBoxBackdropAndroidTest {
         }
     }
 
-    private fun awaitRequests(background: Int, poster: Int) {
+    private fun awaitRequests(background: Int, cover: Int) {
         runCatching {
             compose.waitUntil(timeoutMillis = 5_000) {
-                count(true) >= background && count(false) >= poster
+                count(true) >= background && count(false) >= cover
             }
         }
     }
@@ -139,18 +152,22 @@ class AnimeInfoBoxBackdropAndroidTest {
         compose.waitForIdle()
     }
 
-    private fun assertRequests(background: Int, poster: Int) {
+    private fun assertRequests(background: Int, cover: Int) {
         assertEquals("background requests in $requests", background, count(true))
-        assertEquals("poster requests in $requests", poster, count(false))
+        assertEquals("cover requests in $requests", cover, count(false))
     }
 
     private fun count(useBackground: Boolean) = requests.count { it == useBackground }
 
-    private inner class RecordingFetcher(private val isBackground: Boolean) : Fetcher {
-        override suspend fun fetch(): FetchResult {
+    private inner class RecordingFetcher(
+        private val isBackground: Boolean,
+        private val productionFetcher: Fetcher? = null,
+    ) : Fetcher {
+        override suspend fun fetch(): FetchResult? {
             requests += isBackground
+            if (productionFetcher != null) return productionFetcher.fetch()
             if (isBackground && !backgroundLoads) throw IOException("background unavailable")
-            if (!isBackground && !posterLoads) throw IOException("poster unavailable")
+            if (!isBackground && !coverLoads) throw IOException("cover unavailable")
             return ImageFetchResult(
                 image = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImage(),
                 isSampled = false,
@@ -160,8 +177,23 @@ class AnimeInfoBoxBackdropAndroidTest {
     }
 
     private inner class AnimeFetcherFactory : Fetcher.Factory<Anime> {
-        override fun create(data: Anime, options: Options, imageLoader: ImageLoader): Fetcher =
-            RecordingFetcher(isBackground = options.useBackground)
+        private val productionFactory = AnimeImageFetcher.AnimeFactory(lazy<Call.Factory> { OkHttpClient() })
+
+        override fun create(data: Anime, options: Options, imageLoader: ImageLoader): Fetcher {
+            val missingBackgroundUrl = options.useBackground && data.backgroundUrl == null
+            return RecordingFetcher(
+                isBackground = options.useBackground,
+                productionFetcher = if (missingBackgroundUrl) {
+                    productionFactory.create(
+                        data,
+                        options,
+                        imageLoader,
+                    )
+                } else {
+                    null
+                },
+            )
+        }
     }
 
     private inner class AnimeCoverFetcherFactory : Fetcher.Factory<AnimeCover> {
