@@ -1,0 +1,187 @@
+app/src/main/java/eu/kanade/core/util/AnimeSourceUtil.kt	return remember { appGraph.animeSourceManager.isInitialized }.collectAsState().value
+app/src/main/java/eu/kanade/core/util/MangaSourceUtil.kt	return remember { appGraph.mangaSourceManager.isInitialized }.collectAsState().value
+app/src/main/java/eu/kanade/domain/track/anime/interactor/AddAnimeTracks.kt	val firstReadChapterDate = appGraph.getAnimeHistory.await(animeId)
+app/src/main/java/eu/kanade/domain/track/anime/service/DelayedAnimeTrackingUpdateJob.kt	val getTracks = appGraph.getAnimeTracks
+app/src/main/java/eu/kanade/domain/track/anime/service/DelayedAnimeTrackingUpdateJob.kt	val trackEpisode = appGraph.trackEpisode
+app/src/main/java/eu/kanade/domain/track/anime/service/DelayedAnimeTrackingUpdateJob.kt	val delayedTrackingStore = appGraph.delayedAnimeTrackingStore
+app/src/main/java/eu/kanade/domain/track/manga/interactor/AddMangaTracks.kt	val firstReadChapterDate = appGraph.getMangaHistory.await(mangaId)
+app/src/main/java/eu/kanade/domain/track/manga/service/DelayedMangaTrackingUpdateJob.kt	val getTracks = appGraph.getMangaTracks
+app/src/main/java/eu/kanade/domain/track/manga/service/DelayedMangaTrackingUpdateJob.kt	val trackChapter = appGraph.trackChapter
+app/src/main/java/eu/kanade/domain/track/manga/service/DelayedMangaTrackingUpdateJob.kt	val delayedTrackingStore = appGraph.delayedMangaTrackingStore
+app/src/main/java/eu/kanade/domain/track/service/ImmediateTrackerSyncJob.kt	val coordinator = appGraph.trackerSyncCoordinator
+app/src/main/java/eu/kanade/domain/track/service/PeriodicTrackerSyncJob.kt	val coordinator = appGraph.trackerSyncCoordinator
+app/src/main/java/eu/kanade/domain/track/service/PeriodicTrackerSyncJob.kt	val trackPreferences = appGraph.trackPreferences
+app/src/main/java/eu/kanade/presentation/components/DateText.kt	val preferences = remember { appGraph.uiPreferences }
+app/src/main/java/eu/kanade/presentation/components/DateText.kt	val preferences = remember { appGraph.uiPreferences }
+app/src/main/java/eu/kanade/presentation/entries/anime/AnimeScreen.kt	val uiPreferences = remember { appGraph.uiPreferences }
+app/src/main/java/eu/kanade/presentation/entries/anime/EpisodeOptionsDialogScreen.kt	val downloadManager = appGraph.animeDownloadManager
+app/src/main/java/eu/kanade/presentation/entries/anime/EpisodeSettingsDialog.kt	val downloadedOnly = remember { appGraph.basePreferences.downloadedOnly().get() }
+app/src/main/java/eu/kanade/presentation/entries/anime/SeasonSettingsDialog.kt	val downloadedOnly = remember { appGraph.basePreferences.downloadedOnly().get() }
+app/src/main/java/eu/kanade/presentation/entries/components/EntryBottomActionMenu.kt	val playerPreferences: PlayerPreferences = appGraph.playerPreferences
+app/src/main/java/eu/kanade/presentation/entries/manga/ChapterSettingsDialog.kt	val downloadedOnly = remember { appGraph.basePreferences.downloadedOnly().get() }
+app/src/main/java/eu/kanade/presentation/entries/manga/MangaScreen.kt	val uiPreferences = remember { appGraph.uiPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val basePreferences = remember { appGraph.basePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val networkPreferences = remember { appGraph.networkPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	appGraph.mangaDownloadCache.invalidateCache()
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	appGraph.animeDownloadCache.invalidateCache()
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val networkHelper = remember { appGraph.networkHelper }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val success = appGraph.resetMangaViewerFlags.await()
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val trustAnimeExtension = remember { appGraph.trustAnimeExtension }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val trustMangaExtension = remember { appGraph.trustMangaExtension }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAdvancedScreen.kt	val sourcePreferences = remember { appGraph.sourcePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsAppearanceScreen.kt	val uiPreferences = remember { appGraph.uiPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsBrowseScreen.kt	val sourcePreferences = remember { appGraph.sourcePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsBrowseScreen.kt	val getMangaExtensionRepoCount = remember { appGraph.getMangaExtensionRepoCount }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsBrowseScreen.kt	val getAnimeExtensionRepoCount = remember { appGraph.getAnimeExtensionRepoCount }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt	val backupPreferences = appGraph.backupPreferences
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt	val storagePreferences = appGraph.storagePreferences
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt	val libraryPreferences = remember { appGraph.libraryPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt	val chapterCache = remember { appGraph.chapterCache }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt	val getAnimeFavorites = remember { appGraph.getAnimeFavorites }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt	val getMangaFavorites = remember { appGraph.getMangaFavorites }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt	val getMangaCategories = remember { appGraph.getMangaCategories }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt	val getAnimeCategories = remember { appGraph.getAnimeCategories }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt	val downloadPreferences = remember { appGraph.downloadPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt	val basePreferences = remember { appGraph.basePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLibraryScreen.kt	val getCategories = remember { appGraph.getMangaCategories }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLibraryScreen.kt	val getAnimeCategories = remember { appGraph.getAnimeCategories }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLibraryScreen.kt	val libraryPreferences = remember { appGraph.libraryPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLibraryScreen.kt	appGraph.resetMangaCategoryFlags.await()
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLightNovelScreen.kt	val preferences = remember { appGraph.novelFeaturePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLightNovelScreen.kt	val pluginManager = remember { appGraph.lightNovelPluginManager }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLightNovelScreen.kt	val stateManager = remember { appGraph.lightNovelPluginStateManager }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsReaderScreen.kt	val readerPref = remember { appGraph.readerPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsSecurityScreen.kt	val securityPreferences = remember { appGraph.securityPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTrackingScreen.kt	val trackPreferences = remember { appGraph.trackPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTrackingScreen.kt	val trackerManager = remember { appGraph.trackerManager }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTrackingScreen.kt	val mangaSourceManager = remember { appGraph.mangaSourceManager }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTrackingScreen.kt	val animeSourceManager = remember { appGraph.animeSourceManager }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTranslationScreen.kt	val translationPreferences = remember { appGraph.translationPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTranslationScreen.kt	remember { appGraph.translationModelCatalogRepository }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt	val updatePromptPreferences = remember { appGraph.updatePromptPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt	appGraph.uiPreferences.dateFormat().get(),
+app/src/main/java/eu/kanade/presentation/more/settings/screen/appearance/AdvancedCustomAccentScreen.kt	val uiPreferences = remember { appGraph.uiPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/AnimeExtensionReposScreen.kt	getExtensionRepo = appGraph.getAnimeExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/AnimeExtensionReposScreen.kt	createExtensionRepo = appGraph.createAnimeExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/AnimeExtensionReposScreen.kt	deleteExtensionRepo = appGraph.deleteAnimeExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/AnimeExtensionReposScreen.kt	replaceExtensionRepo = appGraph.replaceAnimeExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/AnimeExtensionReposScreen.kt	updateExtensionRepo = appGraph.updateAnimeExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/MangaExtensionReposScreen.kt	getExtensionRepo = appGraph.getMangaExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/MangaExtensionReposScreen.kt	createExtensionRepo = appGraph.createMangaExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/MangaExtensionReposScreen.kt	deleteExtensionRepo = appGraph.deleteMangaExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/MangaExtensionReposScreen.kt	replaceExtensionRepo = appGraph.replaceMangaExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/browse/MangaExtensionReposScreen.kt	updateExtensionRepo = appGraph.updateMangaExtensionRepo,
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsAdvancedScreen.kt	val advancedPlayerPreferences = remember { appGraph.advancedPlayerPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsAudioScreen.kt	val audioPreferences = remember { appGraph.audioPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsDecoderScreen.kt	val decoderPreferences = remember { appGraph.decoderPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsGesturesScreen.kt	val gesturePreferences = remember { appGraph.gesturePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsPlayerScreen.kt	val playerPreferences = remember { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsPlayerScreen.kt	val basePreferences = remember { appGraph.basePreferences }
+app/src/main/java/eu/kanade/presentation/more/settings/screen/player/PlayerSettingsSubtitleScreen.kt	val subtitlePreferences = remember { appGraph.subtitlePreferences }
+app/src/main/java/eu/kanade/presentation/theme/TachiyomiTheme.kt	val uiPreferences = appGraph.uiPreferences
+app/src/main/java/eu/kanade/presentation/updates/anime/AnimeUpdatesScreen.kt	val playerPreferences: PlayerPreferences = appGraph.playerPreferences
+app/src/main/java/eu/kanade/presentation/util/WindowSize.kt	val tabletUiMode by remember { appGraph.uiPreferences.tabletUiMode() }.collectAsState()
+app/src/main/java/eu/kanade/presentation/webview/WebViewScreenContent.kt	val network = remember { appGraph.networkHelper }
+app/src/main/java/eu/kanade/tachiyomi/App.kt	appGraph.warmUp(scope, TranslationNotifier(this))
+app/src/main/java/eu/kanade/tachiyomi/App.kt	setAppCompatDelegateThemeMode(appGraph.uiPreferences.themeMode().get())
+app/src/main/java/eu/kanade/tachiyomi/App.kt	val preferenceStore = appGraph.preferenceStore
+app/src/main/java/eu/kanade/tachiyomi/App.kt	val callFactoryLazy = lazy { appGraph.networkHelper.client }
+app/src/main/java/eu/kanade/tachiyomi/App.kt	val trackPreferences = appGraph.trackPreferences
+app/src/main/java/eu/kanade/tachiyomi/AppStartupHelpers.kt	with(MangaWidgetManager(appGraph.getMangaUpdates, appGraph.securityPreferences)) {
+app/src/main/java/eu/kanade/tachiyomi/AppStartupHelpers.kt	with(MangaWidgetManager(appGraph.getMangaUpdates, appGraph.securityPreferences)) {
+app/src/main/java/eu/kanade/tachiyomi/AppStartupHelpers.kt	with(AnimeWidgetManager(appGraph.getAnimeUpdates, appGraph.securityPreferences)) {
+app/src/main/java/eu/kanade/tachiyomi/AppStartupHelpers.kt	with(AnimeWidgetManager(appGraph.getAnimeUpdates, appGraph.securityPreferences)) {
+app/src/main/java/eu/kanade/tachiyomi/data/backup/create/BackupCreateJob.kt	val storageManager = appGraph.storageManager
+app/src/main/java/eu/kanade/tachiyomi/data/backup/create/BackupCreateJob.kt	val backupPreferences = appGraph.backupPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/download/anime/AnimeDownloadCache.kt	UniFile.fromUri(appGraph.application, decoder.decodeString().toUri())
+app/src/main/java/eu/kanade/tachiyomi/data/download/manga/MangaDownloadCache.kt	UniFile.fromUri(appGraph.application, decoder.decodeString().toUri())
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeLibraryUpdateJob.kt	val preferences = appGraph.libraryPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeLibraryUpdateJob.kt	val preferences = appGraph.libraryPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeLibraryUpdateJob.kt	stop(context, appGraph.libraryUpdateSummaryStore)
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeMetadataUpdateJob.kt	val existing = appGraph.getEpisodesByAnimeId.await(anime.id)
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeMetadataUpdateJob.kt	appGraph.syncEpisodesWithSource.await(
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeMetadataUpdateJob.kt	val existing = appGraph.animeRepository.getAnimeSeasonsById(anime.id).map { it.anime }
+app/src/main/java/eu/kanade/tachiyomi/data/library/anime/AnimeMetadataUpdateJob.kt	appGraph.syncSeasonsWithSource.await(
+app/src/main/java/eu/kanade/tachiyomi/data/library/manga/MangaLibraryUpdateJob.kt	val preferences = appGraph.libraryPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/library/manga/MangaLibraryUpdateJob.kt	val preferences = appGraph.libraryPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/library/manga/MangaLibraryUpdateJob.kt	stop(context, appGraph.libraryUpdateSummaryStore)
+app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	val sourceManager: MangaSourceManager = appGraph.mangaSourceManager
+app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	val downloadPreferences: DownloadPreferences = appGraph.downloadPreferences
+app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	val sourceManager: AnimeSourceManager = appGraph.animeSourceManager
+app/src/main/java/eu/kanade/tachiyomi/data/track/AnimeTracker.kt	withUIContext { appGraph.application.toast(e.message) }
+app/src/main/java/eu/kanade/tachiyomi/data/track/AnimeTracker.kt	withUIContext { appGraph.application.toast(e.message) }
+app/src/main/java/eu/kanade/tachiyomi/data/track/MangaTracker.kt	withUIContext { appGraph.application.toast(e.message) }
+app/src/main/java/eu/kanade/tachiyomi/data/track/MangaTracker.kt	withUIContext { appGraph.application.toast(e.message) }
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstallActivity.kt	val extensionManager = appGraph.animeExtensionManager
+app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstaller.kt	val extensionManager = appGraph.animeExtensionManager
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstallActivity.kt	val extensionManager = appGraph.mangaExtensionManager
+app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstaller.kt	val extensionManager = appGraph.mangaExtensionManager
+app/src/main/java/eu/kanade/tachiyomi/source/anime/AnimeSourceExtensions.kt	val preferences = appGraph.sourcePreferences
+app/src/main/java/eu/kanade/tachiyomi/source/manga/MangaSourceExtensions.kt	val preferences = appGraph.sourcePreferences
+app/src/main/java/eu/kanade/tachiyomi/ui/base/delegate/SecureActivityDelegate.kt	val preferences = appGraph.securityPreferences
+app/src/main/java/eu/kanade/tachiyomi/ui/base/delegate/SecureActivityDelegate.kt	val preferences = appGraph.securityPreferences
+app/src/main/java/eu/kanade/tachiyomi/ui/base/delegate/ThemingDelegate.kt	val uiPreferences = appGraph.uiPreferences
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/BrowseTab.kt	val lightNovelPluginStateManager = appGraph.lightNovelPluginStateManager
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/anime/extension/details/AnimeSourcePreferencesScreen.kt	appGraph.animeSourceManager.getOrStub(sourceId)
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/manga/extension/details/MangaSourcePreferencesScreen.kt	appGraph.mangaSourceManager.getOrStub(sourceId)
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/novel/source/NovelSourcesTab.kt	val pluginLauncher = appGraph.lightNovelPluginLauncher
+app/src/main/java/eu/kanade/tachiyomi/ui/browse/novel/source/NovelSourcesTab.kt	val stateManager = appGraph.lightNovelPluginStateManager
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackFieldSelectorScreens.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackFieldSelectorScreens.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackFieldSelectorScreens.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackFieldSelectorScreens.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackFieldSelectorScreens.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackInfoDialog.kt	appGraph.uiPreferences.dateFormat().get(),
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackInfoDialog.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackInfoDialog.kt	tracker = checkNotNull(appGraph.trackerManager.get(serviceId)) {
+app/src/main/java/eu/kanade/tachiyomi/ui/history/anime/AnimeHistoryTab.kt	val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/home/HomeScreen.kt	val pref = appGraph.libraryPreferences
+app/src/main/java/eu/kanade/tachiyomi/ui/home/HomeScreen.kt	val pref = appGraph.sourcePreferences
+app/src/main/java/eu/kanade/tachiyomi/ui/library/anime/AnimeLibraryTab.kt	val summaryStore = remember { appGraph.libraryUpdateSummaryStore }
+app/src/main/java/eu/kanade/tachiyomi/ui/library/anime/AnimeLibraryTab.kt	val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/library/anime/AnimeLibraryTab.kt	val libraryPreferences: LibraryPreferences by lazy { appGraph.libraryPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/library/manga/MangaLibraryTab.kt	val summaryStore = remember { appGraph.libraryUpdateSummaryStore }
+app/src/main/java/eu/kanade/tachiyomi/ui/library/manga/MangaLibraryTab.kt	val libraryPreferences: LibraryPreferences by lazy { appGraph.libraryPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/more/OnboardingScreen.kt	val basePreferences = remember { appGraph.basePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/ExternalIntents.kt	val trackerManager = appGraph.trackerManager
+app/src/main/java/eu/kanade/tachiyomi/ui/player/ExternalIntents.kt	val context = appGraph.application
+app/src/main/java/eu/kanade/tachiyomi/ui/player/ExternalIntents.kt	appGraph.application.toast(e.message)
+app/src/main/java/eu/kanade/tachiyomi/ui/player/ExternalIntents.kt	appGraph.application.toast("Cannot launch external player")
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/BottomLeftPlayerControls.kt	val playerPreferences = remember { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/GestureHandler.kt	val playerPreferences = remember { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/GestureHandler.kt	val gesturePreferences = remember { appGraph.gesturePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/GestureHandler.kt	val audioPreferences = remember { appGraph.audioPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt	val playerPreferences = remember { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt	val gesturePreferences = remember { appGraph.gesturePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt	val audioPreferences = remember { appGraph.audioPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt	val subtitlePreferences = remember { appGraph.subtitlePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/PlayerControls.kt	val castManager = remember { appGraph.castManager }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/AudioDelayPanel.kt	val preferences = remember { appGraph.audioPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleDelayPanel.kt	val preferences = remember { appGraph.subtitlePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsColorsCard.kt	val preferences = remember { appGraph.subtitlePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsMiscellaneousCard.kt	val preferences = remember { appGraph.subtitlePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsTypographyCard.kt	val preferences = remember { appGraph.subtitlePreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/SubtitleSettingsTypographyCard.kt	val storageManager = remember { appGraph.storageManager }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/panels/VideoFiltersPanel.kt	val decoderPreferences = remember { appGraph.decoderPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/MoreSheet.kt	val advancedPreferences = remember { appGraph.advancedPlayerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/MoreSheet.kt	val audioPreferences = remember { appGraph.audioPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/PlaybackSpeedSheet.kt	val preferences = remember { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/controls/components/sheets/PlaybackSpeedSheet.kt	val audioPreferences = remember { appGraph.audioPreferences }
+app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager
+app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	val downloadManager: AnimeDownloadManager = appGraph.animeDownloadManager
+app/src/main/java/eu/kanade/tachiyomi/ui/player/loader/EpisodeLoader.kt	val fileSystem: LocalAnimeSourceFileSystem = appGraph.localAnimeSourceFileSystem
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	val context = appGraph.application
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	val context = appGraph.application
+app/src/main/java/eu/kanade/tachiyomi/ui/reader/ReaderPageExportController.kt	manga.editCover(appGraph.localMangaCoverManager, stream())
+app/src/main/java/eu/kanade/tachiyomi/ui/updates/anime/AnimeUpdatesTab.kt	val playerPreferences: PlayerPreferences by lazy { appGraph.playerPreferences }
+app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt	val mangaManager = appGraph.mangaExtensionManager
+app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt	val animeManager = appGraph.animeExtensionManager
+app/src/main/java/eu/kanade/tachiyomi/util/chapter/ChapterFilterDownloaded.kt	val downloadCache: MangaDownloadCache = appGraph.mangaDownloadCache
+app/src/main/java/eu/kanade/tachiyomi/util/episode/EpisodeFilterDownloaded.kt	val downloadCache: AnimeDownloadCache = appGraph.animeDownloadCache
+app/src/main/java/eu/kanade/tachiyomi/util/system/ContextExtensions.kt	val preferences = appGraph.uiPreferences
+app/src/main/java/eu/kanade/tachiyomi/util/system/ContextExtensions.kt	val readerPreferences = appGraph.readerPreferences
+app/src/main/java/eu/kanade/tachiyomi/util/system/DisplayExtensions.kt	val expected = when (appGraph.uiPreferences.tabletUiMode().get()) {
+app/src/main/java/eu/kanade/tachiyomi/util/view/ViewExtensions.kt	LocalMetroViewModelFactory provides appGraph.metroViewModelFactory,
+app/src/main/java/eu/kanade/tachiyomi/util/view/ViewExtensions.kt	LocalMetroViewModelFactory provides appGraph.metroViewModelFactory,
+app/src/main/java/eu/kanade/tachiyomi/widget/TachiyomiTextInputEditText.kt	appGraph.basePreferences.incognitoMode().changes()
