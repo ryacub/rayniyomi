@@ -60,10 +60,3 @@ SET
     finish_date = coalesce(:finishDate, finish_date),
     private = coalesce(:private, private)
 WHERE _id = :id;
-
-updateProgressIfGreater:
-UPDATE anime_sync
-SET last_episode_seen = :lastEpisodeSeen
-WHERE anime_id = :animeId
-AND sync_id = :syncId
-AND :lastEpisodeSeen > last_episode_seen;

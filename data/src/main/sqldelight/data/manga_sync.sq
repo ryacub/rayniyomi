@@ -59,10 +59,3 @@ SET
     finish_date = coalesce(:finishDate, finish_date),
     private = coalesce(:private, private)
 WHERE _id = :id;
-
-updateProgressIfGreater:
-UPDATE manga_sync
-SET last_chapter_read = :lastChapterRead
-WHERE manga_id = :mangaId
-AND sync_id = :syncId
-AND :lastChapterRead > last_chapter_read;
