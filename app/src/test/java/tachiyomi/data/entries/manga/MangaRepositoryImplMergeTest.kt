@@ -25,6 +25,24 @@ class MangaRepositoryImplMergeTest {
     private suspend fun MergeMangaDb.merge() = MangaRepositoryImpl(handler).mergeEntries(keepId, deleteId)
 
     @Test
+    fun `merging a library duplicate keeps the title in its library category`() = runTest {
+        MergeMangaDb(keepFavorite = false).use { db ->
+            db.insertCategory(id = 1)
+            db.insertMangaCategory(mangaId = deleteId, categoryId = 1)
+            db.insertChapter(id = 20, mangaId = deleteId, url = "item")
+            db.insertHistory(chapterId = 20, lastRead = 2_000, timeRead = 50)
+            db.insertTracker(mangaId = deleteId)
+            val repository = MangaRepositoryImpl(db.handler)
+
+            db.merge()
+
+            assertEquals(listOf(keepId to 1L), repository.getLibraryManga().map { it.id to it.category })
+            assertEquals(listOf(2_000L), db.longs("SELECT last_read FROM history WHERE chapter_id = 20"))
+            assertEquals(listOf(1L), db.longs("SELECT sync_id FROM manga_sync WHERE manga_id = $keepId"))
+        }
+    }
+
+    @Test
     fun `a category on both entries leaves one category row`() = runTest {
         MergeMangaDb().use { db ->
             db.insertCategory(id = 1)
@@ -106,7 +124,7 @@ class MangaRepositoryImplMergeTest {
     }
 }
 
-private class MergeMangaDb : AutoCloseable {
+private class MergeMangaDb(keepFavorite: Boolean = true) : AutoCloseable {
 
     val driver: SqlDriver = JdbcSqliteDriver(
         JdbcSqliteDriver.IN_MEMORY,
@@ -127,16 +145,16 @@ private class MergeMangaDb : AutoCloseable {
     val handler = AndroidMangaDatabaseHandler(database, driver)
 
     init {
-        insertManga(id = 1)
+        insertManga(id = 1, favorite = keepFavorite)
         insertManga(id = 2)
     }
 
     private fun exec(sql: String) = driver.execute(null, sql, 0)
 
-    private fun insertManga(id: Long) = exec(
+    private fun insertManga(id: Long, favorite: Boolean = true) = exec(
         "INSERT INTO mangas(_id, source, url, title, status, favorite, initialized, " +
             "viewer, chapter_flags, cover_last_modified, date_added, next_update) " +
-            "VALUES ($id, 1, 'url-$id', 'Title', 1, 1, 1, 0, 0, 0, 0, 0)",
+            "VALUES ($id, 1, 'url-$id', 'Title', 1, ${if (favorite) 1 else 0}, 1, 0, 0, 0, 0, 0)",
     )
 
     fun insertCategory(id: Long) = exec(
@@ -155,6 +173,11 @@ private class MergeMangaDb : AutoCloseable {
 
     fun insertHistory(chapterId: Long, lastRead: Long?, timeRead: Long) = exec(
         "INSERT INTO history(chapter_id, last_read, time_read) VALUES ($chapterId, $lastRead, $timeRead)",
+    )
+
+    fun insertTracker(mangaId: Long) = exec(
+        "INSERT INTO manga_sync(manga_id, sync_id, remote_id, title, last_chapter_read, total_chapters, " +
+            "status, score, remote_url, start_date, finish_date) VALUES ($mangaId, 1, 1, 'Title', 1, 1, 1, 0, '', 0, 0)",
     )
 
     fun longs(sql: String): List<Long?> = driver.executeQuery(

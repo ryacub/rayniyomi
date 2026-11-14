@@ -26,6 +26,24 @@ class AnimeRepositoryImplMergeTest {
     private suspend fun MergeAnimeDb.merge() = AnimeRepositoryImpl(handler).mergeEntries(keepId, deleteId)
 
     @Test
+    fun `merging a library duplicate keeps the title in its library category`() = runTest {
+        MergeAnimeDb(keepFavorite = false).use { db ->
+            db.insertCategory(id = 1)
+            db.insertAnimeCategory(animeId = deleteId, categoryId = 1)
+            db.insertEpisode(id = 20, animeId = deleteId, url = "item")
+            db.insertHistory(episodeId = 20, lastSeen = 2_000)
+            db.insertTracker(animeId = deleteId)
+            val repository = AnimeRepositoryImpl(db.handler)
+
+            db.merge()
+
+            assertEquals(listOf(keepId to 1L), repository.getLibraryAnime().map { it.id to it.category })
+            assertEquals(listOf(2_000L), db.longs("SELECT last_seen FROM animehistory WHERE episode_id = 20"))
+            assertEquals(listOf(1L), db.longs("SELECT sync_id FROM anime_sync WHERE anime_id = $keepId"))
+        }
+    }
+
+    @Test
     fun `a category on both entries leaves one category row`() = runTest {
         MergeAnimeDb().use { db ->
             db.insertCategory(id = 1)
@@ -106,7 +124,7 @@ class AnimeRepositoryImplMergeTest {
     }
 }
 
-private class MergeAnimeDb : AutoCloseable {
+private class MergeAnimeDb(keepFavorite: Boolean = true) : AutoCloseable {
 
     val driver: SqlDriver = JdbcSqliteDriver(
         JdbcSqliteDriver.IN_MEMORY,
@@ -128,17 +146,17 @@ private class MergeAnimeDb : AutoCloseable {
     val handler = AndroidAnimeDatabaseHandler(database, driver)
 
     init {
-        insertAnime(id = 1)
+        insertAnime(id = 1, favorite = keepFavorite)
         insertAnime(id = 2)
     }
 
     private fun exec(sql: String) = driver.execute(null, sql, 0)
 
-    private fun insertAnime(id: Long) = exec(
+    private fun insertAnime(id: Long, favorite: Boolean = true) = exec(
         "INSERT INTO animes(_id, source, url, title, status, favorite, initialized, viewer, " +
             "episode_flags, cover_last_modified, date_added, season_flags, season_number, " +
             "season_source_order, background_last_modified, next_update) " +
-            "VALUES ($id, 1, 'url-$id', 'Title', 1, 1, 1, 0, 0, 0, 0, 0, 1.0, 0, 0, 0)",
+            "VALUES ($id, 1, 'url-$id', 'Title', 1, ${if (favorite) 1 else 0}, 1, 0, 0, 0, 0, 0, 1.0, 0, 0, 0)",
     )
 
     fun insertCategory(id: Long) = exec(
@@ -160,6 +178,11 @@ private class MergeAnimeDb : AutoCloseable {
 
     fun insertHistory(episodeId: Long, lastSeen: Long?) = exec(
         "INSERT INTO animehistory(episode_id, last_seen) VALUES ($episodeId, $lastSeen)",
+    )
+
+    fun insertTracker(animeId: Long) = exec(
+        "INSERT INTO anime_sync(anime_id, sync_id, remote_id, title, last_episode_seen, total_episodes, " +
+            "status, score, remote_url, start_date, finish_date) VALUES ($animeId, 1, 1, 'Title', 1, 1, 1, 0, '', 0, 0)",
     )
 
     fun longs(sql: String): List<Long?> = driver.executeQuery(
