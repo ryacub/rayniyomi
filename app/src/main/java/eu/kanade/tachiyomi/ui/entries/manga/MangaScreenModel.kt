@@ -100,9 +100,7 @@ import tachiyomi.domain.entries.applyFilter
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
-import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
-import tachiyomi.domain.entries.manga.model.DuplicateConfidence
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.items.chapter.interactor.SetMangaDefaultChapterFlags
@@ -151,7 +149,6 @@ class MangaScreenModel(
     private val updateMangaFromRemote: UpdateMangaFromRemote,
     private val entryRefresher: MangaEntryRefresher,
     private val translationManager: TranslationManager,
-    private val mergeLibraryManga: MergeLibraryManga,
     private val fetchInterval: MangaFetchInterval,
     private val clock: Clock = Clock.systemDefaultZone(),
     @ViewModelIoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -441,23 +438,9 @@ class MangaScreenModel(
                 // Add to library
                 // First, check if duplicate exists if callback is provided
                 if (checkDuplicate) {
-                    val candidate = getDuplicateLibraryManga.awaitAll(manga).firstOrNull()
-
-                    if (candidate != null) {
-                        val confidenceLabel = when (candidate.confidence) {
-                            DuplicateConfidence.TRACKER -> context.stringResource(
-                                AYMR.strings.duplicate_confidence_tracker,
-                            )
-                            DuplicateConfidence.HIGH -> context.stringResource(AYMR.strings.duplicate_confidence_title)
-                            DuplicateConfidence.MEDIUM -> context.stringResource(
-                                AYMR.strings.duplicate_confidence_normalized,
-                            )
-                        }
-                        updateSuccessState {
-                            it.copy(
-                                dialog = Dialog.DuplicateManga(manga, candidate.loser, confidenceLabel),
-                            )
-                        }
+                    val duplicate = getDuplicateLibraryManga.await(manga).firstOrNull()
+                    if (duplicate != null) {
+                        updateSuccessState { it.copy(dialog = Dialog.DuplicateManga(manga, duplicate)) }
                         return@launch
                     }
                 }
@@ -1106,7 +1089,7 @@ class MangaScreenModel(
             val initialSelection: ImmutableList<CheckboxState<Category>>,
         ) : Dialog
         data class DeleteChapters(val chapters: List<Chapter>) : Dialog
-        data class DuplicateManga(val manga: Manga, val duplicate: Manga, val confidenceLabel: String? = null) : Dialog
+        data class DuplicateManga(val manga: Manga, val duplicate: Manga) : Dialog
         data class Migrate(val newManga: Manga, val oldManga: Manga) : Dialog
         data class SetMangaFetchInterval(val manga: Manga) : Dialog
         data object SettingsSheet : Dialog
@@ -1116,13 +1099,6 @@ class MangaScreenModel(
 
     fun dismissDialog() {
         updateSuccessState { it.copy(dialog = null) }
-    }
-
-    fun mergeEntry(keepId: Long, deleteId: Long) {
-        viewModelScope.launchIO {
-            mergeLibraryManga.await(keepId, deleteId)
-            dismissDialog()
-        }
     }
 
     fun showDeleteChapterDialog(chapters: List<Chapter>) {

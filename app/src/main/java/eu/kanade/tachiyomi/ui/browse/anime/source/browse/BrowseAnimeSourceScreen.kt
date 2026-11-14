@@ -290,7 +290,6 @@ data class BrowseAnimeSourceScreen(
                             BrowseAnimeSourceScreenModel.Dialog.Migrate(dialog.anime, dialog.duplicate),
                         )
                     },
-                    onMerge = onDismissRequest,
                     isManga = false,
                 )
             }

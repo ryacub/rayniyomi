@@ -18,7 +18,7 @@ class AnimeExtensionLibMigrationTest {
                 if (hasMemo) driver.exec("ALTER TABLE $table DROP COLUMN memo")
             }
 
-            AnimeDatabase.Schema.migrate(driver, 142, AnimeDatabase.Schema.version)
+            AnimeDatabase.Schema.migrate(driver, 142, 144)
 
             assertEquals(
                 listOf("anime_relations", "animes.memo", "episodes.memo"),

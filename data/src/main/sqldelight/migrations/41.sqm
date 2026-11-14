@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS mangas_normalized_title_idx;
+ALTER TABLE mangas DROP COLUMN normalized_title;

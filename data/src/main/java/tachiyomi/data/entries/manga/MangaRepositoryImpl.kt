@@ -99,34 +99,6 @@ class MangaRepositoryImpl(
         }
     }
 
-    override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
-        handler.await(inTransaction = true) {
-            // 1. Merge progress, bookmarks, and history of chapters that exist on both entries (same URL)
-            chaptersQueries.syncAllDuplicateChapterProgress(keepMangaId = keepId, deleteMangaId = deleteId)
-            historyQueries.mergeDuplicateChapterHistory(keepMangaId = keepId, deleteMangaId = deleteId)
-
-            // 2. Reparent chapters that are unique to the loser
-            chaptersQueries.reparentChapters(keepMangaId = keepId, deleteMangaId = deleteId)
-
-            // 3. Update progress for shared trackers to max, transfer unique trackers
-            val loserTracks = manga_syncQueries.getTracksByMangaId(deleteId).executeAsList()
-            loserTracks.forEach { loserTrack ->
-                manga_syncQueries.updateProgressIfGreater(
-                    lastChapterRead = loserTrack.last_chapter_read,
-                    mangaId = keepId,
-                    syncId = loserTrack.sync_id,
-                )
-            }
-            manga_syncQueries.transferUniqueTrackers(winnerMangaId = keepId, loserMangaId = deleteId)
-
-            // 4. Transfer categories
-            mangas_categoriesQueries.transferCategories(keepMangaId = keepId, deleteMangaId = deleteId)
-
-            // 5. Delete loser (CASCADE removes remaining chapters/trackers/categories)
-            mangasQueries.delete(deleteId)
-        }
-    }
-
     override suspend fun getUpcomingManga(
         statuses: Set<Long>,
         includedCategories: List<Long>,

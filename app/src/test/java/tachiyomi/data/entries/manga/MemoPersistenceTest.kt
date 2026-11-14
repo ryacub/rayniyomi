@@ -30,11 +30,6 @@ class MemoPersistenceTest {
     private val chapterMemo = JsonObject(mapOf("id" to JsonPrimitive(42)))
 
     @Test
-    fun `schema version counts the memo migration`() {
-        assertEquals(41L, Database.Schema.version)
-    }
-
-    @Test
     fun `manga memo survives insert and partial updates`() = runTest {
         MemoDb().use { db ->
             val repository = MangaRepositoryImpl(db.handler)

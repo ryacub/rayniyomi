@@ -237,9 +237,7 @@ class MangaScreen(
                     onMigrate = {
                         screenModel.showMigrateDialog(dialog.duplicate)
                     },
-                    onMerge = { screenModel.mergeEntry(dialog.manga.id, dialog.duplicate.id) },
                     isManga = true,
-                    confidenceLabel = dialog.confidenceLabel,
                 )
             }
 

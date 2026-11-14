@@ -245,7 +245,6 @@ class MangaScreenModelOutdatedListTest {
             setMangaCategories = mockk(relaxed = true),
             mangaRepository = testAppGraph.mangaRepository,
             updateMangaFromRemote = testAppGraph.updateMangaFromRemote,
-            mergeLibraryManga = mockk(relaxed = true),
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,
             libraryPreferences = LibraryPreferences(InMemoryPreferenceStore()),

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Book
-import androidx.compose.material.icons.outlined.CallMerge
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -38,9 +37,7 @@ fun DuplicateEntryDialog(
     onConfirm: () -> Unit,
     onOpenEntry: () -> Unit,
     onMigrate: () -> Unit,
-    onMerge: () -> Unit,
     isManga: Boolean,
-    confidenceLabel: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val minHeight = LocalPreferenceMinHeight.current
@@ -68,15 +65,6 @@ fun DuplicateEntryDialog(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            if (confidenceLabel != null) {
-                Text(
-                    modifier = Modifier.padding(top = 4.dp),
-                    text = confidenceLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
             Spacer(Modifier.height(PaddingSize))
 
             TextPreferenceWidget(
@@ -98,17 +86,6 @@ fun DuplicateEntryDialog(
                 onPreferenceClick = {
                     onDismissRequest()
                     onMigrate()
-                },
-            )
-
-            HorizontalDivider()
-
-            TextPreferenceWidget(
-                title = stringResource(AYMR.strings.action_merge_entries),
-                icon = Icons.Outlined.CallMerge,
-                onPreferenceClick = {
-                    onDismissRequest()
-                    onMerge()
                 },
             )
 
@@ -154,9 +131,7 @@ private fun DuplicateEntryDialogPreview() {
         onConfirm = {},
         onOpenEntry = {},
         onMigrate = {},
-        onMerge = {},
         isManga = true,
-        confidenceLabel = "Tracker ID match",
     )
 }
 

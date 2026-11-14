@@ -102,11 +102,9 @@ import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
 import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.GetRelatedAnime
-import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeSeasonFlags
 import tachiyomi.domain.entries.anime.model.Anime
-import tachiyomi.domain.entries.anime.model.DuplicateConfidence
 import tachiyomi.domain.entries.anime.model.NoSeasonsException
 import tachiyomi.domain.entries.anime.repository.AnimeRepository
 import tachiyomi.domain.entries.applyFilter
@@ -162,7 +160,6 @@ class AnimeScreenModel(
     private val animeRepository: AnimeRepository,
     private val getEpisodesByAnimeId: GetEpisodesByAnimeId,
     internal val setAnimeViewerFlags: SetAnimeViewerFlags,
-    private val mergeLibraryAnime: MergeLibraryAnime,
     private val fetchInterval: AnimeFetchInterval,
     private val entryRefresher: AnimeEntryRefresher,
     getRelatedAnime: GetRelatedAnime,
@@ -439,22 +436,9 @@ class AnimeScreenModel(
                 // Add to library
                 // First, check if duplicate exists if callback is provided
                 if (checkDuplicate) {
-                    val candidate = getDuplicateLibraryAnime.awaitAll(anime).firstOrNull()
-                    if (candidate != null) {
-                        val confidenceLabel = when (candidate.confidence) {
-                            DuplicateConfidence.TRACKER -> context.stringResource(
-                                AYMR.strings.duplicate_confidence_tracker,
-                            )
-                            DuplicateConfidence.HIGH -> context.stringResource(AYMR.strings.duplicate_confidence_title)
-                            DuplicateConfidence.MEDIUM -> context.stringResource(
-                                AYMR.strings.duplicate_confidence_normalized,
-                            )
-                        }
-                        updateSuccessState {
-                            it.copy(
-                                dialog = Dialog.DuplicateAnime(anime, candidate.loser, confidenceLabel),
-                            )
-                        }
+                    val duplicate = getDuplicateLibraryAnime.await(anime).firstOrNull()
+                    if (duplicate != null) {
+                        updateSuccessState { it.copy(dialog = Dialog.DuplicateAnime(anime, duplicate)) }
                         return@launch
                     }
                 }
@@ -1484,7 +1468,7 @@ class AnimeScreenModel(
             val initialSelection: ImmutableList<CheckboxState<Category>>,
         ) : Dialog
         data class DeleteEpisodes(val episodes: List<Episode>) : Dialog
-        data class DuplicateAnime(val anime: Anime, val duplicate: Anime, val confidenceLabel: String?) : Dialog
+        data class DuplicateAnime(val anime: Anime, val duplicate: Anime) : Dialog
         data class Migrate(val newAnime: Anime, val oldAnime: Anime) : Dialog
         data class SetAnimeFetchInterval(val anime: Anime) : Dialog
         data class ShowQualities(val episode: Episode, val anime: Anime, val source: AnimeSource) : Dialog
@@ -1497,13 +1481,6 @@ class AnimeScreenModel(
 
     fun dismissDialog() {
         updateSuccessState { it.copy(dialog = null) }
-    }
-
-    fun mergeEntry(keepId: Long, deleteId: Long) {
-        viewModelScope.launchIO {
-            mergeLibraryAnime.await(keepId, deleteId)
-            dismissDialog()
-        }
     }
 
     fun showDeleteEpisodeDialog(episodes: List<Episode>) {

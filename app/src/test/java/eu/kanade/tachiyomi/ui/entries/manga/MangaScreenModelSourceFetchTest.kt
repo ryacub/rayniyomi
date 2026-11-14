@@ -281,7 +281,6 @@ class MangaScreenModelSourceFetchTest {
             addTracks = testAppGraph.addMangaTracks,
             setMangaCategories = mockk(relaxed = true),
             mangaRepository = testAppGraph.mangaRepository,
-            mergeLibraryManga = mockk(relaxed = true),
             fetchInterval = testAppGraph.mangaFetchInterval,
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,

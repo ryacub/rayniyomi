@@ -34,8 +34,6 @@ interface AnimeRepository {
 
     suspend fun getDuplicateLibraryAnime(id: Long, title: String): List<Anime>
 
-    suspend fun mergeEntries(keepId: Long, deleteId: Long)
-
     suspend fun getUpcomingAnime(
         statuses: Set<Long>,
         includedCategories: List<Long>,

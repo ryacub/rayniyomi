@@ -25,7 +25,7 @@ class RecoverySchemaMigrationTest {
         val upgraded = inMemoryDriver().also { Database.Schema.create(it) }
         upgraded.dropRecoveryObjects()
 
-        Database.Schema.migrate(upgraded, oldVersion = 39, newVersion = Database.Schema.version)
+        Database.Schema.migrate(upgraded, oldVersion = 39, newVersion = 40)
 
         val expected = fresh.recoverySchema()
         assertTrue(expected.isNotEmpty())

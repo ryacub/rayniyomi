@@ -192,7 +192,6 @@ app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/EntryTracking.kt	} catch 
 app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/EntryTracking.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackInfoDialog.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/entries/track/TrackInfoDialog.kt	} catch (e: Throwable) {
-app/src/main/java/eu/kanade/tachiyomi/ui/library/duplicate/DuplicateScanScreen.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/more/AppUpdatePromptDialogHost.kt	} catch (e: Exception) {

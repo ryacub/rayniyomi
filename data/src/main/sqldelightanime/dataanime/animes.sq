@@ -37,7 +37,6 @@ CREATE TABLE animes(
     season_source_order INTEGER NOT NULL,
     background_url TEXT,
     background_last_modified INTEGER NOT NULL,
-    normalized_title TEXT NOT NULL DEFAULT '',
     memo TEXT AS JsonObject NOT NULL DEFAULT '{}'
 );
 
@@ -125,7 +124,7 @@ getDuplicateLibraryAnime:
 SELECT *
 FROM animes
 WHERE favorite = 1
-AND LOWER(title) = :title
+AND LOWER(title) = LOWER(:title)
 AND _id != :id;
 
 getUpcomingAnime:

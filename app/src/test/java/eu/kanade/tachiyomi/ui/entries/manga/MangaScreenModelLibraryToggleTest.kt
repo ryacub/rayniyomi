@@ -31,6 +31,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
+import tachiyomi.data.entries.manga.MangaRepositoryImpl
+import tachiyomi.data.recovery.MangaRecoveryDb
+import tachiyomi.data.recovery.exec
 import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
@@ -51,6 +54,7 @@ class MangaScreenModelLibraryToggleTest {
     private val context = mockk<Context>(relaxed = true) {
         every { resources } returns this@MangaScreenModelLibraryToggleTest.resources
     }
+    private val findDuplicate = mockk<GetDuplicateLibraryManga>(relaxed = true)
     private val updateManga = mockk<UpdateManga>(relaxed = true)
     private val addTracks = mockk<AddMangaTracks>(relaxed = true)
     private val downloadManager = mockk<MangaDownloadManager>(relaxed = true) {
@@ -70,6 +74,33 @@ class MangaScreenModelLibraryToggleTest {
     @AfterEach
     fun tearDown() {
         vt.tearDownMain()
+    }
+
+    @Test
+    fun `the add warning matches the full title and preserves punctuation`() = runTest(vt.scheduler) {
+        MangaRecoveryDb(queryDispatcher = vt.io).use { db ->
+            val candidate = manga(favorite = false).copy(title = "Éclair")
+            db.insertManga(2)
+            db.driver.exec("UPDATE mangas SET title = 'Éclair!' WHERE _id = 2")
+            val lookup = GetDuplicateLibraryManga(MangaRepositoryImpl(db.handler))
+            val model = createModel(candidate, duplicateLookup = lookup)
+            advanceUntilIdle()
+            coEvery { updateManga.awaitUpdateFavorite(candidate.id, true) } returns false
+
+            model.toggleFavorite()
+            advanceUntilIdle()
+
+            model.successState().dialog shouldBe null
+            coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(candidate.id, true) }
+            db.driver.exec("UPDATE mangas SET title = 'Éclair' WHERE _id = 2")
+
+            model.toggleFavorite()
+            advanceUntilIdle()
+
+            val dialog = model.successState().dialog as? MangaScreenModel.Dialog.DuplicateManga
+            dialog?.duplicate?.id shouldBe 2L
+            coVerify(exactly = 1) { updateManga.awaitUpdateFavorite(candidate.id, true) }
+        }
     }
 
     @Test
@@ -251,7 +282,11 @@ class MangaScreenModelLibraryToggleTest {
         return visuals?.actionLabel
     }
 
-    private fun createModel(manga: Manga, categories: List<Category> = emptyList()): MangaScreenModel {
+    private fun createModel(
+        manga: Manga,
+        categories: List<Category> = emptyList(),
+        duplicateLookup: GetDuplicateLibraryManga = findDuplicate,
+    ): MangaScreenModel {
         val getMangaAndChapters = mockk<GetMangaWithChapters> {
             coEvery { subscribe(any(), any()) } returns emptyFlow()
             coEvery { awaitManga(manga.id) } returns manga
@@ -264,9 +299,7 @@ class MangaScreenModelLibraryToggleTest {
             isFromSource = false,
             trackChapter = testAppGraph.trackChapter,
             downloadCache = testAppGraph.mangaDownloadCache,
-            getDuplicateLibraryManga = mockk<GetDuplicateLibraryManga> {
-                coEvery { awaitAll(any()) } returns emptyList()
-            },
+            getDuplicateLibraryManga = duplicateLookup,
             getAvailableScanlators = mockk(relaxed = true),
             getExcludedScanlators = mockk(relaxed = true),
             setExcludedScanlators = mockk(relaxed = true),
@@ -282,7 +315,6 @@ class MangaScreenModelLibraryToggleTest {
             addTracks = addTracks,
             setMangaCategories = mockk(relaxed = true),
             mangaRepository = testAppGraph.mangaRepository,
-            mergeLibraryManga = mockk(relaxed = true),
             fetchInterval = testAppGraph.mangaFetchInterval,
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,
