@@ -38,8 +38,8 @@ fun DuplicateEntryDialog(
     onConfirm: () -> Unit,
     onOpenEntry: () -> Unit,
     onMigrate: () -> Unit,
-    onMerge: () -> Unit,
     isManga: Boolean,
+    onMerge: (() -> Unit)? = null,
     confidenceLabel: String? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -103,16 +103,18 @@ fun DuplicateEntryDialog(
 
             HorizontalDivider()
 
-            TextPreferenceWidget(
-                title = stringResource(AYMR.strings.action_merge_entries),
-                icon = Icons.Outlined.CallMerge,
-                onPreferenceClick = {
-                    onDismissRequest()
-                    onMerge()
-                },
-            )
+            if (onMerge != null) {
+                TextPreferenceWidget(
+                    title = stringResource(AYMR.strings.action_merge_entries),
+                    icon = Icons.Outlined.CallMerge,
+                    onPreferenceClick = {
+                        onDismissRequest()
+                        onMerge()
+                    },
+                )
 
-            HorizontalDivider()
+                HorizontalDivider()
+            }
 
             TextPreferenceWidget(
                 title = stringResource(MR.strings.action_add_anyway),

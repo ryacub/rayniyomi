@@ -122,7 +122,8 @@ class MangaRepositoryImpl(
             // 4. Transfer categories
             mangas_categoriesQueries.transferCategories(keepMangaId = keepId, deleteMangaId = deleteId)
 
-            // 5. Delete loser (CASCADE removes remaining chapters/trackers/categories)
+            // 5. Transfer library membership before deleting the duplicate
+            mangasQueries.inheritLibraryMembership(keepId = keepId, deleteId = deleteId)
             mangasQueries.delete(deleteId)
         }
     }

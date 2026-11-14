@@ -219,6 +219,13 @@ WHERE _id = :animeId;
 selectLastInsertedRowId:
 SELECT last_insert_rowid();
 
+inheritLibraryMembership:
+UPDATE animes
+SET favorite = 1,
+    date_added = (SELECT date_added FROM animes WHERE _id = :deleteId)
+WHERE _id = :keepId AND favorite = 0
+    AND EXISTS (SELECT 1 FROM animes WHERE _id = :deleteId AND favorite = 1);
+
 delete:
 DELETE FROM animes
 WHERE _id = :id;

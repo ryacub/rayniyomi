@@ -196,6 +196,13 @@ WHERE _id = :mangaId;
 selectLastInsertedRowId:
 SELECT last_insert_rowid();
 
+inheritLibraryMembership:
+UPDATE mangas
+SET favorite = 1,
+    date_added = (SELECT date_added FROM mangas WHERE _id = :deleteId)
+WHERE _id = :keepId AND favorite = 0
+    AND EXISTS (SELECT 1 FROM mangas WHERE _id = :deleteId AND favorite = 1);
+
 delete:
 DELETE FROM mangas
 WHERE _id = :id;

@@ -125,7 +125,8 @@ class AnimeRepositoryImpl(
             // 4. Transfer categories
             animes_categoriesQueries.transferCategories(keepAnimeId = keepId, deleteAnimeId = deleteId)
 
-            // 5. Delete loser (CASCADE removes remaining episodes/trackers/categories)
+            // 5. Transfer library membership before deleting the duplicate
+            animesQueries.inheritLibraryMembership(keepId = keepId, deleteId = deleteId)
             animesQueries.delete(deleteId)
         }
     }
