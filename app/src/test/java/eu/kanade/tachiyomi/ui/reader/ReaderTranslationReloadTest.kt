@@ -14,9 +14,16 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -223,26 +230,60 @@ class ReaderTranslationReloadTest {
     }
 
     @Test
-    fun `cancellation from a neighbour loader propagates`() = runTest {
+    fun `a neighbour reload cancelled by its loader does not stop the toggle`() = runTest {
         val curr = readerChapter()
         val prev = readerChapter()
+        val currFresh = listOf(readerPage(1))
+        val prevOriginal = listOf(readerPage(0))
         curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        prev.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        curr.pageLoader = FakeLoader { listOf(readerPage(1)) }
-        prev.pageLoader = FakeLoader { throw CancellationException("toggle cancelled") }
+        prev.state = ReaderChapter.State.Loaded(prevOriginal)
+        curr.pageLoader = FakeLoader { currFresh }
+        prev.pageLoader = FakeLoader { throw CancellationException("chapter released") }
 
-        val result = runCatching {
-            reloadViewerChaptersForTranslationToggle(
-                reloadChapter = reloader(),
-                chapters = ViewerChapters(
-                    currChapter = curr,
-                    prevChapter = prev,
-                    nextChapter = null,
-                ),
-            )
+        reloadViewerChaptersForTranslationToggle(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
+                currChapter = curr,
+                prevChapter = prev,
+                nextChapter = null,
+            ),
+        ) shouldBe true
+
+        curr.pages.shouldBeSameInstanceAs(currFresh)
+        prev.pages.shouldBeSameInstanceAs(prevOriginal)
+    }
+
+    @Test
+    fun `a cancelled caller stops the toggle instead of reporting a failed reload`() = runTest {
+        val curr = readerChapter()
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        val reloadStarted = CompletableDeferred<Unit>()
+        curr.pageLoader = object : PageLoader() {
+            override var isLocal: Boolean = true
+
+            override suspend fun getPages(): List<ReaderPage> {
+                reloadStarted.complete(Unit)
+                awaitCancellation()
+            }
         }
+        val outcome = CompletableDeferred<String>()
+        val toggle = launch {
+            try {
+                val installed = reloadViewerChaptersForTranslationToggle(
+                    reloadChapter = reloader(),
+                    chapters = ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = null),
+                )
+                outcome.complete("returned $installed")
+            } catch (e: CancellationException) {
+                outcome.complete("cancelled")
+                throw e
+            }
+        }
+        withContext(Dispatchers.Default) { withTimeout(5_000) { reloadStarted.await() } }
 
-        result.exceptionOrNull().shouldBeInstanceOf<CancellationException>()
+        toggle.cancelAndJoin()
+
+        outcome.await() shouldBe "cancelled"
     }
 
     @Test

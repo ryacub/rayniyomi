@@ -3,7 +3,8 @@ package eu.kanade.tachiyomi.ui.reader
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import logcat.LogPriority
 import logcat.asLog
 import logcat.logcat
@@ -61,14 +62,17 @@ internal suspend fun reloadViewerChaptersForTranslationToggle(
     return true
 }
 
-/** Reloads [chapter] and returns false, with a log line, when the reload fails. */
+/**
+ * Reloads [chapter] and returns false, with a log line, when the reload fails. A cancellation of
+ * the caller propagates. Any other cancellation, such as the release of the chapter during its
+ * reload, counts as a failed reload.
+ */
 internal suspend fun reloadOrFalse(chapter: ReaderChapter, reloadChapter: suspend (ReaderChapter) -> Unit): Boolean =
     try {
         reloadChapter(chapter)
         true
-    } catch (e: CancellationException) {
-        throw e
     } catch (e: Throwable) {
+        currentCoroutineContext().ensureActive()
         logcat("ReaderTranslationReload", LogPriority.ERROR) {
             "Could not reload ${chapter.chapter.name}\n${e.asLog()}"
         }
