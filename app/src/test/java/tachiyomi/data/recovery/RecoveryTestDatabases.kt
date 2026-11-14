@@ -9,6 +9,8 @@ import data.Mangas
 import dataanime.Animehistory
 import dataanime.Animes
 import dataanime.Episodes
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import tachiyomi.data.AnimeUpdateStrategyColumnAdapter
 import tachiyomi.data.Database
 import tachiyomi.data.DateColumnAdapter
@@ -49,7 +51,7 @@ internal fun SqlDriver.claim(entryIds: List<Long>, to: RecoveryState, runToken: 
         "WHERE _id IN (${entryIds.joinToString()})",
 )
 
-internal class MangaRecoveryDb : AutoCloseable {
+internal class MangaRecoveryDb(queryDispatcher: CoroutineDispatcher = Dispatchers.IO) : AutoCloseable {
 
     val driver: SqlDriver = inMemoryDriver().also { Database.Schema.create(it) }
 
@@ -64,7 +66,7 @@ internal class MangaRecoveryDb : AutoCloseable {
         chaptersAdapter = Chapters.Adapter(memoAdapter = MemoColumnAdapter),
     )
 
-    val handler = AndroidMangaDatabaseHandler(database, driver)
+    val handler = AndroidMangaDatabaseHandler(database, driver, queryDispatcher)
 
     fun insertManga(id: Long, source: Long = 1, url: String = "url-$id") = driver.exec(
         "INSERT INTO mangas(_id, source, url, title, status, favorite, initialized, " +
@@ -118,7 +120,7 @@ internal class MangaRecoveryDb : AutoCloseable {
     override fun close() = driver.close()
 }
 
-internal class AnimeRecoveryDb : AutoCloseable {
+internal class AnimeRecoveryDb(queryDispatcher: CoroutineDispatcher = Dispatchers.IO) : AutoCloseable {
 
     val driver: SqlDriver = inMemoryDriver().also { AnimeDatabase.Schema.create(it) }
 
@@ -134,7 +136,7 @@ internal class AnimeRecoveryDb : AutoCloseable {
         episodesAdapter = Episodes.Adapter(memoAdapter = MemoColumnAdapter),
     )
 
-    val handler = AndroidAnimeDatabaseHandler(database, driver)
+    val handler = AndroidAnimeDatabaseHandler(database, driver, queryDispatcher)
 
     fun insertAnime(id: Long, source: Long = 1, url: String = "url-$id") = driver.exec(
         "INSERT INTO animes(_id, source, url, title, status, favorite, initialized, viewer, " +

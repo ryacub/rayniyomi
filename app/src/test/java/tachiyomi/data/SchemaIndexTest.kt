@@ -45,9 +45,10 @@ class SchemaIndexTest {
             db.driver.exec(
                 "CREATE INDEX IF NOT EXISTS excluded_scanlators_manga_id_index ON excluded_scanlators(manga_id)",
             )
+            db.driver.exec("ALTER TABLE mangas ADD COLUMN normalized_title TEXT NOT NULL DEFAULT ''")
             db.driver.exec("CREATE INDEX IF NOT EXISTS mangas_normalized_title_idx ON mangas(normalized_title)")
 
-            Database.Schema.migrate(db.driver, oldVersion = 38, newVersion = Database.Schema.version)
+            Database.Schema.migrate(db.driver, oldVersion = 38, newVersion = 39)
 
             val indexes = db.driver.indexNames()
             assertNoneOf(redundantMangaIndexes, indexes)
@@ -61,6 +62,7 @@ class SchemaIndexTest {
             db.driver.exec(
                 "CREATE INDEX IF NOT EXISTS animehistory_history_episode_id_index ON animehistory(episode_id)",
             )
+            db.driver.exec("ALTER TABLE animes ADD COLUMN normalized_title TEXT NOT NULL DEFAULT ''")
             db.driver.exec("CREATE INDEX IF NOT EXISTS animes_normalized_title_idx ON animes(normalized_title)")
 
             AnimeDatabase.Schema.migrate(db.driver, oldVersion = 140, newVersion = 141)

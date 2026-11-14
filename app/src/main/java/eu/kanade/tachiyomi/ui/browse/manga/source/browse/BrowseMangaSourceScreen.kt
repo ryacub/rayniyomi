@@ -288,7 +288,6 @@ data class BrowseMangaSourceScreen(
                             BrowseMangaSourceScreenModel.Dialog.Migrate(dialog.manga, dialog.duplicate),
                         )
                     },
-                    onMerge = onDismissRequest,
                     isManga = true,
                 )
             }

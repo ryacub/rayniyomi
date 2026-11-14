@@ -119,7 +119,6 @@ fun Screen.mangaHistoryTab(
                         onMigrate = {
                             screenModel.showMigrateDialog(dialog.manga, dialog.duplicate)
                         },
-                        onMerge = onDismissRequest,
                         isManga = true,
                     )
                 }

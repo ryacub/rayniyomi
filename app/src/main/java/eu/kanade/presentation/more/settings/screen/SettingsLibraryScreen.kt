@@ -23,7 +23,6 @@ import eu.kanade.tachiyomi.data.library.anime.AnimeLibraryUpdateJob
 import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
-import eu.kanade.tachiyomi.ui.library.duplicate.DuplicateScanScreen
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -330,11 +329,6 @@ object SettingsLibraryScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = libraryPreferences.newShowUpdatesCount(),
                     title = stringResource(AYMR.strings.pref_library_update_show_tab_badge),
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = stringResource(AYMR.strings.pref_scan_library_duplicates),
-                    subtitle = stringResource(AYMR.strings.pref_scan_library_duplicates_summary),
-                    onClick = { navigator.push(DuplicateScanScreen()) },
                 ),
             ),
         )

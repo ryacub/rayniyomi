@@ -102,34 +102,6 @@ class AnimeRepositoryImpl(
         }
     }
 
-    override suspend fun mergeEntries(keepId: Long, deleteId: Long) {
-        handler.await(inTransaction = true) {
-            // 1. Merge progress, marks, and history of episodes that exist on both entries (same URL)
-            episodesQueries.syncAllDuplicateEpisodeProgress(keepAnimeId = keepId, deleteAnimeId = deleteId)
-            animehistoryQueries.mergeDuplicateEpisodeHistory(keepAnimeId = keepId, deleteAnimeId = deleteId)
-
-            // 2. Reparent episodes that are unique to the loser
-            episodesQueries.reparentEpisodes(keepAnimeId = keepId, deleteAnimeId = deleteId)
-
-            // 3. Update progress for shared trackers to max, transfer unique trackers
-            val loserTracks = anime_syncQueries.getTracksByAnimeId(deleteId).executeAsList()
-            loserTracks.forEach { loserTrack ->
-                anime_syncQueries.updateProgressIfGreater(
-                    lastEpisodeSeen = loserTrack.last_episode_seen,
-                    animeId = keepId,
-                    syncId = loserTrack.sync_id,
-                )
-            }
-            anime_syncQueries.transferUniqueTrackers(winnerAnimeId = keepId, loserAnimeId = deleteId)
-
-            // 4. Transfer categories
-            animes_categoriesQueries.transferCategories(keepAnimeId = keepId, deleteAnimeId = deleteId)
-
-            // 5. Delete loser (CASCADE removes remaining episodes/trackers/categories)
-            animesQueries.delete(deleteId)
-        }
-    }
-
     override suspend fun getUpcomingAnime(
         statuses: Set<Long>,
         includedCategories: List<Long>,

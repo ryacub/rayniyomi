@@ -33,7 +33,6 @@ object MangaMapper {
         @Suppress("UNUSED_PARAMETER")
         isSyncing: Long,
         @Suppress("UNUSED_PARAMETER")
-        normalizedTitle: String,
         memo: JsonObject,
     ): Manga = Manga(
         id = id,
@@ -88,7 +87,6 @@ object MangaMapper {
         version: Long,
         isSyncing: Long,
         @Suppress("UNUSED_PARAMETER")
-        normalizedTitle: String,
         memo: JsonObject,
         totalCount: Long,
         readCount: Double,
@@ -123,7 +121,6 @@ object MangaMapper {
             favoriteModifiedAt,
             version,
             isSyncing,
-            normalizedTitle,
             memo,
         ),
         category = category,

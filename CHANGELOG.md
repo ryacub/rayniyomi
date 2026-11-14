@@ -41,6 +41,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Anime extensions now support library versions 14, 16, and 17. Extensions on versions 12, 13, or 15 need an update (#1472).
 
 ### Removed
+- Remove duplicate library merging and scanning. Adding a title still warns you when the library has a title with the same name (#1519).
 - The Suwayomi tracker. Updating the app deletes its tracking links, and old backups restore without them (#1473).
 
 ### CI

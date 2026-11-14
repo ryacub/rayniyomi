@@ -148,8 +148,8 @@ object AppModule {
             schema = schema,
             context = application,
             name = name,
-            factory = if (BuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // The debug driver supports the Android Studio database inspector.
+            factory = if (BuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // The inspector uses platform SQLite. Earlier versions cannot drop columns.
                 FrameworkSQLiteOpenHelperFactory()
             } else {
                 RequerySQLiteOpenHelperFactory()

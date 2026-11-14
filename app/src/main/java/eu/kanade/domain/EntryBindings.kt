@@ -27,7 +27,6 @@ import tachiyomi.domain.entries.anime.interactor.GetAnimeWithEpisodesAndSeasons
 import tachiyomi.domain.entries.anime.interactor.GetDuplicateLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.GetRelatedAnime
-import tachiyomi.domain.entries.anime.interactor.MergeLibraryAnime
 import tachiyomi.domain.entries.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.entries.anime.interactor.ResetAnimeViewerFlags
 import tachiyomi.domain.entries.anime.interactor.SetAnimeEpisodeFlags
@@ -41,10 +40,8 @@ import tachiyomi.domain.entries.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.entries.manga.interactor.GetMangaFavorites
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
-import tachiyomi.domain.entries.manga.interactor.MergeLibraryManga
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.interactor.ResetMangaViewerFlags
-import tachiyomi.domain.entries.manga.interactor.ScanLibraryDuplicates
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
@@ -54,8 +51,6 @@ import tachiyomi.domain.items.episode.repository.EpisodeRepository
 import tachiyomi.domain.items.season.interactor.GetAnimeSeasonsByParentId
 import tachiyomi.domain.items.season.interactor.ShouldUpdateDbSeason
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
-import tachiyomi.domain.track.anime.interactor.GetAnimeTracks
-import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 
 @BindingContainer
 object EntryBindings {
@@ -81,15 +76,8 @@ object EntryBindings {
     ): SyncRelatedAnimeWithSource = SyncRelatedAnimeWithSource(sourceManager, networkToLocalAnime, relationRepository)
 
     @Provides
-    fun provideGetDuplicateLibraryAnime(
-        animeRepository: AnimeRepository,
-        getAnimeTracks: GetAnimeTracks,
-    ): GetDuplicateLibraryAnime =
-        GetDuplicateLibraryAnime(animeRepository = animeRepository, getAnimeTracks = getAnimeTracks)
-
-    @Provides
-    fun provideMergeLibraryAnime(animeRepository: AnimeRepository): MergeLibraryAnime =
-        MergeLibraryAnime(animeRepository = animeRepository)
+    fun provideGetDuplicateLibraryAnime(animeRepository: AnimeRepository): GetDuplicateLibraryAnime =
+        GetDuplicateLibraryAnime(animeRepository = animeRepository)
 
     @Provides
     fun provideGetAnimeFavorites(animeRepository: AnimeRepository): GetAnimeFavorites =
@@ -177,25 +165,8 @@ object EntryBindings {
         MangaRepositoryImpl(handler = handler)
 
     @Provides
-    fun provideGetDuplicateLibraryManga(
-        mangaRepository: MangaRepository,
-        getMangaTracks: GetMangaTracks,
-    ): GetDuplicateLibraryManga =
-        GetDuplicateLibraryManga(mangaRepository = mangaRepository, getMangaTracks = getMangaTracks)
-
-    @Provides
-    fun provideMergeLibraryManga(mangaRepository: MangaRepository): MergeLibraryManga =
-        MergeLibraryManga(mangaRepository = mangaRepository)
-
-    @Provides
-    fun provideScanLibraryDuplicates(
-        getLibraryManga: GetLibraryManga,
-        getDuplicateLibraryManga: GetDuplicateLibraryManga,
-    ): ScanLibraryDuplicates =
-        ScanLibraryDuplicates(
-            getLibraryManga = getLibraryManga,
-            getDuplicateLibraryManga = getDuplicateLibraryManga,
-        )
+    fun provideGetDuplicateLibraryManga(mangaRepository: MangaRepository): GetDuplicateLibraryManga =
+        GetDuplicateLibraryManga(mangaRepository = mangaRepository)
 
     @Provides
     fun provideGetMangaFavorites(mangaRepository: MangaRepository): GetMangaFavorites =

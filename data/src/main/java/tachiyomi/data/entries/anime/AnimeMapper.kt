@@ -43,7 +43,6 @@ object AnimeMapper {
         backgroundUrl: String?,
         backgroundLastModified: Long,
         @Suppress("UNUSED_PARAMETER")
-        normalizedTitle: String,
         memo: JsonObject,
     ): Anime = Anime(
         id = id,
@@ -112,7 +111,6 @@ object AnimeMapper {
         backgroundUrl: String?,
         backgroundLastModified: Long,
         @Suppress("UNUSED_PARAMETER")
-        normalizedTitle: String,
         memo: JsonObject,
         totalCount: Long,
         seenCount: Double,
@@ -155,7 +153,6 @@ object AnimeMapper {
             seasonSourceOrder,
             backgroundUrl,
             backgroundLastModified,
-            normalizedTitle,
             memo,
         ),
         category = category,
@@ -201,7 +198,6 @@ object AnimeMapper {
         backgroundUrl: String?,
         backgroundLastModified: Long,
         @Suppress("UNUSED_PARAMETER")
-        normalizedTitle: String,
         memo: JsonObject,
         totalCount: Long,
         seenCount: Double,
@@ -243,7 +239,6 @@ object AnimeMapper {
             seasonSourceOrder,
             backgroundUrl,
             backgroundLastModified,
-            normalizedTitle,
             memo,
         ),
         totalCount = totalCount,
@@ -287,7 +282,6 @@ object AnimeMapper {
         seasonSourceOrder: Long,
         backgroundUrl: String?,
         backgroundLastModified: Long,
-        normalizedTitle: String,
         memo: JsonObject,
         name: String,
     ): Pair<String, Anime> = name to mapAnime(
@@ -322,7 +316,6 @@ object AnimeMapper {
         seasonSourceOrder,
         backgroundUrl,
         backgroundLastModified,
-        normalizedTitle,
         memo,
     )
 

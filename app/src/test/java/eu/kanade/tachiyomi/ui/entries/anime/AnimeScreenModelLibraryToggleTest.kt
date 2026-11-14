@@ -35,6 +35,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
+import tachiyomi.data.entries.anime.AnimeRepositoryImpl
+import tachiyomi.data.recovery.AnimeRecoveryDb
+import tachiyomi.data.recovery.exec
 import tachiyomi.domain.category.anime.interactor.GetAnimeCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
@@ -71,7 +74,6 @@ class AnimeScreenModelLibraryToggleTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
-        coEvery { findDuplicate.awaitAll(any()) } returns emptyList()
         every { testAppGraph.animeSourceManager } returns mockk<AnimeSourceManager>(relaxed = true)
         every { testAppGraph.basePreferences } returns BasePreferences(mockk(relaxed = true), InMemoryPreferenceStore())
     }
@@ -83,18 +85,30 @@ class AnimeScreenModelLibraryToggleTest {
     }
 
     @Test
-    fun `adding a title with an exact library match shows a warning before writing`() = runTest(vt.scheduler) {
-        val candidate = anime(favorite = false).copy(title = "Exact title")
-        val saved = candidate.copy(id = 2, favorite = true)
-        coEvery { findDuplicate.await(candidate) } returns listOf(saved)
-        val model = loadedModel(candidate)
+    fun `the add warning matches the full title and preserves punctuation`() = runTest(vt.scheduler) {
+        AnimeRecoveryDb(queryDispatcher = vt.io).use { db ->
+            val candidate = anime(favorite = false).copy(title = "Éclair")
+            db.insertAnime(2)
+            db.driver.exec("UPDATE animes SET title = 'Éclair!' WHERE _id = 2")
+            val lookup = GetDuplicateLibraryAnime(AnimeRepositoryImpl(db.handler))
+            val model = loadedModel(candidate, duplicateLookup = lookup)
+            advanceUntilIdle()
+            coEvery { updateAnime.awaitUpdateFavorite(candidate.id, true) } returns false
 
-        model.toggleFavorite()
-        advanceUntilIdle()
+            model.toggleFavorite()
+            advanceUntilIdle()
 
-        val dialog = model.successState().dialog
-        (dialog as? AnimeScreenModel.Dialog.DuplicateAnime)?.duplicate shouldBe saved
-        coVerify(exactly = 0) { updateAnime.awaitUpdateFavorite(any(), any()) }
+            model.successState().dialog shouldBe null
+            coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(candidate.id, true) }
+            db.driver.exec("UPDATE animes SET title = 'Éclair' WHERE _id = 2")
+
+            model.toggleFavorite()
+            advanceUntilIdle()
+
+            val dialog = model.successState().dialog as? AnimeScreenModel.Dialog.DuplicateAnime
+            dialog?.duplicate?.id shouldBe 2L
+            coVerify(exactly = 1) { updateAnime.awaitUpdateFavorite(candidate.id, true) }
+        }
     }
 
     @Test
@@ -269,14 +283,19 @@ class AnimeScreenModelLibraryToggleTest {
     private suspend fun TestScope.loadedModel(
         anime: Anime,
         categories: List<Category> = emptyList(),
+        duplicateLookup: GetDuplicateLibraryAnime = findDuplicate,
     ): AnimeScreenModel {
-        val model = viewModelStore.create { createModel(anime, categories) }
+        val model = viewModelStore.create { createModel(anime, categories, duplicateLookup) }
         model.state.first { it is AnimeScreenModel.State.Success }
         advanceUntilIdle()
         return model
     }
 
-    private fun createModel(anime: Anime, categories: List<Category> = emptyList()): AnimeScreenModel {
+    private fun createModel(
+        anime: Anime,
+        categories: List<Category> = emptyList(),
+        duplicateLookup: GetDuplicateLibraryAnime = findDuplicate,
+    ): AnimeScreenModel {
         val getAnimeAndEpisodesAndSeasons = mockk<GetAnimeWithEpisodesAndSeasons> {
             coEvery { subscribe(any()) } returns emptyFlow()
             coEvery { awaitAnime(anime.id) } returns anime
@@ -299,7 +318,7 @@ class AnimeScreenModelLibraryToggleTest {
             downloadManager = downloadManager,
             downloadCache = mockk(relaxed = true),
             getAnimeAndEpisodesAndSeasons = getAnimeAndEpisodesAndSeasons,
-            getDuplicateLibraryAnime = findDuplicate,
+            getDuplicateLibraryAnime = duplicateLookup,
             setAnimeEpisodeFlags = mockk(relaxed = true),
             setAnimeDefaultEpisodeFlags = mockk(relaxed = true),
             setAnimeSeasonFlags = mockk(relaxed = true),
@@ -318,7 +337,6 @@ class AnimeScreenModelLibraryToggleTest {
             animeRepository = mockk(relaxed = true),
             getEpisodesByAnimeId = mockk(relaxed = true),
             setAnimeViewerFlags = mockk(relaxed = true),
-            mergeLibraryAnime = mockk(relaxed = true),
             fetchInterval = mockk(relaxed = true),
             getRelatedAnime = mockk { every { subscribe(any()) } returns kotlinx.coroutines.flow.emptyFlow() },
             syncRelatedAnimeWithSource = mockk(relaxed = true),
