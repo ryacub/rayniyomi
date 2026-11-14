@@ -47,9 +47,9 @@ class ChapterLoader(
             return
         }
 
-        chapter.state = ReaderChapter.State.Loading
         withIOContext {
             logcat { "Loading pages for ${chapter.chapter.name}" }
+            chapter.state = ReaderChapter.State.Loading
             try {
                 val loader = getPageLoader(chapter)
                 chapter.pageLoader = loader
