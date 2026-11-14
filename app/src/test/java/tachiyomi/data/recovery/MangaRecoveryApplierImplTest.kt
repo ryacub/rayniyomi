@@ -190,16 +190,19 @@ class MangaRecoveryApplierImplTest {
     fun `categories are united with the destination categories`() = runTest {
         MangaRecoveryDb().use { db ->
             val f = db.fixture()
-            (1L..3L).forEach(db::insertCategory)
+            (1L..4L).forEach(db::insertCategory)
             db.insertManga(2, source = 20, url = "/m/1")
+            db.insertManga(3, source = 30, url = "/m/other")
             db.insertMangaCategory(2, 1)
+            db.insertMangaCategory(2, 4)
             db.insertMangaCategory(originalId, 1)
             db.insertMangaCategory(originalId, 3)
+            db.insertMangaCategory(3, 2)
 
             f.applier.apply(f.request())
 
             assertEquals(
-                listOf(1L, 3L),
+                listOf(1L, 3L, 4L),
                 db.driver.longs("SELECT category_id FROM mangas_categories WHERE manga_id = 2 ORDER BY category_id"),
             )
         }
@@ -230,6 +233,8 @@ class MangaRecoveryApplierImplTest {
             val f = db.fixture()
             db.insertManga(2, source = 20, url = "/m/1")
             db.insertTrack(2, syncId = 1, remoteId = 500, lastRead = 6.0)
+            db.insertManga(3, source = 30, url = "/m/other")
+            db.insertTrack(3, syncId = 1, remoteId = 500, lastRead = 1.0)
 
             f.applier.apply(
                 f.request(
@@ -251,6 +256,10 @@ class MangaRecoveryApplierImplTest {
             assertEquals(
                 listOf("https://t/500"),
                 db.driver.strings("SELECT remote_url FROM manga_sync WHERE manga_id = 2 AND sync_id = 1"),
+            )
+            assertEquals(
+                listOf("1.0"),
+                db.driver.strings("SELECT last_chapter_read FROM manga_sync WHERE manga_id = 3"),
             )
             assertEquals(
                 listOf(77L),

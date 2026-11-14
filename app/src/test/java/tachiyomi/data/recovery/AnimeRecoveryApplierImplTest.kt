@@ -196,16 +196,19 @@ class AnimeRecoveryApplierImplTest {
     fun `categories are united with the destination categories`() = runTest {
         AnimeRecoveryDb().use { db ->
             val entryId = db.readyEntry()
-            (1L..3L).forEach(db::insertCategory)
+            (1L..4L).forEach(db::insertCategory)
             db.insertAnime(2, source = 20, url = "/a/1")
+            db.insertAnime(3, source = 30, url = "/a/other")
             db.insertAnimeCategory(2, 1)
+            db.insertAnimeCategory(2, 4)
             db.insertAnimeCategory(originalId, 1)
             db.insertAnimeCategory(originalId, 3)
+            db.insertAnimeCategory(3, 2)
 
             AnimeRecoveryApplierImpl(db.handler).apply(request(entryId, pairs = emptyList()))
 
             assertEquals(
-                listOf(1L, 3L),
+                listOf(1L, 3L, 4L),
                 db.driver.longs("SELECT category_id FROM animes_categories WHERE anime_id = 2 ORDER BY category_id"),
             )
         }
@@ -218,6 +221,8 @@ class AnimeRecoveryApplierImplTest {
             db.insertAnime(2, source = 20, url = "/a/1")
             db.insertTrack(2, syncId = 1, remoteId = 500, lastSeen = 6.0)
             db.insertTrack(2, syncId = 3, remoteId = 600, lastSeen = 9.0)
+            db.insertAnime(3, source = 30, url = "/a/other")
+            db.insertTrack(3, syncId = 1, remoteId = 500, lastSeen = 1.0)
 
             AnimeRecoveryApplierImpl(db.handler).apply(
                 request(
@@ -238,6 +243,10 @@ class AnimeRecoveryApplierImplTest {
             assertEquals(
                 listOf("8.0", "3.0", "9.0"),
                 db.driver.strings("SELECT last_episode_seen FROM anime_sync WHERE anime_id = 2 ORDER BY sync_id"),
+            )
+            assertEquals(
+                listOf("1.0"),
+                db.driver.strings("SELECT last_episode_seen FROM anime_sync WHERE anime_id = 3"),
             )
         }
     }
