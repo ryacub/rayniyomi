@@ -100,17 +100,17 @@ class ChapterLoader(
     private suspend fun awaitNewest(chapter: ReaderChapter, attempt: Deferred<Unit>) {
         var awaited = attempt
         while (true) {
-            try {
-                awaited.await()
-                return
-            } catch (e: Throwable) {
-                currentCoroutineContext().ensureActive()
-                awaited = synchronized(lock) {
-                    if (awaited !in replacedAttempts) throw e
-                    runningAttempt(chapter) ?: if (chapterIsReady(chapter)) return else throw e
+            // Throws only when the caller is cancelled, not when the attempt fails.
+            awaited.join()
+            awaited = synchronized(lock) {
+                if (awaited in replacedAttempts) {
+                    runningAttempt(chapter) ?: if (chapterIsReady(chapter)) return else null
+                } else {
+                    null
                 }
-            }
+            } ?: break
         }
+        awaited.await()
     }
 
     private fun runningAttempt(chapter: ReaderChapter): Deferred<Unit>? =
@@ -172,9 +172,7 @@ class ChapterLoader(
             synchronized(lock) {
                 synchronized(chapter) {
                     if (!isCurrent()) throw AttemptReplacedException()
-                    if (chapter.pageLoader !== loader || loader.isRecycled) {
-                        throw CancellationException("The chapter was released during its load")
-                    }
+                    if (chapter.pageLoader !== loader || loader.isRecycled) throw ChapterReleasedException()
                     // If the chapter is partially read, set the starting page to the last the user read
                     // otherwise use the requested page.
                     if (reusedLoader == null &&
@@ -186,15 +184,15 @@ class ChapterLoader(
                 }
             }
         } catch (e: Throwable) {
-            openedLoader?.let { recycleIfUnused(chapter, it) }
-            if (e !is CancellationException) {
-                synchronized(lock) {
-                    if (isCurrent() && chapter.state !is ReaderChapter.State.Loaded) {
-                        chapter.state = ReaderChapter.State.Error(e)
-                    }
+            if (e is CancellationException) throw e
+            synchronized(lock) {
+                if (isCurrent() && chapter.state !is ReaderChapter.State.Loaded) {
+                    chapter.state = ReaderChapter.State.Error(e)
                 }
             }
             throw e
+        } finally {
+            openedLoader?.let { recycleIfUnused(chapter, it) }
         }
     }
 
@@ -206,6 +204,9 @@ class ChapterLoader(
     }
 
     private class AttemptReplacedException : CancellationException("A newer load replaced this one")
+
+    /** The chapter was released while it loaded, so its pages were not installed. */
+    class ChapterReleasedException : CancellationException("The chapter was released during its load")
 
     /**
      * Checks [chapter] to be loaded based on present pages and loader in addition to state.

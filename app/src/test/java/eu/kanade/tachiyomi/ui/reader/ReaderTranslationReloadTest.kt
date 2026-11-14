@@ -230,15 +230,18 @@ class ReaderTranslationReloadTest {
     }
 
     @Test
-    fun `a neighbour reload cancelled by its loader does not stop the toggle`() = runTest {
+    fun `a neighbour released during its reload does not stop the toggle`() = runTest {
         val curr = readerChapter()
         val prev = readerChapter()
         val currFresh = listOf(readerPage(1))
-        val prevOriginal = listOf(readerPage(0))
         curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        prev.state = ReaderChapter.State.Loaded(prevOriginal)
+        prev.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
         curr.pageLoader = FakeLoader { currFresh }
-        prev.pageLoader = FakeLoader { throw CancellationException("chapter released") }
+        prev.pageLoader = FakeLoader {
+            prev.ref()
+            prev.unref()
+            listOf(readerPage(1))
+        }
 
         reloadViewerChaptersForTranslationToggle(
             reloadChapter = reloader(),
@@ -250,7 +253,8 @@ class ReaderTranslationReloadTest {
         ) shouldBe true
 
         curr.pages.shouldBeSameInstanceAs(currFresh)
-        prev.pages.shouldBeSameInstanceAs(prevOriginal)
+        prev.state shouldBe ReaderChapter.State.Wait
+        prev.pageLoader shouldBe null
     }
 
     @Test

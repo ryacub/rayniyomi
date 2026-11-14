@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
+import eu.kanade.tachiyomi.ui.reader.loader.ChapterLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
 import logcat.LogPriority
 import logcat.asLog
 import logcat.logcat
@@ -63,18 +63,25 @@ internal suspend fun reloadViewerChaptersForTranslationToggle(
 }
 
 /**
- * Reloads [chapter] and returns false, with a log line, when the reload fails. A cancellation of
- * the caller propagates. Any other cancellation, such as the release of the chapter during its
- * reload, counts as a failed reload.
+ * Reloads [chapter] and returns false, with a log line, when the reload fails or the chapter is
+ * released during its reload. Any other cancellation propagates.
  */
 internal suspend fun reloadOrFalse(chapter: ReaderChapter, reloadChapter: suspend (ReaderChapter) -> Unit): Boolean =
     try {
         reloadChapter(chapter)
         true
+    } catch (e: ChapterLoader.ChapterReleasedException) {
+        logReloadFailure(chapter, e)
+        false
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Throwable) {
-        currentCoroutineContext().ensureActive()
-        logcat("ReaderTranslationReload", LogPriority.ERROR) {
-            "Could not reload ${chapter.chapter.name}\n${e.asLog()}"
-        }
+        logReloadFailure(chapter, e)
         false
     }
+
+private fun logReloadFailure(chapter: ReaderChapter, error: Throwable) {
+    logcat("ReaderTranslationReload", LogPriority.ERROR) {
+        "Could not reload ${chapter.chapter.name}\n${error.asLog()}"
+    }
+}
