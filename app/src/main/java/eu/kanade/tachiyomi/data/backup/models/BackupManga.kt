@@ -9,7 +9,6 @@ import tachiyomi.core.common.util.lang.toByteArray
 import tachiyomi.core.common.util.lang.toJsonObject
 import tachiyomi.domain.entries.manga.model.Manga
 
-@Suppress("DEPRECATION")
 @Serializable
 class BackupManga(
     // in 1.x some of these values have different names

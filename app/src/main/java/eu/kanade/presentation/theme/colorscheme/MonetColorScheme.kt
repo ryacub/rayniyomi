@@ -119,6 +119,18 @@ private class MonetCompatColorScheme(context: Context, seed: Int) : BaseColorSch
                 surfaceContainerHighest = dynamicColors.surfaceContainerHighest().getArgb(scheme).toComposeColor(),
                 surfaceContainerLow = dynamicColors.surfaceContainerLow().getArgb(scheme).toComposeColor(),
                 surfaceContainerLowest = dynamicColors.surfaceContainerLowest().getArgb(scheme).toComposeColor(),
+                primaryFixed = Color.Unspecified,
+                primaryFixedDim = Color.Unspecified,
+                onPrimaryFixed = Color.Unspecified,
+                onPrimaryFixedVariant = Color.Unspecified,
+                secondaryFixed = Color.Unspecified,
+                secondaryFixedDim = Color.Unspecified,
+                onSecondaryFixed = Color.Unspecified,
+                onSecondaryFixedVariant = Color.Unspecified,
+                tertiaryFixed = Color.Unspecified,
+                tertiaryFixedDim = Color.Unspecified,
+                onTertiaryFixed = Color.Unspecified,
+                onTertiaryFixedVariant = Color.Unspecified,
             )
         }
     }

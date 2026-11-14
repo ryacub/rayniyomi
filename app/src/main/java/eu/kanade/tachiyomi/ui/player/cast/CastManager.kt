@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.core.net.toUri
 import com.google.android.gms.cast.MediaLoadOptions
 import com.google.android.gms.cast.MediaQueueItem
+import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
@@ -419,7 +420,7 @@ class CastManager(
     }
 
     fun seekTo(positionMs: Long) {
-        castSession?.remoteMediaClient?.seek(positionMs)
+        castSession?.remoteMediaClient?.seek(MediaSeekOptions.Builder().setPosition(positionMs).build())
     }
 
     fun setPlaybackRate(rate: Double) {
