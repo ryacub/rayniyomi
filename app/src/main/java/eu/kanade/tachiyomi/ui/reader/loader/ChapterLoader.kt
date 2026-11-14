@@ -19,10 +19,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import mihon.core.archive.archiveReader
 import mihon.core.archive.epubReader
@@ -33,7 +31,9 @@ import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.i18n.MR
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 import tachiyomi.source.local.io.Format
+import java.util.Collections
 import java.util.IdentityHashMap
+import java.util.WeakHashMap
 
 /**
  * Loads the pages of each chapter of one reader. It is the only writer of a chapter's load
@@ -63,30 +63,22 @@ class ChapterLoader(
 
     private val lock = Any()
     private val attempts = IdentityHashMap<ReaderChapter, Deferred<Unit>>()
+    private val replacedAttempts: MutableSet<Deferred<Unit>> = Collections.newSetFromMap(WeakHashMap())
 
     /**
      * Loads [chapter] and returns when its pages are installed. Joins the load in flight, if any.
      * Returns immediately if the chapter is already loaded.
      */
     suspend fun loadChapter(chapter: ReaderChapter) {
-        while (true) {
-            currentCoroutineContext().ensureActive()
-            val attempt = synchronized(lock) {
-                attempts[chapter]?.takeUnless { it.isCompleted } ?: if (chapterIsReady(chapter)) {
-                    return
-                } else {
-                    startAttempt(chapter, previous = null, reuseLoader = false)
-                }
-            }
-            try {
-                attempt.await()
+        currentCoroutineContext().ensureActive()
+        val attempt = synchronized(lock) {
+            runningAttempt(chapter) ?: if (chapterIsReady(chapter)) {
                 return
-            } catch (e: CancellationException) {
-                currentCoroutineContext().ensureActive()
-                if (!attemptScope.isActive) throw e
-                // A newer attempt replaced this one. Decide again.
+            } else {
+                startAttempt(chapter, replacing = false)
             }
         }
+        awaitNewest(chapter, attempt)
     }
 
     /**
@@ -96,24 +88,46 @@ class ChapterLoader(
      * load fails, the chapter keeps its old pages and this function throws.
      */
     suspend fun reloadChapter(chapter: ReaderChapter) {
-        val attempt = synchronized(lock) {
-            startAttempt(chapter, previous = attempts[chapter], reuseLoader = true)
-        }
-        attempt.await()
+        val attempt = synchronized(lock) { startAttempt(chapter, replacing = true) }
+        awaitNewest(chapter, attempt)
     }
 
+    /**
+     * Waits for [attempt]. If a newer attempt replaced it, waits for the newer attempt instead,
+     * whatever the replaced attempt ended with. Any other failure or cancellation, such as the
+     * release of the chapter, reaches the caller.
+     */
+    private suspend fun awaitNewest(chapter: ReaderChapter, attempt: Deferred<Unit>) {
+        var awaited = attempt
+        while (true) {
+            try {
+                awaited.await()
+                return
+            } catch (e: Throwable) {
+                currentCoroutineContext().ensureActive()
+                awaited = synchronized(lock) {
+                    if (awaited !in replacedAttempts) throw e
+                    runningAttempt(chapter) ?: if (chapterIsReady(chapter)) return else throw e
+                }
+            }
+        }
+    }
+
+    private fun runningAttempt(chapter: ReaderChapter): Deferred<Unit>? =
+        attempts[chapter]?.takeUnless { it.isCompleted }
+
     /** Call with [lock] held. */
-    private fun startAttempt(
-        chapter: ReaderChapter,
-        previous: Deferred<Unit>?,
-        reuseLoader: Boolean,
-    ): Deferred<Unit> {
+    private fun startAttempt(chapter: ReaderChapter, replacing: Boolean): Deferred<Unit> {
+        val previous = if (replacing) attempts[chapter]?.also { replacedAttempts.add(it) } else null
         if (chapter.state !is ReaderChapter.State.Loaded) {
             chapter.state = ReaderChapter.State.Loading
         }
         val attempt = attemptScope.async(start = CoroutineStart.LAZY) {
-            previous?.cancelAndJoin()
-            runAttempt(chapter, reuseLoader)
+            previous?.let {
+                it.cancel(AttemptReplacedException())
+                it.join()
+            }
+            runAttempt(chapter, reuseLoader = replacing)
         }
         attempts[chapter] = attempt
         attempt.invokeOnCompletion { cause ->
@@ -133,12 +147,18 @@ class ChapterLoader(
         val self = currentCoroutineContext().job
         fun isCurrent() = attempts[chapter] === self
 
-        val reusedLoader = chapter.pageLoader?.takeIf { reuseLoader && !it.isRecycled }
+        val reusedLoader = if (reuseLoader) chapter.pageLoader?.takeUnless { it.isRecycled } else null
+        var openedLoader: PageLoader? = null
         logcat { "Loading pages for ${chapter.chapter.name}" }
         try {
-            val loader = reusedLoader ?: getPageLoader(chapter).also { loader ->
+            val loader = reusedLoader ?: getPageLoader(chapter).also { opened ->
+                openedLoader = opened
+                // The chapter lock orders this write with ReaderChapter.unref.
                 synchronized(lock) {
-                    if (isCurrent()) chapter.pageLoader = loader
+                    synchronized(chapter) {
+                        if (!isCurrent()) throw AttemptReplacedException()
+                        chapter.pageLoader = opened
+                    }
                 }
             }
             val pages = loader.getPages().onEach { it.chapter = chapter }
@@ -146,29 +166,42 @@ class ChapterLoader(
                 throw Exception(context.stringResource(MR.strings.page_list_empty_error))
             }
             synchronized(lock) {
-                if (!isCurrent() || chapter.pageLoader !== loader || loader.isRecycled) {
-                    throw CancellationException("A newer load replaced this one, or the chapter was released")
+                synchronized(chapter) {
+                    if (!isCurrent()) throw AttemptReplacedException()
+                    if (chapter.pageLoader !== loader || loader.isRecycled) {
+                        throw CancellationException("The chapter was released during its load")
+                    }
+                    // If the chapter is partially read, set the starting page to the last the user read
+                    // otherwise use the requested page.
+                    if (reusedLoader == null &&
+                        (!chapter.chapter.read || readerPreferences.preserveReadingPosition().get())
+                    ) {
+                        chapter.requestedPage = chapter.chapter.lastPageRead.toInt()
+                    }
+                    chapter.state = ReaderChapter.State.Loaded(pages)
                 }
-                // If the chapter is partially read, set the starting page to the last the user read
-                // otherwise use the requested page.
-                if (reusedLoader == null &&
-                    (!chapter.chapter.read || readerPreferences.preserveReadingPosition().get())
-                ) {
-                    chapter.requestedPage = chapter.chapter.lastPageRead.toInt()
-                }
-                chapter.state = ReaderChapter.State.Loaded(pages)
             }
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Throwable) {
-            synchronized(lock) {
-                if (isCurrent() && chapter.state !is ReaderChapter.State.Loaded) {
-                    chapter.state = ReaderChapter.State.Error(e)
+            openedLoader?.let { recycleIfUnused(chapter, it) }
+            if (e !is CancellationException) {
+                synchronized(lock) {
+                    if (isCurrent() && chapter.state !is ReaderChapter.State.Loaded) {
+                        chapter.state = ReaderChapter.State.Error(e)
+                    }
                 }
             }
             throw e
         }
     }
+
+    /** Recycles a page loader that this owner opened and that the chapter does not hold. */
+    private fun recycleIfUnused(chapter: ReaderChapter, loader: PageLoader) {
+        synchronized(chapter) {
+            if (chapter.pageLoader !== loader && !loader.isRecycled) loader.recycle()
+        }
+    }
+
+    private class AttemptReplacedException : CancellationException("A newer load replaced this one")
 
     /**
      * Checks [chapter] to be loaded based on present pages and loader in addition to state.

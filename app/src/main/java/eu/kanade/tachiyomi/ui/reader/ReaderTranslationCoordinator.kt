@@ -4,7 +4,6 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,9 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import logcat.LogPriority
 import tachiyomi.core.common.preference.toggle
-import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.items.chapter.model.Chapter
 
 /**
@@ -54,16 +51,9 @@ class ReaderTranslationCoordinator(
                 .collect {
                     val currChapter = getViewerChapters()?.currChapter ?: return@collect
                     updateTranslation { it.copy(hasTranslation = hasTranslationFor(currChapter.chapter)) }
-                    if (!readerPreferences.showTranslatedPages().get()) return@collect
-                    try {
-                        reloadChapter(currChapter)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Throwable) {
-                        logcat(LogPriority.ERROR, e) { "Could not reload ${currChapter.chapter.name}" }
-                        return@collect
+                    if (readerPreferences.showTranslatedPages().get() && reloadOrFalse(currChapter, reloadChapter)) {
+                        onReload()
                     }
-                    onReload()
                 }
         }
         scope.launch(ioDispatcher) {

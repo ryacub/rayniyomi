@@ -14,6 +14,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -123,6 +124,7 @@ class ChapterLoaderCancellationTest {
         gated.awaitCalls(1)
         val second = async { loader.loadChapter(chapter) }
         gated.awaitCallsOrNull(2)
+        second.isActive shouldBe true
         gated.open()
         withTimeout(5_000) {
             first.await()
@@ -150,17 +152,48 @@ class ChapterLoaderCancellationTest {
         chapter.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
     }
 
+    @Test
+    fun `a load waiter follows the reload that replaced its attempt`() = runBlocking<Unit> {
+        val gated = GatedPageList(gateOnlyFirstRequest = true)
+        val loader = loaderFor(gated.source)
+
+        val load = async { loader.loadChapter(chapter) }
+        gated.awaitCalls(1)
+        withTimeout(5_000) { loader.reloadChapter(chapter) }
+        withTimeout(5_000) { load.await() }
+
+        gated.calls shouldBe 2
+        chapter.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
+    }
+
+    @Test
+    fun `a load waiter stops when the chapter is released during its load`() = runBlocking<Unit> {
+        val gated = GatedPageList()
+        val loader = loaderFor(gated.source)
+
+        val load = async { loader.loadChapter(chapter) }
+        gated.awaitCalls(1)
+        chapter.ref()
+        chapter.unref()
+        gated.open()
+
+        shouldThrow<CancellationException> { withTimeout(5_000) { load.await() } }
+        gated.calls shouldBe 1
+        chapter.pageLoader shouldBe null
+        chapter.state shouldBe ReaderChapter.State.Wait
+    }
+
     /** A source whose page list waits for [open], and that counts its requests. */
-    private class GatedPageList {
+    private class GatedPageList(gateOnlyFirstRequest: Boolean = false) {
         private val gate = CompletableDeferred<Unit>()
         private val requests = AtomicInteger()
         val calls: Int get() = requests.get()
 
         val source = mockk<HttpSource>(relaxed = true) {
             coEvery { getPageList(any()) } coAnswers {
-                requests.incrementAndGet()
-                gate.await()
-                listOf(Page(index = 0, url = "page-0", imageUrl = "image-0"))
+                val request = requests.incrementAndGet()
+                if (request == 1 || !gateOnlyFirstRequest) gate.await()
+                listOf(Page(index = 0, url = "page-$request", imageUrl = "image-$request"))
             }
         }
 

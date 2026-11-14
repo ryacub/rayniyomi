@@ -136,7 +136,42 @@ class ChapterLoaderReloadTest {
         advanceUntilIdle()
         reload.join()
         chapter.pages.shouldBeSameInstanceAs(fresh)
-        load.isCancelled shouldBe true
+        load.isCompleted shouldBe true
+        load.isCancelled shouldBe false
+    }
+
+    @Test
+    fun `a replaced attempt that fails never writes an error over the newer attempt`() = runTest {
+        val fresh = pages(1)
+        val staleGate = CompletableDeferred<Unit>()
+        val freshGate = CompletableDeferred<Unit>()
+        chapter.state = ReaderChapter.State.Wait
+        chapter.pageLoader = ScriptedLoader(
+            listOf(
+                // A blocking read can report its cancellation as an IOException.
+                {
+                    withContext(NonCancellable) { staleGate.await() }
+                    throw IOException("stream closed")
+                },
+                {
+                    freshGate.await()
+                    fresh
+                },
+            ),
+        )
+        val owner = owner()
+        launch { owner.reloadChapter(chapter) }
+        advanceUntilIdle()
+
+        val reload = launch { owner.reloadChapter(chapter) }
+        advanceUntilIdle()
+        staleGate.complete(Unit)
+        advanceUntilIdle()
+
+        chapter.state shouldBe ReaderChapter.State.Loading
+        freshGate.complete(Unit)
+        reload.join()
+        chapter.pages.shouldBeSameInstanceAs(fresh)
     }
 
     @Test

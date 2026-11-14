@@ -21,6 +21,7 @@ data class ReaderChapter(private val loadedChapter: Chapter) {
     val pages: List<ReaderPage>?
         get() = (state as? State.Loaded)?.pages
 
+    @Volatile
     var pageLoader: PageLoader? = null
 
     var requestedPage: Int = 0
@@ -36,6 +37,7 @@ data class ReaderChapter(private val loadedChapter: Chapter) {
         references++
     }
 
+    @Synchronized
     fun unref() {
         references--
         if (references == 0) {

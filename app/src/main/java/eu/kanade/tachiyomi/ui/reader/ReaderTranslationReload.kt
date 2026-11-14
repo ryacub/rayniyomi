@@ -61,7 +61,8 @@ internal suspend fun reloadViewerChaptersForTranslationToggle(
     return true
 }
 
-private suspend fun reloadOrFalse(chapter: ReaderChapter, reloadChapter: suspend (ReaderChapter) -> Unit): Boolean =
+/** Reloads [chapter] and returns false, with a log line, when the reload fails. */
+internal suspend fun reloadOrFalse(chapter: ReaderChapter, reloadChapter: suspend (ReaderChapter) -> Unit): Boolean =
     try {
         reloadChapter(chapter)
         true

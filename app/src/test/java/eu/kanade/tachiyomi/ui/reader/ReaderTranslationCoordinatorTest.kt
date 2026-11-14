@@ -207,7 +207,9 @@ class ReaderTranslationCoordinatorTest {
 
         next.pages!!.single().url shouldBe "next-translated"
         curr.pages!!.single().url shouldBe "curr-translated"
-        racingLoad.isCancelled shouldBe true
+        // The racing waiter follows the toggle's newer attempt and ends normally.
+        racingLoad.isCompleted shouldBe true
+        racingLoad.isCancelled shouldBe false
         recorder.reloads shouldBe 1
     }
 
