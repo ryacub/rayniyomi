@@ -78,6 +78,20 @@ class MeasuredGridLinesTest {
         (abs(lines.scrollProportion() - expected) < 0.001f) shouldBe true
     }
 
+    @Test
+    fun `thumb position after a row height change follows the new layout`() {
+        val lines = MeasuredGridLines()
+        val tallRows = FakeGrid(List(44) { 1 to EPISODE_HEIGHT }, viewportHeight = 2337, maxSpan = 3)
+        for (step in 0..DRAG_STEPS) tallRows.dragTo(lines, step.toFloat() / DRAG_STEPS)
+
+        val shortRows = FakeGrid(List(44) { 1 to EPISODE_HEIGHT / 2 }, viewportHeight = 2337, maxSpan = 3)
+        shortRows.scrollTo(GridScrollTarget(index = 20, scrollOffset = 0))
+        lines.record(shortRows.sample())
+
+        val expected = shortRows.position.toFloat() / shortRows.maxScroll
+        (abs(lines.scrollProportion() - expected) < 0.001f) shouldBe true
+    }
+
     private fun assertDragDownIsEven(grid: FakeGrid) {
         val lines = MeasuredGridLines()
         val largestEvenStep = grid.maxScroll / 100
