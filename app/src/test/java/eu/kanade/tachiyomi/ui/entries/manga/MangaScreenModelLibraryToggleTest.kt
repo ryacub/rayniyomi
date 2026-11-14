@@ -51,6 +51,7 @@ class MangaScreenModelLibraryToggleTest {
     private val context = mockk<Context>(relaxed = true) {
         every { resources } returns this@MangaScreenModelLibraryToggleTest.resources
     }
+    private val findDuplicate = mockk<GetDuplicateLibraryManga>(relaxed = true)
     private val updateManga = mockk<UpdateManga>(relaxed = true)
     private val addTracks = mockk<AddMangaTracks>(relaxed = true)
     private val downloadManager = mockk<MangaDownloadManager>(relaxed = true) {
@@ -63,6 +64,7 @@ class MangaScreenModelLibraryToggleTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
+        coEvery { findDuplicate.awaitAll(any()) } returns emptyList()
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true)
         every { testAppGraph.basePreferences } returns BasePreferences(mockk(relaxed = true), InMemoryPreferenceStore())
     }
@@ -70,6 +72,22 @@ class MangaScreenModelLibraryToggleTest {
     @AfterEach
     fun tearDown() {
         vt.tearDownMain()
+    }
+
+    @Test
+    fun `adding a title with an exact library match shows a warning before writing`() = runTest(vt.scheduler) {
+        val candidate = manga(favorite = false).copy(title = "Exact title")
+        val saved = candidate.copy(id = 2, favorite = true)
+        coEvery { findDuplicate.await(candidate) } returns listOf(saved)
+        val model = createModel(candidate)
+        advanceUntilIdle()
+
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        val dialog = model.successState().dialog
+        (dialog as? MangaScreenModel.Dialog.DuplicateManga)?.duplicate shouldBe saved
+        coVerify(exactly = 0) { updateManga.awaitUpdateFavorite(any(), any()) }
     }
 
     @Test
@@ -264,9 +282,7 @@ class MangaScreenModelLibraryToggleTest {
             isFromSource = false,
             trackChapter = testAppGraph.trackChapter,
             downloadCache = testAppGraph.mangaDownloadCache,
-            getDuplicateLibraryManga = mockk<GetDuplicateLibraryManga> {
-                coEvery { awaitAll(any()) } returns emptyList()
-            },
+            getDuplicateLibraryManga = findDuplicate,
             getAvailableScanlators = mockk(relaxed = true),
             getExcludedScanlators = mockk(relaxed = true),
             setExcludedScanlators = mockk(relaxed = true),

@@ -58,6 +58,7 @@ class AnimeScreenModelLibraryToggleTest {
     private val context = mockk<Context>(relaxed = true) {
         every { resources } returns this@AnimeScreenModelLibraryToggleTest.resources
     }
+    private val findDuplicate = mockk<GetDuplicateLibraryAnime>(relaxed = true)
     private val updateAnime = mockk<UpdateAnime>(relaxed = true)
     private val addTracks = mockk<AddAnimeTracks>(relaxed = true)
     private val downloadManager = mockk<AnimeDownloadManager>(relaxed = true) {
@@ -70,6 +71,7 @@ class AnimeScreenModelLibraryToggleTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
+        coEvery { findDuplicate.awaitAll(any()) } returns emptyList()
         every { testAppGraph.animeSourceManager } returns mockk<AnimeSourceManager>(relaxed = true)
         every { testAppGraph.basePreferences } returns BasePreferences(mockk(relaxed = true), InMemoryPreferenceStore())
     }
@@ -78,6 +80,21 @@ class AnimeScreenModelLibraryToggleTest {
     fun tearDown() {
         viewModelStore.clear()
         vt.tearDownMain()
+    }
+
+    @Test
+    fun `adding a title with an exact library match shows a warning before writing`() = runTest(vt.scheduler) {
+        val candidate = anime(favorite = false).copy(title = "Exact title")
+        val saved = candidate.copy(id = 2, favorite = true)
+        coEvery { findDuplicate.await(candidate) } returns listOf(saved)
+        val model = loadedModel(candidate)
+
+        model.toggleFavorite()
+        advanceUntilIdle()
+
+        val dialog = model.successState().dialog
+        (dialog as? AnimeScreenModel.Dialog.DuplicateAnime)?.duplicate shouldBe saved
+        coVerify(exactly = 0) { updateAnime.awaitUpdateFavorite(any(), any()) }
     }
 
     @Test
@@ -282,9 +299,7 @@ class AnimeScreenModelLibraryToggleTest {
             downloadManager = downloadManager,
             downloadCache = mockk(relaxed = true),
             getAnimeAndEpisodesAndSeasons = getAnimeAndEpisodesAndSeasons,
-            getDuplicateLibraryAnime = mockk<GetDuplicateLibraryAnime> {
-                coEvery { awaitAll(any()) } returns emptyList()
-            },
+            getDuplicateLibraryAnime = findDuplicate,
             setAnimeEpisodeFlags = mockk(relaxed = true),
             setAnimeDefaultEpisodeFlags = mockk(relaxed = true),
             setAnimeSeasonFlags = mockk(relaxed = true),
