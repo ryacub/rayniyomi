@@ -14,8 +14,10 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -70,6 +72,19 @@ class ChapterLoaderCancellationTest {
         val load = launch { loader.loadChapter(chapter) }
         withTimeout(5_000) { pageListRequested.await() }
         load.cancelAndJoin()
+
+        chapter.state shouldBe ReaderChapter.State.Wait
+    }
+
+    @Test
+    fun `a load cancelled before it reaches the page loader leaves the chapter in Wait`() = runBlocking<Unit> {
+        val loader = loaderFor(mockk<HttpSource>(relaxed = true))
+
+        val load = launch(start = CoroutineStart.UNDISPATCHED) {
+            coroutineContext.job.cancel()
+            loader.loadChapter(chapter)
+        }
+        load.join()
 
         chapter.state shouldBe ReaderChapter.State.Wait
     }

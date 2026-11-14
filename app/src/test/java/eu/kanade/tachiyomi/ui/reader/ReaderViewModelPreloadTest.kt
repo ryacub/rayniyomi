@@ -109,4 +109,31 @@ class ReaderViewModelPreloadTest {
             model.viewModelScope.cancel()
         }
     }
+
+    @Test
+    fun `a preload of the other adjacent chapter starts while a load runs`() = runTest(vt.scheduler) {
+        val loadingChapter = ReaderChapter(Chapter.create().copy(id = 3L, mangaId = 1L))
+        val otherChapter = ReaderChapter(Chapter.create().copy(id = 4L, mangaId = 1L))
+        val firstLoadStarted = CompletableDeferred<Unit>()
+        val otherLoadStarted = CompletableDeferred<Unit>()
+        val chapterLoader = mockk<ChapterLoader> {
+            coEvery { loadChapter(loadingChapter) } coAnswers {
+                loadingChapter.state = ReaderChapter.State.Loading
+                firstLoadStarted.complete(Unit)
+                awaitCancellation()
+            }
+            coEvery { loadChapter(otherChapter) } coAnswers { otherLoadStarted.complete(Unit) }
+        }
+        val model = readerViewModel().apply { useChapterLoader(chapterLoader) }
+        try {
+            model.preload(loadingChapter)
+            withContext(Dispatchers.Default) { withTimeout(5_000) { firstLoadStarted.await() } }
+
+            model.preload(otherChapter)
+
+            withContext(Dispatchers.Default) { withTimeout(5_000) { otherLoadStarted.await() } }
+        } finally {
+            model.viewModelScope.cancel()
+        }
+    }
 }
