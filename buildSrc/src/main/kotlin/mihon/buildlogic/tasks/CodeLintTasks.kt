@@ -156,28 +156,36 @@ abstract class CheckCancellationCatchesTask : DefaultTask() {
     }
 
     private fun followsCancellationClause(code: String, catchStart: Int): Boolean {
-        val closingBrace = code.lastIndexOfAny(charArrayOf('}'), catchStart - 1)
+        val closingBrace = code.lastIndexOf('}', catchStart - 1)
         if (closingBrace < 0 || code.substring(closingBrace + 1, catchStart).isNotBlank()) return false
+        val openingBrace = matchingOpeningBrace(code, closingBrace) ?: return false
+        val clauseName = CANCELLATION_CLAUSE.find(code.substring(0, openingBrace))?.groupValues?.get(1)
+            ?: return false
+        return Regex("""\bthrow\s+$clauseName\b""").containsMatchIn(code.substring(openingBrace, closingBrace))
+    }
+
+    private fun matchingOpeningBrace(code: String, closingBrace: Int): Int? {
         var depth = 0
         for (index in closingBrace downTo 0) {
             when (code[index]) {
                 '}' -> depth++
-                '{' -> if (--depth == 0) return CANCELLATION_CLAUSE.containsMatchIn(code.substring(0, index))
+                '{' -> if (--depth == 0) return index
             }
         }
-        return false
+        return null
     }
 
     private companion object {
         const val CANCELLATION_TYPE = """(?:[\w.]+\.)?CancellationException"""
-        val GENERIC_CATCH = Regex("""catch\s*\(\s*(\w+)\s*:\s*(?:Throwable|Exception)\s*\)\s*\{""")
-        val CANCELLATION_CLAUSE = Regex("""catch\s*\(\s*\w+\s*:\s*$CANCELLATION_TYPE\s*\)\s*$""")
+        val GENERIC_CATCH = Regex(
+            """catch\s*\(\s*(\w+)\s*:\s*(?:kotlin\.|java\.lang\.)?(?:Throwable|Exception)\s*\)\s*\{""",
+        )
+        val CANCELLATION_CLAUSE = Regex("""catch\s*\(\s*(\w+)\s*:\s*$CANCELLATION_TYPE\s*\)\s*$""")
     }
 }
 
 /**
- * Returns [lines] with comments and string and character literals replaced by spaces, so a
- * search of the result sees only code. Line count and column positions stay the same.
+ * Keeps line count and columns, so a match offset in the result maps back to the source line.
  */
 internal fun maskCommentsAndLiterals(lines: List<String>): List<String> {
     var state = ScanState.CODE

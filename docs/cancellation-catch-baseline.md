@@ -32,6 +32,10 @@ in one of these forms:
 }
 ```
 
+The `CancellationException` clause can do cleanup first, but its body must
+contain `throw` with the caught name. A clause that swallows the cancellation
+does not count.
+
 Outside a coroutine, catch the narrowest exception type that the code can
 throw, such as `IOException`.
 
