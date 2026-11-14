@@ -434,9 +434,11 @@ class ReaderViewModel(
      * that the user doesn't have to wait too long to continue reading.
      *
      * The launched job is tracked so [cancelActivePreload] can stop it: the preload and the
-     * translation toggle both write [ReaderChapter.state].
+     * translation toggle both write [ReaderChapter.state]. A chapter that is already loading
+     * keeps its load, because the viewer repeats the request on every page near the end.
      */
     fun preload(chapter: ReaderChapter) {
+        if (chapter.isLoadedOrLoading()) return
         preloadJob?.cancel()
         preloadJob = viewModelScope.launchIO { preloadChapter(chapter) }
     }
@@ -450,10 +452,11 @@ class ReaderViewModel(
         preloadJob = null
     }
 
+    private fun ReaderChapter.isLoadedOrLoading(): Boolean =
+        state is ReaderChapter.State.Loaded || state == ReaderChapter.State.Loading
+
     private suspend fun preloadChapter(chapter: ReaderChapter) {
-        if (chapter.state is ReaderChapter.State.Loaded || chapter.state == ReaderChapter.State.Loading) {
-            return
-        }
+        if (chapter.isLoadedOrLoading()) return
 
         if (chapter.pageLoader?.isLocal == false) {
             val manga = manga ?: return
