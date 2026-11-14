@@ -21,6 +21,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Accept a manual recovery search as soon as the screen reports that the previous search is finished (#1506).
+- When you read near the end of a chapter, the reader no longer restarts the load of the next chapter on each page turn. Before, the chapter transition page could show a load error for the next chapter after a cancelled load (#1496).
 - If you invalidate the download index while the app loads it at startup, the app now rescans the downloads folder. Before, it kept the old index for up to one hour, so download badges could be wrong (#1493).
 - Jellyfin tracker requests can safely share cached API keys during concurrent updates (#1492).
 - Keep Recover titles actions above the system navigation bar, wrap review buttons, and place the review list and details on opposite sides of a separating vertical hinge (#1489).
@@ -44,6 +45,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Treat Kotlin compiler warnings as errors in `domain`, `data`, and `core:common` (#1498).
 - Fail the pull request build on new Android lint errors (#1497).
 - Print full unit test failure messages and stack traces in CI (#1506).
+- Fail pull request checks when production Kotlin sources add a `catch` of `Throwable` or `Exception` that does not rethrow `CancellationException` (#1496).
 
 ### Other
 - Remove unused internal classes and Compose helpers (#1490).
