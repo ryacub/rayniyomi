@@ -15,9 +15,13 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -37,6 +41,7 @@ class ChapterLoaderCancellationTest {
 
     private val previousGraph = AppGraphHolder.graphOrNull
     private val chapter = ReaderChapter(Chapter.create().copy(id = 2L, url = "chapter-1"))
+    private val loaderScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         AppGraphHolder.graph = mockk<AppGraph>(relaxed = true) {
@@ -49,6 +54,7 @@ class ChapterLoaderCancellationTest {
 
     @AfterEach
     fun tearDown() {
+        loaderScope.cancel()
         chapter.pageLoader?.recycle()
         AppGraphHolder.graphOrNull = previousGraph
     }
@@ -61,6 +67,7 @@ class ChapterLoaderCancellationTest {
         downloadProvider = mockk(relaxed = true),
         manga = Manga.create().copy(id = 1L, source = 1L),
         source = source,
+        scope = loaderScope,
     )
 
     @Test
@@ -76,7 +83,8 @@ class ChapterLoaderCancellationTest {
 
         val load = launch { loader.loadChapter(chapter) }
         withTimeout(5_000) { pageListRequested.await() }
-        load.cancelAndJoin()
+        loaderScope.coroutineContext.job.cancelAndJoin()
+        load.join()
 
         chapter.state shouldBe ReaderChapter.State.Wait
     }

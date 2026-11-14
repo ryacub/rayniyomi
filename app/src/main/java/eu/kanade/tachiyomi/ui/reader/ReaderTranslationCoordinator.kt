@@ -4,6 +4,7 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -11,8 +12,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import logcat.LogPriority
 import tachiyomi.core.common.preference.toggle
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.items.chapter.model.Chapter
 
 /**
@@ -34,7 +36,7 @@ class ReaderTranslationCoordinator(
     private val chapterIdFlow: Flow<Long?>,
     private val updateTranslation: ((ReaderTranslationUiState) -> ReaderTranslationUiState) -> Unit,
     private val onReload: suspend () -> Unit,
-    private val cancelAdjacentPreload: suspend () -> Unit = {},
+    private val reloadChapter: suspend (ReaderChapter) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -52,9 +54,16 @@ class ReaderTranslationCoordinator(
                 .collect {
                     val currChapter = getViewerChapters()?.currChapter ?: return@collect
                     updateTranslation { it.copy(hasTranslation = hasTranslationFor(currChapter.chapter)) }
-                    if (prepareTranslationReload(currChapter, readerPreferences.showTranslatedPages().get())) {
-                        onReload()
+                    if (!readerPreferences.showTranslatedPages().get()) return@collect
+                    try {
+                        reloadChapter(currChapter)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        logcat(LogPriority.ERROR, e) { "Could not reload ${currChapter.chapter.name}" }
+                        return@collect
                     }
+                    onReload()
                 }
         }
         scope.launch(ioDispatcher) {
@@ -64,26 +73,18 @@ class ReaderTranslationCoordinator(
     }
 
     /**
-     * Toggles between showing translated and original pages. The function rebuilds the
-     * current chapter's page list through its loader. It also rebuilds the loaded adjacent
-     * chapters, so they show pages that match the new preference before the user swipes.
-     * A failed current-chapter rebuild reverts the toggle so the icon, the preference, and
-     * the displayed pages agree. It first cancels any in-flight adjacent-chapter preload,
-     * because that preload writes the same [ReaderChapter.state] this rebuild writes.
+     * Toggles between showing translated and original pages. The function reloads the
+     * current chapter's pages. It also reloads the loaded and loading adjacent chapters, so they
+     * show pages that match the new preference before the user swipes. A failed current-chapter
+     * reload reverts the toggle so the icon, the preference, and the displayed pages agree.
      */
     fun toggleTranslatedPages() {
         val newValue = readerPreferences.showTranslatedPages().toggle()
         updateTranslation { it.copy(showTranslatedPages = newValue) }
         toggleJob?.cancel()
         toggleJob = scope.launch {
-            // A preload started by the viewer writes the same ReaderChapter.state this rebuild
-            // writes. Wait for it to finish cancelling, so it cannot land old-language pages on
-            // an adjacent chapter afterwards.
-            cancelAdjacentPreload()
             val viewerChapters = getViewerChapters() ?: return@launch
-            val installed = withContext(ioDispatcher) {
-                reloadViewerChaptersForTranslationToggle(viewerChapters)
-            }
+            val installed = reloadViewerChaptersForTranslationToggle(viewerChapters, reloadChapter)
             if (!installed) {
                 readerPreferences.showTranslatedPages().set(!newValue)
                 updateTranslation { it.copy(showTranslatedPages = !newValue) }

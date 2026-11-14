@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.reader
 
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.ui.reader.loader.ChapterLoader
 import eu.kanade.tachiyomi.ui.reader.loader.PageLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -13,6 +14,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.manga.model.Manga
@@ -31,70 +34,20 @@ class ReaderTranslationReloadTest {
         return ReaderChapter(chapter)
     }
 
-    @Test
-    fun `no reload is requested while translated pages are hidden`() {
-        val chapter = readerChapter(lastPageRead = 7)
-        chapter.state = ReaderChapter.State.Loaded(emptyList())
-
-        prepareTranslationReload(chapter, showTranslatedPages = false) shouldBe false
-    }
-
-    @Test
-    fun `a hidden translation leaves the loaded pages untouched`() {
-        val chapter = readerChapter(lastPageRead = 7)
-        val loaded = ReaderChapter.State.Loaded(emptyList())
-        chapter.state = loaded
-        chapter.requestedPage = 3
-
-        prepareTranslationReload(chapter, showTranslatedPages = false)
-
-        chapter.state shouldBe loaded
-        chapter.requestedPage shouldBe 3
-    }
-
-    @Test
-    fun `a shown translation resets the chapter so the loader rebuilds its pages`() {
-        val chapter = readerChapter(lastPageRead = 7)
-        chapter.state = ReaderChapter.State.Loaded(emptyList())
-
-        prepareTranslationReload(chapter, showTranslatedPages = true) shouldBe true
-
-        chapter.state shouldBe ReaderChapter.State.Wait
-    }
-
-    @Test
-    fun `the read position survives the reload`() {
-        val chapter = readerChapter(lastPageRead = 7)
-        chapter.state = ReaderChapter.State.Loaded(emptyList())
-        chapter.requestedPage = 0
-
-        prepareTranslationReload(chapter, showTranslatedPages = true)
-
-        chapter.requestedPage shouldBe 7
-    }
-
-    @Test
-    fun `a chapter still loading is also reset`() {
-        val chapter = readerChapter(lastPageRead = 2)
-        chapter.state = ReaderChapter.State.Loading
-
-        prepareTranslationReload(chapter, showTranslatedPages = true) shouldBe true
-
-        chapter.state shouldBe ReaderChapter.State.Wait
-        chapter.requestedPage shouldBe 2
-    }
-
-    @Test
-    fun `an errored chapter is reset rather than left showing the old-language failure`() {
-        val chapter = readerChapter(lastPageRead = 4)
-        chapter.state = ReaderChapter.State.Error(mockk())
-
-        prepareTranslationReload(chapter, showTranslatedPages = true) shouldBe true
-
-        chapter.state shouldBe ReaderChapter.State.Wait
-    }
-
     private fun readerPage(index: Int): ReaderPage = ReaderPage(index)
+
+    /**
+     * Reloads through a real owner. Every chapter here has a page loader, so none is opened.
+     * The owner's supervisor job stays active until its scope ends, so it gets its own scope.
+     */
+    private fun reloader(): suspend (ReaderChapter) -> Unit = ChapterLoader(
+        context = mockk(relaxed = true),
+        downloadManager = mockk(relaxed = true),
+        downloadProvider = mockk(relaxed = true),
+        manga = Manga.create(),
+        source = mockk(relaxed = true),
+        scope = CoroutineScope(SupervisorJob()),
+    )::reloadChapter
 
     private class FakeLoader(val action: () -> List<ReaderPage>) : PageLoader() {
         var calls = 0
@@ -105,106 +58,6 @@ class ReaderTranslationReloadTest {
             calls++
             return action()
         }
-    }
-
-    @Test
-    fun `a rebuild consults the loader again and installs a fresh loaded state`() = runTest {
-        val chapter = readerChapter(lastPageRead = 7)
-        val original = listOf(readerPage(0), readerPage(1))
-        val translated = listOf(readerPage(0), readerPage(1))
-        chapter.state = ReaderChapter.State.Loaded(original)
-        val loader = FakeLoader { translated }
-        chapter.pageLoader = loader
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe true
-
-        loader.calls shouldBe 1
-        chapter.pages.shouldBeSameInstanceAs(translated)
-        translated.forEach { it.chapter shouldBe chapter }
-    }
-
-    @Test
-    fun `a chapter without a page loader is left untouched`() = runTest {
-        val chapter = readerChapter()
-        val loaded = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        chapter.state = loaded
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe false
-
-        chapter.state shouldBe loaded
-    }
-
-    @Test
-    fun `a chapter still loading is left to its in-flight load`() = runTest {
-        val chapter = readerChapter()
-        chapter.state = ReaderChapter.State.Loading
-        val loader = FakeLoader { emptyList() }
-        chapter.pageLoader = loader
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe false
-
-        loader.calls shouldBe 0
-        chapter.state shouldBe ReaderChapter.State.Loading
-    }
-
-    @Test
-    fun `a waiting chapter is rebuilt into a fresh loaded state`() = runTest {
-        val chapter = readerChapter()
-        chapter.state = ReaderChapter.State.Wait
-        val pages = listOf(readerPage(0))
-        chapter.pageLoader = FakeLoader { pages }
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe true
-
-        chapter.pages shouldBe pages
-    }
-
-    @Test
-    fun `an errored chapter is rebuilt into a fresh loaded state`() = runTest {
-        val chapter = readerChapter()
-        chapter.state = ReaderChapter.State.Error(mockk())
-        val pages = listOf(readerPage(0))
-        chapter.pageLoader = FakeLoader { pages }
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe true
-
-        chapter.pages shouldBe pages
-    }
-
-    @Test
-    fun `an empty rebuild installs an error and reports failure`() = runTest {
-        val chapter = readerChapter()
-        chapter.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        chapter.pageLoader = FakeLoader { emptyList() }
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe false
-
-        chapter.state.shouldBeInstanceOf<ReaderChapter.State.Error>()
-    }
-
-    @Test
-    fun `a loader failure installs an error instead of crashing the toggle`() = runTest {
-        val chapter = readerChapter()
-        val error = RuntimeException("loader broke")
-        chapter.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        chapter.pageLoader = FakeLoader { throw error }
-
-        reloadChapterPagesForTranslationToggle(chapter) shouldBe false
-
-        chapter.state shouldBe ReaderChapter.State.Error(error)
-    }
-
-    @Test
-    fun `cancellation from the loader propagates instead of being swallowed`() = runTest {
-        val chapter = readerChapter()
-        val loaded = ReaderChapter.State.Loaded(listOf(readerPage(0)))
-        chapter.state = loaded
-        chapter.pageLoader = FakeLoader { throw CancellationException("toggle cancelled") }
-
-        val result = runCatching { reloadChapterPagesForTranslationToggle(chapter) }
-
-        result.exceptionOrNull().shouldBeInstanceOf<CancellationException>()
-        chapter.state shouldBe loaded
     }
 
     @Test
@@ -227,7 +80,8 @@ class ReaderTranslationReloadTest {
         next.pageLoader = nextLoader
 
         reloadViewerChaptersForTranslationToggle(
-            ViewerChapters(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
                 currChapter = curr,
                 prevChapter = prev,
                 nextChapter = next,
@@ -258,7 +112,8 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { emptyList() }
 
         reloadViewerChaptersForTranslationToggle(
-            ViewerChapters(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
                 currChapter = curr,
                 prevChapter = prev,
                 nextChapter = next,
@@ -286,7 +141,8 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { listOf(readerPage(3)) }
 
         reloadViewerChaptersForTranslationToggle(
-            ViewerChapters(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
                 currChapter = curr,
                 prevChapter = prev,
                 nextChapter = next,
@@ -300,17 +156,19 @@ class ReaderTranslationReloadTest {
     }
 
     @Test
-    fun `a neighbour rebuild failure does not revert the toggle`() = runTest {
+    fun `a neighbour rebuild failure keeps its old pages and does not revert the toggle`() = runTest {
         val curr = readerChapter()
         val next = readerChapter()
         val currFresh = listOf(readerPage(0))
+        val nextOriginal = listOf(readerPage(9))
         curr.state = ReaderChapter.State.Loaded(listOf(readerPage(9)))
-        next.state = ReaderChapter.State.Loaded(listOf(readerPage(9)))
+        next.state = ReaderChapter.State.Loaded(nextOriginal)
         curr.pageLoader = FakeLoader { currFresh }
         next.pageLoader = FakeLoader { throw RuntimeException("neighbour broke") }
 
         reloadViewerChaptersForTranslationToggle(
-            ViewerChapters(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
                 currChapter = curr,
                 prevChapter = null,
                 nextChapter = next,
@@ -318,7 +176,31 @@ class ReaderTranslationReloadTest {
         ) shouldBe true
 
         curr.pages.shouldBeSameInstanceAs(currFresh)
-        next.state.shouldBeInstanceOf<ReaderChapter.State.Error>()
+        next.pages.shouldBeSameInstanceAs(nextOriginal)
+    }
+
+    @Test
+    fun `a loading neighbour restarts so it reads the new preference`() = runTest {
+        val curr = readerChapter()
+        val next = readerChapter()
+        val nextFresh = listOf(readerPage(1))
+        curr.state = ReaderChapter.State.Loaded(listOf(readerPage(0)))
+        curr.pageLoader = FakeLoader { listOf(readerPage(0)) }
+        next.state = ReaderChapter.State.Loading
+        val nextLoader = FakeLoader { nextFresh }
+        next.pageLoader = nextLoader
+
+        reloadViewerChaptersForTranslationToggle(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
+                currChapter = curr,
+                prevChapter = null,
+                nextChapter = next,
+            ),
+        ) shouldBe true
+
+        nextLoader.calls shouldBe 1
+        next.pages.shouldBeSameInstanceAs(nextFresh)
     }
 
     @Test
@@ -329,7 +211,8 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { currFresh }
 
         reloadViewerChaptersForTranslationToggle(
-            ViewerChapters(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
                 currChapter = curr,
                 prevChapter = null,
                 nextChapter = null,
@@ -350,7 +233,8 @@ class ReaderTranslationReloadTest {
 
         val result = runCatching {
             reloadViewerChaptersForTranslationToggle(
-                ViewerChapters(
+                reloadChapter = reloader(),
+                chapters = ViewerChapters(
                     currChapter = curr,
                     prevChapter = prev,
                     nextChapter = null,
@@ -376,7 +260,8 @@ class ReaderTranslationReloadTest {
         curr.pageLoader = FakeLoader { emptyList() }
 
         reloadViewerChaptersForTranslationToggle(
-            ViewerChapters(
+            reloadChapter = reloader(),
+            chapters = ViewerChapters(
                 currChapter = curr,
                 prevChapter = prev,
                 nextChapter = next,

@@ -26,6 +26,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -186,7 +186,7 @@ class ReaderViewModelPreloadTest {
         curr.state = ReaderChapter.State.Loaded(curr.pageLoader!!.getPages())
         val source = GatedTranslatedSource("next")
         val model = readerViewModel().apply {
-            useChapterLoader(realChapterLoader(source))
+            useChapterLoader(realChapterLoader(source.source, viewModelScope))
             showChapters(ViewerChapters(currChapter = curr, prevChapter = null, nextChapter = next))
         }
         try {
@@ -222,7 +222,7 @@ class ReaderViewModelPreloadTest {
         state.value = ReaderViewModel.State(viewerChapters = chapters)
     }
 
-    private fun realChapterLoader(source: HttpSource): ChapterLoader {
+    private fun realChapterLoader(source: HttpSource, scope: CoroutineScope): ChapterLoader {
         AppGraphHolder.graph = mockk<AppGraph>(relaxed = true) {
             every { chapterCache } returns mockk<ChapterCache> {
                 every { getPageListFromCache(any()) } throws IOException("not cached")
@@ -237,6 +237,7 @@ class ReaderViewModelPreloadTest {
             downloadProvider = mockk(relaxed = true),
             manga = Manga.create().copy(id = 1L, source = 1L),
             source = source,
+            scope = scope,
         )
     }
 
@@ -262,8 +263,6 @@ class ReaderViewModelPreloadTest {
             }
         }
     }
-
-    private fun realChapterLoader(source: GatedTranslatedSource) = realChapterLoader(source.source)
 
     /** Page loader whose page language follows the live preference, like DownloadPageLoader. */
     private inner class PreferencePageLoader(private val label: String) : PageLoader() {
