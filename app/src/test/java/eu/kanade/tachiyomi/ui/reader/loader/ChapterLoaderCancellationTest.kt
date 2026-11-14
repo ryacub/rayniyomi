@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.di.AppGraph
 import eu.kanade.tachiyomi.di.AppGraphHolder
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import io.kotest.assertions.throwables.shouldThrow
@@ -13,25 +14,35 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
 
 class ChapterLoaderCancellationTest {
 
     private val previousGraph = AppGraphHolder.graphOrNull
     private val chapter = ReaderChapter(Chapter.create().copy(id = 2L, url = "chapter-1"))
+    private val loaderScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         AppGraphHolder.graph = mockk<AppGraph>(relaxed = true) {
@@ -44,6 +55,7 @@ class ChapterLoaderCancellationTest {
 
     @AfterEach
     fun tearDown() {
+        loaderScope.cancel()
         chapter.pageLoader?.recycle()
         AppGraphHolder.graphOrNull = previousGraph
     }
@@ -56,6 +68,7 @@ class ChapterLoaderCancellationTest {
         downloadProvider = mockk(relaxed = true),
         manga = Manga.create().copy(id = 1L, source = 1L),
         source = source,
+        scope = loaderScope,
     )
 
     @Test
@@ -71,7 +84,8 @@ class ChapterLoaderCancellationTest {
 
         val load = launch { loader.loadChapter(chapter) }
         withTimeout(5_000) { pageListRequested.await() }
-        load.cancelAndJoin()
+        loaderScope.coroutineContext.job.cancelAndJoin()
+        load.join()
 
         chapter.state shouldBe ReaderChapter.State.Wait
     }
@@ -99,5 +113,99 @@ class ChapterLoaderCancellationTest {
         shouldThrow<IOException> { loader.loadChapter(chapter) }
 
         chapter.state.shouldBeInstanceOf<ReaderChapter.State.Error>().error.message shouldBe "offline"
+    }
+
+    @Test
+    fun `two concurrent loads of one chapter start one page-list request`() = runBlocking<Unit> {
+        val gated = GatedPageList()
+        val loader = loaderFor(gated.source)
+
+        val first = async { loader.loadChapter(chapter) }
+        gated.awaitCalls(1)
+        val second = async { loader.loadChapter(chapter) }
+        gated.awaitCallsOrNull(2)
+        second.isActive shouldBe true
+        gated.open()
+        withTimeout(5_000) {
+            first.await()
+            second.await()
+        }
+
+        gated.calls shouldBe 1
+        chapter.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
+    }
+
+    @Test
+    fun `a cancelled caller leaves the shared load running`() = runBlocking<Unit> {
+        val gated = GatedPageList()
+        val loader = loaderFor(gated.source)
+
+        val first = launch { loader.loadChapter(chapter) }
+        gated.awaitCalls(1)
+        val second = async { loader.loadChapter(chapter) }
+        gated.awaitCallsOrNull(2)
+        first.cancelAndJoin()
+
+        chapter.state shouldBe ReaderChapter.State.Loading
+        gated.open()
+        withTimeout(5_000) { second.await() }
+        chapter.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
+    }
+
+    @Test
+    fun `a load waiter follows the reload that replaced its attempt`() = runBlocking<Unit> {
+        val gated = GatedPageList(gateOnlyFirstRequest = true)
+        val loader = loaderFor(gated.source)
+
+        val load = async { loader.loadChapter(chapter) }
+        gated.awaitCalls(1)
+        withTimeout(5_000) { loader.reloadChapter(chapter) }
+        withTimeout(5_000) { load.await() }
+
+        gated.calls shouldBe 2
+        chapter.state.shouldBeInstanceOf<ReaderChapter.State.Loaded>()
+    }
+
+    @Test
+    fun `a load waiter stops when the chapter is released during its load`() = runBlocking<Unit> {
+        val gated = GatedPageList()
+        val loader = loaderFor(gated.source)
+
+        val load = async { loader.loadChapter(chapter) }
+        gated.awaitCalls(1)
+        chapter.ref()
+        chapter.unref()
+        gated.open()
+
+        shouldThrow<CancellationException> { withTimeout(5_000) { load.await() } }
+        gated.calls shouldBe 1
+        chapter.pageLoader shouldBe null
+        chapter.state shouldBe ReaderChapter.State.Wait
+    }
+
+    /** A source whose page list waits for [open], and that counts its requests. */
+    private class GatedPageList(gateOnlyFirstRequest: Boolean = false) {
+        private val gate = CompletableDeferred<Unit>()
+        private val requests = AtomicInteger()
+        val calls: Int get() = requests.get()
+
+        val source = mockk<HttpSource>(relaxed = true) {
+            coEvery { getPageList(any()) } coAnswers {
+                val request = requests.incrementAndGet()
+                if (request == 1 || !gateOnlyFirstRequest) gate.await()
+                listOf(Page(index = 0, url = "page-$request", imageUrl = "image-$request"))
+            }
+        }
+
+        fun open() = gate.complete(Unit)
+
+        suspend fun awaitCalls(count: Int) = withTimeout(5_000) { waitFor(count) }
+
+        /** Gives a second request time to start. A single owner never sends it. */
+        suspend fun awaitCallsOrNull(count: Int) = withTimeoutOrNull(500) { waitFor(count) }
+
+        private suspend fun waitFor(count: Int) {
+            while (requests.get() < count) yield()
+        }
     }
 }

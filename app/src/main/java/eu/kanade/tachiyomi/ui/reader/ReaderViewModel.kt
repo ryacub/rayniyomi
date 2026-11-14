@@ -45,8 +45,6 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -155,12 +153,6 @@ class ReaderViewModel(
     private var loader: ChapterLoader? = null
 
     /**
-     * The in-flight adjacent-chapter preload, if any. Owned here so the translation toggle can
-     * cancel and await it before rebuilding the same chapter's pages.
-     */
-    private var preloadJob: Job? = null
-
-    /**
      * The time the chapter was started reading
      */
     private var chapterReadStartTime: Long? = null
@@ -215,7 +207,7 @@ class ReaderViewModel(
             mutableState.update { it.copy(translation = reduce(it.translation)) }
         },
         onReload = { eventChannel.send(ReaderEvent.ReloadViewerChapters) },
-        cancelAdjacentPreload = { cancelActivePreload() },
+        reloadChapter = { chapter -> checkNotNull(loader).reloadChapter(chapter) },
     )
 
     private fun hasTranslationForChapter(chapter: Chapter): Boolean = computeHasTranslation(
@@ -316,7 +308,7 @@ class ReaderViewModel(
 
                     val context = application
                     val source = sourceManager.getOrStub(manga.source)
-                    loader = ChapterLoader(context, downloadManager, downloadProvider, manga, source)
+                    loader = ChapterLoader(context, downloadManager, downloadProvider, manga, source, viewModelScope)
 
                     chapterListManager.chapterId = chapterId
                     chapterListManager.initChapterList(manga)
@@ -433,60 +425,24 @@ class ReaderViewModel(
      * Called when the viewers decide it's a good time to preload a [chapter] and improve the UX so
      * that the user doesn't have to wait too long to continue reading.
      *
-     * The launched job is tracked so [cancelActivePreload] can stop it: the preload and the
-     * translation toggle both write [ReaderChapter.state]. A chapter that is already loading
-     * keeps its load, because the viewer repeats the request on every page near the end.
+     * The viewer repeats the request on every page near the end, so a chapter that is already
+     * loaded or loading is skipped.
      */
     fun preload(chapter: ReaderChapter) {
-        if (chapter.isLoadedOrLoading()) return
-        preloadJob?.cancel()
-        preloadJob = viewModelScope.launchIO { preloadChapter(chapter) }
-    }
-
-    /**
-     * Cancels the in-flight preload and waits for it to finish unwinding, so no late write to
-     * [ReaderChapter.state] can land after the caller's own rebuild.
-     */
-    suspend fun cancelActivePreload() {
-        preloadJob?.cancelAndJoin()
-        preloadJob = null
-    }
-
-    private fun ReaderChapter.isLoadedOrLoading(): Boolean =
-        state is ReaderChapter.State.Loaded || state == ReaderChapter.State.Loading
-
-    private suspend fun preloadChapter(chapter: ReaderChapter) {
-        if (chapter.isLoadedOrLoading()) return
-
-        if (chapter.pageLoader?.isLocal == false) {
-            val manga = manga ?: return
-            val isDownloaded = downloadManager.isChapterDownloaded(
-                chapter.chapter.name,
-                chapter.chapter.scanlator,
-                manga.title,
-                manga.source,
-                skipCache = true,
-            )
-            if (isDownloaded) {
-                chapter.state = ReaderChapter.State.Wait
-            }
-        }
-
-        if (chapter.state != ReaderChapter.State.Wait && chapter.state !is ReaderChapter.State.Error) {
-            return
-        }
-
+        if (chapter.state is ReaderChapter.State.Loaded || chapter.state == ReaderChapter.State.Loading) return
         val loader = loader ?: return
-        try {
-            logcat { "Preloading ${chapter.chapter.url}" }
-            loader.loadChapter(chapter)
-        } catch (e: Throwable) {
-            if (e is CancellationException) {
-                throw e
+        viewModelScope.launchIO {
+            try {
+                logcat { "Preloading ${chapter.chapter.url}" }
+                loader.loadChapter(chapter)
+            } catch (e: Throwable) {
+                if (e is CancellationException) {
+                    throw e
+                }
+                return@launchIO
             }
-            return
+            eventChannel.trySend(ReaderEvent.ReloadViewerChapters)
         }
-        eventChannel.trySend(ReaderEvent.ReloadViewerChapters)
     }
 
     fun onViewerLoaded(viewer: Viewer?) {

@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
+- The reader loads each chapter once, even when a preload and the "next chapter" button ask for it at the same time. A preload of one adjacent chapter no longer stops the load of the other. When you turn translated pages on or off while the next chapter loads, that chapter now loads again in the new language. Before, it stopped and showed nothing until you reached it. A change of the target language now reloads the open chapter. Before, the open chapter showed no pages (#1527).
 - Anime details show a blurred copy of the poster behind the header when the extension gives no background image or the background fails to load. Before, the header was plain for every extension that gives no background image (#1508).
 - On the anime screen, the fast scroller thumb now moves the episode list evenly, reaches the first and last episode, and stays below the title bar. Before, the list jumped by whole episodes, the last part of the track did nothing, and each new grab started lower (#1483).
 - Accept a manual recovery search as soon as the screen reports that the previous search is finished (#1506).

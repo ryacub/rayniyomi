@@ -36,6 +36,7 @@ data class ReaderChapter(private val loadedChapter: Chapter) {
         references++
     }
 
+    @Synchronized
     fun unref() {
         references--
         if (references == 0) {
