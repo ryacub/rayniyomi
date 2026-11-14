@@ -486,6 +486,7 @@ private fun AnimeScreenSmallImpl(
                     modifier = Modifier.fillMaxHeight(),
                     state = itemListState,
                     columns = if (gridSize == 0) GridCells.Adaptive(128.dp) else GridCells.Fixed(gridSize),
+                    topContentPadding = topPadding,
                     contentPadding = PaddingValues(
                         start = GRID_PADDING + contentPadding.calculateStartPadding(layoutDirection),
                         end = GRID_PADDING + contentPadding.calculateEndPadding(layoutDirection),
@@ -872,6 +873,7 @@ fun AnimeScreenLargeImpl(
                             modifier = Modifier.fillMaxHeight(),
                             state = itemListState,
                             columns = if (gridSize == 0) GridCells.Adaptive(128.dp) else GridCells.Fixed(gridSize),
+                            topContentPadding = contentPadding.calculateTopPadding(),
                             contentPadding = PaddingValues(
                                 start = GRID_PADDING,
                                 end = GRID_PADDING,
