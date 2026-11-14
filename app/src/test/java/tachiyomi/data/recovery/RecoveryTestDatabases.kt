@@ -167,6 +167,20 @@ internal class AnimeRecoveryDb(queryDispatcher: CoroutineDispatcher = Dispatcher
         "INSERT INTO animehistory(episode_id, last_seen) VALUES ($episodeId, $lastSeen)",
     )
 
+    fun insertCategory(id: Long) = driver.exec(
+        "INSERT INTO categories(_id, name, sort, flags) VALUES ($id, 'Category $id', $id, 0)",
+    )
+
+    fun insertAnimeCategory(animeId: Long, categoryId: Long) = driver.exec(
+        "INSERT INTO animes_categories(anime_id, category_id) VALUES ($animeId, $categoryId)",
+    )
+
+    fun insertTrack(animeId: Long, syncId: Long, remoteId: Long, lastSeen: Double) = driver.exec(
+        "INSERT INTO anime_sync(anime_id, sync_id, remote_id, title, last_episode_seen, total_episodes, " +
+            "status, score, remote_url, start_date, finish_date) " +
+            "VALUES ($animeId, $syncId, $remoteId, 'Remote', $lastSeen, 10, 1, 0, 'https://t/$remoteId', 0, 0)",
+    )
+
     fun episodeValue(animeId: Long, url: String, column: String): Long = driver.longs(
         "SELECT $column FROM episodes WHERE anime_id = $animeId AND url = '$url'",
     ).single()
