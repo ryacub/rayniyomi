@@ -333,7 +333,7 @@ class PlayerActivity : BaseActivity() {
                         viewModel.panelShown.value == Panels.None &&
                         viewModel.dialogShown.value == Dialogs.None
                     ) {
-                        enterPictureInPictureMode()
+                        enterPictureInPictureMode(PictureInPictureParams.Builder().build())
                     } else {
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()
@@ -467,7 +467,7 @@ class PlayerActivity : BaseActivity() {
         if (!mpvReady) return
 
         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
-            enterPictureInPictureMode()
+            enterPictureInPictureMode(PictureInPictureParams.Builder().build())
         }
         super.onUserLeaveHint()
     }

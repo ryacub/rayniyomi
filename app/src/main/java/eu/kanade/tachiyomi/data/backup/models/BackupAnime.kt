@@ -9,7 +9,6 @@ import tachiyomi.core.common.util.lang.toByteArray
 import tachiyomi.core.common.util.lang.toJsonObject
 import tachiyomi.domain.entries.anime.model.Anime
 
-@Suppress("DEPRECATION")
 @Serializable
 data class BackupAnime(
     // in 1.x some of these values have different names

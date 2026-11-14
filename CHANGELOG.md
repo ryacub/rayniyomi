@@ -48,6 +48,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fail pull request checks when production Kotlin sources add a `catch` of `Throwable` or `Exception` that does not rethrow `CancellationException` (#1496).
 
 ### Other
+- Remove obsolete Kotlin call sites and warning suppressions, and document the APIs still needed for compatibility (#1524).
 - Remove unused internal classes and Compose helpers (#1490).
 
 
