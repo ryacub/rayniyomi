@@ -42,7 +42,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 - Fail the pull request build on new Android lint errors (#1497).
-- Print full unit test failures and report tests that fail and later pass on the same commit (#1506).
+- Print full unit test failure messages and stack traces in CI (#1506).
 
 ### Other
 - Remove unused internal classes and Compose helpers (#1490).
