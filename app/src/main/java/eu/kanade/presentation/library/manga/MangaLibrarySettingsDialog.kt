@@ -241,30 +241,31 @@ private fun ColumnScope.DisplayPage(
         }
     }
 
-    val configuration = LocalConfiguration.current
-    val columnPreference = remember {
-        if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            screenModel.libraryPreferences.mangaLandscapeColumns()
-        } else {
-            screenModel.libraryPreferences.mangaPortraitColumns()
-        }
-    }
-
-    val columns by columnPreference.collectAsStateWithLifecycle()
     if (displayMode == LibraryDisplayMode.List) {
+        val listSizePreference = remember(screenModel) { screenModel.libraryPreferences.libraryListSize() }
+        val listSize by listSizePreference.collectAsStateWithLifecycle()
         SliderItem(
-            value = columns,
-            valueRange = 0..10,
+            value = listSize,
+            valueRange = 0..12,
             label = stringResource(AYMR.strings.pref_library_rows),
-            valueText = if (columns > 0) {
-                columns.toString()
+            valueText = if (listSize > 0) {
+                listSize.toString()
             } else {
                 stringResource(MR.strings.label_auto)
             },
-            onChange = columnPreference::set,
+            onChange = listSizePreference::set,
             pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )
     } else {
+        val orientation = LocalConfiguration.current.orientation
+        val columnPreference = remember(screenModel, orientation) {
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                screenModel.libraryPreferences.mangaLandscapeColumns()
+            } else {
+                screenModel.libraryPreferences.mangaPortraitColumns()
+            }
+        }
+        val columns by columnPreference.collectAsStateWithLifecycle()
         SliderItem(
             value = columns,
             valueRange = 0..10,

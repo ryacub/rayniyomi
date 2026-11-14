@@ -19,8 +19,11 @@ import cafe.adriel.voyager.navigator.Navigator
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.library.manga.MangaLibrarySettingsDialog
+import eu.kanade.tachiyomi.data.library.manga.MangaLibraryUpdateJob
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
+import eu.kanade.tachiyomi.util.system.isRunning
+import eu.kanade.tachiyomi.util.system.workManager
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -40,9 +43,13 @@ class LibraryControlsAndroidTest {
     fun fullLibraryUpdateShowsLibrarySnackbar() {
         setContent { Navigator(MangaLibraryTab) { MangaLibraryTab.Content() } }
         with(composeRule.activity) {
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                !workManager.isRunning(MangaLibraryUpdateJob.TAG)
+            }
             composeRule.onNodeWithContentDescription(stringResource(MR.strings.action_menu_overflow_description))
                 .performSemanticsAction(SemanticsActions.OnClick)
-            composeRule.onNodeWithText(stringResource(MR.strings.action_update_library)).performSemanticsAction(SemanticsActions.OnClick)
+            composeRule.onNodeWithText(stringResource(MR.strings.action_update_library))
+                .performSemanticsAction(SemanticsActions.OnClick)
             val snackbarContent = hasAnyAncestor(SemanticsMatcher.keyIsDefined(SemanticsActions.Dismiss))
             val snackbarText = snackbarContent and SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)
             composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -57,7 +64,8 @@ class LibraryControlsAndroidTest {
     @Test
     fun listSizeSliderChangesRowSizePreferenceAndPreservesGridColumns() {
         val preferences = appGraph.libraryPreferences
-        val columns = if (composeRule.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        val orientation = composeRule.activity.resources.configuration.orientation
+        val columns = if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
             preferences.mangaLandscapeColumns()
         } else {
             preferences.mangaPortraitColumns()
@@ -77,7 +85,11 @@ class LibraryControlsAndroidTest {
                     composeRule.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress))
                         .performSemanticsAction(SemanticsActions.SetProgress) { it(7f) }
                     composeRule.runOnIdle {
-                        assertEquals("The slider must write the shared list size", 7, preferences.libraryListSize().get())
+                        assertEquals(
+                            "The slider must write the shared list size",
+                            7,
+                            preferences.libraryListSize().get(),
+                        )
                         assertEquals("The slider must preserve the grid columns", 3, columns.get())
                     }
                 }
