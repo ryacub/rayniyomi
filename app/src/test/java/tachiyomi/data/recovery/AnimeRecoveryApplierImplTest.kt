@@ -12,6 +12,7 @@ import tachiyomi.domain.recovery.model.RecoveryItem
 import tachiyomi.domain.recovery.model.RecoveryItemPair
 import tachiyomi.domain.recovery.model.RecoveryReviewReason
 import tachiyomi.domain.recovery.model.RecoveryState
+import tachiyomi.domain.recovery.model.RecoveryTrack
 
 class AnimeRecoveryApplierImplTest {
 
@@ -36,6 +37,7 @@ class AnimeRecoveryApplierImplTest {
         seasons: Boolean = false,
         items: List<RecoveryItem> = listOf(1.0, 2.0, 3.0).map { episode("d${it.toInt()}", it) },
         pairs: List<Pair<String, String>> = listOf("o1" to "d1", "o2" to "d2", "o3" to "d3"),
+        tracks: List<RecoveryTrack> = emptyList(),
     ) = RecoveryApplyRequest(
         entryId = entryId,
         runToken = "run",
@@ -48,7 +50,7 @@ class AnimeRecoveryApplierImplTest {
             seasons = seasons,
         ),
         pairs = pairs.map { (from, to) -> RecoveryItemPair(from, to) },
-        tracks = emptyList(),
+        tracks = tracks,
         keepOriginal = true,
         now = 5_000,
     )
@@ -57,6 +59,21 @@ class AnimeRecoveryApplierImplTest {
         url = url,
         name = "Episode $number",
         number = number,
+    )
+
+    private fun track(syncId: Long, remoteId: Long, lastSeen: Double) = RecoveryTrack(
+        syncId = syncId,
+        remoteId = remoteId,
+        libraryId = null,
+        title = "Remote",
+        lastProgress = lastSeen,
+        totalItems = 10,
+        status = 1,
+        score = 0.0,
+        remoteUrl = "https://t/$remoteId",
+        startDate = 0,
+        finishDate = 0,
+        private = false,
     )
 
     @Test
@@ -172,6 +189,65 @@ class AnimeRecoveryApplierImplTest {
             assertEquals(RecoveryApplyResult.NeedsReview(RecoveryReviewReason.MAPPING_CHANGED), result)
             assertEquals(0L, db.episodeValue(2, "stale", "seen"))
             assertEquals(listOf("NEEDS_REVIEW"), db.driver.strings("SELECT state FROM recovery_entries"))
+        }
+    }
+
+    @Test
+    fun `categories are united with the destination categories`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+            (1L..4L).forEach(db::insertCategory)
+            db.insertAnime(2, source = 20, url = "/a/1")
+            db.insertAnime(3, source = 30, url = "/a/other")
+            db.insertAnimeCategory(2, 1)
+            db.insertAnimeCategory(2, 4)
+            db.insertAnimeCategory(originalId, 1)
+            db.insertAnimeCategory(originalId, 3)
+            db.insertAnimeCategory(3, 2)
+
+            AnimeRecoveryApplierImpl(db.handler).apply(request(entryId, pairs = emptyList()))
+
+            assertEquals(
+                listOf(1L, 3L, 4L),
+                db.driver.longs("SELECT category_id FROM animes_categories WHERE anime_id = 2 ORDER BY category_id"),
+            )
+        }
+    }
+
+    @Test
+    fun `a missing tracker is copied and a shared tracker keeps the higher progress`() = runTest {
+        AnimeRecoveryDb().use { db ->
+            val entryId = db.readyEntry()
+            db.insertAnime(2, source = 20, url = "/a/1")
+            db.insertTrack(2, syncId = 1, remoteId = 500, lastSeen = 6.0)
+            db.insertTrack(2, syncId = 3, remoteId = 600, lastSeen = 9.0)
+            db.insertAnime(3, source = 30, url = "/a/other")
+            db.insertTrack(3, syncId = 1, remoteId = 500, lastSeen = 1.0)
+
+            AnimeRecoveryApplierImpl(db.handler).apply(
+                request(
+                    entryId,
+                    pairs = emptyList(),
+                    tracks = listOf(
+                        track(syncId = 1, remoteId = 500, lastSeen = 8.0),
+                        track(syncId = 2, remoteId = 77, lastSeen = 3.0),
+                        track(syncId = 3, remoteId = 600, lastSeen = 4.0),
+                    ),
+                ),
+            )
+
+            assertEquals(
+                listOf(1L, 2L, 3L),
+                db.driver.longs("SELECT sync_id FROM anime_sync WHERE anime_id = 2 ORDER BY sync_id"),
+            )
+            assertEquals(
+                listOf("8.0", "3.0", "9.0"),
+                db.driver.strings("SELECT last_episode_seen FROM anime_sync WHERE anime_id = 2 ORDER BY sync_id"),
+            )
+            assertEquals(
+                listOf("1.0"),
+                db.driver.strings("SELECT last_episode_seen FROM anime_sync WHERE anime_id = 3"),
+            )
         }
     }
 }

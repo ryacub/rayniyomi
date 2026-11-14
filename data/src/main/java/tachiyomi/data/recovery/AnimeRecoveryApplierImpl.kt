@@ -83,7 +83,7 @@ class AnimeRecoveryApplierImpl(
         transferTracks(request, destinationId)
         insertMissingItems(request, destinationId)
         mergePairs(request, destinationId)
-        animes_categoriesQueries.transferCategories(keepAnimeId = destinationId, deleteAnimeId = request.originalId)
+        recoveryQueries.copyCategories(keepAnimeId = destinationId, fromAnimeId = request.originalId)
 
         if (existing?.favorite != true) {
             recoveryQueries.addToLibrary(
@@ -117,7 +117,7 @@ class AnimeRecoveryApplierImpl(
 
         request.tracks.forEach { track ->
             if (track.syncId in destinationTracks) {
-                anime_syncQueries.updateProgressIfGreater(
+                recoveryQueries.raiseTrackProgress(
                     lastEpisodeSeen = track.lastProgress,
                     animeId = destinationId,
                     syncId = track.syncId,

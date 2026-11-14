@@ -77,7 +77,7 @@ class MangaRecoveryApplierImpl(
         transferTracks(request, destinationId)
         insertMissingItems(request, destinationId)
         mergePairs(request, destinationId)
-        mangas_categoriesQueries.transferCategories(keepMangaId = destinationId, deleteMangaId = request.originalId)
+        recoveryQueries.copyCategories(keepMangaId = destinationId, fromMangaId = request.originalId)
 
         if (existing?.favorite != true) {
             recoveryQueries.addToLibrary(
@@ -111,7 +111,7 @@ class MangaRecoveryApplierImpl(
 
         request.tracks.forEach { track ->
             if (track.syncId in destinationTracks) {
-                manga_syncQueries.updateProgressIfGreater(
+                recoveryQueries.raiseTrackProgress(
                     lastChapterRead = track.lastProgress,
                     mangaId = destinationId,
                     syncId = track.syncId,
