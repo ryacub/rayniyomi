@@ -20,7 +20,7 @@ internal data class GridScrollTarget(val index: Int, val scrollOffset: Int)
 /** Measured line sizes drive both directions, so full-span items and tall headers cannot skew the thumb. */
 internal class MeasuredGridLines {
 
-    private class Line(val firstIndex: Int, val itemCount: Int, val size: Int)
+    private data class Line(val firstIndex: Int, val itemCount: Int, val size: Int)
 
     private val measured = HashMap<Int, Line>()
     private var totalItems = 0
@@ -34,20 +34,20 @@ internal class MeasuredGridLines {
     private var lineCount = 0
 
     fun record(sample: GridLayoutSample) {
-        if (sample.totalItems != totalItems || sample.maxSpan != maxSpan) measured.clear()
-        totalItems = sample.totalItems
-        maxSpan = sample.maxSpan
-        lineSpacing = sample.lineSpacing
-        viewportHeight = sample.viewportHeight
-        firstVisibleItemScrollOffset = sample.firstVisibleItemScrollOffset
-
-        sample.items.groupBy { it.row }.forEach { (row, items) ->
-            measured[row] = Line(
+        val visibleLines = sample.items.groupBy { it.row }.mapValues { (_, items) ->
+            Line(
                 firstIndex = items.minOf { it.index },
                 itemCount = items.size,
                 size = items.maxOf { it.height } + sample.lineSpacing,
             )
         }
+        if (isNewLayout(sample, visibleLines)) measured.clear()
+        measured.putAll(visibleLines)
+        totalItems = sample.totalItems
+        maxSpan = sample.maxSpan
+        lineSpacing = sample.lineSpacing
+        viewportHeight = sample.viewportHeight
+        firstVisibleItemScrollOffset = sample.firstVisibleItemScrollOffset
         firstVisibleRow = sample.items.firstOrNull { it.index == sample.firstVisibleItemIndex }?.row
             ?: sample.items.firstOrNull()?.row
             ?: firstVisibleRow
@@ -72,6 +72,11 @@ internal class MeasuredGridLines {
         }
         return GridScrollTarget(index = firstIndexOf(line), scrollOffset = target - start)
     }
+
+    private fun isNewLayout(sample: GridLayoutSample, visibleLines: Map<Int, Line>) =
+        sample.totalItems != totalItems ||
+            sample.maxSpan != maxSpan ||
+            visibleLines.any { (row, line) -> measured[row]?.equals(line) == false }
 
     private fun updateEstimates() {
         if (measured.isEmpty()) {
