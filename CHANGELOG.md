@@ -40,6 +40,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The Suwayomi tracker. Updating the app deletes its tracking links, and old backups restore without them (#1473).
 
 ### CI
+- Treat Kotlin compiler warnings as errors in `domain`, `data`, and `core:common` (#1498).
 - Fail the pull request build on new Android lint errors (#1497).
 
 ### Other

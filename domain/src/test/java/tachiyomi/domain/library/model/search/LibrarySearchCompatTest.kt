@@ -108,8 +108,9 @@ class LibrarySearchCompatTest {
     @Test
     fun `parseSearchQuery never throws`() {
         assertDoesNotThrow {
-            (parseSearchQuery("!!garbage(") is QueryNode) shouldBe true
-            (parseSearchQuery("((((") is QueryNode) shouldBe true
+            parseSearchQuery("!!garbage(")
+            parseSearchQuery("((((")
+            Unit
         }
     }
 

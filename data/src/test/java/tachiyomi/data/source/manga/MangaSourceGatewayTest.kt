@@ -79,6 +79,7 @@ class MangaSourceGatewayTest {
                 MangaSourceGateway.chapterUrl(this, chapter)
             },
             failingCall<HttpSource>("prepare chapter") {
+                @Suppress("DEPRECATION")
                 every { prepareNewChapter(any(), any()) } throws linkageError()
                 MangaSourceGateway.prepareChapter(this, chapter, manga)
             },
