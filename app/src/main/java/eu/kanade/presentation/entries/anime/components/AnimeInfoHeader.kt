@@ -1,6 +1,10 @@
 package eu.kanade.presentation.entries.anime.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import eu.kanade.presentation.entries.components.EntryActionRow
@@ -8,6 +12,7 @@ import eu.kanade.presentation.entries.components.EntryInfoBox
 import eu.kanade.presentation.entries.components.ExpandableEntryDescription
 import eu.kanade.tachiyomi.data.coil.useBackground
 import tachiyomi.domain.entries.anime.model.Anime
+import tachiyomi.domain.entries.anime.model.asAnimeCover
 import java.time.Instant
 
 @Composable
@@ -21,6 +26,9 @@ fun AnimeInfoBox(
     doSearch: (query: String, global: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var backgroundFailed by remember(anime.id, anime.backgroundUrl, anime.backgroundLastModified) {
+        mutableStateOf(false)
+    }
     EntryInfoBox(
         isTabletUi = isTabletUi,
         appBarPadding = appBarPadding,
@@ -35,6 +43,8 @@ fun AnimeInfoBox(
         doSearch = doSearch,
         modifier = modifier,
         imageRequestBuilder = { useBackground(true) },
+        backdropData = if (backgroundFailed) anime.asAnimeCover() else anime,
+        onBackdropError = { backgroundFailed = true },
     )
 }
 

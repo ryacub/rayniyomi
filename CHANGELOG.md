@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 
 ### Fixed
+- Anime details show a blurred copy of the poster behind the header when the extension gives no background image or the background fails to load. Before, the header was plain for most extensions (#1508).
 - On the anime screen, the fast scroller thumb now moves the episode list evenly, reaches the first and last episode, and stays below the title bar. Before, the list jumped by whole episodes, the last part of the track did nothing, and each new grab started lower (#1483).
 - Accept a manual recovery search as soon as the screen reports that the previous search is finished (#1506).
 - When you read near the end of a chapter, the reader no longer restarts the load of the next chapter on each page turn. Before, the chapter transition page could show a load error for the next chapter after a cancelled load (#1496).
