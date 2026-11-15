@@ -21,6 +21,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -46,6 +48,7 @@ import eu.kanade.presentation.entries.manga.components.MangaCoverDialog
 import eu.kanade.presentation.entries.manga.components.ScanlatorFilterDialog
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.manga.isLocalOrStub
@@ -262,21 +265,39 @@ class MangaScreen(
                             ),
                         )
                         choice.versions.forEach { version ->
+                            val chapter = version.chapter
+                            val chapterNumber = chapter.takeIf { it.isRecognizedNumber }?.let {
+                                context.stringResource(
+                                    MR.strings.display_mode_chapter,
+                                    formatChapterNumber(it.chapterNumber),
+                                )
+                            }
+                            val chapterTitle = chapter.name.takeIf { it.isNotBlank() }
+                            val chapterLabel = listOfNotNull(chapterNumber, chapterTitle)
+                                .distinct()
+                                .joinToString(" · ")
+                            val status = if (chapter.read) {
+                                context.stringResource(MR.strings.link_manga_source_read)
+                            } else {
+                                context.stringResource(MR.strings.unread)
+                            }
+                            val label = context.stringResource(
+                                MR.strings.link_manga_source_resume_choice,
+                                chapterLabel,
+                                version.sourceName,
+                                status,
+                            )
                             Text(
-                                text = context.stringResource(
-                                    MR.strings.link_manga_source_version_status,
-                                    version.sourceName,
-                                    if (version.chapter.read) {
-                                        context.stringResource(MR.strings.link_manga_source_read)
-                                    } else {
-                                        context.stringResource(MR.strings.unread)
-                                    },
-                                ),
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    openChapter(context, version.chapter, continueChoiceCover)
-                                    continueChoices = null
-                                    continueChoiceCover = null
-                                }.padding(12.dp),
+                                text = label,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        openChapter(context, chapter, continueChoiceCover)
+                                        continueChoices = null
+                                        continueChoiceCover = null
+                                    }
+                                    .semantics { contentDescription = label }
+                                    .padding(12.dp),
                             )
                         }
                     }

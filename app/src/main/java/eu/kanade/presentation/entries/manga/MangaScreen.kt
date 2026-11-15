@@ -457,7 +457,7 @@ private fun MangaScreenSmallImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ResumeChapterFabText(resumeChapter)
+                        ResumeChapterFabText(resumeChapter, isLinked = state.mangaSourceLink != null)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -763,7 +763,7 @@ fun MangaScreenLargeImpl(
             ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        ResumeChapterFabText(resumeChapter)
+                        ResumeChapterFabText(resumeChapter, isLinked = state.mangaSourceLink != null)
                     },
                     icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
                     onClick = onContinueReading,
@@ -1068,10 +1068,10 @@ private fun LazyListScope.sharedChapterItems(
 }
 
 @Composable
-private fun ResumeChapterFabText(chapter: Chapter?) {
+private fun ResumeChapterFabText(chapter: Chapter?, isLinked: Boolean) {
     val number = chapter?.takeIf { it.isRecognizedNumber }?.chapterNumber
     ResumeFabText(
-        canResume = chapter != null,
+        canResume = chapter != null || isLinked,
         detail = number?.let { "C${formatChapterNumber(it).padItemNumber()}" },
     )
 }

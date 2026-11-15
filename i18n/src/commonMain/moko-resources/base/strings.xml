@@ -37,6 +37,7 @@
     <string name="link_manga_source_read">Read</string>
     <string name="link_manga_source_resume_unavailable_title">Saved chapter unavailable</string>
     <string name="link_manga_source_resume_unavailable_text">%1$s is unavailable. Choose a chapter from an available source.</string>
+    <string name="link_manga_source_resume_choice">%1$s · %2$s · %3$s</string>
     <string name="link_manga_source_unavailable_status">%1$s is unavailable.</string>
     <string name="link_manga_source_refresh_failed">Could not refresh %1$s. Cached and downloaded chapters remain available.</string>
     <string name="manga">Library entries</string>
