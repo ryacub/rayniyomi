@@ -182,6 +182,7 @@ class MangaScreenModelSourceFetchTest {
         }
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
             every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { getAll() } returns listOf(primarySource, partnerSource)
             every { get(primary.source) } returns primarySource
             every { get(partner.source) } returns partnerSource
             every { getOrStub(primary.source) } returns primarySource
@@ -231,24 +232,37 @@ class MangaScreenModelSourceFetchTest {
         }
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
             every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { getAll() } returns listOf(primarySource, partnerSource)
             every { get(primary.source) } returns primarySource
             every { get(partner.source) } returns partnerSource
             every { getOrStub(primary.source) } returns primarySource
             every { getOrStub(partner.source) } returns partnerSource
         }
-        sourcePreferences.enabledLanguages().set(setOf("en"))
-        sourcePreferences.disabledMangaSources().set(setOf(partner.source.toString()))
+        val disabledSourcePreferences = SourcePreferences(
+            InMemoryPreferenceStore(
+                sequenceOf(
+                    InMemoryPreferenceStore.InMemoryPreference(
+                        "hidden_catalogues",
+                        setOf(partner.source.toString()),
+                        emptySet<String>(),
+                    ),
+                    InMemoryPreferenceStore.InMemoryPreference("source_languages", setOf("en"), emptySet<String>()),
+                ),
+            ),
+        )
         val model = createModel(
             manga = primary,
             chapters = listOf(chapter()),
             mangaSourceLinkRepository = linkRepository,
             linkedManga = partner,
             linkedChaptersFlow = linkedChapters,
+            sourcePreferences = disabledSourcePreferences,
         )
         advanceUntilIdle()
 
         val initialState = model.state.value as MangaScreenModel.State.Success
         initialState.linkedManga?.id shouldBe partner.id
+        initialState.linkedSourceUnavailable shouldBe true
 
         linkedChapters.value = partner to listOf(chapter(id = 21L, mangaId = partner.id))
         advanceUntilIdle()
@@ -279,6 +293,7 @@ class MangaScreenModelSourceFetchTest {
         }
         every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
             every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { getAll() } returns listOf(primarySource, partnerSource)
             every { get(primary.source) } returns primarySource
             every { get(partner.source) } returns partnerSource
             every { getOrStub(primary.source) } returns primarySource
@@ -504,6 +519,7 @@ class MangaScreenModelSourceFetchTest {
         linkedManga: Manga? = null,
         linkedChapters: List<Chapter> = emptyList(),
         linkedChaptersFlow: MutableStateFlow<Pair<Manga, List<Chapter>>>? = null,
+        sourcePreferences: SourcePreferences = this.sourcePreferences,
         translationManager: TranslationManager = mockk {
             every { translationStates } returns MutableStateFlow(emptyMap())
         },
@@ -555,7 +571,7 @@ class MangaScreenModelSourceFetchTest {
             entryRefresher = entryRefresher,
             translationManager = translationManager,
             ioDispatcher = vt.io,
-            sourcePreferences = testAppGraph.sourcePreferences,
+            sourcePreferences = sourcePreferences,
             getMangaHistory = testAppGraph.getMangaHistory,
         )
     }
