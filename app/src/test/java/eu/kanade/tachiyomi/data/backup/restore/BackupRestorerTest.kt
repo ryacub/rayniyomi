@@ -34,6 +34,9 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -48,6 +51,40 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class BackupRestorerTest {
+
+    @Test
+    fun `restore reports a linked source pair when an endpoint is missing`() = runTest {
+        val wireBackup = BackupWithMangaSourceLinks(
+            mangaSourceLinks = listOf(
+                BackupMangaSourceLinkWire(
+                    first = BackupMangaSourceEndpointWire(sourceId = 1L, url = "missing-first"),
+                    second = BackupMangaSourceEndpointWire(sourceId = 2L, url = "missing-second"),
+                ),
+            ),
+        )
+        val backup = ProtoBuf.decodeFromByteArray(
+            Backup.serializer(),
+            ProtoBuf.encodeToByteArray(BackupWithMangaSourceLinks.serializer(), wireBackup),
+        )
+        val restorer = createRestorer()
+
+        restorer.restoreBackupData(
+            backup,
+            mockk<Uri>(relaxed = true),
+            RestoreOptions(
+                libraryEntries = true,
+                categories = false,
+                appSettings = false,
+                extensionRepoSettings = false,
+                customButtons = false,
+                sourceSettings = false,
+                extensions = false,
+                lightNovels = false,
+            ),
+        )
+
+        assertEquals(1, restorer.getErrorCount(), "restore must report a missing linked source endpoint")
+    }
 
     @Test
     fun `concurrent progress updates do not lose increments`() = runTest {
@@ -310,3 +347,21 @@ class BackupRestorerTest {
         }
     }
 }
+
+@Serializable
+private data class BackupWithMangaSourceLinks(
+    @ProtoNumber(1) val backupManga: List<BackupManga> = emptyList(),
+    @ProtoNumber(507) val mangaSourceLinks: List<BackupMangaSourceLinkWire> = emptyList(),
+)
+
+@Serializable
+private data class BackupMangaSourceLinkWire(
+    @ProtoNumber(1) val first: BackupMangaSourceEndpointWire,
+    @ProtoNumber(2) val second: BackupMangaSourceEndpointWire,
+)
+
+@Serializable
+private data class BackupMangaSourceEndpointWire(
+    @ProtoNumber(1) val sourceId: Long,
+    @ProtoNumber(2) val url: String,
+)
