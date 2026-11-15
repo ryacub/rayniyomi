@@ -6,8 +6,10 @@ import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
+import eu.kanade.tachiyomi.data.translation.TranslationPreferences
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.test.VirtualTime
+import eu.kanade.tachiyomi.ui.reader.loader.ChapterLoader
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
@@ -57,6 +59,7 @@ class ReaderViewModelProgressTest {
             val getManga = mockk<GetManga> { coEvery { await(manga.id) } returns manga }
             val readerPreferences = mockk<ReaderPreferences>(relaxed = true) {
                 every { defaultOrientationType().get() } returns ReaderOrientation.FREE.flagValue
+                every { showTranslatedPages().get() } returns false
             }
             val downloadPreferences = mockk<DownloadPreferences> {
                 every { autoDownloadWhileReading().get() } returns 0
@@ -93,7 +96,9 @@ class ReaderViewModelProgressTest {
                 getIncognitoState = incognito,
                 libraryPreferences = libraryPreferences,
                 translationStorageManager = mockk(relaxed = true),
-                translationPreferences = mockk(relaxed = true),
+                translationPreferences = mockk<TranslationPreferences>(relaxed = true) {
+                    every { targetLanguage().get() } returns "en"
+                },
                 translationManager = translationManager,
                 application = mockk(relaxed = true),
             )
@@ -111,11 +116,27 @@ class ReaderViewModelProgressTest {
         }
 
         fun putChapterInChapterList() {
+            putChaptersInChapterList(listOf(chapter))
+        }
+
+        fun putChaptersInChapterList(chapters: List<ReaderChapter>) {
             val manager = ReaderViewModel::class.java.getDeclaredField("chapterListManager").apply {
                 isAccessible = true
             }.get(model)
             manager.javaClass.getDeclaredField("_chapterList").apply { isAccessible = true }
-                .set(manager, listOf(chapter))
+                .set(manager, chapters)
+        }
+
+        fun setChapterLoader(loader: ChapterLoader) {
+            ReaderViewModel::class.java.getDeclaredField("loader").apply { isAccessible = true }
+                .set(model, loader)
+        }
+
+        fun setNextChapter(nextChapter: ReaderChapter) {
+            val state = mutableState()
+            state.value = state.value.copy(
+                viewerChapters = ViewerChapters(chapter, null, nextChapter),
+            )
         }
 
         fun verifyUpdate(update: ChapterUpdate) {
@@ -133,6 +154,34 @@ class ReaderViewModelProgressTest {
 
             fixture.verifyUpdate(ChapterUpdate(id = 3L, read = false, lastPageRead = 5L))
             assertEquals(false, fixture.chapter.chapter.read)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `moving to another chapter restores that chapter's saved page`() = runTest(vt.scheduler) {
+        val fixture = Fixture(removeAfterReadSlots = -1)
+        val nextChapter = ReaderChapter(
+            Chapter.create().copy(id = 4L, mangaId = fixture.manga.id, lastPageRead = 2L),
+        )
+        val nextPages = List(10) { ReaderPage(it).apply { chapter = nextChapter } }
+        nextChapter.state = ReaderChapter.State.Loaded(nextPages)
+        val loader = mockk<ChapterLoader> {
+            coEvery { loadChapter(nextChapter) } returns Unit
+        }
+        fixture.setChapterLoader(loader)
+        fixture.putChaptersInChapterList(listOf(fixture.chapter, nextChapter))
+        fixture.setNextChapter(nextChapter)
+
+        try {
+            fixture.model.onPageSelected(fixture.pages[8])
+            fixture.verifyUpdate(ChapterUpdate(id = 3L, read = false, lastPageRead = 8L))
+            fixture.model.loadNextChapter()
+            coVerify(timeout = WAIT_MS) { loader.loadChapter(nextChapter) }
+
+            assertEquals(nextChapter, fixture.model.state.value.currentChapter)
+            assertEquals(2, nextChapter.requestedPage)
         } finally {
             fixture.close()
         }
