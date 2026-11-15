@@ -50,6 +50,7 @@ class ReaderViewModelProgressTest {
         val manga = Manga.create().copy(id = 1L, source = 2L)
         val chapter = ReaderChapter(Chapter.create().copy(id = 3L, mangaId = 1L, chapterNumber = 1.0))
         val pages = List(10) { ReaderPage(it).apply { this.chapter = this@Fixture.chapter } }
+        val savedState = SavedStateHandle(mapOf("page_index" to 0))
         val updateChapter = mockk<UpdateChapter>(relaxed = true)
         val downloadManager = mockk<MangaDownloadManager>(relaxed = true)
         val model: ReaderViewModel
@@ -77,7 +78,7 @@ class ReaderViewModelProgressTest {
                 every { translationStates } returns MutableStateFlow(emptyMap())
             }
             model = ReaderViewModel(
-                savedState = SavedStateHandle(mapOf("page_index" to 0)),
+                savedState = savedState,
                 sourceManager = mockk<MangaSourceManager>(relaxed = true),
                 downloadManager = downloadManager,
                 downloadProvider = mockk(relaxed = true),
@@ -182,6 +183,7 @@ class ReaderViewModelProgressTest {
 
             assertEquals(nextChapter, fixture.model.state.value.currentChapter)
             assertEquals(2, nextChapter.requestedPage)
+            assertEquals(listOf(4L, 2L), fixture.savedState.get<LongArray>("reader_checkpoint")?.toList())
         } finally {
             fixture.close()
         }

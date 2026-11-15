@@ -132,20 +132,24 @@ class ReaderViewModel(
     /**
      * The chapter id of the currently loaded chapter. Used to restore from process kill.
      */
-    private var chapterId = savedState.get<Long>("chapter_id") ?: -1L
-        set(value) {
-            savedState["chapter_id"] = value
-            field = value
-        }
+    private val savedChapterCheckpoint = savedState.get<LongArray>("reader_checkpoint")
+        ?.takeIf { it.size == 2 }
+
+    private var chapterId = savedChapterCheckpoint?.get(0)
+        ?: savedState.get<Long>("chapter_id")
+        ?: -1L
 
     /**
      * The visible page index of the currently loaded chapter. Used to restore from process kill.
      */
-    private var chapterPageIndex = savedState.get<Int>("page_index") ?: -1
-        set(value) {
-            savedState["page_index"] = value
-            field = value
-        }
+    private var chapterPageIndex = savedChapterCheckpoint?.get(1)?.toInt()
+        ?: if (savedState.get<Long>("chapter_id") != null) savedState.get<Int>("page_index") ?: -1 else -1
+
+    private fun saveChapterCheckpoint(chapterId: Long, pageIndex: Int) {
+        this.chapterId = chapterId
+        chapterPageIndex = pageIndex
+        savedState["reader_checkpoint"] = longArrayOf(chapterId, pageIndex.toLong())
+    }
 
     /**
      * The chapter loader for the loaded manga. It'll be null until [manga] is set.
@@ -224,13 +228,15 @@ class ReaderViewModel(
             .distinctUntilChanged()
             .filterNotNull()
             .onEach { currentChapter ->
-                if (chapterPageIndex >= 0) {
-                    // Restore from SavedState
+                if (chapterPageIndex >= 0 && chapterId == currentChapter.chapter.id) {
+                    // Restore only when the page checkpoint belongs to this chapter.
                     currentChapter.requestedPage = chapterPageIndex
                 } else if (!currentChapter.chapter.read) {
                     currentChapter.requestedPage = currentChapter.chapter.lastPageRead.toInt()
                 }
-                chapterId = currentChapter.chapter.id
+                if (chapterId != currentChapter.chapter.id) {
+                    saveChapterCheckpoint(currentChapter.chapter.id, currentChapter.requestedPage)
+                }
 
                 // Update assist URL for current chapter
                 viewModelScope.launchIO {
@@ -304,7 +310,7 @@ class ReaderViewModel(
                 if (manga != null) {
                     sourceManager.isInitialized.first { it }
                     mutableState.update { it.copy(manga = manga) }
-                    if (chapterId == -1L) chapterId = initialChapterId
+                    if (chapterId == -1L) saveChapterCheckpoint(initialChapterId, -1)
 
                     val context = application
                     val source = sourceManager.getOrStub(manga.source)
@@ -341,6 +347,14 @@ class ReaderViewModel(
         loader: ChapterLoader,
         chapter: ReaderChapter,
     ): ViewerChapters {
+        val hasMatchingCheckpoint = chapterPageIndex >= 0 && chapterId == chapter.chapter.id
+        if (hasMatchingCheckpoint) {
+            chapter.requestedPage = chapterPageIndex
+        } else if (!chapter.chapter.read || readerPreferences.preserveReadingPosition().get()) {
+            chapter.requestedPage = chapter.chapter.lastPageRead.toInt()
+        } else {
+            chapter.requestedPage = 0
+        }
         loader.loadChapter(chapter)
 
         val adjacent = chapterListManager.getAdjacentChapters(chapter)
@@ -356,6 +370,7 @@ class ReaderViewModel(
 
         withUIContext {
             mutableState.update {
+                saveChapterCheckpoint(currentChapter.id, newChapters.currChapter.requestedPage)
                 // Add new references first to avoid unnecessary recycling
                 newChapters.ref()
                 it.viewerChapters?.unref()
@@ -550,12 +565,15 @@ class ReaderViewModel(
      */
     private suspend fun updateChapterProgress(readerChapter: ReaderChapter, page: Page) {
         val pageIndex = page.index
+        val isActiveChapter = readerChapter.chapter.id == chapterId
 
-        mutableState.update {
-            it.copy(currentPage = pageIndex + 1)
+        if (isActiveChapter) {
+            mutableState.update {
+                it.copy(currentPage = pageIndex + 1)
+            }
+            readerChapter.requestedPage = pageIndex
+            saveChapterCheckpoint(readerChapter.chapter.id, pageIndex)
         }
-        readerChapter.requestedPage = pageIndex
-        chapterPageIndex = pageIndex
 
         if (!incognitoMode && page.status != Page.State.ERROR) {
             val isLastPage = readerChapter.pages?.lastIndex == pageIndex
