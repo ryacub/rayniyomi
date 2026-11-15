@@ -278,6 +278,11 @@ class BackupRestorer(
         backupMangaCategories: List<BackupCategory>,
         backupMangaSourceLinks: List<BackupMangaSourceLink>,
     ) = launch {
+        val ambiguousIdentities = backupMangas
+            .groupingBy { MangaSourceIdentity(it.source, it.url) }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
         val categoryIdsByBackupOrder = runCatching { mangaRestorer.categoryIdsByBackupOrder(backupMangaCategories) }
         mangaRestorer.sortByNew(backupMangas)
             .forEach {
@@ -292,16 +297,29 @@ class BackupRestorer(
 
                 incrementProgressAndNotify(it.title)
             }
-        restoreMangaSourceLinks(backupMangaSourceLinks)
+        restoreMangaSourceLinks(backupMangaSourceLinks, ambiguousIdentities)
     }
 
-    private suspend fun restoreMangaSourceLinks(links: List<BackupMangaSourceLink>) {
+    private suspend fun restoreMangaSourceLinks(
+        links: List<BackupMangaSourceLink>,
+        ambiguousIdentities: Set<MangaSourceIdentity>,
+    ) {
         links.forEach { link ->
+            val firstIdentity = MangaSourceIdentity(link.first.sourceId, link.first.url)
+            val secondIdentity = MangaSourceIdentity(link.second.sourceId, link.second.url)
+            if (firstIdentity in ambiguousIdentities || secondIdentity in ambiguousIdentities) {
+                recordError(
+                    "Manga source link for source IDs ${link.first.sourceId} and ${link.second.sourceId} " +
+                        "was skipped because an endpoint is duplicated in the backup.",
+                )
+                incrementProgressAndNotify(context.stringResource(MR.strings.backup_manga_source_links))
+                return@forEach
+            }
             try {
                 when (
                     mangaSourceLinkRepository.restore(
-                        first = MangaSourceIdentity(link.first.sourceId, link.first.url),
-                        second = MangaSourceIdentity(link.second.sourceId, link.second.url),
+                        first = firstIdentity,
+                        second = secondIdentity,
                     )
                 ) {
                     RestoreMangaSourceLinkResult.Linked,

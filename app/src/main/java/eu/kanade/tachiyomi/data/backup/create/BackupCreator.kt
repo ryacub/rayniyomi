@@ -116,27 +116,9 @@ class BackupCreator(
                 emptyList()
             }
             val backupAnime = backupAnimes(getAnimeFavorites.await() + nonFavoriteAnime, options)
-            val nonFavoriteManga = if (options.readEntries) {
-                mangaRepository.getReadMangaNotInLibrary()
-            } else {
-                emptyList()
-            }
-            val mangaSourceLinks = if (options.libraryEntries) {
-                mangaSourceLinkRepository.getAllWithManga()
-            } else {
-                emptyList()
-            }
-            val linkedMangas = mangaSourceLinks.flatMap { listOf(it.firstManga, it.secondManga) }
-            val backupManga = backupMangas(
-                (getMangaFavorites.await() + nonFavoriteManga + linkedMangas).distinctBy(Manga::id),
-                options,
-            )
-            val backupMangaSourceLinks = mangaSourceLinks.map { linked ->
-                BackupMangaSourceLink(
-                    first = linked.firstManga.toBackupMangaSourceEndpoint(),
-                    second = linked.secondManga.toBackupMangaSourceEndpoint(),
-                )
-            }
+            val mangaBackupData = createMangaSourceBackupData(options)
+            val backupManga = mangaBackupData.backupManga
+            val backupMangaSourceLinks = mangaBackupData.backupMangaSourceLinks
 
             val backup = Backup(
                 backupManga = backupManga,
@@ -231,6 +213,31 @@ class BackupCreator(
         if (!options.libraryEntries) return emptyList()
 
         return mangaBackupCreator(mangas, options)
+    }
+
+    internal suspend fun createMangaSourceBackupData(options: BackupOptions): MangaSourceBackupData {
+        val nonFavoriteManga = if (options.readEntries) {
+            mangaRepository.getReadMangaNotInLibrary()
+        } else {
+            emptyList()
+        }
+        val mangaSourceLinks = if (options.libraryEntries) {
+            mangaSourceLinkRepository.getAllWithManga()
+        } else {
+            emptyList()
+        }
+        val linkedMangas = mangaSourceLinks.flatMap { listOf(it.firstManga, it.secondManga) }
+        val backupManga = backupMangas(
+            (getMangaFavorites.await() + nonFavoriteManga + linkedMangas).distinctBy(Manga::id),
+            options,
+        )
+        val backupMangaSourceLinks = mangaSourceLinks.map { linked ->
+            BackupMangaSourceLink(
+                first = linked.firstManga.toBackupMangaSourceEndpoint(),
+                second = linked.secondManga.toBackupMangaSourceEndpoint(),
+            )
+        }
+        return MangaSourceBackupData(backupManga, backupMangaSourceLinks)
     }
 
     private suspend fun backupAnimes(animes: List<Anime>, options: BackupOptions): List<BackupAnime> {
@@ -352,6 +359,11 @@ class BackupCreator(
         }
     }
 }
+
+internal data class MangaSourceBackupData(
+    val backupManga: List<BackupManga>,
+    val backupMangaSourceLinks: List<BackupMangaSourceLink>,
+)
 
 private fun Manga.toBackupMangaSourceEndpoint() =
     BackupMangaSourceEndpoint(sourceId = source, url = url)

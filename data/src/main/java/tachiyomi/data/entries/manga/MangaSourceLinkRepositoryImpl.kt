@@ -157,8 +157,28 @@ class MangaSourceLinkRepositoryImpl(
         val secondExists = mangaSourceLinksQueries.getMangaId(secondMangaId).executeAsOneOrNull()
         if (firstExists == null || secondExists == null) return LinkMangaSourcesResult.Invalid
         val firstSourceId = mangaSourceLinksQueries.getMangaSourceId(firstMangaId).executeAsOneOrNull()
+            ?: return LinkMangaSourcesResult.Invalid
         val secondSourceId = mangaSourceLinksQueries.getMangaSourceId(secondMangaId).executeAsOneOrNull()
+            ?: return LinkMangaSourcesResult.Invalid
         if (firstSourceId == secondSourceId) return LinkMangaSourcesResult.Invalid
+        val firstUrl = mangasQueries.getMangaById(firstMangaId, MangaMapper::mapManga).executeAsOneOrNull()?.url
+            ?: return LinkMangaSourcesResult.Invalid
+        val secondUrl = mangasQueries.getMangaById(secondMangaId, MangaMapper::mapManga).executeAsOneOrNull()?.url
+            ?: return LinkMangaSourcesResult.Invalid
+        val firstIdentityIds = mangaSourceLinksQueries.getMangaIdsBySourceAndUrl(
+            firstSourceId,
+            firstUrl,
+        ).executeAsList()
+        val secondIdentityIds = mangaSourceLinksQueries.getMangaIdsBySourceAndUrl(
+            secondSourceId,
+            secondUrl,
+        ).executeAsList()
+        if (
+            firstIdentityIds.size != 1 || firstIdentityIds.single() != firstMangaId ||
+            secondIdentityIds.size != 1 || secondIdentityIds.single() != secondMangaId
+        ) {
+            return LinkMangaSourcesResult.Invalid
+        }
 
         val firstLink = mangaSourceLinksQueries.getForManga(firstMangaId, ::mapMangaSourceLink)
             .executeAsOneOrNull()
