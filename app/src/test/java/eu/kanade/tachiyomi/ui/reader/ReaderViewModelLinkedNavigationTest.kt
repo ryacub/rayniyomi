@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryMangaDb
@@ -17,6 +18,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.test.VirtualTime
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.cancel
@@ -60,7 +62,9 @@ class ReaderViewModelLinkedNavigationTest {
             db.insertManga(id = 1, url = "a", title = "A", source = 11)
             db.insertManga(id = 2, url = "b", title = "B", source = 12)
             db.insertChapter(id = 30, mangaId = 1, url = "a-30")
+            db.insertChapter(id = 130, mangaId = 2, url = "b-30")
             db.insertChapter(id = 31, mangaId = 2, url = "b-31")
+            db.insertChapter(id = 33, mangaId = 1, url = "a-33")
             val linkRepository = MangaSourceLinkRepositoryImpl(db.handler)
             assertEquals(
                 tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult.Linked,
@@ -68,7 +72,8 @@ class ReaderViewModelLinkedNavigationTest {
             )
 
             val manga = Manga.create().copy(id = 1L, source = 11L, title = "A")
-            val chapters = (1L..30L).map { id ->
+            val partner = Manga.create().copy(id = 2L, source = 12L, title = "B")
+            val chapters = (1L..33L).filterNot { it == 31L || it == 32L }.map { id ->
                 Chapter.create().copy(
                     id = id,
                     mangaId = manga.id,
@@ -77,16 +82,40 @@ class ReaderViewModelLinkedNavigationTest {
                     chapterNumber = id.toDouble(),
                 )
             }
-            val getManga = mockk<GetManga> { coEvery { await(1L) } returns manga }
+            val partnerChapters = (25L..40L).map { id ->
+                Chapter.create().copy(
+                    id = if (id == 31L) 31L else id + 100,
+                    mangaId = partner.id,
+                    url = "b-$id",
+                    name = "Chapter $id",
+                    chapterNumber = id.toDouble(),
+                    lastPageRead = if (id == 31L) 4L else 0L,
+                )
+            }
+            val getManga = mockk<GetManga> {
+                coEvery { await(1L) } returns manga
+                coEvery { await(2L) } returns partner
+            }
             val getChapters = mockk<GetChaptersByMangaId> {
                 coEvery { await(1L, applyScanlatorFilter = true) } returns chapters
+                coEvery { await(2L, applyScanlatorFilter = true) } returns partnerChapters
             }
             val source = mockk<HttpSource>(relaxed = true) {
+                every { id } returns 11L
+                every { lang } returns "en"
                 coEvery { getPageList(any()) } returns listOf(Page(index = 0, url = "page", imageUrl = "image"))
+            }
+            val partnerSource = mockk<HttpSource>(relaxed = true) {
+                every { id } returns 12L
+                every { lang } returns "en"
+                coEvery { getPageList(any()) } returns listOf(Page(index = 0, url = "partner-page", imageUrl = "image"))
             }
             val sourceManager = mockk<MangaSourceManager>(relaxed = true) {
                 every { isInitialized } returns MutableStateFlow(true)
+                every { get(11L) } returns source
+                every { get(12L) } returns partnerSource
                 every { getOrStub(11L) } returns source
+                every { getOrStub(12L) } returns partnerSource
             }
             val readerPreferences = mockk<eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences>(relaxed = true) {
                 every { skipRead().get() } returns false
@@ -97,11 +126,18 @@ class ReaderViewModelLinkedNavigationTest {
             val translationPreferences = mockk<TranslationPreferences>(relaxed = true) {
                 every { targetLanguage().get() } returns "en"
             }
+            val disabledSources = InMemoryPreferenceStore.InMemoryPreference(
+                "hidden_catalogues",
+                null,
+                emptySet<String>(),
+            )
+            val enabledLanguages = InMemoryPreferenceStore.InMemoryPreference("source_languages", null, setOf("en"))
+            val sourcePrefs = SourcePreferences(InMemoryPreferenceStore(sequenceOf(disabledSources, enabledLanguages)))
             AppGraphHolder.graph = mockk<AppGraph>(relaxed = true) {
                 every { chapterCache } returns mockk<ChapterCache> {
                     every { getPageListFromCache(any()) } throws IOException("not cached")
                 }
-                every { sourcePreferences } returns SourcePreferences(InMemoryPreferenceStore())
+                every { sourcePreferences } returns sourcePrefs
                 every { this@mockk.readerPreferences } returns readerPreferences
                 every { this@mockk.translationPreferences } returns translationPreferences
                 every { translationStorageManager } returns mockk<TranslationStorageManager>(relaxed = true)
@@ -113,8 +149,9 @@ class ReaderViewModelLinkedNavigationTest {
                 every { languageGeneration } returns MutableStateFlow(0)
                 every { translationStates } returns MutableStateFlow(emptyMap())
             }
+            val savedState = SavedStateHandle()
             val model = ReaderViewModel(
-                savedState = SavedStateHandle(),
+                savedState = savedState,
                 sourceManager = sourceManager,
                 downloadManager = downloadManager,
                 downloadProvider = mockk(relaxed = true),
@@ -129,12 +166,14 @@ class ReaderViewModelLinkedNavigationTest {
                 trackPreferences = mockk<TrackPreferences>(relaxed = true),
                 trackChapter = mockk(relaxed = true),
                 getManga = getManga,
+                mangaSourceLinkRepository = linkRepository,
                 getChaptersByMangaId = getChapters,
                 getNextChapters = mockk<GetNextChapters>(relaxed = true),
                 upsertHistory = mockk<UpsertMangaHistory>(relaxed = true),
                 updateChapter = mockk<UpdateChapter>(relaxed = true),
                 setMangaViewerFlags = mockk(relaxed = true),
                 getIncognitoState = mockk(relaxed = true),
+                sourcePreferences = sourcePrefs,
                 libraryPreferences = mockk<LibraryPreferences>(relaxed = true),
                 translationStorageManager = mockk(relaxed = true),
                 translationPreferences = translationPreferences,
@@ -149,6 +188,26 @@ class ReaderViewModelLinkedNavigationTest {
                 model.loadNextChapter()
 
                 assertEquals(31L, model.state.value.currentChapter?.chapter?.id)
+                assertEquals(4, model.state.value.currentChapter?.requestedPage)
+                assertEquals(listOf(31L, 4L), savedState.get<LongArray>("reader_checkpoint")?.toList())
+                assertEquals(partnerSource, model.getSource())
+                coVerify(timeout = 5_000) {
+                    partnerSource.getPageList(match { it.url == "b-31" })
+                }
+
+                model.loadPreviousChapter()
+
+                assertEquals(130L, model.state.value.currentChapter?.chapter?.id)
+
+                model.loadNextChapter()
+
+                assertEquals(31L, model.state.value.currentChapter?.chapter?.id)
+
+                disabledSources.set(setOf("12"))
+                assertEquals(setOf("12"), sourcePrefs.disabledMangaSources().get())
+                model.loadNextChapter()
+
+                assertEquals(33L, model.state.value.currentChapter?.chapter?.id)
             } finally {
                 model.viewModelScope.cancel()
             }

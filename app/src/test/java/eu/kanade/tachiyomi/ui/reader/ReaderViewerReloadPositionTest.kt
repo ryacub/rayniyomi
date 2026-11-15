@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.entries.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -31,6 +32,7 @@ import org.junit.jupiter.params.provider.ValueSource
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.source.manga.service.MangaSourceManager
@@ -79,12 +81,16 @@ class ReaderViewerReloadPositionTest {
             trackPreferences = mockk(relaxed = true),
             trackChapter = mockk(relaxed = true),
             getManga = getManga,
+            mangaSourceLinkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+                coEvery { getForManga(any()) } returns null
+            },
             getChaptersByMangaId = mockk(relaxed = true),
             getNextChapters = mockk(relaxed = true),
             upsertHistory = mockk(relaxed = true),
             updateChapter = updateChapter,
             setMangaViewerFlags = viewerFlags,
             getIncognitoState = incognito,
+            sourcePreferences = mockk<SourcePreferences>(relaxed = true),
             libraryPreferences = mockk(relaxed = true),
             translationStorageManager = mockk(relaxed = true),
             translationPreferences = mockk(relaxed = true),

@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
@@ -19,9 +20,14 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,6 +36,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
@@ -46,11 +53,14 @@ class ReaderViewModelProgressTest {
     @AfterEach
     fun tearDown() = vt.tearDownMain()
 
-    private class Fixture(removeAfterReadSlots: Int) {
+    private class Fixture(
+        removeAfterReadSlots: Int,
+        savedStateValues: Map<String, Any?> = mapOf("page_index" to 0),
+    ) {
         val manga = Manga.create().copy(id = 1L, source = 2L)
         val chapter = ReaderChapter(Chapter.create().copy(id = 3L, mangaId = 1L, chapterNumber = 1.0))
         val pages = List(10) { ReaderPage(it).apply { this.chapter = this@Fixture.chapter } }
-        val savedState = SavedStateHandle(mapOf("page_index" to 0))
+        val savedState = SavedStateHandle(savedStateValues)
         val updateChapter = mockk<UpdateChapter>(relaxed = true)
         val downloadManager = mockk<MangaDownloadManager>(relaxed = true)
         val model: ReaderViewModel
@@ -89,12 +99,16 @@ class ReaderViewModelProgressTest {
                 trackPreferences = trackPreferences,
                 trackChapter = mockk(relaxed = true),
                 getManga = getManga,
+                mangaSourceLinkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+                    coEvery { getForManga(any()) } returns null
+                },
                 getChaptersByMangaId = mockk(relaxed = true),
                 getNextChapters = mockk(relaxed = true),
                 upsertHistory = mockk(relaxed = true),
                 updateChapter = updateChapter,
                 setMangaViewerFlags = mockk(relaxed = true),
                 getIncognitoState = incognito,
+                sourcePreferences = mockk<SourcePreferences>(relaxed = true),
                 libraryPreferences = libraryPreferences,
                 translationStorageManager = mockk(relaxed = true),
                 translationPreferences = mockk<TranslationPreferences>(relaxed = true) {
@@ -129,8 +143,10 @@ class ReaderViewModelProgressTest {
         }
 
         fun setChapterLoader(loader: ChapterLoader) {
-            ReaderViewModel::class.java.getDeclaredField("loader").apply { isAccessible = true }
-                .set(model, loader)
+            @Suppress("UNCHECKED_CAST")
+            val loaders = ReaderViewModel::class.java.getDeclaredField("loaders").apply { isAccessible = true }
+                .get(model) as MutableMap<Long, ChapterLoader>
+            loaders[manga.id] = loader
         }
 
         fun setNextChapter(nextChapter: ReaderChapter) {
@@ -145,6 +161,21 @@ class ReaderViewModelProgressTest {
         }
 
         fun close() = model.viewModelScope.cancel()
+    }
+
+    @Test
+    fun `restoring a saved checkpoint applies its page to the matching chapter`() = runTest(vt.scheduler) {
+        val fixture = Fixture(
+            removeAfterReadSlots = -1,
+            savedStateValues = mapOf("reader_checkpoint" to longArrayOf(3L, 6L)),
+        )
+        try {
+            advanceUntilIdle()
+
+            assertEquals(6, fixture.chapter.requestedPage)
+        } finally {
+            fixture.close()
+        }
     }
 
     @Test
@@ -169,7 +200,9 @@ class ReaderViewModelProgressTest {
         val nextPages = List(10) { ReaderPage(it).apply { chapter = nextChapter } }
         nextChapter.state = ReaderChapter.State.Loaded(nextPages)
         val loader = mockk<ChapterLoader> {
-            coEvery { loadChapter(nextChapter) } returns Unit
+            coEvery { loadChapter(nextChapter) } coAnswers {
+                nextChapter.requestedPage = 8
+            }
         }
         fixture.setChapterLoader(loader)
         fixture.putChaptersInChapterList(listOf(fixture.chapter, nextChapter))
@@ -184,6 +217,38 @@ class ReaderViewModelProgressTest {
             assertEquals(nextChapter, fixture.model.state.value.currentChapter)
             assertEquals(2, nextChapter.requestedPage)
             assertEquals(listOf(4L, 2L), fixture.savedState.get<LongArray>("reader_checkpoint")?.toList())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `swiping into another chapter checkpoints its visible page`() = runTest(vt.scheduler) {
+        val fixture = Fixture(removeAfterReadSlots = -1)
+        val nextChapter = ReaderChapter(
+            Chapter.create().copy(id = 4L, mangaId = fixture.manga.id, lastPageRead = 2L),
+        )
+        val nextPages = List(10) { ReaderPage(it).apply { chapter = nextChapter } }
+        nextChapter.state = ReaderChapter.State.Loaded(nextPages)
+        val loader = mockk<ChapterLoader> {
+            coEvery { loadChapter(nextChapter) } coAnswers {
+                nextChapter.requestedPage = 8
+            }
+        }
+        fixture.setChapterLoader(loader)
+        fixture.putChaptersInChapterList(listOf(fixture.chapter, nextChapter))
+        fixture.setNextChapter(nextChapter)
+
+        try {
+            fixture.model.onPageSelected(nextPages[5])
+            withContext(Dispatchers.Default) {
+                withTimeout(WAIT_MS) {
+                    fixture.model.state.first { it.currentChapter?.chapter?.id == nextChapter.chapter.id }
+                }
+            }
+
+            assertEquals(5, nextChapter.requestedPage)
+            assertEquals(listOf(4L, 5L), fixture.savedState.get<LongArray>("reader_checkpoint")?.toList())
         } finally {
             fixture.close()
         }

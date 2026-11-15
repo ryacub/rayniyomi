@@ -15,13 +15,17 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tachiyomi.core.common.preference.Preference
+import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.model.Chapter
 
 class ReaderChapterListManagerTest {
 
     private lateinit var getChaptersByMangaId: GetChaptersByMangaId
+    private lateinit var getManga: GetManga
+    private lateinit var mangaSourceLinkRepository: MangaSourceLinkRepository
     private lateinit var downloadManager: MangaDownloadManager
     private lateinit var readerPreferences: ReaderPreferences
     private lateinit var basePreferences: BasePreferences
@@ -39,6 +43,10 @@ class ReaderChapterListManagerTest {
     @BeforeEach
     fun setup() {
         getChaptersByMangaId = mockk()
+        getManga = mockk(relaxed = true)
+        mangaSourceLinkRepository = mockk(relaxed = true) {
+            coEvery { getForManga(any()) } returns null
+        }
         downloadManager = mockk(relaxed = true)
         readerPreferences = mockk(relaxed = true)
         basePreferences = mockk(relaxed = true)
@@ -50,6 +58,8 @@ class ReaderChapterListManagerTest {
 
         manager = ReaderChapterListManager(
             getChaptersByMangaId = getChaptersByMangaId,
+            getManga = getManga,
+            mangaSourceLinkRepository = mangaSourceLinkRepository,
             downloadManager = downloadManager,
             readerPreferences = readerPreferences,
             basePreferences = basePreferences,
