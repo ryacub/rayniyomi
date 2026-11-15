@@ -618,13 +618,17 @@ class MangaScreenModel(
     }
 
     private fun MangaSource.isUnavailable(
-        disabledSources: Set<String> = sourcePreferences.disabledMangaSources().get(),
-        enabledLanguages: Set<String> = sourcePreferences.enabledLanguages().get(),
-        registeredSourceIds: Set<Long> = sourceManager.getAll().mapTo(mutableSetOf()) { it.id },
-    ): Boolean = when {
-        this is StubMangaSource -> true
-        isLocalOrStub() -> false
-        else -> id.toString() in disabledSources || lang !in enabledLanguages || id !in registeredSourceIds
+        disabledSources: Set<String>? = null,
+        enabledLanguages: Set<String>? = null,
+        registeredSourceIds: Set<Long>? = null,
+    ): Boolean {
+        if (this is StubMangaSource) return true
+        if (isLocalOrStub()) return false
+
+        val disabled = disabledSources ?: sourcePreferences.disabledMangaSources().get()
+        val languages = enabledLanguages ?: sourcePreferences.enabledLanguages().get()
+        val registered = registeredSourceIds ?: sourceManager.getAll().mapTo(mutableSetOf()) { it.id }
+        return id.toString() in disabled || lang !in languages || id !in registered
     }
 
     private fun State.Success.originalMangaForChapter(chapter: Chapter): Manga? = when (chapter.mangaId) {
