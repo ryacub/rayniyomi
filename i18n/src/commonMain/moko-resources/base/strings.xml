@@ -34,6 +34,7 @@
     <string name="link_manga_source_failed">Could not link these manga entries.</string>
     <string name="link_manga_source_pair_label">%1$s · %2$s</string>
     <string name="link_manga_source_version_status">%1$s · %2$s</string>
+    <string name="link_manga_source_version_number">Version %1$d</string>
     <string name="link_manga_source_read">Read</string>
     <string name="link_manga_source_resume_unavailable_title">Saved chapter unavailable</string>
     <string name="link_manga_source_resume_unavailable_text">%1$s is unavailable. Choose a chapter from an available source.</string>

@@ -32,6 +32,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -45,6 +47,7 @@ import tachiyomi.data.entries.manga.MangaRepositoryImpl
 import tachiyomi.data.entries.manga.MangaSourceLinkRepositoryImpl
 import tachiyomi.data.items.chapter.ChapterRepositoryImpl
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
 import tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaSourceLink
@@ -302,22 +305,27 @@ class MangaScreenModelSourceFetchTest {
             every { getOrStub(primary.source) } returns primarySource
             every { getOrStub(partner.source) } returns partnerSource
         }
-        val downloadStatuses = MutableSharedFlow<MangaDownload>(extraBufferCapacity = 1)
-        every { downloadManager.statusFlow() } returns downloadStatuses
+        val downloadStatuses = MutableStateFlow<MangaDownload?>(null)
+        every { downloadManager.statusFlow() } returns downloadStatuses.filterNotNull()
+        val lifecycleOwner = TestLifecycleOwner(Lifecycle.State.RESUMED, vt.main)
         val model = createModel(
             manga = primary,
             chapters = listOf(chapter()),
             mangaSourceLinkRepository = linkRepository,
             linkedManga = partner,
             linkedChapters = listOf(partnerChapter),
-            lifecycle = TestLifecycleOwner(Lifecycle.State.RESUMED, vt.main).lifecycle,
+            lifecycle = lifecycleOwner.lifecycle,
+            fetchInterval = MangaFetchInterval(mockk()),
         )
         advanceUntilIdle()
+        model.state.filterIsInstance<MangaScreenModel.State.Success>()
+            .first { state -> state.linkedChapters.any { it.id == partnerChapter.id } }
+        downloadStatuses.subscriptionCount.first { it > 0 }
 
         val download = MangaDownload(mockk<HttpSource>(), partner, partnerChapter).apply {
             status = MangaDownload.State.DOWNLOADED
         }
-        downloadStatuses.emit(download)
+        downloadStatuses.value = download
         advanceUntilIdle()
 
         model.successState().linkedChapters.single().downloadState shouldBe MangaDownload.State.DOWNLOADED
@@ -574,6 +582,7 @@ class MangaScreenModelSourceFetchTest {
         linkedChaptersFlow: MutableStateFlow<Pair<Manga, List<Chapter>>>? = null,
         sourcePreferences: SourcePreferences = this.sourcePreferences,
         lifecycle: Lifecycle = mockk(relaxed = true),
+        fetchInterval: MangaFetchInterval = testAppGraph.mangaFetchInterval,
         translationManager: TranslationManager = mockk {
             every { translationStates } returns MutableStateFlow(emptyMap())
         },
@@ -610,7 +619,7 @@ class MangaScreenModelSourceFetchTest {
             addTracks = testAppGraph.addMangaTracks,
             setMangaCategories = mockk(relaxed = true),
             mangaRepository = testAppGraph.mangaRepository,
-            fetchInterval = testAppGraph.mangaFetchInterval,
+            fetchInterval = fetchInterval,
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,
             mangaSourceLinkRepository = mangaSourceLinkRepository,

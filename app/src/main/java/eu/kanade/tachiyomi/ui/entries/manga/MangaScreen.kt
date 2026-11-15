@@ -7,8 +7,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,9 +49,9 @@ import eu.kanade.presentation.entries.manga.MangaScreen
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.MangaCoverDialog
 import eu.kanade.presentation.entries.manga.components.ScanlatorFilterDialog
+import eu.kanade.presentation.entries.manga.linkedMangaVersionLabel
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
-import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.manga.isLocalOrStub
@@ -125,7 +128,7 @@ class MangaScreen(
         var continueChoices by remember {
             mutableStateOf<MangaScreenModel.ContinueReadingDecision.ChooseChapter?>(null)
         }
-        var continueChoiceCover by remember { mutableStateOf<CoverHandoff?>(null) }
+        var continueChoiceCover by remember { mutableStateOf<(() -> CoverHandoff?)?>(null) }
         val isHttpSource = remember { successState.source is HttpSource }
 
         LaunchedEffect(successState.manga, screenModel.source) {
@@ -155,7 +158,9 @@ class MangaScreen(
             chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
             navigateUp = navigator::pop,
             onChapterClicked = { chapter, cover -> openChapter(context, chapter, cover) },
-            onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
+            onDownloadChapter = screenModel::runChapterDownloadActions.takeIf {
+                !successState.source.isLocalOrStub() || successState.mangaSourceLink != null
+            },
             onAddToLibraryClicked = { screenModel.toggleFavorite() },
             onWebViewClicked = {
                 openMangaInWebView(
@@ -181,16 +186,16 @@ class MangaScreen(
             onTagSearch = { scope.launch { performGenreSearch(navigator, it, screenModel.source!!) } },
             onFilterButtonClicked = screenModel::showSettingsDialog,
             onRefresh = screenModel::fetchAllFromSource,
-            onContinueReading = { cover ->
+            onContinueReading = { coverHandoff ->
                 scope.launch {
                     when (val decision = screenModel.continueReadingDecision()) {
                         is MangaScreenModel.ContinueReadingDecision.Launch -> continueReading(
                             context,
                             decision.action,
-                            cover,
+                            coverHandoff(),
                         )
                         is MangaScreenModel.ContinueReadingDecision.ChooseChapter -> {
-                            continueChoiceCover = cover
+                            continueChoiceCover = coverHandoff
                             continueChoices = decision
                         }
                         MangaScreenModel.ContinueReadingDecision.None -> Unit
@@ -264,41 +269,22 @@ class MangaScreen(
                                 choice.unavailableSourceName,
                             ),
                         )
-                        choice.versions.forEach { version ->
-                            val chapter = version.chapter
-                            val chapterNumber = chapter.takeIf { it.isRecognizedNumber }?.let {
-                                context.stringResource(
-                                    MR.strings.display_mode_chapter,
-                                    formatChapterNumber(it.chapterNumber),
+                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                            items(choice.versions, key = { it.chapter.id }) { version ->
+                                val label = linkedMangaVersionLabel(version, choice.versions)
+                                Text(
+                                    text = label,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            openChapter(context, version.chapter, continueChoiceCover?.invoke())
+                                            continueChoices = null
+                                            continueChoiceCover = null
+                                        }
+                                        .semantics { contentDescription = label }
+                                        .padding(12.dp),
                                 )
                             }
-                            val chapterTitle = chapter.name.takeIf { it.isNotBlank() }
-                            val chapterLabel = listOfNotNull(chapterNumber, chapterTitle)
-                                .distinct()
-                                .joinToString(" · ")
-                            val status = if (chapter.read) {
-                                context.stringResource(MR.strings.link_manga_source_read)
-                            } else {
-                                context.stringResource(MR.strings.unread)
-                            }
-                            val label = context.stringResource(
-                                MR.strings.link_manga_source_resume_choice,
-                                chapterLabel,
-                                version.sourceName,
-                                status,
-                            )
-                            Text(
-                                text = label,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        openChapter(context, chapter, continueChoiceCover)
-                                        continueChoices = null
-                                        continueChoiceCover = null
-                                    }
-                                    .semantics { contentDescription = label }
-                                    .padding(12.dp),
-                            )
                         }
                     }
                 },

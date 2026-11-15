@@ -27,12 +27,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
@@ -130,7 +128,7 @@ fun MangaScreen(
 
     onFilterButtonClicked: () -> Unit,
     onRefresh: () -> Unit,
-    onContinueReading: (CoverHandoff?) -> Unit,
+    onContinueReading: (() -> CoverHandoff?) -> Unit,
     onSearch: (query: String, global: Boolean) -> Unit,
 
     // For cover dialog
@@ -218,7 +216,7 @@ fun MangaScreen(
                     onCopyTagToClipboard = onCopyTagToClipboard,
                     onFilterClicked = onFilterButtonClicked,
                     onRefresh = onRefresh,
-                    onContinueReading = { onContinueReading(coverHandoff()) },
+                    onContinueReading = { onContinueReading(coverHandoff) },
                     onSearch = onSearch,
                     onCoverClicked = onCoverClicked,
                     onShareClicked = onShareClicked,
@@ -257,7 +255,7 @@ fun MangaScreen(
                     onCopyTagToClipboard = onCopyTagToClipboard,
                     onFilterButtonClicked = onFilterButtonClicked,
                     onRefresh = onRefresh,
-                    onContinueReading = { onContinueReading(coverHandoff()) },
+                    onContinueReading = { onContinueReading(coverHandoff) },
                     onSearch = onSearch,
                     onCoverClicked = onCoverClicked,
                     onShareClicked = onShareClicked,
@@ -283,34 +281,12 @@ fun MangaScreen(
     }
 
     selectedVersions?.let { versions ->
-        AlertDialog(
+        LinkedMangaVersionDialog(
+            versions = versions,
             onDismissRequest = { selectedVersions = null },
-            title = { Text(stringResource(MR.strings.link_manga_source_choose_version)) },
-            text = {
-                Column {
-                    versions.forEach { version ->
-                        Text(
-                            text = stringResource(
-                                MR.strings.link_manga_source_version_status,
-                                version.sourceName,
-                                if (version.chapter.read) {
-                                    stringResource(MR.strings.link_manga_source_read)
-                                } else {
-                                    stringResource(MR.strings.unread)
-                                },
-                            ),
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                selectedVersions = null
-                                onChapterClicked(version.chapter, coverHandoff())
-                            }.padding(12.dp),
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { selectedVersions = null }) {
-                    Text(stringResource(MR.strings.action_cancel))
-                }
+            onVersionSelected = { version ->
+                selectedVersions = null
+                onChapterClicked(version.chapter, coverHandoff())
             },
         )
     }
@@ -538,40 +514,10 @@ private fun MangaScreenSmallImpl(
 
                     if (state.mangaSourceLink != null) {
                         item(key = "linked-source-status") {
-                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                                Text(
-                                    stringResource(
-                                        MR.strings.link_manga_source_pair_label,
-                                        state.source.name,
-                                        state.linkedSourceName.orEmpty(),
-                                    ),
-                                )
-                                if (state.linkedSourceUnavailable) {
-                                    Text(
-                                        stringResource(
-                                            MR.strings.link_manga_source_unavailable_status,
-                                            state.linkedSourceName.orEmpty(),
-                                        ),
-                                    )
-                                } else if (state.linkedSourceRefreshFailed) {
-                                    Text(
-                                        stringResource(
-                                            MR.strings.link_manga_source_refresh_failed,
-                                            state.linkedSourceName.orEmpty(),
-                                        ),
-                                    )
-                                }
-                                if (state.sourceUnavailable) {
-                                    Text(
-                                        stringResource(
-                                            MR.strings.link_manga_source_unavailable_status,
-                                            state.source.name,
-                                        ),
-                                    )
-                                } else if (state.sourceRefreshFailed) {
-                                    Text(stringResource(MR.strings.link_manga_source_refresh_failed, state.source.name))
-                                }
-                            }
+                            LinkedMangaSourceStatus(
+                                state = state,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
                         }
                     }
                     item(
@@ -839,45 +785,10 @@ fun MangaScreenLargeImpl(
                         ) {
                             if (state.mangaSourceLink != null) {
                                 item(key = "linked-source-status") {
-                                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                                        Text(
-                                            stringResource(
-                                                MR.strings.link_manga_source_pair_label,
-                                                state.source.name,
-                                                state.linkedSourceName.orEmpty(),
-                                            ),
-                                        )
-                                        if (state.linkedSourceUnavailable) {
-                                            Text(
-                                                stringResource(
-                                                    MR.strings.link_manga_source_unavailable_status,
-                                                    state.linkedSourceName.orEmpty(),
-                                                ),
-                                            )
-                                        } else if (state.linkedSourceRefreshFailed) {
-                                            Text(
-                                                stringResource(
-                                                    MR.strings.link_manga_source_refresh_failed,
-                                                    state.linkedSourceName.orEmpty(),
-                                                ),
-                                            )
-                                        }
-                                        if (state.sourceUnavailable) {
-                                            Text(
-                                                stringResource(
-                                                    MR.strings.link_manga_source_unavailable_status,
-                                                    state.source.name,
-                                                ),
-                                            )
-                                        } else if (state.sourceRefreshFailed) {
-                                            Text(
-                                                stringResource(
-                                                    MR.strings.link_manga_source_refresh_failed,
-                                                    state.source.name,
-                                                ),
-                                            )
-                                        }
-                                    }
+                                    LinkedMangaSourceStatus(
+                                        state = state,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
                                 }
                             }
                             item(
@@ -1024,7 +935,7 @@ private fun LazyListScope.sharedChapterItems(
                     isResumeTarget = item.chapter.id == resumeChapterId,
                     scanlator = listOfNotNull(
                         item.chapter.scanlator?.takeIf { it.isNotBlank() },
-                        item.sourceName?.takeIf { item.versions.isNotEmpty() },
+                        item.sourceLabel(),
                     ).joinToString(" · ").takeIf { it.isNotBlank() },
                     read = item.chapter.read,
                     bookmark = item.chapter.bookmark,
@@ -1065,15 +976,6 @@ private fun LazyListScope.sharedChapterItems(
             }
         }
     }
-}
-
-@Composable
-private fun ResumeChapterFabText(chapter: Chapter?, isLinked: Boolean) {
-    val number = chapter?.takeIf { it.isRecognizedNumber }?.chapterNumber
-    ResumeFabText(
-        canResume = chapter != null || isLinked,
-        detail = number?.let { "C${formatChapterNumber(it).padItemNumber()}" },
-    )
 }
 
 @Composable
