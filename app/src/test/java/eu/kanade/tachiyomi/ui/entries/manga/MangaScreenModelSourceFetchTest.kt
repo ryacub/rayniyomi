@@ -5,12 +5,16 @@ import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.domain.source.manga.model.RemoteMangaUpdate
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryMangaDb
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
+import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.di.testAppGraph
+import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import io.kotest.matchers.shouldBe
@@ -40,6 +44,7 @@ import tachiyomi.data.items.chapter.ChapterRepositoryImpl
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -51,6 +56,14 @@ class MangaScreenModelSourceFetchTest {
 
     private val vt = VirtualTime()
     private val updateMangaFromRemote = mockk<UpdateMangaFromRemote>()
+    private val sourcePreferences = SourcePreferences(
+        InMemoryPreferenceStore(
+            sequenceOf(
+                InMemoryPreferenceStore.InMemoryPreference("hidden_catalogues", null, emptySet<String>()),
+                InMemoryPreferenceStore.InMemoryPreference("source_languages", null, setOf("en")),
+            ),
+        ),
+    )
     private val filterChaptersForDownload = mockk<FilterChaptersForDownload> {
         coEvery { await(any(), any()) } answers { secondArg() }
     }
@@ -74,6 +87,7 @@ class MangaScreenModelSourceFetchTest {
         every { testAppGraph.mangaSourceManager } returns
             mockk<MangaSourceManager>(relaxed = true) { every { sources } returns flowOf(emptyList()) }
         every { testAppGraph.basePreferences } returns BasePreferences(mockk(relaxed = true), InMemoryPreferenceStore())
+        every { testAppGraph.sourcePreferences } returns sourcePreferences
         coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } answers {
             Result.success(RemoteMangaUpdate(manga = secondArg(), newChapters = emptyList()))
         }
@@ -145,6 +159,160 @@ class MangaScreenModelSourceFetchTest {
             reversedRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe
                 listOf(1L, 2L)
         }
+    }
+
+    @Test
+    fun `adding an empty linked edition fetches its details and chapters`() = runTest(vt.scheduler) {
+        val primary = manga(initialized = true).copy(favorite = true)
+        val partner = manga(id = 2L, source = 2L, initialized = true).copy(title = "Partner")
+        val linkFlow = MutableStateFlow<MangaSourceLink?>(null)
+        val linkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+            coEvery { getForManga(primary.id) } returns null
+            every { getForMangaAsFlow(primary.id) } returns linkFlow
+        }
+        val primarySource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns primary.source
+            every { lang } returns "en"
+            every { name } returns "Primary"
+        }
+        val partnerSource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns partner.source
+            every { lang } returns "en"
+            every { name } returns "Partner"
+        }
+        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
+            every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { get(primary.source) } returns primarySource
+            every { get(partner.source) } returns partnerSource
+            every { getOrStub(primary.source) } returns primarySource
+            every { getOrStub(partner.source) } returns partnerSource
+        }
+        val model = createModel(
+            manga = primary,
+            chapters = listOf(chapter()),
+            mangaSourceLinkRepository = linkRepository,
+            linkedManga = partner,
+        )
+        advanceUntilIdle()
+
+        linkFlow.value = MangaSourceLink(primary.id, partner.id)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateMangaFromRemote(
+                source = partnerSource,
+                manga = partner,
+                fetchDetails = true,
+                fetchChapters = true,
+                manualFetch = true,
+            )
+        }
+    }
+
+    @Test
+    fun `a disabled linked source stays unavailable when its chapter flow emits`() = runTest(vt.scheduler) {
+        val primary = manga(initialized = true).copy(favorite = true)
+        val partner = manga(id = 2L, source = 2L, initialized = true).copy(title = "Partner")
+        val link = MangaSourceLink(primary.id, partner.id)
+        val linkedChapters = MutableStateFlow(partner to emptyList<Chapter>())
+        val linkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+            coEvery { getForManga(primary.id) } returns link
+            every { getForMangaAsFlow(primary.id) } returns flowOf(link)
+        }
+        val primarySource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns primary.source
+            every { lang } returns "en"
+            every { name } returns "Primary"
+        }
+        val partnerSource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns partner.source
+            every { lang } returns "en"
+            every { name } returns "Partner"
+        }
+        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
+            every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { get(primary.source) } returns primarySource
+            every { get(partner.source) } returns partnerSource
+            every { getOrStub(primary.source) } returns primarySource
+            every { getOrStub(partner.source) } returns partnerSource
+        }
+        sourcePreferences.enabledLanguages().set(setOf("en"))
+        sourcePreferences.disabledMangaSources().set(setOf(partner.source.toString()))
+        val model = createModel(
+            manga = primary,
+            chapters = listOf(chapter()),
+            mangaSourceLinkRepository = linkRepository,
+            linkedManga = partner,
+            linkedChaptersFlow = linkedChapters,
+        )
+        advanceUntilIdle()
+
+        val initialState = model.state.value as MangaScreenModel.State.Success
+        initialState.linkedManga?.id shouldBe partner.id
+
+        linkedChapters.value = partner to listOf(chapter(id = 21L, mangaId = partner.id))
+        advanceUntilIdle()
+
+        model.successState().linkedChapters.map { it.chapter.id } shouldBe listOf(21L)
+        model.successState().linkedSourceUnavailable shouldBe true
+    }
+
+    @Test
+    fun `linked chapter download deletion and translation use the original owner`() = runTest(vt.scheduler) {
+        val primary = manga(initialized = true).copy(favorite = true)
+        val partner = manga(id = 2L, source = 2L, initialized = true).copy(title = "Partner")
+        val partnerChapter = chapter(id = 21L, mangaId = partner.id)
+        val link = MangaSourceLink(primary.id, partner.id)
+        val linkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+            coEvery { getForManga(primary.id) } returns link
+            every { getForMangaAsFlow(primary.id) } returns flowOf(link)
+        }
+        val primarySource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns primary.source
+            every { lang } returns "en"
+            every { name } returns "Primary"
+        }
+        val partnerSource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns partner.source
+            every { lang } returns "en"
+            every { name } returns "Partner"
+        }
+        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
+            every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { get(primary.source) } returns primarySource
+            every { get(partner.source) } returns partnerSource
+            every { getOrStub(primary.source) } returns primarySource
+            every { getOrStub(partner.source) } returns partnerSource
+        }
+        val translationManager = mockk<TranslationManager>(relaxed = true) {
+            every { translationStates } returns MutableStateFlow(emptyMap())
+        }
+        val model = createModel(
+            manga = primary,
+            chapters = listOf(chapter()),
+            mangaSourceLinkRepository = linkRepository,
+            linkedManga = partner,
+            linkedChapters = listOf(partnerChapter),
+            translationManager = translationManager,
+        )
+        advanceUntilIdle()
+        val item = ChapterList.Item(
+            chapter = partnerChapter,
+            downloadState = MangaDownload.State.NOT_DOWNLOADED,
+            downloadProgress = 0,
+        )
+
+        model.runChapterDownloadActions(listOf(item), ChapterDownloadAction.START)
+        advanceUntilIdle()
+        model.deleteChapters(listOf(partnerChapter))
+        advanceUntilIdle()
+        model.translateChapter(partnerChapter)
+        model.deleteTranslation(partnerChapter)
+
+        verify { downloadManager.downloadChapters(partner, listOf(partnerChapter)) }
+        verify { downloadManager.deleteChapters(listOf(partnerChapter), partner, partnerSource) }
+        verify { translationManager.translateChapter(partner, partnerChapter, partnerSource) }
+        verify { translationManager.deleteTranslation(partnerChapter, partner.title, partnerSource) }
     }
 
     @Test
@@ -335,11 +503,15 @@ class MangaScreenModelSourceFetchTest {
         },
         linkedManga: Manga? = null,
         linkedChapters: List<Chapter> = emptyList(),
+        linkedChaptersFlow: MutableStateFlow<Pair<Manga, List<Chapter>>>? = null,
+        translationManager: TranslationManager = mockk {
+            every { translationStates } returns MutableStateFlow(emptyMap())
+        },
     ): MangaScreenModel {
         val getMangaAndChapters = mockk<GetMangaWithChapters> {
             coEvery { subscribe(any(), any()) } answers {
                 val id = firstArg<Long>()
-                if (linkedManga?.id == id) flowOf(linkedManga to linkedChapters) else emptyFlow()
+                if (linkedManga?.id == id) linkedChaptersFlow ?: flowOf(linkedManga to linkedChapters) else emptyFlow()
             }
             coEvery { awaitManga(manga.id) } returns manga
             coEvery { awaitChapters(manga.id, any()) } returns chapters
@@ -381,16 +553,18 @@ class MangaScreenModelSourceFetchTest {
             getTracks = mockk<GetMangaTracks> { every { subscribe(any<Long>()) } returns emptyFlow() },
             updateMangaFromRemote = updateMangaFromRemote,
             entryRefresher = entryRefresher,
-            translationManager = mockk<TranslationManager> {
-                every { translationStates } returns MutableStateFlow(emptyMap())
-            },
+            translationManager = translationManager,
             ioDispatcher = vt.io,
             sourcePreferences = testAppGraph.sourcePreferences,
             getMangaHistory = testAppGraph.getMangaHistory,
         )
     }
 
-    private fun manga(initialized: Boolean) = Manga.create().copy(id = 1L, source = 1L, initialized = initialized)
+    private fun manga(
+        initialized: Boolean,
+        id: Long = 1L,
+        source: Long = 1L,
+    ) = Manga.create().copy(id = id, source = source, initialized = initialized)
 
-    private fun chapter(id: Long = 10L) = Chapter.create().copy(id = id, mangaId = 1L)
+    private fun chapter(id: Long = 10L, mangaId: Long = 1L) = Chapter.create().copy(id = id, mangaId = mangaId)
 }
