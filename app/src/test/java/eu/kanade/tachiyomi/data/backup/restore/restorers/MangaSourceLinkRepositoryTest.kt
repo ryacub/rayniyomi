@@ -32,6 +32,19 @@ class MangaSourceLinkRepositoryTest {
     }
 
     @Test
+    fun `link rejects an ambiguous source and url identity`() = runTest {
+        InMemoryMangaDb().use { db ->
+            db.insertManga(id = 1, url = "duplicate", title = "First edition", source = 11)
+            db.insertManga(id = 2, url = "duplicate", title = "Second edition", source = 11)
+            db.insertManga(id = 3, url = "other", title = "Other source", source = 12)
+            val repository = MangaSourceLinkRepositoryImpl(db.handler)
+
+            assertEquals(LinkMangaSourcesResult.Invalid, repository.link(1, 3))
+            assertEquals(emptyList<MangaSourceLink>(), repository.getAll())
+        }
+    }
+
+    @Test
     fun `link candidate materializes an unread nonfavorite in the same link operation`() = runTest {
         InMemoryMangaDb().use { db ->
             db.insertManga(id = 1, url = "first", title = "First", source = 1)

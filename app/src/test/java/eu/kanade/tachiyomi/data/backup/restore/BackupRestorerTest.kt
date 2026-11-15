@@ -7,6 +7,8 @@ import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.backup.models.BackupMangaSourceEndpoint
+import eu.kanade.tachiyomi.data.backup.models.BackupMangaSourceLink
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeRestorer
@@ -88,6 +90,50 @@ class BackupRestorerTest {
         )
 
         assertEquals(1, restorer.getErrorCount(), "restore must report a missing linked source endpoint")
+    }
+
+    @Test
+    fun `restore skips source links with duplicate endpoint identities in the backup`() = runTest {
+        val duplicateEndpoint = BackupManga(source = 11L, url = "same", title = "First")
+        val backupMangas = listOf(
+            duplicateEndpoint,
+            BackupManga(source = 11L, url = "same", title = "Duplicate"),
+            BackupManga(source = 12L, url = "other", title = "Other"),
+        )
+        val sourceLink = BackupMangaSourceLink(
+            first = BackupMangaSourceEndpoint(sourceId = 11L, url = "same"),
+            second = BackupMangaSourceEndpoint(sourceId = 12L, url = "other"),
+        )
+        val sourceLinkRepository = mockk<MangaSourceLinkRepository>()
+        coEvery { sourceLinkRepository.restore(any(), any()) } returns RestoreMangaSourceLinkResult.Linked
+        val mangaRestorer = mockk<MangaRestorer>(relaxed = true) {
+            coEvery { sortByNew(backupMangas) } returns backupMangas
+        }
+        val restorer = createRestorer(
+            mangaRestorer = mangaRestorer,
+            mangaSourceLinkRepository = sourceLinkRepository,
+        )
+
+        restorer.restoreBackupData(
+            Backup(
+                backupManga = backupMangas,
+                backupMangaSourceLinks = listOf(sourceLink),
+            ),
+            mockk<Uri>(relaxed = true),
+            RestoreOptions(
+                libraryEntries = true,
+                categories = false,
+                appSettings = false,
+                extensionRepoSettings = false,
+                customButtons = false,
+                sourceSettings = false,
+                extensions = false,
+                lightNovels = false,
+            ),
+        )
+
+        coVerify(exactly = 0) { sourceLinkRepository.restore(any(), any()) }
+        assertEquals(1, restorer.getErrorCount())
     }
 
     @Test
