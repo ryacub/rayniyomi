@@ -17,6 +17,7 @@ import mihon.domain.upcoming.manga.interactor.GetUpcomingManga
 import tachiyomi.data.entries.anime.AnimeRelationRepositoryImpl
 import tachiyomi.data.entries.anime.AnimeRepositoryImpl
 import tachiyomi.data.entries.manga.MangaRepositoryImpl
+import tachiyomi.data.entries.manga.MangaSourceLinkRepositoryImpl
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.entries.anime.interactor.AnimeFetchInterval
@@ -44,6 +45,7 @@ import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.interactor.ResetMangaViewerFlags
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.repository.MangaRepository
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.repository.ChapterRepository
 import tachiyomi.domain.items.episode.interactor.GetEpisodesByAnimeId
@@ -163,6 +165,11 @@ object EntryBindings {
     @SingleIn(AppScope::class)
     fun provideMangaRepository(handler: MangaDatabaseHandler): MangaRepository =
         MangaRepositoryImpl(handler = handler)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideMangaSourceLinkRepository(handler: MangaDatabaseHandler): MangaSourceLinkRepository =
+        MangaSourceLinkRepositoryImpl(handler = handler)
 
     @Provides
     fun provideGetDuplicateLibraryManga(mangaRepository: MangaRepository): GetDuplicateLibraryManga =

@@ -146,6 +146,7 @@ import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
 import tachiyomi.domain.entries.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.entries.manga.interactor.ResetMangaViewerFlags
 import tachiyomi.domain.entries.manga.repository.MangaRepository
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.history.anime.interactor.GetAnimeHistory
 import tachiyomi.domain.history.anime.interactor.UpsertAnimeHistory
 import tachiyomi.domain.history.anime.repository.AnimeHistoryRepository
@@ -309,6 +310,7 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val shouldUpdateDbSeason: ShouldUpdateDbSeason
     val syncSeasonsWithSource: SyncSeasonsWithSource
     val mangaRepository: MangaRepository
+    val mangaSourceLinkRepository: MangaSourceLinkRepository
     val getMangaFavorites: GetMangaFavorites
     val getLibraryManga: GetLibraryManga
     val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId

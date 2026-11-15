@@ -1,0 +1,70 @@
+CREATE TABLE manga_source_links (
+    _id INTEGER NOT NULL PRIMARY KEY,
+    first_manga_id INTEGER NOT NULL,
+    second_manga_id INTEGER NOT NULL,
+    CHECK(first_manga_id != second_manga_id),
+    FOREIGN KEY(first_manga_id) REFERENCES mangas (_id) ON DELETE CASCADE,
+    FOREIGN KEY(second_manga_id) REFERENCES mangas (_id) ON DELETE CASCADE
+);
+
+CREATE TABLE manga_source_link_endpoints (
+    manga_id INTEGER NOT NULL PRIMARY KEY,
+    link_id INTEGER NOT NULL,
+    endpoint_order INTEGER NOT NULL CHECK(endpoint_order IN (0, 1)),
+    UNIQUE(link_id, endpoint_order),
+    FOREIGN KEY(manga_id) REFERENCES mangas (_id) ON DELETE CASCADE,
+    FOREIGN KEY(link_id) REFERENCES manga_source_links (_id) ON DELETE CASCADE
+);
+
+CREATE INDEX manga_source_link_endpoints_link_id_index ON manga_source_link_endpoints(link_id);
+
+getAll:
+SELECT first_manga_id, second_manga_id
+FROM manga_source_links
+ORDER BY _id;
+
+getForManga:
+SELECT links.first_manga_id, links.second_manga_id
+FROM manga_source_links links
+JOIN manga_source_link_endpoints endpoints ON endpoints.link_id = links._id
+WHERE endpoints.manga_id = :mangaId
+LIMIT 1;
+
+getMangaId:
+SELECT _id
+FROM mangas
+WHERE _id = :mangaId;
+
+getMangaSourceId:
+SELECT source
+FROM mangas
+WHERE _id = :mangaId;
+
+getMangaIdsBySourceAndUrl:
+SELECT _id
+FROM mangas
+WHERE source = :sourceId AND url = :url;
+
+insert:
+INSERT INTO manga_source_links(first_manga_id, second_manga_id)
+VALUES (:firstMangaId, :secondMangaId);
+
+selectLastInsertedRowId:
+SELECT last_insert_rowid();
+
+insertEndpoint:
+INSERT INTO manga_source_link_endpoints(manga_id, link_id, endpoint_order)
+VALUES (:mangaId, :linkId, :endpointOrder);
+
+deleteEndpointsForPair:
+DELETE FROM manga_source_link_endpoints
+WHERE link_id = (
+    SELECT _id FROM manga_source_links
+    WHERE (first_manga_id = :firstMangaId AND second_manga_id = :secondMangaId)
+       OR (first_manga_id = :secondMangaId AND second_manga_id = :firstMangaId)
+);
+
+deletePair:
+DELETE FROM manga_source_links
+WHERE (first_manga_id = :firstMangaId AND second_manga_id = :secondMangaId)
+   OR (first_manga_id = :secondMangaId AND second_manga_id = :firstMangaId);

@@ -50,6 +50,7 @@ data class Backup(
     @ProtoNumber(104) var backupPreferences: List<BackupPreference> = emptyList(),
     @ProtoNumber(105) var backupSourcePreferences: List<BackupSourcePreferences> = emptyList(),
     @ProtoNumber(106) var backupMangaExtensionRepo: List<BackupExtensionRepos> = emptyList(),
+    @ProtoNumber(507) val backupMangaSourceLinks: List<BackupMangaSourceLink> = emptyList(),
 
     // Aniyomi specific values
     @ProtoNumber(500) val isLegacy: Boolean = true,

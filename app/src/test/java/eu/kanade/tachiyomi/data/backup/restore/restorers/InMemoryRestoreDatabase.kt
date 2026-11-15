@@ -50,7 +50,10 @@ internal class QueryCountingDriver(private val delegate: SqlDriver) : SqlDriver 
  */
 internal class InMemoryMangaDb : AutoCloseable {
     val driver = QueryCountingDriver(
-        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { Database.Schema.create(it) },
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also {
+            it.execute(null, "PRAGMA foreign_keys = ON", 0)
+            Database.Schema.create(it)
+        },
     )
 
     private val database = Database(
@@ -66,11 +69,11 @@ internal class InMemoryMangaDb : AutoCloseable {
 
     val handler = AndroidMangaDatabaseHandler(database, driver)
 
-    fun insertManga(id: Long, url: String, title: String) = driver.execute(
+    fun insertManga(id: Long, url: String, title: String, source: Long = 1) = driver.execute(
         null,
         "INSERT INTO mangas(_id, source, url, title, status, favorite, initialized, " +
             "viewer, chapter_flags, cover_last_modified, date_added) " +
-            "VALUES ($id, 1, '$url', '$title', 0, 1, 1, 0, 0, 0, 0)",
+            "VALUES ($id, $source, '$url', '$title', 0, 1, 1, 0, 0, 0, 0)",
         0,
     )
 

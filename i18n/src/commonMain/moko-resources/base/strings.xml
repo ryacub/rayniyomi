@@ -13,6 +13,7 @@
     <!-- Models -->
     <string name="name">Name</string>
     <string name="categories">Categories</string>
+    <string name="backup_manga_source_links">Manga source links</string>
     <string name="manga">Library entries</string>
     <string name="chapters">Chapters</string>
     <string name="track">Tracking</string>

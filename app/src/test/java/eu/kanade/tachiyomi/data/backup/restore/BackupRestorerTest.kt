@@ -40,6 +40,8 @@ import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.entries.manga.model.RestoreMangaSourceLinkResult
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import java.lang.reflect.Method
@@ -66,7 +68,9 @@ class BackupRestorerTest {
             Backup.serializer(),
             ProtoBuf.encodeToByteArray(BackupWithMangaSourceLinks.serializer(), wireBackup),
         )
-        val restorer = createRestorer()
+        val sourceLinkRepository = mockk<MangaSourceLinkRepository>()
+        coEvery { sourceLinkRepository.restore(any(), any()) } returns RestoreMangaSourceLinkResult.MissingEndpoint
+        val restorer = createRestorer(mangaSourceLinkRepository = sourceLinkRepository)
 
         restorer.restoreBackupData(
             backup,
@@ -266,6 +270,7 @@ class BackupRestorerTest {
         mangaCategoriesRestorer: MangaCategoriesRestorer = mockk(relaxed = true),
         mangaRestorer: MangaRestorer = mockk(relaxed = true),
         preferenceRestorer: PreferenceRestorer = mockk(relaxed = true),
+        mangaSourceLinkRepository: MangaSourceLinkRepository = mockk(relaxed = true),
     ): BackupRestorer {
         return BackupRestorer(
             context = mockk<Context>(relaxed = true),
@@ -279,6 +284,7 @@ class BackupRestorerTest {
             customButtonRestorer = mockk<CustomButtonRestorer>(relaxed = true),
             animeRestorer = mockk<AnimeRestorer>(relaxed = true),
             mangaRestorer = mangaRestorer,
+            mangaSourceLinkRepository = mangaSourceLinkRepository,
             extensionsRestorer = mockk<ExtensionsRestorer>(relaxed = true),
             lightNovelBackupDataSource = lightNovelBackupDataSource,
             animeStubSourceRepository = mockk<AnimeStubSourceRepository>(relaxed = true),
