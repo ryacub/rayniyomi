@@ -3,8 +3,10 @@ package eu.kanade.tachiyomi.data.backup.restore.restorers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import tachiyomi.data.entries.manga.MangaRepositoryImpl
 import tachiyomi.data.entries.manga.MangaSourceLinkRepositoryImpl
 import tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult
+import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaSourceIdentity
 import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.entries.manga.model.RestoreMangaSourceLinkResult
@@ -26,6 +28,41 @@ class MangaSourceLinkRepositoryTest {
             assertEquals(LinkMangaSourcesResult.Conflict, repository.link(1, 3))
             assertEquals(LinkMangaSourcesResult.Invalid, repository.link(3, 4))
             assertEquals(listOf(MangaSourceLink(1, 2)), repository.getAll())
+        }
+    }
+
+    @Test
+    fun `link candidate materializes an unread nonfavorite in the same link operation`() = runTest {
+        InMemoryMangaDb().use { db ->
+            db.insertManga(id = 1, url = "first", title = "First", source = 1)
+            val repository = MangaSourceLinkRepositoryImpl(db.handler)
+            val mangaRepository = MangaRepositoryImpl(db.handler)
+            val candidate = Manga.create().copy(
+                source = 2,
+                url = "second",
+                title = "Second",
+                favorite = true,
+                initialized = true,
+            )
+
+            assertEquals(LinkMangaSourcesResult.Linked, repository.linkCandidate(1, candidate))
+            val saved = mangaRepository.getMangaByUrlAndSourceId("second", 2)
+            assertEquals(false, saved?.favorite)
+            assertEquals(MangaSourceLink(1, saved!!.id), repository.getForManga(1))
+        }
+    }
+
+    @Test
+    fun `ambiguous initiating identity does not materialize the candidate`() = runTest {
+        InMemoryMangaDb().use { db ->
+            db.insertManga(id = 1, url = "duplicate", title = "First", source = 1)
+            db.insertManga(id = 2, url = "duplicate", title = "Duplicate", source = 1)
+            val repository = MangaSourceLinkRepositoryImpl(db.handler)
+            val candidate = Manga.create().copy(source = 2, url = "candidate", title = "Candidate")
+
+            assertEquals(LinkMangaSourcesResult.Conflict, repository.linkCandidate(1, candidate))
+            assertEquals(null, MangaRepositoryImpl(db.handler).getMangaByUrlAndSourceId("candidate", 2))
+            assertEquals(emptyList<MangaSourceLink>(), repository.getAll())
         }
     }
 

@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.data.Database
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
 import tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult
+import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaSourceIdentity
 import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.entries.manga.model.MangaSourceLinkWithManga
@@ -51,6 +52,64 @@ class MangaSourceLinkRepositoryImpl(
 
         return handler.await(inTransaction = true) {
             linkOriginals(firstMangaId, secondMangaId)
+        }
+    }
+
+    override suspend fun linkCandidate(firstMangaId: Long, candidate: Manga): LinkMangaSourcesResult {
+        return handler.await(inTransaction = true) {
+            val firstSourceId = mangaSourceLinksQueries.getMangaSourceId(firstMangaId).executeAsOneOrNull()
+                ?: return@await LinkMangaSourcesResult.Invalid
+            if (firstSourceId == candidate.source) return@await LinkMangaSourcesResult.Invalid
+            val firstIdentityIds = mangaSourceLinksQueries.getMangaIdsBySourceAndUrl(
+                firstSourceId,
+                mangasQueries.getMangaById(firstMangaId, MangaMapper::mapManga).executeAsOne().url,
+            ).executeAsList()
+            if (firstIdentityIds.size != 1 || firstIdentityIds.single() != firstMangaId) {
+                return@await LinkMangaSourcesResult.Conflict
+            }
+
+            val existingFirstLink = mangaSourceLinksQueries.getForManga(firstMangaId, ::mapMangaSourceLink)
+                .executeAsOneOrNull()
+            val candidateIds = mangaSourceLinksQueries.getMangaIdsBySourceAndUrl(candidate.source, candidate.url)
+                .executeAsList()
+            if (candidateIds.size > 1) return@await LinkMangaSourcesResult.Conflict
+            val existingCandidateId = candidateIds.singleOrNull()
+            if (existingFirstLink != null) {
+                return@await if (existingCandidateId != null &&
+                    existingFirstLink.matches(firstMangaId, existingCandidateId)
+                ) {
+                    LinkMangaSourcesResult.AlreadyLinked
+                } else {
+                    LinkMangaSourcesResult.Conflict
+                }
+            }
+            val candidateId = existingCandidateId ?: run {
+                mangasQueries.insert(
+                    source = candidate.source,
+                    url = candidate.url,
+                    artist = candidate.artist,
+                    author = candidate.author,
+                    description = candidate.description,
+                    genre = candidate.genre,
+                    title = candidate.title,
+                    status = candidate.status,
+                    thumbnailUrl = candidate.thumbnailUrl,
+                    favorite = false,
+                    lastUpdate = candidate.lastUpdate,
+                    nextUpdate = candidate.nextUpdate,
+                    calculateInterval = candidate.fetchInterval.toLong(),
+                    initialized = candidate.initialized,
+                    viewerFlags = candidate.viewerFlags,
+                    chapterFlags = candidate.chapterFlags,
+                    coverLastModified = candidate.coverLastModified,
+                    dateAdded = candidate.dateAdded,
+                    updateStrategy = candidate.updateStrategy,
+                    version = candidate.version,
+                    memo = candidate.memo,
+                )
+                mangaSourceLinksQueries.selectLastInsertedRowId().executeAsOne()
+            }
+            linkOriginals(firstMangaId, candidateId)
         }
     }
 

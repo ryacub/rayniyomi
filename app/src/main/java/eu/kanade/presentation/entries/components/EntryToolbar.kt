@@ -57,6 +57,8 @@ fun EntryToolbar(
     backgroundAlphaProvider: () -> Float,
     isManga: Boolean,
     modifier: Modifier = Modifier,
+    onClickLinkSources: (() -> Unit)? = null,
+    onClickUnlinkSources: (() -> Unit)? = null,
 ) {
     val isActionMode = actionModeCounter > 0
     val selectionProgress by animateFloatAsState(
@@ -160,6 +162,22 @@ fun EntryToolbar(
                                     AppBar.OverflowAction(
                                         title = stringResource(MR.strings.action_migrate),
                                         onClick = onClickMigrate,
+                                    ),
+                                )
+                            }
+                            if (onClickLinkSources != null) {
+                                add(
+                                    AppBar.OverflowAction(
+                                        title = stringResource(MR.strings.link_manga_sources),
+                                        onClick = onClickLinkSources,
+                                    ),
+                                )
+                            }
+                            if (onClickUnlinkSources != null) {
+                                add(
+                                    AppBar.OverflowAction(
+                                        title = stringResource(MR.strings.unlink_manga_sources),
+                                        onClick = onClickUnlinkSources,
                                     ),
                                 )
                             }

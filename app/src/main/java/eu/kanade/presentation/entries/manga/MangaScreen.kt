@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,10 +27,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
@@ -49,6 +52,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastMap
@@ -83,6 +87,7 @@ import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.manga.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.browse.manga.extension.details.MangaSourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.entries.manga.ChapterList
+import eu.kanade.tachiyomi.ui.entries.manga.MangaChapterVersion
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreenModel
 import eu.kanade.tachiyomi.ui.reader.CoverHandoff
 import eu.kanade.tachiyomi.util.chapter.resumeChapter
@@ -154,6 +159,8 @@ fun MangaScreen(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
+    onLinkSources: (() -> Unit)? = null,
+    onUnlinkSources: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val coverHandoffState = remember { CoverHandoffState() }
@@ -161,6 +168,15 @@ fun MangaScreen(
     val view = LocalView.current
     val coverHandoff: () -> CoverHandoff? = {
         coverHandoffState.take(view.width, view.height, state.manga.thumbnailUrl)
+    }
+    var selectedVersions by remember { mutableStateOf<List<MangaChapterVersion>?>(null) }
+    val handleChapterClick: (Chapter) -> Unit = { chapter ->
+        val item = state.processedChapters.firstOrNull { it.chapter.id == chapter.id }
+        if (item != null && item.versions.size > 1) {
+            selectedVersions = item.versions
+        } else {
+            onChapterClicked(chapter, coverHandoff())
+        }
     }
     val onCopyTagToClipboard: (tag: String) -> Unit = {
         if (it.isNotEmpty()) {
@@ -192,7 +208,7 @@ fun MangaScreen(
                     chapterSwipeStartAction = chapterSwipeStartAction,
                     chapterSwipeEndAction = chapterSwipeEndAction,
                     navigateUp = navigateUp,
-                    onChapterClicked = { chapter -> onChapterClicked(chapter, coverHandoff()) },
+                    onChapterClicked = handleChapterClick,
                     onDownloadChapter = onDownloadChapter,
                     onAddToLibraryClicked = onAddToLibraryClicked,
                     onWebViewClicked = onWebViewClicked,
@@ -219,6 +235,8 @@ fun MangaScreen(
                     onChapterSelected = onChapterSelected,
                     onAllChapterSelected = onAllChapterSelected,
                     onInvertSelection = onInvertSelection,
+                    onLinkSources = onLinkSources,
+                    onUnlinkSources = onUnlinkSources,
                     onSettingsClicked = onSettingsClicked,
                 )
             } else {
@@ -229,7 +247,7 @@ fun MangaScreen(
                     chapterSwipeEndAction = chapterSwipeEndAction,
                     nextUpdate = nextUpdate,
                     navigateUp = navigateUp,
-                    onChapterClicked = { chapter -> onChapterClicked(chapter, coverHandoff()) },
+                    onChapterClicked = handleChapterClick,
                     onDownloadChapter = onDownloadChapter,
                     onAddToLibraryClicked = onAddToLibraryClicked,
                     onWebViewClicked = onWebViewClicked,
@@ -256,10 +274,45 @@ fun MangaScreen(
                     onChapterSelected = onChapterSelected,
                     onAllChapterSelected = onAllChapterSelected,
                     onInvertSelection = onInvertSelection,
+                    onLinkSources = onLinkSources,
+                    onUnlinkSources = onUnlinkSources,
                     onSettingsClicked = onSettingsClicked,
                 )
             }
         }
+    }
+
+    selectedVersions?.let { versions ->
+        AlertDialog(
+            onDismissRequest = { selectedVersions = null },
+            title = { Text(stringResource(MR.strings.link_manga_source_choose_version)) },
+            text = {
+                Column {
+                    versions.forEach { version ->
+                        Text(
+                            text = stringResource(
+                                MR.strings.link_manga_source_version_status,
+                                version.sourceName,
+                                if (version.chapter.read) {
+                                    stringResource(MR.strings.link_manga_source_read)
+                                } else {
+                                    stringResource(MR.strings.unread)
+                                },
+                            ),
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                selectedVersions = null
+                                onChapterClicked(version.chapter, coverHandoff())
+                            }.padding(12.dp),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedVersions = null }) {
+                    Text(stringResource(MR.strings.action_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -314,6 +367,8 @@ private fun MangaScreenSmallImpl(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
+    onLinkSources: (() -> Unit)?,
+    onUnlinkSources: (() -> Unit)?,
 ) {
     val chapterListState = rememberLazyListState()
 
@@ -372,6 +427,8 @@ private fun MangaScreenSmallImpl(
                 titleAlphaProvider = { titleAlpha },
                 backgroundAlphaProvider = { backgroundAlpha },
                 isManga = true,
+                onClickLinkSources = onLinkSources,
+                onClickUnlinkSources = onUnlinkSources,
             )
         },
         bottomBar = {
@@ -390,8 +447,8 @@ private fun MangaScreenSmallImpl(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            val isFABVisible = remember(chapters) {
-                chapters.fastAny { !it.chapter.read } && !isAnySelected
+            val isFABVisible = remember(chapters, state.mangaSourceLink) {
+                (state.mangaSourceLink != null || chapters.fastAny { !it.chapter.read }) && !isAnySelected
             }
             AnimatedVisibility(
                 visible = isFABVisible,
@@ -479,6 +536,44 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
+                    if (state.mangaSourceLink != null) {
+                        item(key = "linked-source-status") {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                Text(
+                                    stringResource(
+                                        MR.strings.link_manga_source_pair_label,
+                                        state.source.name,
+                                        state.linkedSourceName.orEmpty(),
+                                    ),
+                                )
+                                if (state.linkedSourceUnavailable) {
+                                    Text(
+                                        stringResource(
+                                            MR.strings.link_manga_source_unavailable_status,
+                                            state.linkedSourceName.orEmpty(),
+                                        ),
+                                    )
+                                } else if (state.linkedSourceRefreshFailed) {
+                                    Text(
+                                        stringResource(
+                                            MR.strings.link_manga_source_refresh_failed,
+                                            state.linkedSourceName.orEmpty(),
+                                        ),
+                                    )
+                                }
+                                if (state.sourceUnavailable) {
+                                    Text(
+                                        stringResource(
+                                            MR.strings.link_manga_source_unavailable_status,
+                                            state.source.name,
+                                        ),
+                                    )
+                                } else if (state.sourceRefreshFailed) {
+                                    Text(stringResource(MR.strings.link_manga_source_refresh_failed, state.source.name))
+                                }
+                            }
+                        }
+                    }
                     item(
                         key = EntryScreenItem.ITEM_HEADER,
                         contentType = EntryScreenItem.ITEM_HEADER,
@@ -580,6 +675,8 @@ fun MangaScreenLargeImpl(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
+    onLinkSources: (() -> Unit)?,
+    onUnlinkSources: (() -> Unit)?,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
@@ -631,6 +728,8 @@ fun MangaScreenLargeImpl(
                 titleAlphaProvider = { 1f },
                 backgroundAlphaProvider = { 1f },
                 isManga = true,
+                onClickLinkSources = onLinkSources,
+                onClickUnlinkSources = onUnlinkSources,
             )
         },
         bottomBar = {
@@ -654,8 +753,8 @@ fun MangaScreenLargeImpl(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            val isFABVisible = remember(chapters) {
-                chapters.fastAny { !it.chapter.read } && !isAnySelected
+            val isFABVisible = remember(chapters, state.mangaSourceLink) {
+                (state.mangaSourceLink != null || chapters.fastAny { !it.chapter.read }) && !isAnySelected
             }
             AnimatedVisibility(
                 visible = isFABVisible,
@@ -738,6 +837,49 @@ fun MangaScreenLargeImpl(
                                 bottom = contentPadding.calculateBottomPadding(),
                             ),
                         ) {
+                            if (state.mangaSourceLink != null) {
+                                item(key = "linked-source-status") {
+                                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                        Text(
+                                            stringResource(
+                                                MR.strings.link_manga_source_pair_label,
+                                                state.source.name,
+                                                state.linkedSourceName.orEmpty(),
+                                            ),
+                                        )
+                                        if (state.linkedSourceUnavailable) {
+                                            Text(
+                                                stringResource(
+                                                    MR.strings.link_manga_source_unavailable_status,
+                                                    state.linkedSourceName.orEmpty(),
+                                                ),
+                                            )
+                                        } else if (state.linkedSourceRefreshFailed) {
+                                            Text(
+                                                stringResource(
+                                                    MR.strings.link_manga_source_refresh_failed,
+                                                    state.linkedSourceName.orEmpty(),
+                                                ),
+                                            )
+                                        }
+                                        if (state.sourceUnavailable) {
+                                            Text(
+                                                stringResource(
+                                                    MR.strings.link_manga_source_unavailable_status,
+                                                    state.source.name,
+                                                ),
+                                            )
+                                        } else if (state.sourceRefreshFailed) {
+                                            Text(
+                                                stringResource(
+                                                    MR.strings.link_manga_source_refresh_failed,
+                                                    state.source.name,
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                             item(
                                 key = EntryScreenItem.ITEM_HEADER,
                                 contentType = EntryScreenItem.ITEM_HEADER,
@@ -869,7 +1011,7 @@ private fun LazyListScope.sharedChapterItems(
                     ?: rememberUpdatedState(item.downloadProgress)
                 MangaChapterListItem(
                     modifier = rowModifier,
-                    title = chapterTitle(manga, item.chapter),
+                    title = chapterTitle(item.ownerManga ?: manga, item.chapter),
                     date = relativeDateTimeText(item.chapter.dateUpload),
                     readProgress = item.chapter.lastPageRead
                         .takeIf { !item.chapter.read && it > 0L }
@@ -880,7 +1022,10 @@ private fun LazyListScope.sharedChapterItems(
                             )
                         },
                     isResumeTarget = item.chapter.id == resumeChapterId,
-                    scanlator = item.chapter.scanlator.takeIf { !it.isNullOrBlank() },
+                    scanlator = listOfNotNull(
+                        item.chapter.scanlator?.takeIf { it.isNotBlank() },
+                        item.sourceName?.takeIf { item.versions.isNotEmpty() },
+                    ).joinToString(" · ").takeIf { it.isNotBlank() },
                     read = item.chapter.read,
                     bookmark = item.chapter.bookmark,
                     selected = item.selected,

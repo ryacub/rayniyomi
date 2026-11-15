@@ -26,6 +26,7 @@ import eu.kanade.domain.entries.manga.model.downloadedFilter
 import eu.kanade.domain.items.chapter.interactor.GetAvailableScanlators
 import eu.kanade.domain.items.chapter.interactor.SetReadStatus
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.manga.interactor.AddMangaTracks
 import eu.kanade.domain.track.manga.interactor.RefreshMangaTracks
 import eu.kanade.domain.track.manga.interactor.TrackChapter
@@ -48,6 +49,7 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.manga.isLocalOrStub
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
@@ -60,6 +62,8 @@ import eu.kanade.tachiyomi.ui.entries.common.SelectableEntryItem
 import eu.kanade.tachiyomi.ui.entries.common.entryUpdateContextFlow
 import eu.kanade.tachiyomi.ui.entries.common.fetchWindowFlow
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import eu.kanade.tachiyomi.util.chapter.StartAction
+import eu.kanade.tachiyomi.util.chapter.startAction
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
@@ -68,6 +72,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -105,6 +110,7 @@ import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.entries.manga.repository.MangaRepository
 import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
+import tachiyomi.domain.history.manga.interactor.GetMangaHistory
 import tachiyomi.domain.items.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -113,6 +119,7 @@ import tachiyomi.domain.items.chapter.model.NoChaptersException
 import tachiyomi.domain.items.chapter.service.calculateChapterGap
 import tachiyomi.domain.items.chapter.service.getChapterSort
 import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.source.manga.model.StubMangaSource
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
 import tachiyomi.i18n.MR
@@ -158,6 +165,8 @@ class MangaScreenModel(
     private val refreshTracksInteractor: RefreshMangaTracks,
     private val sourceManager: MangaSourceManager,
     private val mangaSourceLinkRepository: MangaSourceLinkRepository,
+    private val sourcePreferences: SourcePreferences,
+    private val getMangaHistory: GetMangaHistory,
 ) : StateViewModel<MangaScreenModel.State>(State.Loading) {
 
     @AssistedFactory
@@ -282,6 +291,33 @@ class MangaScreenModel(
         observeDownloads()
 
         viewModelScope.launch(ioDispatcher) {
+            combine(
+                sourcePreferences.disabledMangaSources().changes(),
+                sourcePreferences.enabledLanguages().changes(),
+                sourceManager.sources,
+            ) { disabledSources, enabledLanguages, registeredSources ->
+                Triple(disabledSources, enabledLanguages, registeredSources.map { it.id }.toSet())
+            }.flowWithLifecycle(lifecycle).collectLatest { (disabledSources, enabledLanguages, registeredSourceIds) ->
+                updateSuccessState { current ->
+                    fun MangaSource.isUnavailable() =
+                        this is StubMangaSource ||
+                            (
+                                !isLocalOrStub() && (
+                                    id.toString() in disabledSources || lang !in enabledLanguages ||
+                                        id !in registeredSourceIds
+                                    )
+                                )
+                    current.copy(
+                        sourceUnavailable = current.source.isUnavailable(),
+                        linkedSourceUnavailable =
+                        current.linkedManga?.let { sourceManager.getOrStub(it.source).isUnavailable() }
+                            ?: false,
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch(ioDispatcher) {
             val manga = getMangaAndChapters.awaitManga(mangaId)
             val chapters = getMangaAndChapters.awaitChapters(mangaId, applyScanlatorFilter = true)
 
@@ -297,7 +333,16 @@ class MangaScreenModel(
                 if (it.firstMangaId == mangaId) it.secondMangaId else it.firstMangaId
             }
             val linkedManga = linkedMangaId?.let { getMangaAndChapters.awaitManga(it) }
+            val source = sourceManager.getOrStub(manga.source)
             val linkedSource = linkedManga?.let { sourceManager.getOrStub(it.source) }
+            fun MangaSource.isUnavailable() =
+                this is StubMangaSource ||
+                    (
+                        !isLocalOrStub() && (
+                            id.toString() in sourcePreferences.disabledMangaSources().get() ||
+                                lang !in sourcePreferences.enabledLanguages().get()
+                            )
+                        )
             val linkedChapters = if (linkedManga != null) {
                 getMangaAndChapters.awaitChapters(linkedManga.id, applyScanlatorFilter = true)
             } else {
@@ -311,7 +356,8 @@ class MangaScreenModel(
             mutableState.update {
                 State.Success(
                     manga = manga,
-                    source = sourceManager.getOrStub(manga.source),
+                    source = source,
+                    sourceUnavailable = source.isUnavailable(),
                     isFromSource = isFromSource,
                     chapters = chapterListItemMapper.map(
                         chapters = chapters,
@@ -322,6 +368,7 @@ class MangaScreenModel(
                     mangaSourceLink = mangaSourceLink,
                     linkedManga = linkedManga,
                     linkedSourceName = linkedSource?.name,
+                    linkedSourceUnavailable = linkedSource?.isUnavailable() ?: false,
                     linkedChapters = linkedManga?.let {
                         chapterListItemMapper.map(
                             chapters = linkedChapters,
@@ -365,13 +412,24 @@ class MangaScreenModel(
                             mangaSourceLink = null,
                             linkedManga = null,
                             linkedSourceName = null,
+                            linkedSourceUnavailable = false,
+                            linkedSourceRefreshFailed = false,
                             linkedChapters = emptyList(),
                         )
                     }
                     return@collectLatest
                 }
 
-                updateSuccessState { it.copy(mangaSourceLink = link) }
+                updateSuccessState {
+                    it.copy(
+                        mangaSourceLink = link,
+                        linkedManga = null,
+                        linkedSourceName = null,
+                        linkedSourceUnavailable = false,
+                        linkedSourceRefreshFailed = false,
+                        linkedChapters = emptyList(),
+                    )
+                }
                 val linkedMangaId = if (link.firstMangaId == mangaId) link.secondMangaId else link.firstMangaId
                 try {
                     getMangaAndChapters.subscribe(
@@ -385,6 +443,8 @@ class MangaScreenModel(
                                 mangaSourceLink = link,
                                 linkedManga = manga,
                                 linkedSourceName = source.name,
+                                linkedSourceUnavailable = source is StubMangaSource,
+                                linkedSourceRefreshFailed = false,
                                 linkedChapters = chapterListItemMapper.map(
                                     chapters = chapters,
                                     manga = manga,
@@ -405,8 +465,118 @@ class MangaScreenModel(
 
     fun fetchAllFromSource() {
         val state = successState?.takeUnless { it.isRefreshingData } ?: return
-        val refresh = entryRefresher.refresh(state.source, state.manga)
-        viewModelScope.launch { showRefresh(refresh) }
+        val entries = buildList {
+            if (!state.sourceUnavailable) add(state.manga to state.source)
+            state.linkedManga?.let { linkedManga ->
+                if (!state.linkedSourceUnavailable) add(linkedManga to sourceManager.getOrStub(linkedManga.source))
+            }
+        }
+        if (entries.isEmpty()) return
+        viewModelScope.launch {
+            updateSuccessState { it.copy(isRefreshingData = true) }
+            entries.map { (entry, source) ->
+                async {
+                    val failure = entryRefresher.refresh(source, entry).await().exceptionOrNull()
+                    updateSuccessState {
+                        if (entry.id == it.manga.id) {
+                            it.copy(sourceRefreshFailed = failure != null)
+                        } else {
+                            it.copy(linkedSourceRefreshFailed = failure != null)
+                        }
+                    }
+                    failure?.let(::showFetchError)
+                }
+            }.awaitAll()
+            updateSuccessState { it.copy(isRefreshingData = false) }
+        }
+    }
+
+    private fun List<ChapterList.Item>.linkedStartAction(manga: Manga): StartAction {
+        val next = (
+            if (manga.sortDescending()) {
+                lastOrNull { !it.chapter.read }
+            } else {
+                firstOrNull { !it.chapter.read }
+            }
+            ) ?: return StartAction.None
+        val chapter = next.chapter
+        val touched = any { it.chapter.read || it.chapter.lastPageRead > 0L }
+        return if (touched) StartAction.Resume(chapter) else StartAction.FirstStart(chapter)
+    }
+
+    suspend fun continueReadingDecision(): ContinueReadingDecision {
+        val current = successState ?: return ContinueReadingDecision.None
+        val partner = current.linkedManga ?: return ContinueReadingDecision.Launch(
+            current.chapters.startAction(current.manga),
+        )
+        val latestHistory = (getMangaHistory.await(current.manga.id) + getMangaHistory.await(partner.id))
+            .filter { (it.readAt?.time ?: 0L) > 0L }
+            .maxWithOrNull(compareBy({ it.readAt!!.time }, { it.chapterId }))
+        val latestChapterId = latestHistory?.chapterId
+        val chapterItems = current.chapters + current.linkedChapters
+        val latestItem = latestChapterId?.let { id -> chapterItems.firstOrNull { it.chapter.id == id } }
+        if (latestItem == null) {
+            return ContinueReadingDecision.Launch(current.processedChapters.linkedStartAction(current.manga))
+        }
+
+        val ownerUnavailable = if (latestItem.chapter.mangaId == current.manga.id) {
+            current.sourceUnavailable
+        } else {
+            current.linkedSourceUnavailable
+        }
+        if (!ownerUnavailable || latestItem.isDownloaded) {
+            return ContinueReadingDecision.Launch(StartAction.Resume(latestItem.chapter))
+        }
+
+        val versions = current.processedChapters.flatMap { item ->
+            if (item.versions.isNotEmpty()) {
+                item.versions
+            } else {
+                listOf(
+                    MangaChapterVersion(
+                        manga = item.ownerManga ?: current.manga,
+                        chapter = item.chapter,
+                        sourceName = item.sourceName ?: current.source.name,
+                    ),
+                )
+            }
+        }.filter { version ->
+            val unavailable = if (version.manga.id == current.manga.id) {
+                current.sourceUnavailable
+            } else {
+                current.linkedSourceUnavailable
+            }
+            val savedItem = chapterItems.firstOrNull { it.chapter.id == version.chapter.id }
+            !unavailable || savedItem?.isDownloaded == true
+        }
+        return ContinueReadingDecision.ChooseChapter(
+            unavailableSourceName = if (latestItem.chapter.mangaId == current.manga.id) {
+                current.source.name
+            } else {
+                current.linkedSourceName.orEmpty()
+            },
+            versions = versions,
+        )
+    }
+
+    fun unlinkSources(link: MangaSourceLink) {
+        viewModelScope.launch(ioDispatcher) {
+            val unlinked = mangaSourceLinkRepository.unlink(link.firstMangaId, link.secondMangaId)
+            if (!unlinked) return@launch
+            updateSuccessState {
+                if (it.mangaSourceLink != link) {
+                    it
+                } else {
+                    it.copy(
+                        mangaSourceLink = null,
+                        linkedManga = null,
+                        linkedSourceName = null,
+                        linkedSourceUnavailable = false,
+                        linkedChapters = emptyList(),
+                    )
+                }
+            }
+        }
     }
 
     private suspend fun showRefresh(refresh: Deferred<Result<Unit>>) {
@@ -1201,6 +1371,17 @@ class MangaScreenModel(
         }
     }
 
+    sealed interface ContinueReadingDecision {
+        data class Launch(val action: StartAction) : ContinueReadingDecision
+
+        data class ChooseChapter(
+            val unavailableSourceName: String,
+            val versions: List<MangaChapterVersion>,
+        ) : ContinueReadingDecision
+
+        data object None : ContinueReadingDecision
+    }
+
     sealed interface State {
         @Immutable
         data object Loading : State
@@ -1224,6 +1405,10 @@ class MangaScreenModel(
             val mangaSourceLink: MangaSourceLink? = null,
             val linkedManga: Manga? = null,
             val linkedSourceName: String? = null,
+            val linkedSourceUnavailable: Boolean = false,
+            val sourceUnavailable: Boolean = false,
+            val sourceRefreshFailed: Boolean = false,
+            val linkedSourceRefreshFailed: Boolean = false,
             val linkedChapters: List<ChapterList.Item> = emptyList(),
         ) : State {
             val processedChapters: List<ChapterList.Item> = if (linkedManga == null) {

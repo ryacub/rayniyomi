@@ -73,7 +73,8 @@ class MangaScreenModelLibraryToggleTest {
     @BeforeEach
     fun setUp() {
         vt.setUpMain()
-        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true)
+        every { testAppGraph.mangaSourceManager } returns
+            mockk<MangaSourceManager>(relaxed = true) { every { sources } returns flowOf(emptyList()) }
         every { testAppGraph.basePreferences } returns BasePreferences(mockk(relaxed = true), InMemoryPreferenceStore())
     }
 
@@ -338,6 +339,8 @@ class MangaScreenModelLibraryToggleTest {
                 every { translationStates } returns MutableStateFlow(emptyMap())
             },
             ioDispatcher = vt.io,
+            sourcePreferences = testAppGraph.sourcePreferences,
+            getMangaHistory = testAppGraph.getMangaHistory,
         )
     }
 

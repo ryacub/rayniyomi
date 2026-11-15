@@ -62,7 +62,8 @@ class MangaScreenModelOutdatedListTest {
     fun setUp() {
         vt.setUpMain()
         every { testAppGraph.basePreferences.downloadedOnly().get() } returns false
-        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true)
+        every { testAppGraph.mangaSourceManager } returns
+            mockk<MangaSourceManager>(relaxed = true) { every { sources } returns flowOf(emptyList()) }
     }
 
     @AfterEach
@@ -272,6 +273,8 @@ class MangaScreenModelOutdatedListTest {
             fetchInterval = fetchInterval,
             clock = clock,
             ioDispatcher = vt.io,
+            sourcePreferences = testAppGraph.sourcePreferences,
+            getMangaHistory = testAppGraph.getMangaHistory,
         )
     }
 }

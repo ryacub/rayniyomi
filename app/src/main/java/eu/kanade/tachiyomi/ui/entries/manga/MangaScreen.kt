@@ -4,7 +4,14 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,6 +81,7 @@ import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -109,6 +118,11 @@ class MangaScreen(
         }
 
         val successState = state as MangaScreenModel.State.Success
+        var unlinkSourceLink by remember { mutableStateOf<MangaSourceLink?>(null) }
+        var continueChoices by remember {
+            mutableStateOf<MangaScreenModel.ContinueReadingDecision.ChooseChapter?>(null)
+        }
+        var continueChoiceCover by remember { mutableStateOf<CoverHandoff?>(null) }
         val isHttpSource = remember { successState.source is HttpSource }
 
         LaunchedEffect(successState.manga, screenModel.source) {
@@ -165,7 +179,20 @@ class MangaScreen(
             onFilterButtonClicked = screenModel::showSettingsDialog,
             onRefresh = screenModel::fetchAllFromSource,
             onContinueReading = { cover ->
-                continueReading(context, successState.chapters.startAction(successState.manga), cover)
+                scope.launch {
+                    when (val decision = screenModel.continueReadingDecision()) {
+                        is MangaScreenModel.ContinueReadingDecision.Launch -> continueReading(
+                            context,
+                            decision.action,
+                            cover,
+                        )
+                        is MangaScreenModel.ContinueReadingDecision.ChooseChapter -> {
+                            continueChoiceCover = cover
+                            continueChoices = decision
+                        }
+                        MangaScreenModel.ContinueReadingDecision.None -> Unit
+                    }
+                }
             },
             onSearch = { query, global -> scope.launch { performSearch(navigator, query, global) } },
             onCoverClicked = screenModel::showCoverDialog,
@@ -192,7 +219,78 @@ class MangaScreen(
             onChapterSelected = screenModel::toggleSelection,
             onAllChapterSelected = screenModel::toggleAllSelection,
             onInvertSelection = screenModel::invertSelection,
+            onLinkSources = { navigator.push(LinkMangaSourceScreen(successState.manga.id)) }
+                .takeIf { successState.mangaSourceLink == null },
+            onUnlinkSources = { unlinkSourceLink = successState.mangaSourceLink }
+                .takeIf { successState.mangaSourceLink != null },
         )
+
+        if (unlinkSourceLink != null) {
+            AlertDialog(
+                onDismissRequest = { unlinkSourceLink = null },
+                title = { Text(context.stringResource(MR.strings.link_manga_source_unlink_confirm_title)) },
+                text = { Text(context.stringResource(MR.strings.link_manga_source_unlink_confirm_text)) },
+                dismissButton = {
+                    TextButton(onClick = { unlinkSourceLink = null }) {
+                        Text(context.stringResource(MR.strings.action_cancel))
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        unlinkSourceLink?.let(screenModel::unlinkSources)
+                        unlinkSourceLink = null
+                    }) {
+                        Text(context.stringResource(MR.strings.unlink_manga_sources))
+                    }
+                },
+            )
+        }
+
+        continueChoices?.let { choice ->
+            AlertDialog(
+                onDismissRequest = {
+                    continueChoices = null
+                    continueChoiceCover = null
+                },
+                title = { Text(context.stringResource(MR.strings.link_manga_source_resume_unavailable_title)) },
+                text = {
+                    Column {
+                        Text(
+                            context.stringResource(
+                                MR.strings.link_manga_source_resume_unavailable_text,
+                                choice.unavailableSourceName,
+                            ),
+                        )
+                        choice.versions.forEach { version ->
+                            Text(
+                                text = context.stringResource(
+                                    MR.strings.link_manga_source_version_status,
+                                    version.sourceName,
+                                    if (version.chapter.read) {
+                                        context.stringResource(MR.strings.link_manga_source_read)
+                                    } else {
+                                        context.stringResource(MR.strings.unread)
+                                    },
+                                ),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    openChapter(context, version.chapter, continueChoiceCover)
+                                    continueChoices = null
+                                    continueChoiceCover = null
+                                }.padding(12.dp),
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        continueChoices = null
+                        continueChoiceCover = null
+                    }) {
+                        Text(context.stringResource(MR.strings.action_cancel))
+                    }
+                },
+            )
+        }
 
         var showScanlatorsDialog by remember { mutableStateOf(false) }
 
