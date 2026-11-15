@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryMangaDb
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -33,6 +34,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
+import tachiyomi.data.entries.manga.MangaRepositoryImpl
+import tachiyomi.data.entries.manga.MangaSourceLinkRepositoryImpl
+import tachiyomi.data.items.chapter.ChapterRepositoryImpl
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -74,6 +78,47 @@ class MangaScreenModelSourceFetchTest {
     @AfterEach
     fun tearDown() {
         vt.tearDownMain()
+    }
+
+    @Test
+    fun `a persisted source pair presents chapters from both originals as one numbered list`() = runTest(vt.scheduler) {
+        InMemoryMangaDb().use { db ->
+            db.insertManga(id = 1, url = "first", title = "First", source = 1)
+            db.insertManga(id = 2, url = "second", title = "Second", source = 2)
+            val mangas = MangaRepositoryImpl(db.handler)
+            val first = mangas.getMangaById(1)
+            val chapters = ChapterRepositoryImpl(db.handler)
+            chapters.addAllChapters(
+                (1..30).map { number ->
+                    Chapter.create().copy(
+                        id = number.toLong(),
+                        mangaId = first.id,
+                        url = "first-$number",
+                        name = "Chapter $number",
+                        chapterNumber = number.toDouble(),
+                    )
+                } + (25..40).map { number ->
+                    Chapter.create().copy(
+                        id = (100 + number).toLong(),
+                        mangaId = 2,
+                        url = "second-$number",
+                        name = "Chapter $number",
+                        chapterNumber = number.toDouble(),
+                    )
+                },
+            )
+            val sourceLinks = MangaSourceLinkRepositoryImpl(db.handler)
+            sourceLinks.link(firstMangaId = 1, secondMangaId = 2) shouldBe
+                tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult.Linked
+
+            val model = createModel(
+                manga = first,
+                chapters = chapters.getChapterByMangaId(first.id),
+            )
+            advanceUntilIdle()
+
+            model.successState().chapterListItems.filterIsInstance<ChapterList.Item>().size shouldBe 40
+        }
     }
 
     @Test
