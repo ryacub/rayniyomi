@@ -102,7 +102,9 @@ import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
 import tachiyomi.domain.entries.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.entries.manga.repository.MangaRepository
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.items.chapter.interactor.UpdateChapter
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -155,6 +157,7 @@ class MangaScreenModel(
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     private val refreshTracksInteractor: RefreshMangaTracks,
     private val sourceManager: MangaSourceManager,
+    private val mangaSourceLinkRepository: MangaSourceLinkRepository,
 ) : StateViewModel<MangaScreenModel.State>(State.Loading) {
 
     @AssistedFactory
@@ -289,6 +292,17 @@ class MangaScreenModel(
             val needRefreshInfo = !manga.initialized
             val needRefreshChapter = chapters.isEmpty()
             val runningRefresh = entryRefresher.running(mangaId)
+            val mangaSourceLink = mangaSourceLinkRepository.getForManga(mangaId)
+            val linkedMangaId = mangaSourceLink?.let {
+                if (it.firstMangaId == mangaId) it.secondMangaId else it.firstMangaId
+            }
+            val linkedManga = linkedMangaId?.let { getMangaAndChapters.awaitManga(it) }
+            val linkedSource = linkedManga?.let { sourceManager.getOrStub(it.source) }
+            val linkedChapters = if (linkedManga != null) {
+                getMangaAndChapters.awaitChapters(linkedManga.id, applyScanlatorFilter = true)
+            } else {
+                emptyList()
+            }
 
             // Show what we have earlier
             // One-shot initial render before any flow has emitted; the combine above corrects it
@@ -305,6 +319,17 @@ class MangaScreenModel(
                         selectedChapterIds = selectedChapterIds,
                         translationStates = translationStates,
                     ),
+                    mangaSourceLink = mangaSourceLink,
+                    linkedManga = linkedManga,
+                    linkedSourceName = linkedSource?.name,
+                    linkedChapters = linkedManga?.let {
+                        chapterListItemMapper.map(
+                            chapters = linkedChapters,
+                            manga = it,
+                            selectedChapterIds = emptySet(),
+                            translationStates = translationStates,
+                        )
+                    }.orEmpty(),
                     translationSummary = translationSummaryFrom(translationStates, chapters),
                     availableScanlators = getAvailableScanlators.await(mangaId),
                     excludedScanlators = getExcludedScanlators.await(mangaId),
@@ -313,6 +338,7 @@ class MangaScreenModel(
                     updateContext = updateContext.value,
                 )
             }
+            observeLinkedManga()
             // Start observe tracking since it only needs mangaId
             observeTrackers()
 
@@ -327,6 +353,53 @@ class MangaScreenModel(
 
             // Initial loading finished
             updateSuccessState { it.copy(isRefreshingData = false) }
+        }
+    }
+
+    private fun observeLinkedManga() {
+        viewModelScope.launch(ioDispatcher) {
+            mangaSourceLinkRepository.getForMangaAsFlow(mangaId).collectLatest { link ->
+                if (link == null) {
+                    updateSuccessState {
+                        it.copy(
+                            mangaSourceLink = null,
+                            linkedManga = null,
+                            linkedSourceName = null,
+                            linkedChapters = emptyList(),
+                        )
+                    }
+                    return@collectLatest
+                }
+
+                updateSuccessState { it.copy(mangaSourceLink = link) }
+                val linkedMangaId = if (link.firstMangaId == mangaId) link.secondMangaId else link.firstMangaId
+                try {
+                    getMangaAndChapters.subscribe(
+                        linkedMangaId,
+                        applyScanlatorFilter = true,
+                    ).collectLatest { (manga, chapters) ->
+                        val source = sourceManager.getOrStub(manga.source)
+                        val translationStates = translationManager.translationStates.value
+                        updateSuccessState {
+                            it.copy(
+                                mangaSourceLink = link,
+                                linkedManga = manga,
+                                linkedSourceName = source.name,
+                                linkedChapters = chapterListItemMapper.map(
+                                    chapters = chapters,
+                                    manga = manga,
+                                    selectedChapterIds = emptySet(),
+                                    translationStates = translationStates,
+                                ),
+                            )
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) { "Failed to observe linked manga $linkedMangaId" }
+                }
+            }
         }
     }
 
@@ -1148,8 +1221,36 @@ class MangaScreenModel(
             val libraryConfirmations: Int = 0,
             val translationSummary: TranslationSummary? = null,
             val updateContext: EntryUpdateContext? = null,
+            val mangaSourceLink: MangaSourceLink? = null,
+            val linkedManga: Manga? = null,
+            val linkedSourceName: String? = null,
+            val linkedChapters: List<ChapterList.Item> = emptyList(),
         ) : State {
-            val processedChapters = chapters.applyFilters(manga).toList()
+            val processedChapters: List<ChapterList.Item> = if (linkedManga == null) {
+                chapters.applyFilters(manga).toList()
+            } else {
+                val first = chapters.applyFilters(manga).toList()
+                val second = linkedChapters.applyFilters(linkedManga).toList()
+                val itemByChapter = (first.map { manga to it } + second.map { linkedManga to it })
+                    .associate { (owner, item) -> (owner.id to item.chapter.id) to item }
+                MangaChapterSequence.project(
+                    firstManga = manga,
+                    firstChapters = first.map { it.chapter },
+                    firstSourceName = source.name,
+                    secondManga = linkedManga,
+                    secondChapters = second.map { it.chapter },
+                    secondSourceName = linkedSourceName.orEmpty(),
+                    link = mangaSourceLink ?: MangaSourceLink(manga.id, linkedManga.id),
+                    descending = manga.sortDescending(),
+                ).map { group ->
+                    val representative = group.representative
+                    itemByChapter.getValue(representative.manga.id to representative.chapter.id).copy(
+                        ownerManga = representative.manga,
+                        sourceName = representative.sourceName,
+                        versions = group.versions,
+                    )
+                }
+            }
 
             val isAnySelected by lazy {
                 chapters.fastAny { it.selected }
@@ -1230,6 +1331,9 @@ sealed class ChapterList {
         val translationState: TranslationState = TranslationState.Idle,
         val downloadProgressSource: EntryDownloadProgress? = null,
         val downloadPaused: Boolean = false,
+        val ownerManga: Manga? = null,
+        val sourceName: String? = null,
+        val versions: List<MangaChapterVersion> = emptyList(),
     ) : ChapterList(), SelectableEntryItem {
         override val id: Long
             get() = chapter.id

@@ -24,6 +24,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -39,6 +40,7 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.entries.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.track.manga.interactor.GetMangaTracks
@@ -48,6 +50,10 @@ import tachiyomi.i18n.MR
 class MangaScreenModelLibraryToggleTest {
 
     private val vt = VirtualTime()
+    private val mangaSourceLinkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+        coEvery { getForManga(any()) } returns null
+        every { getForMangaAsFlow(any()) } returns flowOf(null)
+    }
     private val resources = mockk<Resources> {
         every { getString(any()) } answers { "string-${firstArg<Int>()}" }
     }
@@ -318,6 +324,7 @@ class MangaScreenModelLibraryToggleTest {
             fetchInterval = testAppGraph.mangaFetchInterval,
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,
+            mangaSourceLinkRepository = mangaSourceLinkRepository,
             libraryPreferences = LibraryPreferences(InMemoryPreferenceStore()),
             trackPreferences = TrackPreferences(InMemoryPreferenceStore()),
             readerPreferences = ReaderPreferences(InMemoryPreferenceStore()),

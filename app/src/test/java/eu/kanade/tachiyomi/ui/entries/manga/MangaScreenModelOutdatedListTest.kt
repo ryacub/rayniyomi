@@ -35,6 +35,7 @@ import tachiyomi.domain.category.manga.interactor.GetMangaCategories
 import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.entries.manga.interactor.MangaFetchInterval
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
@@ -49,6 +50,10 @@ import java.time.temporal.ChronoUnit
 class MangaScreenModelOutdatedListTest {
 
     private val vt = VirtualTime()
+    private val mangaSourceLinkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+        coEvery { getForManga(any()) } returns null
+        every { getForMangaAsFlow(any()) } returns flowOf(null)
+    }
     private val fetchInterval = MangaFetchInterval(mockk())
     private val clock = MutableClock(Instant.parse("2026-03-10T12:00:00Z"))
     private val owner = TestLifecycleOwner(Lifecycle.State.RESUMED, vt.main)
@@ -247,6 +252,7 @@ class MangaScreenModelOutdatedListTest {
             updateMangaFromRemote = testAppGraph.updateMangaFromRemote,
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,
+            mangaSourceLinkRepository = mangaSourceLinkRepository,
             libraryPreferences = LibraryPreferences(InMemoryPreferenceStore()),
             trackPreferences = TrackPreferences(InMemoryPreferenceStore()),
             readerPreferences = ReaderPreferences(InMemoryPreferenceStore()),

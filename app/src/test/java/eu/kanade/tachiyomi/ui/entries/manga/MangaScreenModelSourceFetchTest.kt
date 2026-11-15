@@ -6,13 +6,13 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
 import eu.kanade.domain.source.manga.model.RemoteMangaUpdate
 import eu.kanade.domain.track.service.TrackPreferences
+import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryMangaDb
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
-import eu.kanade.tachiyomi.data.backup.restore.restorers.InMemoryMangaDb
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,6 +26,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
@@ -33,11 +34,13 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
-import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
 import tachiyomi.data.entries.manga.MangaRepositoryImpl
 import tachiyomi.data.entries.manga.MangaSourceLinkRepositoryImpl
 import tachiyomi.data.items.chapter.ChapterRepositoryImpl
+import tachiyomi.domain.entries.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
@@ -108,16 +111,38 @@ class MangaScreenModelSourceFetchTest {
                 },
             )
             val sourceLinks = MangaSourceLinkRepositoryImpl(db.handler)
-            sourceLinks.link(firstMangaId = 1, secondMangaId = 2) shouldBe
-                tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult.Linked
+            sourceLinks.link(firstMangaId = 1, secondMangaId = 2) shouldBe LinkMangaSourcesResult.Linked
+            val second = mangas.getMangaById(2)
 
             val model = createModel(
                 manga = first,
                 chapters = chapters.getChapterByMangaId(first.id),
+                mangaSourceLinkRepository = sourceLinks,
+                linkedManga = second,
+                linkedChapters = chapters.getChapterByMangaId(second.id),
             )
-            advanceUntilIdle()
+            val firstState = model.state.first {
+                it is MangaScreenModel.State.Success
+            } as MangaScreenModel.State.Success
+            val firstRows = firstState.chapterListItems.filterIsInstance<ChapterList.Item>()
+            firstRows.size shouldBe 40
+            firstRows.map { it.chapter.chapterNumber }.toSet() shouldBe (1..40).map(Int::toDouble).toSet()
+            firstRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe listOf(1L, 2L)
 
-            model.successState().chapterListItems.filterIsInstance<ChapterList.Item>().size shouldBe 40
+            val reversedModel = createModel(
+                manga = second,
+                chapters = chapters.getChapterByMangaId(second.id),
+                mangaSourceLinkRepository = sourceLinks,
+                linkedManga = first,
+                linkedChapters = chapters.getChapterByMangaId(first.id),
+            )
+            val reversedState = reversedModel.state.first {
+                it is MangaScreenModel.State.Success
+            } as MangaScreenModel.State.Success
+            val reversedRows = reversedState.chapterListItems.filterIsInstance<ChapterList.Item>()
+            reversedRows.map { it.chapter.chapterNumber } shouldBe firstRows.map { it.chapter.chapterNumber }
+            reversedRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe
+                listOf(1L, 2L)
         }
     }
 
@@ -300,11 +325,27 @@ class MangaScreenModelSourceFetchTest {
 
     private fun MangaScreenModel.successState() = state.value as MangaScreenModel.State.Success
 
-    private fun createModel(manga: Manga, chapters: List<Chapter>): MangaScreenModel {
+    private fun createModel(
+        manga: Manga,
+        chapters: List<Chapter>,
+        mangaSourceLinkRepository: MangaSourceLinkRepository = mockk(relaxed = true) {
+            coEvery { getForManga(any()) } returns null
+            every { getForMangaAsFlow(any()) } returns flowOf(null)
+        },
+        linkedManga: Manga? = null,
+        linkedChapters: List<Chapter> = emptyList(),
+    ): MangaScreenModel {
         val getMangaAndChapters = mockk<GetMangaWithChapters> {
-            coEvery { subscribe(any(), any()) } returns emptyFlow()
+            coEvery { subscribe(any(), any()) } answers {
+                val id = firstArg<Long>()
+                if (linkedManga?.id == id) flowOf(linkedManga to linkedChapters) else emptyFlow()
+            }
             coEvery { awaitManga(manga.id) } returns manga
             coEvery { awaitChapters(manga.id, any()) } returns chapters
+            if (linkedManga != null) {
+                coEvery { awaitManga(linkedManga.id) } returns linkedManga
+                coEvery { awaitChapters(linkedManga.id, any()) } returns linkedChapters
+            }
         }
         return MangaScreenModel(
             context = mockk(relaxed = true),
@@ -329,6 +370,7 @@ class MangaScreenModelSourceFetchTest {
             fetchInterval = testAppGraph.mangaFetchInterval,
             refreshTracksInteractor = mockk(relaxed = true),
             sourceManager = testAppGraph.mangaSourceManager,
+            mangaSourceLinkRepository = mangaSourceLinkRepository,
             libraryPreferences = LibraryPreferences(InMemoryPreferenceStore()),
             trackPreferences = TrackPreferences(InMemoryPreferenceStore()),
             readerPreferences = ReaderPreferences(InMemoryPreferenceStore()),
