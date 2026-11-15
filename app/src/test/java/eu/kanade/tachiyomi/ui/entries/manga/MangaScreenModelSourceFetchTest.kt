@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.di.testAppGraph
 import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.test.VirtualTime
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import io.kotest.matchers.shouldBe
@@ -27,6 +28,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
@@ -269,6 +271,55 @@ class MangaScreenModelSourceFetchTest {
 
         model.successState().linkedChapters.map { it.chapter.id } shouldBe listOf(21L)
         model.successState().linkedSourceUnavailable shouldBe true
+    }
+
+    @Test
+    fun `a linked chapter download updates the linked row`() = runTest(vt.scheduler) {
+        val primary = manga(initialized = true).copy(favorite = true)
+        val partner = manga(id = 2L, source = 2L, initialized = true).copy(title = "Partner")
+        val partnerChapter = chapter(id = 21L, mangaId = partner.id)
+        val link = MangaSourceLink(primary.id, partner.id)
+        val linkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+            coEvery { getForManga(primary.id) } returns link
+            every { getForMangaAsFlow(primary.id) } returns flowOf(link)
+        }
+        val primarySource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns primary.source
+            every { lang } returns "en"
+            every { name } returns "Primary"
+        }
+        val partnerSource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns partner.source
+            every { lang } returns "en"
+            every { name } returns "Partner"
+        }
+        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
+            every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { getAll() } returns listOf(primarySource, partnerSource)
+            every { get(primary.source) } returns primarySource
+            every { get(partner.source) } returns partnerSource
+            every { getOrStub(primary.source) } returns primarySource
+            every { getOrStub(partner.source) } returns partnerSource
+        }
+        val downloadStatuses = MutableSharedFlow<MangaDownload>(extraBufferCapacity = 1)
+        every { downloadManager.statusFlow() } returns downloadStatuses
+        val model = createModel(
+            manga = primary,
+            chapters = listOf(chapter()),
+            mangaSourceLinkRepository = linkRepository,
+            linkedManga = partner,
+            linkedChapters = listOf(partnerChapter),
+        )
+        advanceUntilIdle()
+
+        val download = MangaDownload(mockk<HttpSource>(), partner, partnerChapter).apply {
+            status = MangaDownload.State.DOWNLOADED
+        }
+        downloadStatuses.emit(download)
+        advanceUntilIdle()
+
+        model.successState().linkedChapters.single().downloadState shouldBe MangaDownload.State.DOWNLOADED
+        model.successState().chapters.single().downloadState shouldBe MangaDownload.State.NOT_DOWNLOADED
     }
 
     @Test
