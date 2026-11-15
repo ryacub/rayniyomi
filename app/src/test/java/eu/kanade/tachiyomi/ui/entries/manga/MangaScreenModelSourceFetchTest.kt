@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.entries.manga
 
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.testing.TestLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
@@ -309,6 +310,7 @@ class MangaScreenModelSourceFetchTest {
             mangaSourceLinkRepository = linkRepository,
             linkedManga = partner,
             linkedChapters = listOf(partnerChapter),
+            lifecycle = TestLifecycleOwner(Lifecycle.State.RESUMED, vt.main).lifecycle,
         )
         advanceUntilIdle()
 
@@ -571,6 +573,7 @@ class MangaScreenModelSourceFetchTest {
         linkedChapters: List<Chapter> = emptyList(),
         linkedChaptersFlow: MutableStateFlow<Pair<Manga, List<Chapter>>>? = null,
         sourcePreferences: SourcePreferences = this.sourcePreferences,
+        lifecycle: Lifecycle = mockk(relaxed = true),
         translationManager: TranslationManager = mockk {
             every { translationStates } returns MutableStateFlow(emptyMap())
         },
@@ -589,7 +592,7 @@ class MangaScreenModelSourceFetchTest {
         }
         return MangaScreenModel(
             context = mockk(relaxed = true),
-            lifecycle = mockk<Lifecycle>(relaxed = true),
+            lifecycle = lifecycle,
             mangaId = manga.id,
             isFromSource = false,
             trackChapter = testAppGraph.trackChapter,
