@@ -75,7 +75,7 @@ class AnimeImageFetcher(
         if (url == null) error("No cover specified")
         return when (getResourceType(url)) {
             Type.URL -> httpLoader()
-            Type.File -> fileLoader(File(url.substringAfter("file://")))
+            Type.File -> fileLoader(url.toLocalImageFile())
             Type.URI -> uniFileLoader(url)
             null -> error("Invalid image")
         }
