@@ -29,14 +29,17 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import mihon.domain.items.chapter.interactor.FilterChaptersForDownload
 import org.junit.jupiter.api.AfterEach
@@ -275,6 +278,67 @@ class MangaScreenModelSourceFetchTest {
 
         model.successState().linkedChapters.map { it.chapter.id } shouldBe listOf(21L)
         model.successState().linkedSourceUnavailable shouldBe true
+    }
+
+    @Test
+    fun `a repeated source pair keeps the linked snapshot and refresh failure`() = runTest(vt.scheduler) {
+        val primary = manga(initialized = true).copy(favorite = true)
+        val partner = manga(id = 2L, source = 2L, initialized = false).copy(title = "Partner")
+        val link = MangaSourceLink(primary.id, partner.id)
+        val linkEvents = MutableSharedFlow<MangaSourceLink?>(replay = 1)
+        linkEvents.tryEmit(link)
+        var linkedSubscriptions = 0
+        val linkedSnapshot: Flow<Pair<Manga, List<Chapter>>> = flow {
+            linkedSubscriptions++
+            if (linkedSubscriptions == 1) {
+                emit(partner to emptyList())
+            } else {
+                CompletableDeferred<Unit>().await()
+            }
+        }
+        val linkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+            coEvery { getForManga(primary.id) } returns link
+            every { getForMangaAsFlow(primary.id) } returns linkEvents
+        }
+        val primarySource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns primary.source
+            every { lang } returns "en"
+            every { name } returns "Primary"
+        }
+        val partnerSource = mockk<MangaSource>(relaxed = true) {
+            every { id } returns partner.source
+            every { lang } returns "en"
+            every { name } returns "Partner"
+        }
+        every { testAppGraph.mangaSourceManager } returns mockk<MangaSourceManager>(relaxed = true) {
+            every { sources } returns flowOf(listOf(primarySource, partnerSource))
+            every { getAll() } returns listOf(primarySource, partnerSource)
+            every { get(primary.source) } returns primarySource
+            every { get(partner.source) } returns partnerSource
+            every { getOrStub(primary.source) } returns primarySource
+            every { getOrStub(partner.source) } returns partnerSource
+        }
+        coEvery { updateMangaFromRemote(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(IllegalStateException("partner refresh failed"))
+        val model = createModel(
+            manga = primary,
+            chapters = listOf(chapter()),
+            mangaSourceLinkRepository = linkRepository,
+            linkedManga = partner,
+            linkedChaptersFlow = linkedSnapshot,
+        )
+        advanceUntilIdle()
+
+        model.successState().linkedSourceRefreshFailed shouldBe true
+        model.successState().linkedManga?.id shouldBe partner.id
+        linkedSubscriptions shouldBe 1
+
+        linkEvents.emit(link)
+        runCurrent()
+
+        model.successState().linkedSourceRefreshFailed shouldBe true
+        model.successState().linkedManga?.id shouldBe partner.id
+        linkedSubscriptions shouldBe 1
     }
 
     @Test
@@ -579,7 +643,7 @@ class MangaScreenModelSourceFetchTest {
         },
         linkedManga: Manga? = null,
         linkedChapters: List<Chapter> = emptyList(),
-        linkedChaptersFlow: MutableStateFlow<Pair<Manga, List<Chapter>>>? = null,
+        linkedChaptersFlow: Flow<Pair<Manga, List<Chapter>>>? = null,
         sourcePreferences: SourcePreferences = this.sourcePreferences,
         lifecycle: Lifecycle = mockk(relaxed = true),
         fetchInterval: MangaFetchInterval = testAppGraph.mangaFetchInterval,
