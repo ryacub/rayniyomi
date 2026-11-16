@@ -16,6 +16,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
@@ -37,7 +38,13 @@ class LinkMangaSourceScreenModelTest {
         every { lang } returns "en"
         every { getFilterList() } returns mockk()
     }
-    private val preferences = SourcePreferences(InMemoryPreferenceStore(emptySequence()))
+    private val preferenceStore = SourcePreferences(InMemoryPreferenceStore(emptySequence()))
+    private val disabled = preferenceStore.disabledMangaSources()
+    private val languages = preferenceStore.enabledLanguages()
+    private val preferences = mockk<SourcePreferences> {
+        every { disabledMangaSources() } returns disabled
+        every { enabledLanguages() } returns languages
+    }
     private lateinit var model: LinkMangaSourceScreenModel
 
     @BeforeEach
@@ -53,7 +60,7 @@ class LinkMangaSourceScreenModelTest {
                 every { name } returns "Source A"
             }
         }
-        preferences.enabledLanguages().set(setOf("en"))
+        languages.set(setOf("en"))
         model = LinkMangaSourceScreenModel(original.id, getManga, sourceManager, preferences, mockk())
     }
 
@@ -118,7 +125,8 @@ class LinkMangaSourceScreenModelTest {
     @Test
     fun `disabling the selected source clears the picker selection`() = runTest(time.scheduler) {
         model.selectSource(alternative)
-        preferences.disabledMangaSources().set(setOf(alternative.id.toString()))
+        disabled.set(setOf(alternative.id.toString()))
+        advanceUntilIdle()
 
         model.state.value.sources shouldBe emptyList()
         model.state.value.source shouldBe null
