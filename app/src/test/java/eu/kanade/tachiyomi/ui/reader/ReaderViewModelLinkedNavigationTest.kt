@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
@@ -91,7 +92,13 @@ class ReaderViewModelLinkedNavigationTest {
                     chapterNumber = id.toDouble(),
                     lastPageRead = if (id == 31L) 4L else 0L,
                 )
-            }
+            } + Chapter.create().copy(
+                id = 231L,
+                mangaId = partner.id,
+                url = "b-31-alt",
+                name = "Chapter 31 alt",
+                chapterNumber = 31.0,
+            )
             val getManga = mockk<GetManga> {
                 coEvery { await(1L) } returns manga
                 coEvery { await(2L) } returns partner
@@ -185,9 +192,11 @@ class ReaderViewModelLinkedNavigationTest {
                 assertEquals(true, initialized.getOrThrow())
                 assertEquals(30L, model.state.value.currentChapter?.chapter?.id)
 
+                val firstNextVersion = model.state.value.viewerChapters?.nextChapter
                 model.loadNextChapter()
 
                 assertEquals(31L, model.state.value.currentChapter?.chapter?.id)
+                assertSame(firstNextVersion, model.state.value.currentChapter)
                 assertEquals(4, model.state.value.currentChapter?.requestedPage)
                 assertEquals(listOf(31L, 4L), savedState.get<LongArray>("reader_checkpoint")?.toList())
                 assertEquals(partnerSource, model.getSource())
@@ -202,6 +211,10 @@ class ReaderViewModelLinkedNavigationTest {
                 model.loadNextChapter()
 
                 assertEquals(31L, model.state.value.currentChapter?.chapter?.id)
+
+                model.loadNextChapter()
+
+                assertEquals(132L, model.state.value.currentChapter?.chapter?.id)
 
                 disabledSources.set(setOf("12"))
                 assertEquals(setOf("12"), sourcePrefs.disabledMangaSources().get())
