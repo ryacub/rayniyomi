@@ -10,6 +10,7 @@ import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.assertThrows
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.model.MangaSourceLink
 import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.items.chapter.model.Chapter
@@ -169,6 +171,28 @@ class ReaderChapterListManagerTest {
         val chapterForDeletion = manager.getChapterForDeletion(current, removeAfterReadSlots = 3)
 
         assertNull(chapterForDeletion)
+    }
+
+    @Test
+    fun `remove after read zero returns the exact linked chapter instance`() = runTest {
+        val partner = Manga.create().copy(id = 2L, title = "Partner", source = 456L)
+        val first = chapter(id = 11L, number = 31.0).copy(mangaId = baseManga.id)
+        val currentChapter = chapter(id = 13L, number = 31.0).copy(mangaId = partner.id)
+        coEvery { mangaSourceLinkRepository.getForManga(baseManga.id) } returns
+            MangaSourceLink(baseManga.id, partner.id)
+        coEvery { getManga.await(partner.id) } returns partner
+        coEvery { getChaptersByMangaId.await(baseManga.id, applyScanlatorFilter = true) } returns listOf(first)
+        coEvery { getChaptersByMangaId.await(partner.id, applyScanlatorFilter = true) } returns listOf(
+            chapter(id = 12L, number = 31.0).copy(mangaId = partner.id),
+            currentChapter,
+        )
+        manager.chapterId = currentChapter.id
+        manager.initChapterList(baseManga)
+
+        val current = manager.getChapterById(currentChapter.id)
+        val chapterForDeletion = manager.getChapterForDeletion(current, removeAfterReadSlots = 0)
+
+        assertSame(current, chapterForDeletion)
     }
 
     @Test
