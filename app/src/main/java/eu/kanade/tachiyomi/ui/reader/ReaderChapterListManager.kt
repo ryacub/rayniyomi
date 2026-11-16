@@ -77,7 +77,8 @@ internal class ReaderChapterListManager(
         } else {
             val firstManga = readerMangas.first { it.id == link.firstMangaId }
             val secondManga = readerMangas.first { it.id == link.secondMangaId }
-            MangaChapterSequence.project(
+            val readerChaptersById = processedByOwner.values.flatten().associateBy { it.chapter.id }
+            val orderedChapters = MangaChapterSequence.project(
                 firstManga = firstManga,
                 firstChapters = processedByOwner.getValue(firstManga).map { it.chapter },
                 firstSourceName = "",
@@ -86,7 +87,20 @@ internal class ReaderChapterListManager(
                 secondSourceName = "",
                 link = link,
                 descending = false,
-            ).map { group -> group.versions.map { ReaderChapter(it.chapter) } }
+            ).flatMap { group -> group.versions.map { readerChaptersById.getValue(it.chapter.id) } }
+            val groups = mutableListOf<MutableList<ReaderChapter>>()
+            orderedChapters.forEach { chapter ->
+                val number = chapter.chapter.chapterNumber.takeIf { chapter.chapter.isRecognizedNumber }
+                val lastGroup = groups.lastOrNull()
+                val lastChapter = lastGroup?.firstOrNull()?.chapter
+                val lastNumber = lastChapter?.takeIf { it.isRecognizedNumber }?.chapterNumber
+                if (number != null && number == lastNumber) {
+                    lastGroup += chapter
+                } else {
+                    groups += mutableListOf(chapter)
+                }
+            }
+            groups.map { it.toList() }
         }
         _chapterList = chapterGroups.flatten()
         return _chapterList

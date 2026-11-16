@@ -904,8 +904,13 @@ class ReaderActivity : BaseActivity() {
      */
     private fun loadNextChapter() {
         lifecycleScope.launch {
+            val previousChapterId = viewModel.state.value.currentChapter?.chapter?.id ?: return@launch
             viewModel.loadNextChapter()
-            moveToPageIndex(0)
+            toolbarNavigationPageIndex(
+                previousChapterId = previousChapterId,
+                currentChapter = viewModel.state.value.currentChapter,
+                isLinked = viewModel.isLinkedSession,
+            )?.let(::moveToPageIndex)
         }
     }
 
@@ -915,8 +920,13 @@ class ReaderActivity : BaseActivity() {
      */
     private fun loadPreviousChapter() {
         lifecycleScope.launch {
+            val previousChapterId = viewModel.state.value.currentChapter?.chapter?.id ?: return@launch
             viewModel.loadPreviousChapter()
-            moveToPageIndex(0)
+            toolbarNavigationPageIndex(
+                previousChapterId = previousChapterId,
+                currentChapter = viewModel.state.value.currentChapter,
+                isLinked = viewModel.isLinkedSession,
+            )?.let(::moveToPageIndex)
         }
     }
 
@@ -1411,4 +1421,14 @@ private fun tabletopControlsConstraintsDp(foldState: ReaderFoldState?): Tabletop
             }
         }
     }
+}
+
+internal fun toolbarNavigationPageIndex(
+    previousChapterId: Long,
+    currentChapter: ReaderChapter?,
+    isLinked: Boolean,
+): Int? {
+    val current = currentChapter ?: return null
+    if (current.chapter.id == previousChapterId) return null
+    return if (isLinked) current.requestedPage.coerceAtLeast(0) else 0
 }

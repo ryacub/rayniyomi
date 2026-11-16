@@ -134,6 +134,9 @@ class ReaderViewModel(
     val manga: Manga?
         get() = state.value.manga
 
+    val isLinkedSession: Boolean
+        get() = chapterListManager.isLinked
+
     /**
      * The chapter id of the currently loaded chapter. Used to restore from process kill.
      */

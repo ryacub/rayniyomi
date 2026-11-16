@@ -116,6 +116,9 @@ class ReaderViewModelLinkedNavigationTest {
                 every { id } returns 12L
                 every { lang } returns "en"
                 coEvery { getPageList(any()) } returns listOf(Page(index = 0, url = "partner-page", imageUrl = "image"))
+                coEvery { getPageList(match { it.url == "b-31" }) } returns (0..4).map { index ->
+                    Page(index = index, url = "partner-page-$index", imageUrl = "image-$index")
+                }
             }
             val sourceManager = mockk<MangaSourceManager>(relaxed = true) {
                 every { isInitialized } returns MutableStateFlow(true)
@@ -198,6 +201,18 @@ class ReaderViewModelLinkedNavigationTest {
                 assertEquals(31L, model.state.value.currentChapter?.chapter?.id)
                 assertSame(firstNextVersion, model.state.value.currentChapter)
                 assertEquals(4, model.state.value.currentChapter?.requestedPage)
+                assertEquals(
+                    4,
+                    toolbarNavigationPageIndex(30L, model.state.value.currentChapter, isLinked = true),
+                )
+                assertEquals(
+                    0,
+                    toolbarNavigationPageIndex(30L, model.state.value.currentChapter, isLinked = false),
+                )
+                assertEquals(
+                    null,
+                    toolbarNavigationPageIndex(31L, model.state.value.currentChapter, isLinked = true),
+                )
                 assertEquals(listOf(31L, 4L), savedState.get<LongArray>("reader_checkpoint")?.toList())
                 assertEquals(partnerSource, model.getSource())
                 coVerify(timeout = 5_000) {
