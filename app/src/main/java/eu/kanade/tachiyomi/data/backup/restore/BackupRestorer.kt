@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupCustomButtons
 import eu.kanade.tachiyomi.data.backup.models.BackupExtension
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.backup.models.BackupMangaSourceLink
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
 import eu.kanade.tachiyomi.data.backup.models.BackupSource
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
@@ -31,6 +32,7 @@ import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
 import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
@@ -38,6 +40,9 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.entries.manga.model.MangaSourceIdentity
+import tachiyomi.domain.entries.manga.model.RestoreMangaSourceLinkResult
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import tachiyomi.i18n.MR
@@ -74,6 +79,7 @@ class BackupRestorer(
     private val mangaStubSourceRepository: MangaStubSourceRepository = appGraph.mangaStubSourceRepository,
     private val mangaDownloadCache: MangaDownloadCache = appGraph.mangaDownloadCache,
     private val animeDownloadCache: AnimeDownloadCache = appGraph.animeDownloadCache,
+    private val mangaSourceLinkRepository: MangaSourceLinkRepository = appGraph.mangaSourceLinkRepository,
 ) {
     companion object {
         internal const val RESTORE_ERROR_LOG_FILENAME = "rayniyomi_restore_error.txt"
@@ -130,7 +136,7 @@ class BackupRestorer(
         )
 
         if (options.libraryEntries) {
-            restoreAmount += backup.backupManga.size + backup.backupAnime.size
+            restoreAmount += backup.backupManga.size + backup.backupAnime.size + backup.backupMangaSourceLinks.size
         }
         if (options.categories) {
             restoreAmount += 2 // +2 for anime and manga categories
@@ -174,7 +180,11 @@ class BackupRestorer(
             }
             if (options.libraryEntries) {
                 restoreAnime(backup.backupAnime, if (options.categories) backup.backupAnimeCategories else emptyList())
-                restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
+                restoreManga(
+                    backupMangas = backup.backupManga,
+                    backupMangaCategories = if (options.categories) backup.backupCategories else emptyList(),
+                    backupMangaSourceLinks = backup.backupMangaSourceLinks,
+                )
             }
             if (options.extensionRepoSettings) {
                 restoreExtensionRepos(backup.backupAnimeExtensionRepo, backup.backupMangaExtensionRepo)
@@ -266,7 +276,13 @@ class BackupRestorer(
     private fun CoroutineScope.restoreManga(
         backupMangas: List<BackupManga>,
         backupMangaCategories: List<BackupCategory>,
+        backupMangaSourceLinks: List<BackupMangaSourceLink>,
     ) = launch {
+        val ambiguousIdentities = backupMangas
+            .groupingBy { MangaSourceIdentity(it.source, it.url) }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
         val categoryIdsByBackupOrder = runCatching { mangaRestorer.categoryIdsByBackupOrder(backupMangaCategories) }
         mangaRestorer.sortByNew(backupMangas)
             .forEach {
@@ -281,6 +297,57 @@ class BackupRestorer(
 
                 incrementProgressAndNotify(it.title)
             }
+        restoreMangaSourceLinks(backupMangaSourceLinks, ambiguousIdentities)
+    }
+
+    private suspend fun restoreMangaSourceLinks(
+        links: List<BackupMangaSourceLink>,
+        ambiguousIdentities: Set<MangaSourceIdentity>,
+    ) {
+        links.forEach { link ->
+            val firstIdentity = MangaSourceIdentity(link.first.sourceId, link.first.url)
+            val secondIdentity = MangaSourceIdentity(link.second.sourceId, link.second.url)
+            if (firstIdentity in ambiguousIdentities || secondIdentity in ambiguousIdentities) {
+                recordError(
+                    "Manga source link for source IDs ${link.first.sourceId} and ${link.second.sourceId} " +
+                        "was skipped because an endpoint is duplicated in the backup.",
+                )
+                incrementProgressAndNotify(context.stringResource(MR.strings.backup_manga_source_links))
+                return@forEach
+            }
+            try {
+                when (
+                    mangaSourceLinkRepository.restore(
+                        first = firstIdentity,
+                        second = secondIdentity,
+                    )
+                ) {
+                    RestoreMangaSourceLinkResult.Linked,
+                    RestoreMangaSourceLinkResult.AlreadyLinked,
+                    -> Unit
+                    RestoreMangaSourceLinkResult.MissingEndpoint -> recordError(
+                        "Manga source link for source IDs ${link.first.sourceId} and ${link.second.sourceId} " +
+                            "was skipped because an endpoint is missing.",
+                    )
+                    RestoreMangaSourceLinkResult.AmbiguousEndpoint -> recordError(
+                        "Manga source link for source IDs ${link.first.sourceId} and ${link.second.sourceId} " +
+                            "was skipped because an endpoint is ambiguous.",
+                    )
+                    RestoreMangaSourceLinkResult.Conflict -> recordError(
+                        "Manga source link for source IDs ${link.first.sourceId} and ${link.second.sourceId} " +
+                            "was skipped because an endpoint belongs to another link.",
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                recordError(
+                    "Manga source link for source IDs ${link.first.sourceId} and ${link.second.sourceId} " +
+                        "was skipped because restore failed.",
+                )
+            }
+            incrementProgressAndNotify(context.stringResource(MR.strings.backup_manga_source_links))
+        }
     }
 
     private fun CoroutineScope.restoreAppPreferences(

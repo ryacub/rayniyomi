@@ -21,6 +21,7 @@ import eu.kanade.domain.entries.manga.model.readerOrientation
 import eu.kanade.domain.entries.manga.model.readingMode
 import eu.kanade.domain.items.chapter.model.toSChapter
 import eu.kanade.domain.source.manga.interactor.GetMangaIncognitoState
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.manga.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.presentation.util.ReaderFoldState
@@ -67,6 +68,7 @@ import tachiyomi.data.source.manga.MangaSourceGateway
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.history.manga.interactor.GetNextChapters
 import tachiyomi.domain.history.manga.interactor.UpsertMangaHistory
 import tachiyomi.domain.history.manga.model.MangaHistoryUpdate
@@ -76,6 +78,7 @@ import tachiyomi.domain.items.chapter.model.Chapter
 import tachiyomi.domain.items.chapter.model.ChapterUpdate
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import tachiyomi.source.local.entries.manga.isLocal
 import java.time.Instant
 import java.util.Date
 
@@ -95,12 +98,14 @@ class ReaderViewModel(
     private val trackPreferences: TrackPreferences,
     private val trackChapter: TrackChapter,
     private val getManga: GetManga,
+    private val mangaSourceLinkRepository: MangaSourceLinkRepository,
     private val getChaptersByMangaId: GetChaptersByMangaId,
     private val getNextChapters: GetNextChapters,
     private val upsertHistory: UpsertMangaHistory,
     private val updateChapter: UpdateChapter,
     private val setMangaViewerFlags: SetMangaViewerFlags,
     private val getIncognitoState: GetMangaIncognitoState,
+    private val sourcePreferences: SourcePreferences,
     private val libraryPreferences: LibraryPreferences,
     private val translationStorageManager: TranslationStorageManager,
     private val translationPreferences: TranslationPreferences,
@@ -129,28 +134,35 @@ class ReaderViewModel(
     val manga: Manga?
         get() = state.value.manga
 
+    val isLinkedSession: Boolean
+        get() = chapterListManager.isLinked
+
     /**
      * The chapter id of the currently loaded chapter. Used to restore from process kill.
      */
-    private var chapterId = savedState.get<Long>("chapter_id") ?: -1L
-        set(value) {
-            savedState["chapter_id"] = value
-            field = value
-        }
+    private val savedChapterCheckpoint = savedState.get<LongArray>("reader_checkpoint")
+        ?.takeIf { it.size == 2 }
+
+    private var chapterId = savedChapterCheckpoint?.get(0)
+        ?: savedState.get<Long>("chapter_id")
+        ?: -1L
 
     /**
      * The visible page index of the currently loaded chapter. Used to restore from process kill.
      */
-    private var chapterPageIndex = savedState.get<Int>("page_index") ?: -1
-        set(value) {
-            savedState["page_index"] = value
-            field = value
-        }
+    private var chapterPageIndex = savedChapterCheckpoint?.get(1)?.toInt()
+        ?: if (savedState.get<Long>("chapter_id") != null) savedState.get<Int>("page_index") ?: -1 else -1
+
+    private fun saveChapterCheckpoint(chapterId: Long, pageIndex: Int) {
+        this.chapterId = chapterId
+        chapterPageIndex = pageIndex
+        savedState["reader_checkpoint"] = longArrayOf(chapterId, pageIndex.toLong())
+    }
 
     /**
      * The chapter loader for the loaded manga. It'll be null until [manga] is set.
      */
-    private var loader: ChapterLoader? = null
+    private val loaders = mutableMapOf<Long, ChapterLoader>()
 
     /**
      * The time the chapter was started reading
@@ -164,6 +176,8 @@ class ReaderViewModel(
      */
     private val chapterListManager = ReaderChapterListManager(
         getChaptersByMangaId = getChaptersByMangaId,
+        getManga = getManga,
+        mangaSourceLinkRepository = mangaSourceLinkRepository,
         downloadManager = downloadManager,
         readerPreferences = readerPreferences,
         basePreferences = basePreferences,
@@ -176,7 +190,6 @@ class ReaderViewModel(
     val readerConfig: ReaderConfigManager
         get() = _readerConfig ?: error("ReaderConfigManager not initialized. Call initReaderConfig() first.")
 
-    private val incognitoMode: Boolean by lazy { getIncognitoState.await(manga?.source) }
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading().get()
 
     /**
@@ -187,7 +200,7 @@ class ReaderViewModel(
             imageSaver = imageSaver,
             readerPreferences = readerPreferences,
             scope = viewModelScope,
-            currentManga = { manga },
+            currentManga = { getCurrentChapter()?.let(::getMangaForChapter) ?: manga },
             getPage = { (state.value.dialog as? Dialog.PageActions)?.page },
             onEvent = { event -> eventChannel.send(event) },
         )
@@ -207,16 +220,46 @@ class ReaderViewModel(
             mutableState.update { it.copy(translation = reduce(it.translation)) }
         },
         onReload = { eventChannel.send(ReaderEvent.ReloadViewerChapters) },
-        reloadChapter = { chapter -> checkNotNull(loader).reloadChapter(chapter) },
+        reloadChapter = { chapter -> checkNotNull(loaderFor(chapter)).reloadChapter(chapter) },
     )
 
     private fun hasTranslationForChapter(chapter: Chapter): Boolean = computeHasTranslation(
-        manga = manga,
+        manga = chapterListManager.mangas.firstOrNull { it.id == chapter.mangaId } ?: manga,
         chapter = chapter,
         sourceManager = sourceManager,
         translationStorageManager = translationStorageManager,
         targetLanguage = translationPreferences.targetLanguage().get(),
     )
+
+    private fun getMangaForChapter(chapter: ReaderChapter): Manga =
+        chapterListManager.mangas.firstOrNull { it.id == chapter.chapter.mangaId }
+            ?: manga?.takeIf { it.id == chapter.chapter.mangaId }
+            ?: manga?.takeUnless { chapterListManager.isLinked }
+            ?: chapterListManager.getMangaForChapter(chapter)
+
+    private fun loaderFor(chapter: ReaderChapter): ChapterLoader? {
+        val owner = chapterListManager.mangas.firstOrNull { it.id == chapter.chapter.mangaId }
+            ?: manga?.takeIf { it.id == chapter.chapter.mangaId }
+        return owner?.let { loaders[it.id] } ?: loaders.values.singleOrNull()
+    }
+
+    private fun isChapterReadable(chapter: ReaderChapter): Boolean {
+        val owner = getMangaForChapter(chapter)
+        val source = sourceManager.get(owner.source)
+        val sourceAvailable = source != null && (
+            source.isLocal() || (
+                source.id.toString() !in sourcePreferences.disabledMangaSources().get() &&
+                    source.lang in sourcePreferences.enabledLanguages().get()
+                )
+            )
+        if (sourceAvailable) return true
+        return downloadManager.isChapterDownloaded(
+            chapter.chapter.name,
+            chapter.chapter.scanlator,
+            owner.title,
+            owner.source,
+        )
+    }
 
     init {
         // To save state
@@ -224,13 +267,15 @@ class ReaderViewModel(
             .distinctUntilChanged()
             .filterNotNull()
             .onEach { currentChapter ->
-                if (chapterPageIndex >= 0) {
-                    // Restore from SavedState
+                if (chapterPageIndex >= 0 && chapterId == currentChapter.chapter.id) {
+                    // Restore only when the page checkpoint belongs to this chapter.
                     currentChapter.requestedPage = chapterPageIndex
                 } else if (!currentChapter.chapter.read) {
                     currentChapter.requestedPage = currentChapter.chapter.lastPageRead.toInt()
                 }
-                chapterId = currentChapter.chapter.id
+                if (chapterId != currentChapter.chapter.id) {
+                    saveChapterCheckpoint(currentChapter.chapter.id, currentChapter.requestedPage)
+                }
 
                 // Update assist URL for current chapter
                 viewModelScope.launchIO {
@@ -304,19 +349,24 @@ class ReaderViewModel(
                 if (manga != null) {
                     sourceManager.isInitialized.first { it }
                     mutableState.update { it.copy(manga = manga) }
-                    if (chapterId == -1L) chapterId = initialChapterId
+                    if (chapterId == -1L) saveChapterCheckpoint(initialChapterId, -1)
 
                     val context = application
-                    val source = sourceManager.getOrStub(manga.source)
-                    loader = ChapterLoader(context, downloadManager, downloadProvider, manga, source, viewModelScope)
-
                     chapterListManager.chapterId = chapterId
                     chapterListManager.initChapterList(manga)
+                    chapterListManager.mangas.forEach { owner ->
+                        val source = sourceManager.getOrStub(owner.source)
+                        loaders[owner.id] = ChapterLoader(
+                            context,
+                            downloadManager,
+                            downloadProvider,
+                            owner,
+                            source,
+                            viewModelScope,
+                        )
+                    }
 
                     loadChapter(
-                        checkNotNull(loader) {
-                            "ChapterLoader must be initialized in init(mangaId, initialChapterId) before loadChapter()"
-                        },
                         chapterListManager.getChapterById(chapterId),
                     )
                     Result.success(true)
@@ -338,12 +388,28 @@ class ReaderViewModel(
      * Callers must handle errors.
      */
     private suspend fun loadChapter(
-        loader: ChapterLoader,
         chapter: ReaderChapter,
+        explicitPageIndex: Int? = null,
     ): ViewerChapters {
+        val loader = checkNotNull(loaderFor(chapter)) {
+            "ChapterLoader must be initialized for the chapter owner before loadChapter()"
+        }
+        val hasMatchingCheckpoint = chapterPageIndex >= 0 && chapterId == chapter.chapter.id
+        val requestedPage = explicitPageIndex ?: if (hasMatchingCheckpoint) {
+            chapterPageIndex
+        } else if (
+            !chapter.chapter.read || readerPreferences.preserveReadingPosition().get() || chapterListManager.isLinked
+        ) {
+            chapter.chapter.lastPageRead.toInt()
+        } else {
+            0
+        }
+        chapter.requestedPage = requestedPage
         loader.loadChapter(chapter)
+        // The loader may prefer the database page; preserve this chapter's explicit checkpoint.
+        chapter.requestedPage = requestedPage
 
-        val adjacent = chapterListManager.getAdjacentChapters(chapter)
+        val adjacent = chapterListManager.getAdjacentChapters(chapter, ::isChapterReadable)
         val newChapters = ViewerChapters(
             adjacent.current,
             adjacent.previous,
@@ -355,6 +421,7 @@ class ReaderViewModel(
         val hasTranslation = hasTranslationForChapter(currentChapter)
 
         withUIContext {
+            saveChapterCheckpoint(currentChapter.id, newChapters.currChapter.requestedPage)
             mutableState.update {
                 // Add new references first to avoid unnecessary recycling
                 newChapters.ref()
@@ -378,8 +445,8 @@ class ReaderViewModel(
      * Called when the user changed to the given [chapter] when changing pages from the viewer.
      * It's used only to set this chapter as active.
      */
-    private fun loadNewChapter(chapter: ReaderChapter) {
-        val loader = loader ?: return
+    private fun loadNewChapter(chapter: ReaderChapter, explicitPageIndex: Int) {
+        val loader = loaderFor(chapter) ?: return
 
         viewModelScope.launchIO {
             logcat { "Loading ${chapter.chapter.url}" }
@@ -388,7 +455,7 @@ class ReaderViewModel(
             restartReadTimer()
 
             try {
-                loadChapter(loader, chapter)
+                loadChapter(chapter, explicitPageIndex)
             } catch (e: Throwable) {
                 if (e is CancellationException) {
                     throw e
@@ -402,14 +469,14 @@ class ReaderViewModel(
      * Called when the user is going to load the prev/next chapter through the toolbar buttons.
      */
     private suspend fun loadAdjacent(chapter: ReaderChapter) {
-        val loader = loader ?: return
+        val loader = loaderFor(chapter) ?: return
 
         logcat { "Loading adjacent ${chapter.chapter.url}" }
 
         mutableState.update { it.copy(isLoadingAdjacentChapter = true) }
         try {
             withIOContext {
-                loadChapter(loader, chapter)
+                loadChapter(chapter)
             }
         } catch (e: Throwable) {
             if (e is CancellationException) {
@@ -430,7 +497,7 @@ class ReaderViewModel(
      */
     fun preload(chapter: ReaderChapter) {
         if (chapter.state is ReaderChapter.State.Loaded || chapter.state == ReaderChapter.State.Loading) return
-        val loader = loader ?: return
+        val loader = loaderFor(chapter) ?: return
         viewModelScope.launchIO {
             try {
                 logcat { "Preloading ${chapter.chapter.url}" }
@@ -472,7 +539,7 @@ class ReaderViewModel(
 
         if (selectedChapter != getCurrentChapter()) {
             logcat { "Setting ${selectedChapter.chapter.url} as active" }
-            loadNewChapter(selectedChapter)
+            loadNewChapter(selectedChapter, page.index)
         }
 
         val inDownloadRange = page.number.toDouble() / pages.size > 0.25
@@ -485,22 +552,25 @@ class ReaderViewModel(
 
     private fun downloadNextChapters() {
         if (downloadAheadAmount == 0) return
-        val manga = manga ?: return
+        val currentChapter = getCurrentChapter() ?: return
 
         // Only download ahead if current + next chapter is already downloaded too to avoid jank
-        if (getCurrentChapter()?.pageLoader !is DownloadPageLoader) return
-        val nextChapter = state.value.viewerChapters?.nextChapter?.chapter ?: return
+        if (currentChapter.pageLoader !is DownloadPageLoader) return
+        val nextReaderChapter =
+            chapterListManager.getAdjacentChapters(currentChapter, ::isChapterReadable).next ?: return
+        val nextChapter = nextReaderChapter.chapter
+        val nextOwner = getMangaForChapter(nextReaderChapter)
 
         viewModelScope.launchIO {
             val isNextChapterDownloaded = downloadManager.isChapterDownloaded(
                 nextChapter.name,
                 nextChapter.scanlator,
-                manga.title,
-                manga.source,
+                nextOwner.title,
+                nextOwner.source,
             )
             if (!isNextChapterDownloaded) return@launchIO
 
-            val chaptersToDownload = getNextChapters.await(manga.id, nextChapter.id).run {
+            val chaptersToDownload = getNextChapters.await(nextOwner.id, nextChapter.id).run {
                 if (readerPreferences.skipDupe().get()) {
                     removeDuplicates(nextChapter)
                 } else {
@@ -508,7 +578,7 @@ class ReaderViewModel(
                 }
             }.take(downloadAheadAmount)
             downloadManager.downloadChapters(
-                manga,
+                nextOwner,
                 chaptersToDownload,
             )
         }
@@ -550,14 +620,18 @@ class ReaderViewModel(
      */
     private suspend fun updateChapterProgress(readerChapter: ReaderChapter, page: Page) {
         val pageIndex = page.index
+        val isActiveChapter = readerChapter.chapter.id == chapterId
 
-        mutableState.update {
-            it.copy(currentPage = pageIndex + 1)
+        if (isActiveChapter) {
+            mutableState.update {
+                it.copy(currentPage = pageIndex + 1)
+            }
+            readerChapter.requestedPage = pageIndex
+            saveChapterCheckpoint(readerChapter.chapter.id, pageIndex)
         }
-        readerChapter.requestedPage = pageIndex
-        chapterPageIndex = pageIndex
 
-        if (!incognitoMode && page.status != Page.State.ERROR) {
+        val incognito = getIncognitoState.await(getMangaForChapter(readerChapter).source)
+        if (!incognito && page.status != Page.State.ERROR) {
             val isLastPage = readerChapter.pages?.lastIndex == pageIndex
             readerChapter.update {
                 it.copy(lastPageRead = pageIndex.toLong(), read = it.read || isLastPage)
@@ -606,7 +680,7 @@ class ReaderViewModel(
      * Saves the chapter last read history if incognito mode isn't on.
      */
     private suspend fun updateHistory(readerChapter: ReaderChapter) {
-        if (incognitoMode) return
+        if (getIncognitoState.await(getMangaForChapter(readerChapter).source)) return
 
         val chapterId = readerChapter.chapter.id
         val readAt = Date()
@@ -620,7 +694,8 @@ class ReaderViewModel(
      * Called from the activity to load and set the next chapter as active.
      */
     suspend fun loadNextChapter() {
-        val nextChapter = state.value.viewerChapters?.nextChapter ?: return
+        val currentChapter = getCurrentChapter() ?: return
+        val nextChapter = chapterListManager.getAdjacentChapters(currentChapter, ::isChapterReadable).next ?: return
         loadAdjacent(nextChapter)
     }
 
@@ -628,7 +703,8 @@ class ReaderViewModel(
      * Called from the activity to load and set the previous chapter as active.
      */
     suspend fun loadPreviousChapter() {
-        val prevChapter = state.value.viewerChapters?.prevChapter ?: return
+        val currentChapter = getCurrentChapter() ?: return
+        val prevChapter = chapterListManager.getAdjacentChapters(currentChapter, ::isChapterReadable).previous ?: return
         loadAdjacent(prevChapter)
     }
 
@@ -639,11 +715,15 @@ class ReaderViewModel(
         return state.value.currentChapter
     }
 
-    fun getSource() = manga?.source?.let { sourceManager.getOrStub(it) } as? HttpSource
+    fun getSource() = getCurrentChapter()?.let(::getMangaForChapter)?.source
+        ?.let { sourceManager.getOrStub(it) } as? HttpSource
 
     fun getChapterUrl(): String? {
         val chapter = getCurrentChapter()?.chapter ?: return null
-        val source = getSource() ?: return null
+        val owner = chapterListManager.mangas.firstOrNull { it.id == chapter.mangaId }
+            ?: manga?.takeIf { it.id == chapter.mangaId }
+            ?: return null
+        val source = sourceManager.getOrStub(owner.source) as? HttpSource ?: return null
 
         return try {
             MangaSourceGateway.chapterUrl(source, chapter.toSChapter())
@@ -802,14 +882,14 @@ class ReaderViewModel(
      * will run in a background thread and errors are ignored.
      */
     private fun updateTrackChapterRead(readerChapter: ReaderChapter) {
-        if (incognitoMode) return
+        val owner = getMangaForChapter(readerChapter)
+        if (getIncognitoState.await(owner.source)) return
         if (!trackPreferences.autoUpdateTrack().get()) return
 
-        val manga = manga ?: return
         val context = application
 
         viewModelScope.launchNonCancellable {
-            trackChapter.await(context, manga.id, readerChapter.chapter.chapterNumber)
+            trackChapter.await(context, owner.id, readerChapter.chapter.chapterNumber)
         }
     }
 
@@ -819,12 +899,12 @@ class ReaderViewModel(
      */
     private fun enqueueDeleteReadChapters(chapter: ReaderChapter) {
         if (!chapter.chapter.read) return
-        val manga = manga ?: return
+        val owner = getMangaForChapter(chapter)
 
         viewModelScope.launchNonCancellable {
             downloadManager.enqueueChaptersToDelete(
                 listOf(chapter.chapter),
-                manga,
+                owner,
             )
         }
     }

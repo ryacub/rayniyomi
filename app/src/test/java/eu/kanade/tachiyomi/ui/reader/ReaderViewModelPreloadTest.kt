@@ -47,6 +47,7 @@ import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.entries.manga.model.Manga
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.items.chapter.model.Chapter
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -92,12 +93,16 @@ class ReaderViewModelPreloadTest {
             trackPreferences = mockk(relaxed = true),
             trackChapter = mockk(relaxed = true),
             getManga = mockk(relaxed = true),
+            mangaSourceLinkRepository = mockk<MangaSourceLinkRepository>(relaxed = true) {
+                coEvery { getForManga(any()) } returns null
+            },
             getChaptersByMangaId = mockk(relaxed = true),
             getNextChapters = mockk(relaxed = true),
             upsertHistory = mockk(relaxed = true),
             updateChapter = mockk(relaxed = true),
             setMangaViewerFlags = mockk(relaxed = true),
             getIncognitoState = mockk(relaxed = true),
+            sourcePreferences = mockk<SourcePreferences>(relaxed = true),
             libraryPreferences = mockk(relaxed = true),
             translationStorageManager = mockk(relaxed = true),
             translationPreferences = mockk(relaxed = true),
@@ -107,8 +112,10 @@ class ReaderViewModelPreloadTest {
     }
 
     private fun ReaderViewModel.useChapterLoader(chapterLoader: ChapterLoader) {
-        ReaderViewModel::class.java.getDeclaredField("loader").apply { isAccessible = true }
-            .set(this, chapterLoader)
+        @Suppress("UNCHECKED_CAST")
+        val loaders = ReaderViewModel::class.java.getDeclaredField("loaders").apply { isAccessible = true }
+            .get(this) as MutableMap<Long, ChapterLoader>
+        loaders[1L] = chapterLoader
     }
 
     @Test

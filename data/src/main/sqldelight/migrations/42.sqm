@@ -1,0 +1,19 @@
+CREATE TABLE manga_source_links (
+    _id INTEGER NOT NULL PRIMARY KEY,
+    first_manga_id INTEGER NOT NULL,
+    second_manga_id INTEGER NOT NULL,
+    CHECK(first_manga_id != second_manga_id),
+    FOREIGN KEY(first_manga_id) REFERENCES mangas (_id) ON DELETE CASCADE,
+    FOREIGN KEY(second_manga_id) REFERENCES mangas (_id) ON DELETE CASCADE
+);
+
+CREATE TABLE manga_source_link_endpoints (
+    manga_id INTEGER NOT NULL PRIMARY KEY,
+    link_id INTEGER NOT NULL,
+    endpoint_order INTEGER NOT NULL CHECK(endpoint_order IN (0, 1)),
+    UNIQUE(link_id, endpoint_order),
+    FOREIGN KEY(manga_id) REFERENCES mangas (_id) ON DELETE CASCADE,
+    FOREIGN KEY(link_id) REFERENCES manga_source_links (_id) ON DELETE CASCADE
+);
+
+CREATE INDEX manga_source_link_endpoints_link_id_index ON manga_source_link_endpoints(link_id);

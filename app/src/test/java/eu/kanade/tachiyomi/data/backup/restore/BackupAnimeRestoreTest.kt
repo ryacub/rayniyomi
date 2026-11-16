@@ -180,6 +180,7 @@ class BackupAnimeRestoreTest {
             mangaStubSourceRepository = mockk(relaxed = true),
             mangaDownloadCache = mockk(relaxed = true),
             animeDownloadCache = mockk(relaxed = true),
+            mangaSourceLinkRepository = mockk(),
         )
         withContext(Dispatchers.Default) {
             restorer.restoreBackupData(

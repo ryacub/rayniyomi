@@ -7,6 +7,8 @@ import eu.kanade.tachiyomi.data.backup.lightnovel.LightNovelBackupDataSource
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.backup.models.BackupMangaSourceEndpoint
+import eu.kanade.tachiyomi.data.backup.models.BackupMangaSourceLink
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeCategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeExtensionRepoRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeRestorer
@@ -34,9 +36,14 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import tachiyomi.domain.entries.manga.model.RestoreMangaSourceLinkResult
+import tachiyomi.domain.entries.manga.repository.MangaSourceLinkRepository
 import tachiyomi.domain.source.anime.repository.AnimeStubSourceRepository
 import tachiyomi.domain.source.manga.repository.MangaStubSourceRepository
 import java.lang.reflect.Method
@@ -48,6 +55,86 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class BackupRestorerTest {
+
+    @Test
+    fun `restore reports a linked source pair when an endpoint is missing`() = runTest {
+        val wireBackup = BackupWithMangaSourceLinks(
+            mangaSourceLinks = listOf(
+                BackupMangaSourceLinkWire(
+                    first = BackupMangaSourceEndpointWire(sourceId = 1L, url = "missing-first"),
+                    second = BackupMangaSourceEndpointWire(sourceId = 2L, url = "missing-second"),
+                ),
+            ),
+        )
+        val backup = ProtoBuf.decodeFromByteArray(
+            Backup.serializer(),
+            ProtoBuf.encodeToByteArray(BackupWithMangaSourceLinks.serializer(), wireBackup),
+        )
+        val sourceLinkRepository = mockk<MangaSourceLinkRepository>()
+        coEvery { sourceLinkRepository.restore(any(), any()) } returns RestoreMangaSourceLinkResult.MissingEndpoint
+        val restorer = createRestorer(mangaSourceLinkRepository = sourceLinkRepository)
+
+        restorer.restoreBackupData(
+            backup,
+            mockk<Uri>(relaxed = true),
+            RestoreOptions(
+                libraryEntries = true,
+                categories = false,
+                appSettings = false,
+                extensionRepoSettings = false,
+                customButtons = false,
+                sourceSettings = false,
+                extensions = false,
+                lightNovels = false,
+            ),
+        )
+
+        assertEquals(1, restorer.getErrorCount(), "restore must report a missing linked source endpoint")
+    }
+
+    @Test
+    fun `restore skips source links with duplicate endpoint identities in the backup`() = runTest {
+        val duplicateEndpoint = BackupManga(source = 11L, url = "same", title = "First")
+        val backupMangas = listOf(
+            duplicateEndpoint,
+            BackupManga(source = 11L, url = "same", title = "Duplicate"),
+            BackupManga(source = 12L, url = "other", title = "Other"),
+        )
+        val sourceLink = BackupMangaSourceLink(
+            first = BackupMangaSourceEndpoint(sourceId = 11L, url = "same"),
+            second = BackupMangaSourceEndpoint(sourceId = 12L, url = "other"),
+        )
+        val sourceLinkRepository = mockk<MangaSourceLinkRepository>()
+        coEvery { sourceLinkRepository.restore(any(), any()) } returns RestoreMangaSourceLinkResult.Linked
+        val mangaRestorer = mockk<MangaRestorer>(relaxed = true) {
+            coEvery { sortByNew(backupMangas) } returns backupMangas
+        }
+        val restorer = createRestorer(
+            mangaRestorer = mangaRestorer,
+            mangaSourceLinkRepository = sourceLinkRepository,
+        )
+
+        restorer.restoreBackupData(
+            Backup(
+                backupManga = backupMangas,
+                backupMangaSourceLinks = listOf(sourceLink),
+            ),
+            mockk<Uri>(relaxed = true),
+            RestoreOptions(
+                libraryEntries = true,
+                categories = false,
+                appSettings = false,
+                extensionRepoSettings = false,
+                customButtons = false,
+                sourceSettings = false,
+                extensions = false,
+                lightNovels = false,
+            ),
+        )
+
+        coVerify(exactly = 0) { sourceLinkRepository.restore(any(), any()) }
+        assertEquals(1, restorer.getErrorCount())
+    }
 
     @Test
     fun `concurrent progress updates do not lose increments`() = runTest {
@@ -229,6 +316,7 @@ class BackupRestorerTest {
         mangaCategoriesRestorer: MangaCategoriesRestorer = mockk(relaxed = true),
         mangaRestorer: MangaRestorer = mockk(relaxed = true),
         preferenceRestorer: PreferenceRestorer = mockk(relaxed = true),
+        mangaSourceLinkRepository: MangaSourceLinkRepository = mockk(relaxed = true),
     ): BackupRestorer {
         return BackupRestorer(
             context = mockk<Context>(relaxed = true),
@@ -242,6 +330,7 @@ class BackupRestorerTest {
             customButtonRestorer = mockk<CustomButtonRestorer>(relaxed = true),
             animeRestorer = mockk<AnimeRestorer>(relaxed = true),
             mangaRestorer = mangaRestorer,
+            mangaSourceLinkRepository = mangaSourceLinkRepository,
             extensionsRestorer = mockk<ExtensionsRestorer>(relaxed = true),
             lightNovelBackupDataSource = lightNovelBackupDataSource,
             animeStubSourceRepository = mockk<AnimeStubSourceRepository>(relaxed = true),
@@ -310,3 +399,21 @@ class BackupRestorerTest {
         }
     }
 }
+
+@Serializable
+private data class BackupWithMangaSourceLinks(
+    @ProtoNumber(1) val backupManga: List<BackupManga> = emptyList(),
+    @ProtoNumber(507) val mangaSourceLinks: List<BackupMangaSourceLinkWire> = emptyList(),
+)
+
+@Serializable
+private data class BackupMangaSourceLinkWire(
+    @ProtoNumber(1) val first: BackupMangaSourceEndpointWire,
+    @ProtoNumber(2) val second: BackupMangaSourceEndpointWire,
+)
+
+@Serializable
+private data class BackupMangaSourceEndpointWire(
+    @ProtoNumber(1) val sourceId: Long,
+    @ProtoNumber(2) val url: String,
+)
