@@ -21,6 +21,12 @@ class MangaSourceLinkSchemaMigrationTest {
                 ).isNotEmpty(),
                 "the migration must create the manga source link table",
             )
+            assertTrue(
+                driver.strings(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'manga_source_link_endpoints'",
+                ).isNotEmpty(),
+                "the migration must create the source link endpoint table",
+            )
         } finally {
             driver.close()
         }

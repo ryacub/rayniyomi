@@ -63,7 +63,7 @@ class LinkedMangaBackupRoundTripTest {
         val options = BackupOptions(
             libraryEntries = true,
             categories = false,
-            chapters = false,
+            chapters = true,
             tracking = false,
             history = false,
             readEntries = false,
@@ -77,6 +77,12 @@ class LinkedMangaBackupRoundTripTest {
         val backup = InMemoryMangaDb().use { source ->
             source.insertManga(id = 101L, url = "first", title = "First", source = 11L)
             source.insertManga(id = 102L, url = "second", title = "Unread second", source = 12L)
+            source.insertChapter(id = 201L, mangaId = 101L, url = "first-chapter")
+            source.driver.execute(
+                null,
+                "UPDATE chapters SET last_page_read = 7, bookmark = 1 WHERE _id = 201",
+                0,
+            )
             source.driver.execute(null, "UPDATE mangas SET favorite = 0 WHERE _id = 102", 0)
             val mangaRepository = MangaRepositoryImpl(source.handler)
             val sourceLinkRepository = MangaSourceLinkRepositoryImpl(source.handler)
@@ -144,6 +150,9 @@ class LinkedMangaBackupRoundTripTest {
             assertEquals("first", restoredLink.firstManga.url)
             assertEquals("second", restoredLink.secondManga.url)
             assertEquals(false, restoredLink.secondManga.favorite)
+            val restoredFirstChapter = chapterRepository.getChapterByMangaId(restoredLink.firstManga.id).single()
+            assertEquals(7L, restoredFirstChapter.lastPageRead)
+            assertEquals(true, restoredFirstChapter.bookmark)
 
             restorer.restoreBackupData(backup, mockk<Uri>(relaxed = true), libraryOnlyOptions())
 
