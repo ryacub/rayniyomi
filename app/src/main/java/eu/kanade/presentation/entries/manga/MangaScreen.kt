@@ -509,10 +509,11 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
-                    if (state.mangaSourceLink != null) {
-                        item(key = "linked-source-status") {
-                            LinkedMangaSourceStatus(
+                    if (onLinkSources != null || state.mangaSourceLink != null) {
+                        item(key = "manga-sources-status") {
+                            MangaSourcesStatus(
                                 state = state,
+                                onFindAnotherSource = onLinkSources,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             )
                         }
@@ -780,10 +781,11 @@ fun MangaScreenLargeImpl(
                                 bottom = contentPadding.calculateBottomPadding(),
                             ),
                         ) {
-                            if (state.mangaSourceLink != null) {
-                                item(key = "linked-source-status") {
-                                    LinkedMangaSourceStatus(
+                            if (onLinkSources != null || state.mangaSourceLink != null) {
+                                item(key = "manga-sources-status") {
+                                    MangaSourcesStatus(
                                         state = state,
+                                        onFindAnotherSource = onLinkSources,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     )
                                 }

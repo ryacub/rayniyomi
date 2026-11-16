@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Linked manga sources stay linked in backups, including unread editions outside the library (#1535).
 
 ### Improved
+- Find another source from manga details or the source error message. The search starts with the manga title (#1535).
 - Tablet sheets fade out before closing. Reader page numbers and selection toolbars fade between states. Filtered chapters, episodes, and download queue rows slide into place. Queue progress bars move smoothly, and dragging a source header moves the whole group (#1466).
 - Extended action buttons collapse and expand on a spring, as in mihon. The icon now stops when the button stops (#1468).
 

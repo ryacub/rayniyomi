@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -44,9 +45,13 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.StateViewModel
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.system.LocaleHelper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,7 +86,7 @@ class LinkMangaSourceScreen(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(text = stringResource(MR.strings.link_manga_sources))
+                Text(text = stringResource(MR.strings.link_manga_source_find_another))
                 val initiatingManga = state.initiatingManga
                 if (initiatingManga != null) {
                     Text(text = initiatingManga.title)
@@ -90,9 +95,15 @@ class LinkMangaSourceScreen(
                 val selectedSource = state.source
                 OutlinedButton(
                     onClick = { showSources = true },
-                    enabled = state.sources.isNotEmpty() && !state.searching && !state.linking,
+                    enabled = state.sources.isNotEmpty() && !state.linking,
                 ) {
-                    Text(selectedSource?.name ?: stringResource(MR.strings.link_manga_source_choose_source))
+                    Text(
+                        if (selectedSource == null) {
+                            stringResource(MR.strings.link_manga_source_choose_source)
+                        } else {
+                            sourceLabel(selectedSource)
+                        },
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextField(
@@ -101,6 +112,7 @@ class LinkMangaSourceScreen(
                         modifier = Modifier.weight(1f),
                         label = { Text(stringResource(MR.strings.link_manga_source_search_placeholder)) },
                         singleLine = true,
+                        enabled = initiatingManga != null && !state.linking,
                     )
                     Button(
                         onClick = screenModel::search,
@@ -115,6 +127,10 @@ class LinkMangaSourceScreen(
                 when {
                     state.searching || state.linking -> CircularProgressIndicator()
                     error != null -> Text(text = stringResource(error.resource))
+                    initiatingManga == null -> CircularProgressIndicator()
+                    state.sources.isEmpty() -> Text(stringResource(MR.strings.link_manga_source_no_enabled_sources))
+                    state.searchCompleted && state.results.isEmpty() && selectedSource != null ->
+                        Text(stringResource(MR.strings.link_manga_source_no_matches, selectedSource.name))
                 }
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -125,7 +141,9 @@ class LinkMangaSourceScreen(
                             }.padding(12.dp),
                         ) {
                             Text(candidate.title)
-                            Text(state.sources.firstOrNull { it.id == candidate.source }?.name.orEmpty())
+                            state.sources.firstOrNull { it.id == candidate.source }?.let { source ->
+                                Text(sourceLabel(source))
+                            }
                         }
                         HorizontalDivider()
                     }
@@ -141,7 +159,7 @@ class LinkMangaSourceScreen(
                     LazyColumn {
                         items(state.sources, key = { it.id }) { source ->
                             Text(
-                                text = source.name,
+                                text = sourceLabel(source),
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     screenModel.selectSource(source)
                                     showSources = false
@@ -158,27 +176,31 @@ class LinkMangaSourceScreen(
 
         state.candidate?.let { candidate ->
             val manga = state.initiatingManga
+            val candidateSource = state.sources.firstOrNull { it.id == candidate.source }
             AlertDialog(
                 onDismissRequest = screenModel::dismissCandidate,
                 title = { Text(stringResource(MR.strings.link_manga_source_confirm_title)) },
                 text = {
-                    Text(
-                        stringResource(
-                            MR.strings.link_manga_source_confirm_text,
-                            manga?.title.orEmpty(),
-                            state.primarySourceName,
-                            candidate.title,
-                            state.sources.firstOrNull { it.id == candidate.source }?.name.orEmpty(),
-                        ),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            stringResource(
+                                MR.strings.link_manga_source_confirm_text,
+                                manga?.title.orEmpty(),
+                                state.primarySourceName,
+                                candidate.title,
+                                if (candidateSource != null) sourceLabel(candidateSource) else "",
+                            ),
+                        )
+                        state.error?.let { Text(stringResource(it.resource)) }
+                    }
                 },
                 dismissButton = {
-                    TextButton(onClick = screenModel::dismissCandidate) {
+                    TextButton(onClick = screenModel::dismissCandidate, enabled = !state.linking) {
                         Text(stringResource(MR.strings.action_cancel))
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = screenModel::confirm) {
+                    TextButton(onClick = screenModel::confirm, enabled = !state.linking) {
                         Text(stringResource(MR.strings.link_manga_source_confirm))
                     }
                 },
@@ -186,6 +208,13 @@ class LinkMangaSourceScreen(
         }
     }
 }
+
+@Composable
+private fun sourceLabel(source: MangaSource): String = stringResource(
+    MR.strings.link_manga_source_name_language,
+    source.name,
+    LocaleHelper.getSourceDisplayName(source.lang, LocalContext.current),
+)
 
 @AssistedInject
 class LinkMangaSourceScreenModel(
@@ -203,15 +232,13 @@ class LinkMangaSourceScreenModel(
         fun create(@Assisted mangaId: Long): LinkMangaSourceScreenModel
     }
 
+    private var searchJob: Job? = null
+
     init {
         viewModelScope.launch {
             val manga = getManga.await(mangaId)
-            val enabledLanguages = sourcePreferences.enabledLanguages().get()
-            val disabledSources = sourcePreferences.disabledMangaSources().get()
-            val sources = mangaSourceManager.getOnlineSources()
-                .filter { it.id != manga?.source }
-                .filter { it.lang in enabledLanguages && it.id.toString() !in disabledSources }
-                .sortedBy { it.name.lowercase() }
+            val sources = manga?.let { eligibleSources(it.source) }
+                .orEmpty()
             mutableState.update {
                 it.copy(
                     initiatingManga = manga,
@@ -219,43 +246,84 @@ class LinkMangaSourceScreenModel(
                         mangaSourceManager.getOrStub(entry.source).name
                     }.orEmpty(),
                     sources = sources,
-                    source = sources.firstOrNull(),
+                    query = manga?.title.orEmpty(),
                     error = if (manga == null) LinkMangaSourceError.MissingManga else null,
                 )
+            }
+            if (manga == null) return@launch
+            combine(
+                mangaSourceManager.sources,
+                sourcePreferences.enabledLanguages().changes(),
+                sourcePreferences.disabledMangaSources().changes(),
+            ) { _, _, _ -> eligibleSources(manga.source) }.collect { eligible ->
+                updateAvailableSources(eligible)
             }
         }
     }
 
     fun setQuery(query: String) {
-        mutableState.update { it.copy(query = query, results = emptyList(), error = null) }
+        if (state.value.initiatingManga == null || state.value.linking) return
+        updateSearchInput { it.copy(query = query) }
     }
 
     fun selectSource(source: MangaSource) {
-        mutableState.update { it.copy(source = source, results = emptyList(), error = null) }
+        if (source !in state.value.sources || state.value.linking) return
+        updateSearchInput { it.copy(source = source) }
+    }
+
+    private fun updateSearchInput(update: (State) -> State) {
+        searchJob?.cancel()
+        mutableState.update {
+            update(
+                it,
+            ).copy(results = emptyList(), candidate = null, searching = false, searchCompleted = false, error = null)
+        }
     }
 
     fun search() {
-        val source = state.value.source ?: return
-        val query = state.value.query.trim()
-        if (query.isEmpty()) return
-        viewModelScope.launch {
-            mutableState.update { it.copy(searching = true, results = emptyList(), error = null) }
+        val current = state.value
+        val manga = current.initiatingManga ?: return
+        val selectedSource = current.source ?: return
+        val query = current.query.trim()
+        if (query.isEmpty() || current.searching || current.linking) return
+        val sources = eligibleSources(manga.source)
+        val source = sources.firstOrNull { it.id == selectedSource.id }
+        if (source == null) {
+            updateAvailableSources(sources)
+            return
+        }
+
+        mutableState.update {
+            it.copy(searching = true, results = emptyList(), candidate = null, searchCompleted = false, error = null)
+        }
+        searchJob = viewModelScope.launch {
             try {
                 val candidates = withContext(Dispatchers.IO) {
                     MangaSourceGateway.search(source, 1, query, MangaSourceGateway.filters(source))
                         .mangas.distinctBy { it.url }.map { it.toDomainManga(source.id) }
                 }
-                mutableState.update { it.copy(searching = false, results = candidates) }
+                val sources = eligibleSources(manga.source)
+                if (sources.none { it.id == source.id }) {
+                    updateAvailableSources(sources)
+                    return@launch
+                }
+                mutableState.update { it.copy(searching = false, results = candidates, searchCompleted = true) }
+            } catch (e: TimeoutCancellationException) {
+                ensureActive()
+                mutableState.update { it.copy(searching = false, error = LinkMangaSourceError.SearchFailed) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ensureActive()
                 mutableState.update { it.copy(searching = false, error = LinkMangaSourceError.SearchFailed) }
             }
         }
     }
 
     fun select(candidate: Manga) {
-        mutableState.update { it.copy(candidate = candidate, error = null) }
+        mutableState.update {
+            if (it.linking || candidate !in it.results) it else it.copy(candidate = candidate, error = null)
+        }
     }
 
     fun dismissCandidate() {
@@ -263,21 +331,18 @@ class LinkMangaSourceScreenModel(
     }
 
     fun confirm() {
-        val candidate = state.value.candidate ?: return
+        val current = state.value
+        val candidate = current.candidate ?: return
+        if (current.linking || current.linked) return
+        mutableState.update { it.copy(linking = true, error = null) }
         viewModelScope.launch {
-            mutableState.update { it.copy(linking = true, error = null) }
             try {
                 val initiatingManga = getManga.await(mangaId)
                 if (initiatingManga == null) {
                     mutableState.update { it.copy(linking = false, error = LinkMangaSourceError.MissingManga) }
                     return@launch
                 }
-                val disabledSources = sourcePreferences.disabledMangaSources().get()
-                val enabledLanguages = sourcePreferences.enabledLanguages().get()
-                if (mangaSourceManager.getOnlineSources().none {
-                        it.id == candidate.source && it.id.toString() !in disabledSources && it.lang in enabledLanguages
-                    }
-                ) {
+                if (eligibleSources(initiatingManga.source).none { it.id == candidate.source }) {
                     mutableState.update { it.copy(linking = false, error = LinkMangaSourceError.SourceUnavailable) }
                     return@launch
                 }
@@ -299,6 +364,34 @@ class LinkMangaSourceScreenModel(
         }
     }
 
+    private fun updateAvailableSources(sources: List<MangaSource>) {
+        val selectedSource = state.value.source
+        if (selectedSource != null && sources.none { it.id == selectedSource.id }) {
+            searchJob?.cancel()
+            mutableState.update {
+                it.copy(
+                    sources = sources,
+                    source = null,
+                    results = emptyList(),
+                    candidate = if (it.linking) it.candidate else null,
+                    searching = false,
+                    searchCompleted = false,
+                    error = LinkMangaSourceError.SourceUnavailable,
+                )
+            }
+        } else {
+            mutableState.update { it.copy(sources = sources) }
+        }
+    }
+
+    private fun eligibleSources(originalSourceId: Long): List<MangaSource> {
+        val enabledLanguages = sourcePreferences.enabledLanguages().get()
+        val disabledSources = sourcePreferences.disabledMangaSources().get()
+        return mangaSourceManager.getOnlineSources().filter {
+            it.id != originalSourceId && it.lang in enabledLanguages && it.id.toString() !in disabledSources
+        }.sortedBy { it.name.lowercase() }
+    }
+
     data class State(
         val initiatingManga: Manga? = null,
         val primarySourceName: String = "",
@@ -308,6 +401,7 @@ class LinkMangaSourceScreenModel(
         val results: List<Manga> = emptyList(),
         val candidate: Manga? = null,
         val searching: Boolean = false,
+        val searchCompleted: Boolean = false,
         val linking: Boolean = false,
         val linked: Boolean = false,
         val error: LinkMangaSourceError? = null,

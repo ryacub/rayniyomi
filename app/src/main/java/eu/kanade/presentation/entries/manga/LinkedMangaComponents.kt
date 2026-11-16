@@ -13,6 +13,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.entries.components.ResumeFabText
@@ -26,14 +27,23 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
-internal fun LinkedMangaSourceStatus(state: MangaScreenModel.State.Success, modifier: Modifier = Modifier) {
+internal fun MangaSourcesStatus(
+    state: MangaScreenModel.State.Success,
+    onFindAnotherSource: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier) {
         Text(
-            stringResource(
-                MR.strings.link_manga_source_pair_label,
-                state.source.name,
-                state.linkedSourceName.orEmpty(),
-            ),
+            text = stringResource(MR.strings.link_manga_source_section),
+            modifier = Modifier.semantics { heading() },
+        )
+        val linkedSourceName = state.linkedSourceName
+        Text(
+            if (linkedSourceName == null) {
+                state.source.name
+            } else {
+                stringResource(MR.strings.link_manga_source_pair_label, state.source.name, linkedSourceName)
+            },
         )
         if (state.linkedSourceUnavailable) {
             Text(stringResource(MR.strings.link_manga_source_unavailable_status, state.linkedSourceName.orEmpty()))
@@ -44,6 +54,11 @@ internal fun LinkedMangaSourceStatus(state: MangaScreenModel.State.Success, modi
             Text(stringResource(MR.strings.link_manga_source_unavailable_status, state.source.name))
         } else if (state.sourceRefreshFailed) {
             Text(stringResource(MR.strings.link_manga_source_refresh_failed, state.source.name))
+        }
+        if (onFindAnotherSource != null) {
+            TextButton(onClick = onFindAnotherSource) {
+                Text(stringResource(MR.strings.link_manga_source_find_another))
+            }
         }
     }
 }
