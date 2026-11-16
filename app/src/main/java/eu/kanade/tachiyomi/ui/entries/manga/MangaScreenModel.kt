@@ -425,72 +425,79 @@ class MangaScreenModel(
 
     private fun observeLinkedManga() {
         viewModelScope.launch(ioDispatcher) {
-            mangaSourceLinkRepository.getForMangaAsFlow(mangaId).collectLatest { link ->
-                if (link == null) {
-                    updateSuccessState {
-                        it.copy(
-                            mangaSourceLink = null,
-                            linkedManga = null,
-                            linkedSourceName = null,
-                            sourceStatus = it.sourceStatus.copy(linked = MangaSourceEndpointStatus()),
-                            linkedChapters = emptyList(),
-                        )
+            mangaSourceLinkRepository.getForMangaAsFlow(mangaId)
+                .distinctUntilChanged()
+                .collectLatest { link ->
+                    if (link == null) {
+                        updateSuccessState {
+                            it.copy(
+                                mangaSourceLink = null,
+                                linkedManga = null,
+                                linkedSourceName = null,
+                                sourceStatus = it.sourceStatus.copy(linked = MangaSourceEndpointStatus()),
+                                linkedChapters = emptyList(),
+                            )
+                        }
+                        return@collectLatest
                     }
-                    return@collectLatest
-                }
 
-                updateSuccessState {
-                    it.copy(
-                        mangaSourceLink = link,
-                        linkedManga = null,
-                        linkedSourceName = null,
-                        sourceStatus = it.sourceStatus.copy(linked = MangaSourceEndpointStatus()),
-                        linkedChapters = emptyList(),
-                    )
-                }
-                val linkedMangaId = if (link.firstMangaId == mangaId) link.secondMangaId else link.firstMangaId
-                try {
-                    getMangaAndChapters.subscribe(
-                        linkedMangaId,
-                        applyScanlatorFilter = true,
-                    ).collectLatest { (manga, chapters) ->
-                        val source = sourceManager.getOrStub(manga.source)
-                        val translationStates = translationManager.translationStates.value
+                    val hasSameLinkedSnapshot = successState?.let {
+                        it.mangaSourceLink == link && it.linkedManga != null
+                    } == true
+                    if (!hasSameLinkedSnapshot) {
                         updateSuccessState {
                             it.copy(
                                 mangaSourceLink = link,
-                                linkedManga = manga,
-                                linkedSourceName = source.name,
-                                sourceStatus = it.sourceStatus.copy(
-                                    linked = it.sourceStatus.linked.copy(unavailable = source.isUnavailable()),
-                                ),
-                                linkedChapters = chapterListItemMapper.map(
-                                    chapters = chapters,
-                                    manga = manga,
-                                    selectedChapterIds = selectedChapterIds,
-                                    translationStates = translationStates,
-                                ),
+                                linkedManga = null,
+                                linkedSourceName = null,
+                                sourceStatus = it.sourceStatus.copy(linked = MangaSourceEndpointStatus()),
+                                linkedChapters = emptyList(),
                             )
                         }
-                        if (
-                            !source.isUnavailable() && (chapters.isEmpty() || !manga.initialized) &&
-                            linkedAutoRefreshAttemptedIds.add(manga.id)
-                        ) {
-                            viewModelScope.launch(ioDispatcher) {
-                                val failure = entryRefresher.refresh(source, manga).await().exceptionOrNull()
-                                recordRefreshOutcome(manga.id, link, failure)
-                                if (failure != null && successState?.mangaSourceLink == link) {
-                                    showLinkedSourceFailure(source.name)
+                    }
+                    val linkedMangaId = if (link.firstMangaId == mangaId) link.secondMangaId else link.firstMangaId
+                    try {
+                        getMangaAndChapters.subscribe(
+                            linkedMangaId,
+                            applyScanlatorFilter = true,
+                        ).collectLatest { (manga, chapters) ->
+                            val source = sourceManager.getOrStub(manga.source)
+                            val translationStates = translationManager.translationStates.value
+                            updateSuccessState {
+                                it.copy(
+                                    mangaSourceLink = link,
+                                    linkedManga = manga,
+                                    linkedSourceName = source.name,
+                                    sourceStatus = it.sourceStatus.copy(
+                                        linked = it.sourceStatus.linked.copy(unavailable = source.isUnavailable()),
+                                    ),
+                                    linkedChapters = chapterListItemMapper.map(
+                                        chapters = chapters,
+                                        manga = manga,
+                                        selectedChapterIds = selectedChapterIds,
+                                        translationStates = translationStates,
+                                    ),
+                                )
+                            }
+                            if (
+                                !source.isUnavailable() && (chapters.isEmpty() || !manga.initialized) &&
+                                linkedAutoRefreshAttemptedIds.add(manga.id)
+                            ) {
+                                viewModelScope.launch(ioDispatcher) {
+                                    val failure = entryRefresher.refresh(source, manga).await().exceptionOrNull()
+                                    recordRefreshOutcome(manga.id, link, failure)
+                                    if (failure != null && successState?.mangaSourceLink == link) {
+                                        showLinkedSourceFailure(source.name)
+                                    }
                                 }
                             }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logcat(LogPriority.ERROR, e) { "Failed to observe linked manga $linkedMangaId" }
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR, e) { "Failed to observe linked manga $linkedMangaId" }
                 }
-            }
         }
     }
 
