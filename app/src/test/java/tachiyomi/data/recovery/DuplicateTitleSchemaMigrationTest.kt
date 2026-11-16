@@ -17,7 +17,7 @@ class DuplicateTitleSchemaMigrationTest {
             db.insertMangaCategory(1, 1)
             db.driver.installLegacyDuplicateKey("mangas")
 
-            Database.Schema.migrate(db.driver, 41, Database.Schema.version)
+            Database.Schema.migrate(db.driver, oldVersion = 41, newVersion = 42)
 
             assertEquals(emptyList<String>(), db.driver.duplicateKeys("mangas"))
             assertEquals(listOf(1L), db.driver.longs("SELECT _id FROM mangas WHERE favorite = 1"))

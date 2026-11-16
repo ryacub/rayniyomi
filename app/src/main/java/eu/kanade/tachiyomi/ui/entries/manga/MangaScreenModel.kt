@@ -49,7 +49,6 @@ import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationState
 import eu.kanade.tachiyomi.di.ViewModelIoDispatcher
 import eu.kanade.tachiyomi.source.MangaSource
-import eu.kanade.tachiyomi.source.manga.isLocalOrStub
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.ui.entries.common.EntryCategoryActions
@@ -607,7 +606,7 @@ class MangaScreenModel(
         )
         val latestHistory = (getMangaHistory.await(current.manga.id) + getMangaHistory.await(partner.id))
             .filter { (it.readAt?.time ?: 0L) > 0L }
-            .maxWithOrNull(compareBy({ it.readAt!!.time }, { it.chapterId }))
+            .maxWithOrNull(compareBy({ it.readAt?.time ?: 0L }, { it.chapterId }))
         val latestChapterId = latestHistory?.chapterId
         val chapterItems = current.chapters + current.linkedChapters
         val latestItem = latestChapterId?.let { id -> chapterItems.firstOrNull { it.chapter.id == id } }
@@ -710,7 +709,7 @@ class MangaScreenModel(
         registeredSourceIds: Set<Long>? = null,
     ): Boolean {
         if (this is StubMangaSource) return true
-        if (isLocalOrStub()) return false
+        if (isLocal()) return false
 
         val disabled = disabledSources ?: sourcePreferences.disabledMangaSources().get()
         val languages = enabledLanguages ?: sourcePreferences.enabledLanguages().get()
@@ -1113,7 +1112,8 @@ class MangaScreenModel(
         val state = successState ?: return
         val eligibleItems = items.filter { item ->
             val owner = state.originalMangaForChapter(item.chapter) ?: return@filter false
-            !sourceManager.getOrStub(owner.source).isLocalOrStub()
+            val source = sourceManager.getOrStub(owner.source)
+            !source.isLocal() && source !is StubMangaSource
         }
         if (eligibleItems.isEmpty()) return
         when (action) {

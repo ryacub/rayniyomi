@@ -27,8 +27,10 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -110,6 +112,7 @@ class MangaScreenModelSourceFetchTest {
     @Test
     fun `a persisted source pair presents chapters from both originals as one numbered list`() = runTest(vt.scheduler) {
         InMemoryMangaDb().use { db ->
+            val models = mutableListOf<MangaScreenModel>()
             db.insertManga(id = 1, url = "first", title = "First", source = 1)
             db.insertManga(id = 2, url = "second", title = "Second", source = 2)
             val mangas = MangaRepositoryImpl(db.handler)
@@ -145,28 +148,37 @@ class MangaScreenModelSourceFetchTest {
                 linkedManga = second,
                 linkedChapters = chapters.getChapterByMangaId(second.id),
             )
-            val firstState = model.state.first {
-                it is MangaScreenModel.State.Success
-            } as MangaScreenModel.State.Success
-            val firstRows = firstState.chapterListItems.filterIsInstance<ChapterList.Item>()
-            firstRows.size shouldBe 40
-            firstRows.map { it.chapter.chapterNumber }.toSet() shouldBe (1..40).map(Int::toDouble).toSet()
-            firstRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe listOf(1L, 2L)
+            models += model
+            try {
+                val firstState = model.state.first {
+                    it is MangaScreenModel.State.Success
+                } as MangaScreenModel.State.Success
+                val firstRows = firstState.chapterListItems.filterIsInstance<ChapterList.Item>()
+                firstRows.size shouldBe 40
+                firstRows.map { it.chapter.chapterNumber }.toSet() shouldBe (1..40).map(Int::toDouble).toSet()
+                firstRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe
+                    listOf(1L, 2L)
 
-            val reversedModel = createModel(
-                manga = second,
-                chapters = chapters.getChapterByMangaId(second.id),
-                mangaSourceLinkRepository = sourceLinks,
-                linkedManga = first,
-                linkedChapters = chapters.getChapterByMangaId(first.id),
-            )
-            val reversedState = reversedModel.state.first {
-                it is MangaScreenModel.State.Success
-            } as MangaScreenModel.State.Success
-            val reversedRows = reversedState.chapterListItems.filterIsInstance<ChapterList.Item>()
-            reversedRows.map { it.chapter.chapterNumber } shouldBe firstRows.map { it.chapter.chapterNumber }
-            reversedRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe
-                listOf(1L, 2L)
+                val reversedModel = createModel(
+                    manga = second,
+                    chapters = chapters.getChapterByMangaId(second.id),
+                    mangaSourceLinkRepository = sourceLinks,
+                    linkedManga = first,
+                    linkedChapters = chapters.getChapterByMangaId(first.id),
+                )
+                models += reversedModel
+                val reversedState = reversedModel.state.first {
+                    it is MangaScreenModel.State.Success
+                } as MangaScreenModel.State.Success
+                val reversedRows = reversedState.chapterListItems.filterIsInstance<ChapterList.Item>()
+                reversedRows.map { it.chapter.chapterNumber } shouldBe firstRows.map { it.chapter.chapterNumber }
+                reversedRows.single { it.chapter.chapterNumber == 25.0 }.versions.map { it.manga.id } shouldBe
+                    listOf(1L, 2L)
+            } finally {
+                models.forEach { model ->
+                    model.viewModelScope.coroutineContext[Job]?.cancelAndJoin()
+                }
+            }
         }
     }
 
