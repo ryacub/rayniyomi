@@ -192,7 +192,7 @@ class MangaScreen(
                         is MangaScreenModel.ContinueReadingDecision.Launch -> continueReading(
                             context,
                             decision.action,
-                            coverHandoff(),
+                            coverHandoff.takeIf { decision.action != StartAction.None }?.invoke(),
                         )
                         is MangaScreenModel.ContinueReadingDecision.ChooseChapter -> {
                             continueChoiceCover = coverHandoff

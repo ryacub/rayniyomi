@@ -88,10 +88,10 @@ internal fun linkedChapterSourceNames(versions: List<MangaChapterVersion>): Stri
             labels += sourceName
             continue
         }
-        val details = sourceVersions.map { it.chapter.scanlator?.takeIf(String::isNotBlank) ?: it.chapter.name }
+        val details = sourceVersions.map { it.chapter.versionDetail() }
         val duplicateDetails = details.distinct().size != details.size
         sourceVersions.forEachIndexed { index, version ->
-            val detail = details[index].takeIf { it.isNotBlank() }
+            val detail = details[index]
                 ?: stringResource(MR.strings.link_manga_source_version_number, index + 1)
             val disambiguator = if (duplicateDetails) {
                 stringResource(MR.strings.link_manga_source_version_number, index + 1)
@@ -121,12 +121,10 @@ internal fun linkedMangaVersionLabel(version: MangaChapterVersion, versions: Lis
     }
     val sameSourceVersions = versions.filter { it.sourceName == version.sourceName }
     val sameSourceIndex = sameSourceVersions.indexOfFirst { it.chapter.id == chapter.id }
-    val sameSourceDetails = sameSourceVersions.map {
-        it.chapter.scanlator?.takeIf(String::isNotBlank) ?: it.chapter.name
-    }
+    val sameSourceDetails = sameSourceVersions.map { it.chapter.versionDetail() }
     val sourceLabel = if (sameSourceVersions.size > 1) {
         val duplicateDetails = sameSourceDetails.distinct().size != sameSourceDetails.size
-        val detail = sameSourceDetails[sameSourceIndex].takeIf { it.isNotBlank() }
+        val detail = sameSourceDetails[sameSourceIndex]
         val disambiguator = if (duplicateDetails || detail == null) {
             stringResource(MR.strings.link_manga_source_version_number, sameSourceIndex + 1)
         } else {
@@ -144,6 +142,15 @@ internal fun ChapterList.Item.sourceLabel(): String? = versions
     .takeIf { it.isNotEmpty() }
     ?.let { linkedChapterSourceNames(it) }
     ?: sourceName
+
+@Composable
+private fun Chapter.versionDetail(): String? {
+    val scanlator = scanlator?.takeIf(String::isNotBlank)
+    val number = takeIf { isRecognizedNumber }?.let {
+        stringResource(MR.strings.display_mode_chapter, formatChapterNumber(it.chapterNumber))
+    }
+    return scanlator ?: name.takeIf { it.isNotBlank() && it != number }
+}
 
 @Composable
 internal fun ResumeChapterFabText(chapter: Chapter?, isLinked: Boolean) {

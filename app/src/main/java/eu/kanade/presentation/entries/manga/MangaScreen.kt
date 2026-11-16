@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -68,7 +67,6 @@ import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
 import eu.kanade.presentation.entries.components.LocalCoverHandoff
 import eu.kanade.presentation.entries.components.MissingItemCountListItem
-import eu.kanade.presentation.entries.components.ResumeFabText
 import eu.kanade.presentation.entries.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.entries.manga.components.ChapterTranslationAction
 import eu.kanade.presentation.entries.manga.components.ExpandableMangaDescription
@@ -78,7 +76,6 @@ import eu.kanade.presentation.entries.manga.components.MangaInfoBox
 import eu.kanade.presentation.entries.manga.components.MangaTranslationSummaryCard
 import eu.kanade.presentation.theme.cover.EntryDynamicCoverTheme
 import eu.kanade.presentation.util.formatChapterNumber
-import eu.kanade.presentation.util.padItemNumber
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -940,7 +937,8 @@ private fun LazyListScope.sharedChapterItems(
                     read = item.chapter.read,
                     bookmark = item.chapter.bookmark,
                     selected = item.selected,
-                    downloadIndicatorEnabled = !isAnyChapterSelected && !manga.isLocal(),
+                    downloadIndicatorEnabled = !isAnyChapterSelected &&
+                        !(item.ownerManga?.isLocal() ?: manga.isLocal()),
                     downloadStateProvider = { item.downloadState },
                     downloadProgressProvider = { progress },
                     downloadPaused = item.downloadPaused,
