@@ -12,8 +12,12 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -21,6 +25,7 @@ import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.entries.manga.interactor.GetManga
 import tachiyomi.domain.entries.manga.model.Manga
 import tachiyomi.domain.source.manga.service.MangaSourceManager
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LinkMangaSourceScreenModelTest {
@@ -32,6 +37,7 @@ class LinkMangaSourceScreenModelTest {
         every { lang } returns "en"
         every { getFilterList() } returns mockk()
     }
+    private val preferences = SourcePreferences(InMemoryPreferenceStore(emptySequence()))
     private lateinit var model: LinkMangaSourceScreenModel
 
     @BeforeEach
@@ -41,12 +47,12 @@ class LinkMangaSourceScreenModelTest {
             coEvery { await(original.id) } returns original
         }
         val sourceManager = mockk<MangaSourceManager> {
+            every { sources } returns MutableStateFlow(listOf(alternative))
             every { getOnlineSources() } returns listOf(alternative)
             every { getOrStub(original.source) } returns mockk {
                 every { name } returns "Source A"
             }
         }
-        val preferences = SourcePreferences(InMemoryPreferenceStore(emptySequence()))
         preferences.enabledLanguages().set(setOf("en"))
         model = LinkMangaSourceScreenModel(original.id, getManga, sourceManager, preferences, mockk())
     }
@@ -69,9 +75,14 @@ class LinkMangaSourceScreenModelTest {
     fun `editing the title invalidates a search that is still in flight`() = runTest(time.scheduler) {
         val started = CompletableDeferred<Unit>()
         val finish = CompletableDeferred<MangasPage>()
+        val sourceReturned = CompletableDeferred<Unit>()
         coEvery { alternative.getSearchManga(1, "Paper Moon", any()) } coAnswers {
             started.complete(Unit)
-            finish.await()
+            try {
+                finish.await()
+            } finally {
+                sourceReturned.complete(Unit)
+            }
         }
 
         try {
@@ -84,9 +95,32 @@ class LinkMangaSourceScreenModelTest {
             model.setQuery("An alias")
             model.state.value.query shouldBe "An alias"
             model.state.value.searching shouldBe false
+            sourceReturned.await()
             model.state.value.results shouldBe emptyList()
         } finally {
             finish.complete(MangasPage(emptyList(), false))
         }
+    }
+
+    @Test
+    fun `a source timeout ends the search and shows a failure`() = runTest(time.scheduler, timeout = 5.seconds) {
+        coEvery { alternative.getSearchManga(1, "Paper Moon", any()) } coAnswers {
+            withTimeout(50) { awaitCancellation() }
+        }
+
+        model.selectSource(alternative)
+        model.search()
+        val settled = model.state.first { !it.searching }
+        settled.error shouldBe LinkMangaSourceError.SearchFailed
+        settled.results shouldBe emptyList()
+    }
+
+    @Test
+    fun `disabling the selected source clears the picker selection`() = runTest(time.scheduler) {
+        model.selectSource(alternative)
+        preferences.disabledMangaSources().set(setOf(alternative.id.toString()))
+
+        model.state.value.sources shouldBe emptyList()
+        model.state.value.source shouldBe null
     }
 }
