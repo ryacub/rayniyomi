@@ -165,6 +165,7 @@ internal class ReaderChapterListManager(
      * Returns null if the chapter to delete is out of bounds.
      */
     fun getChapterForDeletion(currentChapter: ReaderChapter, removeAfterReadSlots: Int): ReaderChapter? {
+        if (removeAfterReadSlots == 0) return currentChapter
         if (mangaSourceLink == null) {
             val currentChapterPosition = chapterList.indexOfFirst { it.chapter.id == currentChapter.chapter.id }
             return chapterList.getOrNull(currentChapterPosition - removeAfterReadSlots)

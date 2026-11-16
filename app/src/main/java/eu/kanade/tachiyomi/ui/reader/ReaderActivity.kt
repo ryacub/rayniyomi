@@ -1429,6 +1429,9 @@ internal fun toolbarNavigationPageIndex(
     isLinked: Boolean,
 ): Int? {
     val current = currentChapter ?: return null
-    if (current.chapter.id == previousChapterId) return null
-    return if (isLinked) current.requestedPage.coerceAtLeast(0) else 0
+    if (isLinked) {
+        if (current.chapter.id == previousChapterId) return null
+        return current.requestedPage.coerceAtLeast(0)
+    }
+    return 0
 }

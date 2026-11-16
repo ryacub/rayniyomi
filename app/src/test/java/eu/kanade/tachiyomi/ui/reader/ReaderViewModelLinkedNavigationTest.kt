@@ -213,6 +213,10 @@ class ReaderViewModelLinkedNavigationTest {
                     null,
                     toolbarNavigationPageIndex(31L, model.state.value.currentChapter, isLinked = true),
                 )
+                assertEquals(
+                    0,
+                    toolbarNavigationPageIndex(31L, model.state.value.currentChapter, isLinked = false),
+                )
                 assertEquals(listOf(31L, 4L), savedState.get<LongArray>("reader_checkpoint")?.toList())
                 assertEquals(partnerSource, model.getSource())
                 coVerify(timeout = 5_000) {
