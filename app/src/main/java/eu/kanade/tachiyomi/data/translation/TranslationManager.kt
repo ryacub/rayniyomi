@@ -35,10 +35,8 @@ class TranslationManager(
     private val translationStorageManager: TranslationStorageManager = appGraph.translationStorageManager,
     private val downloadManager: MangaDownloadManager = appGraph.mangaDownloadManager,
     scope: CoroutineScope? = null,
-    private val translationRunTelemetry: TranslationRunTelemetry = NoOpTranslationRunTelemetry,
     private val chapterRunner: TranslationChapterRunner = TranslationChapterRunner(
         translationStorageManager = translationStorageManager,
-        telemetry = translationRunTelemetry,
     ),
 ) {
 

@@ -48,6 +48,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 - Remove duplicate library merging and scanning. Adding a title still warns you when the library has a title with the same name (#1519).
 - The Suwayomi tracker. Updating the app deletes its tracking links, and old backups restore without them (#1473).
+- Firebase Analytics. The app no longer sends translation run counts, and no longer enables advertising ID collection. Crash reports through Crashlytics stay on (#1537).
 
 ### CI
 - Treat Kotlin compiler warnings as errors in `domain`, `data`, and `core:common` (#1498).

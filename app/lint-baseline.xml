@@ -3952,17 +3952,6 @@
     <issue
         id="UseTomlInstead"
         message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.google.firebase:firebase-analytics&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="338"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
         errorLine1="    implementation(&quot;com.google.firebase:firebase-crashlytics&quot;)"
         errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location

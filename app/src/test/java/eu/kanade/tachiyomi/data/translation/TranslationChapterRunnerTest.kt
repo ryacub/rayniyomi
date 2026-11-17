@@ -28,7 +28,6 @@ class TranslationChapterRunnerTest {
 
     private val translationStorageManager = mockk<TranslationStorageManager>(relaxed = true)
     private val engine = mockk<TranslationEngine>()
-    private val telemetry = mockk<TranslationRunTelemetry>(relaxed = true)
     private val source = mockk<MangaSource>()
 
     private val manga = Manga.create().copy(id = 1L, title = "Test Manga")
@@ -56,7 +55,6 @@ class TranslationChapterRunnerTest {
     private fun createRunner(): TranslationChapterRunner =
         TranslationChapterRunner(
             translationStorageManager = translationStorageManager,
-            telemetry = telemetry,
             render = { bytes, _ ->
                 renderCalls++
                 bytes
@@ -367,77 +365,7 @@ class TranslationChapterRunnerTest {
     }
 
     @Test
-    fun `records one translated run with coverage and retry metrics`() = runTest {
-        var attempts = 0
-        coEvery { engine.detectAndTranslate(any(), "en") } answers {
-            if (attempts++ == 0) throw HttpException(503)
-            TranslationResult(emptyList())
-        }
-        every { translationStorageManager.writeTranslatedPage(any(), any(), any(), any(), any(), any(), any()) } returns
-            mockk()
-
-        createRunner().run(
-            manga,
-            chapter,
-            source,
-            pagesOf(1, byteArrayOf(1)),
-            engine,
-            "en",
-            "CLAUDE",
-            onState = {},
-            model = "claude-3",
-        )
-        advanceUntilIdle()
-
-        verify(exactly = 1) { telemetry.record(any()) }
-        verify(exactly = 1) {
-            telemetry.record(
-                match {
-                    it.provider == "CLAUDE" &&
-                        it.model == "claude-3" &&
-                        it.targetLanguage == "en" &&
-                        it.totalPages == 1 &&
-                        it.resolvedPages == 1 &&
-                        it.retryCount == 1 &&
-                        it.durationMs >= 0 &&
-                        it.terminalStatus == TranslationRunStatus.TRANSLATED &&
-                        it.outcomeCounts == mapOf(TranslationPageOutcome.NO_TEXT to 1)
-                },
-            )
-        }
-    }
-
-    @Test
-    fun `records one incomplete run with bounded outcome counts`() = runTest {
-        val unreadablePage = DownloadedChapterPage(0) { null }
-
-        createRunner().run(
-            manga,
-            chapter,
-            source,
-            listOf(unreadablePage),
-            engine,
-            "en",
-            "CLAUDE",
-            onState = {},
-            model = "claude-3",
-        )
-
-        verify(exactly = 1) { telemetry.record(any()) }
-        verify(exactly = 1) {
-            telemetry.record(
-                match {
-                    it.terminalStatus == TranslationRunStatus.INCOMPLETE &&
-                        it.totalPages == 1 &&
-                        it.resolvedPages == 0 &&
-                        it.outcomeCounts == mapOf(TranslationPageOutcome.UNREADABLE_INPUT to 1)
-                },
-            )
-        }
-    }
-
-    @Test
-    fun `records cancellation as cancelled and never translated`() {
+    fun `cancellation propagates out of the run`() {
         coEvery { engine.detectAndTranslate(any(), "en") } throws CancellationException()
 
         assertThrows<CancellationException> {
@@ -455,15 +383,10 @@ class TranslationChapterRunnerTest {
                 )
             }
         }
-
-        verify(exactly = 1) { telemetry.record(any()) }
-        verify(exactly = 1) {
-            telemetry.record(match { it.terminalStatus == TranslationRunStatus.CANCELLED })
-        }
     }
 
     @Test
-    fun `records an unexpected failure as failed and never translated`() {
+    fun `unexpected failure propagates out of the run`() {
         every {
             translationStorageManager.getTranslationCoverage(any(), any(), any(), any(), any())
         } throws IllegalStateException("storage failure")
@@ -482,11 +405,6 @@ class TranslationChapterRunnerTest {
                     model = "claude-3",
                 )
             }
-        }
-
-        verify(exactly = 1) { telemetry.record(any()) }
-        verify(exactly = 1) {
-            telemetry.record(match { it.terminalStatus == TranslationRunStatus.FAILED })
         }
     }
 }
