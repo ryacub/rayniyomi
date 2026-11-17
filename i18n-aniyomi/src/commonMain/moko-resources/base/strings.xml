@@ -678,7 +678,6 @@
     <string name="translation_complete">Translation complete</string>
     <string name="translation_error">Translation failed: %s</string>
     <string name="translation_incomplete">Translation incomplete: %1$d of %2$d pages resolved. Unresolved pages: %3$s</string>
-    <string name="pref_show_translated_pages">Show translated pages</string>
 
     <!-- Light novel plugin settings -->
     <string name="pref_category_light_novels">Light novels</string>
