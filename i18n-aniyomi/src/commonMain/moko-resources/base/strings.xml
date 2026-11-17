@@ -649,7 +649,6 @@
     <string name="pref_translation_model_automatic">Automatic</string>
     <string name="pref_translation_model_none">No compatible model selected</string>
     <string name="pref_translation_model_picker_title">Select translation model</string>
-    <string name="pref_translation_model_loading">Loading models</string>
     <string name="pref_translation_model_refresh">Refresh</string>
     <string name="pref_translation_model_refresh_failed">The model list could not be updated. Check the connection.</string>
     <string name="pref_translation_model_empty">No image-capable models with text output are available. Refresh the catalog.</string>
@@ -679,8 +678,6 @@
     <string name="translation_complete">Translation complete</string>
     <string name="translation_error">Translation failed: %s</string>
     <string name="translation_incomplete">Translation incomplete: %1$d of %2$d pages resolved. Unresolved pages: %3$s</string>
-    <string name="translation_no_provider">No translation provider configured</string>
-    <string name="translation_cost_warning">This will make API calls for each page. Continue?</string>
     <string name="pref_show_translated_pages">Show translated pages</string>
 
     <!-- Light novel plugin settings -->
@@ -718,17 +715,12 @@
     <string name="light_novel_plugin_error_manifest_plugin_too_old">Installed plugin version is below the minimum required version. Please update the plugin.</string>
     <string name="light_novel_plugin_install_confirm_title">Install light novel plugin?</string>
     <string name="light_novel_plugin_install_confirm_message">This downloads the plugin manifest and APK from GitHub before launching Android package install.</string>
-    <!-- Light novel plugin offline/network resilience (R236-M) -->
-    <string name="light_novel_plugin_degraded_cache">Using cached plugin data (last updated %1$s ago)</string>
-    <string name="light_novel_plugin_offline">Plugin unavailable offline</string>
-    <string name="light_novel_plugin_error_rollback_not_available">Plugin rollback is not available in this version.</string>
 
     <!-- Light novel plugin UX state machine (R236-N) -->
     <string name="light_novel_plugin_action_install">Tap to install light novel plugin</string>
     <string name="light_novel_plugin_status_downloading">Downloading plugin...</string>
     <string name="light_novel_plugin_status_waiting_for_install">Waiting for installation...</string>
     <string name="light_novel_plugin_status_incompatible">Plugin needs reinstall</string>
-    <string name="light_novel_plugin_status_api_mismatch">Plugin needs update</string>
     <string name="light_novel_plugin_status_untrusted_diagnostic">Signature verification failed for %1$s (version %2$d; trust: untrusted; compatibility: %3$s). Reinstall the official plugin.</string>
     <string name="light_novel_plugin_status_api_mismatch_diagnostic">%1$s version %2$d is incompatible (%3$s; trust: trusted): plugin API %4$s, expected API %5$d; host version %6$d. Update Rayniyomi or the plugin.</string>
     <string name="light_novel_plugin_status_blocked">Plugin not available</string>
