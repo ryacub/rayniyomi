@@ -261,6 +261,7 @@ dependencies {
     implementation(androidx.constraintlayout)
     implementation(aniyomilibs.compose.constraintlayout)
     implementation(androidx.corektx)
+    implementation(androidx.localbroadcastmanager)
     implementation(androidx.splashscreen)
     implementation(androidx.recyclerview)
     implementation(androidx.viewpager)
