@@ -379,7 +379,6 @@ class TranslationChapterRunnerTest {
                     "en",
                     "CLAUDE",
                     onState = {},
-                    model = "claude-3",
                 )
             }
         }
@@ -402,7 +401,6 @@ class TranslationChapterRunnerTest {
                     "en",
                     "CLAUDE",
                     onState = {},
-                    model = "claude-3",
                 )
             }
         }

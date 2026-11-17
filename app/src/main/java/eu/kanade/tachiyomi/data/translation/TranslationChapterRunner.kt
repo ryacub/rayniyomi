@@ -39,7 +39,6 @@ class TranslationChapterRunner(
         engine: TranslationEngine,
         targetLang: String,
         provider: String,
-        model: String = "",
         onState: (TranslationState) -> Unit,
     ) {
         var outcomes = pages.indices.associateWith { TranslationPageOutcome.NOT_ATTEMPTED }.toMutableMap()

@@ -96,9 +96,7 @@ class TranslationManager(
         if (activeJobs[chapterId]?.isActive == true) return
         _chapterTitles.update { it + (chapterId to "${manga.title} - ${chapter.name}") }
 
-        val translationProvider = translationPreferences.translationProvider().get()
-        val provider = translationProvider.name
-        val model = translationPreferences.translationModel(translationProvider).get()
+        val provider = translationPreferences.translationProvider().get().name
         val engine = translationEngineFactory.create()
         if (engine == null) {
             updateState(
@@ -123,7 +121,6 @@ class TranslationManager(
                             engine = engine,
                             targetLang = targetLang,
                             provider = provider,
-                            model = model,
                             onState = { state -> updateState(chapterId, state) },
                         )
                     }
