@@ -53,8 +53,6 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
-import eu.kanade.tachiyomi.data.translation.TranslationRunTelemetry
-import eu.kanade.tachiyomi.data.translation.TranslationRunTelemetryFactory
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -278,11 +276,6 @@ object AppModule {
                 downloadPreferences.multiThreadConnections().get().coerceIn(1, 4)
             },
         )
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun provideTranslationRunTelemetry(application: Application): TranslationRunTelemetry =
-        TranslationRunTelemetryFactory.create(application)
 
     @Provides
     @SingleIn(AppScope::class)
@@ -588,7 +581,6 @@ object AppModule {
         translationPreferences: TranslationPreferences,
         translationStorageManager: TranslationStorageManager,
         downloadManager: MangaDownloadManager,
-        translationRunTelemetry: TranslationRunTelemetry,
     ): TranslationManager =
         TranslationManager(
             context = application,
@@ -596,7 +588,6 @@ object AppModule {
             translationPreferences = translationPreferences,
             translationStorageManager = translationStorageManager,
             downloadManager = downloadManager,
-            translationRunTelemetry = translationRunTelemetry,
         )
 
     @Provides

@@ -69,7 +69,6 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationEngineFactory
 import eu.kanade.tachiyomi.data.translation.TranslationManager
 import eu.kanade.tachiyomi.data.translation.TranslationPreferences
-import eu.kanade.tachiyomi.data.translation.TranslationRunTelemetry
 import eu.kanade.tachiyomi.data.translation.TranslationStorageManager
 import eu.kanade.tachiyomi.data.translation.catalog.TranslationModelCatalogRepository
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -258,7 +257,6 @@ interface AppGraph : LocalSourceGraph, WidgetGraph, ViewModelGraph {
     val storageManager: StorageManager
     val translationEngineFactory: TranslationEngineFactory
     val translationStorageManager: TranslationStorageManager
-    val translationRunTelemetry: TranslationRunTelemetry
     val translationManager: TranslationManager
     val translationModelCatalogRepository: TranslationModelCatalogRepository
     val lightNovelPluginManager: LightNovelPluginManager

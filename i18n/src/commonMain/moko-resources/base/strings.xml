@@ -38,7 +38,6 @@
     <string name="link_manga_source_search_failed">Could not search this source.</string>
     <string name="link_manga_source_failed">Could not link these manga entries.</string>
     <string name="link_manga_source_pair_label">%1$s · %2$s</string>
-    <string name="link_manga_source_version_status">%1$s · %2$s</string>
     <string name="link_manga_source_version_number">Version %1$d</string>
     <string name="link_manga_source_read">Read</string>
     <string name="link_manga_source_resume_unavailable_title">Saved chapter unavailable</string>
@@ -1002,7 +1001,6 @@
     <string name="recovery_action_start_another">Start another recovery</string>
     <string name="recovery_action_search_remaining">Search remaining titles (%d)</string>
     <string name="recovery_action_migrate_alone">Migrate on its own</string>
-    <string name="recovery_action_keep_as_is">Keep as is</string>
     <string name="recovery_search_hint">Title to search</string>
     <string name="recovery_state_selected">Waiting</string>
     <string name="recovery_state_searching">Searching</string>
@@ -1152,7 +1150,6 @@
     <string name="pref_update_check_frequency_never">Never</string>
     <string name="pref_update_skip_version_title">Skipped version</string>
     <string name="pref_update_skip_version_none">None</string>
-    <string name="pref_update_skip_version_clear">Clear skipped version</string>
 
     <!--UpdateCheck Notifications-->
     <string name="update_check_notification_download_in_progress">Downloading…</string>

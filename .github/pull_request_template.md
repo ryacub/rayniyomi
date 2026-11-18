@@ -57,7 +57,6 @@ If you are creating a new fork of this project, ensure the following:
 - [ ] **App Icon**: Replaced launcher icon assets with fork-specific icons
 - [ ] **Application ID**: Changed `applicationId` in `app/build.gradle.kts` from `xyz.rayniyomi` to your unique ID
 - [ ] **Update Checker**: Configured `AppUpdateChecker.kt` to point to your fork's repository
-- [ ] **Analytics**: Either disabled Firebase Analytics or configured with your own `google-services.json`
-- [ ] **Crash Reporting**: Either disabled ACRA crash reporting or configured with your own endpoint credentials
+- [ ] **Crash Reporting**: Either removed Firebase Crashlytics or configured your own `google-services.json`
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) Forks section for details.

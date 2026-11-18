@@ -47,9 +47,8 @@ android {
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
         buildConfigField("int", "LIGHT_NOVEL_PLUGIN_API_VERSION", lightNovelExpectedPluginApiVersion.toString())
 
-        // R37/R38: This fork uses its own Firebase project for Analytics and Crashlytics
-        // (see firebase_config.xml), while ACRA crash reporting remains disabled.
-        // This keeps fork telemetry isolated from upstream services.
+        // This fork uses its own Firebase project for Crashlytics (see firebase_config.xml).
+        // This keeps fork crash reports isolated from upstream services.
         // See: app/src/main/res/values/firebase_config.xml
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -262,6 +261,7 @@ dependencies {
     implementation(androidx.constraintlayout)
     implementation(aniyomilibs.compose.constraintlayout)
     implementation(androidx.corektx)
+    implementation(androidx.localbroadcastmanager)
     implementation(androidx.splashscreen)
     implementation(androidx.recyclerview)
     implementation(androidx.viewpager)
@@ -330,12 +330,11 @@ dependencies {
     // Logging
     implementation(libs.logcat)
 
-    // Firebase Analytics and Crashlytics
+    // Firebase Crashlytics
     // google-services plugin is applied conditionally (release only) so the xml resources
     // only exist in release builds; Crashlytics plugin is unconditional so the build ID is
     // always embedded. Debug builds compile fine but Firebase won't initialize (no google_app_id).
     implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
-    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-crashlytics")
 
     // Shizuku

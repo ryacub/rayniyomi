@@ -3224,50 +3224,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.bool.firebase_analytics_collection_enabled` appears to be unused"
-        errorLine1="    &lt;bool name=&quot;firebase_analytics_collection_enabled&quot; translatable=&quot;false&quot;>true&lt;/bool>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/firebase_config.xml"
-            line="13"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.bool.firebase_analytics_collection_deactivated` appears to be unused"
-        errorLine1="    &lt;bool name=&quot;firebase_analytics_collection_deactivated&quot; translatable=&quot;false&quot;>false&lt;/bool>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/firebase_config.xml"
-            line="14"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.bool.google_analytics_adid_collection_enabled` appears to be unused"
-        errorLine1="    &lt;bool name=&quot;google_analytics_adid_collection_enabled&quot; translatable=&quot;false&quot;>true&lt;/bool>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/firebase_config.xml"
-            line="17"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.bool.google_analytics_ssaid_collection_enabled` appears to be unused"
-        errorLine1="    &lt;bool name=&quot;google_analytics_ssaid_collection_enabled&quot; translatable=&quot;false&quot;>false&lt;/bool>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/firebase_config.xml"
-            line="20"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.bool.firebase_crashlytics_collection_enabled` appears to be unused"
         errorLine1="    &lt;bool name=&quot;firebase_crashlytics_collection_enabled&quot; translatable=&quot;false&quot;>true&lt;/bool>"
         errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -3947,17 +3903,6 @@
             file="build.gradle.kts"
             line="337"
             column="29"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.google.firebase:firebase-analytics&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="338"
-            column="20"/>
     </issue>
 
     <issue
