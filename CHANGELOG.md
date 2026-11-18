@@ -13,6 +13,23 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+
+### Improved
+
+### Fixed
+
+### Changed
+
+### Removed
+
+### CI
+
+### Other
+
+
+## [0.18.1.504] - 2026-11-18
+
+### Added
 - Anime details show related titles when the extension provides them (#1472).
 - Linked manga sources stay linked in backups, including unread editions outside the library (#1535).
 
