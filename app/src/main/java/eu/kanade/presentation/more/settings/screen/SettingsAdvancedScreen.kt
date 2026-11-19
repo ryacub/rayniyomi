@@ -27,6 +27,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver
+import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.advanced.ClearAnimeDatabaseScreen
 import eu.kanade.presentation.more.settings.screen.advanced.ClearDatabaseScreen
@@ -90,6 +91,7 @@ object SettingsAdvancedScreen : SearchableSettings {
 
         val basePreferences = remember { appGraph.basePreferences }
         val networkPreferences = remember { appGraph.networkPreferences }
+        val uiPreferences = remember { appGraph.uiPreferences }
 
         return listOf(
             Preference.PreferenceItem.TextPreference(
@@ -136,6 +138,21 @@ object SettingsAdvancedScreen : SearchableSettings {
             // SY -->
             getDataSaverGroup(),
             // SY <--
+            getBetaGroup(uiPreferences = uiPreferences),
+        )
+    }
+
+    @Composable
+    private fun getBetaGroup(uiPreferences: UiPreferences): Preference.PreferenceGroup {
+        return Preference.PreferenceGroup(
+            title = stringResource(AYMR.strings.pref_category_beta),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = uiPreferences.newUi(),
+                    title = stringResource(AYMR.strings.pref_use_new_interface),
+                    subtitle = stringResource(AYMR.strings.pref_use_new_interface_summary),
+                ),
+            ),
         )
     }
 

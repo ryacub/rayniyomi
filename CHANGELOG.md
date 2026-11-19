@@ -13,6 +13,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ## Unreleased
 
 ### Added
+- Settings > Advanced has a Beta group with a "Use new interface" switch. It is off by default. Screens that are not redesigned yet do not change (#1548).
 
 ### Improved
 
