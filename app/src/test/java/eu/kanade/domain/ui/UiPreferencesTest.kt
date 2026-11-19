@@ -21,6 +21,14 @@ import tachiyomi.core.common.preference.PreferenceStore
 class UiPreferencesTest {
 
     @Test
+    fun `new interface preference is off by default under its own key`() {
+        val preference = UiPreferences(MutablePreferenceStore()).newUi()
+
+        assertEquals("pref_new_ui", preference.key())
+        assertEquals(false, preference.defaultValue())
+    }
+
+    @Test
     fun `schema seed takes precedence over legacy seed`() {
         val preferences = UiPreferences(
             MutablePreferenceStore(
