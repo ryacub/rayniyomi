@@ -129,6 +129,8 @@ class UiPreferences(
 
     fun navStyle() = preferenceStore.getEnum("bottom_rail_nav_style", NavStyle.MOVE_HISTORY_TO_MORE)
 
+    fun newUi() = preferenceStore.getBoolean("pref_new_ui", false)
+
     private enum class AccentSchemaState {
         VALID,
         UNKNOWN_VERSION,
