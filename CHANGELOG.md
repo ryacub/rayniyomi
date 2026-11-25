@@ -26,6 +26,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### CI
 
 ### Other
+- Upgrade jsoup to 1.23.2 to fix two security advisories, GHSA-65r4-943x-97jj and GHSA-pmhh-3w7g-xqp8 (#1558).
 
 
 ## [0.18.1.504] - 2026-11-18
