@@ -7,7 +7,6 @@ import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import kotlin.math.roundToInt
@@ -38,10 +37,7 @@ fun Slider(
     val sliderState = remember(steps, floatRange) {
         SliderState(value = value.toFloat(), steps = steps, trackRange = floatRange)
     }
-    SideEffect {
-        val target = value.toFloat()
-        if (sliderState.value != target) sliderState.value = target
-    }
+    sliderState.value = value.toFloat()
 
     Slider(
         state = sliderState,
