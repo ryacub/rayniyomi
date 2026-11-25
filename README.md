@@ -15,33 +15,29 @@ Fork of Aniyomi with anime/manga/light novel tracking, reading, and watching.
 
 ## Why Rayniyomi?
 
-- **Auto-scroll webtoons** — hands-free reading with tap-to-pause
-- **PIN lock** — secure your library with SHA-256 salted hashing and escalating timeouts
-- **Resumable downloads** — HTTP range resume with multi-thread support and stall detection
-- **Light novel support** — dedicated plugin system with a reactive browse tab
-- **AI translation toggle** — translate untranslated manga on the fly via Claude, OpenAI, Google Gemini, or OpenRouter; the model is configurable per provider
-- **8 trackers with bidirectional sync** — MAL, AniList, Kitsu, Bangumi — progress syncs back automatically on a configurable schedule
-- **Library de-duplication** — detect and merge duplicate entries from different sources, preserving read progress, categories, history, and tracker data
-- **Dynamic cover theming** — entry screens tinted from cover art with contrast-checked fallbacks
-- **Custom app theme accents** — choose a curated accent swatch for the custom theme, with one-tap reset to default palette
-- **Categories with search** — organize that 500-entry library
+- **AI translation.** Translate manga pages in the reader with Claude, OpenAI, Google Gemini, or OpenRouter. You use your own API key and pick the model for each provider. Chapters translate in the background with a progress notification.
+- **Light novels.** An optional plugin adds light novel sources, a Browse tab, and backup support.
+- **CloudStream plugins.** An optional runtime APK loads anime plugins from CloudStream repositories. See [License](#license).
+- **Source recovery.** When a source stops working, a guided flow moves your titles to a different source. It keeps chapters or episodes, read state, history, trackers, categories, and custom covers.
+- **10 trackers with sync.** MyAnimeList, AniList, Kitsu, Shikimori, Bangumi, MangaUpdates, Simkl, Komga, Kavita, and Jellyfin. The app pulls progress from linked trackers on a schedule and when it opens.
+- **Resumable downloads.** Anime downloads resume after an interruption and can use up to 4 connections. The queue shows stalls and tells you whether a failed download can resume.
+- **PIN lock.** A salted, hashed PIN locks the app. Each run of failed attempts makes the lockout longer.
+- **Webtoon auto-scroll.** Read hands-free. Tap to pause.
+- **Library search.** Combine terms with `&&`, `||`, `-`, and parentheses. Compare fields, for example `unread>=1` or `added>=2024-01-01`.
 
 ## Features
 
-- Local reading and watching
-- Configurable reader (multiple viewers, directions, page transitions)
-- Configurable player (mpv-based with subtitle support)
-- Download status transparency — real-time progress with stall detection and low-storage guidance
-- Cloud backups
-- Schedule library updates
-- Dark/light themes
-
-### Theming Notes
-
-- `ThemeMode.CUSTOM` uses the custom app palette while still following system day/night mode.
-- If custom accent seed is unset, the app falls back to the default Tachiyomi color scheme.
-- Legacy lowercase theme-mode values are normalized during preference split migration.
-- Invalid stored theme-mode enum values safely fall back to the default (`SYSTEM`).
+- Local manga and anime
+- Reader with paged and webtoon viewers, several reading directions, a page curl transition, and layouts for foldable book and tabletop postures
+- mpv-based player with subtitles, video filters, a long-press speed boost, and Chromecast casting
+- Filler episode marks from AnimeFillerList
+- Library update progress in the library, then a summary of updated, skipped, and failed titles
+- Android 16 Live Updates for manual library updates and downloads
+- Related titles on anime details, when the extension provides them
+- Entry screens tinted from the cover art, and a custom accent color theme
+- Backup and restore, with automatic backups
+- Scheduled library updates
+- Light and dark themes
 
 ## Contributing
 
@@ -68,7 +64,7 @@ The developer(s) of this application does not have any affiliation with the cont
 
 ## Download
 
-Get it from [releases](https://github.com/ryacub/rayniyomi/releases).
+Get it from [releases](https://github.com/ryacub/rayniyomi/releases). The app needs Android 8.0 or later. The CloudStream runtime has its own releases there.
 
 ## License
 
