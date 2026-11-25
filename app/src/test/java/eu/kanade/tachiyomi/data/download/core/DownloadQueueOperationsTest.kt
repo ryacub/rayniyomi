@@ -17,6 +17,8 @@ class DownloadQueueOperationsTest {
     private class FakeStore : DownloadQueueStore<TestDownload> {
         val items = mutableListOf<TestDownload>()
         override fun addAll(downloads: List<TestDownload>) {
+            val updatedIds = downloads.map { it.id }.toSet()
+            items.removeAll { it.id in updatedIds }
             items.addAll(downloads)
         }
         override fun remove(download: TestDownload) {
@@ -216,18 +218,17 @@ class DownloadQueueOperationsTest {
     // region moveToFront
 
     @Test
-    fun `moveToFront moves existing item to position 0`() {
-        val d1 = TestDownload(1, Status.QUEUE)
-        val d2 = TestDownload(2, Status.QUEUE)
-        val d3 = TestDownload(3, Status.QUEUE)
-        val queueState = MutableStateFlow(listOf(d1, d2, d3))
-        val (ops) = createOps(queueState = queueState)
+    fun `moveToFront persists the same order the queue displays`() {
+        val d1 = TestDownload(1)
+        val d2 = TestDownload(2)
+        val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops, store) = createOps(queueState = queueState)
+        ops.addAll(listOf(d1, d2))
 
-        ops.moveToFront(d3)
+        ops.moveToFront(d2)
 
-        assertEquals(3L, queueState.value[0].id)
-        assertEquals(1L, queueState.value[1].id)
-        assertEquals(2L, queueState.value[2].id)
+        assertEquals(listOf(2L, 1L), queueState.value.map { it.id })
+        assertEquals(queueState.value.map { it.id }, store.items.map { it.id })
     }
 
     @Test
