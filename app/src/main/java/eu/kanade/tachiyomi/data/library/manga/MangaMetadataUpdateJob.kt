@@ -39,7 +39,11 @@ class MangaMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote
 
-    private val notifier = MangaLibraryUpdateNotifier(context)
+    private val notifier = MangaLibraryUpdateNotifier(
+        context,
+        progressNotificationId = Notifications.ID_MANGA_METADATA_PROGRESS,
+        cancelProgress = { context.workManager.createCancelPendingIntent(id) },
+    )
 
     private var mangaToUpdate: List<LibraryManga> = mutableListOf()
 
@@ -71,9 +75,8 @@ class MangaMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notifier = MangaLibraryUpdateNotifier(context)
         return ForegroundInfo(
-            Notifications.ID_LIBRARY_PROGRESS,
+            notifier.progressNotificationId,
             notifier.progressNotificationBuilder.build(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC

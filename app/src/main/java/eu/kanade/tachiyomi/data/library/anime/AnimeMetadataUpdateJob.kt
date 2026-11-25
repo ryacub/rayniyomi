@@ -54,7 +54,11 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     private val getLibraryAnime: GetLibraryAnime = appGraph.getLibraryAnime
     private val updateAnime: UpdateAnime = appGraph.updateAnime
 
-    private val notifier = AnimeLibraryUpdateNotifier(context)
+    private val notifier = AnimeLibraryUpdateNotifier(
+        context,
+        progressNotificationId = Notifications.ID_ANIME_METADATA_PROGRESS,
+        cancelProgress = { context.workManager.createCancelPendingIntent(id) },
+    )
 
     private var animeToUpdate: List<LibraryAnime> = mutableListOf()
 
@@ -86,9 +90,8 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notifier = AnimeLibraryUpdateNotifier(context)
         return ForegroundInfo(
-            Notifications.ID_LIBRARY_PROGRESS,
+            notifier.progressNotificationId,
             notifier.progressNotificationBuilder.build(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC

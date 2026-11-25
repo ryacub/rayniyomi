@@ -59,7 +59,6 @@ class LibraryProgressNotificationTest {
         }
         every { context.cancelNotification(any()) } answers {
             activeNotifications.remove(secondArg<Int>())
-            Unit
         }
         every { context.notificationBuilder(any(), any()) } answers {
             val builder = mockk<NotificationCompat.Builder>(relaxed = true)
