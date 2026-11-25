@@ -37,12 +37,14 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -128,6 +130,13 @@ class AnimeDownloaderTest {
 
         testContext = mockk<Context>(relaxed = true)
         val context = testContext
+        every { context.getSharedPreferences(any(), Context.MODE_PRIVATE) } returns mockk(relaxed = true) {
+            every { all } returns emptyMap()
+            every { getBoolean(any(), any()) } returns true
+            every { edit() } returns mockk(relaxed = true) {
+                every { commit() } returns true
+            }
+        }
         val notificationBuilder = mockk<NotificationCompat.Builder>(relaxed = true)
         every { context.notificationBuilder(any(), any()) } returns notificationBuilder
         every { context.notify(any<Int>(), any<Notification>()) } just runs
@@ -142,6 +151,7 @@ class AnimeDownloaderTest {
             strategySelector = strategySelector,
             multiThreadDownloader = mockk(relaxed = true),
         )
+        runBlocking { withTimeout(5_000) { downloader.awaitQueueRestore() } }
     }
 
     @AfterEach
@@ -211,6 +221,7 @@ class AnimeDownloaderTest {
         downloader.addToStartOfQueue(listOf(first, second))
 
         downloader.updateQueue(listOf(second, first))
+        assertEquals(listOf(2L, 1L), downloader.queueState.value.map { it.episode.id })
         Thread.sleep(200)
 
         verify(exactly = 0) { stateStore.deleteProgress(any()) }

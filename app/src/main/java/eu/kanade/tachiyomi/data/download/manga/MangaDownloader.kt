@@ -36,7 +36,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +64,6 @@ import okio.buffer
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.lang.launchNow
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
@@ -125,6 +123,7 @@ class MangaDownloader(
     private val queueOps = DownloadQueueOperations(
         _queueState = _queueState,
         store = store,
+        restorePending = true,
         itemId = { it.chapter.id },
         isActive = {
             it.status == MangaDownload.State.DOWNLOADING ||
@@ -194,9 +193,8 @@ class MangaDownloader(
     var isPaused: Boolean = false
 
     init {
-        launchNow {
-            val chapters = async { store.restore() }
-            addAllToQueue(chapters.await())
+        scope.launch {
+            queueOps.restore(store::restore)
         }
     }
 
@@ -207,6 +205,8 @@ class MangaDownloader(
      * @return true if the downloader is started, false otherwise.
      */
     fun start(): Boolean = start(resetFailed = true)
+
+    internal suspend fun awaitQueueRestore() = queueOps.awaitRestore()
 
     @Synchronized
     internal fun retryFailed(download: MangaDownload): Boolean {
@@ -974,8 +974,7 @@ class MangaDownloader(
         }
 
         pause()
-        internalClearQueue()
-        addAllToQueue(downloads)
+        queueOps.replaceAll(downloads)
 
         if (wasRunning) {
             start()

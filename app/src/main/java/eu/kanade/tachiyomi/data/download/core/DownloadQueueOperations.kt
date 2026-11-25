@@ -1,7 +1,10 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 /**
  * Generic queue mutation operations shared by anime and manga downloaders.
@@ -24,59 +27,101 @@ class DownloadQueueOperations<D : Any>(
     private val isActive: (D) -> Boolean,
     private val markQueued: (D) -> Unit,
     private val markInactive: (D) -> Unit,
+    restorePending: Boolean = false,
 ) {
+    private val lock = Any()
+    private val deferredMutations = ArrayDeque<() -> Unit>()
+    private val ready = CompletableDeferred<Unit>().also { if (!restorePending) it.complete(Unit) }
 
-    fun addAll(downloads: List<D>) {
-        _queueState.update {
-            downloads.forEach { download -> markQueued(download) }
-            store.addAll(downloads)
-            it + downloads
-        }
-    }
+    suspend fun awaitRestore() = ready.await()
 
-    fun remove(download: D) {
-        _queueState.update {
-            store.remove(download)
-            markInactive(download)
-            it - download
-        }
-    }
-
-    fun removeIf(predicate: (D) -> Boolean) {
-        _queueState.update { queue ->
-            val downloads = queue.filter { predicate(it) }
-            store.removeAll(downloads)
-            downloads.forEach { markInactive(it) }
-            queue - downloads.toSet()
-        }
-    }
-
-    fun internalClear() {
-        _queueState.update {
-            it.forEach { download -> markInactive(download) }
-            store.clear()
-            emptyList()
-        }
-    }
-
-    fun addToStart(downloads: List<D>) {
-        _queueState.update { currentQueue ->
-            downloads.forEach { download ->
-                markQueued(download)
-                store.addAll(listOf(download))
+    suspend fun restore(load: suspend () -> List<D>) {
+        try {
+            val restored = load()
+            synchronized(lock) {
+                restored.forEach(markQueued)
+                _queueState.value = restored
+                while (deferredMutations.isNotEmpty()) deferredMutations.removeFirst()()
+                ready.complete(Unit)
             }
-            val existingIds = currentQueue.map { itemId(it) }.toSet()
-            val newDownloads = downloads.filterNot { itemId(it) in existingIds }
-            newDownloads + currentQueue
+        } catch (e: Exception) {
+            synchronized(lock) {
+                deferredMutations.clear()
+                ready.completeExceptionally(e)
+            }
+            if (e is CancellationException) throw e
+            logcat(LogPriority.ERROR, e) { "Could not restore download queue" }
         }
     }
 
-    fun moveToFront(download: D) {
-        _queueState.update { currentQueue ->
-            val filtered = currentQueue.filterNot { itemId(it) == itemId(download) }
-            markQueued(download)
-            store.addAll(listOf(download))
-            listOf(download) + filtered
+    fun addAll(downloads: List<D>) = submit {
+        val current = _queueState.value
+        val added = newDownloads(current, downloads)
+        if (added.isEmpty()) return@submit
+        store.addAll(added)
+        added.forEach(markQueued)
+        _queueState.value = current + added
+    }
+
+    fun remove(download: D) = submit {
+        store.remove(download)
+        markInactive(download)
+        _queueState.value = _queueState.value - download
+    }
+
+    fun removeIf(onRemoved: (List<D>) -> Unit = {}, predicate: (D) -> Boolean) = submit {
+        val current = _queueState.value
+        val removed = current.filter(predicate)
+        store.removeAll(removed)
+        removed.forEach(markInactive)
+        _queueState.value = current - removed.toSet()
+        onRemoved(removed)
+    }
+
+    fun internalClear(onRemoved: (List<D>) -> Unit = {}) = submit {
+        val current = _queueState.value
+        store.clear()
+        current.forEach(markInactive)
+        _queueState.value = emptyList()
+        onRemoved(current)
+    }
+
+    fun replaceAll(downloads: List<D>) = submit {
+        store.replaceAll(downloads)
+        _queueState.value.forEach(markInactive)
+        downloads.forEach(markQueued)
+        _queueState.value = downloads
+    }
+
+    fun addToStart(downloads: List<D>) = submit {
+        val current = _queueState.value
+        val added = newDownloads(current, downloads)
+        downloads.forEach(markQueued)
+        if (added.isEmpty()) return@submit
+        val ordered = added + current
+        store.replaceAll(ordered)
+        _queueState.value = ordered
+    }
+
+    fun moveToFront(download: D) = submit {
+        val ordered = listOf(download) + _queueState.value.filterNot { itemId(it) == itemId(download) }
+        store.replaceAll(ordered)
+        markQueued(download)
+        _queueState.value = ordered
+    }
+
+    private fun newDownloads(current: List<D>, downloads: List<D>): List<D> {
+        val existingIds = current.mapTo(mutableSetOf(), itemId)
+        return downloads.filter { existingIds.add(itemId(it)) }
+    }
+
+    private fun submit(mutation: () -> Unit) {
+        synchronized(lock) {
+            when {
+                ready.isCancelled -> return
+                ready.isCompleted -> mutation()
+                else -> deferredMutations.addLast(mutation)
+            }
         }
     }
 }

@@ -1,11 +1,13 @@
 package eu.kanade.tachiyomi.data.download.manga
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.online.HttpSource
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -44,7 +46,7 @@ class MangaDownloadStore(
      */
     override fun addAll(downloads: List<MangaDownload>) {
         preferences.edit {
-            downloads.forEach { putString(getKey(it), serialize(it)) }
+            downloads.forEach { putString(getKey(it), serialize(it, counter++)) }
         }
     }
 
@@ -73,10 +75,17 @@ class MangaDownloadStore(
     /**
      * Removes all the downloads from the store.
      */
-    override fun clear() {
-        preferences.edit {
-            clear()
-        }
+    override fun clear() = replaceAll(emptyList())
+
+    override fun replaceAll(downloads: List<MangaDownload>) {
+        preferences.edit { writeQueue(downloads) }
+    }
+
+    private fun SharedPreferences.Editor.writeQueue(downloads: List<MangaDownload>) {
+        clear()
+        putBoolean(KEY_IMPORT_STAMP, true)
+        downloads.forEachIndexed { order, download -> putString(getKey(download), serialize(download, order)) }
+        counter = downloads.size
     }
 
     /**
@@ -92,7 +101,8 @@ class MangaDownloadStore(
      * Returns the list of downloads to restore. It should be called in a background thread.
      */
     suspend fun restore(): List<MangaDownload> {
-        val shouldImportLegacy = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
+        val needsLegacyFlag = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
+        val shouldImportLegacy = needsLegacyFlag && !preferences.getBoolean(KEY_IMPORT_STAMP, false)
         val serializedEntries = preferences.all.values +
             if (shouldImportLegacy) legacyPreferences.all.values else emptyList()
 
@@ -104,6 +114,7 @@ class MangaDownloadStore(
 
         val downloads = mutableListOf<MangaDownload>()
         if (objs.isNotEmpty()) {
+            sourceManager.isInitialized.first { it }
             val cachedManga = mutableMapOf<Long, Manga?>()
             for ((mangaId, chapterId) in objs) {
                 val manga = cachedManga.getOrPut(mangaId) {
@@ -115,11 +126,14 @@ class MangaDownloadStore(
             }
         }
 
-        // Clear the store, downloads will be added again immediately.
-        clear()
-        if (shouldImportLegacy) {
-            migrationPreferences.edit {
-                putBoolean(KEY_MIGRATION_DONE, true)
+        // Persist the entries and the import stamp together before publishing the restored queue.
+        check(preferences.edit().apply { writeQueue(downloads) }.commit()) {
+            "Could not persist restored download queue"
+        }
+        if (needsLegacyFlag) {
+            // Keep the old marker current so a rollback does not import the legacy entries again.
+            check(migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true).commit()) {
+                "Could not persist legacy download migration flag"
             }
         }
         return downloads
@@ -130,8 +144,8 @@ class MangaDownloadStore(
      *
      * @param download the download to serialize.
      */
-    private fun serialize(download: MangaDownload): String {
-        val obj = DownloadObject(download.manga.id, download.chapter.id, counter++)
+    private fun serialize(download: MangaDownload, order: Int): String {
+        val obj = DownloadObject(download.manga.id, download.chapter.id, order)
         return json.encodeToString(obj)
     }
 
@@ -149,6 +163,7 @@ class MangaDownloadStore(
     }
 
     companion object {
+        private const val KEY_IMPORT_STAMP = "legacy_import_complete"
         private const val KEY_MIGRATION_DONE = "manga_active_downloads_migrated"
     }
 }

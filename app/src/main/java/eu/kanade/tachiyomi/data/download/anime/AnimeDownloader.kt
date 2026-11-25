@@ -97,6 +97,7 @@ class AnimeDownloader(
     private val queueOps = DownloadQueueOperations(
         _queueState = _queueState,
         store = store,
+        restorePending = true,
         itemId = { it.episode.id },
         isActive = {
             it.status == AnimeDownload.State.DOWNLOADING ||
@@ -188,7 +189,7 @@ class AnimeDownloader(
 
     init {
         scope.launch {
-            addAllToQueue(store.restore())
+            queueOps.restore(store::restore)
         }
     }
 
@@ -199,6 +200,8 @@ class AnimeDownloader(
      * @return true if the downloader is started, false otherwise.
      */
     fun start(): Boolean = start(resetFailed = true)
+
+    internal suspend fun awaitQueueRestore() = queueOps.awaitRestore()
 
     @Synchronized
     internal fun retryFailed(download: AnimeDownload): Boolean {
@@ -315,10 +318,8 @@ class AnimeDownloader(
     fun clearQueue() {
         cancelDownloaderJob()
 
-        val abandoned = queueState.value
-        internalClearQueue()
+        queueOps.internalClear(::deletePartialDownloads)
         notifier.dismissProgress()
-        deletePartialDownloads(abandoned)
     }
 
     /**
@@ -812,9 +813,7 @@ class AnimeDownloader(
 
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
         val ids = episodeIds.toSet()
-        val abandoned = queueState.value.filter { it.episode.id in ids }
-        queueOps.removeIf { it.episode.id in ids }
-        deletePartialDownloads(abandoned)
+        queueOps.removeIf(::deletePartialDownloads) { it.episode.id in ids }
     }
 
     private data class PartialDirKey(val sourceId: Long, val animeTitle: String, val dirName: String)
@@ -845,8 +844,6 @@ class AnimeDownloader(
         }
     }
 
-    private fun internalClearQueue() = queueOps.internalClear()
-
     fun addToStartOfQueue(downloads: List<AnimeDownload>) = queueOps.addToStart(downloads)
 
     fun moveToFront(download: AnimeDownload) = queueOps.moveToFront(download)
@@ -863,8 +860,7 @@ class AnimeDownloader(
         val wasRunning = isRunning
 
         pause()
-        internalClearQueue()
-        addAllToQueue(downloads)
+        queueOps.replaceAll(downloads)
 
         if (wasRunning) {
             start()

@@ -68,6 +68,7 @@ class MangaDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
                 downloadPreferences.downloadOnlyOverWifi().get(),
             )
             if (!networkCheck) return Result.success()
+            downloadManager.awaitQueueRestore()
             if (!downloadManager.downloaderStart(inputData.getBoolean(RESET_FAILED, true))) return Result.success()
 
             setForegroundSafely()

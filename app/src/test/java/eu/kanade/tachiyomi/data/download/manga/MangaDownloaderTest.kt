@@ -34,6 +34,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -110,6 +111,13 @@ class MangaDownloaderTest {
 
         val context = mockk<Context>(relaxed = true)
         every { context.cacheDir } returns cacheDirectory
+        every { context.getSharedPreferences(any(), Context.MODE_PRIVATE) } returns mockk(relaxed = true) {
+            every { all } returns emptyMap()
+            every { getBoolean(any(), any()) } returns true
+            every { edit() } returns mockk(relaxed = true) {
+                every { commit() } returns true
+            }
+        }
         val notificationBuilder = mockk<NotificationCompat.Builder>(relaxed = true)
         every { context.notificationBuilder(any(), any()) } returns notificationBuilder
         every { context.notify(any<Int>(), any<Notification>()) } just runs
@@ -129,6 +137,7 @@ class MangaDownloaderTest {
             getMangaTracks = mockk(relaxed = true),
             sourcePreferences = sourcePreferences,
         )
+        runBlocking { withTimeout(5_000) { downloader.awaitQueueRestore() } }
     }
 
     @AfterEach

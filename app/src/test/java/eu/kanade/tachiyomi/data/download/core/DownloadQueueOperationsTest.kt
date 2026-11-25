@@ -1,10 +1,13 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -30,15 +33,21 @@ class DownloadQueueOperationsTest {
         override fun clear() {
             items.clear()
         }
+        override fun replaceAll(downloads: List<TestDownload>) {
+            clear()
+            addAll(downloads)
+        }
     }
 
     private fun createOps(
         queueState: MutableStateFlow<List<TestDownload>> = MutableStateFlow(emptyList()),
         store: FakeStore = FakeStore(),
+        restorePending: Boolean = false,
     ): Pair<DownloadQueueOperations<TestDownload>, FakeStore> {
         val ops = DownloadQueueOperations(
             _queueState = queueState,
             store = store,
+            restorePending = restorePending,
             itemId = { it.id },
             isActive = { it.status == Status.QUEUE || it.status == Status.DOWNLOADING },
             markQueued = { it.status = Status.QUEUE },
@@ -189,10 +198,10 @@ class DownloadQueueOperationsTest {
 
     @Test
     fun `addToStart prepends without duplicating existing items`() {
-        val d1 = TestDownload(1, Status.QUEUE)
+        val d1 = TestDownload(1, Status.DOWNLOADING)
         val d2 = TestDownload(2, Status.QUEUE)
         val queueState = MutableStateFlow(listOf(d1))
-        val (ops) = createOps(queueState = queueState)
+        val (ops, store) = createOps(queueState = queueState)
 
         ops.addToStart(listOf(d1, d2))
 
@@ -200,6 +209,8 @@ class DownloadQueueOperationsTest {
         assertEquals(2, queueState.value.size)
         assertEquals(2L, queueState.value[0].id)
         assertEquals(1L, queueState.value[1].id)
+        assertEquals(listOf(2L, 1L), store.items.map { it.id })
+        assertEquals(Status.QUEUE, d1.status)
     }
 
     @Test
@@ -243,6 +254,31 @@ class DownloadQueueOperationsTest {
     }
 
     // endregion
+
+    @Test
+    fun `startup mutations replay in submission order before download consumers proceed`() = runTest {
+        val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops, store) = createOps(queueState = queueState, restorePending = true)
+        val restored = TestDownload(1)
+        store.addAll(listOf(restored))
+        val hydration = CompletableDeferred<List<TestDownload>>()
+        val restorer = async(start = CoroutineStart.UNDISPATCHED) { ops.restore { hydration.await() } }
+
+        ops.addAll(listOf(TestDownload(2)))
+        ops.internalClear()
+        ops.addAll(listOf(TestDownload(3)))
+        val consumer = async(start = CoroutineStart.UNDISPATCHED) {
+            ops.awaitRestore()
+            queueState.value.map { it.id }
+        }
+
+        assertFalse(consumer.isCompleted)
+        assertEquals(listOf(1L), store.items.map { it.id })
+        hydration.complete(listOf(restored))
+        restorer.await()
+        assertEquals(listOf(3L), consumer.await())
+        assertEquals(listOf(3L), store.items.map { it.id })
+    }
 
     // region concurrency
 

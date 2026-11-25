@@ -132,6 +132,7 @@ class MangaDownloadManager(
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
             mutationScope = scope,
+            awaitQueueRestore = downloader::awaitQueueRestore,
             retryDownload = { download ->
                 if (downloader.retryFailed(download) && !downloader.isRunning) {
                     MangaDownloadJob.start(context, resetFailed = false)
@@ -145,6 +146,8 @@ class MangaDownloadManager(
 
     val queueState
         get() = downloader.queueState
+
+    internal suspend fun awaitQueueRestore() = downloader.awaitQueueRestore()
 
     // For use by DownloadService only
     fun downloaderStart(resetFailed: Boolean = true): Boolean {
@@ -437,6 +440,7 @@ class MangaDownloadManager(
     }
 
     private suspend fun removeQueuedMangaFromQueue(manga: Manga) {
+        awaitQueueRestore()
         val chapterIds = queueState.value
             .filter { it.manga.id == manga.id }
             .map { it.chapter.id }

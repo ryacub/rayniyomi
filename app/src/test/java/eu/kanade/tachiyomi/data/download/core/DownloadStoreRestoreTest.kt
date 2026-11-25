@@ -9,9 +9,16 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.manga.interactor.GetManga
@@ -27,7 +34,51 @@ class DownloadStoreRestoreTest {
     @Test
     fun `anime restore preserves pending items before the caller republishes them`() = runTest {
         seed("anime", "animeId", "episodeId")
+        val sourcesReady = MutableStateFlow(false)
+        val createStore = animeStoreFactory(sourcesReady)
+        val restoring = async(start = CoroutineStart.UNDISPATCHED) { createStore().restore() }
+
+        assertFalse(restoring.isCompleted)
+        sourcesReady.value = true
+        assertEquals(ids, restoring.await().map { it.episode.id })
+        assertEquals(ids, createStore().restore().map { it.episode.id })
+    }
+
+    @Test
+    fun `interrupted migration repairs the old flag without reimporting the legacy queue`() = runTest {
+        val active = mutableMapOf<String, Any>()
+        val legacy = entries("animeId", "episodeId")
+        preferences("active_downloads_anime", active)
+        val legacyPreferences = preferences("active_downloads", legacy)
+        preferences("active_downloads_migration", commitSucceeds = false)
+        val createStore = animeStoreFactory()
+
+        val failure = runCatching { createStore().restore() }.exceptionOrNull()
+        assertInstanceOf(IllegalStateException::class.java, failure)
+        val oldFlags = mutableMapOf<String, Any>()
+        preferences("active_downloads_migration", oldFlags)
+
+        assertEquals(ids, createStore().restore().map { it.episode.id })
+        assertEquals(true, oldFlags["anime_active_downloads_migrated"])
+        verify(exactly = 1) { legacyPreferences.all }
+    }
+
+    @Test
+    fun `failed active write does not mark the old migration complete`() = runTest {
+        val oldFlags = mutableMapOf<String, Any>()
+        preferences("active_downloads_anime", commitSucceeds = false)
+        preferences("active_downloads", entries("animeId", "episodeId"))
+        preferences("active_downloads_migration", oldFlags)
+
+        val failure = runCatching { animeStoreFactory()().restore() }.exceptionOrNull()
+
+        assertInstanceOf(IllegalStateException::class.java, failure)
+        assertEquals(emptyMap<String, Any>(), oldFlags)
+    }
+
+    private fun animeStoreFactory(sourcesReady: StateFlow<Boolean> = MutableStateFlow(true)): () -> AnimeDownloadStore {
         val sources = mockk<AnimeSourceManager>()
+        every { sources.isInitialized } returns sourcesReady
         val getAnime = mockk<GetAnime>()
         val getEpisode = mockk<GetEpisode>()
         every { sources.get(5L) } returns mockk<AnimeHttpSource>()
@@ -39,14 +90,15 @@ class DownloadStoreRestoreTest {
             coEvery { getEpisode.await(itemId) } returns mockk { every { id } returns itemId }
         }
 
-        assertEquals(ids, AnimeDownloadStore(context, sources, Json, getAnime, getEpisode).restore().map { it.episode.id })
-        assertEquals(ids, AnimeDownloadStore(context, sources, Json, getAnime, getEpisode).restore().map { it.episode.id })
+        return { AnimeDownloadStore(context, sources, Json, getAnime, getEpisode) }
     }
 
     @Test
     fun `manga restore preserves pending items before the caller republishes them`() = runTest {
         seed("manga", "mangaId", "chapterId")
+        val sourcesReady = MutableStateFlow(false)
         val sources = mockk<MangaSourceManager>()
+        every { sources.isInitialized } returns sourcesReady
         val getManga = mockk<GetManga>()
         val getChapter = mockk<GetChapter>()
         every { sources.get(5L) } returns mockk<HttpSource>()
@@ -58,21 +110,34 @@ class DownloadStoreRestoreTest {
             coEvery { getChapter.await(itemId) } returns mockk { every { id } returns itemId }
         }
 
-        assertEquals(ids, MangaDownloadStore(context, sources, Json, getManga, getChapter).restore().map { it.chapter.id })
-        assertEquals(ids, MangaDownloadStore(context, sources, Json, getManga, getChapter).restore().map { it.chapter.id })
+        val createStore = { MangaDownloadStore(context, sources, Json, getManga, getChapter) }
+        val restoring = async(start = CoroutineStart.UNDISPATCHED) { createStore().restore() }
+
+        assertFalse(restoring.isCompleted)
+        sourcesReady.value = true
+        assertEquals(ids, restoring.await().map { it.chapter.id })
+        assertEquals(ids, createStore().restore().map { it.chapter.id })
     }
 
-    private fun seed(media: String, parentField: String, itemField: String) {
+    private fun entries(parentField: String, itemField: String): MutableMap<String, Any> {
         val entries = mutableMapOf<String, Any>()
         ids.forEachIndexed { order, id ->
             entries[id.toString()] = """{"$parentField":7,"$itemField":$id,"order":$order}"""
         }
-        preferences("active_downloads_$media", entries)
+        return entries
+    }
+
+    private fun seed(media: String, parentField: String, itemField: String) {
+        preferences("active_downloads_$media", entries(parentField, itemField))
         preferences("active_downloads")
         preferences("active_downloads_migration", mutableMapOf("${media}_active_downloads_migrated" to true))
     }
 
-    private fun preferences(name: String, entries: MutableMap<String, Any> = mutableMapOf()) {
+    private fun preferences(
+        name: String,
+        entries: MutableMap<String, Any> = mutableMapOf(),
+        commitSucceeds: Boolean = true,
+    ): SharedPreferences {
         val preferences = mockk<SharedPreferences>()
         every { context.getSharedPreferences(name, Context.MODE_PRIVATE) } returns preferences
         every { preferences.all } answers { entries.toMap() }
@@ -100,9 +165,10 @@ class DownloadStoreRestoreTest {
             every { editor.apply() } answers { apply() }
             every { editor.commit() } answers {
                 apply()
-                true
+                commitSucceeds
             }
             editor
         }
+        return preferences
     }
 }

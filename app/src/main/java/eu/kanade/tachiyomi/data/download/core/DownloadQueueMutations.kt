@@ -30,6 +30,7 @@ class DownloadQueueMutations<D : Any>(
     private val startDownloads: () -> Unit,
     mutationScope: CoroutineScope,
     private val retryDownload: (D) -> Unit = {},
+    private val awaitQueueRestore: suspend () -> Unit = {},
 ) {
     private val queueActor = DownloadQueueActor(mutationScope)
 
@@ -86,6 +87,7 @@ class DownloadQueueMutations<D : Any>(
         command: DownloadQueueCommand,
         startIfNeeded: (() -> Unit)? = null,
     ) {
+        awaitQueueRestore()
         val state = DownloadQueueReducerState(
             downloadIds = queueState.value.map(itemId),
             isDownloaderRunning = try {

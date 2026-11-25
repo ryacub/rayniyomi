@@ -1,11 +1,13 @@
 package eu.kanade.tachiyomi.data.download.anime
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import eu.kanade.tachiyomi.di.appGraph
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -44,7 +46,7 @@ class AnimeDownloadStore(
      */
     override fun addAll(downloads: List<AnimeDownload>) {
         preferences.edit {
-            downloads.forEach { putString(getKey(it), serialize(it)) }
+            downloads.forEach { putString(getKey(it), serialize(it, counter++)) }
         }
     }
 
@@ -73,10 +75,17 @@ class AnimeDownloadStore(
     /**
      * Removes all the downloads from the store.
      */
-    override fun clear() {
-        preferences.edit {
-            clear()
-        }
+    override fun clear() = replaceAll(emptyList())
+
+    override fun replaceAll(downloads: List<AnimeDownload>) {
+        preferences.edit { writeQueue(downloads) }
+    }
+
+    private fun SharedPreferences.Editor.writeQueue(downloads: List<AnimeDownload>) {
+        clear()
+        putBoolean(KEY_IMPORT_STAMP, true)
+        downloads.forEachIndexed { order, download -> putString(getKey(download), serialize(download, order)) }
+        counter = downloads.size
     }
 
     /**
@@ -92,7 +101,8 @@ class AnimeDownloadStore(
      * Returns the list of downloads to restore. It should be called in a background thread.
      */
     suspend fun restore(): List<AnimeDownload> {
-        val shouldImportLegacy = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
+        val needsLegacyFlag = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
+        val shouldImportLegacy = needsLegacyFlag && !preferences.getBoolean(KEY_IMPORT_STAMP, false)
         val serializedEntries = preferences.all.values +
             if (shouldImportLegacy) legacyPreferences.all.values else emptyList()
 
@@ -104,6 +114,7 @@ class AnimeDownloadStore(
 
         val downloads = mutableListOf<AnimeDownload>()
         if (objs.isNotEmpty()) {
+            sourceManager.isInitialized.first { it }
             val cachedAnime = mutableMapOf<Long, Anime?>()
             for ((animeId, episodeId) in objs) {
                 val anime = cachedAnime.getOrPut(animeId) {
@@ -115,11 +126,14 @@ class AnimeDownloadStore(
             }
         }
 
-        // Clear the store, downloads will be added again immediately.
-        clear()
-        if (shouldImportLegacy) {
-            migrationPreferences.edit {
-                putBoolean(KEY_MIGRATION_DONE, true)
+        // Persist the entries and the import stamp together before publishing the restored queue.
+        check(preferences.edit().apply { writeQueue(downloads) }.commit()) {
+            "Could not persist restored download queue"
+        }
+        if (needsLegacyFlag) {
+            // Keep the old marker current so a rollback does not import the legacy entries again.
+            check(migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true).commit()) {
+                "Could not persist legacy download migration flag"
             }
         }
         return downloads
@@ -130,8 +144,8 @@ class AnimeDownloadStore(
      *
      * @param download the download to serialize.
      */
-    private fun serialize(download: AnimeDownload): String {
-        val obj = AnimeDownloadObject(download.anime.id, download.episode.id, counter++)
+    private fun serialize(download: AnimeDownload, order: Int): String {
+        val obj = AnimeDownloadObject(download.anime.id, download.episode.id, order)
         return json.encodeToString(obj)
     }
 
@@ -149,6 +163,7 @@ class AnimeDownloadStore(
     }
 
     companion object {
+        private const val KEY_IMPORT_STAMP = "legacy_import_complete"
         private const val KEY_MIGRATION_DONE = "anime_active_downloads_migrated"
     }
 }
