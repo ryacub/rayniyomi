@@ -14,6 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import tachiyomi.i18n.MR
 
 private const val PHONE = "w411dp-h891dp-xxhdpi"
 private const val FOLDABLE = "w841dp-h701dp-xhdpi"
@@ -65,7 +66,7 @@ class SharedComponentScreenshotTest {
     private fun captureSectionCard() = capture {
         LazyColumn {
             item {
-                SectionCard {
+                SectionCard(titleRes = MR.strings.label_library) {
                     Text("Library settings")
                 }
             }
