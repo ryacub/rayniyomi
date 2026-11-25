@@ -15,6 +15,7 @@ sqlite = "2.6.2"
 voyager = "2.2.21-1.10.3"
 spotless = "8.2.1"
 ktlint-core = "1.7.1"
+roborazzi = "1.79.0"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -103,6 +104,11 @@ sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", versi
 junit-bom = { module = "org.junit:junit-bom", version = "6.1.0" }
 junit = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+junit4 = "junit:junit:4.13.2"
+junit-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine" }
+robolectric = "org.robolectric:robolectric:4.18.1"
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
 kotest-assertions = "io.kotest:kotest-assertions-core:6.2.1"
 mockk = "io.mockk:mockk:1.14.11"
 
@@ -114,6 +120,7 @@ spotless-gradle = { group = "com.diffplug.spotless", name = "spotless-plugin-gra
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 
 [plugins]
+roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin", version.ref = "aboutlib_version" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google_services" }

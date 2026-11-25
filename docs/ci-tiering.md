@@ -23,6 +23,20 @@ The gitleaks workflow checks out the pull request head SHA with full history so
 its commit-range scan can resolve PR head commits even if queued jobs finish
 after merge or branch cleanup. Push and manual runs fall back to `github.sha`.
 
+### Update screenshot baselines
+
+After an intended change to a shared Compose component, record the new baselines
+with JDK 21:
+
+```sh
+./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.record=true
+```
+
+Review the changed PNGs in `presentation-core/src/test/screenshots/`. Commit the
+intended changes and run `./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.verify=true`.
+If CI reports a difference, open the `presentation-core-screenshot-comparisons`
+artifact. Use Linux to record the baselines if macOS and Linux render differently.
+
 ## Removed Emulator Gate
 
 These hosted-emulator workflows were removed because they were slow, noisy, and

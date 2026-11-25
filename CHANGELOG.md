@@ -24,6 +24,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Removed
 
 ### CI
+- Pull requests now check screenshots of shared Compose components on phone and foldable layouts (#1555).
 
 ### Other
 

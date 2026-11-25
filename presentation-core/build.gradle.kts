@@ -1,6 +1,7 @@
 plugins {
     id("mihon.library")
     id("mihon.library.compose")
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -10,6 +11,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+}
+
+roborazzi {
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 kotlin {
@@ -47,4 +55,9 @@ dependencies {
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.bundles.test)
+    testImplementation(libs.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testRuntimeOnly(libs.junit.vintage.engine)
 }

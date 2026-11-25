@@ -206,5 +206,16 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest :cloudstream-runtime-contract:test :cloudstream-runtime-host:testDebugUnitTest :cloudstream-runtime:testDebugUnitTest --build-cache
 
+      - name: Verify shared Compose screenshots
+        run: ./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.verify=true --build-cache
+
+      - name: Upload screenshot comparisons
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: presentation-core-screenshot-comparisons
+          path: presentation-core/build/outputs/roborazzi/
+          if-no-files-found: ignore
+
       - name: Check Android lint
         run: ./gradlew :app:lintStableDebug --build-cache
