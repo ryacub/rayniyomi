@@ -204,7 +204,20 @@ jobs:
         uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
 
       - name: Run unit tests
-        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest :cloudstream-runtime-contract:test :cloudstream-runtime-host:testDebugUnitTest :cloudstream-runtime:testDebugUnitTest --build-cache
+        run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest :cloudstream-runtime-contract:test :cloudstream-runtime-host:testDebugUnitTest :cloudstream-runtime:testDebugUnitTest -Proborazzi.test.verify=true --build-cache
+
+      - name: Report preview screenshot test time
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as E
+          n = t = f = 0
+          for p in glob.glob('app/build/test-results/testStableDebugUnitTest/*.xml'):
+              for c in E.parse(p).iter('testcase'):
+                  if 'RoborazziPreview' in (c.get('classname') or ''):
+                      n += 1; t += float(c.get('time') or 0); f += c.find('failure') is not None
+          print(f'preview tests: {n}, failed: {f}, time: {t:.1f}s')
+          PY
 
       - name: Verify shared Compose screenshots
         run: ./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.verify=true --build-cache
@@ -214,7 +227,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: presentation-core-screenshot-comparisons
-          path: presentation-core/build/outputs/roborazzi/
+          path: |
+            presentation-core/build/outputs/roborazzi/
+            app/build/outputs/roborazzi/
           if-no-files-found: ignore
 
       - name: Check Android lint

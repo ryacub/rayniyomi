@@ -18,6 +18,12 @@ android {
 
 roborazzi {
     outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+    generateComposePreviewRobolectricTests {
+        enable = true
+        packages = listOf("eu.kanade", "tachiyomi", "mihon")
+        includePrivatePreviews = true
+    }
 }
 
 kotlin {
@@ -57,7 +63,11 @@ dependencies {
     testImplementation(libs.bundles.test)
     testImplementation(libs.junit4)
     testImplementation(libs.robolectric)
+    testImplementation(compose.ui.test.junit4)
+    debugImplementation(compose.ui.test.manifest)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.preview.scanner.support)
+    testImplementation(libs.composable.preview.scanner)
     testRuntimeOnly(libs.junit.vintage.engine)
 }

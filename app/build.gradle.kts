@@ -15,6 +15,7 @@ plugins {
     // Crashlytics: applied unconditionally so the build ID is always embedded in release APKs
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.roborazzi)
 }
 
 val appVersionCode = 638
@@ -96,6 +97,7 @@ android {
 
     testOptions {
         unitTests {
+            isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
     }
@@ -346,6 +348,15 @@ dependencies {
     testImplementation(libs.bundles.test)
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
     testImplementation(libs.sqldelight.sqlite.driver)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.preview.scanner.support)
+    testImplementation(libs.composable.preview.scanner)
+    testImplementation(libs.junit4)
+    testImplementation(compose.ui.test.junit4)
+    debugImplementation(compose.ui.test.manifest)
+    testRuntimeOnly(libs.junit.vintage.engine)
     androidTestImplementation(platform(compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
@@ -404,4 +415,46 @@ buildscript {
     dependencies {
         classpath(kotlinx.gradle)
     }
+}
+
+roborazzi {
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+    generateComposePreviewRobolectricTests {
+        enable = true
+        packages = listOf(
+            "eu.kanade.presentation.category",
+            "eu.kanade.presentation.category.components",
+            "eu.kanade.presentation.components",
+            "eu.kanade.presentation.crash",
+            "eu.kanade.presentation.entries.anime.components",
+            "eu.kanade.presentation.entries.components",
+            "eu.kanade.presentation.entries.manga.components",
+            "eu.kanade.presentation.library.components",
+            "eu.kanade.presentation.more.onboarding",
+            "eu.kanade.presentation.more.settings.screen",
+            "eu.kanade.presentation.more.settings.screen.translation",
+            "eu.kanade.presentation.more.settings.widget",
+            "eu.kanade.presentation.more.storage",
+            "eu.kanade.presentation.player.components",
+            "eu.kanade.presentation.reader",
+            "eu.kanade.presentation.reader.appbars",
+            "eu.kanade.presentation.reader.components",
+            "eu.kanade.presentation.recovery",
+            "eu.kanade.presentation.track.components",
+            "eu.kanade.presentation.updates",
+            "eu.kanade.tachiyomi.ui.download",
+            "eu.kanade.tachiyomi.ui.player.controls",
+            "eu.kanade.tachiyomi.ui.player.controls.components",
+            "mihon.feature.upcoming.components",
+            "mihon.feature.upcoming.components.calendar",
+            "xyz.rayniyomi.cloudstream.ui",
+        )
+        includePrivatePreviews = true
+        robolectricConfig = mapOf("application" to "android.app.Application::class")
+    }
+}
+
+configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+    exclude(group = "org.conscrypt", module = "conscrypt-android")
 }
