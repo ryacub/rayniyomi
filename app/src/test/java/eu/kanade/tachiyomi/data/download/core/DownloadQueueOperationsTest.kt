@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -428,6 +429,32 @@ class DownloadQueueOperationsTest {
         assertEquals(listOf(1L, 2L), clearedIds.await())
         assertTrue(queue.value.isEmpty())
         assertTrue(store.items.isEmpty())
+    }
+
+    @Test
+    fun `cancelled queue preparation propagates cancellation and releases the next mutation`() = runTest {
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops, store) = createOps(
+            queueState = queue,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val cancellation = CancellationException("Queue preparation cancelled")
+
+        val failure = runCatching {
+            ops.enqueue(
+                prepare = {
+                    ops.addAll(listOf(TestDownload(2)))
+                    throw cancellation
+                },
+                onAdded = {},
+            )
+        }.exceptionOrNull()
+
+        assertEquals(cancellation, failure)
+        testScheduler.runCurrent()
+        assertEquals(listOf(2L), queue.value.map { it.id })
+        assertEquals(listOf(2L), store.items.map { it.id })
     }
 
     // region concurrency

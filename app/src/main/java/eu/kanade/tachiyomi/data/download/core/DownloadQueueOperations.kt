@@ -45,12 +45,11 @@ class DownloadQueueOperations<D : Any>(
     suspend fun restore(load: suspend () -> List<D>) {
         val restored = try {
             load()
+        } catch (e: CancellationException) {
+            failRestore(e)
+            throw e
         } catch (e: Exception) {
-            synchronized(lock) {
-                pendingMutations.clear()
-                ready.completeExceptionally(e)
-            }
-            if (e is CancellationException) throw e
+            failRestore(e)
             logcat(LogPriority.ERROR, e) { "Could not restore download queue" }
             return
         }
@@ -58,6 +57,13 @@ class DownloadQueueOperations<D : Any>(
         _queueState.value = restored
         submit { ready.complete(Unit) }
         drain()
+    }
+
+    private fun failRestore(failure: Exception) {
+        synchronized(lock) {
+            pendingMutations.clear()
+            ready.completeExceptionally(failure)
+        }
     }
 
     fun addAll(downloads: List<D>) = enqueue({ downloads }) {}
@@ -161,12 +167,12 @@ class DownloadQueueOperations<D : Any>(
                     try {
                         completed.complete(mutation())
                     } catch (e: Exception) {
-                        completed.completeExceptionally(e)
                         if (e is CancellationException) throw e
+                        completed.completeExceptionally(e)
                     }
                 }.invokeOnCompletion { failure ->
                     if (failure != null) completed.completeExceptionally(failure)
-                    drain()
+                    scope.launch(ioDispatcher) { drain() }
                 }
                 false
             }
@@ -197,6 +203,9 @@ class DownloadQueueOperations<D : Any>(
             }
             try {
                 if (!next()) return // The durable mutation continues draining when it finishes.
+            } catch (e: CancellationException) {
+                scope.launch(ioDispatcher) { drain() }
+                throw e
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Could not update download queue" }
             }
