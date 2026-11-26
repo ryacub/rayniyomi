@@ -64,6 +64,11 @@ class CiWorkflowTieringTest(unittest.TestCase):
         self.assertIn("needs: [classify_pr_changes]", preview_job)
         self.assertIn("if: needs.classify_pr_changes.outputs.android_changed == 'true'", preview_job)
         self.assertIn("python3 scripts/check_preview_determinism.py", preview_job)
+        self.assertIn("-Proborazzi.test.verify=true", preview_job)
+        self.assertIn("-Prayniyomi.previewScreenshots=true", preview_job)
+        self.assertIn("--tests '*RoborazziPreviewParameterizedTests*'", preview_job)
+        self.assertIn("app/build/outputs/roborazzi/", preview_job)
+        self.assertIn("presentation-core/build/outputs/roborazzi/", preview_job)
         self.assertNotIn("Verify shared Compose screenshots", test_job)
 
     def test_ci_tiering_decisions_are_documented(self) -> None:
