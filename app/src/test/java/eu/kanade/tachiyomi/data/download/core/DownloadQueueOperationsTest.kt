@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -391,6 +392,35 @@ class DownloadQueueOperationsTest {
         assertEquals(1, enqueued.await())
         ops.awaitRestore()
         assertEquals(listOf(1L, 2L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `failed durable priority releases a pending clear without publishing the move`() = runTest {
+        val commitStarted = CompletableDeferred<Unit>()
+        val allowFailure = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            commitStarted.complete(Unit)
+            allowFailure.await()
+            throw DownloadQueueWriteException()
+        }
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queue,
+            store = store,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        ops.addAll(listOf(TestDownload(1), TestDownload(2)))
+        val priority = async { runCatching { ops.moveToFront(2L) }.exceptionOrNull() }
+        commitStarted.await()
+        val clearedIds = CompletableDeferred<List<Long>>()
+        ops.internalClear { clearedIds.complete(it.map { download -> download.id }) }
+        allowFailure.complete(Unit)
+
+        assertInstanceOf(DownloadQueueWriteException::class.java, priority.await())
+        assertEquals(listOf(1L, 2L), clearedIds.await())
+        assertTrue(queue.value.isEmpty())
+        assertTrue(store.items.isEmpty())
     }
 
     // region concurrency

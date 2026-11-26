@@ -53,10 +53,10 @@ class DownloadQueueMutations<D : Any>(
      *
      * @param id The download ID to prioritize
      */
-    suspend fun startDownloadNow(id: Long) {
+    suspend fun startDownloadNow(id: Long, startIfNeeded: (() -> Unit)? = null) {
         val command = DownloadQueueCommand.StartNow(id)
         mutationScope.async {
-            queueActor.submit(command) { runReducerCommand(command) }
+            queueActor.submit(command) { runReducerCommand(command, startIfNeeded) }
         }.await()
     }
 
@@ -106,7 +106,9 @@ class DownloadQueueMutations<D : Any>(
                 continue
             }
             val applied = applyEffect(effect, startIfNeeded)
-            if (!applied && effect is DownloadQueueEffect.MoveToFrontById) {
+            if (!applied &&
+                (effect is DownloadQueueEffect.MoveToFrontById || effect is DownloadQueueEffect.AddToStartByIds)
+            ) {
                 skipStartDownloads = true
             }
         }
@@ -135,7 +137,6 @@ class DownloadQueueMutations<D : Any>(
                     if (toAdd.isNotEmpty()) {
                         addToStart(toAdd)
                     }
-                    startIfNeeded?.invoke() ?: startDownloads()
                 }
                 is DownloadQueueEffect.RemoveByItemIds -> {
                     removeFromQueueByIds(effect.itemIds)
@@ -143,9 +144,12 @@ class DownloadQueueMutations<D : Any>(
                 DownloadQueueEffect.PauseDownloader -> pauseDownloader()
                 DownloadQueueEffect.StartDownloader -> startDownloader()
                 DownloadQueueEffect.StopDownloader -> stopDownloader()
-                DownloadQueueEffect.StartDownloads -> startDownloads()
+                DownloadQueueEffect.StartDownloads -> startIfNeeded?.invoke() ?: startDownloads()
             }
             return true
+        } catch (e: DownloadQueueWriteException) {
+            logcat(LogPriority.ERROR, e) { "Could not persist queue effect: $effect" }
+            return false
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Queue effect failed: $effect (${e.message})" }
             throw e

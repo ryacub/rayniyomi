@@ -135,7 +135,7 @@ class DownloadQueueOperations<D : Any>(
         val download = current.find { itemId(it) == id } ?: newDownload ?: return@submitDurable false
         val ordered = listOf(download) + current.filterNot { itemId(it) == id }
         store.replaceAll(ordered)
-        markQueued(download)
+        if (!isActive(download)) markQueued(download)
         _queueState.value = ordered
         true
     }

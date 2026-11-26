@@ -38,11 +38,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -53,6 +55,7 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -263,6 +266,7 @@ class MangaDownloader(
     /**
      * Stops the downloader.
      */
+    @Synchronized
     fun stop(
         reason: String? = null,
         blockedStatus: DownloadDisplayStatus? = null,
@@ -311,6 +315,7 @@ class MangaDownloader(
     /**
      * Pauses the downloader
      */
+    @Synchronized
     fun pause() {
         cancelDownloaderJob()
         queueState.value
@@ -385,18 +390,30 @@ class MangaDownloader(
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
             supervisorScope {
-                val downloadJobs = mutableMapOf<MangaDownload, Job>()
+                val downloadJobs = mutableMapOf<Long, Pair<MangaDownload, Job>>()
 
-                activeDownloadsFlow.collectLatest { activeDownloads ->
-                    val downloadJobsToStop = downloadJobs.filter { it.key !in activeDownloads }
-                    downloadJobsToStop.forEach { (download, job) ->
-                        job.cancel()
-                        downloadJobs.remove(download)
+                activeDownloadsFlow.conflate().collect { activeDownloads ->
+                    val activeIds = activeDownloads.mapTo(mutableSetOf()) { it.chapter.id }
+                    val displaced = downloadJobs.filterKeys { it !in activeIds }
+                    val jobsToStop = displaced.values.map { it.second }
+                    jobsToStop.forEach { it.cancel() }
+                    jobsToStop.joinAll()
+                    val scheduler = currentCoroutineContext()
+                    synchronized(this@MangaDownloader) {
+                        scheduler.ensureActive()
+                        displaced.values.forEach { (download, _) ->
+                            if (download.status == MangaDownload.State.DOWNLOADING) {
+                                download.status = MangaDownload.State.QUEUE
+                                download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+                                download.blockedReason = DownloadBlockedReason.SLOT
+                            }
+                        }
                     }
+                    downloadJobs.keys.removeAll(displaced.keys)
+                    if (displaced.isNotEmpty()) notifier.onQueueStatusSummary(queueState.value)
 
-                    val downloadsToStart = activeDownloads.filter { it !in downloadJobs }
-                    downloadsToStart.forEach { download ->
-                        downloadJobs[download] = launchDownloadJob(download)
+                    activeDownloads.filter { it.chapter.id !in downloadJobs }.forEach { download ->
+                        downloadJobs[download.chapter.id] = download to launchDownloadJob(download)
                     }
                 }
             }

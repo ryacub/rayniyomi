@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.manga.interactor.GetManga
@@ -83,6 +84,29 @@ class DownloadStoreRestoreTest {
         assertEquals(ids, restoring.await().map { it.episode.id })
         assertEquals(true, oldFlags["anime_active_downloads_migrated"])
         verify(exactly = 1) { legacyPreferences.all }
+    }
+
+    @Test
+    fun `failed active reorder restores the old preferences after three attempts`() = runTest {
+        var writable = true
+        var attempts = 0
+        val active = preferences("active_downloads_anime", entries("animeId", "episodeId")) {
+            attempts++
+            writable
+        }
+        preferences("active_downloads")
+        preferences("active_downloads_migration", mutableMapOf("anime_active_downloads_migrated" to true))
+        val store = animeStoreFactory()()
+        val restored = store.restore()
+        val previous = active.all
+        attempts = 0
+        writable = false
+
+        val failure = runCatching { store.replaceAll(restored.reversed()) }.exceptionOrNull()
+
+        assertInstanceOf(DownloadQueueWriteException::class.java, failure)
+        assertEquals(3, attempts)
+        assertEquals(previous, active.all)
     }
 
     private fun animeStoreFactory(sourcesReady: StateFlow<Boolean> = MutableStateFlow(true)): () -> AnimeDownloadStore {

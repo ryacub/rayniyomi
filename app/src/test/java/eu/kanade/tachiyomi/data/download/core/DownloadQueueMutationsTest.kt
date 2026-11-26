@@ -123,10 +123,12 @@ class DownloadQueueMutationsTest {
     fun `addDownloadsToStartByIds adds only new ids and triggers start callback`() = runTest {
         val queueState = MutableStateFlow(listOf(FakeDownload(1, FakeEntity(1))))
         var started = false
+        var fallbackStarted = false
 
         val mutations = createMutations(
             mutationScope = backgroundScope,
             queueState = queueState,
+            startDownloads = { fallbackStarted = true },
             createFromId = { id -> FakeDownload(id, FakeEntity(id)) },
             addToStart = { downloads ->
                 val existing = queueState.value.map { it.id }.toSet()
@@ -139,6 +141,7 @@ class DownloadQueueMutationsTest {
 
         assertEquals(listOf(2L, 1L), queueState.value.map { it.id })
         assertTrue(started)
+        assertFalse(fallbackStarted)
     }
 
     @Test

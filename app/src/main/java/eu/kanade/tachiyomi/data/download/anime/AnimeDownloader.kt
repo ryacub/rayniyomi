@@ -37,15 +37,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -255,6 +258,7 @@ class AnimeDownloader(
     /**
      * Stops the downloader.
      */
+    @Synchronized
     fun stop(
         reason: String? = null,
         blockedStatus: DownloadDisplayStatus? = null,
@@ -301,6 +305,7 @@ class AnimeDownloader(
     /**
      * Pauses the downloader
      */
+    @Synchronized
     fun pause() {
         cancelDownloaderJob()
         queueState.value
@@ -371,17 +376,30 @@ class AnimeDownloader(
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
             supervisorScope {
-                val downloadJobs = mutableMapOf<AnimeDownload, Job>()
+                val downloadJobs = mutableMapOf<Long, Pair<AnimeDownload, Job>>()
 
-                activeDownloadsFlow.collectLatest { activeDownloads ->
-                    val downloadJobsToStop = downloadJobs.filter { it.key !in activeDownloads }
-                    downloadJobsToStop.forEach { (download, job) ->
-                        job.cancel()
-                        downloadJobs.remove(download)
+                activeDownloadsFlow.conflate().collect { activeDownloads ->
+                    val activeIds = activeDownloads.mapTo(mutableSetOf()) { it.episode.id }
+                    val displaced = downloadJobs.filterKeys { it !in activeIds }
+                    val jobsToStop = displaced.values.map { it.second }
+                    jobsToStop.forEach { it.cancel() }
+                    jobsToStop.joinAll()
+                    val scheduler = currentCoroutineContext()
+                    synchronized(this@AnimeDownloader) {
+                        scheduler.ensureActive()
+                        displaced.values.forEach { (download, _) ->
+                            if (download.status == AnimeDownload.State.DOWNLOADING) {
+                                download.status = AnimeDownload.State.QUEUE
+                                download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+                                download.blockedReason = DownloadBlockedReason.SLOT
+                            }
+                        }
                     }
-                    val downloadsToStart = activeDownloads.filter { it !in downloadJobs }
-                    downloadsToStart.forEach { download ->
-                        downloadJobs[download] = launchDownloadJob(download)
+                    downloadJobs.keys.removeAll(displaced.keys)
+                    if (displaced.isNotEmpty()) notifier.onQueueStatusSummary(queueState.value)
+
+                    activeDownloads.filter { it.episode.id !in downloadJobs }.forEach { download ->
+                        downloadJobs[download.episode.id] = download to launchDownloadJob(download)
                     }
                 }
             }

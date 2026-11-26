@@ -66,6 +66,7 @@ import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AnimeDownloaderTest {
 
@@ -229,6 +230,54 @@ class AnimeDownloaderTest {
 
         verify(exactly = 0) { stateStore.deleteProgress(any()) }
         verify(exactly = 0) { partialEpisodeDir.delete() }
+    }
+
+    @Test
+    fun `reordering active same-source downloads requeues the displaced item after cancellation`() = runTest {
+        val first = testDownload(episodeId = 1L)
+        val second = testDownload(episodeId = 2L)
+        val firstRequest = AtomicBoolean(true)
+        val firstStarted = CountDownLatch(1)
+        val firstCancelled = CountDownLatch(1)
+        val secondStarted = CountDownLatch(1)
+        val allowFirstCleanup = CompletableDeferred<Unit>()
+        mockHosters {
+            if (firstRequest.getAndSet(false)) {
+                firstStarted.countDown()
+                try {
+                    awaitCancellation()
+                } finally {
+                    withContext(NonCancellable) {
+                        firstCancelled.countDown()
+                        allowFirstCleanup.await()
+                    }
+                }
+            } else {
+                secondStarted.countDown()
+                awaitCancellation()
+            }
+        }
+
+        try {
+            downloader.addToStartOfQueue(listOf(first, second))
+            assertTrue(downloader.start())
+            assertTrue(firstStarted.await(5, TimeUnit.SECONDS))
+            first.status = AnimeDownload.State.DOWNLOADING
+            first.displayStatus = DownloadDisplayStatus.DOWNLOADING
+
+            downloader.updateQueue(listOf(2L, 1L))
+
+            assertTrue(firstCancelled.await(5, TimeUnit.SECONDS))
+            assertEquals(AnimeDownload.State.DOWNLOADING, first.status)
+            assertEquals(1L, secondStarted.count)
+            allowFirstCleanup.complete(Unit)
+            assertTrue(secondStarted.await(5, TimeUnit.SECONDS))
+            assertEquals(AnimeDownload.State.QUEUE, first.status)
+            assertEquals(DownloadDisplayStatus.WAITING_FOR_SLOT, first.displayStatus)
+        } finally {
+            allowFirstCleanup.complete(Unit)
+            downloader.pause()
+        }
     }
 
     @Test

@@ -6,6 +6,7 @@ import androidx.core.content.edit
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
+import eu.kanade.tachiyomi.data.download.core.DownloadQueueWriteException
 import eu.kanade.tachiyomi.data.download.core.commitQueuePreferences
 import eu.kanade.tachiyomi.data.download.core.writeQueueRollbackMarker
 import eu.kanade.tachiyomi.di.appGraph
@@ -83,9 +84,19 @@ class AnimeDownloadStore(
     }
 
     override suspend fun replaceAll(downloads: List<AnimeDownload>) {
+        val previous = preferences.all.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
+        if (!persistQueue(downloads, maxAttempts = 3)) {
+            // A failed commit can still update the in-memory preferences.
+            preferences.edit { writeQueue(previous) }
+            throw DownloadQueueWriteException()
+        }
+    }
+
+    private suspend fun persistQueue(downloads: List<AnimeDownload>, maxAttempts: Int? = null): Boolean {
         val entries = downloads.mapIndexed { order, download -> getKey(download) to serialize(download, order) }
-        commitQueuePreferences { preferences.edit().apply { writeQueue(entries) } }
-        counter = downloads.size
+        val persisted = commitQueuePreferences(maxAttempts) { preferences.edit().apply { writeQueue(entries) } }
+        if (persisted) counter = downloads.size
+        return persisted
     }
 
     private fun SharedPreferences.Editor.writeQueue(entries: List<Pair<String, String>>) {
@@ -133,7 +144,7 @@ class AnimeDownloadStore(
         }
 
         // Persist the entries and the import stamp together before publishing the restored queue.
-        replaceAll(downloads)
+        persistQueue(downloads)
         if (needsLegacyFlag) {
             // Keep the old marker current so a rollback does not import the legacy entries again.
             writeQueueRollbackMarker { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
