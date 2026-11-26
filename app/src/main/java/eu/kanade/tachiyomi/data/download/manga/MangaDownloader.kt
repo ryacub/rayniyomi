@@ -131,10 +131,7 @@ class MangaDownloader(
         scope = scope,
         restorePending = true,
         itemId = { it.chapter.id },
-        isActive = {
-            it.status == MangaDownload.State.DOWNLOADING ||
-                it.status == MangaDownload.State.QUEUE
-        },
+        isDownloading = { it.status == MangaDownload.State.DOWNLOADING },
         markQueued = {
             it.status = MangaDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT

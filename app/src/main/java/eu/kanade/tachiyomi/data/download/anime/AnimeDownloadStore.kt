@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.entries.anime.interactor.GetAnime
 import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.interactor.GetEpisode
@@ -79,29 +81,40 @@ class AnimeDownloadStore(
      * Removes all the downloads from the store.
      */
     override fun clear() {
-        preferences.edit { writeQueue(emptyList()) }
+        val importStamp = preferences.all[KEY_IMPORT_STAMP] as? Boolean
+        preferences.edit { writeQueue(emptyList(), importStamp) }
         counter = 0
     }
 
     override suspend fun replaceAll(downloads: List<AnimeDownload>) {
-        val previous = preferences.all.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
-        if (!persistQueue(downloads, maxAttempts = 3)) {
-            // A failed commit can still update the in-memory preferences.
-            preferences.edit { writeQueue(previous) }
+        val previous = preferences.all
+        if (!persistQueue(downloads, previous[KEY_IMPORT_STAMP] as? Boolean)) {
+            restorePreferenceSnapshot(previous)
             throw DownloadQueueWriteException()
         }
     }
 
-    private suspend fun persistQueue(downloads: List<AnimeDownload>, maxAttempts: Int? = null): Boolean {
+    private suspend fun persistQueue(downloads: List<AnimeDownload>, importStamp: Boolean?): Boolean {
         val entries = downloads.mapIndexed { order, download -> getKey(download) to serialize(download, order) }
-        val persisted = commitQueuePreferences(maxAttempts) { preferences.edit().apply { writeQueue(entries) } }
+        val persisted = commitQueuePreferences(maxAttempts = 3) {
+            preferences.edit().apply { writeQueue(entries, importStamp) }
+        }
         if (persisted) counter = downloads.size
         return persisted
     }
 
-    private fun SharedPreferences.Editor.writeQueue(entries: List<Pair<String, String>>) {
+    private fun restorePreferenceSnapshot(previous: Map<String, *>) {
+        // A failed commit can still update the in-memory preferences.
+        val entries = previous.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
+        preferences.edit { writeQueue(entries, previous[KEY_IMPORT_STAMP] as? Boolean) }
+    }
+
+    private fun SharedPreferences.Editor.writeQueue(
+        entries: List<Pair<String, String>>,
+        importStamp: Boolean?,
+    ) {
         clear()
-        putBoolean(KEY_IMPORT_STAMP, true)
+        importStamp?.let { putBoolean(KEY_IMPORT_STAMP, it) }
         entries.forEach { (key, value) -> putString(key, value) }
     }
 
@@ -120,34 +133,46 @@ class AnimeDownloadStore(
     suspend fun restore(): List<AnimeDownload> {
         val needsLegacyFlag = !migrationPreferences.getBoolean(KEY_MIGRATION_DONE, false)
         val shouldImportLegacy = needsLegacyFlag && !preferences.getBoolean(KEY_IMPORT_STAMP, false)
-        val serializedEntries = preferences.all.values +
-            if (shouldImportLegacy) legacyPreferences.all.values else emptyList()
-
-        val objs = serializedEntries
-            .mapNotNull { it as? String }
-            .mapNotNull { deserialize(it) }
+        val activePreferences = preferences.all
+        val active = activePreferences.values.mapNotNull { (it as? String)?.let(::deserialize) }
             .sortedBy { it.order }
-            .distinctBy { it.episodeId }
-
-        sourceManager.isInitialized.first { it }
-        val downloads = mutableListOf<AnimeDownload>()
-        if (objs.isNotEmpty()) {
-            val cachedAnime = mutableMapOf<Long, Anime?>()
-            for ((animeId, episodeId) in objs) {
-                val anime = cachedAnime.getOrPut(animeId) {
-                    getAnime.await(animeId)
-                } ?: continue
-                val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: continue
-                val episode = getEpisode.await(episodeId) ?: continue
-                downloads.add(AnimeDownload(source, anime, episode))
-            }
+        val activeQueue = active.distinctBy { it.episodeId }
+        val legacy = if (shouldImportLegacy) {
+            legacyPreferences.all.values.mapNotNull { (it as? String)?.let(::deserialize) }
+        } else {
+            emptyList()
+        }
+        val objs = if (legacy.isEmpty()) {
+            activeQueue
+        } else {
+            (active + legacy).sortedBy { it.order }.distinctBy { it.episodeId }
         }
 
-        // Persist the entries and the import stamp together before publishing the restored queue.
-        persistQueue(downloads)
+        sourceManager.isInitialized.first { it }
+        val downloads = resolveDownloads(objs)
+        counter = (active.lastOrNull()?.order ?: -1) + 1
+        if (objs != activeQueue && !persistQueue(downloads, importStamp = true)) {
+            restorePreferenceSnapshot(activePreferences)
+            logcat(LogPriority.WARN) { "Could not import the legacy download queue. It will retry at next startup." }
+            return resolveDownloads(activeQueue)
+        }
         if (needsLegacyFlag) {
             // Keep the old marker current so a rollback does not import the legacy entries again.
             writeQueueRollbackMarker { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
+        }
+        return downloads
+    }
+
+    private suspend fun resolveDownloads(objs: List<AnimeDownloadObject>): List<AnimeDownload> {
+        val downloads = mutableListOf<AnimeDownload>()
+        val cachedAnime = mutableMapOf<Long, Anime?>()
+        for ((animeId, episodeId) in objs) {
+            val anime = cachedAnime.getOrPut(animeId) {
+                getAnime.await(animeId)
+            } ?: continue
+            val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: continue
+            val episode = getEpisode.await(episodeId) ?: continue
+            downloads.add(AnimeDownload(source, anime, episode))
         }
         return downloads
     }

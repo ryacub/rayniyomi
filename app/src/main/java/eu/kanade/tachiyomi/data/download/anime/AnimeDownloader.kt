@@ -112,10 +112,7 @@ class AnimeDownloader(
         scope = scope,
         restorePending = true,
         itemId = { it.episode.id },
-        isActive = {
-            it.status == AnimeDownload.State.DOWNLOADING ||
-                it.status == AnimeDownload.State.QUEUE
-        },
+        isDownloading = { it.status == AnimeDownload.State.DOWNLOADING },
         markQueued = {
             it.status = AnimeDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT

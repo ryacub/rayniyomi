@@ -21,7 +21,11 @@ class DownloadQueueOperationsTest {
 
     private enum class Status { QUEUE, DOWNLOADING, NOT_DOWNLOADED }
 
-    private data class TestDownload(val id: Long, var status: Status = Status.NOT_DOWNLOADED)
+    private data class TestDownload(
+        val id: Long,
+        var status: Status = Status.NOT_DOWNLOADED,
+        var blocked: Boolean = false,
+    )
 
     private class FakeStore(
         private val beforeReplace: suspend () -> Unit = {},
@@ -62,8 +66,11 @@ class DownloadQueueOperationsTest {
             scope = scope,
             ioDispatcher = ioDispatcher,
             itemId = { it.id },
-            isActive = { it.status == Status.QUEUE || it.status == Status.DOWNLOADING },
-            markQueued = { it.status = Status.QUEUE },
+            isDownloading = { it.status == Status.DOWNLOADING },
+            markQueued = {
+                it.status = Status.QUEUE
+                it.blocked = false
+            },
             markInactive = {
                 if (it.status == Status.QUEUE ||
                     it.status == Status.DOWNLOADING
@@ -256,14 +263,14 @@ class DownloadQueueOperationsTest {
     }
 
     @Test
-    fun `moveToFront marks item as QUEUE`() = runTest {
-        val d1 = TestDownload(1, Status.NOT_DOWNLOADED)
+    fun `moveToFront clears a queued item's blocker`() = runTest {
+        val d1 = TestDownload(1, Status.QUEUE, blocked = true)
         val queueState = MutableStateFlow(listOf(d1))
         val (ops) = createOps(queueState = queueState)
 
         ops.moveToFront(d1.id)
 
-        assertEquals(Status.QUEUE, queueState.value[0].status)
+        assertFalse(queueState.value[0].blocked)
     }
 
     // endregion

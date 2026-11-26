@@ -20,7 +20,7 @@ import tachiyomi.core.common.util.system.logcat
  * @param _queueState the mutable state flow backing the download queue
  * @param store the persistence store for queue operations
  * @param itemId extracts the item ID (episode or chapter) from a download
- * @param isActive returns true if the download is in DOWNLOADING or QUEUE state
+ * @param isDownloading returns true if the download is in DOWNLOADING state
  * @param markQueued sets the download status to QUEUE
  * @param markInactive sets the download status to NOT_DOWNLOADED if currently active
  */
@@ -28,7 +28,7 @@ class DownloadQueueOperations<D : Any>(
     private val _queueState: MutableStateFlow<List<D>>,
     private val store: DownloadQueueStore<D>,
     private val itemId: (D) -> Long,
-    private val isActive: (D) -> Boolean,
+    private val isDownloading: (D) -> Boolean,
     private val markQueued: (D) -> Unit,
     private val markInactive: (D) -> Unit,
     private val scope: CoroutineScope,
@@ -135,7 +135,7 @@ class DownloadQueueOperations<D : Any>(
         val download = current.find { itemId(it) == id } ?: newDownload ?: return@submitDurable false
         val ordered = listOf(download) + current.filterNot { itemId(it) == id }
         store.replaceAll(ordered)
-        if (!isActive(download)) markQueued(download)
+        if (!isDownloading(download)) markQueued(download)
         _queueState.value = ordered
         true
     }
