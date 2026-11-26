@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.download.anime
 import android.content.Context
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -154,7 +155,7 @@ class AnimeDownloadManagerTest {
         val allowRemove = CompletableDeferred<Unit>()
 
         every { mockDownloader.queueState } returns queueState
-        every { mockDownloader.updateQueue(any()) } answers {
+        coEvery { mockDownloader.updateQueue(any()) } answers {
             queueState.value = firstArg()
         }
         every { mockDownloader.removeFromQueueByEpisodeIds(any()) } answers {
@@ -249,7 +250,7 @@ class AnimeDownloadManagerTest {
         )
 
         every { mockDownloader.queueState } returns queueState
-        every { mockDownloader.updateQueue(any()) } answers {
+        coEvery { mockDownloader.updateQueue(any()) } answers {
             queueState.value = firstArg()
         }
         every { mockDownloader.removeFromQueueByEpisodeIds(any()) } answers {

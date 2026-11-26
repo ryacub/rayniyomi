@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
@@ -88,7 +89,11 @@ class MangaExtensionManager(
 
     internal val sourceExtensionsFlow = flow {
         isInitialized.first { it }
-        emitAll(installedExtensionsMapFlow.map { it.values.toList() })
+        emitAll(
+            installedExtensionsFlow.dropWhile { extensions ->
+                extensions != installedExtensionsMapFlow.value.values.toList()
+            },
+        )
     }
 
     private val availableExtensionsMapFlow = MutableStateFlow(emptyMap<String, MangaExtension.Available>())

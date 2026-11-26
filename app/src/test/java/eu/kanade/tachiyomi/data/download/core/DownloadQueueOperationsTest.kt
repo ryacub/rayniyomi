@@ -1,10 +1,15 @@
 package eu.kanade.tachiyomi.data.download.core
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -17,7 +22,9 @@ class DownloadQueueOperationsTest {
 
     private data class TestDownload(val id: Long, var status: Status = Status.NOT_DOWNLOADED)
 
-    private class FakeStore : DownloadQueueStore<TestDownload> {
+    private class FakeStore(
+        private val beforeReplace: suspend () -> Unit = {},
+    ) : DownloadQueueStore<TestDownload> {
         val items = mutableListOf<TestDownload>()
         override fun addAll(downloads: List<TestDownload>) {
             val updatedIds = downloads.map { it.id }.toSet()
@@ -33,7 +40,8 @@ class DownloadQueueOperationsTest {
         override fun clear() {
             items.clear()
         }
-        override fun replaceAll(downloads: List<TestDownload>) {
+        override suspend fun replaceAll(downloads: List<TestDownload>) {
+            beforeReplace()
             clear()
             addAll(downloads)
         }
@@ -43,11 +51,15 @@ class DownloadQueueOperationsTest {
         queueState: MutableStateFlow<List<TestDownload>> = MutableStateFlow(emptyList()),
         store: FakeStore = FakeStore(),
         restorePending: Boolean = false,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ): Pair<DownloadQueueOperations<TestDownload>, FakeStore> {
         val ops = DownloadQueueOperations(
             _queueState = queueState,
             store = store,
             restorePending = restorePending,
+            scope = scope,
+            ioDispatcher = ioDispatcher,
             itemId = { it.id },
             isActive = { it.status == Status.QUEUE || it.status == Status.DOWNLOADING },
             markQueued = { it.status = Status.QUEUE },
@@ -197,7 +209,7 @@ class DownloadQueueOperationsTest {
     // region addToStart
 
     @Test
-    fun `addToStart prepends without duplicating existing items`() {
+    fun `addToStart prepends without duplicating existing items`() = runTest {
         val d1 = TestDownload(1, Status.DOWNLOADING)
         val d2 = TestDownload(2, Status.QUEUE)
         val queueState = MutableStateFlow(listOf(d1))
@@ -214,7 +226,7 @@ class DownloadQueueOperationsTest {
     }
 
     @Test
-    fun `addToStart marks new items as QUEUE`() {
+    fun `addToStart marks new items as QUEUE`() = runTest {
         val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
         val (ops) = createOps(queueState = queueState)
         val download = TestDownload(1, Status.NOT_DOWNLOADED)
@@ -229,7 +241,7 @@ class DownloadQueueOperationsTest {
     // region moveToFront
 
     @Test
-    fun `moveToFront persists the same order the queue displays`() {
+    fun `moveToFront persists the same order the queue displays`() = runTest {
         val d1 = TestDownload(1)
         val d2 = TestDownload(2)
         val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
@@ -243,7 +255,7 @@ class DownloadQueueOperationsTest {
     }
 
     @Test
-    fun `moveToFront marks item as QUEUE`() {
+    fun `moveToFront marks item as QUEUE`() = runTest {
         val d1 = TestDownload(1, Status.NOT_DOWNLOADED)
         val queueState = MutableStateFlow(listOf(d1))
         val (ops) = createOps(queueState = queueState)
@@ -264,8 +276,9 @@ class DownloadQueueOperationsTest {
         val hydration = CompletableDeferred<List<TestDownload>>()
         val restorer = async(start = CoroutineStart.UNDISPATCHED) { ops.restore { hydration.await() } }
 
-        ops.addAll(listOf(TestDownload(2)))
-        ops.internalClear()
+        val wasEmptyWhenEnqueued = CompletableDeferred<Boolean>()
+        ops.enqueue({ listOf(TestDownload(2)) }) { wasEmpty -> wasEmptyWhenEnqueued.complete(wasEmpty) }
+        ops.removeIf { it.id == 2L }
         ops.addAll(listOf(TestDownload(3)))
         val consumer = async(start = CoroutineStart.UNDISPATCHED) {
             ops.awaitRestore()
@@ -276,8 +289,41 @@ class DownloadQueueOperationsTest {
         assertEquals(listOf(1L), store.items.map { it.id })
         hydration.complete(listOf(restored))
         restorer.await()
-        assertEquals(listOf(3L), consumer.await())
-        assertEquals(listOf(3L), store.items.map { it.id })
+        assertFalse(wasEmptyWhenEnqueued.await())
+        assertEquals(listOf(1L, 3L), consumer.await())
+        assertEquals(listOf(1L, 3L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `priority stays unpublished until its commit and queued mutations run afterward`() = runTest {
+        val commitStarted = CompletableDeferred<Unit>()
+        val allowCommit = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            commitStarted.complete(Unit)
+            allowCommit.await()
+        }
+        val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queueState,
+            store = store,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        ops.addAll(listOf(TestDownload(1), TestDownload(2)))
+        val prioritize = async { ops.moveToFront(queueState.value[1]) }
+        commitStarted.await()
+
+        val enqueueFinished = CompletableDeferred<Unit>()
+        ops.enqueue({ listOf(TestDownload(3)) }) { enqueueFinished.complete(Unit) }
+        assertFalse(enqueueFinished.isCompleted)
+        assertEquals(listOf(1L, 2L), queueState.value.map { it.id })
+        assertEquals(listOf(1L, 2L), store.items.map { it.id })
+
+        prioritize.cancelAndJoin()
+        allowCommit.complete(Unit)
+        enqueueFinished.await()
+        assertEquals(listOf(2L, 1L, 3L), queueState.value.map { it.id })
+        assertEquals(listOf(2L, 1L, 3L), store.items.map { it.id })
     }
 
     // region concurrency

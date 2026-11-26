@@ -2,7 +2,11 @@ package eu.kanade.tachiyomi.data.download.core
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 
@@ -27,40 +31,45 @@ class DownloadQueueOperations<D : Any>(
     private val isActive: (D) -> Boolean,
     private val markQueued: (D) -> Unit,
     private val markInactive: (D) -> Unit,
+    private val scope: CoroutineScope,
     restorePending: Boolean = false,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val lock = Any()
-    private val deferredMutations = ArrayDeque<() -> Unit>()
+    private val pendingMutations = ArrayDeque<() -> Boolean>()
+    private var isDraining = restorePending
     private val ready = CompletableDeferred<Unit>().also { if (!restorePending) it.complete(Unit) }
 
     suspend fun awaitRestore() = ready.await()
 
     suspend fun restore(load: suspend () -> List<D>) {
-        try {
-            val restored = load()
-            synchronized(lock) {
-                restored.forEach(markQueued)
-                _queueState.value = restored
-                while (deferredMutations.isNotEmpty()) deferredMutations.removeFirst()()
-                ready.complete(Unit)
-            }
+        val restored = try {
+            load()
         } catch (e: Exception) {
             synchronized(lock) {
-                deferredMutations.clear()
+                pendingMutations.clear()
                 ready.completeExceptionally(e)
             }
             if (e is CancellationException) throw e
             logcat(LogPriority.ERROR, e) { "Could not restore download queue" }
+            return
         }
+        restored.forEach(markQueued)
+        _queueState.value = restored
+        submit { ready.complete(Unit) }
+        drain()
     }
 
-    fun addAll(downloads: List<D>) = submit {
+    fun addAll(downloads: List<D>) = enqueue({ downloads }) {}
+
+    fun enqueue(prepare: () -> List<D>, onAdded: (wasEmpty: Boolean) -> Unit) = submit {
         val current = _queueState.value
-        val added = newDownloads(current, downloads)
+        val added = newDownloads(current, prepare())
         if (added.isEmpty()) return@submit
         store.addAll(added)
         added.forEach(markQueued)
         _queueState.value = current + added
+        onAdded(current.isEmpty())
     }
 
     fun remove(download: D) = submit {
@@ -86,24 +95,27 @@ class DownloadQueueOperations<D : Any>(
         onRemoved(current)
     }
 
-    fun replaceAll(downloads: List<D>) = submit {
+    suspend fun replaceAll(downloads: List<D>) = submitDurable {
         store.replaceAll(downloads)
         _queueState.value.forEach(markInactive)
         downloads.forEach(markQueued)
         _queueState.value = downloads
     }
 
-    fun addToStart(downloads: List<D>) = submit {
+    suspend fun addToStart(downloads: List<D>) = submitDurable {
         val current = _queueState.value
         val added = newDownloads(current, downloads)
-        downloads.forEach(markQueued)
-        if (added.isEmpty()) return@submit
+        if (added.isEmpty()) {
+            downloads.forEach(markQueued)
+            return@submitDurable
+        }
         val ordered = added + current
         store.replaceAll(ordered)
+        downloads.forEach(markQueued)
         _queueState.value = ordered
     }
 
-    fun moveToFront(download: D) = submit {
+    suspend fun moveToFront(download: D) = submitDurable {
         val ordered = listOf(download) + _queueState.value.filterNot { itemId(it) == itemId(download) }
         store.replaceAll(ordered)
         markQueued(download)
@@ -115,12 +127,54 @@ class DownloadQueueOperations<D : Any>(
         return downloads.filter { existingIds.add(itemId(it)) }
     }
 
-    private fun submit(mutation: () -> Unit) {
+    private fun submit(mutation: () -> Unit) = schedule {
+        mutation()
+        true
+    }
+
+    private suspend fun submitDurable(mutation: suspend () -> Unit) {
+        awaitRestore()
+        val completed = CompletableDeferred<Unit>()
+        schedule {
+            scope.launch(ioDispatcher) {
+                try {
+                    mutation()
+                } catch (e: Exception) {
+                    completed.completeExceptionally(e)
+                    if (e is CancellationException) throw e
+                }
+            }.invokeOnCompletion { failure ->
+                if (failure == null) completed.complete(Unit) else completed.completeExceptionally(failure)
+                drain()
+            }
+            false
+        }
+        completed.await()
+    }
+
+    // Lock only the FIFO. Queue and preference changes belong to its current owner.
+    private fun schedule(mutation: () -> Boolean) {
         synchronized(lock) {
-            when {
-                ready.isCancelled -> return
-                ready.isCompleted -> mutation()
-                else -> deferredMutations.addLast(mutation)
+            if (ready.isCancelled) return
+            pendingMutations.addLast(mutation)
+            if (isDraining) return
+            isDraining = true
+        }
+        drain()
+    }
+
+    private fun drain() {
+        while (true) {
+            val next = synchronized(lock) {
+                pendingMutations.removeFirstOrNull() ?: run {
+                    isDraining = false
+                    return
+                }
+            }
+            try {
+                if (!next()) return // The durable mutation continues draining when it finishes.
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Could not update download queue" }
             }
         }
     }

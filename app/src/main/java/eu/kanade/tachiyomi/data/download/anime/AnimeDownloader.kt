@@ -92,11 +92,21 @@ class AnimeDownloader(
     private val store = AnimeDownloadStore(context)
 
     /**
+     * Coroutine scope used for download job scheduling
+     */
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeDownloader scope" }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
+
+    /**
      * Shared queue mutation operations.
      */
     private val queueOps = DownloadQueueOperations(
         _queueState = _queueState,
         store = store,
+        scope = scope,
         restorePending = true,
         itemId = { it.episode.id },
         isActive = {
@@ -145,15 +155,6 @@ class AnimeDownloader(
             },
         )
     }
-
-    /**
-     * Coroutine scope used for download job scheduling
-     */
-    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeDownloader scope" }
-    }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
 
     /**
      * Job object for download queue management
@@ -454,56 +455,54 @@ class AnimeDownloader(
     ) {
         if (episodes.isEmpty()) return
 
-        val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: return
-        val wasEmpty = queueState.value.isEmpty()
-        val downloadedEpisodeNames = provider.findAnimeDir(anime.title, source)
-            ?.listFiles()
-            .orEmpty()
-            .mapNotNull { it.name }
-            .toSet()
+        queueOps.enqueue(
+            prepare = {
+                val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: return@enqueue emptyList()
+                val downloadedEpisodeNames = provider.findAnimeDir(anime.title, source)
+                    ?.listFiles()
+                    .orEmpty()
+                    .mapNotNull { it.name }
+                    .toSet()
 
-        val episodesToQueue = episodes.asSequence()
-            // Filter out those already downloaded.
-            .filter { episode ->
-                provider.getValidEpisodeDirNames(episode.name, episode.scanlator)
-                    .none { it in downloadedEpisodeNames }
-            }
-            // Add episodes to queue from the start.
-            .sortedByDescending { it.sourceOrder }
-            // Filter out those already enqueued.
-            .filter { episode -> queueState.value.none { it.episode.id == episode.id } }
-            // Create a download for each one.
-            .map { AnimeDownload(source, anime, it, changeDownloader, video) }
-            .toList()
-
-        if (episodesToQueue.isNotEmpty()) {
-            addAllToQueue(episodesToQueue)
-
-            // Start downloader if needed
-            if (autoStart && wasEmpty) {
-                val queuedDownloads =
-                    queueState.value.count { it: AnimeDownload -> it.source !is UnmeteredSource }
-                val maxDownloadsFromSource = queueState.value
-                    .groupBy { it.source }
-                    .filterKeys { it !is UnmeteredSource }
-                    .maxOfOrNull { it.value.size }
-                    ?: 0
-                if (
-                    queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
-                    maxDownloadsFromSource > EPISODES_PER_SOURCE_QUEUE_WARNING_THRESHOLD
-                ) {
-                    notifier.onWarning(
-                        context.stringResource(AYMR.strings.download_queue_size_warning),
-                        WARNING_NOTIF_TIMEOUT_MS,
-                        NotificationHandler.openUrl(
-                            context,
-                            AnimeLibraryUpdateNotifier.HELP_WARNING_URL,
-                        ),
-                    )
+                episodes.asSequence()
+                    // Filter out those already downloaded.
+                    .filter { episode ->
+                        provider.getValidEpisodeDirNames(episode.name, episode.scanlator)
+                            .none { it in downloadedEpisodeNames }
+                    }
+                    // Add episodes to queue from the start.
+                    .sortedByDescending { it.sourceOrder }
+                    // Create a download for each one.
+                    .map { AnimeDownload(source, anime, it, changeDownloader, video) }
+                    .toList()
+            },
+            onAdded = { wasEmpty ->
+                // Start downloader if needed
+                if (autoStart && wasEmpty) {
+                    val queuedDownloads =
+                        queueState.value.count { it: AnimeDownload -> it.source !is UnmeteredSource }
+                    val maxDownloadsFromSource = queueState.value
+                        .groupBy { it.source }
+                        .filterKeys { it !is UnmeteredSource }
+                        .maxOfOrNull { it.value.size }
+                        ?: 0
+                    if (
+                        queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
+                        maxDownloadsFromSource > EPISODES_PER_SOURCE_QUEUE_WARNING_THRESHOLD
+                    ) {
+                        notifier.onWarning(
+                            context.stringResource(AYMR.strings.download_queue_size_warning),
+                            WARNING_NOTIF_TIMEOUT_MS,
+                            NotificationHandler.openUrl(
+                                context,
+                                AnimeLibraryUpdateNotifier.HELP_WARNING_URL,
+                            ),
+                        )
+                    }
+                    AnimeDownloadJob.start(context)
                 }
-                AnimeDownloadJob.start(context)
-            }
-        }
+            },
+        )
     }
 
     /**
@@ -807,8 +806,6 @@ class AnimeDownloader(
         return queueState.value.none { it.status.value <= AnimeDownload.State.DOWNLOADING.value }
     }
 
-    private fun addAllToQueue(downloads: List<AnimeDownload>) = queueOps.addAll(downloads)
-
     private fun removeFromQueue(download: AnimeDownload) = queueOps.remove(download)
 
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
@@ -844,11 +841,11 @@ class AnimeDownloader(
         }
     }
 
-    fun addToStartOfQueue(downloads: List<AnimeDownload>) = queueOps.addToStart(downloads)
+    suspend fun addToStartOfQueue(downloads: List<AnimeDownload>) = queueOps.addToStart(downloads)
 
-    fun moveToFront(download: AnimeDownload) = queueOps.moveToFront(download)
+    suspend fun moveToFront(download: AnimeDownload) = queueOps.moveToFront(download)
 
-    fun updateQueue(downloads: List<AnimeDownload>) {
+    suspend fun updateQueue(downloads: List<AnimeDownload>) {
         if (queueState.value == downloads) return
 
         if (downloads.isEmpty()) {

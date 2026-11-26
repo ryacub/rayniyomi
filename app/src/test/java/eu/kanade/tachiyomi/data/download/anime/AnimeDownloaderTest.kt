@@ -182,7 +182,7 @@ class AnimeDownloaderTest {
         ).apply { this.video = video }
 
     @Test
-    fun `removing an episode from the queue deletes its resume progress and partial files`() {
+    fun `removing an episode from the queue deletes its resume progress and partial files`() = runTest {
         downloader.addToStartOfQueue(listOf(testDownload()))
 
         downloader.removeFromQueueByEpisodeIds(listOf(1L))
@@ -192,7 +192,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `clearing the queue deletes resume progress and partial files`() {
+    fun `clearing the queue deletes resume progress and partial files`() = runTest {
         downloader.addToStartOfQueue(listOf(testDownload()))
 
         downloader.clearQueue()
@@ -202,7 +202,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `removing an episode keeps partial files that a queued episode with the same directory uses`() {
+    fun `removing an episode keeps partial files that a queued episode with the same directory uses`() = runTest {
         downloader.addToStartOfQueue(
             listOf(testDownload(episodeId = 1L), testDownload(episodeId = 2L, episodeName = "Ch1")),
         )
@@ -215,7 +215,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `reordering the queue keeps resume progress and partial files`() {
+    fun `reordering the queue keeps resume progress and partial files`() = runTest {
         val first = testDownload(episodeId = 1L)
         val second = testDownload(episodeId = 2L)
         downloader.addToStartOfQueue(listOf(first, second))
@@ -229,7 +229,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `removing a running episode deletes resume progress after the cancelled download saves it`() {
+    fun `removing a running episode deletes resume progress after the cancelled download saves it`() = runTest {
         val download = testDownload()
         val hostersStarted = CountDownLatch(1)
         val allowSave = CompletableDeferred<Unit>()
@@ -266,7 +266,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `starting an item retry leaves the other failed episode untouched`() {
+    fun `starting an item retry leaves the other failed episode untouched`() = runTest {
         val selected = testDownload(episodeId = 1L)
         val other = testDownload(episodeId = 2L)
         downloader.addToStartOfQueue(listOf(selected, other))

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
+import eu.kanade.tachiyomi.data.download.core.commitQueuePreferences
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -75,17 +76,21 @@ class MangaDownloadStore(
     /**
      * Removes all the downloads from the store.
      */
-    override fun clear() = replaceAll(emptyList())
-
-    override fun replaceAll(downloads: List<MangaDownload>) {
-        preferences.edit { writeQueue(downloads) }
+    override fun clear() {
+        preferences.edit { writeQueue(emptyList()) }
+        counter = 0
     }
 
-    private fun SharedPreferences.Editor.writeQueue(downloads: List<MangaDownload>) {
+    override suspend fun replaceAll(downloads: List<MangaDownload>) {
+        val entries = downloads.mapIndexed { order, download -> getKey(download) to serialize(download, order) }
+        commitQueuePreferences { preferences.edit().apply { writeQueue(entries) } }
+        counter = downloads.size
+    }
+
+    private fun SharedPreferences.Editor.writeQueue(entries: List<Pair<String, String>>) {
         clear()
         putBoolean(KEY_IMPORT_STAMP, true)
-        downloads.forEachIndexed { order, download -> putString(getKey(download), serialize(download, order)) }
-        counter = downloads.size
+        entries.forEach { (key, value) -> putString(key, value) }
     }
 
     /**
@@ -127,14 +132,10 @@ class MangaDownloadStore(
         }
 
         // Persist the entries and the import stamp together before publishing the restored queue.
-        check(preferences.edit().apply { writeQueue(downloads) }.commit()) {
-            "Could not persist restored download queue"
-        }
+        replaceAll(downloads)
         if (needsLegacyFlag) {
             // Keep the old marker current so a rollback does not import the legacy entries again.
-            check(migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true).commit()) {
-                "Could not persist legacy download migration flag"
-            }
+            commitQueuePreferences { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
         }
         return downloads
     }
