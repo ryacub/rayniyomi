@@ -16,6 +16,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Settings > Advanced has a Beta group with a "Use new interface" switch. It is off by default. Screens that are not redesigned yet do not change (#1548).
 
 ### Improved
+- Upgrade Compose to 1.13.0 and Material 3 to 1.5.0 (#1560).
 
 ### Fixed
 - Pending chapter and episode downloads survive an interruption during startup. Items moved to the front stay there after restart (#1556).
