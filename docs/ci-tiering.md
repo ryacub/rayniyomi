@@ -15,6 +15,7 @@ These checks are expected on normal pull requests:
 | `gitleaks` | `.github/workflows/secret_scan.yml` | Blocks accidental secret exposure. |
 | `Build app` | `.github/workflows/build_pull_request.yml` | Builds the stable APK and verifies 16 KB native alignment. |
 | `Check code format` | `.github/workflows/build_pull_request.yml` | Keeps formatting drift out of review. |
+| `Verify preview screenshots` | `.github/workflows/build_pull_request.yml` | Runs the Roborazzi preview and component screenshot tests for `:app` and `:presentation-core`, plus the preview determinism check, in parallel with `Build app`. |
 | `Run unit tests` | `.github/workflows/build_pull_request.yml` | Catches JVM test regressions without emulator cost. |
 | `Branding guardrail` | `.github/workflows/build_pull_request.yml` | Prevents user-facing fork-brand regressions. |
 | `Plugin Compatibility` | `.github/workflows/plugin_compatibility.yml` | Targeted PR gate for light novel plugin host and manifest changes. |
@@ -25,17 +26,50 @@ after merge or branch cleanup. Push and manual runs fall back to `github.sha`.
 
 ### Update screenshot baselines
 
-After an intended change to a shared Compose component, record the new baselines
-with JDK 21:
+Screenshot tests cover the shared components in `:presentation-core` and the
+Compose previews in `:app` and `:presentation-core`. The `:app` preview tests
+run only when you pass `-Prayniyomi.previewScreenshots=true`, so a normal
+`:app:testStableDebugUnitTest` run does not build or run them.
+
+Record the baselines with JDK 21:
 
 ```sh
 ./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.record=true
+./gradlew :app:testStableDebugUnitTest -Prayniyomi.previewScreenshots=true -Proborazzi.test.record=true --tests '*RoborazziPreviewParameterizedTests*'
 ```
 
-Review the changed PNGs in `presentation-core/src/test/screenshots/`. Commit the
-intended changes and run `./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.verify=true`.
-If CI reports a difference, open the `presentation-core-screenshot-comparisons`
-artifact. Use Linux to record the baselines if macOS and Linux render differently.
+Verify them with:
+
+```sh
+./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.verify=true
+./gradlew :app:testStableDebugUnitTest -Prayniyomi.previewScreenshots=true -Proborazzi.test.verify=true --tests '*RoborazziPreviewParameterizedTests*'
+```
+
+Review the changed PNGs in `presentation-core/src/test/screenshots/` and
+`app/src/test/screenshots/`. Commit the intended changes.
+
+The CI baselines come from Linux. A macOS record can differ in pixels. Use it
+to count and review previews, not as the final baseline. If CI reports a
+difference, open the `preview-screenshot-comparisons` artifact. Copy each
+`<name>_actual.png` over `src/test/screenshots/<name>.png` in the matching
+module, then run the verify commands again. A `workflow_dispatch` record job
+works only from the default branch, so no record job exists.
+
+The `preview-screenshot-comparisons` artifact replaces the old
+`presentation-core-screenshot-comparisons` artifact.
+
+### Preview determinism check
+
+`Verify preview screenshots` first runs `python3 scripts/check_preview_determinism.py`.
+The script scans preview files in `app/src/main` and `presentation-core/src/main`.
+It fails on `Random`, `.random(`, `now()` and `currentTimeMillis`, because those
+values change between runs and break the screenshot comparison. Use fixed values
+in previews instead.
+
+If a line is safe, add an entry to `scripts/preview_determinism_allowlist.txt`
+in the form `path_regex<TAB>line_regex<TAB>reason`. Each regex must match the
+whole path or the whole trimmed line. The reason is required. An entry that
+matches no line is an error.
 
 ## Removed Emulator Gate
 
