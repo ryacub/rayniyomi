@@ -66,10 +66,10 @@ It fails on `Random`, `.random(`, `now()` and `currentTimeMillis`, because those
 values change between runs and break the screenshot comparison. Use fixed values
 in previews instead.
 
-If a line is safe, add an entry to `scripts/preview_determinism_allowlist.txt`
-in the form `path_regex<TAB>line_regex<TAB>reason`. Each regex must match the
-whole path or the whole trimmed line. The reason is required. An entry that
-matches no line is an error.
+If a line is safe, add an `AllowedLine(path, line, reason)` entry to `ALLOWED`
+in `scripts/check_preview_determinism.py`. Each regex must match the whole path
+or the whole trimmed line. The reason is required. An entry that matches no line
+is an error.
 
 ## Removed Emulator Gate
 

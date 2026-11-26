@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import re
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.check_preview_determinism import (
-    AllowlistEntry,
+    ALLOWED,
+    AllowedLine,
     find_stale_entries,
     find_violations,
-    load_allowlist,
     main,
 )
 
@@ -23,7 +24,7 @@ PREVIEW_FILE = "app/src/main/java/example/Screen.kt"
 
 
 class PreviewDeterminismTest(unittest.TestCase):
-    def check(self, files: dict[str, str], allowlist: list[AllowlistEntry] | None = None):
+    def check(self, files: dict[str, str], allowlist: list[AllowedLine] | None = None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for relative, text in files.items():
@@ -74,7 +75,7 @@ class PreviewDeterminismTest(unittest.TestCase):
         )
 
     def test_allowlist_entry_suppresses_a_matching_line(self) -> None:
-        entry = AllowlistEntry.build(PREVIEW_FILE, r"val n = Random\(0\)\.nextInt\(\)", "seeded")
+        entry = AllowedLine(PREVIEW_FILE, r"val n = Random\(0\)\.nextInt\(\)", "seeded")
 
         violations = self.check(
             {PREVIEW_FILE: "@Preview\nval n = Random(0).nextInt()\nval m = Random.nextInt()\n"},
@@ -83,25 +84,13 @@ class PreviewDeterminismTest(unittest.TestCase):
 
         self.assertEqual([v.line for v in violations], [3])
 
-    def test_allowlist_entry_without_a_reason_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            allowlist = Path(directory) / "allowlist.txt"
-            allowlist.write_text("a\\.kt\tRandom\t\n", encoding="utf-8")
-
-            with self.assertRaises(ValueError):
-                load_allowlist(allowlist)
-
-    def test_allowlist_entry_with_a_reason_is_loaded(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            allowlist = Path(directory) / "allowlist.txt"
-            allowlist.write_text("# comment\na\\.kt\tRandom\tseeded\n", encoding="utf-8")
-
-            entries = load_allowlist(allowlist)
-
-            self.assertEqual([entry.reason for entry in entries], ["seeded"])
+    def test_every_real_allowed_entry_has_a_reason(self) -> None:
+        self.assertTrue(ALLOWED)
+        for entry in ALLOWED:
+            self.assertTrue(entry.reason.strip(), entry.path)
 
     def test_stale_allowlist_entry_is_reported(self) -> None:
-        entry = AllowlistEntry.build(PREVIEW_FILE, r"Random\(0\)", "seeded")
+        entry = AllowedLine(re.escape(PREVIEW_FILE), r"Random\(0\)", "seeded")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write(root, PREVIEW_FILE, "@Preview\nfun P() {}\n")
@@ -111,16 +100,14 @@ class PreviewDeterminismTest(unittest.TestCase):
     def test_main_exits_one_on_a_violation_and_zero_when_clean(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            allowlist = root / "allowlist.txt"
-            allowlist.write_text("", encoding="utf-8")
             write(root, PREVIEW_FILE, "@Preview\nval n = Random.nextInt()\n")
-            args = ["--root", str(root), "--allowlist", str(allowlist)]
+            args = ["--root", str(root)]
 
-            self.assertEqual(main(args), 1)
+            self.assertEqual(main(args, allowed=[]), 1)
 
             write(root, PREVIEW_FILE, "@Preview\nval n = 4\n")
 
-            self.assertEqual(main(args), 0)
+            self.assertEqual(main(args, allowed=[]), 0)
 
 
 if __name__ == "__main__":

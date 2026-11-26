@@ -1,2 +1,0 @@
-# path_regex<TAB>line_regex<TAB>reason. Each regex matches the whole path or the whole trimmed line.
-app/src/main/java/eu/kanade/presentation/entries/components/EntryInfoHeader\.kt	val now = Instant\.now\(\)	Production code. The previews pass nextUpdate = null, so the line never runs.
