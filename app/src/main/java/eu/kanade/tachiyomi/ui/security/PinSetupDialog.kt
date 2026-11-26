@@ -20,7 +20,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import eu.kanade.presentation.theme.TachiyomiTheme
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
@@ -168,7 +168,7 @@ private enum class PinSetupStep {
 @Preview
 @Composable
 private fun PinSetupDialogPreview() {
-    TachiyomiTheme {
+    TachiyomiPreviewTheme {
         PinSetupDialog(
             onDismiss = {},
             onPinSet = {},

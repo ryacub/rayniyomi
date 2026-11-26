@@ -70,6 +70,7 @@ data object MoreTab : Tab {
         val screenModel = metroViewModel<MoreScreenModel>()
         val downloadQueueState by screenModel.downloadQueueState.collectAsStateWithLifecycle()
         val navStyle = currentNavigationStyle()
+        val altTitle = navStyle.moreTab.options.title
         MoreScreen(
             downloadQueueStateProvider = { downloadQueueState },
             downloadedOnly = screenModel.downloadedOnly,
@@ -77,6 +78,7 @@ data object MoreTab : Tab {
             incognitoMode = screenModel.incognitoMode,
             onIncognitoModeChange = { screenModel.incognitoMode = it },
             navStyle = navStyle,
+            altTitle = altTitle,
             onClickAlt = { navigator.push(navStyle.moreTab) },
             onClickDownloadQueue = { navigator.push(DownloadsTab) },
             onClickCategories = { navigator.push(CategoriesTab) },
