@@ -1,3 +1,5 @@
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import io.github.takahirom.roborazzi.RoborazziExtension
 import mihon.buildlogic.Config
 import mihon.buildlogic.getBuildTime
 import mihon.buildlogic.getCommitCount
@@ -15,10 +17,12 @@ plugins {
     // Crashlytics: applied unconditionally so the build ID is always embedded in release APKs
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.roborazzi) apply false
 }
 
 val appVersionCode = 638
 val lightNovelExpectedPluginApiVersion = 1
+val previewScreenshots = providers.gradleProperty("rayniyomi.previewScreenshots").orNull == "true"
 
 // Apply Google Services plugin before AGP variant configuration and only for builds whose
 // applicationId is registered in google-services.json.
@@ -30,6 +34,25 @@ if (
     gradle.startParameter.taskNames.none { it.contains("Debug", ignoreCase = true) }
 ) {
     apply(plugin = "com.google.gms.google-services")
+}
+
+if (previewScreenshots) {
+    apply(plugin = "io.github.takahirom.roborazzi")
+    extensions.configure<RoborazziExtension> {
+        outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+        @OptIn(ExperimentalRoborazziApi::class)
+        generateComposePreviewRobolectricTests {
+            enable = true
+            packages = listOf("eu.kanade.presentation", "eu.kanade.tachiyomi", "mihon.feature.upcoming")
+            includePrivatePreviews = true
+            robolectricConfig = mapOf("application" to "android.app.Application::class")
+            testerQualifiedClassName = "eu.kanade.presentation.screenshot.InspectionModeTester"
+            useScanOptionParametersInTester = true
+        }
+    }
+    tasks.withType<Test>().configureEach {
+        systemProperty("user.timezone", "UTC")
+    }
 }
 
 android {
@@ -92,10 +115,14 @@ android {
 
     sourceSets {
         getByName("preview") { res.directories.add("src/debug/res") }
+        if (previewScreenshots) {
+            getByName("test") { kotlin.directories.add("src/test/previewTester/kotlin") }
+        }
     }
 
     testOptions {
         unitTests {
+            isIncludeAndroidResources = previewScreenshots
             isReturnDefaultValues = true
         }
     }
@@ -346,6 +373,17 @@ dependencies {
     testImplementation(libs.bundles.test)
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
     testImplementation(libs.sqldelight.sqlite.driver)
+    if (previewScreenshots) {
+        testImplementation(libs.robolectric)
+        testImplementation(libs.roborazzi)
+        testImplementation(libs.roborazzi.compose)
+        testImplementation(libs.roborazzi.preview.scanner.support)
+        testImplementation(libs.composable.preview.scanner)
+        testImplementation(libs.junit4)
+        testImplementation(compose.ui.test.junit4)
+        debugImplementation(compose.ui.test.manifest)
+        testRuntimeOnly(libs.junit.vintage.engine)
+    }
     androidTestImplementation(platform(compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
@@ -403,5 +441,11 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
 buildscript {
     dependencies {
         classpath(kotlinx.gradle)
+    }
+}
+
+if (previewScreenshots) {
+    configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+        exclude(group = "org.conscrypt", module = "conscrypt-android")
     }
 }
