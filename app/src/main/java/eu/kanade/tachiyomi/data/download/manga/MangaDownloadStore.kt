@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import eu.kanade.tachiyomi.data.download.core.commitQueuePreferences
+import eu.kanade.tachiyomi.data.download.core.writeQueueRollbackMarker
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -117,9 +118,9 @@ class MangaDownloadStore(
             .sortedBy { it.order }
             .distinctBy { it.chapterId }
 
+        sourceManager.isInitialized.first { it }
         val downloads = mutableListOf<MangaDownload>()
         if (objs.isNotEmpty()) {
-            sourceManager.isInitialized.first { it }
             val cachedManga = mutableMapOf<Long, Manga?>()
             for ((mangaId, chapterId) in objs) {
                 val manga = cachedManga.getOrPut(mangaId) {
@@ -135,7 +136,7 @@ class MangaDownloadStore(
         replaceAll(downloads)
         if (needsLegacyFlag) {
             // Keep the old marker current so a rollback does not import the legacy entries again.
-            commitQueuePreferences { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
+            writeQueueRollbackMarker { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
         }
         return downloads
     }

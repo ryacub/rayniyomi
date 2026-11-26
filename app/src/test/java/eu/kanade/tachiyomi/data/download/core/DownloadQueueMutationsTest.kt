@@ -1,7 +1,9 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
@@ -20,7 +22,7 @@ class DownloadQueueMutationsTest {
         mutationScope: CoroutineScope,
         queueState: MutableStateFlow<List<FakeDownload>> = MutableStateFlow(emptyList()),
         createFromId: suspend (Long) -> FakeDownload? = { id -> FakeDownload(id, FakeEntity(id)) },
-        moveToFront: (FakeDownload) -> Unit = { },
+        moveToFront: suspend (Long, FakeDownload?) -> Boolean = { _, _ -> true },
         updateQueue: (List<FakeDownload>) -> Unit = { },
         addToStart: (List<FakeDownload>) -> Unit = { },
         removeFromQueueByIds: (List<Long>) -> Unit = { ids ->
@@ -38,7 +40,10 @@ class DownloadQueueMutationsTest {
             itemId = { it.id },
             createFromId = createFromId,
             moveToFront = moveToFront,
-            updateQueue = updateQueue,
+            updateQueue = { ids ->
+                val current = queueState.value.associateBy { it.id }
+                updateQueue(ids.mapNotNull(current::get))
+            },
             addToStart = addToStart,
             removeFromQueueByIds = removeFromQueueByIds,
             isRunning = isRunning,
@@ -65,22 +70,28 @@ class DownloadQueueMutationsTest {
     }
 
     @Test
-    fun `startDownloadNow moves existing item to front and starts downloads`() = runTest {
+    fun `startDownloadNow finishes after the screen cancels an accepted command`() = runTest {
         val queueState = MutableStateFlow(listOf(FakeDownload(1, FakeEntity(1))))
-        val moved = mutableListOf<FakeDownload>()
-        var started = false
+        val moved = CompletableDeferred<Long>()
+        val allowMove = CompletableDeferred<Unit>()
+        val started = CompletableDeferred<Unit>()
 
         val mutations = createMutations(
             mutationScope = backgroundScope,
             queueState = queueState,
-            moveToFront = { moved.add(it) },
-            startDownloads = { started = true },
+            moveToFront = { id, _ ->
+                moved.complete(id)
+                allowMove.await()
+                true
+            },
+            startDownloads = { started.complete(Unit) },
         )
 
-        mutations.startDownloadNow(1)
-
-        assertEquals(listOf(1L), moved.map { it.id })
-        assertTrue(started)
+        val caller = async { mutations.startDownloadNow(1) }
+        assertEquals(1L, moved.await())
+        caller.cancelAndJoin()
+        allowMove.complete(Unit)
+        started.await()
     }
 
     @Test
@@ -241,18 +252,16 @@ class DownloadQueueMutationsTest {
 
     @Test
     fun `startDownloadNow returns without start when createFromId is null`() = runTest {
-        var moved = false
         var started = false
         val mutations = createMutations(
             mutationScope = backgroundScope,
             createFromId = { null },
-            moveToFront = { moved = true },
+            moveToFront = { _, candidate -> candidate != null },
             startDownloads = { started = true },
         )
 
         mutations.startDownloadNow(9)
 
-        assertFalse(moved)
         assertFalse(started)
     }
 }

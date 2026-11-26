@@ -248,7 +248,7 @@ class DownloadQueueOperationsTest {
         val (ops, store) = createOps(queueState = queueState)
         ops.addAll(listOf(d1, d2))
 
-        ops.moveToFront(d2)
+        ops.moveToFront(d2.id)
 
         assertEquals(listOf(2L, 1L), queueState.value.map { it.id })
         assertEquals(queueState.value.map { it.id }, store.items.map { it.id })
@@ -260,7 +260,7 @@ class DownloadQueueOperationsTest {
         val queueState = MutableStateFlow(listOf(d1))
         val (ops) = createOps(queueState = queueState)
 
-        ops.moveToFront(d1)
+        ops.moveToFront(d1.id)
 
         assertEquals(Status.QUEUE, queueState.value[0].status)
     }
@@ -310,7 +310,7 @@ class DownloadQueueOperationsTest {
             ioDispatcher = StandardTestDispatcher(testScheduler),
         )
         ops.addAll(listOf(TestDownload(1), TestDownload(2)))
-        val prioritize = async { ops.moveToFront(queueState.value[1]) }
+        val prioritize = async { ops.moveToFront(2) }
         commitStarted.await()
 
         val enqueueFinished = CompletableDeferred<Unit>()
@@ -324,6 +324,73 @@ class DownloadQueueOperationsTest {
         enqueueFinished.await()
         assertEquals(listOf(2L, 1L, 3L), queueState.value.map { it.id })
         assertEquals(listOf(2L, 1L, 3L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `reorder keeps intervening enqueue and completion and preserves running status`() = runTest {
+        val priorityCommit = CompletableDeferred<Unit>()
+        val allowCommit = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            priorityCommit.complete(Unit)
+            allowCommit.await()
+        }
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queue,
+            store = store,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val active = TestDownload(1)
+        ops.addAll(listOf(active, TestDownload(2), TestDownload(3)))
+        active.status = Status.DOWNLOADING
+        val priority = async { ops.moveToFront(3) }
+        priorityCommit.await()
+
+        ops.removeIf { it.id == 2L }
+        ops.addAll(listOf(TestDownload(4)))
+        val reorder = async(start = CoroutineStart.UNDISPATCHED) { ops.reorder(listOf(1L, 2L, 3L)) }
+        val stalePriority = async(start = CoroutineStart.UNDISPATCHED) { ops.moveToFront(2) }
+        allowCommit.complete(Unit)
+
+        priority.await()
+        reorder.await()
+        assertFalse(stalePriority.await())
+        assertEquals(listOf(1L, 3L, 4L), queue.value.map { it.id })
+        assertEquals(listOf(1L, 3L, 4L), store.items.map { it.id })
+        assertEquals(Status.DOWNLOADING, active.status)
+    }
+
+    @Test
+    fun `awaitable enqueue finishes after startup and writes in submission order`() = runTest {
+        val allowCommit = CompletableDeferred<Unit>()
+        val store = FakeStore { allowCommit.await() }
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queue,
+            store = store,
+            restorePending = true,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val hydration = CompletableDeferred<List<TestDownload>>()
+        val restoring = async(start = CoroutineStart.UNDISPATCHED) { ops.restore { hydration.await() } }
+
+        val enqueued = async(start = CoroutineStart.UNDISPATCHED) {
+            ops.enqueueDurably({ listOf(TestDownload(1)) }) {}
+        }
+        ops.addAll(listOf(TestDownload(2)))
+        assertFalse(enqueued.isCompleted)
+
+        hydration.complete(emptyList())
+        restoring.await()
+        assertFalse(enqueued.isCompleted)
+        assertTrue(queue.value.isEmpty())
+
+        allowCommit.complete(Unit)
+        assertEquals(1, enqueued.await())
+        ops.awaitRestore()
+        assertEquals(listOf(1L, 2L), store.items.map { it.id })
     }
 
     // region concurrency

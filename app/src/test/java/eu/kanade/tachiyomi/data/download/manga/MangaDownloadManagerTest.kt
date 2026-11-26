@@ -147,7 +147,8 @@ class MangaDownloadManagerTest {
 
         every { mockDownloader.queueState } returns queueState
         coEvery { mockDownloader.updateQueue(any()) } answers {
-            queueState.value = firstArg()
+            val current = queueState.value.associateBy { it.chapter.id }
+            queueState.value = firstArg<List<Long>>().mapNotNull(current::get)
         }
         every { mockDownloader.removeFromQueueByChapterIds(any()) } answers {
             removeEntered.complete(Unit)

@@ -68,7 +68,7 @@ class MangaDownloadManagerBatteryPromptTest {
         downloader = mockk(relaxed = true) {
             every { queueState } returns MutableStateFlow(emptyList())
             every { queueChapters(any(), any(), any()) } returns Unit
-            coEvery { moveToFront(any()) } returns Unit
+            coEvery { moveToFront(any(), any()) } returns true
             coEvery { updateQueue(any()) } returns Unit
             coEvery { addToStartOfQueue(any()) } returns Unit
             every { pause() } returns Unit

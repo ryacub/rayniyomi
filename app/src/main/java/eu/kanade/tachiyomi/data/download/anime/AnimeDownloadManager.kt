@@ -217,12 +217,19 @@ class AnimeDownloadManager(
         alt: Boolean = false,
         video: Video? = null,
     ) {
+        downloader.queueEpisodes(anime, prepareEpisodes(episodes), autoStart, alt, video)
+    }
+
+    internal suspend fun downloadEpisodesAndAwait(anime: Anime, episodes: List<Episode>): Int {
+        return downloader.queueEpisodesAndAwait(anime, prepareEpisodes(episodes))
+    }
+
+    private fun prepareEpisodes(episodes: List<Episode>): List<Episode> {
         val filteredEpisodes = getEpisodesToDownload(episodes)
-        // Check if we should prompt for battery optimization exemption
         if (filteredEpisodes.size >= 10 && !downloadPreferences.batteryOptimizationPromptShown().get()) {
             checkBatteryOptimization()
         }
-        downloader.queueEpisodes(anime, filteredEpisodes, autoStart, alt, video)
+        return filteredEpisodes
     }
 
     suspend fun addDownloadsToStartByEpisodeIds(episodeIds: List<Long>) {

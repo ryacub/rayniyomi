@@ -12,7 +12,6 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
@@ -47,7 +46,7 @@ class DownloadStoreRestoreTest {
     }
 
     @Test
-    fun `interrupted migration repairs the old flag without reimporting the legacy queue`() = runTest {
+    fun `failed rollback marker leaves restored queue ready and retries on reopen`() = runTest {
         val active = mutableMapOf<String, Any>()
         val legacy = entries("animeId", "episodeId")
         preferences("active_downloads_anime", active)
@@ -55,10 +54,8 @@ class DownloadStoreRestoreTest {
         preferences("active_downloads_migration", commitSucceeds = { false })
         val createStore = animeStoreFactory()
 
-        val interrupted = async(start = CoroutineStart.UNDISPATCHED) { createStore().restore() }
-        assertFalse(interrupted.isCompleted)
+        assertEquals(ids, createStore().restore().map { it.episode.id })
         assertEquals(ids.map(Long::toString).toSet(), active.keys.filter { it.toLongOrNull() != null }.toSet())
-        interrupted.cancelAndJoin()
 
         val oldFlags = mutableMapOf<String, Any>()
         preferences("active_downloads_migration", oldFlags)

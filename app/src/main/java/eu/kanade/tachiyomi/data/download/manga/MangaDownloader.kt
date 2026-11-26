@@ -454,50 +454,65 @@ class MangaDownloader(
         if (chapters.isEmpty()) return
 
         queueOps.enqueue(
-            prepare = {
-                val source = sourceManager.get(manga.source) as? HttpSource ?: return@enqueue emptyList()
-                val downloadedChapterNames = provider.findMangaDir(manga.title, source)
-                    ?.listFiles()
-                    .orEmpty()
-                    .mapNotNull { it.name }
-                    .toSet()
-                chapters.asSequence()
-                    // Filter out those already downloaded.
-                    .filter { chapter ->
-                        provider.getValidChapterDirNames(chapter.name, chapter.scanlator)
-                            .none { it in downloadedChapterNames }
-                    }
-                    // Add chapters to queue from the start.
-                    .sortedByDescending { it.sourceOrder }
-                    // Create a download for each one.
-                    .map { MangaDownload(source, manga, it) }
-                    .toList()
-            },
-            onAdded = { wasEmpty ->
-                notifier.onQueueStatusSummary(queueState.value)
-
-                // Start downloader if needed
-                if (autoStart && wasEmpty) {
-                    val queuedDownloads = queueState.value.count { it: MangaDownload -> it.source !is UnmeteredSource }
-                    val maxDownloadsFromSource = queueState.value
-                        .groupBy { it.source }
-                        .filterKeys { it !is UnmeteredSource }
-                        .maxOfOrNull { it.value.size }
-                        ?: 0
-                    if (
-                        queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
-                        maxDownloadsFromSource > CHAPTERS_PER_SOURCE_QUEUE_WARNING_THRESHOLD
-                    ) {
-                        notifier.onWarning(
-                            context.stringResource(AYMR.strings.download_queue_size_warning),
-                            WARNING_NOTIF_TIMEOUT_MS,
-                            NotificationHandler.openUrl(context, MangaLibraryUpdateNotifier.HELP_WARNING_URL),
-                        )
-                    }
-                    MangaDownloadJob.start(context)
-                }
-            },
+            prepare = { prepareChapters(manga, chapters) },
+            onAdded = { wasEmpty -> onChaptersQueued(autoStart, wasEmpty) },
         )
+    }
+
+    internal suspend fun queueChaptersAndAwait(manga: Manga, chapters: List<Chapter>): Int {
+        if (chapters.isEmpty()) return 0
+        return queueOps.enqueueDurably(
+            prepare = { prepareChapters(manga, chapters) },
+            onAdded = { wasEmpty -> onChaptersQueued(autoStart = true, wasEmpty = wasEmpty) },
+        )
+    }
+
+    private fun prepareChapters(
+        manga: Manga,
+        chapters: List<Chapter>,
+    ): List<MangaDownload> {
+        val source = sourceManager.get(manga.source) as? HttpSource ?: return emptyList()
+        val downloadedChapterNames = provider.findMangaDir(manga.title, source)
+            ?.listFiles()
+            .orEmpty()
+            .mapNotNull { it.name }
+            .toSet()
+        return chapters.asSequence()
+            // Filter out those already downloaded.
+            .filter { chapter ->
+                provider.getValidChapterDirNames(chapter.name, chapter.scanlator)
+                    .none { it in downloadedChapterNames }
+            }
+            // Add chapters to queue from the start.
+            .sortedByDescending { it.sourceOrder }
+            // Create a download for each one.
+            .map { MangaDownload(source, manga, it) }
+            .toList()
+    }
+
+    private fun onChaptersQueued(autoStart: Boolean, wasEmpty: Boolean) {
+        notifier.onQueueStatusSummary(queueState.value)
+
+        // Start downloader if needed
+        if (autoStart && wasEmpty) {
+            val queuedDownloads = queueState.value.count { it: MangaDownload -> it.source !is UnmeteredSource }
+            val maxDownloadsFromSource = queueState.value
+                .groupBy { it.source }
+                .filterKeys { it !is UnmeteredSource }
+                .maxOfOrNull { it.value.size }
+                ?: 0
+            if (
+                queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
+                maxDownloadsFromSource > CHAPTERS_PER_SOURCE_QUEUE_WARNING_THRESHOLD
+            ) {
+                notifier.onWarning(
+                    context.stringResource(AYMR.strings.download_queue_size_warning),
+                    WARNING_NOTIF_TIMEOUT_MS,
+                    NotificationHandler.openUrl(context, MangaLibraryUpdateNotifier.HELP_WARNING_URL),
+                )
+            }
+            MangaDownloadJob.start(context)
+        }
     }
 
     /**
@@ -961,24 +976,9 @@ class MangaDownloader(
 
     suspend fun addToStartOfQueue(downloads: List<MangaDownload>) = queueOps.addToStart(downloads)
 
-    suspend fun moveToFront(download: MangaDownload) = queueOps.moveToFront(download)
+    suspend fun moveToFront(id: Long, newDownload: MangaDownload?): Boolean = queueOps.moveToFront(id, newDownload)
 
-    suspend fun updateQueue(downloads: List<MangaDownload>) {
-        val wasRunning = isRunning
-
-        if (downloads.isEmpty()) {
-            clearQueue()
-            stop()
-            return
-        }
-
-        pause()
-        queueOps.replaceAll(downloads)
-
-        if (wasRunning) {
-            start()
-        }
-    }
+    suspend fun updateQueue(ids: List<Long>) = queueOps.reorder(ids)
 
     companion object {
         const val TMP_DIR_SUFFIX = "_tmp"

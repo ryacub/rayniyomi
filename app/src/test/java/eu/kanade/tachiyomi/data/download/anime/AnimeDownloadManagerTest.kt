@@ -156,7 +156,8 @@ class AnimeDownloadManagerTest {
 
         every { mockDownloader.queueState } returns queueState
         coEvery { mockDownloader.updateQueue(any()) } answers {
-            queueState.value = firstArg()
+            val current = queueState.value.associateBy { it.episode.id }
+            queueState.value = firstArg<List<Long>>().mapNotNull(current::get)
         }
         every { mockDownloader.removeFromQueueByEpisodeIds(any()) } answers {
             removeEntered.complete(Unit)
@@ -251,7 +252,8 @@ class AnimeDownloadManagerTest {
 
         every { mockDownloader.queueState } returns queueState
         coEvery { mockDownloader.updateQueue(any()) } answers {
-            queueState.value = firstArg()
+            val current = queueState.value.associateBy { it.episode.id }
+            queueState.value = firstArg<List<Long>>().mapNotNull(current::get)
         }
         every { mockDownloader.removeFromQueueByEpisodeIds(any()) } answers {
             removeAttempted.complete(Unit)

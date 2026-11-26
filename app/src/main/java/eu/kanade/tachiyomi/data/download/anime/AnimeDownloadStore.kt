@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.core.DownloadQueueStore
 import eu.kanade.tachiyomi.data.download.core.commitQueuePreferences
+import eu.kanade.tachiyomi.data.download.core.writeQueueRollbackMarker
 import eu.kanade.tachiyomi.di.appGraph
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
@@ -117,9 +118,9 @@ class AnimeDownloadStore(
             .sortedBy { it.order }
             .distinctBy { it.episodeId }
 
+        sourceManager.isInitialized.first { it }
         val downloads = mutableListOf<AnimeDownload>()
         if (objs.isNotEmpty()) {
-            sourceManager.isInitialized.first { it }
             val cachedAnime = mutableMapOf<Long, Anime?>()
             for ((animeId, episodeId) in objs) {
                 val anime = cachedAnime.getOrPut(animeId) {
@@ -135,7 +136,7 @@ class AnimeDownloadStore(
         replaceAll(downloads)
         if (needsLegacyFlag) {
             // Keep the old marker current so a rollback does not import the legacy entries again.
-            commitQueuePreferences { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
+            writeQueueRollbackMarker { migrationPreferences.edit().putBoolean(KEY_MIGRATION_DONE, true) }
         }
         return downloads
     }

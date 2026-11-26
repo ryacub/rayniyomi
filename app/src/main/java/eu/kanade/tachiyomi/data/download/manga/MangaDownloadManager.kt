@@ -232,6 +232,11 @@ class MangaDownloadManager(
         downloader.queueChapters(manga, chapters, autoStart)
     }
 
+    internal suspend fun downloadChaptersAndAwait(manga: Manga, chapters: List<Chapter>): Int {
+        maybeCheckBatteryOptimizationPrompt(chapters)
+        return downloader.queueChaptersAndAwait(manga, chapters)
+    }
+
     private fun maybeCheckBatteryOptimizationPrompt(chapters: List<Chapter>) {
         if (chapters.size < 10) return
 

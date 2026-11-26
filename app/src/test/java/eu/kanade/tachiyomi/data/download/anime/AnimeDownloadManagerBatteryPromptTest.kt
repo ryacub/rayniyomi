@@ -72,7 +72,7 @@ class AnimeDownloadManagerBatteryPromptTest {
         downloader = mockk(relaxed = true) {
             every { queueState } returns MutableStateFlow(emptyList())
             every { queueEpisodes(any(), any(), any(), any(), any()) } returns Unit
-            coEvery { moveToFront(any()) } returns Unit
+            coEvery { moveToFront(any(), any()) } returns true
             coEvery { updateQueue(any()) } returns Unit
             coEvery { addToStartOfQueue(any()) } returns Unit
             every { pause() } returns Unit

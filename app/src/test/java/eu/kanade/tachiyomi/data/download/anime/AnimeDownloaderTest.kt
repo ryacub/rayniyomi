@@ -37,6 +37,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -103,7 +104,9 @@ class AnimeDownloaderTest {
         every { downloadPreferences.multiThreadConnections().get() } returns 2
 
         every { testAppGraph.downloadPreferences } returns downloadPreferences
-        every { testAppGraph.animeSourceManager } returns mockk(relaxed = true)
+        every { testAppGraph.animeSourceManager } returns mockk(relaxed = true) {
+            every { isInitialized } returns MutableStateFlow(true)
+        }
         every { testAppGraph.json } returns Json { ignoreUnknownKeys = true }
         every { testAppGraph.getAnime } returns mockk(relaxed = true)
         every { testAppGraph.getEpisode } returns mockk(relaxed = true)
@@ -220,7 +223,7 @@ class AnimeDownloaderTest {
         val second = testDownload(episodeId = 2L)
         downloader.addToStartOfQueue(listOf(first, second))
 
-        downloader.updateQueue(listOf(second, first))
+        downloader.updateQueue(listOf(second.episode.id, first.episode.id))
         assertEquals(listOf(2L, 1L), downloader.queueState.value.map { it.episode.id })
         Thread.sleep(200)
 

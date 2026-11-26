@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.download.core
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -19,8 +20,8 @@ class DownloadQueueMutations<D : Any>(
     private val queueState: StateFlow<List<D>>,
     private val itemId: (D) -> Long,
     private val createFromId: suspend (Long) -> D?,
-    private val moveToFront: suspend (D) -> Unit,
-    private val updateQueue: suspend (List<D>) -> Unit,
+    private val moveToFront: suspend (Long, D?) -> Boolean,
+    private val updateQueue: suspend (List<Long>) -> Unit,
     private val addToStart: suspend (List<D>) -> Unit,
     private val removeFromQueueByIds: (List<Long>) -> Unit,
     private val isRunning: () -> Boolean,
@@ -28,7 +29,7 @@ class DownloadQueueMutations<D : Any>(
     private val startDownloader: () -> Unit,
     private val stopDownloader: () -> Unit,
     private val startDownloads: () -> Unit,
-    mutationScope: CoroutineScope,
+    private val mutationScope: CoroutineScope,
     private val retryDownload: (D) -> Unit = {},
     private val awaitQueueRestore: suspend () -> Unit = {},
 ) {
@@ -53,9 +54,10 @@ class DownloadQueueMutations<D : Any>(
      * @param id The download ID to prioritize
      */
     suspend fun startDownloadNow(id: Long) {
-        queueActor.submit(DownloadQueueCommand.StartNow(id)) {
-            runReducerCommand(DownloadQueueCommand.StartNow(id))
-        }
+        val command = DownloadQueueCommand.StartNow(id)
+        mutationScope.async {
+            queueActor.submit(command) { runReducerCommand(command) }
+        }.await()
     }
 
     suspend fun retry(downloadId: Long) {
@@ -120,15 +122,11 @@ class DownloadQueueMutations<D : Any>(
                     getQueuedDownloadOrNull(effect.downloadId)?.let(retryDownload)
                 }
                 is DownloadQueueEffect.MoveToFrontById -> {
-                    val existing = queueState.value.find { itemId(it) == effect.downloadId }
-                    val toMove = existing ?: createFromId(effect.downloadId) ?: return false
-                    moveToFront(toMove)
+                    val alreadyQueued = getQueuedDownloadOrNull(effect.downloadId) != null
+                    val newDownload = if (alreadyQueued) null else createFromId(effect.downloadId)
+                    return moveToFront(effect.downloadId, newDownload)
                 }
-                is DownloadQueueEffect.ReorderByIds -> {
-                    val currentById = queueState.value.associateBy(itemId)
-                    val ordered = effect.orderedIds.mapNotNull { currentById[it] }
-                    updateQueue(ordered)
-                }
+                is DownloadQueueEffect.ReorderByIds -> updateQueue(effect.orderedIds)
                 is DownloadQueueEffect.AddToStartByIds -> {
                     val currentById = queueState.value.associateBy(itemId)
                     val toAdd = effect.downloadIds.mapNotNull { id ->

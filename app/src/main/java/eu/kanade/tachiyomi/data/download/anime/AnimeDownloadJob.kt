@@ -63,12 +63,12 @@ class AnimeDownloadJob(context: Context, workerParams: WorkerParameters) : Corou
 
     override suspend fun doWork(): Result {
         return try {
+            downloadManager.awaitQueueRestore()
             var networkCheck = checkNetworkState(
                 applicationContext.activeNetworkState(),
                 downloadPreferences.downloadOnlyOverWifi().get(),
             )
             if (!networkCheck) return Result.success()
-            downloadManager.awaitQueueRestore()
             if (!downloadManager.downloaderStart(inputData.getBoolean(RESET_FAILED, true))) return Result.success()
 
             setForegroundSafely()

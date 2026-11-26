@@ -32,6 +32,7 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -86,7 +87,9 @@ class MangaDownloaderTest {
         val sourcePreferences = mockk<SourcePreferences>(relaxed = true)
         every { sourcePreferences.dataSaverDownloader().get() } returns false
 
-        every { testAppGraph.mangaSourceManager } returns mockk(relaxed = true)
+        every { testAppGraph.mangaSourceManager } returns mockk(relaxed = true) {
+            every { isInitialized } returns MutableStateFlow(true)
+        }
         every { testAppGraph.json } returns Json { ignoreUnknownKeys = true }
         every { testAppGraph.getManga } returns mockk(relaxed = true)
         every { testAppGraph.getChapter } returns mockk(relaxed = true)

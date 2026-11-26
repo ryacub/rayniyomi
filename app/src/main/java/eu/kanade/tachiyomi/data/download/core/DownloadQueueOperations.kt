@@ -67,6 +67,19 @@ class DownloadQueueOperations<D : Any>(
         val added = newDownloads(current, prepare())
         if (added.isEmpty()) return@submit
         store.addAll(added)
+        publishEnqueue(current, added, onAdded)
+    }
+
+    suspend fun enqueueDurably(prepare: () -> List<D>, onAdded: (wasEmpty: Boolean) -> Unit): Int = submitDurable {
+        val current = _queueState.value
+        val added = newDownloads(current, prepare())
+        if (added.isEmpty()) return@submitDurable 0
+        store.replaceAll(current + added)
+        publishEnqueue(current, added, onAdded)
+        added.size
+    }
+
+    private fun publishEnqueue(current: List<D>, added: List<D>, onAdded: (Boolean) -> Unit) {
         added.forEach(markQueued)
         _queueState.value = current + added
         onAdded(current.isEmpty())
@@ -95,11 +108,13 @@ class DownloadQueueOperations<D : Any>(
         onRemoved(current)
     }
 
-    suspend fun replaceAll(downloads: List<D>) = submitDurable {
-        store.replaceAll(downloads)
-        _queueState.value.forEach(markInactive)
-        downloads.forEach(markQueued)
-        _queueState.value = downloads
+    suspend fun reorder(ids: List<Long>) = submitDurable {
+        val current = _queueState.value
+        val remaining = current.associateBy(itemId).toMutableMap()
+        val ordered = ids.mapNotNull(remaining::remove) + remaining.values
+        if (ordered == current) return@submitDurable
+        store.replaceAll(ordered)
+        _queueState.value = ordered
     }
 
     suspend fun addToStart(downloads: List<D>) = submitDurable {
@@ -115,11 +130,14 @@ class DownloadQueueOperations<D : Any>(
         _queueState.value = ordered
     }
 
-    suspend fun moveToFront(download: D) = submitDurable {
-        val ordered = listOf(download) + _queueState.value.filterNot { itemId(it) == itemId(download) }
+    suspend fun moveToFront(id: Long, newDownload: D? = null): Boolean = submitDurable {
+        val current = _queueState.value
+        val download = current.find { itemId(it) == id } ?: newDownload ?: return@submitDurable false
+        val ordered = listOf(download) + current.filterNot { itemId(it) == id }
         store.replaceAll(ordered)
         markQueued(download)
         _queueState.value = ordered
+        true
     }
 
     private fun newDownloads(current: List<D>, downloads: List<D>): List<D> {
@@ -132,24 +150,30 @@ class DownloadQueueOperations<D : Any>(
         true
     }
 
-    private suspend fun submitDurable(mutation: suspend () -> Unit) {
-        awaitRestore()
-        val completed = CompletableDeferred<Unit>()
-        schedule {
-            scope.launch(ioDispatcher) {
-                try {
-                    mutation()
-                } catch (e: Exception) {
-                    completed.completeExceptionally(e)
-                    if (e is CancellationException) throw e
-                }
-            }.invokeOnCompletion { failure ->
-                if (failure == null) completed.complete(Unit) else completed.completeExceptionally(failure)
-                drain()
-            }
-            false
+    private suspend fun <T> submitDurable(mutation: suspend () -> T): T {
+        val completed = CompletableDeferred<T>()
+        val startupFailure = ready.invokeOnCompletion { failure ->
+            if (failure != null) completed.completeExceptionally(failure)
         }
-        completed.await()
+        try {
+            schedule {
+                scope.launch(ioDispatcher) {
+                    try {
+                        completed.complete(mutation())
+                    } catch (e: Exception) {
+                        completed.completeExceptionally(e)
+                        if (e is CancellationException) throw e
+                    }
+                }.invokeOnCompletion { failure ->
+                    if (failure != null) completed.completeExceptionally(failure)
+                    drain()
+                }
+                false
+            }
+            return completed.await()
+        } finally {
+            startupFailure.dispose()
+        }
     }
 
     // Lock only the FIFO. Queue and preference changes belong to its current owner.
