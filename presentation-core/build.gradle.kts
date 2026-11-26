@@ -25,6 +25,7 @@ roborazzi {
         enable = true
         packages = listOf("tachiyomi")
         includePrivatePreviews = true
+        robolectricConfig = mapOf("sdk" to "[36]", "qualifiers" to "\"w411dp-h891dp-xhdpi\"")
     }
 }
 
