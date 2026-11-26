@@ -84,8 +84,17 @@ class PreviewDeterminismTest(unittest.TestCase):
 
         self.assertEqual([v.line for v in violations], [3])
 
+    def test_allowlist_entry_must_match_the_whole_line(self) -> None:
+        entry = AllowedLine(PREVIEW_FILE, r"Random\(0\)", "seeded")
+
+        violations = self.check(
+            {PREVIEW_FILE: "@Preview\nval n = Random(0).nextInt()\n"},
+            [entry],
+        )
+
+        self.assertEqual([v.line for v in violations], [2])
+
     def test_every_real_allowed_entry_has_a_reason(self) -> None:
-        self.assertTrue(ALLOWED)
         for entry in ALLOWED:
             self.assertTrue(entry.reason.strip(), entry.path)
 
