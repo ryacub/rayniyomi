@@ -12,6 +12,12 @@ def read_workflow(name: str) -> str:
     return (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
 
+def read_job(workflow: str, job_id: str) -> str:
+    match = re.search(rf"\n  {job_id}:\n(.*?)(?=\n  [a-z_]+:\n|\Z)", workflow, re.DOTALL)
+    assert match is not None, f"job {job_id} is missing"
+    return match.group(1)
+
+
 class CiWorkflowTieringTest(unittest.TestCase):
     def test_branch_push_ci_only_runs_on_main(self) -> None:
         workflow = read_workflow("build_push.yml")
@@ -49,6 +55,17 @@ class CiWorkflowTieringTest(unittest.TestCase):
             workflow,
         )
 
+    def test_pr_build_verifies_preview_screenshots_in_a_parallel_job(self) -> None:
+        workflow = read_workflow("build_pull_request.yml")
+        preview_job = read_job(workflow, "preview_screenshots")
+        test_job = read_job(workflow, "test")
+
+        self.assertIn("name: Verify preview screenshots", preview_job)
+        self.assertIn("needs: [classify_pr_changes]", preview_job)
+        self.assertIn("if: needs.classify_pr_changes.outputs.android_changed == 'true'", preview_job)
+        self.assertIn("python3 scripts/check_preview_determinism.py", preview_job)
+        self.assertNotIn("Verify shared Compose screenshots", test_job)
+
     def test_ci_tiering_decisions_are_documented(self) -> None:
         doc = ROOT / "docs" / "ci-tiering.md"
 
@@ -59,6 +76,8 @@ class CiWorkflowTieringTest(unittest.TestCase):
         self.assertIn("Release Gate", text)
         self.assertIn("pull request head SHA", text)
         self.assertIn("SqlDelight bootstrap", text)
+        self.assertIn("Verify preview screenshots", text)
+        self.assertIn("-Prayniyomi.previewScreenshots=true", text)
 
 
 if __name__ == "__main__":
