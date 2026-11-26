@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import androidx.work.WorkQuery
 import androidx.work.WorkerParameters
 import eu.kanade.domain.entries.anime.interactor.UpdateAnime
@@ -57,7 +58,7 @@ class AnimeMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     private val notifier = AnimeLibraryUpdateNotifier(
         context,
         progressNotificationId = Notifications.ID_ANIME_METADATA_PROGRESS,
-        cancelProgress = { context.workManager.createCancelPendingIntent(id) },
+        cancelProgress = { WorkManager.getInstance(context).createCancelPendingIntent(id) },
     )
 
     private var animeToUpdate: List<LibraryAnime> = mutableListOf()

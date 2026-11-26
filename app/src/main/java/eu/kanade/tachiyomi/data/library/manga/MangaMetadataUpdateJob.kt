@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import androidx.work.WorkQuery
 import androidx.work.WorkerParameters
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
@@ -42,7 +43,7 @@ class MangaMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     private val notifier = MangaLibraryUpdateNotifier(
         context,
         progressNotificationId = Notifications.ID_MANGA_METADATA_PROGRESS,
-        cancelProgress = { context.workManager.createCancelPendingIntent(id) },
+        cancelProgress = { WorkManager.getInstance(context).createCancelPendingIntent(id) },
     )
 
     private var mangaToUpdate: List<LibraryManga> = mutableListOf()
