@@ -123,6 +123,21 @@ class DownloadStoreRestoreTest {
     }
 
     @Test
+    fun `clear prevents legacy downloads from returning after a failed import`() = runTest {
+        val saved = entries("animeId", "episodeId").apply { remove("11") }
+        preferences("active_downloads_anime", saved) { false }
+        preferences("active_downloads", entries("animeId", "episodeId"))
+        preferences("active_downloads_migration")
+        val createStore = animeStoreFactory()
+        val store = createStore()
+        assertEquals(listOf(12L), store.restore().map { it.episode.id })
+
+        store.clear()
+
+        assertEquals(emptyList<Long>(), createStore().restore().map { it.episode.id })
+    }
+
+    @Test
     fun `failed active reorder restores the old preferences after three attempts`() = runTest {
         var writable = true
         var attempts = 0

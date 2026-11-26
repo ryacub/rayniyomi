@@ -81,8 +81,7 @@ class MangaDownloadStore(
      * Removes all the downloads from the store.
      */
     override fun clear() {
-        val importStamp = preferences.all[KEY_IMPORT_STAMP] as? Boolean
-        preferences.edit { writeQueue(emptyList(), importStamp) }
+        preferences.edit { writeQueue(emptyList(), importStamp = true) }
         counter = 0
     }
 
