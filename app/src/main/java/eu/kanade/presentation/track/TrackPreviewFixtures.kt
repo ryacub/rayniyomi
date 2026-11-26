@@ -9,29 +9,28 @@ import eu.kanade.tachiyomi.ui.entries.track.EntryTrackSearch
 import eu.kanade.test.DummyTracker
 import tachiyomi.domain.track.anime.model.AnimeTrack
 import tachiyomi.domain.track.manga.model.MangaTrack
-import java.time.Instant
-import java.time.ZoneId
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.time.temporal.ChronoUnit
 import java.util.Locale
-import kotlin.random.Random
 
 internal fun previewTrackDateFormat(): DateTimeFormatter =
     DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
 
-internal fun previewEntryTrackSearches(): Sequence<EntryTrackSearch> = sequence {
-    while (true) {
-        yield(EntryTrackSearch.Manga(previewMangaTrackSearch()))
-        yield(EntryTrackSearch.Anime(previewAnimeTrackSearch()))
+internal fun previewEntryTrackSearches(): Sequence<EntryTrackSearch> =
+    generateSequence(0) { it + 1 }.map { index ->
+        if (index % 2 == 0) {
+            EntryTrackSearch.Manga(previewMangaTrackSearch(index))
+        } else {
+            EntryTrackSearch.Anime(previewAnimeTrackSearch(index))
+        }
     }
-}
 
-internal fun previewAnimeTrackSearch(): AnimeTrackSearch {
-    val fixture = randomTrackSearchFixture()
+internal fun previewAnimeTrackSearch(index: Int): AnimeTrackSearch {
+    val fixture = previewTrackSearchFixture(index)
     return AnimeTrackSearch().apply {
         id = fixture.id
-        anime_id = Random.nextLong()
+        anime_id = index.toLong()
         tracker_id = fixture.trackerId
         remote_id = fixture.remoteId
         library_id = fixture.libraryId
@@ -53,11 +52,11 @@ internal fun previewAnimeTrackSearch(): AnimeTrackSearch {
     }
 }
 
-internal fun previewMangaTrackSearch(): MangaTrackSearch {
-    val fixture = randomTrackSearchFixture()
+internal fun previewMangaTrackSearch(index: Int): MangaTrackSearch {
+    val fixture = previewTrackSearchFixture(index)
     return MangaTrackSearch().apply {
         id = fixture.id
-        manga_id = Random.nextLong()
+        manga_id = index.toLong()
         tracker_id = fixture.trackerId
         remote_id = fixture.remoteId
         library_id = fixture.libraryId
@@ -170,33 +169,33 @@ private data class TrackSearchFixture(
     val authors: List<String>,
 )
 
-private val previewSearchDateFormatter = DateTimeFormatter
-    .ofPattern("yyyy-MM-dd", Locale.getDefault())
-    .withZone(ZoneId.systemDefault())
+private val previewSearchDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
 
-private fun randomTrackSearchFixture(): TrackSearchFixture =
+private val previewSearchToday = LocalDate.of(2024, 1, 15)
+
+private fun previewTrackSearchFixture(index: Int): TrackSearchFixture =
     TrackSearchFixture(
-        id = Random.nextLong(),
-        trackerId = Random.nextLong(),
-        remoteId = Random.nextLong(),
-        libraryId = Random.nextLong(),
-        title = previewLorem((1..10).random()).joinToString(),
-        progress = (0..100).random().toDouble(),
-        totalCount = (100L..1000L).random(),
-        score = (0..10).random().toDouble(),
-        status = Random.nextLong(),
+        id = index + 1L,
+        trackerId = index % 3 + 1L,
+        remoteId = index + 100L,
+        libraryId = index + 1L,
+        title = previewLorem(3 + index % 8).joinToString(),
+        progress = (index * 7 % 101).toDouble(),
+        totalCount = 100L + index * 37L % 900,
+        score = (index % 11).toDouble(),
+        status = index % 6 + 1L,
         trackingUrl = "https://example.com/tracker-example",
         coverUrl = "https://example.com/cover.png",
-        startDate = previewSearchDateFormatter.format(Instant.now().minus((1L..365L).random(), ChronoUnit.DAYS)),
-        summary = previewLorem((0..40).random()).joinToString(),
-        publishingStatus = if (Random.nextBoolean()) "Finished" else "",
-        hasPublishingType = Random.nextBoolean(),
-        artists = randomNames(),
-        authors = randomNames(),
+        startDate = previewSearchDateFormatter.format(previewSearchToday.minusDays(index + 1L)),
+        summary = previewLorem(index % 41).joinToString(),
+        publishingStatus = if (index % 2 == 0) "Finished" else "",
+        hasPublishingType = index % 2 == 1,
+        artists = previewNames(index),
+        authors = previewNames(index + 1),
     )
 
-private fun randomNames(): List<String> =
-    (0..(0..3).random()).map { previewLorem((3..5).random()).joinToString() }
+private fun previewNames(index: Int): List<String> =
+    (0..index % 4).map { previewLorem(3 + (index + it) % 3).joinToString() }
 
 private fun previewLorem(words: Int): Sequence<String> =
     LoremIpsum(words).values

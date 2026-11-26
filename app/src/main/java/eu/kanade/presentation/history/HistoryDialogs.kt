@@ -18,7 +18,6 @@ import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import kotlin.random.Random
 
 @Composable
 fun HistoryDeleteDialog(
@@ -107,7 +106,7 @@ private fun HistoryDeleteDialogPreview() {
         HistoryDeleteDialog(
             onDismissRequest = {},
             onDelete = {},
-            isManga = Random.nextBoolean(),
+            isManga = true,
         )
     }
 }

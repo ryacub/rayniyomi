@@ -22,7 +22,6 @@ import eu.kanade.presentation.util.isTabletUi
 import tachiyomi.domain.category.model.Category
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.LoadingScreen
-import kotlin.random.Random
 
 @Composable
 fun StorageScreenContent(
@@ -116,7 +115,6 @@ fun StorageScreenContent(
 @Preview(showBackground = true)
 @Composable
 private fun StorageScreenContentPreview() {
-    val random = remember { Random(0) }
     val categories = remember {
         List(10) {
             Category(
@@ -138,9 +136,9 @@ private fun StorageScreenContentPreview() {
                     thumbnail = null,
                     entriesCount = 100 * index,
                     color = Color(
-                        random.nextInt(255),
-                        random.nextInt(255),
-                        random.nextInt(255),
+                        index * 37 % 255,
+                        index * 91 % 255,
+                        index * 53 % 255,
                     ),
                 )
             },
@@ -157,7 +155,6 @@ private fun StorageScreenContentPreview() {
 @Preview(showBackground = true, device = Devices.DESKTOP)
 @Composable
 private fun StorageTabletUiScreenContentPreview() {
-    val random = remember { Random(0) }
     val categories = remember {
         List(10) {
             Category(
@@ -179,9 +176,9 @@ private fun StorageTabletUiScreenContentPreview() {
                     thumbnail = null,
                     entriesCount = 100 * index,
                     color = Color(
-                        random.nextInt(255),
-                        random.nextInt(255),
-                        random.nextInt(255),
+                        index * 37 % 255,
+                        index * 91 % 255,
+                        index * 53 % 255,
                     ),
                 )
             },
