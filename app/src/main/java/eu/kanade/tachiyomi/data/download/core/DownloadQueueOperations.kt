@@ -5,7 +5,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -40,16 +42,24 @@ class DownloadQueueOperations<D : Any>(
     private var isDraining = restorePending
     private val ready = CompletableDeferred<Unit>().also { if (!restorePending) it.complete(Unit) }
 
+    private val owner = scope.coroutineContext[Job]
+
+    init {
+        owner?.invokeOnCompletion { failure ->
+            discardPending(failure ?: CancellationException("Download queue closed"))
+        }
+    }
+
     suspend fun awaitRestore() = ready.await()
 
     suspend fun restore(load: suspend () -> List<D>) {
         val restored = try {
             load()
         } catch (e: CancellationException) {
-            failRestore(e)
+            discardPending(e)
             throw e
         } catch (e: Exception) {
-            failRestore(e)
+            discardPending(e)
             logcat(LogPriority.ERROR, e) { "Could not restore download queue" }
             return
         }
@@ -59,9 +69,10 @@ class DownloadQueueOperations<D : Any>(
         drain()
     }
 
-    private fun failRestore(failure: Exception) {
+    private fun discardPending(failure: Throwable) {
         synchronized(lock) {
             pendingMutations.clear()
+            isDraining = false
             ready.completeExceptionally(failure)
         }
     }
@@ -158,6 +169,9 @@ class DownloadQueueOperations<D : Any>(
 
     private suspend fun <T> submitDurable(mutation: suspend () -> T): T {
         val completed = CompletableDeferred<T>()
+        val ownerCompletion = owner?.invokeOnCompletion { failure ->
+            completed.completeExceptionally(failure ?: CancellationException("Download queue closed"))
+        }
         val startupFailure = ready.invokeOnCompletion { failure ->
             if (failure != null) completed.completeExceptionally(failure)
         }
@@ -179,13 +193,14 @@ class DownloadQueueOperations<D : Any>(
             return completed.await()
         } finally {
             startupFailure.dispose()
+            ownerCompletion?.dispose()
         }
     }
 
     // Lock only the FIFO. Queue and preference changes belong to its current owner.
     private fun schedule(mutation: () -> Boolean) {
         synchronized(lock) {
-            if (ready.isCancelled) return
+            if (ready.isCancelled || !scope.isActive) return
             pendingMutations.addLast(mutation)
             if (isDraining) return
             isDraining = true

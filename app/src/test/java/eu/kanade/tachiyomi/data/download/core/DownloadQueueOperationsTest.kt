@@ -6,8 +6,10 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -455,6 +457,36 @@ class DownloadQueueOperationsTest {
         testScheduler.runCurrent()
         assertEquals(listOf(2L), queue.value.map { it.id })
         assertEquals(listOf(2L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `cancelling the queue owner releases external durable waiters`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val owner = CoroutineScope(SupervisorJob() + dispatcher)
+        val commitStarted = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            commitStarted.complete(Unit)
+            CompletableDeferred<Unit>().await()
+        }
+        val (ops) = createOps(store = store, scope = owner, ioDispatcher = dispatcher)
+        ops.addAll(listOf(TestDownload(1), TestDownload(2)))
+
+        val first = async { runCatching { ops.moveToFront(2) }.exceptionOrNull() }
+        commitStarted.await()
+        val second = async(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { ops.moveToFront(1) }.exceptionOrNull()
+        }
+
+        try {
+            owner.cancel()
+            testScheduler.runCurrent()
+
+            assertInstanceOf(CancellationException::class.java, first.await())
+            assertTrue(second.isCompleted, "The mutation queued behind the cancelled write should also complete")
+            assertInstanceOf(CancellationException::class.java, second.await())
+        } finally {
+            second.cancel()
+        }
     }
 
     // region concurrency
