@@ -18,6 +18,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Improved
 
 ### Fixed
+- Pending chapter and episode downloads survive an interruption during startup. Items moved to the front stay there after restart (#1556).
+- Cover refresh Cancel stops the displayed refresh. Each library update keeps its own progress notification and Cancel action (#1556).
 
 ### Changed
 

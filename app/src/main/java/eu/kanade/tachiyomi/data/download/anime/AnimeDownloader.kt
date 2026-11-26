@@ -37,15 +37,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -92,16 +95,24 @@ class AnimeDownloader(
     private val store = AnimeDownloadStore(context)
 
     /**
+     * Coroutine scope used for download job scheduling
+     */
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeDownloader scope" }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
+
+    /**
      * Shared queue mutation operations.
      */
     private val queueOps = DownloadQueueOperations(
         _queueState = _queueState,
         store = store,
+        scope = scope,
+        restorePending = true,
         itemId = { it.episode.id },
-        isActive = {
-            it.status == AnimeDownload.State.DOWNLOADING ||
-                it.status == AnimeDownload.State.QUEUE
-        },
+        isDownloading = { it.status == AnimeDownload.State.DOWNLOADING },
         markQueued = {
             it.status = AnimeDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
@@ -146,15 +157,6 @@ class AnimeDownloader(
     }
 
     /**
-     * Coroutine scope used for download job scheduling
-     */
-    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        logcat(LogPriority.ERROR, throwable) { "Unhandled exception in AnimeDownloader scope" }
-    }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
-
-    /**
      * Job object for download queue management
      */
     private var downloaderJob: Job? = null
@@ -188,7 +190,7 @@ class AnimeDownloader(
 
     init {
         scope.launch {
-            addAllToQueue(store.restore())
+            queueOps.restore(store::restore)
         }
     }
 
@@ -199,6 +201,8 @@ class AnimeDownloader(
      * @return true if the downloader is started, false otherwise.
      */
     fun start(): Boolean = start(resetFailed = true)
+
+    internal suspend fun awaitQueueRestore() = queueOps.awaitRestore()
 
     @Synchronized
     internal fun retryFailed(download: AnimeDownload): Boolean {
@@ -251,6 +255,7 @@ class AnimeDownloader(
     /**
      * Stops the downloader.
      */
+    @Synchronized
     fun stop(
         reason: String? = null,
         blockedStatus: DownloadDisplayStatus? = null,
@@ -297,6 +302,7 @@ class AnimeDownloader(
     /**
      * Pauses the downloader
      */
+    @Synchronized
     fun pause() {
         cancelDownloaderJob()
         queueState.value
@@ -315,10 +321,8 @@ class AnimeDownloader(
     fun clearQueue() {
         cancelDownloaderJob()
 
-        val abandoned = queueState.value
-        internalClearQueue()
+        queueOps.internalClear(::deletePartialDownloads)
         notifier.dismissProgress()
-        deletePartialDownloads(abandoned)
     }
 
     /**
@@ -369,17 +373,30 @@ class AnimeDownloader(
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
             supervisorScope {
-                val downloadJobs = mutableMapOf<AnimeDownload, Job>()
+                val downloadJobs = mutableMapOf<Long, Pair<AnimeDownload, Job>>()
 
-                activeDownloadsFlow.collectLatest { activeDownloads ->
-                    val downloadJobsToStop = downloadJobs.filter { it.key !in activeDownloads }
-                    downloadJobsToStop.forEach { (download, job) ->
-                        job.cancel()
-                        downloadJobs.remove(download)
+                activeDownloadsFlow.conflate().collect { activeDownloads ->
+                    val activeIds = activeDownloads.mapTo(mutableSetOf()) { it.episode.id }
+                    val displaced = downloadJobs.filterKeys { it !in activeIds }
+                    val jobsToStop = displaced.values.map { it.second }
+                    jobsToStop.forEach { it.cancel() }
+                    jobsToStop.joinAll()
+                    val scheduler = currentCoroutineContext()
+                    synchronized(this@AnimeDownloader) {
+                        scheduler.ensureActive()
+                        displaced.values.forEach { (download, _) ->
+                            if (download.status == AnimeDownload.State.DOWNLOADING) {
+                                download.status = AnimeDownload.State.QUEUE
+                                download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+                                download.blockedReason = DownloadBlockedReason.SLOT
+                            }
+                        }
                     }
-                    val downloadsToStart = activeDownloads.filter { it !in downloadJobs }
-                    downloadsToStart.forEach { download ->
-                        downloadJobs[download] = launchDownloadJob(download)
+                    downloadJobs.keys.removeAll(displaced.keys)
+                    if (displaced.isNotEmpty()) notifier.onQueueStatusSummary(queueState.value)
+
+                    activeDownloads.filter { it.episode.id !in downloadJobs }.forEach { download ->
+                        downloadJobs[download.episode.id] = download to launchDownloadJob(download)
                     }
                 }
             }
@@ -453,15 +470,34 @@ class AnimeDownloader(
     ) {
         if (episodes.isEmpty()) return
 
-        val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: return
-        val wasEmpty = queueState.value.isEmpty()
+        queueOps.enqueue(
+            prepare = { prepareEpisodes(anime, episodes, changeDownloader, video) },
+            onAdded = { wasEmpty -> onEpisodesQueued(autoStart, wasEmpty) },
+        )
+    }
+
+    internal suspend fun queueEpisodesAndAwait(anime: Anime, episodes: List<Episode>): Int {
+        if (episodes.isEmpty()) return 0
+        return queueOps.enqueueDurably(
+            prepare = { prepareEpisodes(anime, episodes, false, null) },
+            onAdded = { wasEmpty -> onEpisodesQueued(autoStart = true, wasEmpty = wasEmpty) },
+        )
+    }
+
+    private fun prepareEpisodes(
+        anime: Anime,
+        episodes: List<Episode>,
+        changeDownloader: Boolean,
+        video: Video?,
+    ): List<AnimeDownload> {
+        val source = sourceManager.get(anime.source) as? AnimeHttpSource ?: return emptyList()
         val downloadedEpisodeNames = provider.findAnimeDir(anime.title, source)
             ?.listFiles()
             .orEmpty()
             .mapNotNull { it.name }
             .toSet()
 
-        val episodesToQueue = episodes.asSequence()
+        return episodes.asSequence()
             // Filter out those already downloaded.
             .filter { episode ->
                 provider.getValidEpisodeDirNames(episode.name, episode.scanlator)
@@ -469,39 +505,35 @@ class AnimeDownloader(
             }
             // Add episodes to queue from the start.
             .sortedByDescending { it.sourceOrder }
-            // Filter out those already enqueued.
-            .filter { episode -> queueState.value.none { it.episode.id == episode.id } }
             // Create a download for each one.
             .map { AnimeDownload(source, anime, it, changeDownloader, video) }
             .toList()
+    }
 
-        if (episodesToQueue.isNotEmpty()) {
-            addAllToQueue(episodesToQueue)
-
-            // Start downloader if needed
-            if (autoStart && wasEmpty) {
-                val queuedDownloads =
-                    queueState.value.count { it: AnimeDownload -> it.source !is UnmeteredSource }
-                val maxDownloadsFromSource = queueState.value
-                    .groupBy { it.source }
-                    .filterKeys { it !is UnmeteredSource }
-                    .maxOfOrNull { it.value.size }
-                    ?: 0
-                if (
-                    queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
-                    maxDownloadsFromSource > EPISODES_PER_SOURCE_QUEUE_WARNING_THRESHOLD
-                ) {
-                    notifier.onWarning(
-                        context.stringResource(AYMR.strings.download_queue_size_warning),
-                        WARNING_NOTIF_TIMEOUT_MS,
-                        NotificationHandler.openUrl(
-                            context,
-                            AnimeLibraryUpdateNotifier.HELP_WARNING_URL,
-                        ),
-                    )
-                }
-                AnimeDownloadJob.start(context)
+    private fun onEpisodesQueued(autoStart: Boolean, wasEmpty: Boolean) {
+        // Start downloader if needed
+        if (autoStart && wasEmpty) {
+            val queuedDownloads =
+                queueState.value.count { it: AnimeDownload -> it.source !is UnmeteredSource }
+            val maxDownloadsFromSource = queueState.value
+                .groupBy { it.source }
+                .filterKeys { it !is UnmeteredSource }
+                .maxOfOrNull { it.value.size }
+                ?: 0
+            if (
+                queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
+                maxDownloadsFromSource > EPISODES_PER_SOURCE_QUEUE_WARNING_THRESHOLD
+            ) {
+                notifier.onWarning(
+                    context.stringResource(AYMR.strings.download_queue_size_warning),
+                    WARNING_NOTIF_TIMEOUT_MS,
+                    NotificationHandler.openUrl(
+                        context,
+                        AnimeLibraryUpdateNotifier.HELP_WARNING_URL,
+                    ),
+                )
             }
+            AnimeDownloadJob.start(context)
         }
     }
 
@@ -806,15 +838,11 @@ class AnimeDownloader(
         return queueState.value.none { it.status.value <= AnimeDownload.State.DOWNLOADING.value }
     }
 
-    private fun addAllToQueue(downloads: List<AnimeDownload>) = queueOps.addAll(downloads)
-
     private fun removeFromQueue(download: AnimeDownload) = queueOps.remove(download)
 
     fun removeFromQueueByEpisodeIds(episodeIds: List<Long>) {
         val ids = episodeIds.toSet()
-        val abandoned = queueState.value.filter { it.episode.id in ids }
-        queueOps.removeIf { it.episode.id in ids }
-        deletePartialDownloads(abandoned)
+        queueOps.removeIf(::deletePartialDownloads) { it.episode.id in ids }
     }
 
     private data class PartialDirKey(val sourceId: Long, val animeTitle: String, val dirName: String)
@@ -845,31 +873,11 @@ class AnimeDownloader(
         }
     }
 
-    private fun internalClearQueue() = queueOps.internalClear()
+    suspend fun addToStartOfQueue(downloads: List<AnimeDownload>) = queueOps.addToStart(downloads)
 
-    fun addToStartOfQueue(downloads: List<AnimeDownload>) = queueOps.addToStart(downloads)
+    suspend fun moveToFront(id: Long, newDownload: AnimeDownload?): Boolean = queueOps.moveToFront(id, newDownload)
 
-    fun moveToFront(download: AnimeDownload) = queueOps.moveToFront(download)
-
-    fun updateQueue(downloads: List<AnimeDownload>) {
-        if (queueState.value == downloads) return
-
-        if (downloads.isEmpty()) {
-            clearQueue()
-            stop()
-            return
-        }
-
-        val wasRunning = isRunning
-
-        pause()
-        internalClearQueue()
-        addAllToQueue(downloads)
-
-        if (wasRunning) {
-            start()
-        }
-    }
+    suspend fun updateQueue(ids: List<Long>) = queueOps.reorder(ids)
 
     private fun getDownloadSlots(): Int {
         return preferences.numberOfDownloads().get().coerceIn(1, 5)

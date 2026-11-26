@@ -8,4 +8,5 @@ interface DownloadQueueStore<D> {
     fun remove(download: D)
     fun removeAll(downloads: List<D>)
     fun clear()
+    suspend fun replaceAll(downloads: List<D>)
 }

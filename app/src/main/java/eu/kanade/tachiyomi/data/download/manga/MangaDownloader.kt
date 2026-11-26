@@ -36,14 +36,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -54,6 +55,7 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -65,7 +67,6 @@ import okio.buffer
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.lang.launchNow
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
@@ -119,17 +120,18 @@ class MangaDownloader(
      */
     private val store = MangaDownloadStore(context)
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
      * Shared queue mutation operations.
      */
     private val queueOps = DownloadQueueOperations(
         _queueState = _queueState,
         store = store,
+        scope = scope,
+        restorePending = true,
         itemId = { it.chapter.id },
-        isActive = {
-            it.status == MangaDownload.State.DOWNLOADING ||
-                it.status == MangaDownload.State.QUEUE
-        },
+        isDownloading = { it.status == MangaDownload.State.DOWNLOADING },
         markQueued = {
             it.status = MangaDownload.State.QUEUE
             it.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
@@ -178,7 +180,6 @@ class MangaDownloader(
      */
     private val throttler = Throttler()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var downloaderJob: Job? = null
 
     /**
@@ -194,9 +195,8 @@ class MangaDownloader(
     var isPaused: Boolean = false
 
     init {
-        launchNow {
-            val chapters = async { store.restore() }
-            addAllToQueue(chapters.await())
+        scope.launch {
+            queueOps.restore(store::restore)
         }
     }
 
@@ -207,6 +207,8 @@ class MangaDownloader(
      * @return true if the downloader is started, false otherwise.
      */
     fun start(): Boolean = start(resetFailed = true)
+
+    internal suspend fun awaitQueueRestore() = queueOps.awaitRestore()
 
     @Synchronized
     internal fun retryFailed(download: MangaDownload): Boolean {
@@ -261,6 +263,7 @@ class MangaDownloader(
     /**
      * Stops the downloader.
      */
+    @Synchronized
     fun stop(
         reason: String? = null,
         blockedStatus: DownloadDisplayStatus? = null,
@@ -309,6 +312,7 @@ class MangaDownloader(
     /**
      * Pauses the downloader
      */
+    @Synchronized
     fun pause() {
         cancelDownloaderJob()
         queueState.value
@@ -383,18 +387,30 @@ class MangaDownloader(
 
             // Use supervisorScope to cancel child jobs when the downloader job is cancelled
             supervisorScope {
-                val downloadJobs = mutableMapOf<MangaDownload, Job>()
+                val downloadJobs = mutableMapOf<Long, Pair<MangaDownload, Job>>()
 
-                activeDownloadsFlow.collectLatest { activeDownloads ->
-                    val downloadJobsToStop = downloadJobs.filter { it.key !in activeDownloads }
-                    downloadJobsToStop.forEach { (download, job) ->
-                        job.cancel()
-                        downloadJobs.remove(download)
+                activeDownloadsFlow.conflate().collect { activeDownloads ->
+                    val activeIds = activeDownloads.mapTo(mutableSetOf()) { it.chapter.id }
+                    val displaced = downloadJobs.filterKeys { it !in activeIds }
+                    val jobsToStop = displaced.values.map { it.second }
+                    jobsToStop.forEach { it.cancel() }
+                    jobsToStop.joinAll()
+                    val scheduler = currentCoroutineContext()
+                    synchronized(this@MangaDownloader) {
+                        scheduler.ensureActive()
+                        displaced.values.forEach { (download, _) ->
+                            if (download.status == MangaDownload.State.DOWNLOADING) {
+                                download.status = MangaDownload.State.QUEUE
+                                download.displayStatus = DownloadDisplayStatus.WAITING_FOR_SLOT
+                                download.blockedReason = DownloadBlockedReason.SLOT
+                            }
+                        }
                     }
+                    downloadJobs.keys.removeAll(displaced.keys)
+                    if (displaced.isNotEmpty()) notifier.onQueueStatusSummary(queueState.value)
 
-                    val downloadsToStart = activeDownloads.filter { it !in downloadJobs }
-                    downloadsToStart.forEach { download ->
-                        downloadJobs[download] = launchDownloadJob(download)
+                    activeDownloads.filter { it.chapter.id !in downloadJobs }.forEach { download ->
+                        downloadJobs[download.chapter.id] = download to launchDownloadJob(download)
                     }
                 }
             }
@@ -451,14 +467,31 @@ class MangaDownloader(
     fun queueChapters(manga: Manga, chapters: List<Chapter>, autoStart: Boolean) {
         if (chapters.isEmpty()) return
 
-        val source = sourceManager.get(manga.source) as? HttpSource ?: return
-        val wasEmpty = queueState.value.isEmpty()
+        queueOps.enqueue(
+            prepare = { prepareChapters(manga, chapters) },
+            onAdded = { wasEmpty -> onChaptersQueued(autoStart, wasEmpty) },
+        )
+    }
+
+    internal suspend fun queueChaptersAndAwait(manga: Manga, chapters: List<Chapter>): Int {
+        if (chapters.isEmpty()) return 0
+        return queueOps.enqueueDurably(
+            prepare = { prepareChapters(manga, chapters) },
+            onAdded = { wasEmpty -> onChaptersQueued(autoStart = true, wasEmpty = wasEmpty) },
+        )
+    }
+
+    private fun prepareChapters(
+        manga: Manga,
+        chapters: List<Chapter>,
+    ): List<MangaDownload> {
+        val source = sourceManager.get(manga.source) as? HttpSource ?: return emptyList()
         val downloadedChapterNames = provider.findMangaDir(manga.title, source)
             ?.listFiles()
             .orEmpty()
             .mapNotNull { it.name }
             .toSet()
-        val chaptersToQueue = chapters.asSequence()
+        return chapters.asSequence()
             // Filter out those already downloaded.
             .filter { chapter ->
                 provider.getValidChapterDirNames(chapter.name, chapter.scanlator)
@@ -466,36 +499,33 @@ class MangaDownloader(
             }
             // Add chapters to queue from the start.
             .sortedByDescending { it.sourceOrder }
-            // Filter out those already enqueued.
-            .filter { chapter -> queueState.value.none { it.chapter.id == chapter.id } }
             // Create a download for each one.
             .map { MangaDownload(source, manga, it) }
             .toList()
+    }
 
-        if (chaptersToQueue.isNotEmpty()) {
-            addAllToQueue(chaptersToQueue)
-            notifier.onQueueStatusSummary(queueState.value)
+    private fun onChaptersQueued(autoStart: Boolean, wasEmpty: Boolean) {
+        notifier.onQueueStatusSummary(queueState.value)
 
-            // Start downloader if needed
-            if (autoStart && wasEmpty) {
-                val queuedDownloads = queueState.value.count { it: MangaDownload -> it.source !is UnmeteredSource }
-                val maxDownloadsFromSource = queueState.value
-                    .groupBy { it.source }
-                    .filterKeys { it !is UnmeteredSource }
-                    .maxOfOrNull { it.value.size }
-                    ?: 0
-                if (
-                    queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
-                    maxDownloadsFromSource > CHAPTERS_PER_SOURCE_QUEUE_WARNING_THRESHOLD
-                ) {
-                    notifier.onWarning(
-                        context.stringResource(AYMR.strings.download_queue_size_warning),
-                        WARNING_NOTIF_TIMEOUT_MS,
-                        NotificationHandler.openUrl(context, MangaLibraryUpdateNotifier.HELP_WARNING_URL),
-                    )
-                }
-                MangaDownloadJob.start(context)
+        // Start downloader if needed
+        if (autoStart && wasEmpty) {
+            val queuedDownloads = queueState.value.count { it: MangaDownload -> it.source !is UnmeteredSource }
+            val maxDownloadsFromSource = queueState.value
+                .groupBy { it.source }
+                .filterKeys { it !is UnmeteredSource }
+                .maxOfOrNull { it.value.size }
+                ?: 0
+            if (
+                queuedDownloads > DOWNLOADS_QUEUED_WARNING_THRESHOLD ||
+                maxDownloadsFromSource > CHAPTERS_PER_SOURCE_QUEUE_WARNING_THRESHOLD
+            ) {
+                notifier.onWarning(
+                    context.stringResource(AYMR.strings.download_queue_size_warning),
+                    WARNING_NOTIF_TIMEOUT_MS,
+                    NotificationHandler.openUrl(context, MangaLibraryUpdateNotifier.HELP_WARNING_URL),
+                )
             }
+            MangaDownloadJob.start(context)
         }
     }
 
@@ -949,8 +979,6 @@ class MangaDownloader(
         return downloadPreferences.numberOfDownloads().get().coerceIn(1, 5)
     }
 
-    private fun addAllToQueue(downloads: List<MangaDownload>) = queueOps.addAll(downloads)
-
     private fun removeFromQueue(download: MangaDownload) = queueOps.remove(download)
 
     fun removeFromQueueByChapterIds(chapterIds: List<Long>) {
@@ -960,27 +988,11 @@ class MangaDownloader(
 
     private fun internalClearQueue() = queueOps.internalClear()
 
-    fun addToStartOfQueue(downloads: List<MangaDownload>) = queueOps.addToStart(downloads)
+    suspend fun addToStartOfQueue(downloads: List<MangaDownload>) = queueOps.addToStart(downloads)
 
-    fun moveToFront(download: MangaDownload) = queueOps.moveToFront(download)
+    suspend fun moveToFront(id: Long, newDownload: MangaDownload?): Boolean = queueOps.moveToFront(id, newDownload)
 
-    fun updateQueue(downloads: List<MangaDownload>) {
-        val wasRunning = isRunning
-
-        if (downloads.isEmpty()) {
-            clearQueue()
-            stop()
-            return
-        }
-
-        pause()
-        internalClearQueue()
-        addAllToQueue(downloads)
-
-        if (wasRunning) {
-            start()
-        }
-    }
+    suspend fun updateQueue(ids: List<Long>) = queueOps.reorder(ids)
 
     companion object {
         const val TMP_DIR_SUFFIX = "_tmp"

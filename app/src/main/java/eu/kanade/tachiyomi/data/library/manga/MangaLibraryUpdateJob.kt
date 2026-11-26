@@ -34,7 +34,6 @@ import eu.kanade.tachiyomi.data.library.evaluateAutoUpdateCandidate
 import eu.kanade.tachiyomi.data.library.skippedUpdatesForReport
 import eu.kanade.tachiyomi.data.library.writeSkippedUpdateReport
 import eu.kanade.tachiyomi.data.notification.ErrorLogWriteOutcome
-import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.notification.hasShareableErrorLogFile
 import eu.kanade.tachiyomi.data.notification.writeErrorLogOutcome
 import eu.kanade.tachiyomi.di.appGraph
@@ -198,9 +197,8 @@ class MangaLibraryUpdateJob(private val context: Context, workerParams: WorkerPa
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notifier = MangaLibraryUpdateNotifier(context)
         return ForegroundInfo(
-            Notifications.ID_LIBRARY_PROGRESS,
+            notifier.progressNotificationId,
             notifier.progressNotificationBuilder.build(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC

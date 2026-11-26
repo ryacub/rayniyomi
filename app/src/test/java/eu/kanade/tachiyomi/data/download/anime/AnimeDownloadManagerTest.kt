@@ -3,8 +3,11 @@ package eu.kanade.tachiyomi.data.download.anime
 import android.content.Context
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -65,6 +68,37 @@ class AnimeDownloadManagerTest {
             downloaderForTesting = mockDownloader,
         )
         manager.notifier = mockNotifier
+    }
+
+    @Test
+    fun `pause suppresses the start from an accepted priority command`() = runTest {
+        val download = mockk<AnimeDownload> {
+            every { episode } returns Episode.create().copy(id = 1L)
+        }
+        every { mockDownloader.queueState } returns MutableStateFlow(listOf(download))
+        val commitStarted = CompletableDeferred<Unit>()
+        val allowCommit = CompletableDeferred<Unit>()
+        coEvery { mockDownloader.moveToFront(1L, null) } coAnswers {
+            commitStarted.complete(Unit)
+            allowCommit.await()
+            true
+        }
+        mockkObject(AnimeDownloadJob.Companion)
+        try {
+            every { AnimeDownloadJob.isRunning(context) } returns true
+            val prioritize = async { manager.startDownloadNow(1L) }
+            commitStarted.await()
+
+            manager.pauseDownloads()
+            allowCommit.complete(Unit)
+            prioritize.await()
+
+            verify { mockDownloader.pause() }
+            verify(exactly = 0) { mockDownloader.start() }
+        } finally {
+            allowCommit.complete(Unit)
+            unmockkObject(AnimeDownloadJob.Companion)
+        }
     }
 
     @Test
@@ -154,8 +188,9 @@ class AnimeDownloadManagerTest {
         val allowRemove = CompletableDeferred<Unit>()
 
         every { mockDownloader.queueState } returns queueState
-        every { mockDownloader.updateQueue(any()) } answers {
-            queueState.value = firstArg()
+        coEvery { mockDownloader.updateQueue(any()) } answers {
+            val current = queueState.value.associateBy { it.episode.id }
+            queueState.value = firstArg<List<Long>>().mapNotNull(current::get)
         }
         every { mockDownloader.removeFromQueueByEpisodeIds(any()) } answers {
             removeEntered.complete(Unit)
@@ -249,8 +284,9 @@ class AnimeDownloadManagerTest {
         )
 
         every { mockDownloader.queueState } returns queueState
-        every { mockDownloader.updateQueue(any()) } answers {
-            queueState.value = firstArg()
+        coEvery { mockDownloader.updateQueue(any()) } answers {
+            val current = queueState.value.associateBy { it.episode.id }
+            queueState.value = firstArg<List<Long>>().mapNotNull(current::get)
         }
         every { mockDownloader.removeFromQueueByEpisodeIds(any()) } answers {
             removeAttempted.complete(Unit)

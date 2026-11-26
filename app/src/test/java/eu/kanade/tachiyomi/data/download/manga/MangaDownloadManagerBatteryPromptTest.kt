@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationChecker
 import eu.kanade.tachiyomi.data.download.core.BatteryOptimizationPromptRequest
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import io.kotest.matchers.shouldBe
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -67,9 +68,9 @@ class MangaDownloadManagerBatteryPromptTest {
         downloader = mockk(relaxed = true) {
             every { queueState } returns MutableStateFlow(emptyList())
             every { queueChapters(any(), any(), any()) } returns Unit
-            every { moveToFront(any()) } returns Unit
-            every { updateQueue(any()) } returns Unit
-            every { addToStartOfQueue(any()) } returns Unit
+            coEvery { moveToFront(any(), any()) } returns true
+            coEvery { updateQueue(any()) } returns Unit
+            coEvery { addToStartOfQueue(any()) } returns Unit
             every { pause() } returns Unit
             every { start() } returns false
             every { stop() } returns Unit

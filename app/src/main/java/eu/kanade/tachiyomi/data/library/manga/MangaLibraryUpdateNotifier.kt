@@ -49,6 +49,8 @@ class MangaLibraryUpdateNotifier(
     private val securityPreferences: SecurityPreferences = appGraph.securityPreferences,
     private val sourceManager: MangaSourceManager = appGraph.mangaSourceManager,
     private val notificationMode: LibraryUpdateNotificationMode = LibraryUpdateNotificationMode.Standard,
+    internal val progressNotificationId: Int = Notifications.ID_MANGA_LIBRARY_PROGRESS,
+    cancelProgress: () -> PendingIntent = { NotificationReceiver.cancelLibraryUpdatePendingBroadcast(context) },
 ) {
 
     private val percentFormatter = NumberFormat.getPercentInstance().apply {
@@ -57,7 +59,7 @@ class MangaLibraryUpdateNotifier(
     }
 
     private val liveUpdateSession = lazy {
-        LiveUpdateNotificationSession(context, Notifications.ID_LIBRARY_PROGRESS)
+        LiveUpdateNotificationSession(context, progressNotificationId)
     }
 
     fun onUpdateStarted() {
@@ -67,9 +69,7 @@ class MangaLibraryUpdateNotifier(
     /**
      * Pending intent of action that cancels the library update
      */
-    private val cancelIntent by lazy {
-        NotificationReceiver.cancelLibraryUpdatePendingBroadcast(context)
-    }
+    private val cancelIntent by lazy(cancelProgress)
 
     /**
      * Bitmap of the app for notifications.
@@ -127,7 +127,7 @@ class MangaLibraryUpdateNotifier(
         if (notificationMode == LibraryUpdateNotificationMode.Live) {
             liveUpdateSession.value.show(progressNotificationBuilder)
         } else {
-            context.notify(Notifications.ID_LIBRARY_PROGRESS, progressNotificationBuilder.build())
+            context.notify(progressNotificationId, progressNotificationBuilder.build())
         }
     }
 
@@ -344,7 +344,7 @@ class MangaLibraryUpdateNotifier(
      */
     fun cancelProgressNotification() {
         if (liveUpdateSession.isInitialized()) liveUpdateSession.value.finish()
-        context.cancelNotification(Notifications.ID_LIBRARY_PROGRESS)
+        context.cancelNotification(progressNotificationId)
     }
 
     private suspend fun getMangaIcon(manga: Manga): Bitmap? {
