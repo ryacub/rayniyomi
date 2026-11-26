@@ -59,7 +59,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(compose.ui.test.junit4)
+    debugImplementation(compose.ui.test.manifest)
     testRuntimeOnly(libs.junit.vintage.engine)
 }
