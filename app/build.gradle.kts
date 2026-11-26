@@ -235,7 +235,7 @@ dependencies {
     implementation(compose.animation)
     implementation(compose.animation.graphics)
     debugImplementation(compose.ui.tooling)
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(compose.ui.test.manifest)
     implementation(compose.ui.tooling.preview)
     implementation(compose.ui.util)
 
@@ -347,7 +347,7 @@ dependencies {
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
     testImplementation(libs.sqldelight.sqlite.driver)
     androidTestImplementation(platform(compose.bom))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(compose.ui.test.junit4)
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation(libs.androidx.webkit)
     androidTestImplementation(libs.libarchive)
