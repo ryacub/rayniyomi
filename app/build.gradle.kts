@@ -419,10 +419,7 @@ if (previewScreenshots) {
             enable = true
             packages = listOf("eu.kanade.presentation", "eu.kanade.tachiyomi", "mihon.feature.upcoming")
             includePrivatePreviews = true
-            robolectricConfig = mapOf(
-                "application" to "android.app.Application::class",
-                "qualifiers" to "\"w411dp-h891dp-xhdpi\"",
-            )
+            robolectricConfig = mapOf("application" to "android.app.Application::class")
             testerQualifiedClassName = "eu.kanade.presentation.screenshot.InspectionModeTester"
             useScanOptionParametersInTester = true
         }
