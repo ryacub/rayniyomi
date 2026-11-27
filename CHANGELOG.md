@@ -22,6 +22,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 ### Fixed
 - Pending chapter and episode downloads survive an interruption during startup. Items moved to the front stay there after restart (#1556).
 - Cover refresh Cancel stops the displayed refresh. Each library update keeps its own progress notification and Cancel action (#1556).
+- Recovery Results has a "Review failed" button when titles fail to apply, so you can change their match. Retry and Review stay disabled while a retry runs (#1569).
 
 ### Changed
 

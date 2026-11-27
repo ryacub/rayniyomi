@@ -630,13 +630,18 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
         item {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (summary.failed > 0) {
-                    OutlinedButton(onClick = actions.retryFailed) {
+                    OutlinedButton(onClick = actions.retryFailed, enabled = state.busy == null) {
                         Text(stringResource(MR.strings.recovery_action_retry_failed))
                     }
                 }
-                if (summary.unresolved + summary.unsupported > 0) {
-                    OutlinedButton(onClick = actions.reviewUnresolved) {
-                        Text(stringResource(MR.strings.recovery_action_review_unresolved))
+                if (summary.needsAttention > 0) {
+                    val reviewLabel = if (summary.unresolved + summary.unsupported > 0) {
+                        MR.strings.recovery_action_review_unresolved
+                    } else {
+                        MR.strings.recovery_action_review_failed
+                    }
+                    OutlinedButton(onClick = actions.reviewUnresolved, enabled = state.busy == null) {
+                        Text(stringResource(reviewLabel))
                     }
                 }
             }
@@ -805,6 +810,64 @@ private fun RecoveryReviewPreview() {
                     previewEntry(1, RecoveryState.NEEDS_REVIEW, listOf(RecoveryCandidate(20, "/m/1", "Title 1"))),
                     previewEntry(2, RecoveryState.UNSUPPORTED),
                 ),
+            ),
+            media = RecoveryMedia.MANGA,
+            failedSourceName = null,
+            actions = previewActions,
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun RecoveryResultFailedPreview() {
+    TachiyomiPreviewTheme {
+        RecoveryScreenContent(
+            state = RecoveryScreenModel.State(
+                step = Step.Result,
+                entries = listOf(
+                    previewEntry(1, RecoveryState.COMPLETED),
+                    previewEntry(2, RecoveryState.FAILED),
+                ),
+            ),
+            media = RecoveryMedia.MANGA,
+            failedSourceName = null,
+            actions = previewActions,
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun RecoveryResultMixedPreview() {
+    TachiyomiPreviewTheme {
+        RecoveryScreenContent(
+            state = RecoveryScreenModel.State(
+                step = Step.Result,
+                entries = listOf(
+                    previewEntry(1, RecoveryState.FAILED),
+                    previewEntry(2, RecoveryState.NEEDS_REVIEW),
+                ),
+            ),
+            media = RecoveryMedia.ANIME,
+            failedSourceName = null,
+            actions = previewActions,
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun RecoveryResultBusyPreview() {
+    TachiyomiPreviewTheme {
+        RecoveryScreenContent(
+            state = RecoveryScreenModel.State(
+                step = Step.Result,
+                entries = listOf(
+                    previewEntry(1, RecoveryState.COMPLETED),
+                    previewEntry(2, RecoveryState.FAILED),
+                ),
+                busy = RecoveryScreenModel.Busy.Applying,
             ),
             media = RecoveryMedia.MANGA,
             failedSourceName = null,
