@@ -17,6 +17,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Improved
 - Upgrade Compose to 1.13.0 and Material 3 to 1.5.0 (#1560).
+- Upgrade OkHttp to 5.5.1, okio to 3.18.2 and kotlinx-serialization to 1.13.0. OkHttp now blocks 8 compromised eMudhra certificates on all devices. With DNS over HTTPS on, a failed lookup is cached for 10 seconds (#1563).
 
 ### Fixed
 - Pending chapter and episode downloads survive an interruption during startup. Items moved to the front stay there after restart (#1556).

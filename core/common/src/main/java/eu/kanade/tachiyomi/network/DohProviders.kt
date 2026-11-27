@@ -37,6 +37,7 @@ fun OkHttpClient.Builder.dohCloudflare() = dns(
             InetAddress.getByName("2606:4700:4700::0064"),
             InetAddress.getByName("2606:4700:4700::6400"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -49,6 +50,7 @@ fun OkHttpClient.Builder.dohGoogle() = dns(
             InetAddress.getByName("2001:4860:4860::8888"),
             InetAddress.getByName("2001:4860:4860::8844"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -63,6 +65,7 @@ fun OkHttpClient.Builder.dohAdGuard() = dns(
             InetAddress.getByName("2a10:50c0::1:ff"),
             InetAddress.getByName("2a10:50c0::2:ff"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -75,6 +78,7 @@ fun OkHttpClient.Builder.dohQuad9() = dns(
             InetAddress.getByName("2620:fe::fe"),
             InetAddress.getByName("2620:fe::9"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -87,6 +91,7 @@ fun OkHttpClient.Builder.dohAliDNS() = dns(
             InetAddress.getByName("2400:3200::1"),
             InetAddress.getByName("2400:3200:baba::1"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -97,6 +102,7 @@ fun OkHttpClient.Builder.dohDNSPod() = dns(
             InetAddress.getByName("1.12.12.12"),
             InetAddress.getByName("120.53.53.53"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -112,6 +118,7 @@ fun OkHttpClient.Builder.doh360() = dns(
             InetAddress.getByName("101.199.113.208"),
             InetAddress.getByName("36.99.170.86"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -123,6 +130,7 @@ fun OkHttpClient.Builder.dohQuad101() = dns(
             InetAddress.getByName("2001:de4::101"),
             InetAddress.getByName("2001:de4::102"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -138,6 +146,7 @@ fun OkHttpClient.Builder.dohMullvad() = dns(
             InetAddress.getByName("194.242.2.2"),
             InetAddress.getByName("2a07:e340::2"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -155,6 +164,7 @@ fun OkHttpClient.Builder.dohControlD() = dns(
             InetAddress.getByName("2606:1a40::"),
             InetAddress.getByName("2606:1a40:1::"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -169,6 +179,7 @@ fun OkHttpClient.Builder.dohNajalla() = dns(
             InetAddress.getByName("95.215.19.53"),
             InetAddress.getByName("2001:67c:2354:2::53"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -182,6 +193,7 @@ fun OkHttpClient.Builder.dohShecan() = dns(
             InetAddress.getByName("178.22.122.100"),
             InetAddress.getByName("185.51.200.2"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
 
@@ -195,5 +207,6 @@ fun OkHttpClient.Builder.dohLibreDNS() = dns(
             InetAddress.getByName("116.202.176.26"),
             InetAddress.getByName("2a01:4f8:1c0c:8274::1"),
         )
+        .includeServiceMetadata(false)
         .build(),
 )
