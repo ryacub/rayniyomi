@@ -3,6 +3,7 @@ package eu.kanade.presentation.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.util.lang.toRelativeString
@@ -12,6 +13,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun relativeDateText(
@@ -45,15 +47,12 @@ fun relativeDateText(
     localDate: LocalDate?,
 ): String {
     val context = LocalContext.current
-
-    val preferences = remember { appGraph.uiPreferences }
-    val relativeTime = remember { preferences.relativeTime().get() }
-    val dateFormat = remember { UiPreferences.dateFormat(preferences.dateFormat().get()) }
+    val display = rememberDateDisplay()
 
     return localDate?.toRelativeString(
         context = context,
-        relative = relativeTime,
-        dateFormat = dateFormat,
+        relative = display.relative,
+        dateFormat = display.format,
     )
         ?: stringResource(MR.strings.not_applicable)
 }
@@ -64,15 +63,30 @@ fun relativeDateTimeText(
     localDateTime: LocalDateTime?,
 ): String {
     val context = LocalContext.current
-
-    val preferences = remember { appGraph.uiPreferences }
-    val relativeTime = remember { preferences.relativeTime().get() }
-    val dateFormat = remember { UiPreferences.dateFormat(preferences.dateFormat().get()) }
+    val display = rememberDateDisplay()
 
     return localDateTime?.toRelativeString(
         context = context,
-        relative = relativeTime,
-        dateFormat = dateFormat,
+        relative = display.relative,
+        dateFormat = display.format,
     )
         ?: stringResource(MR.strings.not_applicable)
+}
+
+private data class DateDisplay(val relative: Boolean, val format: DateTimeFormatter)
+
+@Composable
+private fun rememberDateDisplay(): DateDisplay {
+    val inspection = LocalInspectionMode.current
+    return remember(inspection) {
+        if (inspection) {
+            DateDisplay(relative = false, format = UiPreferences.dateFormat(""))
+        } else {
+            val preferences = appGraph.uiPreferences
+            DateDisplay(
+                relative = preferences.relativeTime().get(),
+                format = UiPreferences.dateFormat(preferences.dateFormat().get()),
+            )
+        }
+    }
 }

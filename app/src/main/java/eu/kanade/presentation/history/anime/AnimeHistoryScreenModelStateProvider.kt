@@ -4,11 +4,8 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import eu.kanade.tachiyomi.ui.history.anime.AnimeHistoryScreenModel
 import tachiyomi.domain.entries.anime.model.AnimeCover
 import tachiyomi.domain.history.anime.model.AnimeHistoryWithRelations
-import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 import java.util.Date
-import kotlin.random.Random
 
 class AnimeHistoryScreenModelStateProvider : PreviewParameterProvider<AnimeHistoryScreenModel.State> {
 
@@ -17,11 +14,11 @@ class AnimeHistoryScreenModelStateProvider : PreviewParameterProvider<AnimeHisto
         list =
         listOf(HistoryUiModelExamples.headerToday)
             .asSequence()
-            .plus(HistoryUiModelExamples.items().take(3))
-            .plus(HistoryUiModelExamples.header { it.minus(1, ChronoUnit.DAYS) })
-            .plus(HistoryUiModelExamples.items().take(1))
-            .plus(HistoryUiModelExamples.header { it.minus(2, ChronoUnit.DAYS) })
-            .plus(HistoryUiModelExamples.items().take(7))
+            .plus(HistoryUiModelExamples.items(start = 1).take(3))
+            .plus(HistoryUiModelExamples.header(daysAgo = 1))
+            .plus(HistoryUiModelExamples.items(start = 4).take(1))
+            .plus(HistoryUiModelExamples.header(daysAgo = 2))
+            .plus(HistoryUiModelExamples.items(start = 5).take(7))
             .toList(),
         dialog = null,
     )
@@ -30,7 +27,7 @@ class AnimeHistoryScreenModelStateProvider : PreviewParameterProvider<AnimeHisto
         searchQuery = null,
         list = listOf(
             HistoryUiModelExamples.headerToday,
-            HistoryUiModelExamples.items().first(),
+            HistoryUiModelExamples.items(start = 1).first(),
         ),
         dialog = null,
     )
@@ -39,7 +36,7 @@ class AnimeHistoryScreenModelStateProvider : PreviewParameterProvider<AnimeHisto
         searchQuery = null,
         list = listOf(
             HistoryUiModelExamples.headerTomorrow,
-            HistoryUiModelExamples.items().first(),
+            HistoryUiModelExamples.items(start = 1).first(),
         ),
         dialog = null,
     )
@@ -70,40 +67,31 @@ class AnimeHistoryScreenModelStateProvider : PreviewParameterProvider<AnimeHisto
     )
 
     private object HistoryUiModelExamples {
+        private val previewToday = LocalDate.of(2024, 1, 15)
+
         val headerToday = header()
-        val headerTomorrow =
-            AnimeHistoryUiModel.Header(LocalDate.now().plusDays(1))
+        val headerTomorrow = AnimeHistoryUiModel.Header(previewToday.plusDays(1))
 
-        fun header(instantBuilder: (Instant) -> Instant = { it }) =
-            AnimeHistoryUiModel.Header(LocalDate.from(instantBuilder(Instant.now())))
+        fun header(daysAgo: Long = 0) = AnimeHistoryUiModel.Header(previewToday.minusDays(daysAgo))
 
-        fun items() = sequence {
-            var count = 1
-            while (true) {
-                yield(randItem { it.copy(title = "Example Title $count") })
-                count += 1
-            }
-        }
+        fun items(start: Int) = generateSequence(start) { it + 1 }.map(::item)
 
-        fun randItem(historyBuilder: (AnimeHistoryWithRelations) -> AnimeHistoryWithRelations = { it }) =
-            AnimeHistoryUiModel.Item(
-                historyBuilder(
-                    AnimeHistoryWithRelations(
-                        id = Random.nextLong(),
-                        episodeId = Random.nextLong(),
-                        animeId = Random.nextLong(),
-                        title = "Test Title",
-                        episodeNumber = Random.nextDouble(),
-                        seenAt = Date.from(Instant.now()),
-                        coverData = AnimeCover(
-                            animeId = Random.nextLong(),
-                            sourceId = Random.nextLong(),
-                            isAnimeFavorite = Random.nextBoolean(),
-                            url = "https://example.com/cover.png",
-                            lastModified = Random.nextLong(),
-                        ),
-                    ),
+        private fun item(n: Int) = AnimeHistoryUiModel.Item(
+            AnimeHistoryWithRelations(
+                id = n.toLong(),
+                episodeId = n.toLong(),
+                animeId = n.toLong(),
+                title = "Example Title $n",
+                episodeNumber = n.toDouble(),
+                seenAt = Date(1_705_300_000_000L),
+                coverData = AnimeCover(
+                    animeId = n.toLong(),
+                    sourceId = 1L,
+                    isAnimeFavorite = false,
+                    url = "https://example.com/cover.png",
+                    lastModified = 0L,
                 ),
-            )
+            ),
+        )
     }
 }

@@ -1,3 +1,5 @@
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import io.github.takahirom.roborazzi.RoborazziExtension
 import mihon.buildlogic.Config
 import mihon.buildlogic.getBuildTime
 import mihon.buildlogic.getCommitCount
@@ -15,10 +17,12 @@ plugins {
     // Crashlytics: applied unconditionally so the build ID is always embedded in release APKs
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.roborazzi) apply false
 }
 
 val appVersionCode = 640
 val lightNovelExpectedPluginApiVersion = 1
+val previewScreenshots = providers.gradleProperty("rayniyomi.previewScreenshots").orNull == "true"
 
 // Apply Google Services plugin before AGP variant configuration and only for builds whose
 // applicationId is registered in google-services.json.
@@ -403,5 +407,45 @@ tasks.register("printLightNovelCompatibilitySnapshot") {
 buildscript {
     dependencies {
         classpath(kotlinx.gradle)
+    }
+}
+
+if (previewScreenshots) {
+    apply(plugin = "io.github.takahirom.roborazzi")
+    extensions.configure<RoborazziExtension> {
+        outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+        @OptIn(ExperimentalRoborazziApi::class)
+        generateComposePreviewRobolectricTests {
+            enable = true
+            packages = listOf("eu.kanade.presentation", "eu.kanade.tachiyomi", "mihon.feature.upcoming")
+            includePrivatePreviews = true
+            robolectricConfig = mapOf("application" to "android.app.Application::class")
+            testerQualifiedClassName = "eu.kanade.presentation.screenshot.InspectionModeTester"
+            useScanOptionParametersInTester = true
+        }
+    }
+    android {
+        sourceSets {
+            getByName("test") { kotlin.directories.add("src/test/previewTester/kotlin") }
+        }
+        testOptions {
+            unitTests.isIncludeAndroidResources = true
+        }
+    }
+    dependencies {
+        testImplementation(libs.robolectric)
+        testImplementation(libs.roborazzi)
+        testImplementation(libs.roborazzi.compose)
+        testImplementation(libs.roborazzi.preview.scanner.support)
+        testImplementation(libs.composable.preview.scanner)
+        testImplementation(libs.junit4)
+        testImplementation(compose.ui.test.junit4)
+        testRuntimeOnly(libs.junit.vintage.engine)
+    }
+    configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+        exclude(group = "org.conscrypt", module = "conscrypt-android")
+    }
+    tasks.withType<Test>().configureEach {
+        systemProperty("user.timezone", "UTC")
     }
 }

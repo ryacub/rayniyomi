@@ -178,28 +178,6 @@
     </issue>
 
     <issue
-        id="Range"
-        message="Value must be > 0.0 (was 0)"
-        errorLine1="                    modifier = Modifier.weight(0f),"
-        errorLine2="                                               ~~">
-        <location
-            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastControlSheet.kt"
-            line="90"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="Range"
-        message="Value must be > 0.0 (was 0)"
-        errorLine1="            modifier = Modifier.weight(0f),"
-        errorLine2="                                       ~~">
-        <location
-            file="src/main/java/eu/kanade/tachiyomi/ui/player/cast/components/CastControlSheet.kt"
-            line="134"
-            column="40"/>
-    </issue>
-
-    <issue
         id="TrimLambda"
         message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
         errorLine1="                java.io.File(&quot;/proc/self/cmdline&quot;).readText().trim { it &lt;= &apos; &apos; }"

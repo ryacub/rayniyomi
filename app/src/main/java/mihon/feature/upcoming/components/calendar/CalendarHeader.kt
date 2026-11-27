@@ -93,7 +93,7 @@ private fun getTitleText(monthYear: YearMonth): String {
 @Composable
 private fun CalenderHeaderPreview() {
     CalenderHeader(
-        yearMonth = YearMonth.now(),
+        yearMonth = YearMonth.of(2024, 1),
         onNextClick = {},
         onPreviousClick = {},
     )

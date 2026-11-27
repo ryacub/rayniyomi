@@ -4,11 +4,8 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import eu.kanade.tachiyomi.ui.history.manga.MangaHistoryScreenModel
 import tachiyomi.domain.entries.manga.model.MangaCover
 import tachiyomi.domain.history.manga.model.MangaHistoryWithRelations
-import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 import java.util.Date
-import kotlin.random.Random
 
 class MangaHistoryScreenModelStateProvider : PreviewParameterProvider<MangaHistoryScreenModel.State> {
 
@@ -17,11 +14,11 @@ class MangaHistoryScreenModelStateProvider : PreviewParameterProvider<MangaHisto
         list =
         listOf(HistoryUiModelExamples.headerToday)
             .asSequence()
-            .plus(HistoryUiModelExamples.items().take(3))
-            .plus(HistoryUiModelExamples.header { it.minus(1, ChronoUnit.DAYS) })
-            .plus(HistoryUiModelExamples.items().take(1))
-            .plus(HistoryUiModelExamples.header { it.minus(2, ChronoUnit.DAYS) })
-            .plus(HistoryUiModelExamples.items().take(7))
+            .plus(HistoryUiModelExamples.items(start = 1).take(3))
+            .plus(HistoryUiModelExamples.header(daysAgo = 1))
+            .plus(HistoryUiModelExamples.items(start = 4).take(1))
+            .plus(HistoryUiModelExamples.header(daysAgo = 2))
+            .plus(HistoryUiModelExamples.items(start = 5).take(7))
             .toList(),
         dialog = null,
     )
@@ -30,7 +27,7 @@ class MangaHistoryScreenModelStateProvider : PreviewParameterProvider<MangaHisto
         searchQuery = null,
         list = listOf(
             HistoryUiModelExamples.headerToday,
-            HistoryUiModelExamples.items().first(),
+            HistoryUiModelExamples.items(start = 1).first(),
         ),
         dialog = null,
     )
@@ -39,7 +36,7 @@ class MangaHistoryScreenModelStateProvider : PreviewParameterProvider<MangaHisto
         searchQuery = null,
         list = listOf(
             HistoryUiModelExamples.headerTomorrow,
-            HistoryUiModelExamples.items().first(),
+            HistoryUiModelExamples.items(start = 1).first(),
         ),
         dialog = null,
     )
@@ -70,41 +67,32 @@ class MangaHistoryScreenModelStateProvider : PreviewParameterProvider<MangaHisto
     )
 
     private object HistoryUiModelExamples {
+        private val previewToday = LocalDate.of(2024, 1, 15)
+
         val headerToday = header()
-        val headerTomorrow =
-            MangaHistoryUiModel.Header(LocalDate.now().plusDays(1))
+        val headerTomorrow = MangaHistoryUiModel.Header(previewToday.plusDays(1))
 
-        fun header(instantBuilder: (Instant) -> Instant = { it }) =
-            MangaHistoryUiModel.Header(LocalDate.from(instantBuilder(Instant.now())))
+        fun header(daysAgo: Long = 0) = MangaHistoryUiModel.Header(previewToday.minusDays(daysAgo))
 
-        fun items() = sequence {
-            var count = 1
-            while (true) {
-                yield(randItem { it.copy(title = "Example Title $count") })
-                count += 1
-            }
-        }
+        fun items(start: Int) = generateSequence(start) { it + 1 }.map(::item)
 
-        fun randItem(historyBuilder: (MangaHistoryWithRelations) -> MangaHistoryWithRelations = { it }) =
-            MangaHistoryUiModel.Item(
-                historyBuilder(
-                    MangaHistoryWithRelations(
-                        id = Random.nextLong(),
-                        chapterId = Random.nextLong(),
-                        mangaId = Random.nextLong(),
-                        title = "Test Title",
-                        chapterNumber = Random.nextDouble(),
-                        readAt = Date.from(Instant.now()),
-                        readDuration = Random.nextLong(),
-                        coverData = MangaCover(
-                            mangaId = Random.nextLong(),
-                            sourceId = Random.nextLong(),
-                            isMangaFavorite = Random.nextBoolean(),
-                            url = "https://example.com/cover.png",
-                            lastModified = Random.nextLong(),
-                        ),
-                    ),
+        private fun item(n: Int) = MangaHistoryUiModel.Item(
+            MangaHistoryWithRelations(
+                id = n.toLong(),
+                chapterId = n.toLong(),
+                mangaId = n.toLong(),
+                title = "Example Title $n",
+                chapterNumber = n.toDouble(),
+                readAt = Date(1_705_300_000_000L),
+                readDuration = n * 60_000L,
+                coverData = MangaCover(
+                    mangaId = n.toLong(),
+                    sourceId = 1L,
+                    isMangaFavorite = false,
+                    url = "https://example.com/cover.png",
+                    lastModified = 0L,
                 ),
-            )
+            ),
+        )
     }
 }

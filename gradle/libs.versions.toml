@@ -16,6 +16,7 @@ voyager = "2.2.21-1.10.3"
 spotless = "8.2.1"
 ktlint-core = "1.7.1"
 roborazzi = "1.79.0"
+composable-preview-scanner = "0.9.1"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -108,7 +109,9 @@ junit4 = "junit:junit:4.13.2"
 junit-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine" }
 robolectric = "org.robolectric:robolectric:4.18.1"
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+composable-preview-scanner = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composable-preview-scanner" }
 roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
+roborazzi-preview-scanner-support = { module = "io.github.takahirom.roborazzi:roborazzi-compose-preview-scanner-support", version.ref = "roborazzi" }
 kotest-assertions = "io.kotest:kotest-assertions-core:6.2.1"
 mockk = "io.mockk:mockk:1.14.11"
 

@@ -28,6 +28,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### CI
 - Pull requests now check screenshots of shared Compose components on phone and foldable layouts (#1555).
+- Pull requests now check a screenshot of every Compose preview in `:app` and `:presentation-core` in a separate "Verify preview screenshots" job, and fail when a preview reads a random value or the clock (#1562).
 
 ### Other
 - Upgrade jsoup to 1.23.2 to fix two security advisories, GHSA-65r4-943x-97jj and GHSA-pmhh-3w7g-xqp8 (#1558).

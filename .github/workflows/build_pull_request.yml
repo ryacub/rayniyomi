@@ -183,6 +183,41 @@ jobs:
           name: mapping-${{ github.sha }}
           path: app/build/outputs/mapping/stableRelease
 
+  preview_screenshots:
+    name: Verify preview screenshots
+    runs-on: 'ubuntu-24.04'
+    needs: [classify_pr_changes]
+    if: needs.classify_pr_changes.outputs.android_changed == 'true'
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          java-version: 21
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+
+      - name: Check preview determinism
+        run: python3 scripts/check_preview_determinism.py
+
+      - name: Verify shared and preview screenshots
+        run: ./gradlew :presentation-core:testDebugUnitTest :app:testStableDebugUnitTest --tests '*RoborazziPreviewParameterizedTests*' -Prayniyomi.previewScreenshots=true -Proborazzi.test.verify=true --continue --build-cache
+
+      - name: Upload screenshot comparisons
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-screenshot-comparisons
+          path: |
+            presentation-core/build/outputs/roborazzi/
+            app/build/outputs/roborazzi/
+          if-no-files-found: ignore
+
   test:
     name: Run unit tests
     runs-on: 'ubuntu-24.04'
@@ -205,17 +240,6 @@ jobs:
 
       - name: Run unit tests
         run: ./gradlew :app:testStableDebugUnitTest :data:testDebugUnitTest :source-api:testAndroidHostTest :cloudstream-runtime-contract:test :cloudstream-runtime-host:testDebugUnitTest :cloudstream-runtime:testDebugUnitTest --build-cache
-
-      - name: Verify shared Compose screenshots
-        run: ./gradlew :presentation-core:testDebugUnitTest -Proborazzi.test.verify=true --build-cache
-
-      - name: Upload screenshot comparisons
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: presentation-core-screenshot-comparisons
-          path: presentation-core/build/outputs/roborazzi/
-          if-no-files-found: ignore
 
       - name: Check Android lint
         run: ./gradlew :app:lintStableDebug --build-cache

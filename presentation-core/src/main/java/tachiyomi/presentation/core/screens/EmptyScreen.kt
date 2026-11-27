@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -55,7 +56,8 @@ fun EmptyScreen(
     actions: ImmutableList<EmptyScreenAction>? = null,
     footer: String? = null,
 ) {
-    val face = remember { getRandomErrorFace() }
+    val inspection = LocalInspectionMode.current
+    val face = remember(inspection) { if (inspection) ErrorFaces.first() else getRandomErrorFace() }
     Column(
         modifier = modifier
             .fillMaxSize()
