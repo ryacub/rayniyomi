@@ -23,8 +23,8 @@ class ClearDatabaseLinkedMangaTest {
 
             db.clearDatabase(listOf(SOURCE_TWO))
 
-            assertEquals(listOf(A, B, S), db.mangaIds())
-            assertEquals(listOf(Triple(1L, 1L, 5L)), db.chapterState(B))
+            assertEquals(listOf(A, B, S, D), db.mangaIds())
+            assertEquals(listOf(Triple(1L, 1L, 5L), Triple(0L, 0L, 0L)), db.chapterState(B))
             assertEquals(listOf(Triple(1L, 1L, 1000L)), db.historyRows())
             val link = if (savedFirst) MangaSourceLink(A, B) else MangaSourceLink(B, A)
             assertEquals(link, repository.getForManga(A))
@@ -41,7 +41,7 @@ class ClearDatabaseLinkedMangaTest {
             val result = if (savedFirst) repository.link(A, B) else repository.link(B, A)
             assertEquals(LinkMangaSourcesResult.Linked, result)
 
-            assertEquals(mapOf(SOURCE_TWO to 1L), db.removableCounts())
+            assertEquals(mapOf(SOURCE_TWO to 1L, SOURCE_THREE to 1L), db.removableCounts())
         }
     }
 
@@ -65,11 +65,11 @@ class ClearDatabaseLinkedMangaTest {
             assertEquals(LinkMangaSourcesResult.Linked, repository.link(A, B))
             assertEquals(true, repository.unlink(A, B))
 
-            assertEquals(mapOf(SOURCE_TWO to 2L), db.removableCounts())
+            assertEquals(mapOf(SOURCE_TWO to 2L, SOURCE_THREE to 1L), db.removableCounts())
 
             db.clearDatabase(listOf(SOURCE_TWO))
 
-            assertEquals(listOf(A, S), db.mangaIds())
+            assertEquals(listOf(A, S, D), db.mangaIds())
         }
     }
 
@@ -95,6 +95,7 @@ class ClearDatabaseLinkedMangaTest {
         insertManga(id = B, url = "b", title = "B", source = SOURCE_TWO, favorite = false)
         insertManga(id = C, url = "c", title = "C", source = SOURCE_TWO, favorite = false)
         insertManga(id = S, url = "s", title = "S", source = SOURCE_TWO)
+        insertManga(id = D, url = "d", title = "D", source = SOURCE_THREE, favorite = false)
         insertChapter(id = 1, mangaId = B, url = "b1")
         insertChapter(id = 2, mangaId = B, url = "b2")
         driver.execute(null, "UPDATE chapters SET read = 1, bookmark = 1, last_page_read = 5 WHERE _id = 1", 0)
@@ -132,7 +133,7 @@ class ClearDatabaseLinkedMangaTest {
         val rows = mutableListOf<Triple<Long, Long, Long>>()
         driver.executeQuery(
             identifier = null,
-            sql = "SELECT read, bookmark, last_page_read FROM chapters WHERE manga_id = $mangaId AND read = 1",
+            sql = "SELECT read, bookmark, last_page_read FROM chapters WHERE manga_id = $mangaId ORDER BY _id",
             parameters = 0,
             mapper = { cursor ->
                 while (cursor.next().value) {
@@ -149,6 +150,8 @@ class ClearDatabaseLinkedMangaTest {
         const val B = 2L
         const val C = 3L
         const val S = 4L
+        const val D = 5L
         const val SOURCE_TWO = 2L
+        const val SOURCE_THREE = 3L
     }
 }
