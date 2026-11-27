@@ -37,12 +37,15 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -63,6 +66,7 @@ import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AnimeDownloaderTest {
 
@@ -101,7 +105,9 @@ class AnimeDownloaderTest {
         every { downloadPreferences.multiThreadConnections().get() } returns 2
 
         every { testAppGraph.downloadPreferences } returns downloadPreferences
-        every { testAppGraph.animeSourceManager } returns mockk(relaxed = true)
+        every { testAppGraph.animeSourceManager } returns mockk(relaxed = true) {
+            every { isInitialized } returns MutableStateFlow(true)
+        }
         every { testAppGraph.json } returns Json { ignoreUnknownKeys = true }
         every { testAppGraph.getAnime } returns mockk(relaxed = true)
         every { testAppGraph.getEpisode } returns mockk(relaxed = true)
@@ -128,6 +134,13 @@ class AnimeDownloaderTest {
 
         testContext = mockk<Context>(relaxed = true)
         val context = testContext
+        every { context.getSharedPreferences(any(), Context.MODE_PRIVATE) } returns mockk(relaxed = true) {
+            every { all } returns emptyMap()
+            every { getBoolean(any(), any()) } returns true
+            every { edit() } returns mockk(relaxed = true) {
+                every { commit() } returns true
+            }
+        }
         val notificationBuilder = mockk<NotificationCompat.Builder>(relaxed = true)
         every { context.notificationBuilder(any(), any()) } returns notificationBuilder
         every { context.notify(any<Int>(), any<Notification>()) } just runs
@@ -142,6 +155,7 @@ class AnimeDownloaderTest {
             strategySelector = strategySelector,
             multiThreadDownloader = mockk(relaxed = true),
         )
+        runBlocking { withTimeout(5_000) { downloader.awaitQueueRestore() } }
     }
 
     @AfterEach
@@ -172,7 +186,7 @@ class AnimeDownloaderTest {
         ).apply { this.video = video }
 
     @Test
-    fun `removing an episode from the queue deletes its resume progress and partial files`() {
+    fun `removing an episode from the queue deletes its resume progress and partial files`() = runTest {
         downloader.addToStartOfQueue(listOf(testDownload()))
 
         downloader.removeFromQueueByEpisodeIds(listOf(1L))
@@ -182,7 +196,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `clearing the queue deletes resume progress and partial files`() {
+    fun `clearing the queue deletes resume progress and partial files`() = runTest {
         downloader.addToStartOfQueue(listOf(testDownload()))
 
         downloader.clearQueue()
@@ -192,7 +206,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `removing an episode keeps partial files that a queued episode with the same directory uses`() {
+    fun `removing an episode keeps partial files that a queued episode with the same directory uses`() = runTest {
         downloader.addToStartOfQueue(
             listOf(testDownload(episodeId = 1L), testDownload(episodeId = 2L, episodeName = "Ch1")),
         )
@@ -205,12 +219,13 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `reordering the queue keeps resume progress and partial files`() {
+    fun `reordering the queue keeps resume progress and partial files`() = runTest {
         val first = testDownload(episodeId = 1L)
         val second = testDownload(episodeId = 2L)
         downloader.addToStartOfQueue(listOf(first, second))
 
-        downloader.updateQueue(listOf(second, first))
+        downloader.updateQueue(listOf(second.episode.id, first.episode.id))
+        assertEquals(listOf(2L, 1L), downloader.queueState.value.map { it.episode.id })
         Thread.sleep(200)
 
         verify(exactly = 0) { stateStore.deleteProgress(any()) }
@@ -218,7 +233,55 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `removing a running episode deletes resume progress after the cancelled download saves it`() {
+    fun `reordering active same-source downloads requeues the displaced item after cancellation`() = runTest {
+        val first = testDownload(episodeId = 1L)
+        val second = testDownload(episodeId = 2L)
+        val firstRequest = AtomicBoolean(true)
+        val firstStarted = CountDownLatch(1)
+        val firstCancelled = CountDownLatch(1)
+        val secondStarted = CountDownLatch(1)
+        val allowFirstCleanup = CompletableDeferred<Unit>()
+        mockHosters {
+            if (firstRequest.getAndSet(false)) {
+                firstStarted.countDown()
+                try {
+                    awaitCancellation()
+                } finally {
+                    withContext(NonCancellable) {
+                        firstCancelled.countDown()
+                        allowFirstCleanup.await()
+                    }
+                }
+            } else {
+                secondStarted.countDown()
+                awaitCancellation()
+            }
+        }
+
+        try {
+            downloader.addToStartOfQueue(listOf(first, second))
+            assertTrue(downloader.start())
+            assertTrue(firstStarted.await(5, TimeUnit.SECONDS))
+            first.status = AnimeDownload.State.DOWNLOADING
+            first.displayStatus = DownloadDisplayStatus.DOWNLOADING
+
+            downloader.updateQueue(listOf(2L, 1L))
+
+            assertTrue(firstCancelled.await(5, TimeUnit.SECONDS))
+            assertEquals(AnimeDownload.State.DOWNLOADING, first.status)
+            assertEquals(1L, secondStarted.count)
+            allowFirstCleanup.complete(Unit)
+            assertTrue(secondStarted.await(5, TimeUnit.SECONDS))
+            assertEquals(AnimeDownload.State.QUEUE, first.status)
+            assertEquals(DownloadDisplayStatus.WAITING_FOR_SLOT, first.displayStatus)
+        } finally {
+            allowFirstCleanup.complete(Unit)
+            downloader.pause()
+        }
+    }
+
+    @Test
+    fun `removing a running episode deletes resume progress after the cancelled download saves it`() = runTest {
         val download = testDownload()
         val hostersStarted = CountDownLatch(1)
         val allowSave = CompletableDeferred<Unit>()
@@ -255,7 +318,7 @@ class AnimeDownloaderTest {
     }
 
     @Test
-    fun `starting an item retry leaves the other failed episode untouched`() {
+    fun `starting an item retry leaves the other failed episode untouched`() = runTest {
         val selected = testDownload(episodeId = 1L)
         val other = testDownload(episodeId = 2L)
         downloader.addToStartOfQueue(listOf(selected, other))

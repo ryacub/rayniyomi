@@ -103,6 +103,9 @@ class AnimeDownloadManager(
         scope.cancel()
     }
 
+    private val queueStartLock = Any()
+    private var stopGeneration = 0L
+
     private val queueMutations: DownloadQueueMutations<AnimeDownload> by lazy {
         DownloadQueueMutations(
             queueState = downloader.queueState,
@@ -118,6 +121,7 @@ class AnimeDownloadManager(
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
             mutationScope = scope,
+            awaitQueueRestore = downloader::awaitQueueRestore,
             retryDownload = { download ->
                 if (downloader.retryFailed(download) && !downloader.isRunning) {
                     AnimeDownloadJob.start(context, resetFailed = false)
@@ -131,6 +135,8 @@ class AnimeDownloadManager(
 
     val queueState
         get() = downloader.queueState
+
+    internal suspend fun awaitQueueRestore() = downloader.awaitQueueRestore()
 
     // For use by DownloadService only
     fun downloaderStart(resetFailed: Boolean = true): Boolean {
@@ -168,7 +174,8 @@ class AnimeDownloadManager(
      */
     suspend fun retryDownload(id: Long) = queueMutations.retry(id)
 
-    fun pauseDownloads() {
+    fun pauseDownloads() = synchronized(queueStartLock) {
+        stopGeneration++
         downloader.pause()
         downloader.stop()
     }
@@ -176,7 +183,8 @@ class AnimeDownloadManager(
     /**
      * Empties the download queue.
      */
-    fun clearQueue() {
+    fun clearQueue() = synchronized(queueStartLock) {
+        stopGeneration++
         downloader.clearQueue()
         downloader.stop()
     }
@@ -192,7 +200,16 @@ class AnimeDownloadManager(
     }
 
     suspend fun startDownloadNow(episodeId: Long) {
-        queueMutations.startDownloadNow(episodeId)
+        queueMutations.startDownloadNow(episodeId, guardedQueueStart())
+    }
+
+    private fun guardedQueueStart(): () -> Unit {
+        val generation = synchronized(queueStartLock) { stopGeneration }
+        return {
+            synchronized(queueStartLock) {
+                if (generation == stopGeneration) startDownloads()
+            }
+        }
     }
 
     suspend fun reorderQueueByEpisodeIds(episodeIds: List<Long>) {
@@ -214,18 +231,23 @@ class AnimeDownloadManager(
         alt: Boolean = false,
         video: Video? = null,
     ) {
+        downloader.queueEpisodes(anime, prepareEpisodes(episodes), autoStart, alt, video)
+    }
+
+    internal suspend fun downloadEpisodesAndAwait(anime: Anime, episodes: List<Episode>): Int {
+        return downloader.queueEpisodesAndAwait(anime, prepareEpisodes(episodes))
+    }
+
+    private fun prepareEpisodes(episodes: List<Episode>): List<Episode> {
         val filteredEpisodes = getEpisodesToDownload(episodes)
-        // Check if we should prompt for battery optimization exemption
         if (filteredEpisodes.size >= 10 && !downloadPreferences.batteryOptimizationPromptShown().get()) {
             checkBatteryOptimization()
         }
-        downloader.queueEpisodes(anime, filteredEpisodes, autoStart, alt, video)
+        return filteredEpisodes
     }
 
     suspend fun addDownloadsToStartByEpisodeIds(episodeIds: List<Long>) {
-        queueMutations.addDownloadsToStartByIds(episodeIds) {
-            if (!AnimeDownloadJob.isRunning(context)) startDownloads()
-        }
+        queueMutations.addDownloadsToStartByIds(episodeIds, guardedQueueStart())
     }
 
     /**
@@ -380,6 +402,7 @@ class AnimeDownloadManager(
     }
 
     private suspend fun removeQueuedAnimeFromQueue(anime: Anime) {
+        awaitQueueRestore()
         val episodeIds = queueState.value
             .filter { it.anime.id == anime.id }
             .map { it.episode.id }

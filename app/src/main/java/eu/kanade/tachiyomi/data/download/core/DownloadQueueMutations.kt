@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.download.core
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -19,17 +20,18 @@ class DownloadQueueMutations<D : Any>(
     private val queueState: StateFlow<List<D>>,
     private val itemId: (D) -> Long,
     private val createFromId: suspend (Long) -> D?,
-    private val moveToFront: (D) -> Unit,
-    private val updateQueue: (List<D>) -> Unit,
-    private val addToStart: (List<D>) -> Unit,
+    private val moveToFront: suspend (Long, D?) -> Boolean,
+    private val updateQueue: suspend (List<Long>) -> Unit,
+    private val addToStart: suspend (List<D>) -> Unit,
     private val removeFromQueueByIds: (List<Long>) -> Unit,
     private val isRunning: () -> Boolean,
     private val pauseDownloader: () -> Unit,
     private val startDownloader: () -> Unit,
     private val stopDownloader: () -> Unit,
     private val startDownloads: () -> Unit,
-    mutationScope: CoroutineScope,
+    private val mutationScope: CoroutineScope,
     private val retryDownload: (D) -> Unit = {},
+    private val awaitQueueRestore: suspend () -> Unit = {},
 ) {
     private val queueActor = DownloadQueueActor(mutationScope)
 
@@ -51,10 +53,11 @@ class DownloadQueueMutations<D : Any>(
      *
      * @param id The download ID to prioritize
      */
-    suspend fun startDownloadNow(id: Long) {
-        queueActor.submit(DownloadQueueCommand.StartNow(id)) {
-            runReducerCommand(DownloadQueueCommand.StartNow(id))
-        }
+    suspend fun startDownloadNow(id: Long, startIfNeeded: (() -> Unit)? = null) {
+        val command = DownloadQueueCommand.StartNow(id)
+        mutationScope.async {
+            queueActor.submit(command) { runReducerCommand(command, startIfNeeded) }
+        }.await()
     }
 
     suspend fun retry(downloadId: Long) {
@@ -86,6 +89,7 @@ class DownloadQueueMutations<D : Any>(
         command: DownloadQueueCommand,
         startIfNeeded: (() -> Unit)? = null,
     ) {
+        awaitQueueRestore()
         val state = DownloadQueueReducerState(
             downloadIds = queueState.value.map(itemId),
             isDownloaderRunning = try {
@@ -102,7 +106,9 @@ class DownloadQueueMutations<D : Any>(
                 continue
             }
             val applied = applyEffect(effect, startIfNeeded)
-            if (!applied && effect is DownloadQueueEffect.MoveToFrontById) {
+            if (!applied &&
+                (effect is DownloadQueueEffect.MoveToFrontById || effect is DownloadQueueEffect.AddToStartByIds)
+            ) {
                 skipStartDownloads = true
             }
         }
@@ -118,15 +124,11 @@ class DownloadQueueMutations<D : Any>(
                     getQueuedDownloadOrNull(effect.downloadId)?.let(retryDownload)
                 }
                 is DownloadQueueEffect.MoveToFrontById -> {
-                    val existing = queueState.value.find { itemId(it) == effect.downloadId }
-                    val toMove = existing ?: createFromId(effect.downloadId) ?: return false
-                    moveToFront(toMove)
+                    val alreadyQueued = getQueuedDownloadOrNull(effect.downloadId) != null
+                    val newDownload = if (alreadyQueued) null else createFromId(effect.downloadId)
+                    return moveToFront(effect.downloadId, newDownload)
                 }
-                is DownloadQueueEffect.ReorderByIds -> {
-                    val currentById = queueState.value.associateBy(itemId)
-                    val ordered = effect.orderedIds.mapNotNull { currentById[it] }
-                    updateQueue(ordered)
-                }
+                is DownloadQueueEffect.ReorderByIds -> updateQueue(effect.orderedIds)
                 is DownloadQueueEffect.AddToStartByIds -> {
                     val currentById = queueState.value.associateBy(itemId)
                     val toAdd = effect.downloadIds.mapNotNull { id ->
@@ -135,7 +137,6 @@ class DownloadQueueMutations<D : Any>(
                     if (toAdd.isNotEmpty()) {
                         addToStart(toAdd)
                     }
-                    startIfNeeded?.invoke() ?: startDownloads()
                 }
                 is DownloadQueueEffect.RemoveByItemIds -> {
                     removeFromQueueByIds(effect.itemIds)
@@ -143,9 +144,12 @@ class DownloadQueueMutations<D : Any>(
                 DownloadQueueEffect.PauseDownloader -> pauseDownloader()
                 DownloadQueueEffect.StartDownloader -> startDownloader()
                 DownloadQueueEffect.StopDownloader -> stopDownloader()
-                DownloadQueueEffect.StartDownloads -> startDownloads()
+                DownloadQueueEffect.StartDownloads -> startIfNeeded?.invoke() ?: startDownloads()
             }
             return true
+        } catch (e: DownloadQueueWriteException) {
+            logcat(LogPriority.ERROR, e) { "Could not persist queue effect: $effect" }
+            return false
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "Queue effect failed: $effect (${e.message})" }
             throw e

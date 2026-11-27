@@ -27,7 +27,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -86,6 +90,15 @@ class AnimeExtensionManager(
 
     private val installedExtensionsMapFlow = MutableStateFlow(emptyMap<String, AnimeExtension.Installed>())
     val installedExtensionsFlow = installedExtensionsMapFlow.mapExtensions(scope)
+
+    internal val sourceExtensionsFlow = flow {
+        isInitialized.first { it }
+        emitAll(
+            installedExtensionsFlow.dropWhile { extensions ->
+                extensions != installedExtensionsMapFlow.value.values.toList()
+            },
+        )
+    }
 
     private val availableExtensionsMapFlow = MutableStateFlow(emptyMap<String, AnimeExtension.Available>())
     val availableExtensionsFlow = availableExtensionsMapFlow.mapExtensions(scope)

@@ -1,10 +1,22 @@
 package eu.kanade.tachiyomi.data.download.core
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -12,11 +24,19 @@ class DownloadQueueOperationsTest {
 
     private enum class Status { QUEUE, DOWNLOADING, NOT_DOWNLOADED }
 
-    private data class TestDownload(val id: Long, var status: Status = Status.NOT_DOWNLOADED)
+    private data class TestDownload(
+        val id: Long,
+        var status: Status = Status.NOT_DOWNLOADED,
+        var blocked: Boolean = false,
+    )
 
-    private class FakeStore : DownloadQueueStore<TestDownload> {
+    private class FakeStore(
+        private val beforeReplace: suspend () -> Unit = {},
+    ) : DownloadQueueStore<TestDownload> {
         val items = mutableListOf<TestDownload>()
         override fun addAll(downloads: List<TestDownload>) {
+            val updatedIds = downloads.map { it.id }.toSet()
+            items.removeAll { it.id in updatedIds }
             items.addAll(downloads)
         }
         override fun remove(download: TestDownload) {
@@ -28,18 +48,32 @@ class DownloadQueueOperationsTest {
         override fun clear() {
             items.clear()
         }
+        override suspend fun replaceAll(downloads: List<TestDownload>) {
+            beforeReplace()
+            clear()
+            addAll(downloads)
+        }
     }
 
     private fun createOps(
         queueState: MutableStateFlow<List<TestDownload>> = MutableStateFlow(emptyList()),
         store: FakeStore = FakeStore(),
+        restorePending: Boolean = false,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ): Pair<DownloadQueueOperations<TestDownload>, FakeStore> {
         val ops = DownloadQueueOperations(
             _queueState = queueState,
             store = store,
+            restorePending = restorePending,
+            scope = scope,
+            ioDispatcher = ioDispatcher,
             itemId = { it.id },
-            isActive = { it.status == Status.QUEUE || it.status == Status.DOWNLOADING },
-            markQueued = { it.status = Status.QUEUE },
+            isDownloading = { it.status == Status.DOWNLOADING },
+            markQueued = {
+                it.status = Status.QUEUE
+                it.blocked = false
+            },
             markInactive = {
                 if (it.status == Status.QUEUE ||
                     it.status == Status.DOWNLOADING
@@ -186,11 +220,11 @@ class DownloadQueueOperationsTest {
     // region addToStart
 
     @Test
-    fun `addToStart prepends without duplicating existing items`() {
-        val d1 = TestDownload(1, Status.QUEUE)
+    fun `addToStart prepends without duplicating existing items`() = runTest {
+        val d1 = TestDownload(1, Status.DOWNLOADING)
         val d2 = TestDownload(2, Status.QUEUE)
         val queueState = MutableStateFlow(listOf(d1))
-        val (ops) = createOps(queueState = queueState)
+        val (ops, store) = createOps(queueState = queueState)
 
         ops.addToStart(listOf(d1, d2))
 
@@ -198,10 +232,12 @@ class DownloadQueueOperationsTest {
         assertEquals(2, queueState.value.size)
         assertEquals(2L, queueState.value[0].id)
         assertEquals(1L, queueState.value[1].id)
+        assertEquals(listOf(2L, 1L), store.items.map { it.id })
+        assertEquals(Status.QUEUE, d1.status)
     }
 
     @Test
-    fun `addToStart marks new items as QUEUE`() {
+    fun `addToStart marks new items as QUEUE`() = runTest {
         val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
         val (ops) = createOps(queueState = queueState)
         val download = TestDownload(1, Status.NOT_DOWNLOADED)
@@ -216,32 +252,242 @@ class DownloadQueueOperationsTest {
     // region moveToFront
 
     @Test
-    fun `moveToFront moves existing item to position 0`() {
-        val d1 = TestDownload(1, Status.QUEUE)
-        val d2 = TestDownload(2, Status.QUEUE)
-        val d3 = TestDownload(3, Status.QUEUE)
-        val queueState = MutableStateFlow(listOf(d1, d2, d3))
-        val (ops) = createOps(queueState = queueState)
+    fun `moveToFront persists the same order the queue displays`() = runTest {
+        val d1 = TestDownload(1)
+        val d2 = TestDownload(2)
+        val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops, store) = createOps(queueState = queueState)
+        ops.addAll(listOf(d1, d2))
 
-        ops.moveToFront(d3)
+        ops.moveToFront(d2.id)
 
-        assertEquals(3L, queueState.value[0].id)
-        assertEquals(1L, queueState.value[1].id)
-        assertEquals(2L, queueState.value[2].id)
+        assertEquals(listOf(2L, 1L), queueState.value.map { it.id })
+        assertEquals(queueState.value.map { it.id }, store.items.map { it.id })
     }
 
     @Test
-    fun `moveToFront marks item as QUEUE`() {
-        val d1 = TestDownload(1, Status.NOT_DOWNLOADED)
+    fun `moveToFront clears a queued item's blocker`() = runTest {
+        val d1 = TestDownload(1, Status.QUEUE, blocked = true)
         val queueState = MutableStateFlow(listOf(d1))
         val (ops) = createOps(queueState = queueState)
 
-        ops.moveToFront(d1)
+        ops.moveToFront(d1.id)
 
-        assertEquals(Status.QUEUE, queueState.value[0].status)
+        assertFalse(queueState.value[0].blocked)
     }
 
     // endregion
+
+    @Test
+    fun `startup mutations replay in submission order before download consumers proceed`() = runTest {
+        val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops, store) = createOps(queueState = queueState, restorePending = true)
+        val restored = TestDownload(1)
+        store.addAll(listOf(restored))
+        val hydration = CompletableDeferred<List<TestDownload>>()
+        val restorer = async(start = CoroutineStart.UNDISPATCHED) { ops.restore { hydration.await() } }
+
+        val wasEmptyWhenEnqueued = CompletableDeferred<Boolean>()
+        ops.enqueue({ listOf(TestDownload(2)) }) { wasEmpty -> wasEmptyWhenEnqueued.complete(wasEmpty) }
+        ops.removeIf { it.id == 2L }
+        ops.addAll(listOf(TestDownload(3)))
+        val consumer = async(start = CoroutineStart.UNDISPATCHED) {
+            ops.awaitRestore()
+            queueState.value.map { it.id }
+        }
+
+        assertFalse(consumer.isCompleted)
+        assertEquals(listOf(1L), store.items.map { it.id })
+        hydration.complete(listOf(restored))
+        restorer.await()
+        assertFalse(wasEmptyWhenEnqueued.await())
+        assertEquals(listOf(1L, 3L), consumer.await())
+        assertEquals(listOf(1L, 3L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `priority stays unpublished until its commit and queued mutations run afterward`() = runTest {
+        val commitStarted = CompletableDeferred<Unit>()
+        val allowCommit = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            commitStarted.complete(Unit)
+            allowCommit.await()
+        }
+        val queueState = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queueState,
+            store = store,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        ops.addAll(listOf(TestDownload(1), TestDownload(2)))
+        val prioritize = async { ops.moveToFront(2) }
+        commitStarted.await()
+
+        val enqueueFinished = CompletableDeferred<Unit>()
+        ops.enqueue({ listOf(TestDownload(3)) }) { enqueueFinished.complete(Unit) }
+        assertFalse(enqueueFinished.isCompleted)
+        assertEquals(listOf(1L, 2L), queueState.value.map { it.id })
+        assertEquals(listOf(1L, 2L), store.items.map { it.id })
+
+        prioritize.cancelAndJoin()
+        allowCommit.complete(Unit)
+        enqueueFinished.await()
+        assertEquals(listOf(2L, 1L, 3L), queueState.value.map { it.id })
+        assertEquals(listOf(2L, 1L, 3L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `reorder keeps intervening enqueue and completion and preserves running status`() = runTest {
+        val priorityCommit = CompletableDeferred<Unit>()
+        val allowCommit = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            priorityCommit.complete(Unit)
+            allowCommit.await()
+        }
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queue,
+            store = store,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val active = TestDownload(1)
+        ops.addAll(listOf(active, TestDownload(2), TestDownload(3)))
+        active.status = Status.DOWNLOADING
+        val priority = async { ops.moveToFront(3) }
+        priorityCommit.await()
+
+        ops.removeIf { it.id == 2L }
+        ops.addAll(listOf(TestDownload(4)))
+        val reorder = async(start = CoroutineStart.UNDISPATCHED) { ops.reorder(listOf(1L, 2L, 3L)) }
+        val stalePriority = async(start = CoroutineStart.UNDISPATCHED) { ops.moveToFront(2) }
+        allowCommit.complete(Unit)
+
+        priority.await()
+        reorder.await()
+        assertFalse(stalePriority.await())
+        assertEquals(listOf(1L, 3L, 4L), queue.value.map { it.id })
+        assertEquals(listOf(1L, 3L, 4L), store.items.map { it.id })
+        assertEquals(Status.DOWNLOADING, active.status)
+    }
+
+    @Test
+    fun `awaitable enqueue finishes after startup and writes in submission order`() = runTest {
+        val allowCommit = CompletableDeferred<Unit>()
+        val store = FakeStore { allowCommit.await() }
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queue,
+            store = store,
+            restorePending = true,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val hydration = CompletableDeferred<List<TestDownload>>()
+        val restoring = async(start = CoroutineStart.UNDISPATCHED) { ops.restore { hydration.await() } }
+
+        val enqueued = async(start = CoroutineStart.UNDISPATCHED) {
+            ops.enqueueDurably({ listOf(TestDownload(1)) }) {}
+        }
+        ops.addAll(listOf(TestDownload(2)))
+        assertFalse(enqueued.isCompleted)
+
+        hydration.complete(emptyList())
+        restoring.await()
+        assertFalse(enqueued.isCompleted)
+        assertTrue(queue.value.isEmpty())
+
+        allowCommit.complete(Unit)
+        assertEquals(1, enqueued.await())
+        ops.awaitRestore()
+        assertEquals(listOf(1L, 2L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `failed durable priority releases a pending clear without publishing the move`() = runTest {
+        val commitStarted = CompletableDeferred<Unit>()
+        val allowFailure = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            commitStarted.complete(Unit)
+            allowFailure.await()
+            throw DownloadQueueWriteException()
+        }
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops) = createOps(
+            queueState = queue,
+            store = store,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        ops.addAll(listOf(TestDownload(1), TestDownload(2)))
+        val priority = async { runCatching { ops.moveToFront(2L) }.exceptionOrNull() }
+        commitStarted.await()
+        val clearedIds = CompletableDeferred<List<Long>>()
+        ops.internalClear { clearedIds.complete(it.map { download -> download.id }) }
+        allowFailure.complete(Unit)
+
+        assertInstanceOf(DownloadQueueWriteException::class.java, priority.await())
+        assertEquals(listOf(1L, 2L), clearedIds.await())
+        assertTrue(queue.value.isEmpty())
+        assertTrue(store.items.isEmpty())
+    }
+
+    @Test
+    fun `cancelled queue preparation propagates cancellation and releases the next mutation`() = runTest {
+        val queue = MutableStateFlow<List<TestDownload>>(emptyList())
+        val (ops, store) = createOps(
+            queueState = queue,
+            scope = this,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val cancellation = CancellationException("Queue preparation cancelled")
+
+        val failure = runCatching {
+            ops.enqueue(
+                prepare = {
+                    ops.addAll(listOf(TestDownload(2)))
+                    throw cancellation
+                },
+                onAdded = {},
+            )
+        }.exceptionOrNull()
+
+        assertEquals(cancellation, failure)
+        testScheduler.runCurrent()
+        assertEquals(listOf(2L), queue.value.map { it.id })
+        assertEquals(listOf(2L), store.items.map { it.id })
+    }
+
+    @Test
+    fun `cancelling the queue owner releases external durable waiters`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val owner = CoroutineScope(SupervisorJob() + dispatcher)
+        val commitStarted = CompletableDeferred<Unit>()
+        val store = FakeStore {
+            commitStarted.complete(Unit)
+            CompletableDeferred<Unit>().await()
+        }
+        val (ops) = createOps(store = store, scope = owner, ioDispatcher = dispatcher)
+        ops.addAll(listOf(TestDownload(1), TestDownload(2)))
+
+        val first = async { runCatching { ops.moveToFront(2) }.exceptionOrNull() }
+        commitStarted.await()
+        val second = async(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { ops.moveToFront(1) }.exceptionOrNull()
+        }
+
+        try {
+            owner.cancel()
+            testScheduler.runCurrent()
+
+            assertInstanceOf(CancellationException::class.java, first.await())
+            assertTrue(second.isCompleted, "The mutation queued behind the cancelled write should also complete")
+            assertInstanceOf(CancellationException::class.java, second.await())
+        } finally {
+            second.cancel()
+        }
+    }
 
     // region concurrency
 

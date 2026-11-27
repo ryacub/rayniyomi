@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.download.manga
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import eu.kanade.tachiyomi.source.online.HttpSource
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -145,8 +146,9 @@ class MangaDownloadManagerTest {
         val allowRemove = CompletableDeferred<Unit>()
 
         every { mockDownloader.queueState } returns queueState
-        every { mockDownloader.updateQueue(any()) } answers {
-            queueState.value = firstArg()
+        coEvery { mockDownloader.updateQueue(any()) } answers {
+            val current = queueState.value.associateBy { it.chapter.id }
+            queueState.value = firstArg<List<Long>>().mapNotNull(current::get)
         }
         every { mockDownloader.removeFromQueueByChapterIds(any()) } answers {
             removeEntered.complete(Unit)

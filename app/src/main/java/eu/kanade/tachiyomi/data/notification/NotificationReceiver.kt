@@ -474,9 +474,9 @@ class NotificationReceiver : BroadcastReceiver() {
                     val manga = getManga.await(mangaId)
                     if (manga != null) {
                         val chapters = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
-                        mangaDownloadManager.downloadChapters(manga, chapters)
+                        val queued = mangaDownloadManager.downloadChaptersAndAwait(manga, chapters)
                         logcat(LogPriority.DEBUG) {
-                            "NotificationReceiver: downloadChapters enqueued ${chapters.size} chapters"
+                            "NotificationReceiver: downloadChapters enqueued $queued chapters"
                         }
                     } else {
                         logcat(LogPriority.WARN) { "NotificationReceiver: downloadChapters failed - manga not found" }
@@ -508,9 +508,9 @@ class NotificationReceiver : BroadcastReceiver() {
                     val anime = getAnime.await(animeId)
                     if (anime != null) {
                         val episodes = episodeUrls.mapNotNull { getEpisode.await(it, animeId) }
-                        animeDownloadManager.downloadEpisodes(anime, episodes)
+                        val queued = animeDownloadManager.downloadEpisodesAndAwait(anime, episodes)
                         logcat(LogPriority.DEBUG) {
-                            "NotificationReceiver: downloadEpisodes enqueued ${episodes.size} episodes"
+                            "NotificationReceiver: downloadEpisodes enqueued $queued episodes"
                         }
                     } else {
                         logcat(LogPriority.WARN) { "NotificationReceiver: downloadEpisodes failed - anime not found" }

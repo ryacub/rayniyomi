@@ -50,6 +50,8 @@ class AnimeLibraryUpdateNotifier(
     private val securityPreferences: SecurityPreferences = appGraph.securityPreferences,
     private val sourceManager: AnimeSourceManager = appGraph.animeSourceManager,
     private val notificationMode: LibraryUpdateNotificationMode = LibraryUpdateNotificationMode.Standard,
+    internal val progressNotificationId: Int = Notifications.ID_ANIME_LIBRARY_PROGRESS,
+    cancelProgress: () -> PendingIntent = { NotificationReceiver.cancelAnimelibUpdatePendingBroadcast(context) },
 ) {
 
     private val percentFormatter = NumberFormat.getPercentInstance().apply {
@@ -58,7 +60,7 @@ class AnimeLibraryUpdateNotifier(
     }
 
     private val liveUpdateSession = lazy {
-        LiveUpdateNotificationSession(context, Notifications.ID_LIBRARY_PROGRESS)
+        LiveUpdateNotificationSession(context, progressNotificationId)
     }
 
     fun onUpdateStarted() {
@@ -68,9 +70,7 @@ class AnimeLibraryUpdateNotifier(
     /**
      * Pending intent of action that cancels the library update
      */
-    private val cancelIntent by lazy {
-        NotificationReceiver.cancelAnimelibUpdatePendingBroadcast(context)
-    }
+    private val cancelIntent by lazy(cancelProgress)
 
     /**
      * Cached progress notification to avoid creating a lot.
@@ -121,7 +121,7 @@ class AnimeLibraryUpdateNotifier(
         if (notificationMode == LibraryUpdateNotificationMode.Live) {
             liveUpdateSession.value.show(progressNotificationBuilder)
         } else {
-            context.notify(Notifications.ID_LIBRARY_PROGRESS, progressNotificationBuilder.build())
+            context.notify(progressNotificationId, progressNotificationBuilder.build())
         }
     }
 
@@ -334,7 +334,7 @@ class AnimeLibraryUpdateNotifier(
      */
     fun cancelProgressNotification() {
         if (liveUpdateSession.isInitialized()) liveUpdateSession.value.finish()
-        context.cancelNotification(Notifications.ID_LIBRARY_PROGRESS)
+        context.cancelNotification(progressNotificationId)
     }
 
     private suspend fun getAnimeIcon(anime: Anime): Bitmap? {

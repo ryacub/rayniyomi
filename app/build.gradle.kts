@@ -20,7 +20,7 @@ plugins {
     alias(libs.plugins.roborazzi) apply false
 }
 
-val appVersionCode = 638
+val appVersionCode = 640
 val lightNovelExpectedPluginApiVersion = 1
 val previewScreenshots = providers.gradleProperty("rayniyomi.previewScreenshots").orNull == "true"
 
@@ -43,7 +43,7 @@ android {
         applicationId = "xyz.rayniyomi"
 
         versionCode = appVersionCode
-        versionName = "0.18.1.507"
+        versionName = "0.18.1.509"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
@@ -239,7 +239,7 @@ dependencies {
     implementation(compose.animation)
     implementation(compose.animation.graphics)
     debugImplementation(compose.ui.tooling)
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(compose.ui.test.manifest)
     implementation(compose.ui.tooling.preview)
     implementation(compose.ui.util)
 
@@ -351,7 +351,7 @@ dependencies {
     testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.8.7")
     testImplementation(libs.sqldelight.sqlite.driver)
     androidTestImplementation(platform(compose.bom))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(compose.ui.test.junit4)
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation(libs.androidx.webkit)
     androidTestImplementation(libs.libarchive)

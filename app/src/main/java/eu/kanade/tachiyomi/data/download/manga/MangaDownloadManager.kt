@@ -117,6 +117,9 @@ class MangaDownloadManager(
      */
     private val queueMutex = Mutex()
 
+    private val queueStartLock = Any()
+    private var stopGeneration = 0L
+
     private val queueMutations: DownloadQueueMutations<MangaDownload> by lazy {
         DownloadQueueMutations(
             queueState = downloader.queueState,
@@ -132,6 +135,7 @@ class MangaDownloadManager(
             stopDownloader = { downloader.stop() },
             startDownloads = ::startDownloads,
             mutationScope = scope,
+            awaitQueueRestore = downloader::awaitQueueRestore,
             retryDownload = { download ->
                 if (downloader.retryFailed(download) && !downloader.isRunning) {
                     MangaDownloadJob.start(context, resetFailed = false)
@@ -145,6 +149,8 @@ class MangaDownloadManager(
 
     val queueState
         get() = downloader.queueState
+
+    internal suspend fun awaitQueueRestore() = downloader.awaitQueueRestore()
 
     // For use by DownloadService only
     fun downloaderStart(resetFailed: Boolean = true): Boolean {
@@ -186,7 +192,8 @@ class MangaDownloadManager(
      */
     suspend fun retryDownload(id: Long) = queueMutations.retry(id)
 
-    fun pauseDownloads() {
+    fun pauseDownloads() = synchronized(queueStartLock) {
+        stopGeneration++
         downloader.pause()
         downloader.stop()
     }
@@ -194,7 +201,8 @@ class MangaDownloadManager(
     /**
      * Empties the download queue.
      */
-    fun clearQueue() {
+    fun clearQueue() = synchronized(queueStartLock) {
+        stopGeneration++
         downloader.clearQueue()
         downloader.stop()
     }
@@ -210,7 +218,16 @@ class MangaDownloadManager(
     }
 
     suspend fun startDownloadNow(chapterId: Long) {
-        queueMutations.startDownloadNow(chapterId)
+        queueMutations.startDownloadNow(chapterId, guardedQueueStart())
+    }
+
+    private fun guardedQueueStart(): () -> Unit {
+        val generation = synchronized(queueStartLock) { stopGeneration }
+        return {
+            synchronized(queueStartLock) {
+                if (generation == stopGeneration) startDownloads()
+            }
+        }
     }
 
     suspend fun reorderQueueByChapterIds(chapterIds: List<Long>) {
@@ -229,6 +246,11 @@ class MangaDownloadManager(
         downloader.queueChapters(manga, chapters, autoStart)
     }
 
+    internal suspend fun downloadChaptersAndAwait(manga: Manga, chapters: List<Chapter>): Int {
+        maybeCheckBatteryOptimizationPrompt(chapters)
+        return downloader.queueChaptersAndAwait(manga, chapters)
+    }
+
     private fun maybeCheckBatteryOptimizationPrompt(chapters: List<Chapter>) {
         if (chapters.size < 10) return
 
@@ -242,9 +264,7 @@ class MangaDownloadManager(
     }
 
     suspend fun addDownloadsToStartByChapterIds(chapterIds: List<Long>) {
-        queueMutations.addDownloadsToStartByIds(chapterIds) {
-            if (!MangaDownloadJob.isRunning(context)) startDownloads()
-        }
+        queueMutations.addDownloadsToStartByIds(chapterIds, guardedQueueStart())
     }
 
     /**
@@ -437,6 +457,7 @@ class MangaDownloadManager(
     }
 
     private suspend fun removeQueuedMangaFromQueue(manga: Manga) {
+        awaitQueueRestore()
         val chapterIds = queueState.value
             .filter { it.manga.id == manga.id }
             .map { it.chapter.id }

@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import androidx.work.WorkQuery
 import androidx.work.WorkerParameters
 import eu.kanade.domain.source.manga.interactor.UpdateMangaFromRemote
@@ -39,7 +40,11 @@ class MangaMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     private val getLibraryManga: GetLibraryManga = appGraph.getLibraryManga
     private val updateMangaFromRemote: UpdateMangaFromRemote = appGraph.updateMangaFromRemote
 
-    private val notifier = MangaLibraryUpdateNotifier(context)
+    private val notifier = MangaLibraryUpdateNotifier(
+        context,
+        progressNotificationId = Notifications.ID_MANGA_METADATA_PROGRESS,
+        cancelProgress = { WorkManager.getInstance(context).createCancelPendingIntent(id) },
+    )
 
     private var mangaToUpdate: List<LibraryManga> = mutableListOf()
 
@@ -71,9 +76,8 @@ class MangaMetadataUpdateJob(private val context: Context, workerParams: WorkerP
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notifier = MangaLibraryUpdateNotifier(context)
         return ForegroundInfo(
-            Notifications.ID_LIBRARY_PROGRESS,
+            notifier.progressNotificationId,
             notifier.progressNotificationBuilder.build(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC

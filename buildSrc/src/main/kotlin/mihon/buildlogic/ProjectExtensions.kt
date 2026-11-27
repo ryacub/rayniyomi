@@ -25,7 +25,9 @@ val Project.libs get() = the<LibrariesForLibs>()
 
 internal fun Project.configureAndroid(commonExtension: CommonExtension) {
     commonExtension.apply {
-        compileSdk = AndroidConfig.COMPILE_SDK
+        compileSdk {
+            version = release(AndroidConfig.COMPILE_SDK) { minorApiLevel = AndroidConfig.COMPILE_SDK_MINOR }
+        }
         buildToolsVersion = AndroidConfig.BUILD_TOOLS
         ndkVersion = AndroidConfig.NDK
 

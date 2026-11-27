@@ -116,7 +116,7 @@ class MangaChapterListItemMapperTest {
             queueState = queueState,
             itemId = { it.chapter.id },
             createFromId = { null },
-            moveToFront = {},
+            moveToFront = { _, _ -> false },
             updateQueue = {},
             addToStart = {},
             removeFromQueueByIds = {},
