@@ -998,6 +998,7 @@
     <string name="recovery_action_open">Open</string>
     <string name="recovery_action_retry_failed">Retry failed</string>
     <string name="recovery_action_review_unresolved">Review unresolved</string>
+    <string name="recovery_action_review_failed">Review failed</string>
     <string name="recovery_action_start_another">Start another recovery</string>
     <string name="recovery_action_search_remaining">Search remaining titles (%d)</string>
     <string name="recovery_action_migrate_alone">Migrate on its own</string>

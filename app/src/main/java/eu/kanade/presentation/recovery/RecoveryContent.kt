@@ -630,13 +630,22 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
         item {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (summary.failed > 0) {
-                    OutlinedButton(onClick = actions.retryFailed) {
+                    OutlinedButton(onClick = actions.retryFailed, enabled = state.busy == null) {
                         Text(stringResource(MR.strings.recovery_action_retry_failed))
                     }
                 }
-                if (summary.unresolved + summary.unsupported > 0) {
-                    OutlinedButton(onClick = actions.reviewUnresolved) {
-                        Text(stringResource(MR.strings.recovery_action_review_unresolved))
+                if (summary.needsAttention > 0) {
+                    OutlinedButton(onClick = actions.reviewUnresolved, enabled = state.busy == null) {
+                        val unresolved = summary.unresolved + summary.unsupported > 0
+                        Text(
+                            stringResource(
+                                if (unresolved) {
+                                    MR.strings.recovery_action_review_unresolved
+                                } else {
+                                    MR.strings.recovery_action_review_failed
+                                },
+                            ),
+                        )
                     }
                 }
             }
