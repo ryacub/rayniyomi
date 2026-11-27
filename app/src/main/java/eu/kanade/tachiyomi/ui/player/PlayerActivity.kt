@@ -237,6 +237,7 @@ class PlayerActivity : BaseActivity() {
             Notifications.ID_NEW_EPISODES,
         )
 
+        viewModel.cancelEpisodeSwitch()
         viewModel.saveCurrentEpisodeWatchingProgress()
 
         lifecycleScope.launchNonCancellable {

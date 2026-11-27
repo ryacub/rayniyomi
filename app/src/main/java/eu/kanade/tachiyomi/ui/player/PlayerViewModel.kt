@@ -979,13 +979,18 @@ class PlayerViewModel internal constructor(
 
     private var episodeSwitchJob: Job? = null
 
+    internal fun cancelEpisodeSwitch() {
+        episodeSwitchJob?.cancel()
+        episodeSwitchJob = null
+    }
+
     fun changeEpisode(
         episodeId: Long?,
         autoPlay: Boolean,
         isInPictureInPictureMode: Boolean,
         onError: (Throwable) -> Unit,
     ) {
-        episodeSwitchJob?.cancel()
+        cancelEpisodeSwitch()
         sheetShown.update { Sheets.None }
         panelShown.update { Panels.None }
         saveCurrentEpisodeWatchingProgress()
