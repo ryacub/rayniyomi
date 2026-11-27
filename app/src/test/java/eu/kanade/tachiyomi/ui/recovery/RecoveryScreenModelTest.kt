@@ -576,22 +576,24 @@ class RecoveryScreenModelTest {
         return listOf(a, b, c)
     }
 
-    private fun failingOnce(
+    private fun failingB(
         db: MangaRecoveryDb,
         applied: MutableList<RecoveryApplyRequest>,
+        failures: Int = 1,
         retryGate: CompletableDeferred<Unit>? = null,
     ): RecoveryApplier {
         val real = MangaRecoveryApplierImpl(db.handler)
         val repository = MangaRecoveryRepositoryImpl(db.handler)
-        var failed = false
+        var attempts = 0
         return RecoveryApplier { request ->
             applied += request
-            if (request.originalId == 2L && !failed) {
-                failed = true
+            if (request.originalId != 2L) return@RecoveryApplier real.apply(request)
+            attempts++
+            if (attempts == 2) retryGate?.await()
+            if (attempts <= failures) {
                 repository.failRun(request.entryId, request.runToken, "boom")
                 RecoveryApplyResult.Failed("boom")
             } else {
-                if (request.originalId == 2L) retryGate?.await()
                 real.apply(request)
             }
         }
@@ -606,7 +608,7 @@ class RecoveryScreenModelTest {
                 db,
                 listOf(original(1), original(2), original(3)),
                 results("/m/1", "/m/2", "/m/3"),
-                applier = failingOnce(db, applied),
+                applier = failingB(db, applied),
             )
             val model = model(backend)
             val (a, b, c) = model.approveAbSkipC()
@@ -628,6 +630,7 @@ class RecoveryScreenModelTest {
             val final = model.awaitState { it.step == RecoveryScreenModel.Step.Result && it.busy == null }
 
             assertEquals(RecoveryState.COMPLETED, final.entries.single { it.id == b.id }.state)
+            assertEquals("/m/3", applied.last { it.originalId == 2L }.destination.url)
             assertEquals(1, applied.count { it.originalId == 1L })
             assertEquals(completedA.resultId, final.entries.single { it.id == a.id }.resultId)
             assertEquals(RecoveryState.SKIPPED, final.entries.single { it.id == c.id }.state)
@@ -635,21 +638,20 @@ class RecoveryScreenModelTest {
     }
 
     @Test
-    fun `review stays closed to work while retry runs and opens with settled rows after`() = runTest {
+    fun `a retry that fails again keeps the row failed and review opens on the same session`() = runTest {
         withDb { db ->
             db.seed(1, 2, 3)
             val retryGate = CompletableDeferred<Unit>()
-            val applied = mutableListOf<RecoveryApplyRequest>()
             val backend = FakeBackend(
                 db,
                 listOf(original(1), original(2), original(3)),
                 results("/m/1", "/m/2", "/m/3"),
-                applier = failingOnce(db, applied, retryGate),
+                applier = failingB(db, mutableListOf(), failures = 2, retryGate = retryGate),
             )
             val model = model(backend)
             val (_, b, _) = model.approveAbSkipC()
             model.applySelected()
-            model.awaitState { it.step == RecoveryScreenModel.Step.Result && it.busy == null }
+            val first = model.awaitState { it.step == RecoveryScreenModel.Step.Result && it.busy == null }
 
             model.retryFailed()
             val held = model.awaitState { it.busy == RecoveryScreenModel.Busy.Applying }
@@ -657,10 +659,38 @@ class RecoveryScreenModelTest {
             retryGate.complete(Unit)
 
             val settled = model.awaitState { it.busy == null && it.step == RecoveryScreenModel.Step.Result }
-            assertEquals(RecoveryState.COMPLETED, settled.entries.single { it.id == b.id }.state)
+            assertEquals(RecoveryState.FAILED, settled.entries.single { it.id == b.id }.state)
+            assertEquals(1, settled.summary.failed)
+
             model.reviewUnresolved()
             val review = model.awaitState { it.step == RecoveryScreenModel.Step.Review }
-            assertEquals(settled.entries, review.entries)
+            assertEquals(first.sessionId, review.sessionId)
+            assertEquals(RecoveryState.FAILED, review.entries.single { it.id == b.id }.state)
+        }
+    }
+
+    @Test
+    fun `a retry that completes the row leaves nothing needing attention`() = runTest {
+        withDb { db ->
+            db.seed(1, 2, 3)
+            val backend = FakeBackend(
+                db,
+                listOf(original(1), original(2), original(3)),
+                results("/m/1", "/m/2", "/m/3"),
+                applier = failingB(db, mutableListOf()),
+            )
+            val model = model(backend)
+            val (_, b, _) = model.approveAbSkipC()
+            model.applySelected()
+            model.awaitState { it.step == RecoveryScreenModel.Step.Result && it.busy == null }
+
+            model.retryFailed()
+            val settled = model.awaitState {
+                it.busy == null && it.step == RecoveryScreenModel.Step.Result &&
+                    it.entries.single { e -> e.id == b.id }.state == RecoveryState.COMPLETED
+            }
+
+            assertEquals(0, settled.summary.needsAttention)
         }
     }
 }

@@ -83,6 +83,8 @@ class RecoveryResultAndroidTest {
         show(Step.Result, listOf(entry(1, RecoveryState.FAILED), entry(2, RecoveryState.NEEDS_REVIEW)))
 
         composeRule.onNodeWithText(text(MR.strings.recovery_action_review_unresolved)).assertIsEnabled()
+        composeRule.onNodeWithText(text(MR.strings.recovery_action_retry_failed)).assertIsEnabled()
+        composeRule.onNodeWithText(text(MR.strings.recovery_action_review_failed)).assertDoesNotExist()
     }
 
     @Test
@@ -121,6 +123,15 @@ class RecoveryResultAndroidTest {
         show(Step.Review, listOf(entry(2, RecoveryState.FAILED, candidates = listOf(candidate))))
 
         composeRule.onNodeWithText("Candidate match", substring = true).assertExists()
+        composeRule.onNodeWithText(text(MR.strings.recovery_action_search_manually)).assertExists()
+        composeRule.onNodeWithText(text(MR.strings.recovery_action_change_match)).assertDoesNotExist()
+    }
+
+    @Test
+    fun failedSearchRowOffersManualSearchWithoutChangeMatch() {
+        val searchFailed = entry(2, RecoveryState.FAILED).copy(searchErrors = mapOf(20L to "timeout"))
+        show(Step.Review, listOf(searchFailed))
+
         composeRule.onNodeWithText(text(MR.strings.recovery_action_search_manually)).assertExists()
         composeRule.onNodeWithText(text(MR.strings.recovery_action_change_match)).assertDoesNotExist()
     }
