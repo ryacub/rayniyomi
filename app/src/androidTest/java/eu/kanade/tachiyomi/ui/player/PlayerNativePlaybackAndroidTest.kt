@@ -267,8 +267,19 @@ class PlayerNativePlaybackAndroidTest {
             assertFalse(player.isLoadingEpisode.value)
             assertEquals(episodeA.id, player.currentEpisode.value?.id)
             player.updatePlayBackPos(5f)
+            player.onSaveInstanceStateNonConfigurationChange()
         }
-        assertEquals(episodeB.lastSecondSeen, appGraph.episodeRepository.getEpisodeById(episodeB.id)?.lastSecondSeen)
+        val savedEpisodes = withTimeout(LOAD_TIMEOUT_MS) {
+            appGraph.episodeRepository.getEpisodeByAnimeIdAsFlow(episodeA.animeId)
+                .first { episodes -> episodes.any { it.id == episodeA.id && it.lastSecondSeen == 5_000L } }
+        }
+        val savedA = savedEpisodes.single { it.id == episodeA.id }
+        val savedB = savedEpisodes.single { it.id == episodeB.id }
+        assertEquals(episodeB.lastSecondSeen, savedB.lastSecondSeen)
+        Log.i(
+            TAG,
+            "After failed switch, episode ${savedA.id}: ${savedA.lastSecondSeen} ms, episode ${savedB.id}: ${savedB.lastSecondSeen} ms",
+        )
 
         switchHosters = { listOf(Hoster(hosterName = "B", videoList = listOf(video(mediaB)))) }
         switchEpisode(player, episodeB, errors)
@@ -331,6 +342,7 @@ class PlayerNativePlaybackAndroidTest {
             override suspend fun getHosterList(episode: SEpisode) = switchHosters(episode)
         }
         val field = manager.javaClass.getDeclaredField("sourcesMapFlow").apply { isAccessible = true }
+
         @Suppress("UNCHECKED_CAST")
         val sources = field.get(manager) as MutableStateFlow<ConcurrentHashMap<Long, AnimeSource>>
         val registeredSources = sources.value
