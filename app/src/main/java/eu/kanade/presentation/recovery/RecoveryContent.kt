@@ -635,17 +635,13 @@ private fun ResultStep(state: RecoveryScreenModel.State, contentPadding: Padding
                     }
                 }
                 if (summary.needsAttention > 0) {
+                    val reviewLabel = if (summary.unresolved + summary.unsupported > 0) {
+                        MR.strings.recovery_action_review_unresolved
+                    } else {
+                        MR.strings.recovery_action_review_failed
+                    }
                     OutlinedButton(onClick = actions.reviewUnresolved, enabled = state.busy == null) {
-                        val unresolved = summary.unresolved + summary.unsupported > 0
-                        Text(
-                            stringResource(
-                                if (unresolved) {
-                                    MR.strings.recovery_action_review_unresolved
-                                } else {
-                                    MR.strings.recovery_action_review_failed
-                                },
-                            ),
-                        )
+                        Text(stringResource(reviewLabel))
                     }
                 }
             }
