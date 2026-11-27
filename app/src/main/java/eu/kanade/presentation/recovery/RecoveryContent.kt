@@ -817,3 +817,61 @@ private fun RecoveryReviewPreview() {
         )
     }
 }
+
+@PreviewLightDark
+@Composable
+private fun RecoveryResultFailedPreview() {
+    TachiyomiPreviewTheme {
+        RecoveryScreenContent(
+            state = RecoveryScreenModel.State(
+                step = Step.Result,
+                entries = listOf(
+                    previewEntry(1, RecoveryState.COMPLETED),
+                    previewEntry(2, RecoveryState.FAILED),
+                ),
+            ),
+            media = RecoveryMedia.MANGA,
+            failedSourceName = null,
+            actions = previewActions,
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun RecoveryResultMixedPreview() {
+    TachiyomiPreviewTheme {
+        RecoveryScreenContent(
+            state = RecoveryScreenModel.State(
+                step = Step.Result,
+                entries = listOf(
+                    previewEntry(1, RecoveryState.FAILED),
+                    previewEntry(2, RecoveryState.NEEDS_REVIEW),
+                ),
+            ),
+            media = RecoveryMedia.ANIME,
+            failedSourceName = null,
+            actions = previewActions,
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun RecoveryResultBusyPreview() {
+    TachiyomiPreviewTheme {
+        RecoveryScreenContent(
+            state = RecoveryScreenModel.State(
+                step = Step.Result,
+                entries = listOf(
+                    previewEntry(1, RecoveryState.COMPLETED),
+                    previewEntry(2, RecoveryState.FAILED),
+                ),
+                busy = RecoveryScreenModel.Busy.Applying,
+            ),
+            media = RecoveryMedia.MANGA,
+            failedSourceName = null,
+            actions = previewActions,
+        )
+    }
+}
