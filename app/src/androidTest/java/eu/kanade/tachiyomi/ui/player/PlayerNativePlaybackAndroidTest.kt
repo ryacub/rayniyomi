@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -258,6 +259,7 @@ class PlayerNativePlaybackAndroidTest {
         val player = playerViewModel()
         awaitCondition("Episode A is still loading") { !player.isLoadingEpisode.value }
 
+        val beforeFailedSwitch = trace.events.size
         switchEpisode(player, episodeB, errors)
         awaitCondition("Episode B hoster lookup is still loading") { !player.isLoadingHosters.value }
         instrumentation.runOnMainSync {
@@ -281,18 +283,30 @@ class PlayerNativePlaybackAndroidTest {
             "After failed switch, episode ${savedA.id}: ${savedA.lastSecondSeen} ms, episode ${savedB.id}: ${savedB.lastSecondSeen} ms",
         )
 
+        val failedScenario = checkNotNull(scenario)
+        failedScenario.onActivity { it.changeEpisode(episodeB.id) }
+        awaitCondition("The Activity error boundary did not close the failed player") {
+            failedScenario.state == Lifecycle.State.DESTROYED
+        }
+        assertFalse(
+            "mpv started A again after the failed switch",
+            trace.hasStartFor(mediaA, after = beforeFailedSwitch),
+        )
+        failedScenario.close()
+
         switchHosters = { listOf(Hoster(hosterName = "B", videoList = listOf(video(mediaB)))) }
-        switchEpisode(player, episodeB, errors)
+        launchPlayer(episodeB, hosters = null)
         trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaB)
-        assertEquals(episodeB.id, player.currentEpisode.value?.id)
+        val reopenedPlayer = playerViewModel()
+        assertEquals(episodeB.id, reopenedPlayer.currentEpisode.value?.id)
         assertEquals(listOf(lookupError), errors.toList())
 
         switchHosters = { emptyList() }
-        switchEpisode(player, episodeB, errors)
+        switchEpisode(reopenedPlayer, episodeB, errors)
         awaitCondition("Empty hoster list did not report an error") { errors.size == 2 }
         assertTrue(errors.last() is PlayerViewModel.ExceptionWithStringResource)
-        assertFalse(player.isLoading.value)
-        assertFalse(player.isLoadingEpisode.value)
+        assertFalse(reopenedPlayer.isLoading.value)
+        assertFalse(reopenedPlayer.isLoadingEpisode.value)
     }
 
     @Test
@@ -328,6 +342,42 @@ class PlayerNativePlaybackAndroidTest {
         assertTrue("The obsolete episode B lookup is still active", cancelledLookup.isCompleted)
         assertEquals(episodeC.id, player.currentEpisode.value?.id)
         assertTrue("Superseding episode B reported a source error", errors.isEmpty())
+    }
+
+    @Test
+    fun playerIntentCancelsObsoleteEpisodeLookup() = runBlocking {
+        val mediaA = mediaFile()
+        val mediaC = mediaFile()
+        val episodeA = createEpisode(source = installSwitchSource())
+        val episodeB = addEpisode(episodeA.animeId, 2.0)
+        val episodeC = addEpisode(episodeA.animeId, 3.0)
+        val enteredLookup = CompletableDeferred<Unit>()
+        val cancelledLookup = CompletableDeferred<Unit>()
+        val errors = ConcurrentLinkedQueue<Throwable>()
+        switchHosters = { episode ->
+            check(episode.url == episodeB.url)
+            enteredLookup.complete(Unit)
+            try {
+                awaitCancellation()
+            } finally {
+                cancelledLookup.complete(Unit)
+            }
+        }
+        launchPlayer(episodeA, listOf(Hoster(hosterName = "A", videoList = listOf(video(mediaA)))))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaA)
+        val player = playerViewModel()
+        awaitCondition("Episode A is still loading") { !player.isLoadingEpisode.value }
+
+        switchEpisode(player, episodeB, errors)
+        withTimeout(LOAD_TIMEOUT_MS) { enteredLookup.await() }
+        val hosters = listOf(Hoster(hosterName = "C", videoList = listOf(video(mediaC))))
+        checkNotNull(scenario).onActivity { activity ->
+            activity.startActivity(PlayerActivity.newIntent(activity, episodeC.animeId, episodeC.id, hosters))
+        }
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaC)
+        assertTrue("A new player intent left episode B's lookup active", cancelledLookup.isCompleted)
+        assertEquals(episodeC.id, player.currentEpisode.value?.id)
+        assertTrue("Superseding episode B with a player intent reported a source error", errors.isEmpty())
     }
 
     @Volatile
@@ -424,7 +474,7 @@ class PlayerNativePlaybackAndroidTest {
         ).single()
     }
 
-    private fun launchPlayer(episode: Episode, hosters: List<Hoster>, startIndex: Int = -1) {
+    private fun launchPlayer(episode: Episode, hosters: List<Hoster>?, startIndex: Int = -1) {
         val intent = PlayerActivity.newIntent(context, episode.animeId, episode.id, hosters, startIndex, startIndex)
         MPVLib.removeObserver(trace)
         MPVLib.removeLogObserver(trace)
