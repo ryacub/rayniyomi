@@ -20,7 +20,7 @@ plugins {
     alias(libs.plugins.roborazzi) apply false
 }
 
-val appVersionCode = 640
+val appVersionCode = 641
 val lightNovelExpectedPluginApiVersion = 1
 val previewScreenshots = providers.gradleProperty("rayniyomi.previewScreenshots").orNull == "true"
 
@@ -43,7 +43,7 @@ android {
         applicationId = "xyz.rayniyomi"
 
         versionCode = appVersionCode
-        versionName = "0.18.1.509"
+        versionName = "0.18.1.510"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
