@@ -6,40 +6,41 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.CsvSource
 import tachiyomi.domain.entries.manga.model.LinkMangaSourcesResult
 import tachiyomi.domain.entries.manga.model.MangaSourceLink
 
 class ClearDatabaseLinkedMangaTest {
 
     @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `cleanup keeps an unsaved manga linked to a saved one`(savedFirst: Boolean) = runTest {
-        InMemoryMangaDb().use { db ->
-            db.insertLibraryFixture()
-            val repository = MangaSourceLinkRepositoryImpl(db.handler)
-            val result = if (savedFirst) repository.link(A, B) else repository.link(B, A)
-            assertEquals(LinkMangaSourcesResult.Linked, result)
+    @CsvSource("true,false", "false,false", "true,true", "false,true")
+    fun `cleanup keeps an unsaved manga linked to a saved one`(savedFirst: Boolean, savedHasLargerId: Boolean) =
+        runTest {
+            val a = if (savedHasLargerId) A_LARGE else A_SMALL
+            InMemoryMangaDb().use { db ->
+                db.insertLibraryFixture(a)
+                val repository = MangaSourceLinkRepositoryImpl(db.handler)
+                assertEquals(LinkMangaSourcesResult.Linked, repository.linkSavedAndAlternate(a, savedFirst))
 
-            db.clearDatabase(listOf(SOURCE_TWO))
+                db.clearDatabase(listOf(SOURCE_TWO))
 
-            assertEquals(listOf(A, B, S, D), db.mangaIds())
-            assertEquals(listOf(Triple(1L, 1L, 5L), Triple(0L, 0L, 0L)), db.chapterState(B))
-            assertEquals(listOf(Triple(1L, 1L, 1000L)), db.historyRows())
-            val link = if (savedFirst) MangaSourceLink(A, B) else MangaSourceLink(B, A)
-            assertEquals(link, repository.getForManga(A))
-            assertEquals(link, repository.getForManga(B))
+                assertEquals(listOf(a, B, S, D).sorted(), db.mangaIds())
+                assertEquals(listOf(Triple(1L, 1L, 5L), Triple(0L, 0L, 0L)), db.chapterState(B))
+                assertEquals(listOf(Triple(1L, 1L, 1000L)), db.historyRows())
+                val link = if (savedFirst) MangaSourceLink(a, B) else MangaSourceLink(B, a)
+                assertEquals(link, repository.getForManga(a))
+                assertEquals(link, repository.getForManga(B))
+            }
         }
-    }
 
     @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `removable counts exclude protected manga`(savedFirst: Boolean) = runTest {
+    @CsvSource("true,false", "false,false", "true,true", "false,true")
+    fun `removable counts exclude protected manga`(savedFirst: Boolean, savedHasLargerId: Boolean) = runTest {
+        val a = if (savedHasLargerId) A_LARGE else A_SMALL
         InMemoryMangaDb().use { db ->
-            db.insertLibraryFixture()
+            db.insertLibraryFixture(a)
             val repository = MangaSourceLinkRepositoryImpl(db.handler)
-            val result = if (savedFirst) repository.link(A, B) else repository.link(B, A)
-            assertEquals(LinkMangaSourcesResult.Linked, result)
+            assertEquals(LinkMangaSourcesResult.Linked, repository.linkSavedAndAlternate(a, savedFirst))
 
             assertEquals(mapOf(SOURCE_TWO to 1L, SOURCE_THREE to 1L), db.removableCounts())
         }
@@ -60,16 +61,33 @@ class ClearDatabaseLinkedMangaTest {
     @Test
     fun `unlinked alternate becomes removable after unlink`() = runTest {
         InMemoryMangaDb().use { db ->
-            db.insertLibraryFixture()
+            db.insertLibraryFixture(A_SMALL)
             val repository = MangaSourceLinkRepositoryImpl(db.handler)
-            assertEquals(LinkMangaSourcesResult.Linked, repository.link(A, B))
-            assertEquals(true, repository.unlink(A, B))
+            assertEquals(LinkMangaSourcesResult.Linked, repository.link(A_SMALL, B))
+            assertEquals(true, repository.unlink(A_SMALL, B))
 
             assertEquals(mapOf(SOURCE_TWO to 2L, SOURCE_THREE to 1L), db.removableCounts())
 
             db.clearDatabase(listOf(SOURCE_TWO))
 
-            assertEquals(listOf(A, S, D), db.mangaIds())
+            assertEquals(listOf(A_SMALL, S, D), db.mangaIds())
+        }
+    }
+
+    @Test
+    fun `linked manga becomes removable after its partner leaves the library`() = runTest {
+        InMemoryMangaDb().use { db ->
+            db.insertLibraryFixture(A_SMALL)
+            val repository = MangaSourceLinkRepositoryImpl(db.handler)
+            assertEquals(LinkMangaSourcesResult.Linked, repository.link(A_SMALL, B))
+            db.driver.execute(null, "UPDATE mangas SET favorite = 0 WHERE _id = $A_SMALL", 0)
+
+            assertEquals(mapOf(1L to 1L, SOURCE_TWO to 2L, SOURCE_THREE to 1L), db.removableCounts())
+
+            db.clearDatabase(listOf(SOURCE_TWO))
+
+            assertEquals(listOf(A_SMALL, S, D), db.mangaIds())
+            assertEquals(emptyList<MangaSourceLink>(), repository.getAll())
         }
     }
 
@@ -90,8 +108,30 @@ class ClearDatabaseLinkedMangaTest {
         }
     }
 
-    private fun InMemoryMangaDb.insertLibraryFixture() {
-        insertManga(id = A, url = "a", title = "A", source = 1)
+    @Test
+    fun `cleanup of one source removes its unsaved manga and the link of an unsaved pair`() = runTest {
+        InMemoryMangaDb().use { db ->
+            db.insertManga(id = 5, url = "e", title = "E", source = 4, favorite = false)
+            db.insertManga(id = 6, url = "f", title = "F", source = 5, favorite = false)
+            val repository = MangaSourceLinkRepositoryImpl(db.handler)
+            assertEquals(LinkMangaSourcesResult.Linked, repository.link(5, 6))
+
+            db.clearDatabase(listOf(4L))
+
+            assertEquals(listOf(6L), db.mangaIds())
+            assertEquals(emptyList<MangaSourceLink>(), repository.getAll())
+        }
+    }
+
+    private suspend fun MangaSourceLinkRepositoryImpl.linkSavedAndAlternate(
+        saved: Long,
+        savedFirst: Boolean,
+    ): LinkMangaSourcesResult {
+        return if (savedFirst) link(saved, B) else link(B, saved)
+    }
+
+    private fun InMemoryMangaDb.insertLibraryFixture(a: Long) {
+        insertManga(id = a, url = "a", title = "A", source = 1)
         insertManga(id = B, url = "b", title = "B", source = SOURCE_TWO, favorite = false)
         insertManga(id = C, url = "c", title = "C", source = SOURCE_TWO, favorite = false)
         insertManga(id = S, url = "s", title = "S", source = SOURCE_TWO)
@@ -146,7 +186,8 @@ class ClearDatabaseLinkedMangaTest {
     }
 
     private companion object {
-        const val A = 1L
+        const val A_SMALL = 1L
+        const val A_LARGE = 10L
         const val B = 2L
         const val C = 3L
         const val S = 4L
