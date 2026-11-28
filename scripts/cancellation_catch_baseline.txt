@@ -201,7 +201,6 @@ app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerMpvInitializer.kt	} catch 
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Exception) {
-app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Exception) {
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Throwable) {
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Throwable) {
 app/src/main/java/eu/kanade/tachiyomi/ui/player/PlayerViewModel.kt	} catch (e: Throwable) {
