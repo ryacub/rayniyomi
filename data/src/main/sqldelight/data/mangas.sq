@@ -155,12 +155,30 @@ getSourceIdsWithNonLibraryManga:
 SELECT source, COUNT(*) AS manga_count
 FROM mangas
 WHERE favorite = 0
+AND NOT EXISTS (
+    SELECT 1
+    FROM manga_source_link_endpoints own
+    JOIN manga_source_link_endpoints other
+        ON other.link_id = own.link_id AND other.manga_id != own.manga_id
+    JOIN mangas partner ON partner._id = other.manga_id
+    WHERE own.manga_id = mangas._id
+    AND partner.favorite = 1
+)
 GROUP BY source;
 
 deleteMangasNotInLibraryBySourceIds:
 DELETE FROM mangas
 WHERE favorite = 0
-AND source IN :sourceIds;
+AND source IN :sourceIds
+AND NOT EXISTS (
+    SELECT 1
+    FROM manga_source_link_endpoints own
+    JOIN manga_source_link_endpoints other
+        ON other.link_id = own.link_id AND other.manga_id != own.manga_id
+    JOIN mangas partner ON partner._id = other.manga_id
+    WHERE own.manga_id = mangas._id
+    AND partner.favorite = 1
+);
 
 insert:
 INSERT INTO mangas(source, url, artist, author, description, genre, title, status, thumbnail_url, favorite, last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added, update_strategy, calculate_interval, last_modified_at, version, memo)

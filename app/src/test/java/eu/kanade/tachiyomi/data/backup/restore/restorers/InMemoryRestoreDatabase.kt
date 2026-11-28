@@ -69,13 +69,14 @@ internal class InMemoryMangaDb : AutoCloseable {
 
     val handler = AndroidMangaDatabaseHandler(database, driver)
 
-    fun insertManga(id: Long, url: String, title: String, source: Long = 1) = driver.execute(
-        null,
-        "INSERT INTO mangas(_id, source, url, title, status, favorite, initialized, " +
-            "viewer, chapter_flags, cover_last_modified, date_added) " +
-            "VALUES ($id, $source, '$url', '$title', 0, 1, 1, 0, 0, 0, 0)",
-        0,
-    )
+    fun insertManga(id: Long, url: String, title: String, source: Long = 1, favorite: Boolean = true) =
+        driver.execute(
+            null,
+            "INSERT INTO mangas(_id, source, url, title, status, favorite, initialized, " +
+                "viewer, chapter_flags, cover_last_modified, date_added) " +
+                "VALUES ($id, $source, '$url', '$title', 0, ${if (favorite) 1 else 0}, 1, 0, 0, 0, 0)",
+            0,
+        )
 
     fun insertChapter(id: Long, mangaId: Long, url: String) = driver.execute(
         null,
