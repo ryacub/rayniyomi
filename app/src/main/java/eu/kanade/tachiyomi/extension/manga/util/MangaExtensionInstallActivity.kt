@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import eu.kanade.tachiyomi.di.appGraph
 import eu.kanade.tachiyomi.extension.InstallStep
+import eu.kanade.tachiyomi.extension.util.parseExtensionInstallIntent
 import eu.kanade.tachiyomi.util.system.hasMiuiPackageInstaller
 import eu.kanade.tachiyomi.util.system.toast
 import kotlin.time.Duration.Companion.seconds
@@ -19,13 +20,21 @@ class MangaExtensionInstallActivity : Activity() {
     private var ignoreUntil = 0L
     private var ignoreResult = false
     private var hasIgnoredResult = false
+    private var downloadId = -1L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val request = parseExtensionInstallIntent(intent, MangaExtensionInstaller.EXTRA_DOWNLOAD_ID)
+        if (request == null) {
+            finish()
+            return
+        }
+        downloadId = request.downloadId
+
         @Suppress("DEPRECATION")
         val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE)
-            .setDataAndType(intent.data, intent.type)
+            .setDataAndType(request.apkUri, intent.type)
             .putExtra(Intent.EXTRA_RETURN_RESULT, true)
             .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
@@ -63,7 +72,6 @@ class MangaExtensionInstallActivity : Activity() {
     }
 
     private fun checkInstallationResult(resultCode: Int) {
-        val downloadId = intent.extras!!.getLong(MangaExtensionInstaller.EXTRA_DOWNLOAD_ID)
         val extensionManager = appGraph.mangaExtensionManager
         val newStep = when (resultCode) {
             RESULT_OK -> InstallStep.Installed

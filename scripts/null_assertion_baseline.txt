@@ -66,14 +66,12 @@ app/src/main/java/eu/kanade/tachiyomi/data/notification/NotificationReceiver.kt	
 app/src/main/java/eu/kanade/tachiyomi/data/saver/ImageSaver.kt	input.copyTo(output!!)
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/installer/PackageInstallerInstallerAnime.kt	val session = packageInstaller.openSession(activeSession!!.second)
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/installer/PackageInstallerInstallerAnime.kt	activeSession!!.second,
-app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstallActivity.kt	val downloadId = intent.extras!!.getLong(AnimeExtensionInstaller.EXTRA_DOWNLOAD_ID)
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstallService.kt	installer!!.addToQueue(id, uri)
 app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionInstaller.kt	private val downloadManager = context.getSystemService<DownloadManager>()!!
 app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/PackageInstallerInstallerManga.kt	.allowAction(this.action!!)
 app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/PackageInstallerInstallerManga.kt	val session = packageInstaller.openSession(activeSession!!.second)
 app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/PackageInstallerInstallerManga.kt	activeSession!!.second,
 app/src/main/java/eu/kanade/tachiyomi/extension/manga/installer/ShizukuInstallerManga.kt	service.contentResolver.openInputStream(entry.uri)!!.use {
-app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstallActivity.kt	val downloadId = intent.extras!!.getLong(MangaExtensionInstaller.EXTRA_DOWNLOAD_ID)
 app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstallService.kt	installer!!.addToQueue(id, uri)
 app/src/main/java/eu/kanade/tachiyomi/extension/manga/util/MangaExtensionInstaller.kt	private val downloadManager = context.getSystemService<DownloadManager>()!!
 app/src/main/java/eu/kanade/tachiyomi/extension/util/ExtensionDownloadRegistry.kt	}!!
