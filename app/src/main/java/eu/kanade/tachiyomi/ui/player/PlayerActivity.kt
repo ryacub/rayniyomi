@@ -237,6 +237,7 @@ class PlayerActivity : BaseActivity() {
             Notifications.ID_NEW_EPISODES,
         )
 
+        viewModel.cancelEpisodeSwitch()
         viewModel.saveCurrentEpisodeWatchingProgress()
 
         lifecycleScope.launchNonCancellable {
@@ -1142,7 +1143,8 @@ class PlayerActivity : BaseActivity() {
         if (error is PlayerViewModel.ExceptionWithStringResource) {
             toast(error.stringResource)
         } else {
-            toast(error.message)
+            val message = error.message?.takeIf { it.isNotBlank() } ?: stringResource(MR.strings.unknown_error)
+            toast(message)
         }
         logcat(LogPriority.ERROR, error)
         finish()

@@ -98,10 +98,12 @@ import eu.kanade.tachiyomi.util.system.toast
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.Utils
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -112,6 +114,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -974,76 +977,77 @@ class PlayerViewModel internal constructor(
         )
     }
 
-    /**
-     * Internal episode switching logic moved from PlayerActivity.
-     * Handles episode loading, hoster setup, and error handling.
-     */
+    private var episodeSwitchJob: Job? = null
+
+    internal fun cancelEpisodeSwitch() {
+        episodeSwitchJob?.cancel()
+        episodeSwitchJob = null
+    }
+
     fun changeEpisode(
         episodeId: Long?,
         autoPlay: Boolean,
         isInPictureInPictureMode: Boolean,
         onError: (Throwable) -> Unit,
     ) {
+        cancelEpisodeSwitch()
         sheetShown.update { Sheets.None }
         panelShown.update { Panels.None }
         saveCurrentEpisodeWatchingProgress()
-        pause()
         isLoading.update { true }
+        updateIsLoadingEpisode(true)
+        updateIsLoadingHosters(true)
+        pause()
+        cancelHosterVideoLinksJob()
         resetHosterState()
 
-        viewModelScope.launch {
-            updateIsLoadingEpisode(true)
-            updateIsLoadingHosters(true)
-            cancelHosterVideoLinksJob()
+        episodeSwitchJob = viewModelScope.launch {
+            val switch = try {
+                loadEpisode(episodeId)
+            } catch (error: CancellationException) {
+                if (isActive) finishEpisodeSwitch()
+                throw error
+            } catch (error: Exception) {
+                ensureActive()
+                finishEpisodeSwitch()
+                onError(error)
+                return@launch
+            }
 
-            val pipEpisodeToasts = playerPreferences.pipEpisodeToasts().get()
-            val switchMethod = loadEpisode(episodeId)
+            ensureActive()
+            if (switch == null) {
+                finishEpisodeSwitch()
+                if (currentAnime.value != null && !autoPlay) application.toast(AYMR.strings.no_next_episode)
+                return@launch
+            }
+            if (switch.hosterList.isEmpty()) {
+                finishEpisodeSwitch()
+                onError(ExceptionWithStringResource("Hoster list is empty", AYMR.strings.no_hosters))
+                return@launch
+            }
 
-            updateIsLoadingHosters(false)
-
-            when (switchMethod) {
-                null -> {
-                    if (currentAnime.value != null && !autoPlay) {
-                        withUIContext {
-                            application.toast(AYMR.strings.no_next_episode)
-                        }
-                    }
-                    isLoading.update { false }
-                }
-
-                else -> {
-                    if (switchMethod.hosterList != null) {
-                        when {
-                            switchMethod.hosterList.isEmpty() -> {
-                                val error = ExceptionWithStringResource(
-                                    "Hoster list is empty",
-                                    AYMR.strings.no_hosters,
-                                )
-                                withUIContext { onError(error) }
-                            }
-                            else -> {
-                                loadHosters(
-                                    source = switchMethod.source,
-                                    hosterList = switchMethod.hosterList,
-                                    hosterIndex = -1,
-                                    videoIndex = -1,
-                                )
-                            }
-                        }
-                    } else {
-                        logcat(LogPriority.ERROR) { "Error getting links" }
-                    }
-
-                    if (isInPictureInPictureMode && pipEpisodeToasts) {
-                        withUIContext {
-                            application.toast(switchMethod.episodeTitle)
-                        }
-                    }
-                }
+            applyEpisodeSwitch(switch)
+            if (isInPictureInPictureMode && playerPreferences.pipEpisodeToasts().get()) {
+                application.toast(switch.episodeTitle)
             }
         }
+    }
 
+    private fun finishEpisodeSwitch() {
+        updateIsLoadingHosters(false)
+        updateIsLoadingEpisode(false)
+        isLoading.update { false }
+    }
+
+    private fun applyEpisodeSwitch(switch: EpisodeLoadResult) {
+        updateIsLoadingEpisode(true)
+        episodeListManager.setCurrentEpisode(switch.episode)
+        episodeId = switch.episode.id
+        updateEpisode(switch.episode)
         updateNavigationState()
+        currentHosterList = switch.hosterList
+        loadHosters(switch.source, switch.hosterList, hosterIndex = -1, videoIndex = -1)
+        updateIsLoadingHosters(false)
     }
 
     fun handleLeftDoubleTap() {
@@ -1359,43 +1363,19 @@ class PlayerViewModel internal constructor(
         hosterOrchestrator.onHosterClicked(index, currentSource.value)
     }
 
-    data class EpisodeLoadResult(
-        val hosterList: List<Hoster>?,
+    private data class EpisodeLoadResult(
+        val episode: Episode,
+        val hosterList: List<Hoster>,
         val episodeTitle: String,
         val source: AnimeSource,
     )
 
-    suspend fun loadEpisode(episodeId: Long?): EpisodeLoadResult? {
+    private suspend fun loadEpisode(episodeId: Long?): EpisodeLoadResult? {
         val anime = currentAnime.value ?: return null
+        val episode = currentPlaylist.value.firstOrNull { it.id == episodeId } ?: return null
         val source = sourceManager.getOrStub(anime.source)
-
-        val chosenEpisode = currentPlaylist.value.firstOrNull { ep -> ep.id == episodeId } ?: return null
-
-        episodeListManager.setCurrentEpisode(chosenEpisode)
-        updateEpisode(chosenEpisode)
-
-        return withIOContext {
-            try {
-                val currentEpisode =
-                    currentEpisode.value
-                        ?: throw ExceptionWithStringResource("No episode loaded", AYMR.strings.no_episode_loaded)
-                currentHosterList = EpisodeLoader.getHosters(
-                    currentEpisode,
-                    anime,
-                    source,
-                )
-
-                this@PlayerViewModel.episodeId = currentEpisode.id
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { e.message ?: "Error getting links" }
-            }
-
-            EpisodeLoadResult(
-                hosterList = currentHosterList,
-                episodeTitle = anime.title + " - " + chosenEpisode.name,
-                source = source,
-            )
-        }
+        val hosters = withIOContext { EpisodeLoader.getHosters(episode, anime, source) }
+        return EpisodeLoadResult(episode, hosters, "${anime.title} - ${episode.name}", source)
     }
 
     /**

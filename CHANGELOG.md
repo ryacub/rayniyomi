@@ -20,6 +20,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Upgrade OkHttp to 5.5.1, okio to 3.18.2 and kotlinx-serialization to 1.13.0. OkHttp now blocks 8 compromised eMudhra certificates on all devices. With DNS over HTTPS on, a failed lookup is cached for 10 seconds (#1563).
 
 ### Fixed
+- An episode switch that fails shows an error and stops loading without reusing the previous episode's links.
 - Pending chapter and episode downloads survive an interruption during startup. Items moved to the front stay there after restart (#1556).
 - Cover refresh Cancel stops the displayed refresh. Each library update keeps its own progress notification and Cancel action (#1556).
 - Recovery Results has a "Review failed" button when titles fail to apply, so you can change their match. Retry and Review stay disabled while a retry runs (#1569).

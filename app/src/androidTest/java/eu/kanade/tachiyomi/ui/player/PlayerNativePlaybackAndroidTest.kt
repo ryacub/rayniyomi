@@ -4,16 +4,22 @@ import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
+import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Hoster
+import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.di.appGraph
 import `is`.xyz.mpv.MPVLib
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -27,7 +33,9 @@ import tachiyomi.domain.entries.anime.model.Anime
 import tachiyomi.domain.items.episode.model.Episode
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
 import java.io.File
+import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -43,6 +51,7 @@ class PlayerNativePlaybackAndroidTest {
     private val tempFiles = mutableListOf<File>()
     private var scenario: ActivityScenario<PlayerActivity>? = null
     private var animeId: Long? = null
+    private var unregisterSwitchSource: (() -> Unit)? = null
 
     @Test
     fun reopeningEpisodeRestoresManualServerAfterReorder() = runBlocking {
@@ -236,6 +245,168 @@ class PlayerNativePlaybackAndroidTest {
         )
     }
 
+    @Test
+    fun failedEpisodeLookupDiscardsPreviousLinksAndAllowsRetry() = runBlocking {
+        val mediaA = mediaFile()
+        val mediaB = mediaFile()
+        val episodeA = createEpisode(source = installSwitchSource())
+        val episodeB = addEpisode(episodeA.animeId, 2.0)
+        val errors = ConcurrentLinkedQueue<Throwable>()
+        val lookupError = IOException("Episode B source is unavailable")
+        switchHosters = { throw lookupError }
+        launchPlayer(episodeA, listOf(Hoster(hosterName = "A", videoList = listOf(video(mediaA)))))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaA)
+        val player = playerViewModel()
+        awaitCondition("Episode A is still loading") { !player.isLoadingEpisode.value }
+
+        val beforeFailedSwitch = trace.events.size
+        switchEpisode(player, episodeB, errors)
+        awaitCondition("Episode B hoster lookup is still loading") { !player.isLoadingHosters.value }
+        instrumentation.runOnMainSync {
+            assertTrue("Episode B reused episode A's hosters", player.hosterList.value.isEmpty())
+            assertEquals(listOf(lookupError), errors.toList())
+            assertFalse(player.isLoading.value)
+            assertFalse(player.isLoadingEpisode.value)
+            assertEquals(episodeA.id, player.currentEpisode.value?.id)
+            player.updatePlayBackPos(5f)
+            player.onSaveInstanceStateNonConfigurationChange()
+        }
+        val savedEpisodes = withTimeout(LOAD_TIMEOUT_MS) {
+            appGraph.episodeRepository.getEpisodeByAnimeIdAsFlow(episodeA.animeId)
+                .first { episodes -> episodes.any { it.id == episodeA.id && it.lastSecondSeen == 5_000L } }
+        }
+        val savedA = savedEpisodes.single { it.id == episodeA.id }
+        val savedB = savedEpisodes.single { it.id == episodeB.id }
+        assertEquals(episodeB.lastSecondSeen, savedB.lastSecondSeen)
+        Log.i(
+            TAG,
+            "After failed switch, episode ${savedA.id}: ${savedA.lastSecondSeen} ms, episode ${savedB.id}: ${savedB.lastSecondSeen} ms",
+        )
+
+        val failedScenario = checkNotNull(scenario)
+        failedScenario.onActivity { it.changeEpisode(episodeB.id) }
+        awaitCondition("The Activity error boundary did not close the failed player") {
+            failedScenario.state == Lifecycle.State.DESTROYED
+        }
+        assertFalse(
+            "mpv started A again after the failed switch",
+            trace.hasStartFor(mediaA, after = beforeFailedSwitch),
+        )
+        failedScenario.close()
+
+        switchHosters = { listOf(Hoster(hosterName = "B", videoList = listOf(video(mediaB)))) }
+        launchPlayer(episodeB, hosters = null)
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaB)
+        val reopenedPlayer = playerViewModel()
+        assertEquals(episodeB.id, reopenedPlayer.currentEpisode.value?.id)
+        assertEquals(listOf(lookupError), errors.toList())
+
+        switchHosters = { emptyList() }
+        switchEpisode(reopenedPlayer, episodeB, errors)
+        awaitCondition("Empty hoster list did not report an error") { errors.size == 2 }
+        assertTrue(errors.last() is PlayerViewModel.ExceptionWithStringResource)
+        assertFalse(reopenedPlayer.isLoading.value)
+        assertFalse(reopenedPlayer.isLoadingEpisode.value)
+    }
+
+    @Test
+    fun newerEpisodeSwitchCancelsObsoleteLookup() = runBlocking {
+        val mediaA = mediaFile()
+        val mediaC = mediaFile()
+        val episodeA = createEpisode(source = installSwitchSource())
+        val episodeB = addEpisode(episodeA.animeId, 2.0)
+        val episodeC = addEpisode(episodeA.animeId, 3.0)
+        val enteredLookup = CompletableDeferred<Unit>()
+        val cancelledLookup = CompletableDeferred<Unit>()
+        val errors = ConcurrentLinkedQueue<Throwable>()
+        switchHosters = { episode ->
+            if (episode.url == episodeB.url) {
+                enteredLookup.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    cancelledLookup.complete(Unit)
+                }
+            }
+            listOf(Hoster(hosterName = "C", videoList = listOf(video(mediaC))))
+        }
+        launchPlayer(episodeA, listOf(Hoster(hosterName = "A", videoList = listOf(video(mediaA)))))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaA)
+        val player = playerViewModel()
+        awaitCondition("Episode A is still loading") { !player.isLoadingEpisode.value }
+
+        switchEpisode(player, episodeB, errors)
+        withTimeout(LOAD_TIMEOUT_MS) { enteredLookup.await() }
+        switchEpisode(player, episodeC, errors)
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaC)
+        assertTrue("The obsolete episode B lookup is still active", cancelledLookup.isCompleted)
+        assertEquals(episodeC.id, player.currentEpisode.value?.id)
+        assertTrue("Superseding episode B reported a source error", errors.isEmpty())
+    }
+
+    @Test
+    fun playerIntentCancelsObsoleteEpisodeLookup() = runBlocking {
+        val mediaA = mediaFile()
+        val mediaC = mediaFile()
+        val episodeA = createEpisode(source = installSwitchSource())
+        val episodeB = addEpisode(episodeA.animeId, 2.0)
+        val episodeC = addEpisode(episodeA.animeId, 3.0)
+        val enteredLookup = CompletableDeferred<Unit>()
+        val cancelledLookup = CompletableDeferred<Unit>()
+        val errors = ConcurrentLinkedQueue<Throwable>()
+        switchHosters = { episode ->
+            check(episode.url == episodeB.url)
+            enteredLookup.complete(Unit)
+            try {
+                awaitCancellation()
+            } finally {
+                cancelledLookup.complete(Unit)
+            }
+        }
+        launchPlayer(episodeA, listOf(Hoster(hosterName = "A", videoList = listOf(video(mediaA)))))
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaA)
+        val player = playerViewModel()
+        awaitCondition("Episode A is still loading") { !player.isLoadingEpisode.value }
+
+        switchEpisode(player, episodeB, errors)
+        withTimeout(LOAD_TIMEOUT_MS) { enteredLookup.await() }
+        val hosters = listOf(Hoster(hosterName = "C", videoList = listOf(video(mediaC))))
+        checkNotNull(scenario).onActivity { activity ->
+            activity.startActivity(PlayerActivity.newIntent(activity, episodeC.animeId, episodeC.id, hosters))
+        }
+        trace.awaitEvent(MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED, mediaC)
+        assertTrue("A new player intent left episode B's lookup active", cancelledLookup.isCompleted)
+        assertEquals(episodeC.id, player.currentEpisode.value?.id)
+        assertTrue("Superseding episode B with a player intent reported a source error", errors.isEmpty())
+    }
+
+    @Volatile
+    private var switchHosters: suspend (SEpisode) -> List<Hoster> = { emptyList() }
+
+    private suspend fun installSwitchSource(): Long {
+        val manager = appGraph.animeSourceManager
+        withTimeout(LOAD_TIMEOUT_MS) { manager.isInitialized.first { it } }
+        val source = object : AnimeSource {
+            override val id = Long.MAX_VALUE
+            override val name = "Episode switch test source"
+            override suspend fun getHosterList(episode: SEpisode) = switchHosters(episode)
+        }
+        val field = manager.javaClass.getDeclaredField("sourcesMapFlow").apply { isAccessible = true }
+
+        @Suppress("UNCHECKED_CAST")
+        val sources = field.get(manager) as MutableStateFlow<ConcurrentHashMap<Long, AnimeSource>>
+        val registeredSources = sources.value
+        check(registeredSources.putIfAbsent(source.id, source) == null)
+        unregisterSwitchSource = { registeredSources.remove(source.id, source) }
+        return source.id
+    }
+
+    private fun switchEpisode(player: PlayerViewModel, episode: Episode, errors: ConcurrentLinkedQueue<Throwable>) {
+        instrumentation.runOnMainSync {
+            player.changeEpisode(episode.id, autoPlay = false, isInPictureInPictureMode = false, onError = errors::add)
+        }
+    }
+
     @After
     fun tearDown() {
         runBlocking {
@@ -262,6 +433,8 @@ class PlayerNativePlaybackAndroidTest {
                     }
                 } finally {
                     animeId = null
+                    unregisterSwitchSource?.invoke()
+                    unregisterSwitchSource = null
                     File(context.cacheDir, MCP_RELEASE_MARKER).delete()
                     tempFiles.forEach(File::delete)
                     tempFiles.clear()
@@ -275,9 +448,9 @@ class PlayerNativePlaybackAndroidTest {
         launchPlayer(createEpisode(), hosters, startIndex = 0)
     }
 
-    private suspend fun createEpisode(): Episode {
+    private suspend fun createEpisode(source: Long = LocalAnimeSource.ID): Episode {
         val fixture = Anime.create().copy(
-            source = LocalAnimeSource.ID,
+            source = source,
             url = "r1176-native-${UUID.randomUUID()}",
             title = "R1176 native player fixture",
             initialized = true,
@@ -301,7 +474,7 @@ class PlayerNativePlaybackAndroidTest {
         ).single()
     }
 
-    private fun launchPlayer(episode: Episode, hosters: List<Hoster>, startIndex: Int = -1) {
+    private fun launchPlayer(episode: Episode, hosters: List<Hoster>?, startIndex: Int = -1) {
         val intent = PlayerActivity.newIntent(context, episode.animeId, episode.id, hosters, startIndex, startIndex)
         MPVLib.removeObserver(trace)
         MPVLib.removeLogObserver(trace)
