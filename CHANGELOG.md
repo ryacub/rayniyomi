@@ -35,6 +35,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Pull requests now check a screenshot of every Compose preview in `:app` and `:presentation-core` in a separate "Verify preview screenshots" job, and fail when a preview reads a random value or the clock (#1562).
 
 ### Other
+- Upgrade Conscrypt to 2.10.0 for TLS on Android 8 and 9, and WorkManager to 2.12.0 for background scheduling fixes (#1571).
 - Upgrade jsoup to 1.23.2 to fix two security advisories, GHSA-65r4-943x-97jj and GHSA-pmhh-3w7g-xqp8 (#1558).
 
 
